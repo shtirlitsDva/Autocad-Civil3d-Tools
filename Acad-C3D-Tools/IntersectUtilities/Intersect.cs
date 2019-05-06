@@ -8,5 +8,6 @@ namespace IntersectUtilities
 {
     public class Intersect
     {
+        string test = "test";
     }
 }
