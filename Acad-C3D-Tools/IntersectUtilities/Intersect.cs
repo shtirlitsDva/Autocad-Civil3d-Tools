@@ -35,13 +35,6 @@ namespace IntersectUtilities
         }
         #endregion
 
-        #region Global objects used throughout the application
-        private DocumentCollection docCol = null;
-        private CivilDocument doc = null;
-        private Database db = null;
-        private Editor editor = null;
-        #endregion
-
         /// <summary>
         /// Finds all intersections between a selected polyline and all lines.
         /// Creates a point object at the intersection.
@@ -49,10 +42,10 @@ namespace IntersectUtilities
         [CommandMethod("intut")]
         public void intersectutilities()
         {
-            docCol = Application.DocumentManager;
-            db = docCol.MdiActiveDocument.Database;
-            editor = docCol.MdiActiveDocument.Editor;
-            doc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            CivilDocument doc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
@@ -65,7 +58,6 @@ namespace IntersectUtilities
                     if (((PromptResult)entity1).Status != PromptStatus.OK) return;
                     Autodesk.AutoCAD.DatabaseServices.ObjectId plObjId = entity1.ObjectId;
                     Polyline polyline = tx.GetObject(plObjId, OpenMode.ForRead, false) as Polyline;
-
 
                     List<Line> lines = db.ListOfType<Line>(tx);
                     List<Point3d> p3dList = new List<Point3d>();
