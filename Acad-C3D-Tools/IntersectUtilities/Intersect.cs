@@ -94,10 +94,100 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        [CommandMethod("intal")]
+        public void intersectalignment()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            CivilDocument doc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
+                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
+                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
+                    Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef
+                        = tx.GetObject(blkObjId, OpenMode.ForRead, false)
+                        as Autodesk.AutoCAD.DatabaseServices.BlockReference;
+
+                    Database blkDb = blkRef.Database;
+
+                    List<Line> lines = blkDb.ListOfType<Line>(tx);
+                    List<Polyline> plines = blkDb.ListOfType<Polyline>(tx);
+
+                    //Get alignment
+                    PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select alignment to intersect: ");
+                    promptEntityOptions2.SetRejectMessage("\n Not an alignment");
+                    promptEntityOptions2.AddAllowedClass(typeof(Alignment), true);
+                    PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                    if (((PromptResult)entity2).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity2.ObjectId;
+                    Alignment alignment = tx.GetObject(alObjId, OpenMode.ForRead, false) as Alignment;
+
+                    Plane plane = new Plane();
+                    CogoPointCollection cogoPoints = doc.CogoPoints;
+
+                    foreach (Line line in lines)
+                    {
+                        using (Point3dCollection p3dcol = new Point3dCollection())
+                        {
+                            alignment.IntersectWith(line, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+                            int count = 1;
+
+                            foreach (Point3d p3d in p3dcol)
+                            {
+                                oid pointId = cogoPoints.Add(p3d, true);
+                                CogoPoint cogoPoint = pointId.GetObject(OpenMode.ForWrite) as CogoPoint;
+                                var layer = tx.GetObject(line.LayerId, OpenMode.ForRead) as SymbolTableRecord;
+
+                                cogoPoint.PointName = layer.Name + " " + count;
+                                cogoPoint.RawDescription = "Udfyld RAW DESCRIPTION";
+                            }
+                        }
+                    }
+                    foreach (Polyline pline in plines)
+                    {
+                        using (Point3dCollection p3dcol = new Point3dCollection())
+                        {
+                            alignment.IntersectWith(pline, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+                            int count = 1;
+
+                            foreach (Point3d p3d in p3dcol)
+                            {
+                                oid pointId = cogoPoints.Add(p3d, true);
+                                CogoPoint cogoPoint = pointId.GetObject(OpenMode.ForWrite) as CogoPoint;
+                                var layer = tx.GetObject(pline.LayerId, OpenMode.ForRead) as SymbolTableRecord;
+
+                                cogoPoint.PointName = layer.Name + " " + count;
+                                cogoPoint.RawDescription = "Udfyld RAW DESCRIPTION";
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                }
+                tx.Commit();
+            }
+        }
     }
 
     public static class ExtensionMethods
     {
+        public static T Go<T>(this oid Oid, Transaction tx, OpenMode openMode = OpenMode.ForRead) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        {
+            return (T) tx.GetObject(Oid, openMode, false);
+        }
         public static void ForEach<T>(this Database database, Action<T> action, Transaction tr) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
             //using (var tr = database.TransactionManager.StartTransaction())
