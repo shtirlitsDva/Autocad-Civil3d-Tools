@@ -28,6 +28,7 @@ namespace IntersectUtilities
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             doc.Editor.WriteMessage("\n-> Command: intut");
+            doc.Editor.WriteMessage("\n-> Command: intal");
         }
 
         public void Terminate()
@@ -120,7 +121,9 @@ namespace IntersectUtilities
                     Database blkDb = blkRef.Database;
 
                     List<Line> lines = blkDb.ListOfType<Line>(tx);
+                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
                     List<Polyline> plines = blkDb.ListOfType<Polyline>(tx);
+                    editor.WriteMessage($"\nNr. of plines: {plines.Count}");
 
                     //Get alignment
                     PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select alignment to intersect: ");

@@ -38,12 +38,15 @@
   <ItemGroup>
     <Reference Include="accoremgd">
       <HintPath>..\..\..\..\..\Programs\ADSK20\AutoCAD 2020\accoremgd.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="acdbmgd">
       <HintPath>..\..\..\..\..\Programs\ADSK20\AutoCAD 2020\acdbmgd.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="acmgd">
       <HintPath>..\..\..\..\..\Programs\ADSK20\AutoCAD 2020\acmgd.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="envdte, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <EmbedInteropTypes>True</EmbedInteropTypes>
