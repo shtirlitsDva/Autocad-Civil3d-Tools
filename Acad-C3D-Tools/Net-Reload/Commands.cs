@@ -37,15 +37,19 @@ namespace NetReload {
 
 	public class Commands {
 
-		#region // Sources.
+        #region // Sources.
 
-		//	1.	Get running Visual Studio instances and corresponding _DTE objects:
-		//		http://www.christophdebaene.com/blog/2006/11/01/get-running-visual-studio-instances-and-corresponding-_dte-objects/
+        //
+        //      Source code is from here:
+        //      https://forums.autodesk.com/t5/net/net-reload-utility-for-visual-studio-download-here/td-p/3185104
+        //
+        //	1.	Get running Visual Studio instances and corresponding _DTE objects:
+        //		http://www.christophdebaene.com/blog/2006/11/01/get-running-visual-studio-instances-and-corresponding-_dte-objects/
 
-		#endregion
+        #endregion
 
-		// Default keyword application-level variable.
-		private static string defaultKeyword = "";
+        // Default keyword application-level variable.
+        private static string defaultKeyword = "";
 
 		// NETRELOAD command.
 		[CommandMethod("NRL")]
