@@ -8,10 +8,13 @@ using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using EnvDTE;
 using System.IO;
+using System.Windows.Forms;
+using System.Reflection;
 #endregion
 
 #region ##### Autodesk.AutoCAD Imports #####
 using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices.Core;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.ComponentModel;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -25,6 +28,7 @@ using Autodesk.AutoCAD.PlottingServices;
 using Autodesk.AutoCAD.Publishing;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.AutoCAD.Windows;
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 #endregion
 
 [assembly: CommandClass(typeof(NetReload.Commands))]
