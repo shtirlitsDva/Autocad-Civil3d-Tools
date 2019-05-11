@@ -118,11 +118,22 @@ namespace IntersectUtilities
                         = tx.GetObject(blkObjId, OpenMode.ForRead, false)
                         as Autodesk.AutoCAD.DatabaseServices.BlockReference;
 
-                    Database blkDb = blkRef.Database;
+                    // open the block definition?
+                    BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                    // is not from external reference, exit
+                    if (!blockDef.IsFromExternalReference) return;
 
-                    List<Line> lines = blkDb.ListOfType<Line>(tx);
+                    // open the xref database
+                    Database xRefDB = new Database(false, true);
+                    editor.WriteMessage($"\n{blockDef.PathName}");
+                    xRefDB.ReadDwgFile(blockDef.PathName, System.IO.FileShare.Read, false, string.Empty);
+
+                    //Transaction from Database of the Xref
+                    Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
+
+                    List<Line> lines = xRefDB.ListOfType<Line>(xrefTx);
                     editor.WriteMessage($"\nNr. of lines: {lines.Count}");
-                    List<Polyline> plines = blkDb.ListOfType<Polyline>(tx);
+                    List<Polyline> plines = xRefDB.ListOfType<Polyline>(xrefTx);
                     editor.WriteMessage($"\nNr. of plines: {plines.Count}");
 
                     //Get alignment
@@ -149,7 +160,7 @@ namespace IntersectUtilities
                             {
                                 oid pointId = cogoPoints.Add(p3d, true);
                                 CogoPoint cogoPoint = pointId.GetObject(OpenMode.ForWrite) as CogoPoint;
-                                var layer = tx.GetObject(line.LayerId, OpenMode.ForRead) as SymbolTableRecord;
+                                var layer = xrefTx.GetObject(line.LayerId, OpenMode.ForRead) as SymbolTableRecord;
 
                                 cogoPoint.PointName = layer.Name + " " + count;
                                 cogoPoint.RawDescription = "Udfyld RAW DESCRIPTION";
@@ -168,7 +179,7 @@ namespace IntersectUtilities
                             {
                                 oid pointId = cogoPoints.Add(p3d, true);
                                 CogoPoint cogoPoint = pointId.GetObject(OpenMode.ForWrite) as CogoPoint;
-                                var layer = tx.GetObject(pline.LayerId, OpenMode.ForRead) as SymbolTableRecord;
+                                var layer = xrefTx.GetObject(pline.LayerId, OpenMode.ForRead) as SymbolTableRecord;
 
                                 cogoPoint.PointName = layer.Name + " " + count;
                                 cogoPoint.RawDescription = "Udfyld RAW DESCRIPTION";
