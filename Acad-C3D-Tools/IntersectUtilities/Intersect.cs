@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,6 +16,7 @@ using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
 
 using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+using static IntersectUtilities.HelperMethods;
 
 namespace IntersectUtilities
 {
@@ -102,12 +104,14 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database db = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
-            CivilDocument doc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
                 try
                 {
+                    #region Select XREF
                     PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
                     promptEntityOptions1.SetRejectMessage("\n Not a XREF");
                     promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
@@ -116,7 +120,8 @@ namespace IntersectUtilities
                     Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
                     Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef
                         = tx.GetObject(blkObjId, OpenMode.ForRead, false)
-                        as Autodesk.AutoCAD.DatabaseServices.BlockReference;
+                        as Autodesk.AutoCAD.DatabaseServices.BlockReference; 
+                    #endregion
 
                     // open the block definition?
                     BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
@@ -125,8 +130,21 @@ namespace IntersectUtilities
 
                     // open the xref database
                     Database xRefDB = new Database(false, true);
-                    editor.WriteMessage($"\n{blockDef.PathName}");
-                    xRefDB.ReadDwgFile(blockDef.PathName, System.IO.FileShare.Read, false, string.Empty);
+                    editor.WriteMessage($"\nPathName of the blockDef -> {blockDef.PathName}");
+
+                    //Relative path handling
+                    //I
+                    string curPathName = blockDef.PathName;
+                    bool isFullPath = IsFullPath(curPathName);
+                    if (isFullPath == false)
+                    {
+                        string sourcePath = Path.GetDirectoryName(doc.Name);
+                        editor.WriteMessage($"\nSourcePath -> {sourcePath}");
+                        curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
+                        editor.WriteMessage($"\nTargetPath -> {curPathName}");
+                    }
+
+                    xRefDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
 
                     //Transaction from Database of the Xref
                     Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
@@ -136,6 +154,7 @@ namespace IntersectUtilities
                     List<Polyline> plines = xRefDB.ListOfType<Polyline>(xrefTx);
                     editor.WriteMessage($"\nNr. of plines: {plines.Count}");
 
+                    #region Select Alignment
                     //Get alignment
                     PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select alignment to intersect: ");
                     promptEntityOptions2.SetRejectMessage("\n Not an alignment");
@@ -143,18 +162,23 @@ namespace IntersectUtilities
                     PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
                     if (((PromptResult)entity2).Status != PromptStatus.OK) return;
                     Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity2.ObjectId;
-                    Alignment alignment = tx.GetObject(alObjId, OpenMode.ForRead, false) as Alignment;
+                    Alignment alignment = tx.GetObject(alObjId, OpenMode.ForRead, false) as Alignment; 
+                    #endregion
 
+                    //Create a plane to project all intersections on
+                    //Needed to avoid missing objects with non zero Z values
                     Plane plane = new Plane();
-                    CogoPointCollection cogoPoints = doc.CogoPoints;
+
+                    //Access CivilDocument cogopoints manager
+                    CogoPointCollection cogoPoints = civilDoc.CogoPoints;
+
+                    int count = 1;
 
                     foreach (Line line in lines)
                     {
                         using (Point3dCollection p3dcol = new Point3dCollection())
                         {
                             alignment.IntersectWith(line, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
-
-                            int count = 1;
 
                             foreach (Point3d p3d in p3dcol)
                             {
@@ -164,6 +188,8 @@ namespace IntersectUtilities
 
                                 cogoPoint.PointName = layer.Name + " " + count;
                                 cogoPoint.RawDescription = "Udfyld RAW DESCRIPTION";
+
+                                count++;
                             }
                         }
                     }
@@ -173,8 +199,6 @@ namespace IntersectUtilities
                         {
                             alignment.IntersectWith(pline, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
 
-                            int count = 1;
-
                             foreach (Point3d p3d in p3dcol)
                             {
                                 oid pointId = cogoPoints.Add(p3d, true);
@@ -183,9 +207,13 @@ namespace IntersectUtilities
 
                                 cogoPoint.PointName = layer.Name + " " + count;
                                 cogoPoint.RawDescription = "Udfyld RAW DESCRIPTION";
+
+                                count++;
                             }
                         }
                     }
+
+                    xrefTx.Dispose();
                 }
                 catch (System.Exception ex)
                 {
@@ -257,6 +285,45 @@ namespace IntersectUtilities
             return objs;
             //tr.Commit();
             //}
+        }
+    }
+
+    public static class HelperMethods
+    {
+        public static bool IsFullPath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || path.IndexOfAny(Path.GetInvalidPathChars()) != -1 || !Path.IsPathRooted(path))
+                return false;
+
+            var pathRoot = Path.GetPathRoot(path);
+            if (pathRoot.Length <= 2 && pathRoot != "/") // Accepts X:\ and \\UNC\PATH, rejects empty string, \ and X:, but accepts / to support Linux
+                return false;
+
+            return !(pathRoot == path && pathRoot.StartsWith("\\\\") && pathRoot.IndexOf('\\', 2) == -1); // A UNC server name without a share name (e.g "\\NAME") is invalid
+        }
+
+        public static string GetAbsolutePath(String basePath, String path)
+        {
+            if (path == null)
+                return null;
+            if (basePath == null)
+                basePath = Path.GetFullPath("."); // quick way of getting current working directory
+            else
+                basePath = GetAbsolutePath(null, basePath); // to be REALLY sure ;)
+            string finalPath;
+            // specific for windows paths starting on \ - they need the drive added to them.
+            // I constructed this piece like this for possible Mono support.
+            if (!Path.IsPathRooted(path) || "\\".Equals(Path.GetPathRoot(path)))
+            {
+                if (path.StartsWith(Path.DirectorySeparatorChar.ToString()))
+                    finalPath = Path.Combine(Path.GetPathRoot(basePath), path.TrimStart(Path.DirectorySeparatorChar));
+                else
+                    finalPath = Path.Combine(basePath, path);
+            }
+            else
+                finalPath = path;
+            // resolves any internal "..\" to get the true full path.
+            return Path.GetFullPath(finalPath);
         }
     }
 }
