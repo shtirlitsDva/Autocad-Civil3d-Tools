@@ -176,6 +176,9 @@ namespace IntersectUtilities
 
                     foreach (Line line in lines)
                     {
+                        LayerTableRecord layer = (LayerTableRecord)xrefTx.GetObject(line.LayerId, OpenMode.ForRead);
+                        if (layer.IsFrozen) continue;
+
                         using (Point3dCollection p3dcol = new Point3dCollection())
                         {
                             alignment.IntersectWith(line, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
@@ -184,7 +187,7 @@ namespace IntersectUtilities
                             {
                                 oid pointId = cogoPoints.Add(p3d, true);
                                 CogoPoint cogoPoint = pointId.GetObject(OpenMode.ForWrite) as CogoPoint;
-                                var layer = xrefTx.GetObject(line.LayerId, OpenMode.ForRead) as SymbolTableRecord;
+                                //var layer = xrefTx.GetObject(line.LayerId, OpenMode.ForRead) as SymbolTableRecord;
 
                                 cogoPoint.PointName = layer.Name + " " + count;
                                 cogoPoint.RawDescription = "Udfyld RAW DESCRIPTION";
@@ -195,6 +198,9 @@ namespace IntersectUtilities
                     }
                     foreach (Polyline pline in plines)
                     {
+                        LayerTableRecord layer = (LayerTableRecord)xrefTx.GetObject(pline.LayerId, OpenMode.ForRead);
+                        if (layer.IsFrozen) continue;
+
                         using (Point3dCollection p3dcol = new Point3dCollection())
                         {
                             alignment.IntersectWith(pline, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
@@ -203,7 +209,7 @@ namespace IntersectUtilities
                             {
                                 oid pointId = cogoPoints.Add(p3d, true);
                                 CogoPoint cogoPoint = pointId.GetObject(OpenMode.ForWrite) as CogoPoint;
-                                var layer = xrefTx.GetObject(pline.LayerId, OpenMode.ForRead) as SymbolTableRecord;
+                                //var layer = xrefTx.GetObject(pline.LayerId, OpenMode.ForRead) as SymbolTableRecord;
 
                                 cogoPoint.PointName = layer.Name + " " + count;
                                 cogoPoint.RawDescription = "Udfyld RAW DESCRIPTION";
