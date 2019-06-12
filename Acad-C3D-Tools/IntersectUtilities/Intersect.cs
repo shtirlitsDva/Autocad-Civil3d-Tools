@@ -29,8 +29,8 @@ namespace IntersectUtilities
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
-            doc.Editor.WriteMessage("\n-> Command: intut");
-            doc.Editor.WriteMessage("\n-> Command: intal");
+            //doc.Editor.WriteMessage("\n-> Command: intut");
+            doc.Editor.WriteMessage("\n-> Intersect alignment with XREF: INTAL");
         }
 
         public void Terminate()
@@ -42,7 +42,8 @@ namespace IntersectUtilities
         /// Finds all intersections between a selected polyline and all lines.
         /// Creates a point object at the intersection.
         /// </summary>
-        [CommandMethod("intut")]
+        
+        //[CommandMethod("intut")]
         public void intersectutilities()
         {
             DocumentCollection docCol = Application.DocumentManager;
