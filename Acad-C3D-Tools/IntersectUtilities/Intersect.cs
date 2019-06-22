@@ -17,6 +17,7 @@ using Autodesk.Civil.DatabaseServices.Styles;
 
 using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using static IntersectUtilities.HelperMethods;
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 
 namespace IntersectUtilities
 {
@@ -121,7 +122,7 @@ namespace IntersectUtilities
                     Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
                     Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef
                         = tx.GetObject(blkObjId, OpenMode.ForRead, false)
-                        as Autodesk.AutoCAD.DatabaseServices.BlockReference; 
+                        as Autodesk.AutoCAD.DatabaseServices.BlockReference;
                     #endregion
 
                     // open the block definition?
@@ -154,6 +155,10 @@ namespace IntersectUtilities
                     editor.WriteMessage($"\nNr. of lines: {lines.Count}");
                     List<Polyline> plines = xRefDB.ListOfType<Polyline>(xrefTx);
                     editor.WriteMessage($"\nNr. of plines: {plines.Count}");
+                    List<Polyline3d> plines3d = xRefDB.ListOfType<Polyline3d>(xrefTx);
+                    editor.WriteMessage($"\nNr. of 3D polies: {plines3d.Count}");
+                    List<Spline> splines = xRefDB.ListOfType<Spline>(xrefTx);
+                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
 
                     #region Select Alignment
                     //Get alignment
@@ -163,7 +168,7 @@ namespace IntersectUtilities
                     PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
                     if (((PromptResult)entity2).Status != PromptStatus.OK) return;
                     Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity2.ObjectId;
-                    Alignment alignment = tx.GetObject(alObjId, OpenMode.ForRead, false) as Alignment; 
+                    Alignment alignment = tx.GetObject(alObjId, OpenMode.ForRead, false) as Alignment;
                     #endregion
 
                     //Create a plane to project all intersections on
@@ -173,52 +178,16 @@ namespace IntersectUtilities
                     //Access CivilDocument cogopoints manager
                     CogoPointCollection cogoPoints = civilDoc.CogoPoints;
 
-                    int count = 1;
+                    int lineCnt = IntersectEntities(xrefTx, lines, alignment, plane, cogoPoints);
 
-                    foreach (Line line in lines)
-                    {
-                        LayerTableRecord layer = (LayerTableRecord)xrefTx.GetObject(line.LayerId, OpenMode.ForRead);
-                        if (layer.IsFrozen) continue;
+                    int plineCnt = IntersectEntities(xrefTx, plines, alignment, plane, cogoPoints);
 
-                        using (Point3dCollection p3dcol = new Point3dCollection())
-                        {
-                            alignment.IntersectWith(line, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+                    int pline3dCnt = IntersectEntities(xrefTx, plines3d, alignment, plane, cogoPoints);
 
-                            foreach (Point3d p3d in p3dcol)
-                            {
-                                oid pointId = cogoPoints.Add(p3d, true);
-                                CogoPoint cogoPoint = pointId.GetObject(OpenMode.ForWrite) as CogoPoint;
-                                //var layer = xrefTx.GetObject(line.LayerId, OpenMode.ForRead) as SymbolTableRecord;
+                    int splineCnt = IntersectEntities(xrefTx, splines, alignment, plane, cogoPoints);
 
-                                cogoPoint.PointName = layer.Name + " " + count;
-                                cogoPoint.RawDescription = "Udfyld RAW DESCRIPTION";
-
-                                count++;
-                            }
-                        }
-                    }
-                    foreach (Polyline pline in plines)
-                    {
-                        LayerTableRecord layer = (LayerTableRecord)xrefTx.GetObject(pline.LayerId, OpenMode.ForRead);
-                        if (layer.IsFrozen) continue;
-
-                        using (Point3dCollection p3dcol = new Point3dCollection())
-                        {
-                            alignment.IntersectWith(pline, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
-
-                            foreach (Point3d p3d in p3dcol)
-                            {
-                                oid pointId = cogoPoints.Add(p3d, true);
-                                CogoPoint cogoPoint = pointId.GetObject(OpenMode.ForWrite) as CogoPoint;
-                                //var layer = xrefTx.GetObject(pline.LayerId, OpenMode.ForRead) as SymbolTableRecord;
-
-                                cogoPoint.PointName = layer.Name + " " + count;
-                                cogoPoint.RawDescription = "Udfyld RAW DESCRIPTION";
-
-                                count++;
-                            }
-                        }
-                    }
+                    editor.WriteMessage($"\nTotal number of points created: {lineCnt+plineCnt+pline3dCnt+splineCnt}" +
+                        $"\n{lineCnt} Line(s), {plineCnt} Polyline(s), {pline3dCnt} 3D polylines, {splineCnt} Splines");
 
                     xrefTx.Dispose();
                 }
@@ -228,6 +197,37 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+        }
+
+        private static int IntersectEntities<T>(Transaction xrefTx, List<T> entitiesToInt, Alignment alignment, Plane plane, CogoPointCollection cogoPoints)
+        {
+            int count = 0;
+
+            foreach (Entity ent in entitiesToInt.Cast<Entity>())
+            {
+
+                LayerTableRecord layer = (LayerTableRecord)xrefTx.GetObject(ent.LayerId, OpenMode.ForRead);
+                if (layer.IsFrozen) continue;
+
+                using (Point3dCollection p3dcol = new Point3dCollection())
+                {
+                    alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+                    foreach (Point3d p3d in p3dcol)
+                    {
+                        oid pointId = cogoPoints.Add(p3d, true);
+                        CogoPoint cogoPoint = pointId.GetObject(OpenMode.ForWrite) as CogoPoint;
+                        //var layer = xrefTx.GetObject(line.LayerId, OpenMode.ForRead) as SymbolTableRecord;
+
+                        cogoPoint.PointName = layer.Name + " " + count;
+                        cogoPoint.RawDescription = "Udfyld RAW DESCRIPTION";
+
+                        count++;
+                    }
+                }
+            }
+
+            return count;
         }
     }
 
