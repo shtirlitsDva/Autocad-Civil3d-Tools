@@ -187,7 +187,7 @@ namespace IntersectUtilities
                     int splineCnt = IntersectEntities(xrefTx, splines, alignment, plane, cogoPoints);
 
                     editor.WriteMessage($"\nTotal number of points created: {lineCnt+plineCnt+pline3dCnt+splineCnt}" +
-                        $"\n{lineCnt} Line(s), {plineCnt} Polyline(s), {pline3dCnt} 3D polylines, {splineCnt} Splines");
+                        $"\n{lineCnt} Line(s), {plineCnt} Polyline(s), {pline3dCnt} 3D polyline(s), {splineCnt} Spline(s)");
 
                     xrefTx.Dispose();
                 }
