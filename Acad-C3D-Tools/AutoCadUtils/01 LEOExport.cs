@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Reflection;
+using xel = Microsoft.Office.Interop.Excel;
 
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.AutoCAD.ApplicationServices;
@@ -36,30 +38,44 @@ namespace AutoCadUtils
 
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
-                List<Polyline> plines = db.ListOfType<Polyline>(tx)
-                                          .Where(x => x.Layer == "RØR INSTRUMENT SIGNAL")
-                                          .ToList();
+                var plines = QuickSelection.SelectAll("LWPOLYLINE").QWhere(x => x.Layer == "RØR INSTRUMENT SIGNAL").ToList();
 
-                foreach (Polyline pline in plines)
+                editor.WriteMessage($"\nPlines collected {plines.Count}");
+
+                plines.QOpenForWrite<Polyline>(listToExplode =>
                 {
-                    Dreambuild.AutoCAD.Modify.Explode(pline.ObjectId);
-                }
+                    foreach (var poly in listToExplode) Modify.Explode(poly.ObjectId);
+                });
 
-                List<Polyline> rumPolys = db.ListOfType<Polyline>(tx)
-                                            .Where(x => x.Layer == "RUM DELER")
-                                            .ToList();
+                var rumPolyIds = QuickSelection.SelectAll("LWPOLYLINE").QWhere(x => x.Layer == "RUM DELER").ToList();
 
-                List<(string, string)> list = new List<(string, string)>();
+                editor.WriteMessage($"\nCollected {rumPolyIds.Count} rum polylines.");
+
+                rumPolyIds.QOpenForWrite<Polyline>(listToClean =>
+                {
+                    foreach (var poly in listToClean) Algorithms.PolyClean_RemoveDuplicatedVertex(poly);
+                });
+
+                List<(string, string)> tagRoomlist = new List<(string Tag, string RoomNr)>();
+
+                int i = 0;
+
+                List<BlockReference> AllBlocks = new List<BlockReference>();
+
+                var rumPolys = rumPolyIds.QOpenForRead<Polyline>();
 
                 foreach (Polyline pline in rumPolys)
                 {
+                    i++;
+                    editor.WriteMessage($"\nProcessing polyline number {i}.");
+
                     List<BlockReference> blocks = new List<BlockReference>();
 
                     PromptSelectionResult selection =
                         editor.SelectByPolyline(pline, ExtensionMethods.PolygonSelectionMode.Window, new TypedValue(0, "INSERT"));
+
                     if (selection.Status == PromptStatus.OK)
                     {
-                        
                         SelectionSet set = selection.Value;
                         foreach (SelectedObject selObj in set)
                         {
@@ -67,14 +83,63 @@ namespace AutoCadUtils
                             {
                                 BlockReference block = tx.GetObject(selObj.ObjectId, OpenMode.ForRead) as BlockReference;
                                 blocks.Add(block);
+                                AllBlocks.Add(block);
                             }
                         }
                     }
+                    else
+                    {
+                        editor.WriteMessage($"\nPolyline number {i} failed the selection!");
+                    }
 
-                    BlockReference br = blocks.Where(x => x.Name == "rumnummer").FirstOrDefault();
-                    if (br == null) continue;
-                    string value = br.GetBlockAttribute("ROOMNO");
-                    editor.WriteMessage($"\nRoom nr.: {value}");
+                    BlockReference roomNumberBlock = blocks.Where(x => x.Name == "rumnummer").FirstOrDefault();
+                    if (roomNumberBlock == null) continue;
+                    string roomNumber = roomNumberBlock.GetBlockAttribute("ROOMNO");
+                    editor.WriteMessage($"\nRoom nr.: {roomNumber}");
+
+                    foreach (BlockReference br in blocks)
+                    {
+                        string tagValue = string.Empty;
+                        var attrs = br.GetBlockAttributes();
+                        if (attrs.ContainsKey("TEXT1"))
+                        {
+                            tagValue = attrs["TEXT1"];
+                        }
+                        else if (attrs.ContainsKey("TAG"))
+                        {
+                            tagValue = attrs["TAG"];
+                        }
+                        else continue;
+
+                        if (!string.IsNullOrEmpty(roomNumber))
+                        {
+                            (string, string) pair = (tagValue, roomNumber);
+                            tagRoomlist.Add(pair); 
+                        }
+                    }
+                }
+
+                //Sort the pairs list
+                tagRoomlist = tagRoomlist.OrderByDescending(x => x.Item1).ToList();
+
+                //Export to excel
+                xel.Application excel = new xel.Application();
+                if (null == excel) throw new System.Exception("Failed to start EXCEL!");
+                excel.Visible = true;
+                xel.Workbook workbook = excel.Workbooks.Add(Missing.Value);
+                xel.Worksheet worksheet;
+                worksheet = excel.ActiveSheet as xel.Worksheet;
+                worksheet.Name = "LeoExport";
+                worksheet.Columns.ColumnWidth = 15;
+
+                int row = 1;
+                int col = 1;
+
+                foreach (var pair in tagRoomlist)
+                {
+                    worksheet.Cells[row, col] = pair.Item1;
+                    worksheet.Cells[row, col+1] = pair.Item2;
+                    row++;
                 }
             }
         }
@@ -82,69 +147,7 @@ namespace AutoCadUtils
 
     public static class ExtensionMethods
     {
-        public static T Go<T>(this ObjectId Oid, Transaction tx, OpenMode openMode = OpenMode.ForRead) where T : Autodesk.AutoCAD.DatabaseServices.Entity
-        {
-            return (T)tx.GetObject(Oid, openMode, false);
-        }
-        public static void ForEach<T>(this Database database, Action<T> action, Transaction tr) where T : Autodesk.AutoCAD.DatabaseServices.Entity
-        {
-            //using (var tr = database.TransactionManager.StartTransaction())
-            //{
-            // Get the block table for the current database
-            var blockTable = (BlockTable)tr.GetObject(database.BlockTableId, OpenMode.ForRead);
-
-            // Get the model space block table record
-            var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
-
-            RXClass theClass = RXObject.GetClass(typeof(T));
-
-            // Loop through the entities in model space
-            foreach (ObjectId objectId in modelSpace)
-            {
-                // Look for entities of the correct type
-                if (objectId.ObjectClass.IsDerivedFrom(theClass))
-                {
-                    var entity = (T)tr.GetObject(objectId, OpenMode.ForRead);
-                    action(entity);
-                }
-            }
-            //tr.Commit();
-            //}
-        }
-
-        public static List<T> ListOfType<T>(this Database database, Transaction tr) where T : Autodesk.AutoCAD.DatabaseServices.Entity
-        {
-            //using (var tr = database.TransactionManager.StartTransaction())
-            //{
-
-            //Init the list of the objects
-            List<T> objs = new List<T>();
-
-            // Get the block table for the current database
-            var blockTable = (BlockTable)tr.GetObject(database.BlockTableId, OpenMode.ForRead);
-
-            // Get the model space block table record
-            var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
-
-            RXClass theClass = RXObject.GetClass(typeof(T));
-
-            // Loop through the entities in model space
-            foreach (ObjectId objectId in modelSpace)
-            {
-                // Look for entities of the correct type
-                if (objectId.ObjectClass.IsDerivedFrom(theClass))
-                {
-                    var entity = (T)tr.GetObject(objectId, OpenMode.ForRead);
-                    objs.Add(entity);
-                }
-            }
-            return objs;
-            //tr.Commit();
-            //}
-        }
-
         public enum PolygonSelectionMode { Crossing, Window }
-
 
         public static PromptSelectionResult SelectByPolyline(this Editor ed, Polyline pline, PolygonSelectionMode mode, params TypedValue[] filter)
         {
