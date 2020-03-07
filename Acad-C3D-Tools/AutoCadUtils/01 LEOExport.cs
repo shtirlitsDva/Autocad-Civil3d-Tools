@@ -20,7 +20,8 @@ namespace AutoCadUtils
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
-            doc.Editor.WriteMessage("\n-> Export LEO components to EXCEL: EXPORTLEO");
+            doc.Editor.WriteMessage("\n-> Export LEO components to EXCEL: EXPORTLEO" +
+                                    "\n-> Set tags by sequential selection: SETTAGSSEQ");
         }
 
         public void Terminate()
@@ -114,13 +115,13 @@ namespace AutoCadUtils
                         if (!string.IsNullOrEmpty(roomNumber))
                         {
                             (string, string) pair = (tagValue, roomNumber);
-                            tagRoomlist.Add(pair); 
+                            tagRoomlist.Add(pair);
                         }
                     }
                 }
 
                 //Sort the pairs list
-                tagRoomlist = tagRoomlist.OrderByDescending(x => x.Item1).ToList();
+                tagRoomlist = tagRoomlist.OrderBy(x => x.Item1).ToList();
 
                 //Export to excel
                 xel.Application excel = new xel.Application();
@@ -137,11 +138,70 @@ namespace AutoCadUtils
 
                 foreach (var pair in tagRoomlist)
                 {
-                    worksheet.Cells[row, col] = pair.Item1;
-                    worksheet.Cells[row, col+1] = pair.Item2;
+                    worksheet.Rows[row].Cells[col] = pair.Item1;
+                    worksheet.Rows[row].Cells[col + 1] = pair.Item2;
+                    //worksheet.Cells[row, col] = pair.Item1;
+                    //worksheet.Cells[row, col+1] = pair.Item2;
                     row++;
                 }
             }
+        }
+
+        [CommandMethod("settagsseq")]
+        public void settagsseq()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            //Total length of tag numbering part
+            //Leo is 3 current
+            const int length = 3;
+
+            string compType = Interaction.GetString("Set component type for tag:");
+            int number = Interaction.GetInteger("Set start number for tags:");
+            editor.WriteMessage("\nContinue with selecting blocks sequentially.");
+
+            bool Continue = true;
+
+            do
+            {
+                var id = Interaction.GetEntity("", typeof(BlockReference));
+                if (id == ObjectId.Null) Continue = false;
+                else
+                {
+                    //Prepare tag
+                    string tag = compType + number.ToString("D" + length);
+
+                    using (Transaction tx = db.TransactionManager.StartTransaction())
+                    {
+                        id.QOpenForWrite<BlockReference>(br =>
+                        {
+                            var attrs = br.GetBlockAttributeIds();
+                            if (attrs.ContainsKey("TEXT1"))
+                            {
+                                attrs["TEXT1"].QOpenForWrite<AttributeReference>(ar =>
+                                {
+                                    ar.TextString = tag;
+                                });
+                                number++;
+                            }
+                            else if (attrs.ContainsKey("TAG"))
+                            {
+                                attrs["TAG"].QOpenForWrite<AttributeReference>(ar =>
+                                {
+                                    ar.TextString = tag;
+                                });
+                                number++;
+                            }
+                        });
+
+                        tx.Commit();
+                    }
+                }
+
+            } while (Continue);
         }
     }
 
