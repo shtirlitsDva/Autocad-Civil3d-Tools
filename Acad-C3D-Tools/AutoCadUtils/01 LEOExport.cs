@@ -21,7 +21,8 @@ namespace AutoCadUtils
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             doc.Editor.WriteMessage("\n-> Export LEO components to EXCEL: EXPORTLEO" +
-                                    "\n-> Set tags by sequential selection: SETTAGSSEQ");
+                                    "\n-> Set tags by sequential selection: SETTAGSSEQ" +
+                                    "\n-> Detect and select duplicate tags: DETECTDUPES");
         }
 
         public void Terminate()
@@ -57,7 +58,7 @@ namespace AutoCadUtils
                     foreach (var poly in listToClean) Algorithms.PolyClean_RemoveDuplicatedVertex(poly);
                 });
 
-                List<(string, string)> tagRoomlist = new List<(string Tag, string RoomNr)>();
+                List<(string Tag, string RoomNr)> tagRoomlist = new List<(string Tag, string RoomNr)>();
 
                 int i = 0;
 
@@ -114,14 +115,13 @@ namespace AutoCadUtils
 
                         if (!string.IsNullOrEmpty(roomNumber))
                         {
-                            (string, string) pair = (tagValue, roomNumber);
-                            tagRoomlist.Add(pair);
+                            tagRoomlist.Add((tagValue, roomNumber));
                         }
                     }
                 }
 
                 //Sort the pairs list
-                tagRoomlist = tagRoomlist.OrderBy(x => x.Item1).ToList();
+                tagRoomlist = tagRoomlist.OrderBy(x => x.Tag).ToList();
 
                 //Export to excel
                 xel.Application excel = new xel.Application();
@@ -138,8 +138,8 @@ namespace AutoCadUtils
 
                 foreach (var pair in tagRoomlist)
                 {
-                    worksheet.Rows[row].Cells[col] = pair.Item1;
-                    worksheet.Rows[row].Cells[col + 1] = pair.Item2;
+                    worksheet.Rows[row].Cells[col] = pair.Tag;
+                    worksheet.Rows[row].Cells[col + 1] = pair.RoomNr;
                     //worksheet.Cells[row, col] = pair.Item1;
                     //worksheet.Cells[row, col+1] = pair.Item2;
                     row++;
@@ -202,6 +202,69 @@ namespace AutoCadUtils
                 }
 
             } while (Continue);
+        }
+
+        [CommandMethod("detectdupes")]
+        public void detectdupes()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            var ids = QuickSelection.SelectAll("INSERT").QWhere(x => x.Layer == "SYMBOL");
+            editor.WriteMessage($"\nSymbol blocks found in drawing: {ids.Count()}.");
+
+            List<(string Tag, ObjectId id)> tagIdPairs = new List<(string Tag, ObjectId id)>();
+
+            var blocks = ids.QOpenForRead<BlockReference>();
+
+            //int count = 1;
+            foreach (BlockReference br in blocks)
+            {
+                var attrs = br.GetBlockAttributes();
+
+                if (attrs.ContainsKey("TEXT1"))
+                {
+                    tagIdPairs.Add((attrs["TEXT1"], br.ObjectId));
+                    //editor.WriteMessage($"\n{count}: {attrs["TEXT1"]}");
+                    //count++;
+                }
+                else if (attrs.ContainsKey("TAG"))
+                {
+                    tagIdPairs.Add((attrs["TAG"], br.ObjectId));
+                    //editor.WriteMessage($"\n{count}: {attrs["TAG"]}");
+                    //count++;
+                }
+                else
+                {
+                    //editor.WriteMessage($"\n{count}: NON-TAGGED");
+                    //count++;
+                }
+                    
+            }
+            
+            var groupByTag = tagIdPairs.GroupBy(x => x.Tag);
+
+            var groupsWithDuplicates = groupByTag.Where(x => x.Count() > 1);
+
+            if (groupsWithDuplicates.Count() < 1)
+            {
+                editor.WriteMessage("\nNo duplicates found!");
+            }
+            else
+            {
+                var groupWithDuplicates = groupsWithDuplicates.FirstOrDefault();
+                editor.WriteMessage($"\nDuplicate tag: {groupWithDuplicates.Key}.");
+                List<ObjectId> duplicateIds = new List<ObjectId>(groupWithDuplicates.Count());
+                foreach (var dupe in groupWithDuplicates)
+                {
+                    duplicateIds.Add(dupe.id);
+                    //editor.WriteMessage($"\n{dupe.id.ToString()}");
+                }
+                Autodesk.AutoCAD.Internal.Utils.SelectObjects(duplicateIds.ToArray());
+                Interaction.ZoomObjects(duplicateIds);
+            }
         }
     }
 
