@@ -226,13 +226,17 @@ namespace AutoCadUtils
 
                 if (attrs.ContainsKey("TEXT1"))
                 {
-                    tagIdPairs.Add((attrs["TEXT1"], br.ObjectId));
+                    string tagText = attrs["TEXT1"];
+                    if (string.IsNullOrEmpty(tagText)) continue;
+                    tagIdPairs.Add((tagText, br.ObjectId));
                     //editor.WriteMessage($"\n{count}: {attrs["TEXT1"]}");
                     //count++;
                 }
                 else if (attrs.ContainsKey("TAG"))
                 {
-                    tagIdPairs.Add((attrs["TAG"], br.ObjectId));
+                    string tagText = attrs["TAG"];
+                    if (string.IsNullOrEmpty(tagText)) continue;
+                    tagIdPairs.Add((tagText, br.ObjectId));
                     //editor.WriteMessage($"\n{count}: {attrs["TAG"]}");
                     //count++;
                 }
