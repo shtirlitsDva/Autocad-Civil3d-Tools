@@ -18,6 +18,7 @@ using Autodesk.Civil.DatabaseServices.Styles;
 using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using static IntersectUtilities.HelperMethods;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 
 namespace IntersectUtilities
 {
@@ -271,6 +272,18 @@ namespace IntersectUtilities
                     Alignment alignment = tx.GetObject(alObjId, OpenMode.ForRead, false) as Alignment;
                     #endregion
 
+                    #region Select surface
+                    //Get surface
+                    PromptEntityOptions promptEntityOptions3 = new PromptEntityOptions("\n Select surface to place points: ");
+                    promptEntityOptions3.SetRejectMessage("\n Not a surface");
+                    promptEntityOptions3.AddAllowedClass(typeof(TinSurface), true);
+                    promptEntityOptions3.AddAllowedClass(typeof(GridSurface), true);
+                    PromptEntityResult entity3 = editor.GetEntity(promptEntityOptions3);
+                    if (((PromptResult)entity3).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId surfaceObjId = entity3.ObjectId;
+                    CivSurface surface = surfaceObjId.GetObject(OpenMode.ForRead, false) as CivSurface;
+                    #endregion
+
                     //Create a plane to project all intersections on
                     //Needed to avoid missing objects with non zero Z values
                     Plane plane = new Plane();
@@ -278,13 +291,13 @@ namespace IntersectUtilities
                     //Access CivilDocument cogopoints manager
                     CogoPointCollection cogoPoints = civilDoc.CogoPoints;
 
-                    int lineCnt = IntersectEntities(xrefTx, lines, alignment, plane, cogoPoints);
+                    int lineCnt = IntersectEntities(xrefTx, lines, alignment, plane, cogoPoints, surface);
 
-                    int plineCnt = IntersectEntities(xrefTx, plines, alignment, plane, cogoPoints);
+                    int plineCnt = IntersectEntities(xrefTx, plines, alignment, plane, cogoPoints, surface);
 
-                    int pline3dCnt = IntersectEntities(xrefTx, plines3d, alignment, plane, cogoPoints);
+                    int pline3dCnt = IntersectEntities(xrefTx, plines3d, alignment, plane, cogoPoints, surface);
 
-                    int splineCnt = IntersectEntities(xrefTx, splines, alignment, plane, cogoPoints);
+                    int splineCnt = IntersectEntities(xrefTx, splines, alignment, plane, cogoPoints, surface);
 
                     editor.WriteMessage($"\nTotal number of points created: {lineCnt + plineCnt + pline3dCnt + splineCnt}" +
                         $"\n{lineCnt} Line(s), {plineCnt} Polyline(s), {pline3dCnt} 3D polyline(s), {splineCnt} Spline(s)");
@@ -299,7 +312,7 @@ namespace IntersectUtilities
             }
         }
 
-        private static int IntersectEntities<T>(Transaction xrefTx, List<T> entitiesToInt, Alignment alignment, Plane plane, CogoPointCollection cogoPoints)
+        private static int IntersectEntities<T>(Transaction xrefTx, List<T> entitiesToInt, Alignment alignment, Plane plane, CogoPointCollection cogoPoints, CivSurface surface)
         {
             int count = 0;
 
@@ -318,6 +331,10 @@ namespace IntersectUtilities
                         oid pointId = cogoPoints.Add(p3d, true);
                         CogoPoint cogoPoint = pointId.GetObject(OpenMode.ForWrite) as CogoPoint;
                         //var layer = xrefTx.GetObject(line.LayerId, OpenMode.ForRead) as SymbolTableRecord;
+
+                        var intPoint = surface.GetIntersectionPoint(p3d, new Vector3d(0, 0, 1));
+                        double zElevation = intPoint.Z;
+                        cogoPoint.Elevation = zElevation;
 
                         cogoPoint.PointName = layer.Name + " " + count;
                         cogoPoint.RawDescription = "Udfyld RAW DESCRIPTION";
