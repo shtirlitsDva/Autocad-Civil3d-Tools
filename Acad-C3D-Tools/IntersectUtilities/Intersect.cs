@@ -190,8 +190,8 @@ namespace IntersectUtilities
 
                     string path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "\\LayerNames.txt";
 
-                    MongoDBApp.Utils.ClrFile(path);
-                    MongoDBApp.Utils.OutputWriter(path, sb.ToString());
+                    Utils.ClrFile(path);
+                    Utils.OutputWriter(path, sb.ToString());
                 }
                 catch (System.Exception ex)
                 {
@@ -284,6 +284,20 @@ namespace IntersectUtilities
                     CivSurface surface = surfaceObjId.GetObject(OpenMode.ForRead, false) as CivSurface;
                     #endregion
 
+                    #region Read Csv Data for Layers and Depth
+
+                    //Establish the pathnames to files
+                    //Files should be placed in a specific folder on desktop
+                    string pathKrydsninger = Environment.GetFolderPath(
+                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Krydsninger.csv";
+                    string pathDybde = Environment.GetFolderPath(
+                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Dybde.csv";
+
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
+
+                    #endregion
+
                     //Create a plane to project all intersections on
                     //Needed to avoid missing objects with non zero Z values
                     Plane plane = new Plane();
@@ -291,13 +305,21 @@ namespace IntersectUtilities
                     //Access CivilDocument cogopoints manager
                     CogoPointCollection cogoPoints = civilDoc.CogoPoints;
 
-                    int lineCnt = IntersectEntities(xrefTx, lines, alignment, plane, cogoPoints, surface);
+                    int lineCnt = IntersectEntities(tx, db, xrefTx, lines, alignment, plane,
+                                                    cogoPoints, surface, dtKrydsninger,
+                                                    dtDybde);
 
-                    int plineCnt = IntersectEntities(xrefTx, plines, alignment, plane, cogoPoints, surface);
+                    int plineCnt = IntersectEntities(tx, db, xrefTx, lines, alignment, plane,
+                                                    cogoPoints, surface, dtKrydsninger,
+                                                    dtDybde);
 
-                    int pline3dCnt = IntersectEntities(xrefTx, plines3d, alignment, plane, cogoPoints, surface);
+                    int pline3dCnt = IntersectEntities(tx, db, xrefTx, lines, alignment, plane,
+                                                    cogoPoints, surface, dtKrydsninger,
+                                                    dtDybde);
 
-                    int splineCnt = IntersectEntities(xrefTx, splines, alignment, plane, cogoPoints, surface);
+                    int splineCnt = IntersectEntities(tx, db, xrefTx, lines, alignment, plane,
+                                                    cogoPoints, surface, dtKrydsninger,
+                                                    dtDybde);
 
                     editor.WriteMessage($"\nTotal number of points created: {lineCnt + plineCnt + pline3dCnt + splineCnt}" +
                         $"\n{lineCnt} Line(s), {plineCnt} Polyline(s), {pline3dCnt} 3D polyline(s), {splineCnt} Spline(s)");
@@ -312,15 +334,39 @@ namespace IntersectUtilities
             }
         }
 
-        private static int IntersectEntities<T>(Transaction xrefTx, List<T> entitiesToInt, Alignment alignment, Plane plane, CogoPointCollection cogoPoints, CivSurface surface)
+        private static int IntersectEntities<T>(
+            Transaction tx,
+            Database db,
+            Transaction xrefTx,
+            List<T> entitiesToInt,
+            Alignment alignment,
+            Plane plane,
+            CogoPointCollection cogoPoints,
+            CivSurface surface,
+            System.Data.DataTable krydsninger,
+            System.Data.DataTable dybde)
         {
             int count = 0;
 
             foreach (Entity ent in entitiesToInt.Cast<Entity>())
             {
 
-                LayerTableRecord layer = (LayerTableRecord)xrefTx.GetObject(ent.LayerId, OpenMode.ForRead);
-                if (layer.IsFrozen) continue;
+                LayerTableRecord xrefLayer = (LayerTableRecord)xrefTx.GetObject(ent.LayerId, OpenMode.ForRead);
+                if (xrefLayer.IsFrozen) continue;
+
+                string localLayerName = Utils.ReadParameterFromDataTable(
+                    xrefLayer.Name, krydsninger, "Layer", 0);
+
+                bool localLayerExists = false;
+
+                if (! localLayerName.IsNOE() || localLayerName != null )
+                {
+                    LayerTable ltReadOnly = tx.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    if (ltReadOnly.Has(localLayerName))
+                    {
+                        localLayerExists = true;
+                    }
+                }
 
                 using (Point3dCollection p3dcol = new Point3dCollection())
                 {
@@ -332,11 +378,14 @@ namespace IntersectUtilities
                         CogoPoint cogoPoint = pointId.GetObject(OpenMode.ForWrite) as CogoPoint;
                         //var layer = xrefTx.GetObject(line.LayerId, OpenMode.ForRead) as SymbolTableRecord;
 
+                        //Set the layer
+                        if (localLayerExists) cogoPoint.Layer = localLayerName;
+
                         var intPoint = surface.GetIntersectionPoint(p3d, new Vector3d(0, 0, 1));
                         double zElevation = intPoint.Z;
                         cogoPoint.Elevation = zElevation;
 
-                        cogoPoint.PointName = layer.Name + " " + count;
+                        cogoPoint.PointName = xrefLayer.Name + " " + count;
                         cogoPoint.RawDescription = "Udfyld RAW DESCRIPTION";
 
                         count++;

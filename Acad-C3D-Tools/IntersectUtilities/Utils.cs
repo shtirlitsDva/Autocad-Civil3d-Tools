@@ -17,7 +17,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 
-namespace MongoDBApp
+namespace IntersectUtilities
 {
     public static class Utils
     {
@@ -105,5 +105,10 @@ namespace MongoDBApp
             objXL.Quit();
             return dt;
         }
+    }
+
+    public static class Extensions
+    {
+        public static bool IsNOE(this string s) => string.IsNullOrEmpty(s);
     }
 }
