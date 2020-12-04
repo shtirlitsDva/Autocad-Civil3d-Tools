@@ -32,6 +32,7 @@ namespace IntersectUtilities
             Document doc = Application.DocumentManager.MdiActiveDocument;
             //doc.Editor.WriteMessage("\n-> Command: intut");
             doc.Editor.WriteMessage("\n-> Intersect alignment with XREF: INTAL");
+            doc.Editor.WriteMessage("\n-> Write a list of all XREF layers: LISTINTLAY");
         }
 
         public void Terminate()
@@ -43,7 +44,7 @@ namespace IntersectUtilities
         /// Finds all intersections between a selected polyline and all lines.
         /// Creates a point object at the intersection.
         /// </summary>
-        
+
         //[CommandMethod("intut")]
         public void intersectutilities()
         {
@@ -91,6 +92,105 @@ namespace IntersectUtilities
                             tx.AddNewlyCreatedDBObject(acPoint, true);
                         }
                     }
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("listintlay")]
+        public void listintlay()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Select XREF
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
+                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
+                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
+                    Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef
+                        = tx.GetObject(blkObjId, OpenMode.ForRead, false)
+                        as Autodesk.AutoCAD.DatabaseServices.BlockReference;
+                    #endregion
+
+                    // open the block definition?
+                    BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                    // is not from external reference, exit
+                    if (!blockDef.IsFromExternalReference) return;
+
+                    // open the xref database
+                    Database xRefDB = new Database(false, true);
+                    editor.WriteMessage($"\nPathName of the blockDef -> {blockDef.PathName}");
+
+                    //Relative path handling
+                    //I
+                    string curPathName = blockDef.PathName;
+                    bool isFullPath = IsFullPath(curPathName);
+                    if (isFullPath == false)
+                    {
+                        string sourcePath = Path.GetDirectoryName(doc.Name);
+                        editor.WriteMessage($"\nSourcePath -> {sourcePath}");
+                        curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
+                        editor.WriteMessage($"\nTargetPath -> {curPathName}");
+                    }
+
+                    xRefDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
+
+                    //Transaction from Database of the Xref
+                    Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
+
+                    List<Line> lines = xRefDB.ListOfType<Line>(xrefTx);
+                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
+                    List<Polyline> plines = xRefDB.ListOfType<Polyline>(xrefTx);
+                    editor.WriteMessage($"\nNr. of plines: {plines.Count}");
+                    List<Polyline3d> plines3d = xRefDB.ListOfType<Polyline3d>(xrefTx);
+                    editor.WriteMessage($"\nNr. of 3D polies: {plines3d.Count}");
+                    List<Spline> splines = xRefDB.ListOfType<Spline>(xrefTx);
+                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
+
+                    List<string> layNames = new List<string>(lines.Count + plines.Count + plines3d.Count + splines.Count);
+
+                    //Local function to avoid duplicate code
+                    List<string> LocalListNames<T>(List<string> list, List<T> ents)
+                    {
+                        foreach (Entity ent in ents.Cast<Entity>())
+                        {
+                            LayerTableRecord layer = (LayerTableRecord)xrefTx.GetObject(ent.LayerId, OpenMode.ForRead);
+                            if (layer.IsFrozen) continue;
+
+                            list.Add(layer.Name);
+                        }
+                        return list;
+                    }
+
+                    layNames = LocalListNames(layNames, lines);
+                    layNames = LocalListNames(layNames, plines);
+                    layNames = LocalListNames(layNames, plines3d);
+                    layNames = LocalListNames(layNames, splines);
+
+                    xrefTx.Dispose();
+
+                    layNames = layNames.Distinct().ToList();
+                    StringBuilder sb = new StringBuilder();
+                    foreach (string name in layNames) sb.AppendLine(name);
+
+                    string path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "\\LayerNames.txt";
+
+                    MongoDBApp.Utils.ClrFile(path);
+                    MongoDBApp.Utils.OutputWriter(path, sb.ToString());
                 }
                 catch (System.Exception ex)
                 {
@@ -186,7 +286,7 @@ namespace IntersectUtilities
 
                     int splineCnt = IntersectEntities(xrefTx, splines, alignment, plane, cogoPoints);
 
-                    editor.WriteMessage($"\nTotal number of points created: {lineCnt+plineCnt+pline3dCnt+splineCnt}" +
+                    editor.WriteMessage($"\nTotal number of points created: {lineCnt + plineCnt + pline3dCnt + splineCnt}" +
                         $"\n{lineCnt} Line(s), {plineCnt} Polyline(s), {pline3dCnt} 3D polyline(s), {splineCnt} Spline(s)");
 
                     xrefTx.Dispose();
@@ -235,7 +335,7 @@ namespace IntersectUtilities
     {
         public static T Go<T>(this oid Oid, Transaction tx, OpenMode openMode = OpenMode.ForRead) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
-            return (T) tx.GetObject(Oid, openMode, false);
+            return (T)tx.GetObject(Oid, openMode, false);
         }
         public static void ForEach<T>(this Database database, Action<T> action, Transaction tr) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
