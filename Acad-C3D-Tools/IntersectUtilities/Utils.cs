@@ -53,7 +53,7 @@ namespace IntersectUtilities
             }
         }
 
-        public static string ReadParameterFromDataTable(string key, DataTable table, string parameter, int keyColumnIdx)
+        public static string ReadStringParameterFromDataTable(string key, DataTable table, string parameter, int keyColumnIdx)
         {
             //Test if value exists
             if (table.AsEnumerable().Any(row => row.Field<string>(keyColumnIdx) == key))
@@ -68,6 +68,31 @@ namespace IntersectUtilities
                 return value;
             }
             else return null;
+        }
+
+        public static double ReadDoubleParameterFromDataTable(string key, DataTable table, string parameter, int keyColumnIdx)
+        {
+            //Test if value exists
+            if (table.AsEnumerable().Any(row => row.Field<string>(keyColumnIdx) == key))
+            {
+                var query = from row in table.AsEnumerable()
+                            where row.Field<string>(keyColumnIdx) == key
+                            select row.Field<string>(parameter);
+
+                string value = query.FirstOrDefault();
+
+                if (value.IsNOE() || value == null) return 0;
+
+                double result;
+
+                if (double.TryParse(value, NumberStyles.AllowDecimalPoint,
+                                    CultureInfo.InvariantCulture, out result))
+                {
+                    return result;
+                }
+                return 0;
+            }
+            else return 0;
         }
 
         public static DataTable READExcel(string path)

@@ -309,15 +309,15 @@ namespace IntersectUtilities
                                                     cogoPoints, surface, dtKrydsninger,
                                                     dtDybde);
 
-                    int plineCnt = IntersectEntities(tx, db, xrefTx, lines, alignment, plane,
+                    int plineCnt = IntersectEntities(tx, db, xrefTx, plines, alignment, plane,
                                                     cogoPoints, surface, dtKrydsninger,
                                                     dtDybde);
 
-                    int pline3dCnt = IntersectEntities(tx, db, xrefTx, lines, alignment, plane,
+                    int pline3dCnt = IntersectEntities(tx, db, xrefTx, plines3d, alignment, plane,
                                                     cogoPoints, surface, dtKrydsninger,
                                                     dtDybde);
 
-                    int splineCnt = IntersectEntities(tx, db, xrefTx, lines, alignment, plane,
+                    int splineCnt = IntersectEntities(tx, db, xrefTx, splines, alignment, plane,
                                                     cogoPoints, surface, dtKrydsninger,
                                                     dtDybde);
 
@@ -354,19 +354,67 @@ namespace IntersectUtilities
                 LayerTableRecord xrefLayer = (LayerTableRecord)xrefTx.GetObject(ent.LayerId, OpenMode.ForRead);
                 if (xrefLayer.IsFrozen) continue;
 
-                string localLayerName = Utils.ReadParameterFromDataTable(
-                    xrefLayer.Name, krydsninger, "Layer", 0);
+                #region Layer name
+                string localLayerName = Utils.ReadStringParameterFromDataTable(
+                            xrefLayer.Name, krydsninger, "Layer", 0);
 
                 bool localLayerExists = false;
 
-                if (! localLayerName.IsNOE() || localLayerName != null )
+                if (!localLayerName.IsNOE() || localLayerName != null)
                 {
-                    LayerTable ltReadOnly = tx.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
-                    if (ltReadOnly.Has(localLayerName))
+                    LayerTable lt = tx.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    if (lt.Has(localLayerName))
                     {
                         localLayerExists = true;
                     }
+                    else
+                    {
+                        //Create layer if it doesn't exist
+                        try
+                        {
+                            //Validate the name of layer
+                            //It throws an exception if not, so need to catch it
+                            SymbolUtilityServices.ValidateSymbolName(localLayerName, false);
+
+                            LayerTableRecord ltr = new LayerTableRecord();
+                            ltr.Name = localLayerName;
+
+                            //Make layertable writable
+                            lt.UpgradeOpen();
+
+                            //Add the new layer to layer table
+                            oid ltId = lt.Add(ltr);
+                            tx.AddNewlyCreatedDBObject(ltr, true);
+
+                            //Flag that the layer exists now
+                            localLayerExists = true;
+
+                        }
+                        catch (System.Exception)
+                        {
+                            //Eat the exception and continue
+                            //localLayerExists must remain false
+                        }
+
+                    }
                 }
+                #endregion
+
+                #region Type and depth
+
+                string type = Utils.ReadStringParameterFromDataTable(
+                            xrefLayer.Name, krydsninger, "Type", 0);
+
+                bool typeExists = false;
+                double depth = 0;
+
+                if (!type.IsNOE() || type != null)
+                {
+                    typeExists = true;
+                    depth = Utils.ReadDoubleParameterFromDataTable(type, dybde, "Dybde", 0);
+                }
+
+                #endregion
 
                 using (Point3dCollection p3dcol = new Point3dCollection())
                 {
@@ -383,6 +431,10 @@ namespace IntersectUtilities
 
                         var intPoint = surface.GetIntersectionPoint(p3d, new Vector3d(0, 0, 1));
                         double zElevation = intPoint.Z;
+
+                        //Subtract the depth if non-zero
+                        if (depth != 0) zElevation = -depth;
+
                         cogoPoint.Elevation = zElevation;
 
                         cogoPoint.PointName = xrefLayer.Name + " " + count;
