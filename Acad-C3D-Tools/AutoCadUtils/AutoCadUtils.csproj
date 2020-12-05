@@ -110,30 +110,12 @@ exclude: packages.config
 source: ..\..\..\AutoCADCodePack\AutoCADCommands\AutoCADCommands.csproj-->
   <!--Linked from ..\..\..\autocadcodepack\autocadcommands\autocadcommands.csproj-->
   <ItemGroup>
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\Algorithms.cs">
-      <Link>Algorithms.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\App.cs">
-      <Link>App.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\Commands.cs">
-      <Link>Commands.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\FlexDataStore.cs">
-      <Link>FlexDataStore.cs</Link>
-    </Compile>
     <Compile Include="..\..\..\autocadcodepack\autocadcommands\Internal\CustomDictionary.cs">
       <Link>Internal\CustomDictionary.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\DbHelper.cs">
-      <Link>DbHelper.cs</Link>
     </Compile>
     <Compile Include="..\..\..\autocadcodepack\autocadcommands\GUIs\DictionaryViewer.xaml.cs">
       <DependentUpon>DictionaryViewer.xaml</DependentUpon>
       <Link>GUIs\DictionaryViewer.xaml.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\Gui.cs">
-      <Link>Gui.cs</Link>
     </Compile>
     <Compile Include="..\..\..\autocadcodepack\autocadcommands\GUIs\InputBox.xaml.cs">
       <DependentUpon>InputBox.xaml</DependentUpon>
@@ -143,14 +125,8 @@ source: ..\..\..\AutoCADCodePack\AutoCADCommands\AutoCADCommands.csproj-->
       <DependentUpon>TaskProgressWindow.xaml</DependentUpon>
       <Link>GUIs\TaskProgressWindow.xaml.cs</Link>
     </Compile>
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\Interaction.cs">
-      <Link>Interaction.cs</Link>
-    </Compile>
     <Compile Include="..\..\..\autocadcodepack\autocadcommands\Internal\JigDrag.cs">
       <Link>Internal\JigDrag.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\Layouts.cs">
-      <Link>Layouts.cs</Link>
     </Compile>
     <Compile Include="..\..\..\autocadcodepack\autocadcommands\GUIs\MultiInputs.xaml.cs">
       <DependentUpon>MultiInputs.xaml</DependentUpon>
@@ -159,15 +135,6 @@ source: ..\..\..\AutoCADCodePack\AutoCADCommands\AutoCADCommands.csproj-->
     <!--<Compile Include="..\..\..\autocadcodepack\autocadcommands\Properties\AssemblyInfo.cs">
       <Link>Properties\AssemblyInfo.cs</Link>
     </Compile>-->
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\QuickSelection.cs">
-      <Link>QuickSelection.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\SymbolPack.cs">
-      <Link>SymbolPack.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\Test.cs">
-      <Link>Test.cs</Link>
-    </Compile>
     <Compile Include="..\..\..\autocadcodepack\autocadcommands\GUIs\TextReport.xaml.cs">
       <DependentUpon>TextReport.xaml</DependentUpon>
       <Link>GUIs\TextReport.xaml.cs</Link>
@@ -201,9 +168,6 @@ source: ..\..\..\AutoCADCodePack\AutoCADCommands\AutoCADCommands.csproj-->
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\autocadcodepack\autocadcommands\AutoCADCommands.ruleset">
-      <Link>AutoCADCommands.ruleset</Link>
-    </None>
     <None Include="packages.config" />
   </ItemGroup>
   <!--End Link from ..\..\..\autocadcodepack\autocadcommands\autocadcommands.csproj
