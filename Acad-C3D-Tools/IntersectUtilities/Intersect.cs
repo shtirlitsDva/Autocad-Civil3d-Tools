@@ -216,7 +216,7 @@ namespace IntersectUtilities
                     Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef
                         = tx.GetObject(blkObjId, OpenMode.ForRead, false)
                         as Autodesk.AutoCAD.DatabaseServices.BlockReference;
-                    #endregion
+
 
                     // open the block definition?
                     BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
@@ -252,6 +252,8 @@ namespace IntersectUtilities
                     editor.WriteMessage($"\nNr. of 3D polies: {plines3d.Count}");
                     List<Spline> splines = xRefDB.ListOfType<Spline>(xrefTx);
                     editor.WriteMessage($"\nNr. of splines: {splines.Count}");
+
+                    #endregion
 
                     #region Select Alignment
                     //Get alignment
@@ -290,6 +292,7 @@ namespace IntersectUtilities
 
                     #endregion
 
+                    #region Intersect
                     //Create a plane to project all intersections on
                     //Needed to avoid missing objects with non zero Z values
                     Plane plane = new Plane();
@@ -327,6 +330,7 @@ namespace IntersectUtilities
                         $"\n{lineCnt} Line(s), {plineCnt} Polyline(s), {pline3dCnt} 3D polyline(s), {splineCnt} Spline(s)");
 
                     xrefTx.Dispose();
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
@@ -399,7 +403,8 @@ namespace IntersectUtilities
                             //localLayerExists must remain false
                         }
                     }
-                } else
+                }
+                else
                 {
                     layerNamesNotPresent.Add(xrefLayer.Name);
                 }
@@ -452,6 +457,154 @@ namespace IntersectUtilities
             }
 
             return count;
+        }
+
+        [CommandMethod("crossings")]
+        public void longitudinalprofilecrossings()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Select and open XREF
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
+                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
+                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
+                    Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef
+                        = tx.GetObject(blkObjId, OpenMode.ForRead, false)
+                        as Autodesk.AutoCAD.DatabaseServices.BlockReference;
+
+                    // open the block definition?
+                    BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                    // is not from external reference, exit
+                    if (!blockDef.IsFromExternalReference) return;
+
+                    // open the xref database
+                    Database xRefDB = new Database(false, true);
+                    editor.WriteMessage($"\nPathName of the blockDef -> {blockDef.PathName}");
+
+                    //Relative path handling
+                    //I
+                    string curPathName = blockDef.PathName;
+                    bool isFullPath = IsFullPath(curPathName);
+                    if (isFullPath == false)
+                    {
+                        string sourcePath = Path.GetDirectoryName(doc.Name);
+                        editor.WriteMessage($"\nSourcePath -> {sourcePath}");
+                        curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
+                        editor.WriteMessage($"\nTargetPath -> {curPathName}");
+                    }
+
+                    xRefDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
+
+                    //Transaction from Database of the Xref
+                    Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
+
+                    #endregion
+
+                    #region Load linework
+                    List<Line> lines = xRefDB.ListOfType<Line>(xrefTx);
+                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
+                    List<Polyline> plines = xRefDB.ListOfType<Polyline>(xrefTx);
+                    editor.WriteMessage($"\nNr. of plines: {plines.Count}");
+                    List<Polyline3d> plines3d = xRefDB.ListOfType<Polyline3d>(xrefTx);
+                    editor.WriteMessage($"\nNr. of 3D polies: {plines3d.Count}");
+                    List<Spline> splines = xRefDB.ListOfType<Spline>(xrefTx);
+                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
+                    #endregion
+
+                    #region Select Alignment
+                    //Get alignment
+                    PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select alignment to intersect: ");
+                    promptEntityOptions2.SetRejectMessage("\n Not an alignment");
+                    promptEntityOptions2.AddAllowedClass(typeof(Alignment), true);
+                    PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                    if (((PromptResult)entity2).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity2.ObjectId;
+                    Alignment alignment = tx.GetObject(alObjId, OpenMode.ForRead, false) as Alignment;
+                    #endregion
+
+                    #region Select surface
+                    //Get surface
+                    PromptEntityOptions promptEntityOptions3 = new PromptEntityOptions("\n Select surface to place points: ");
+                    promptEntityOptions3.SetRejectMessage("\n Not a surface");
+                    promptEntityOptions3.AddAllowedClass(typeof(TinSurface), true);
+                    promptEntityOptions3.AddAllowedClass(typeof(GridSurface), true);
+                    PromptEntityResult entity3 = editor.GetEntity(promptEntityOptions3);
+                    if (((PromptResult)entity3).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId surfaceObjId = entity3.ObjectId;
+                    CivSurface surface = surfaceObjId.GetObject(OpenMode.ForRead, false) as CivSurface;
+                    #endregion
+
+                    #region Read Csv Data for Layers and Depth
+
+                    //Establish the pathnames to files
+                    //Files should be placed in a specific folder on desktop
+                    string pathKrydsninger = Environment.GetFolderPath(
+                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Krydsninger.csv";
+                    string pathDybde = Environment.GetFolderPath(
+                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Dybde.csv";
+
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
+
+                    #endregion
+
+                    #region Try creating feature lines
+
+                    BlockTable acBlkTbl;
+                    acBlkTbl = tx.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    BlockTableRecord acBlkTblRec = 
+                        tx.GetObject(acBlkTbl[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
+
+
+                    Plane plane = new Plane();
+
+                    foreach (Entity ent in lines)
+                    {
+                        using (Point3dCollection p3dcol = new Point3dCollection())
+                        {
+                            alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+                            //Only create feature line if there's an intersection
+                            if (p3dcol.Count > 0)
+                            {
+                                ent.UpgradeOpen();
+                                Entity cloneEnt = ent.Clone() as Entity;
+                                //ent.DowngradeOpen();
+
+                                acBlkTblRec.AppendEntity(cloneEnt);
+                                tx.AddNewlyCreatedDBObject(cloneEnt, true);
+
+                                oid flOid = FeatureLine.Create(ent.ObjectId.ToString(), cloneEnt.ObjectId);
+
+                                if (flOid.ToString() != "0")
+                                {
+                                    FeatureLine fl = flOid.GetObject(OpenMode.ForWrite) as FeatureLine;
+                                    fl.AssignElevationsFromSurface(surfaceObjId, true); 
+                                }
+                            }
+                        }
+                    }
+
+                    #endregion
+
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                }
+                tx.Commit();
+            }
         }
     }
 }
