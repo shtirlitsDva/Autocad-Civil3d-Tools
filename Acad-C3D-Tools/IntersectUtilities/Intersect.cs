@@ -297,21 +297,31 @@ namespace IntersectUtilities
                     //Access CivilDocument cogopoints manager
                     CogoPointCollection cogoPoints = civilDoc.CogoPoints;
 
+                    //List to hold the names not in the Krydsninger
+                    List<string> layerNamesNotPresent = new List<string>();
+
                     int lineCnt = IntersectEntities(tx, db, xrefTx, lines, alignment, plane,
                                                     cogoPoints, surface, dtKrydsninger,
-                                                    dtDybde);
+                                                    dtDybde, layerNamesNotPresent);
 
                     int plineCnt = IntersectEntities(tx, db, xrefTx, plines, alignment, plane,
                                                     cogoPoints, surface, dtKrydsninger,
-                                                    dtDybde);
+                                                    dtDybde, layerNamesNotPresent);
 
                     int pline3dCnt = IntersectEntities(tx, db, xrefTx, plines3d, alignment, plane,
                                                     cogoPoints, surface, dtKrydsninger,
-                                                    dtDybde);
+                                                    dtDybde, layerNamesNotPresent);
 
                     int splineCnt = IntersectEntities(tx, db, xrefTx, splines, alignment, plane,
                                                     cogoPoints, surface, dtKrydsninger,
-                                                    dtDybde);
+                                                    dtDybde, layerNamesNotPresent);
+
+                    layerNamesNotPresent = layerNamesNotPresent.Distinct().ToList();
+                    editor.WriteMessage("\nFollowing layers were NOT present in Krydsninger.csv:");
+                    foreach (string name in layerNamesNotPresent)
+                    {
+                        editor.WriteMessage(name);
+                    }
 
                     editor.WriteMessage($"\nTotal number of points created: {lineCnt + plineCnt + pline3dCnt + splineCnt}" +
                         $"\n{lineCnt} Line(s), {plineCnt} Polyline(s), {pline3dCnt} 3D polyline(s), {splineCnt} Spline(s)");
@@ -336,7 +346,8 @@ namespace IntersectUtilities
             CogoPointCollection cogoPoints,
             CivSurface surface,
             System.Data.DataTable krydsninger,
-            System.Data.DataTable dybde)
+            System.Data.DataTable dybde,
+            List<string> layerNamesNotPresent)
         {
             int count = 0;
 
@@ -387,9 +398,12 @@ namespace IntersectUtilities
                             //Eat the exception and continue
                             //localLayerExists must remain false
                         }
-
                     }
+                } else
+                {
+                    layerNamesNotPresent.Add(xrefLayer.Name);
                 }
+
                 #endregion
 
                 #region Type and depth
