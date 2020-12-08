@@ -14,12 +14,17 @@ using Autodesk.Civil;
 using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
+using Autodesk.Gis.Map;
+using Autodesk.Gis.Map.ObjectData;
+using Autodesk.Gis.Map.Constants;
+using Autodesk.Gis.Map.Utilities;
 
 using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using static IntersectUtilities.HelperMethods;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
+using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 
 namespace IntersectUtilities
 {
@@ -577,7 +582,7 @@ namespace IntersectUtilities
 
                     BlockTable acBlkTbl;
                     acBlkTbl = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                    BlockTableRecord acBlkTblRec = 
+                    BlockTableRecord acBlkTblRec =
                         tx.GetObject(acBlkTbl[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
 
 
@@ -630,6 +635,18 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+        }
+
+        [CommandMethod("createids")]
+        public void createids()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+
         }
     }
 }

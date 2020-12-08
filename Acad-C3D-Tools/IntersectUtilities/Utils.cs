@@ -16,6 +16,10 @@ using Autodesk.Civil;
 using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
+using Autodesk.Gis.Map;
+using Autodesk.Gis.Map.ObjectData;
+using Autodesk.Gis.Map.Constants;
+using Autodesk.Gis.Map.Utilities;
 
 using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using static IntersectUtilities.HelperMethods;
@@ -136,6 +140,251 @@ namespace IntersectUtilities
             objXL.Quit();
             return dt;
         }
+
+        #region "Map 3D Utility Function"
+        /// <summary>
+        /// Removes the Table named tableName.
+        /// </summary>
+        /// <remarks>
+        /// Throws no exception in common conditions.
+        /// </remarks>
+        public static bool RemoveTable(Tables tables, string tableName)
+        {
+            try
+            {
+                tables.RemoveTable(tableName);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Creates a Table named tableName.
+        /// </summary>
+        /// <remarks>
+        /// Throws no exception in common conditions.
+        /// </remarks>
+        public static bool CreateTable(Tables tables, string tableName)
+        {
+            ErrorCode errODCode = ErrorCode.OK;
+            Autodesk.Gis.Map.ObjectData.Table table = null;
+
+            try
+            {
+                table = tables[tableName];
+            }
+            catch (MapException e)
+            {
+                errODCode = (ErrorCode)(e.ErrorCode);
+            }
+
+            if (ErrorCode.ErrorObjectNotFound == errODCode)
+            {
+                try
+                {
+                    MapApplication app = HostMapApplicationServices.Application;
+
+                    // Create a FieldDefinitions and add four FieldDefinition to it 
+                    FieldDefinitions tabDefs = app.ActiveProject.MapUtility.NewODFieldDefinitions();
+
+                    FieldDefinition def1 = FieldDefinition.Create("FIRST_FIELD", "String Type", "A");
+                    tabDefs.AddColumn(def1, 0);
+
+                    FieldDefinition def2 = FieldDefinition.Create("SECOND_FIELD", "Int Type", 0);
+                    tabDefs.AddColumn(def2, 1);
+
+                    FieldDefinition def3 = FieldDefinition.Create("THIRD_FIELD", "Real Type", 0.0);
+                    tabDefs.AddColumn(def3, 2);
+
+                    FieldDefinition def4 = FieldDefinition.Create("LAST_FIELD", "Point Type", new Point3d(0, 0, 0));
+                    tabDefs.AddColumn(def4, 3);
+
+                    tables.Add(tableName, tabDefs, "Desc", true);
+
+                    return true;
+                }
+                catch (MapException e)
+                {
+                    // Deal with the exception as your will
+                    errODCode = (ErrorCode)(e.ErrorCode);
+
+                    return false;
+                }
+            }
+
+            return false;
+        }
+
+        private static long m_index = 1;
+        /// <summary>
+        /// Adds a record to a Table named tableName, the record is generated automatically.
+        /// </summary>
+        public static bool AddODRecord(Tables tables, string tableName, oid id)
+        {
+            try
+            {
+                Autodesk.Gis.Map.ObjectData.Table table = tables[tableName];
+
+                // Create and initialize an record 
+                Record tblRcd = Record.Create();
+                table.InitRecord(tblRcd);
+
+                string msg = ""; // Output string
+
+                MapValue val = tblRcd[0]; // String type
+                string temp = null;
+                temp = string.Format("String_{0}", m_index);
+                val.Assign(temp);
+                msg += temp + "; ";
+
+                val = tblRcd[1]; // integer
+                val.Assign(m_index);
+                msg += m_index.ToString() + "; ";
+
+                val = tblRcd[2]; // real
+                val.Assign(3.14159 * m_index);
+                msg += (3.14159 * m_index).ToString() + "; ";
+
+                val = tblRcd[3]; // point
+                Point3d pt = new Point3d(10 * m_index, 20 * m_index, 30 * m_index);
+                val.Assign(pt);
+                msg += pt.ToString();
+
+                m_index++;
+
+                table.AddRecord(tblRcd, id);
+
+                AcadEditor.WriteMessage("\n The inserted record : [" + msg + "] ");
+
+                return true;
+            }
+            catch (MapException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Prints the records obtained by id.
+        /// </summary>
+        public static bool ShowObjectDataInfo(Tables tables, oid id)
+        {
+            ErrorCode errCode = ErrorCode.OK;
+            try
+            {
+                bool success = true;
+
+                // Get and Initialize Records
+                using (Records records
+                           = tables.GetObjectRecords(0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+                {
+                    if (records.Count == 0)
+                    {
+                        AcadEditor.WriteMessage("\n There is no ObjectData record attached on the entity. ");
+                        return true;
+                    }
+
+                    int index = 0;
+
+                    // Iterate through all records
+                    foreach (Record record in records)
+                    {
+                        String msg = null;
+                        msg = String.Format("\nRecord {0} : ", index);
+                        index++;
+                        AcadEditor.WriteMessage(msg);
+
+                        // Get the table
+                        Autodesk.Gis.Map.ObjectData.Table table = tables[record.TableName];
+
+                        int valInt = 0;
+                        double valDouble = 0.0;
+                        string str = null;
+
+                        // Get record info
+                        for (int i = 0; i < record.Count; i++)
+                        {
+                            FieldDefinitions tableDef = table.FieldDefinitions;
+                            FieldDefinition column = null;
+                            column = tableDef[i];
+                            string colName = column.Name;
+                            MapValue val = record[i];
+
+                            switch (val.Type)
+                            {
+                                case Autodesk.Gis.Map.Constants.DataType.Integer:
+                                    valInt = val.Int32Value;
+                                    msg = string.Format("{0}; ", valInt);
+                                    AcadEditor.WriteMessage(msg);
+                                    break;
+
+                                case Autodesk.Gis.Map.Constants.DataType.Real:
+                                    valDouble = val.DoubleValue;
+                                    msg = string.Format("{0}; ", valDouble);
+                                    AcadEditor.WriteMessage(msg);
+                                    break;
+
+                                case Autodesk.Gis.Map.Constants.DataType.Character:
+                                    str = val.StrValue;
+                                    msg = string.Format("{0}; ", str);
+                                    AcadEditor.WriteMessage(msg);
+                                    break;
+
+                                case Autodesk.Gis.Map.Constants.DataType.Point:
+                                    {
+                                        Point3d pt = val.Point;
+                                        double x = pt.X;
+                                        double y = pt.Y;
+                                        double z = pt.Z;
+                                        msg = string.Format("Point({0},{1},{2}); ", x, y, z);
+                                        AcadEditor.WriteMessage(msg);
+                                    }
+                                    break;
+
+                                default:
+                                    AcadEditor.WriteMessage("\nWrong data type\n");
+                                    success = false;
+                                    break;
+                            }
+                        }
+                    }
+                }
+
+                return success;
+            }
+            catch (MapException e)
+            {
+                errCode = (ErrorCode)(e.ErrorCode);
+                // Deal with the exception here as your will
+
+                return false;
+            }
+        }
+
+        private static Editor AcadEditor
+        {
+            get
+            {
+                return Application.DocumentManager.MdiActiveDocument.Editor;
+            }
+        }
+
+        private static bool IsTableExisted(Tables tables, string tableName)
+        {
+            try
+            {
+                Autodesk.Gis.Map.ObjectData.Table table = tables[tableName];
+                return table != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        #endregion
     }
 
     public static class Extensions
@@ -145,7 +394,9 @@ namespace IntersectUtilities
 
     public static class ExtensionMethods
     {
-        public static T Go<T>(this oid Oid, Transaction tx, OpenMode openMode = OpenMode.ForRead) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        public static T Go<T>(this oid Oid, Transaction tx, 
+            Autodesk.AutoCAD.DatabaseServices.OpenMode openMode =
+            Autodesk.AutoCAD.DatabaseServices.OpenMode.ForRead) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
             return (T)tx.GetObject(Oid, openMode, false);
         }
