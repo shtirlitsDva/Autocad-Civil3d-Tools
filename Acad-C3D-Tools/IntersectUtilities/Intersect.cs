@@ -19,6 +19,7 @@ using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using static IntersectUtilities.HelperMethods;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
+using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 
 namespace IntersectUtilities
 {
@@ -463,12 +464,12 @@ namespace IntersectUtilities
         public void longitudinalprofilecrossings()
         {
             DocumentCollection docCol = Application.DocumentManager;
-            Database db = docCol.MdiActiveDocument.Database;
+            Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-            using (Transaction tx = db.TransactionManager.StartTransaction())
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
@@ -511,6 +512,11 @@ namespace IntersectUtilities
 
                     #endregion
 
+                    #region ModelSpaces
+                    oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(xRefDB);
+                    oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                    #endregion
+
                     #region Load linework
                     List<Line> lines = xRefDB.ListOfType<Line>(xrefTx);
                     editor.WriteMessage($"\nNr. of lines: {lines.Count}");
@@ -520,6 +526,14 @@ namespace IntersectUtilities
                     editor.WriteMessage($"\nNr. of 3D polies: {plines3d.Count}");
                     List<Spline> splines = xRefDB.ListOfType<Spline>(xrefTx);
                     editor.WriteMessage($"\nNr. of splines: {splines.Count}");
+
+                    List<Entity> allLinework = new List<Entity>(
+                        lines.Count + plines.Count + plines3d.Count + splines.Count);
+
+                    allLinework.AddRange(lines.Cast<Entity>());
+                    allLinework.AddRange(plines.Cast<Entity>());
+                    allLinework.AddRange(plines3d.Cast<Entity>());
+                    allLinework.AddRange(splines.Cast<Entity>());
                     #endregion
 
                     #region Select Alignment
@@ -562,14 +576,20 @@ namespace IntersectUtilities
                     #region Try creating feature lines
 
                     BlockTable acBlkTbl;
-                    acBlkTbl = tx.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    acBlkTbl = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                     BlockTableRecord acBlkTblRec = 
                         tx.GetObject(acBlkTbl[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
 
 
                     Plane plane = new Plane();
 
-                    foreach (Entity ent in lines)
+                    int intersections = 0;
+
+                    ObjectIdCollection sourceIds = new ObjectIdCollection();
+                    List<Entity> sourceEnts = new List<Entity>();
+
+                    //Gather the intersected objectIds
+                    foreach (Entity ent in allLinework)
                     {
                         using (Point3dCollection p3dcol = new Point3dCollection())
                         {
@@ -578,25 +598,30 @@ namespace IntersectUtilities
                             //Only create feature line if there's an intersection
                             if (p3dcol.Count > 0)
                             {
-                                ent.UpgradeOpen();
-                                Entity cloneEnt = ent.Clone() as Entity;
-                                //ent.DowngradeOpen();
-
-                                acBlkTblRec.AppendEntity(cloneEnt);
-                                tx.AddNewlyCreatedDBObject(cloneEnt, true);
-
-                                oid flOid = FeatureLine.Create(ent.ObjectId.ToString(), cloneEnt.ObjectId);
-
-                                if (flOid.ToString() != "0")
-                                {
-                                    FeatureLine fl = flOid.GetObject(OpenMode.ForWrite) as FeatureLine;
-                                    fl.AssignElevationsFromSurface(surfaceObjId, true); 
-                                }
+                                intersections++;
+                                sourceIds.Add(ent.ObjectId);
+                                sourceEnts.Add(ent);
                             }
                         }
                     }
 
+                    //Deepclone the objects
+                    IdMapping mapping = new IdMapping();
+                    xRefDB.WblockCloneObjects(
+                        sourceIds, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+
+                    editor.WriteMessage($"\nTotal {intersections} intersections detected.");
+
+
+                    //oid flOid = FeatureLine.Create(ent.ObjectId.ToString(), cloneEnt.ObjectId);
+
+                    //if (flOid.ToString() != "0")
+                    //{
+                    //    FeatureLine fl = flOid.GetObject(OpenMode.ForWrite) as FeatureLine;
+                    //    fl.AssignElevationsFromSurface(surfaceObjId, true); 
+                    //}
                     #endregion
+
 
                 }
                 catch (System.Exception ex)
