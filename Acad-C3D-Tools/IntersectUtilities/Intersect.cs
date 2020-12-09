@@ -21,6 +21,7 @@ using Autodesk.Gis.Map.Utilities;
 
 using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using static IntersectUtilities.HelperMethods;
+using static IntersectUtilities.Utils;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
@@ -476,6 +477,8 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
+                tx.TransactionManager.QueueForGraphicsFlush();
+
                 try
                 {
                     #region Select and open XREF
@@ -522,7 +525,7 @@ namespace IntersectUtilities
                     oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
                     #endregion
 
-                    #region Load linework
+                    #region Load linework from Xref
                     List<Line> lines = xRefDB.ListOfType<Line>(xrefTx);
                     editor.WriteMessage($"\nNr. of lines: {lines.Count}");
                     List<Polyline> plines = xRefDB.ListOfType<Polyline>(xrefTx);
@@ -578,10 +581,9 @@ namespace IntersectUtilities
 
                     #endregion
 
-                    #region Try creating feature lines
+                    #region Clone remote objects to local dwg
 
-                    BlockTable acBlkTbl;
-                    acBlkTbl = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    BlockTable acBlkTbl = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                     BlockTableRecord acBlkTblRec =
                         tx.GetObject(acBlkTbl[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
 
@@ -616,18 +618,84 @@ namespace IntersectUtilities
                         sourceIds, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
 
                     editor.WriteMessage($"\nTotal {intersections} intersections detected.");
-
-
-                    //oid flOid = FeatureLine.Create(ent.ObjectId.ToString(), cloneEnt.ObjectId);
-
-                    //if (flOid.ToString() != "0")
-                    //{
-                    //    FeatureLine fl = flOid.GetObject(OpenMode.ForWrite) as FeatureLine;
-                    //    fl.AssignElevationsFromSurface(surfaceObjId, true); 
-                    //}
                     #endregion
 
+                    #region Load linework from local db
+                    List<Line> localLines = localDb.ListOfType<Line>(tx);
+                    editor.WriteMessage($"\nNr. of local lines: {localLines.Count}");
+                    //All polylines are converted in the source drawing to poly3d
+                    //So this should be empty
+                    List<Polyline> localPlines = localDb.ListOfType<Polyline>(tx);
+                    editor.WriteMessage($"\nNr. of local plines: {localPlines.Count}");
+                    List<Polyline3d> localPlines3d = localDb.ListOfType<Polyline3d>(tx);
+                    editor.WriteMessage($"\nNr. of local 3D polies: {localPlines3d.Count}");
 
+                    //Splines cannot be used to create Feature Lines
+                    //They are converted to polylines, so no splines must be added
+                    List<Spline> localSplines = localDb.ListOfType<Spline>(tx);
+                    editor.WriteMessage($"\nNr. of local splines: {localSplines.Count}");
+                    if (localSplines.Count > 0)
+                    {
+                        editor.WriteMessage($"\n{localSplines.Count} splines detected!");
+                        return;
+                    }
+
+                    List<Entity> allLocalLinework = new List<Entity>(
+                        localLines.Count +
+                        //localPlines.Count +
+                        localPlines3d.Count
+                        );
+
+                    allLocalLinework.AddRange(localLines.Cast<Entity>());
+                    //allLocalLinework.AddRange(localPlines.Cast<Entity>());
+                    allLocalLinework.AddRange(localPlines3d.Cast<Entity>());
+                    #endregion
+
+                    #region Try creating FeatureLines
+                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                    int flCounter = 1;
+                    foreach (Entity localEntity in allLocalLinework)
+                    {
+                        using (Transaction tx2 = tx.TransactionManager.StartTransaction())
+                        {
+                            editor.WriteMessage($"\nProcessing entity handle: {localEntity.Handle}.");
+
+                            tx2.TransactionManager.QueueForGraphicsFlush();
+
+                            //if ((Enumerable.Range(20, 40).ToArray()).Contains(flCounter))
+                            //{
+                            MapValue handleValue = ReadRecordData(
+                                tables, localEntity.ObjectId, "IdRecord", "Handle");
+
+                            string flName = "";
+
+                            if (handleValue != null) flName = handleValue.StrValue;
+                            else flName = "Reading of Handle failed.";
+
+                            oid flOid = FeatureLine.Create(flName, localEntity.ObjectId);
+
+                            editor.WriteMessage($"\nCreate nr. {flCounter} returned {flOid.ToString()}");
+
+                            doc.TransactionManager.EnableGraphicsFlush(true);
+                            doc.TransactionManager.QueueForGraphicsFlush();
+                            Autodesk.AutoCAD.Internal.Utils.FlushGraphics();
+
+                            if (flOid.ToString() != "(0)")
+                            {
+                                FeatureLine fl = flOid.GetObject(OpenMode.ForWrite) as FeatureLine;
+                                fl.Layer = localEntity.Layer;
+                                fl.AssignElevationsFromSurface(surfaceObjId, true);
+                            }
+
+                            localEntity.UpgradeOpen();
+                            localEntity.Erase(true);
+
+                            flCounter++;
+                            tx2.Commit();
+                        }
+                        //}
+                    }
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
@@ -646,7 +714,228 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Load linework
+                    List<Line> lines = localDb.ListOfType<Line>(tx);
+                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
+                    List<Polyline> plines = localDb.ListOfType<Polyline>(tx);
+                    editor.WriteMessage($"\nNr. of plines: {plines.Count}");
+                    List<Polyline3d> plines3d = localDb.ListOfType<Polyline3d>(tx);
+                    editor.WriteMessage($"\nNr. of 3D polies: {plines3d.Count}");
+                    List<Spline> splines = localDb.ListOfType<Spline>(tx);
+                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
 
+                    List<Entity> allLinework = new List<Entity>(
+                        lines.Count + plines.Count + plines3d.Count + splines.Count);
+
+                    allLinework.AddRange(lines.Cast<Entity>());
+                    allLinework.AddRange(plines.Cast<Entity>());
+                    allLinework.AddRange(plines3d.Cast<Entity>());
+                    allLinework.AddRange(splines.Cast<Entity>());
+                    #endregion
+
+                    #region Try creating records
+
+                    string m_tableName = "IdRecord";
+
+                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                    if (DoesTableExist(tables, m_tableName))
+                    {
+                        editor.WriteMessage("\nTable already exists!");
+                    }
+                    else
+                    {
+                        if (CreateTable(tables, m_tableName))
+                        {
+                            editor.WriteMessage($"\nCreated table {m_tableName}.");
+                        }
+                        else
+                        {
+                            editor.WriteMessage("\nFailed to create the ObjectData table.");
+                            return;
+                        }
+                    }
+                    int successCounter = 0;
+                    int failureCounter = 0;
+                    foreach (Entity ent in allLinework)
+                    {
+                        if (DoesRecordExist(tables, ent.ObjectId))
+                        {
+                            //Do nothing
+                        }
+                        else if (AddODRecord(tables, m_tableName, ent.ObjectId, ent.Handle))
+                        {
+                            successCounter++;
+                        }
+                        else failureCounter++;
+                    }
+
+                    editor.WriteMessage($"\nId record created successfully for {successCounter} entities.");
+                    editor.WriteMessage($"\nId record creation failed for {failureCounter} entities.");
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                }
+                tx.Commit();
+            }
         }
+
+        [CommandMethod("destroyids")]
+        public void destroyids()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Try destroying records table
+
+                    string m_tableName = "IdTable";
+
+                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                    if (DoesTableExist(tables, m_tableName))
+                    {
+                        if (RemoveTable(tables, m_tableName))
+                        {
+                            editor.WriteMessage($"\nTable {m_tableName} removed!");
+                        }
+                        else editor.WriteMessage($"\nRemoval of table {m_tableName} failed!");
+                    }
+                    else
+                    {
+                        editor.WriteMessage($"\nTable {m_tableName} does not exist!");
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("convertlinework")]
+        public void convertlinework()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    // Open the Block table for read
+                    BlockTable acBlkTbl = tx.GetObject(localDb.BlockTableId,
+                                                       OpenMode.ForRead) as BlockTable;
+                    // Open the Block table record Model space for write
+                    BlockTableRecord acBlkTblRec = tx.GetObject(acBlkTbl[BlockTableRecord.ModelSpace],
+                                                          OpenMode.ForWrite) as BlockTableRecord;
+
+                    #region Load linework and convert splines
+                    List<Spline> splines = localDb.ListOfType<Spline>(tx);
+                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
+
+                    foreach (Spline spline in splines)
+                    {
+                        Curve curve = spline.ToPolylineWithPrecision(10);
+
+                        curve.Layer = spline.Layer;
+                        acBlkTblRec.AppendEntity(curve);
+                        tx.AddNewlyCreatedDBObject(curve, true);
+                    }
+                    #endregion
+
+                    List<Polyline> polies = localDb.ListOfType<Polyline>(tx);
+                    editor.WriteMessage($"\nNr. of polylines: {polies.Count}");
+
+                    foreach (Polyline pline in polies)
+                    {
+                        pline.PolyClean_RemoveDuplicatedVertex();
+
+                        Point3dCollection p3dcol = new Point3dCollection();
+                        int vn = pline.NumberOfVertices;
+
+                        for (int i = 0; i < vn; i++) p3dcol.Add(pline.GetPoint3dAt(i));
+
+                        Polyline3d polyline3D = new Polyline3d(Poly3dType.SimplePoly, p3dcol, false);
+                        polyline3D.Layer = pline.Layer;
+                        acBlkTblRec.AppendEntity(polyline3D);
+                        tx.AddNewlyCreatedDBObject(polyline3D, true);
+                    }
+
+                    foreach (Spline spline in splines)
+                    {
+                        spline.UpgradeOpen();
+                        spline.Erase(true);
+                    }
+
+                    foreach (Polyline pl in polies)
+                    {
+                        pl.UpgradeOpen();
+                        pl.Erase(true);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("selectbyhandle")]
+        public void selectbyhandle()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PromptResult pr = editor.GetString("\nEnter handle of object to select: ");
+
+                    if (pr.Status == PromptStatus.OK)
+                    {
+                        // Convert hexadecimal string to 64-bit integer
+                        long ln = Convert.ToInt64(pr.StringResult, 16);
+                        // Now create a Handle from the long integer
+                        Handle hn = new Handle(ln);
+                        // And attempt to get an ObjectId for the Handle
+                        oid id = localDb.GetObjectId(false, hn, 0);
+                        // Finally let's open the object and erase it
+                        editor.SetImpliedSelection(new[] { id });
+
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                }
+                tx.Commit();
+            }
+        }
+
+
     }
 }
