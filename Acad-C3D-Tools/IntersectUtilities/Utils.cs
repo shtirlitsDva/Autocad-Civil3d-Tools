@@ -26,6 +26,7 @@ using static IntersectUtilities.HelperMethods;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
+using ObjectId = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
 namespace IntersectUtilities
 {
@@ -174,7 +175,10 @@ namespace IntersectUtilities
         /// <remarks>
         /// Throws no exception in common conditions.
         /// </remarks>
-        public static bool CreateTable(Tables tables, string tableName)
+        public static bool CreateTable(
+            Tables tables, string tableName, string tableDescription,
+            string columnName, string columnDescription,
+            Autodesk.Gis.Map.Constants.DataType dataType)
         {
             ErrorCode errODCode = ErrorCode.OK;
             Autodesk.Gis.Map.ObjectData.Table table = null;
@@ -194,22 +198,13 @@ namespace IntersectUtilities
                 {
                     MapApplication app = HostMapApplicationServices.Application;
 
-                    // Create a FieldDefinitions and add four FieldDefinition to it 
                     FieldDefinitions tabDefs = app.ActiveProject.MapUtility.NewODFieldDefinitions();
 
-                    FieldDefinition def1 = FieldDefinition.Create("Handle", "Handle to string", "");
-                    tabDefs.AddColumn(def1, 0);
+                    FieldDefinition def = FieldDefinition.Create(columnName, columnDescription, dataType);
 
-                    //FieldDefinition def2 = FieldDefinition.Create("SECOND_FIELD", "Int Type", 0);
-                    //tabDefs.AddColumn(def2, 1);
+                    tabDefs.AddColumn(def, 0);
 
-                    //FieldDefinition def3 = FieldDefinition.Create("THIRD_FIELD", "Real Type", 0.0);
-                    //tabDefs.AddColumn(def3, 2);
-
-                    //FieldDefinition def4 = FieldDefinition.Create("LAST_FIELD", "Point Type", new Point3d(0, 0, 0));
-                    //tabDefs.AddColumn(def4, 3);
-
-                    tables.Add(tableName, tabDefs, "Object handle", true);
+                    tables.Add(tableName, tabDefs, tableDescription, true);
 
                     return true;
                 }
@@ -228,7 +223,8 @@ namespace IntersectUtilities
         /// <summary>
         /// Adds a record to a Table named tableName, the record is generated automatically.
         /// </summary>
-        public static bool AddODRecord(Tables tables, string tableName, oid id, Handle handle)
+        public static bool AddODRecord<T>(Tables tables, string tableName,
+                                          oid id, T value)
         {
             try
             {
@@ -238,28 +234,111 @@ namespace IntersectUtilities
                 Record tblRcd = Record.Create();
                 table.InitRecord(tblRcd);
 
-                MapValue val = tblRcd[0]; // String type
-                val.Assign(handle.ToString().Replace("(", "").Replace(")", ""));
+                MapValue val = tblRcd[0]; //TODO: Works only with one column.
 
-                //val = tblRcd[1]; // integer
-                //val.Assign(m_index);
-                //msg += m_index.ToString() + "; ";
-
-                //val = tblRcd[2]; // real
-                //val.Assign(3.14159);
-                //msg += (3.14159).ToString() + "; ";
-
-                //val = tblRcd[3]; // point
-                //Point3d pt = new Point3d(10 * m_index, 20 * m_index, 30 * m_index);
-                //val.Assign(pt);
-                //msg += pt.ToString();
-
-                //m_index++;
+                switch (value)
+                {
+                    case int integer:
+                        if (val.Type == Autodesk.Gis.Map.Constants.DataType.Integer)
+                        {
+                            val.Assign(integer);
+                        }
+                        else return false;
+                        break;
+                    case string str:
+                        if (val.Type == Autodesk.Gis.Map.Constants.DataType.Character)
+                        {
+                            val.Assign(str);
+                        }
+                        else return false;
+                        break;
+                    case double real:
+                        if (val.Type == Autodesk.Gis.Map.Constants.DataType.Real)
+                        {
+                            val.Assign(real);
+                        }
+                        else return false;
+                        break;
+                    default:
+                        return false;
+                }
 
                 table.AddRecord(tblRcd, id);
 
-                //AcadEditor.WriteMessage("\n The inserted record : [" + msg + "] ");
+                return true;
+            }
+            catch (MapException)
+            {
+                return false;
+            }
+        }
 
+        /// <summary>
+        /// Updates a record to a Table named tableName, the record is generated automatically.
+        /// </summary>
+        public static bool UpdateODRecord<T>(Tables tables, string tableName, string columnName,
+                                          oid id, T value)
+        {
+            try
+            {
+                Autodesk.Gis.Map.ObjectData.Table table = tables[tableName];
+
+                ErrorCode errCode = ErrorCode.OK;
+
+                bool success = true;
+
+                // Get and Initialize Records
+                using (Records records
+                           = tables.GetObjectRecords(0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+                {
+                    if (records.Count == 0)
+                    {
+                        AcadEditor.WriteMessage($"\nThere is no ObjectData record attached on the entity.");
+                        return false;
+                    }
+
+                    // Iterate through all records
+                    foreach (Record record in records)
+                    {
+                        // Get record info
+                        for (int i = 0; i < record.Count; i++)
+                        {
+                            FieldDefinitions tableDef = table.FieldDefinitions;
+                            FieldDefinition column = tableDef[i];
+                            if (column.Name == columnName && record.TableName == tableName)
+                            {
+                                MapValue val = record[i];
+
+                                switch (value)
+                                {
+                                    case int integer:
+                                        if (val.Type == Autodesk.Gis.Map.Constants.DataType.Integer)
+                                        {
+                                            val.Assign(integer);
+                                        }
+                                        else return false;
+                                        break;
+                                    case string str:
+                                        if (val.Type == Autodesk.Gis.Map.Constants.DataType.Character)
+                                        {
+                                            val.Assign(str);
+                                        }
+                                        else return false;
+                                        break;
+                                    case double real:
+                                        if (val.Type == Autodesk.Gis.Map.Constants.DataType.Real)
+                                        {
+                                            val.Assign(real);
+                                        }
+                                        else return false;
+                                        break;
+                                    default:
+                                        return false;
+                                }
+                            }
+                        }
+                    }
+                }
                 return true;
             }
             catch (MapException)
@@ -302,36 +381,6 @@ namespace IntersectUtilities
                             if (column.Name == columnName && record.TableName == tableName)
                             {
                                 return record[i];
-
-                                //switch (val.Type)
-                                //{
-                                //    case Autodesk.Gis.Map.Constants.DataType.Integer:
-                                //        //valInt = val.Int32Value;
-                                //        break;
-
-                                //    case Autodesk.Gis.Map.Constants.DataType.Real:
-                                //        //valDouble = val.DoubleValue;
-                                //        break;
-
-                                //    case Autodesk.Gis.Map.Constants.DataType.Character:
-                                //        //str = val.StrValue;
-                                //        break;
-
-                                //    case Autodesk.Gis.Map.Constants.DataType.Point:
-                                //        {
-                                //            //Point3d pt = val.Point;
-                                //            //double x = pt.X;
-                                //            //double y = pt.Y;
-                                //            //double z = pt.Z;
-                                //            //msg = string.Format("Point({0},{1},{2}); ", x, y, z);
-                                //        }
-                                //        break;
-
-                                //    default:
-                                //        AcadEditor.WriteMessage("\nWrong data type\n");
-                                //        success = false;
-                                //        break;
-                                //}
                             }
                         }
                     }
@@ -348,7 +397,7 @@ namespace IntersectUtilities
             }
         }
 
-        public static bool DoesRecordExist(Tables tables, oid id)
+        public static bool DoesRecordExist(Tables tables, oid id, string columnName)
         {
             ErrorCode errCode = ErrorCode.OK;
             try
@@ -375,7 +424,7 @@ namespace IntersectUtilities
                         {
                             FieldDefinitions tableDef = table.FieldDefinitions;
                             FieldDefinition column = tableDef[i];
-                            if (column.Name == "Id") return true;
+                            if (column.Name == columnName) return true;
                         }
                     }
                 }
@@ -453,11 +502,63 @@ namespace IntersectUtilities
             }
             return dupIndices.Count;
         }
+
+        #region Poly3d modify vertices
+        public static PolylineVertex3d[] GetVertices(this Polyline3d poly3d, Transaction tr)
+        {
+            List<PolylineVertex3d> vertices = new List<PolylineVertex3d>();
+            foreach (ObjectId id in poly3d)
+            {
+                var vertex = (PolylineVertex3d)tr.GetObject(id, OpenMode.ForRead);
+                if (vertex.VertexType != Vertex3dType.ControlVertex)
+                    vertices.Add(vertex);
+            }
+
+            return vertices.ToArray();
+        }
+        #endregion
+    }
+
+    public class PointDBHorizontalComparer : IEqualityComparer<DBPoint>
+    {
+        double Tol;
+
+        public PointDBHorizontalComparer(double tol = 0.001)
+        {
+            Tol = tol;
+        }
+
+        public bool Equals(DBPoint a, DBPoint b) => null != a && null != b &&
+            a.Position.HorizontalEqualz(b.Position, Tol);
+
+        public int GetHashCode(DBPoint a) => Tuple.Create(
+        Math.Round(a.Position.X, 3), Math.Round(a.Position.Y, 3)).GetHashCode();
+    }
+
+    public class Point3dHorizontalComparer : IEqualityComparer<Point3d>
+    {
+        double Tol;
+
+        public Point3dHorizontalComparer(double tol = 0.001)
+        {
+            Tol = tol;
+        }
+
+        public bool Equals(Point3d a, Point3d b) => null != a && null != b &&
+            a.HorizontalEqualz(b, Tol);
+
+        public int GetHashCode(Point3d a) => Tuple.Create(
+        Math.Round(a.X, 3), Math.Round(a.Y, 3)).GetHashCode();
     }
 
     public static class Extensions
     {
         public static bool IsNOE(this string s) => string.IsNullOrEmpty(s);
+
+        public static bool Equalz(this double a, double b, double tol) => Math.Abs(a - b) <= tol;
+
+        public static bool HorizontalEqualz(this Point3d a, Point3d b, double tol = 0.001) =>
+            null != a && null != b && a.X.Equalz(b.X, tol) && a.Y.Equalz(b.Y, tol);
     }
 
     public static class ExtensionMethods
@@ -523,6 +624,12 @@ namespace IntersectUtilities
             return objs;
             //tr.Commit();
             //}
+        }
+
+        public static HashSet<T> HashSetOfType<T>(this Database db, Transaction tr) 
+            where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        {
+            return new HashSet<T>(db.ListOfType<T>(tr));
         }
     }
 
