@@ -518,7 +518,15 @@ namespace IntersectUtilities
         }
         #endregion
     }
-
+    public static class Enums
+    {
+        public enum ElevationInputMethod
+        {
+            None,
+            Manual,
+            Text
+        }
+    }
     public class PointDBHorizontalComparer : IEqualityComparer<DBPoint>
     {
         double Tol;

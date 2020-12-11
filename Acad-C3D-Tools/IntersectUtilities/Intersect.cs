@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Globalization;
 using Autodesk.Aec.DatabaseServices;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -22,6 +23,7 @@ using Autodesk.Gis.Map.Utilities;
 using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
+using static IntersectUtilities.Enums;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
@@ -802,7 +804,11 @@ namespace IntersectUtilities
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            AddSize(localDb, editor);
+        }
 
+        private static void AddSize(Database localDb, Editor editor)
+        {
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -810,8 +816,7 @@ namespace IntersectUtilities
                     #region Select Line
                     PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
                         "\nSelect (poly)line(3d) to add a size:");
-                    promptEntityOptions1.SetRejectMessage("\n Not a line or polyline3d!");
-                    promptEntityOptions1.AddAllowedClass(typeof(Line), true);
+                    promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
                     promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
                     PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
                     if (((PromptResult)entity1).Status != PromptStatus.OK) return;
@@ -962,6 +967,28 @@ namespace IntersectUtilities
                         polyline3D.Layer = pline.Layer;
                         acBlkTblRec.AppendEntity(polyline3D);
                         tx.AddNewlyCreatedDBObject(polyline3D, true);
+                    }
+
+                    List<Line> lines = localDb.ListOfType<Line>(tx);
+                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
+
+                    foreach (Line line in lines)
+                    {
+                        Point3dCollection p3dcol = new Point3dCollection();
+
+                        p3dcol.Add(line.StartPoint);
+                        p3dcol.Add(line.EndPoint);
+
+                        Polyline3d polyline3D = new Polyline3d(Poly3dType.SimplePoly, p3dcol, false);
+                        polyline3D.Layer = line.Layer;
+                        acBlkTblRec.AppendEntity(polyline3D);
+                        tx.AddNewlyCreatedDBObject(polyline3D, true);
+                    }
+
+                    foreach (Line line in lines)
+                    {
+                        line.UpgradeOpen();
+                        line.Erase(true);
                     }
 
                     foreach (Spline spline in splines)
@@ -1164,6 +1191,166 @@ namespace IntersectUtilities
                     editor.WriteMessage("\n" + ex.Message);
                 }
                 tx.Commit();
+            }
+        }
+
+        [CommandMethod("editelevations")]
+        public void editelevations()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            #region Choose manual input or parsing of elevations
+            const string kwd1 = "Manual";
+            const string kwd2 = "Text";
+
+            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
+            pKeyOpts.Message = "\nChoose elevation input method: ";
+            pKeyOpts.Keywords.Add(kwd1);
+            pKeyOpts.Keywords.Add(kwd2);
+            pKeyOpts.AllowNone = true;
+            pKeyOpts.Keywords.Default = kwd1;
+            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+
+            ElevationInputMethod eim = ElevationInputMethod.None;
+            switch (pKeyRes.StringResult)
+            {
+                case kwd1:
+                    eim = ElevationInputMethod.Manual;
+                    break;
+                case kwd2:
+                    eim = ElevationInputMethod.Text;
+                    break;
+                default:
+                    return;
+            }
+            #endregion
+
+            while (true)
+            {
+                #region Select line or pline3d
+                PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                    "\nSelect (poly)line(3d) to modify:");
+                promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
+                promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                Autodesk.AutoCAD.DatabaseServices.ObjectId pline3dId = entity1.ObjectId;
+                #endregion
+
+                #region Select point
+                PromptPointOptions pPtOpts = new PromptPointOptions("");
+                // Prompt for the start point
+                pPtOpts.Message = "\nEnter location where to modify the pline3d (must be a vertex):";
+                PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
+                Point3d point = pPtRes.Value;
+                // Exit if the user presses ESC or cancels the command
+                if (pPtRes.Status != PromptStatus.OK) return;
+                #endregion
+
+                #region Get elevation depending on method
+                double elevation = 0;
+                switch (eim)
+                {
+                    case ElevationInputMethod.None:
+                        return;
+                    case ElevationInputMethod.Manual:
+                        PromptDoubleResult result = editor.GetDouble("\nEnter elevation in meters:");
+                        if (((PromptResult)result).Status != PromptStatus.OK) return;
+                        elevation = result.Value;
+                        break;
+                    case ElevationInputMethod.Text:
+                        #region Select and parse text
+                        PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
+                            "\nSelect to parse as elevation:");
+                        promptEntityOptions2.SetRejectMessage("\n Not a text!");
+                        promptEntityOptions2.AddAllowedClass(typeof(DBText), true);
+                        PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                        if (((PromptResult)entity2).Status != PromptStatus.OK) return;
+                        Autodesk.AutoCAD.DatabaseServices.ObjectId DBtextId = entity2.ObjectId;
+
+                        using (Transaction tx2 = localDb.TransactionManager.StartTransaction())
+                        {
+                            DBText dBText = DBtextId.Go<DBText>(tx2);
+                            string readValue = dBText.TextString;
+
+                            double parsedResult;
+
+                            if (double.TryParse(readValue, NumberStyles.AllowDecimalPoint,
+                                    CultureInfo.InvariantCulture, out parsedResult))
+                            {
+                                elevation = parsedResult;
+                            }
+                            else
+                            {
+                                editor.WriteMessage("\nParsing of text failed!");
+                                return;
+                            }
+                            tx2.Commit();
+                        }
+                        break;
+                    default:
+                        return;
+                        #endregion
+                }
+                #endregion
+
+                #region Modify elevation of pline3d
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        Polyline3d pline3d = pline3dId.Go<Polyline3d>(tx);
+
+                        var vertices = pline3d.GetVertices(tx);
+
+                        bool matchNotFound = true;
+                        for (int i = 0; i < vertices.Length; i++)
+                        {
+                            if (vertices[i].Position.HorizontalEqualz(point))
+                            {
+                                vertices[i].UpgradeOpen();
+                                vertices[i].Position = new Point3d(
+                                    vertices[i].Position.X, vertices[i].Position.Y, elevation);
+                                vertices[i].DowngradeOpen();
+                                matchNotFound = false;
+                            }
+                        }
+
+                        if (matchNotFound)
+                        {
+                            editor.WriteMessage("\nNo match found for vertices! P3d was not modified!");
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        editor.WriteMessage("\n" + ex.Message);
+                    }
+                    tx.Commit();
+                }
+                #endregion
+
+                #region Choose next action
+                const string ckwd1 = "Next pline3d";
+                const string ckwd2 = "Add size to current pline3d";
+
+                PromptKeywordOptions pKeyOpts2 = new PromptKeywordOptions("");
+                pKeyOpts2.Message = "\nChoose next action: ";
+                pKeyOpts2.Keywords.Add(ckwd1);
+                pKeyOpts2.Keywords.Add(ckwd2);
+                pKeyOpts2.AllowNone = true;
+                pKeyOpts2.Keywords.Default = ckwd1;
+                PromptResult pKeyRes2 = editor.GetKeywords(pKeyOpts2);
+                #endregion
+
+                if (pKeyRes2.StringResult == ckwd1) continue;
+
+                #region Add size
+                AddSize(localDb, editor);
+                #endregion
             }
         }
     }
