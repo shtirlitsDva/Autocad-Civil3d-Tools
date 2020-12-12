@@ -189,10 +189,162 @@ namespace IntersectUtilities
                     StringBuilder sb = new StringBuilder();
                     foreach (string name in layNames) sb.AppendLine(name);
 
-                    string path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "\\LayerNames.txt";
+                    string path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "\\CivilNET\\LayerNames.txt";
 
                     Utils.ClrFile(path);
                     Utils.OutputWriter(path, sb.ToString());
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("listintlaycheck")]
+        public void listintlaycheck()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Select XREF
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
+                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
+                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
+                    Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef
+                        = tx.GetObject(blkObjId, OpenMode.ForRead, false)
+                        as Autodesk.AutoCAD.DatabaseServices.BlockReference;
+                    #endregion
+
+                    #region Open XREF and tx
+                    // open the block definition?
+                    BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                    // is not from external reference, exit
+                    if (!blockDef.IsFromExternalReference) return;
+
+                    // open the xref database
+                    Database xRefDB = new Database(false, true);
+                    editor.WriteMessage($"\nPathName of the blockDef -> {blockDef.PathName}");
+
+                    //Relative path handling
+                    //I
+                    string curPathName = blockDef.PathName;
+                    bool isFullPath = IsFullPath(curPathName);
+                    if (isFullPath == false)
+                    {
+                        string sourcePath = Path.GetDirectoryName(doc.Name);
+                        editor.WriteMessage($"\nSourcePath -> {sourcePath}");
+                        curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
+                        editor.WriteMessage($"\nTargetPath -> {curPathName}");
+                    }
+
+                    xRefDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
+
+                    //Transaction from Database of the Xref
+                    Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
+                    #endregion
+
+                    #region Gather Xref layer names
+                    List<Line> lines = xRefDB.ListOfType<Line>(xrefTx);
+                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
+                    List<Polyline> plines = xRefDB.ListOfType<Polyline>(xrefTx);
+                    editor.WriteMessage($"\nNr. of plines: {plines.Count}");
+                    List<Polyline3d> plines3d = xRefDB.ListOfType<Polyline3d>(xrefTx);
+                    editor.WriteMessage($"\nNr. of 3D polies: {plines3d.Count}");
+                    List<Spline> splines = xRefDB.ListOfType<Spline>(xrefTx);
+                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
+
+                    List<string> layNames = new List<string>(lines.Count + plines.Count + plines3d.Count + splines.Count);
+
+                    //Local function to avoid duplicate code
+                    List<string> LocalListNames<T>(List<string> list, List<T> ents)
+                    {
+                        foreach (Entity ent in ents.Cast<Entity>())
+                        {
+                            LayerTableRecord layer = (LayerTableRecord)xrefTx.GetObject(ent.LayerId, OpenMode.ForRead);
+                            if (layer.IsFrozen) continue;
+
+                            list.Add(layer.Name);
+                        }
+                        return list;
+                    }
+
+                    layNames = LocalListNames(layNames, lines);
+                    layNames = LocalListNames(layNames, plines);
+                    layNames = LocalListNames(layNames, plines3d);
+                    layNames = LocalListNames(layNames, splines);
+
+                    xrefTx.Dispose();
+
+                    layNames = layNames.Distinct().ToList();
+                    //StringBuilder sb = new StringBuilder();
+                    //foreach (string name in layNames) sb.AppendLine(name); 
+                    #endregion
+
+                    #region Read Csv Data for Layers and Depth
+
+                    //Establish the pathnames to files
+                    //Files should be placed in a specific folder on desktop
+                    string pathKrydsninger = Environment.GetFolderPath(
+                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Krydsninger.csv";
+                    string pathDybde = Environment.GetFolderPath(
+                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Dybde.csv";
+
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
+
+                    #endregion
+
+                    foreach (string name in layNames)
+                    {
+                        string nameInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Navn", 0);
+                        if (nameInFile.IsNOE())
+                        {
+                            editor.WriteMessage($"\nDefinition af ledningslag '{name}' mangler i Krydsninger.csv!");
+                        }
+                        else
+                        {
+                            string typeInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Type", 0);
+
+                            if (typeInFile == "IGNORE")
+                            {
+                                editor.WriteMessage($"\nAdvarsel: Ledningslag" +
+                                        $" '{name}' er sat til 'IGNORE' og dermed ignoreres.");
+                            }
+                            else
+                            {
+                                string layerInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Layer", 0);
+                                if (layerInFile.IsNOE())
+                                    editor.WriteMessage($"\nFejl: Definition af kolonne \"Layer\" for ledningslag" +
+                                        $" '{name}' mangler i Krydsninger.csv!");
+
+                                if (typeInFile.IsNOE())
+                                    editor.WriteMessage($"\nFejl: Definition af kolonne \"Type\" for ledningslag" +
+                                        $" '{name}' mangler i Krydsninger.csv!");
+                            }
+                        }
+                    }
+
+                    //string path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
+                    //    + "\\CivilNET\\LayerNames.txt";
+
+                    //Utils.ClrFile(path);
+                    //Utils.OutputWriter(path, sb.ToString());
+
+                    #region Read Krydsninger data
+
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
@@ -468,7 +620,7 @@ namespace IntersectUtilities
             return count;
         }
 
-        [CommandMethod("crossings")]
+        [CommandMethod("createcrossings")]
         public void longitudinalprofilecrossings()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -528,22 +680,14 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Load linework from Xref
-                    List<Line> lines = xRefDB.ListOfType<Line>(xrefTx);
-                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
-                    List<Polyline> plines = xRefDB.ListOfType<Polyline>(xrefTx);
-                    editor.WriteMessage($"\nNr. of plines: {plines.Count}");
-                    List<Polyline3d> plines3d = xRefDB.ListOfType<Polyline3d>(xrefTx);
-                    editor.WriteMessage($"\nNr. of 3D polies: {plines3d.Count}");
-                    List<Spline> splines = xRefDB.ListOfType<Spline>(xrefTx);
-                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
-
-                    List<Entity> allLinework = new List<Entity>(
-                        lines.Count + plines.Count + plines3d.Count + splines.Count);
-
-                    allLinework.AddRange(lines.Cast<Entity>());
-                    allLinework.AddRange(plines.Cast<Entity>());
-                    allLinework.AddRange(plines3d.Cast<Entity>());
-                    allLinework.AddRange(splines.Cast<Entity>());
+                    //List<Line> lines = xRefDB.ListOfType<Line>(xrefTx);
+                    //editor.WriteMessage($"\nNr. of lines: {lines.Count}");
+                    //List<Polyline> plines = xRefDB.ListOfType<Polyline>(xrefTx);
+                    //editor.WriteMessage($"\nNr. of plines: {plines.Count}");
+                    List<Polyline3d> allLinework = xRefDB.ListOfType<Polyline3d>(xrefTx);
+                    editor.WriteMessage($"\nNr. of 3D polies: {allLinework.Count}");
+                    //List<Spline> splines = xRefDB.ListOfType<Spline>(xrefTx);
+                    //editor.WriteMessage($"\nNr. of splines: {splines.Count}");
                     #endregion
 
                     #region Select Alignment
@@ -603,9 +747,16 @@ namespace IntersectUtilities
                         using (Point3dCollection p3dcol = new Point3dCollection())
                         {
                             alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
-
-                            //Only create feature line if there's an intersection
-                            if (p3dcol.Count > 0)
+                            string type = ReadStringParameterFromDataTable(ent.Layer, dtKrydsninger, "Type", 0);
+                            if (type.IsNOE())
+                            {
+                                editor.WriteMessage($"\nFejl: For xref lag {ent.Layer} mangler der enten" +
+                                    $"selve definitionen eller 'Type'!");
+                                return;
+                            }
+                            //Create feature line if there's an intersection and
+                            //if the type of the layer is not "IGNORE"
+                            if (p3dcol.Count > 0 && type != "IGNORE")
                             {
                                 intersections++;
                                 sourceIds.Add(ent.ObjectId);
@@ -623,32 +774,42 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Load linework from local db
-                    List<Line> localLines = localDb.ListOfType<Line>(tx);
-                    editor.WriteMessage($"\nNr. of local lines: {localLines.Count}");
+                    //List<Line> localLines = localDb.ListOfType<Line>(tx);
+                    //editor.WriteMessage($"\nNr. of local lines: {localLines.Count}. Should be 0.");
                     //All polylines are converted in the source drawing to poly3d
                     //So this should be empty
-                    List<Polyline> localPlines = localDb.ListOfType<Polyline>(tx);
-                    editor.WriteMessage($"\nNr. of local plines: {localPlines.Count}");
+                    //List<Polyline> localPlines = localDb.ListOfType<Polyline>(tx);
+                    //editor.WriteMessage($"\nNr. of local plines: {localPlines.Count}. Should be 0.");
                     List<Polyline3d> localPlines3d = localDb.ListOfType<Polyline3d>(tx);
                     editor.WriteMessage($"\nNr. of local 3D polies: {localPlines3d.Count}");
 
                     //Splines cannot be used to create Feature Lines
                     //They are converted to polylines, so no splines must be added
-                    List<Spline> localSplines = localDb.ListOfType<Spline>(tx);
-                    editor.WriteMessage($"\nNr. of local splines: {localSplines.Count}");
-                    if (localSplines.Count > 0)
-                    {
-                        editor.WriteMessage($"\n{localSplines.Count} splines detected!");
-                        return;
-                    }
+                    //List<Spline> localSplines = localDb.ListOfType<Spline>(tx);
+                    //editor.WriteMessage($"\nNr. of local splines: {localSplines.Count}. Should be 0.");
+                    //if (localSplines.Count > 0)
+                    //{
+                    //    editor.WriteMessage($"\nFejl: {localSplines.Count} splines detected!");
+                    //    return;
+                    //}
+                    //if (localLines.Count > 0)
+                    //{
+                    //    editor.WriteMessage($"\nFejl: {localLines.Count} lines detected!");
+                    //    return;
+                    //}
+                    //if (localPlines.Count > 0)
+                    //{
+                    //    editor.WriteMessage($"\nFejl: {localPlines.Count} polylines detected!");
+                    //    return;
+                    //}
 
                     List<Entity> allLocalLinework = new List<Entity>(
-                        localLines.Count +
+                        //localLines.Count +
                         //localPlines.Count +
                         localPlines3d.Count
                         );
 
-                    allLocalLinework.AddRange(localLines.Cast<Entity>());
+                    //allLocalLinework.AddRange(localLines.Cast<Entity>());
                     //allLocalLinework.AddRange(localPlines.Cast<Entity>());
                     allLocalLinework.AddRange(localPlines3d.Cast<Entity>());
                     #endregion
@@ -682,13 +843,22 @@ namespace IntersectUtilities
                             doc.TransactionManager.QueueForGraphicsFlush();
                             Autodesk.AutoCAD.Internal.Utils.FlushGraphics();
 
-                            //Modify the 
-
-                            if (flOid.ToString() != "(0)")
+                            //Modify the feature lines not assigned type '3D' to drape on surface
+                            FeatureLine fl = flOid.Go<FeatureLine>(tx);
+                            string type = ReadStringParameterFromDataTable(fl.Layer, dtKrydsninger, "Type", 0);
+                            if (type.IsNOE())
                             {
-                                FeatureLine fl = flOid.GetObject(OpenMode.ForWrite) as FeatureLine;
+                                editor.WriteMessage($"\nFejl: For lag {fl.Layer} mangler der enten" +
+                                    $"selve definitionen eller 'Type'!");
+                                return;
+                            }
+
+                            if (flOid.ToString() != "(0)" && type != "3D")
+                            {
+                                fl.UpgradeOpen();
                                 fl.Layer = localEntity.Layer;
                                 fl.AssignElevationsFromSurface(surfaceObjId, true);
+                                fl.
                             }
 
                             localEntity.UpgradeOpen();
@@ -804,28 +974,37 @@ namespace IntersectUtilities
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            AddSize(localDb, editor);
+            bool cont = true;
+            while (cont)
+            {
+                cont = AddSize(localDb, editor);
+            }
         }
 
-        private static void AddSize(Database localDb, Editor editor)
+        private static bool AddSize(Database localDb, Editor editor, Entity entity = null)
         {
+            Entity Entity = entity;
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
-                    #region Select Line
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                        "\nSelect (poly)line(3d) to add a size:");
-                    promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
-                    promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
-                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity1.ObjectId;
-                    Entity ent = tx.GetObject(alObjId, OpenMode.ForRead, false) as Entity;
-                    #endregion
+                    if (Entity == null)
+                    {
+                        #region Select Line
+                        PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                            "\nSelect polyline3d to add a size:");
+                        promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
+                        promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                        PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                        if (((PromptResult)entity1).Status != PromptStatus.OK) return false;
+                        Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity1.ObjectId;
+                        Entity = tx.GetObject(alObjId, OpenMode.ForRead, false) as Entity;
+                        #endregion
+                    }
 
                     PromptIntegerResult result = editor.GetInteger("\nEnter pipe size (whole numbers):");
-                    if (((PromptResult)result).Status != PromptStatus.OK) return;
+                    if (((PromptResult)result).Status != PromptStatus.OK) return false;
 
                     int size = result.Value;
 
@@ -851,20 +1030,23 @@ namespace IntersectUtilities
                         else
                         {
                             editor.WriteMessage("\nFailed to create the ObjectData table.");
-                            return;
+                            return false;
                         }
                     }
 
-                    if (DoesRecordExist(tables, ent.ObjectId, columnName))
+                    if (DoesRecordExist(tables, Entity.ObjectId, columnName))
                     {
-                        UpdateODRecord(tables, m_tableName, columnName, ent.ObjectId, size);
+                        UpdateODRecord(tables, m_tableName, columnName, Entity.ObjectId, size);
                     }
-                    else if (AddODRecord(tables, m_tableName, ent.ObjectId, size))
+                    else if (AddODRecord(tables, m_tableName, Entity.ObjectId, size))
                     {
                         editor.WriteMessage("\nSize added!");
                     }
-                    else editor.WriteMessage("\nAdding size failed!");
-
+                    else 
+                    {
+                        editor.WriteMessage("\nAdding size failed!");
+                        return false;
+                    }
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -872,6 +1054,7 @@ namespace IntersectUtilities
                     editor.WriteMessage("\n" + ex.Message);
                 }
                 tx.Commit();
+                return true;
             }
         }
 
@@ -1231,9 +1414,9 @@ namespace IntersectUtilities
 
             while (true)
             {
-                #region Select line or pline3d
+                #region Select pline3d
                 PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                    "\nSelect (poly)line(3d) to modify:");
+                    "\nSelect polyline3d to modify:");
                 promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
                 promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
                 PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
@@ -1349,7 +1532,11 @@ namespace IntersectUtilities
                 if (pKeyRes2.StringResult == ckwd1) continue;
 
                 #region Add size
-                AddSize(localDb, editor);
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    AddSize(localDb, editor, pline3dId.Go<Polyline3d>(tx));
+                    tx.Commit();
+                }
                 #endregion
             }
         }
