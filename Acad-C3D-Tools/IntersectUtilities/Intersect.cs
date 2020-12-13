@@ -703,7 +703,7 @@ namespace IntersectUtilities
 
                     #region Select surface
                     //Get surface
-                    PromptEntityOptions promptEntityOptions3 = new PromptEntityOptions("\n Select surface to place points: ");
+                    PromptEntityOptions promptEntityOptions3 = new PromptEntityOptions("\n Select surface to get elevations: ");
                     promptEntityOptions3.SetRejectMessage("\n Not a surface");
                     promptEntityOptions3.AddAllowedClass(typeof(TinSurface), true);
                     promptEntityOptions3.AddAllowedClass(typeof(GridSurface), true);
@@ -732,7 +732,6 @@ namespace IntersectUtilities
                     BlockTable acBlkTbl = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                     BlockTableRecord acBlkTblRec =
                         tx.GetObject(acBlkTbl[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
-
 
                     Plane plane = new Plane();
 
@@ -821,56 +820,283 @@ namespace IntersectUtilities
                     {
                         using (Transaction tx2 = tx.TransactionManager.StartTransaction())
                         {
-                            editor.WriteMessage($"\nProcessing entity handle: {localEntity.Handle}.");
-
-                            tx2.TransactionManager.QueueForGraphicsFlush();
-
-                            //if ((Enumerable.Range(20, 40).ToArray()).Contains(flCounter))
-                            //{
-                            MapValue handleValue = ReadRecordData(
-                                tables, localEntity.ObjectId, "IdRecord", "Handle");
-
-                            string flName = "";
-
-                            if (handleValue != null) flName = handleValue.StrValue;
-                            else flName = "Reading of Handle failed.";
-
-                            oid flOid = FeatureLine.Create(flName, localEntity.ObjectId);
-
-                            editor.WriteMessage($"\nCreate nr. {flCounter} returned {flOid.ToString()}");
-
-                            doc.TransactionManager.EnableGraphicsFlush(true);
-                            doc.TransactionManager.QueueForGraphicsFlush();
-                            Autodesk.AutoCAD.Internal.Utils.FlushGraphics();
-
-                            //Modify the feature lines not assigned type '3D' to drape on surface
-                            FeatureLine fl = flOid.Go<FeatureLine>(tx);
-                            string type = ReadStringParameterFromDataTable(fl.Layer, dtKrydsninger, "Type", 0);
-                            if (type.IsNOE())
+                            try
                             {
-                                editor.WriteMessage($"\nFejl: For lag {fl.Layer} mangler der enten" +
-                                    $"selve definitionen eller 'Type'!");
-                                return;
-                            }
+                                editor.WriteMessage($"\nProcessing entity handle: {localEntity.Handle}.");
 
-                            if (flOid.ToString() != "(0)" && type != "3D")
-                            {
+                                tx2.TransactionManager.QueueForGraphicsFlush();
+
+                                MapValue handleValue = ReadRecordData(
+                                    tables, localEntity.ObjectId, "IdRecord", "Handle");
+
+                                string flName = "";
+
+                                if (handleValue != null) flName = handleValue.StrValue;
+                                else flName = "Reading of Handle failed.";
+
+                                oid flOid = FeatureLine.Create(flName, localEntity.ObjectId);
+
+                                editor.WriteMessage($"\nCreate nr. {flCounter} returned {flOid.ToString()}");
+                                doc.TransactionManager.EnableGraphicsFlush(true);
+                                doc.TransactionManager.QueueForGraphicsFlush();
+                                Autodesk.AutoCAD.Internal.Utils.FlushGraphics();
+
+                                //Modify the feature lines not assigned type '3D' to drape on surface
+                                FeatureLine fl = flOid.Go<FeatureLine>(tx2);
                                 fl.UpgradeOpen();
                                 fl.Layer = localEntity.Layer;
-                                fl.AssignElevationsFromSurface(surfaceObjId, true);
-                                fl.
+
+                                string type = ReadStringParameterFromDataTable(fl.Layer, dtKrydsninger, "Type", 0);
+                                if (type.IsNOE())
+                                {
+                                    editor.WriteMessage($"\nFejl: For lag {fl.Layer} mangler der enten " +
+                                        $"selve definitionen eller 'Type'!");
+                                    tx2.Abort();
+                                    return;
+                                }
+
+                                //Read depth value for type
+                                double depth = 0;
+                                if (!type.IsNOE())
+                                {
+                                    depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                                }
+                                //If the geometry is not 3D, offset elevation values
+                                if (flOid.ToString() != "(0)" && type != "3D")
+                                {
+                                    fl.Layer = localEntity.Layer;
+                                    fl.AssignElevationsFromSurface(surfaceObjId, true);
+                                }
+
+                                localEntity.UpgradeOpen();
+                                localEntity.Erase(true);
+
+                                flCounter++;
                             }
-
-                            localEntity.UpgradeOpen();
-                            localEntity.Erase(true);
-
-                            flCounter++;
+                            catch (System.Exception ex)
+                            {
+                                editor.WriteMessage("\n" + ex.Message);
+                                tx2.Abort();
+                                tx2.Dispose();
+                            }
                             tx2.Commit();
                         }
-                        //}
+
+                    }
+                    #endregion
+
+                    #region Try translating FLs by depth
+                    using (Transaction tx3 = localDb.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            HashSet<FeatureLine> flSet = localDb.HashSetOfType<FeatureLine>(tx3);
+                            //List to hold only the crossing FLs
+                            HashSet<FeatureLine> flList = new HashSet<FeatureLine>();
+                            foreach (FeatureLine fl in flSet)
+                            {
+                                //Filter out fl's not crossing the alignment in question
+                                using (Point3dCollection p3dcol = new Point3dCollection())
+                                {
+                                    alignment.IntersectWith(fl, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+                                    if (p3dcol.Count > 0)
+                                    {
+                                        flList.Add(fl);
+                                    }
+                                }
+                            }
+
+                            //Debug
+                            string pathToLog = Environment.GetFolderPath(
+                                    Environment.SpecialFolder.Desktop) + "\\CivilNET\\log.txt";
+                            Utils.ClrFile(pathToLog);
+                            int counter = 0;
+
+                            foreach (FeatureLine fl in flList)
+                            {
+                                string type = ReadStringParameterFromDataTable(fl.Layer, dtKrydsninger, "Type", 0);
+                                if (type.IsNOE())
+                                {
+                                    editor.WriteMessage($"\nFejl: For lag {fl.Layer} mangler der enten " +
+                                        $"selve definitionen eller 'Type'!");
+                                    tx3.Abort();
+                                    tx.Abort();
+                                    return;
+                                }
+
+                                //Read depth value for type
+                                double depth = 0;
+                                if (!type.IsNOE())
+                                {
+                                    depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                                }
+
+                                //Bogus 3D poly
+                                if (depth > 0.001 && type != "3D")
+                                {
+                                    fl.UpgradeOpen();
+
+                                    string originalName = fl.Name;
+                                    string originalLayer = fl.Layer;
+                                    fl.Erase(true);
+
+                                    oid newPolyId;
+
+                                    //Create a bogus 3d polyline and offset it
+                                    using (Transaction tx4 = localDb.TransactionManager.StartTransaction())
+                                    {
+                                        Point3dCollection p3dcol = fl.GetPoints(FeatureLinePointType.AllPoints);
+                                        Point3dCollection newP3dCol = new Point3dCollection();
+                                        for (int i = 0; i < p3dcol.Count; i++)
+                                        {
+                                            Point3d originalP = p3dcol[i];
+                                            Point3d newP = new Point3d(originalP.X, originalP.Y,
+                                                originalP.Z - depth);
+                                            newP3dCol.Add(newP);
+                                        }
+
+                                        Polyline3d newPoly = new Polyline3d(Poly3dType.SimplePoly, newP3dCol, false);
+
+                                        //Open modelspace
+                                        acBlkTbl = tx4.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                                        acBlkTblRec = tx4.GetObject(acBlkTbl[BlockTableRecord.ModelSpace],
+                                                         OpenMode.ForWrite) as BlockTableRecord;
+
+                                        acBlkTblRec.AppendEntity(newPoly);
+                                        tx4.AddNewlyCreatedDBObject(newPoly, true);
+                                        newPolyId = newPoly.ObjectId;
+                                        tx4.Commit();
+                                    }
+
+                                    oid flOid = FeatureLine.Create(originalName, newPolyId);
+                                    Entity ent1 = newPolyId.Go<Entity>(tx3, OpenMode.ForWrite);
+                                    ent1.Erase(true);
+
+                                    FeatureLine newFl = flOid.Go<FeatureLine>(tx3, OpenMode.ForWrite);
+                                    newFl.Layer = originalLayer;
+
+                                    //Utils.OutputWriter(pathToLog, $"\nProcessing FL {fl.Handle}" +
+                                    //    $" sourced from {fl.Name}.");
+                                    //int pCount = fl.ElevationPointsCount;
+                                    //Utils.OutputWriter(pathToLog, $"\nFL number of points {pCount}.");
+                                    //var flPoints = fl.GetPoints(FeatureLinePointType.AllPoints);
+                                    //for (int i = 0; i < pCount; i++)
+                                    //{
+                                    //    Point3d p3d = flPoints[i];
+                                    //    double curElevation = p3d.Z;
+                                    //    double targetElevation = curElevation - depth;
+                                    //    editor.WriteMessage($"\nFL idx: {i}, " +
+                                    //        $"elevation: {curElevation}, target el.: {targetElevation}.");
+                                    //    //Point3d newp3d = new Point3d(p3d.X, p3d.Y, targetElevation);
+                                    //    //flPoints[i] = newp3d;
+                                    //    //fl.SetPointElevation(i, targetElevation);
+                                    //}
+                                    //counter++;
+                                }
+                            }
+
+                            #region Choose continue or not (Debugging)
+                            //if (AskToContinueOrAbort(editor) == "Continue") continue; else break;
+
+                            //string AskToContinueOrAbort(Editor locEd)
+                            //{
+                            //    string ckwd1 = "Continue";
+                            //    string ckwd2 = "Abort";
+                            //    PromptKeywordOptions pKeyOpts2 = new PromptKeywordOptions("");
+                            //    pKeyOpts2.Message = "\nChoose next action: ";
+                            //    pKeyOpts2.Keywords.Add(ckwd1);
+                            //    pKeyOpts2.Keywords.Add(ckwd2);
+                            //    pKeyOpts2.AllowNone = true;
+                            //    pKeyOpts2.Keywords.Default = ckwd1;
+                            //    PromptResult locpKeyRes2 = locEd.GetKeywords(pKeyOpts2);
+                            //    return locpKeyRes2.StringResult;
+                            //}
+
+                            #endregion
+
+                        }
+                        catch (System.Exception ex)
+                        {
+                            editor.WriteMessage("\n" + ex.Message);
+                            tx3.Abort();
+                            tx3.Dispose();
+                        }
+
+                        tx3.Commit();
                     }
                     #endregion
                 }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    tx.Abort();
+                    tx.Dispose();
+                }
+                tx.Commit();
+            }
+
+
+        }
+
+        [CommandMethod("debugfl")]
+        public void debugfl()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Select Alignment
+                    //Get alignment
+                    PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select alignment to intersect: ");
+                    promptEntityOptions2.SetRejectMessage("\n Not an alignment");
+                    promptEntityOptions2.AddAllowedClass(typeof(Alignment), true);
+                    PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                    if (((PromptResult)entity2).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity2.ObjectId;
+                    Alignment alignment = tx.GetObject(alObjId, OpenMode.ForRead, false) as Alignment;
+                    #endregion
+
+                    Plane plane = new Plane();
+
+                    HashSet<FeatureLine> flSet = db.HashSetOfType<FeatureLine>(tx);
+                    //List to hold only the crossing FLs
+                    List<FeatureLine> flList = new List<FeatureLine>();
+                    foreach (FeatureLine fl in flSet)
+                    {
+                        //Filter out fl's not crossing the alignment in question
+                        using (Point3dCollection p3dcol = new Point3dCollection())
+                        {
+                            alignment.IntersectWith(fl, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+                            if (p3dcol.Count > 0)
+                            {
+                                flList.Add(fl);
+                            }
+                        }
+                        editor.WriteMessage($"\nProcessing FL {fl.Handle} derived from {fl.Name}.");
+                        int pCount = fl.ElevationPointsCount;
+                        editor.WriteMessage($"\nFL number of points {pCount.ToString()}.");
+                        //var flPoints = fl.GetPoints(FeatureLinePointType.ElevationPoint);
+                        //for (int i = 0; i < pCount; i++)
+                        //{
+                        //    double curElevation = flPoints[i].Z;
+                        //    double targetElevation = curElevation - depth;
+                        //    editor.WriteMessage($"\nFL idx: {i}, " +
+                        //        $"elevation: {curElevation}, target el.: {targetElevation}.");
+                        //    fl.SetPointElevation(i, targetElevation);
+                        //}
+
+
+                    }
+                }
+
                 catch (System.Exception ex)
                 {
                     editor.WriteMessage("\n" + ex.Message);
@@ -1042,7 +1268,7 @@ namespace IntersectUtilities
                     {
                         editor.WriteMessage("\nSize added!");
                     }
-                    else 
+                    else
                     {
                         editor.WriteMessage("\nAdding size failed!");
                         return false;
