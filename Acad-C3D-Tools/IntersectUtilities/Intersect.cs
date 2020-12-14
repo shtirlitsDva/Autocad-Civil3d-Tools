@@ -1456,8 +1456,8 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("isolatecrossings")]
-        public void isolatecrossings()
+        [CommandMethod("selectcrossings")]
+        public void selectcrossings()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -1470,36 +1470,17 @@ namespace IntersectUtilities
                 try
                 {
                     #region Load linework from local db
-                    List<Line> localLines = localDb.ListOfType<Line>(tx);
-                    editor.WriteMessage($"\nNr. of local lines: {localLines.Count}");
+                    List<FeatureLine> localFLines = localDb.ListOfType<FeatureLine>(tx);
+                    editor.WriteMessage($"\nNr. of feature lines: {localFLines.Count}");
                     List<Polyline3d> localPlines3d = localDb.ListOfType<Polyline3d>(tx);
-                    editor.WriteMessage($"\nNr. of local 3D polies: {localPlines3d.Count}");
-
-                    //Splines cannot be used to create Feature Lines
-                    //They are converted to polylines, so no splines must be added
-                    List<Spline> localSplines = localDb.ListOfType<Spline>(tx);
-                    editor.WriteMessage($"\nNr. of local splines: {localSplines.Count}");
-                    if (localSplines.Count > 0)
-                    {
-                        editor.WriteMessage($"\n{localSplines.Count} splines detected! Run 'convertlinework'.");
-                        return;
-                    }
-                    //All polylines are converted in the source drawing to poly3d
-                    //So this should be empty
-                    List<Polyline> localPlines = localDb.ListOfType<Polyline>(tx);
-                    editor.WriteMessage($"\nNr. of local plines: {localPlines.Count}");
-                    if (localPlines.Count > 0)
-                    {
-                        editor.WriteMessage($"\n{localPlines.Count} polylines detected! Run 'convertlinework'.");
-                        return;
-                    }
+                    editor.WriteMessage($"\nNr. of 3D polies: {localPlines3d.Count}");
 
                     List<Entity> allLocalLinework = new List<Entity>(
-                        localLines.Count +
+                        localFLines.Count +
                         localPlines3d.Count
                         );
 
-                    allLocalLinework.AddRange(localLines.Cast<Entity>());
+                    allLocalLinework.AddRange(localFLines.Cast<Entity>());
                     allLocalLinework.AddRange(localPlines3d.Cast<Entity>());
                     #endregion
 
@@ -1512,6 +1493,20 @@ namespace IntersectUtilities
                     if (((PromptResult)entity2).Status != PromptStatus.OK) return;
                     Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity2.ObjectId;
                     Alignment alignment = tx.GetObject(alObjId, OpenMode.ForRead, false) as Alignment;
+                    #endregion
+
+                    #region Choose to keep points and text or not
+                    const string ckwd1 = "Keep";
+                    const string ckwd2 = "Discard";
+                    PromptKeywordOptions pKeyOpts2 = new PromptKeywordOptions("");
+                    pKeyOpts2.Message = "\nChoose to (K)eep points and text or (D)iscard: ";
+                    pKeyOpts2.Keywords.Add(ckwd1);
+                    pKeyOpts2.Keywords.Add(ckwd2);
+                    pKeyOpts2.AllowNone = true;
+                    pKeyOpts2.Keywords.Default = ckwd1;
+                    PromptResult locpKeyRes2 = editor.GetKeywords(pKeyOpts2);
+                    
+                    bool keepPointsAndText = locpKeyRes2.StringResult == ckwd1;
                     #endregion
 
                     Plane plane = new Plane();
@@ -1529,16 +1524,19 @@ namespace IntersectUtilities
                         }
                     }
 
-                    //Additional object classes to keep showing
-                    List<DBPoint> points = localDb.ListOfType<DBPoint>(tx)
-                                                  .Where(x => x.Position.Z > 0.1)
-                                                  .ToList();
-                    List<DBText> text = localDb.ListOfType<DBText>(tx);
-                    //Add additional objects to isolation
-                    foreach (DBPoint item in points) sourceIds.Add(item.ObjectId);
-                    foreach (DBText item in text) sourceIds.Add(item.ObjectId);
+                    if (keepPointsAndText)
+                    {
+                        //Additional object classes to keep showing
+                        List<DBPoint> points = localDb.ListOfType<DBPoint>(tx)
+                                                      .Where(x => x.Position.Z > 0.1)
+                                                      .ToList();
+                        List<DBText> text = localDb.ListOfType<DBText>(tx);
+                        //Add additional objects to isolation
+                        foreach (DBPoint item in points) sourceIds.Add(item.ObjectId);
+                        foreach (DBText item in text) sourceIds.Add(item.ObjectId);
 
-                    sourceIds.Add(alignment.ObjectId);
+                        sourceIds.Add(alignment.ObjectId); 
+                    }
 
                     editor.SetImpliedSelection(sourceIds.ToArray());
                 }
