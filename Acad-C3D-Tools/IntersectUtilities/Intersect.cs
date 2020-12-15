@@ -98,6 +98,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     editor.WriteMessage("\n" + ex.Message);
+                    return;
                 }
                 tx.Commit();
             }
@@ -197,6 +198,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     editor.WriteMessage("\n" + ex.Message);
+                    return;
                 }
                 tx.Commit();
             }
@@ -309,7 +311,7 @@ namespace IntersectUtilities
                     foreach (string name in layNames)
                     {
                         string nameInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Navn", 0);
-                        if (nameInFile.IsNOE())
+                        if (nameInFile.IsNoE())
                         {
                             editor.WriteMessage($"\nDefinition af ledningslag '{name}' mangler i Krydsninger.csv!");
                         }
@@ -325,11 +327,11 @@ namespace IntersectUtilities
                             else
                             {
                                 string layerInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Layer", 0);
-                                if (layerInFile.IsNOE())
+                                if (layerInFile.IsNoE())
                                     editor.WriteMessage($"\nFejl: Definition af kolonne \"Layer\" for ledningslag" +
                                         $" '{name}' mangler i Krydsninger.csv!");
 
-                                if (typeInFile.IsNOE())
+                                if (typeInFile.IsNoE())
                                     editor.WriteMessage($"\nFejl: Definition af kolonne \"Type\" for ledningslag" +
                                         $" '{name}' mangler i Krydsninger.csv!");
                             }
@@ -349,6 +351,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     editor.WriteMessage("\n" + ex.Message);
+                    return;
                 }
                 tx.Commit();
             }
@@ -496,6 +499,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     editor.WriteMessage("\n" + ex.Message);
+                    return;
                 }
                 tx.Commit();
             }
@@ -528,7 +532,7 @@ namespace IntersectUtilities
 
                 bool localLayerExists = false;
 
-                if (!localLayerName.IsNOE() || localLayerName != null)
+                if (!localLayerName.IsNoE() || localLayerName != null)
                 {
                     LayerTable lt = tx.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
                     if (lt.Has(localLayerName))
@@ -580,7 +584,7 @@ namespace IntersectUtilities
                 bool typeExists = false;
                 double depth = 0;
 
-                if (!type.IsNOE() || type != null)
+                if (!type.IsNoE() || type != null)
                 {
                     typeExists = true;
                     depth = Utils.ReadDoubleParameterFromDataTable(type, dybde, "Dybde", 0);
@@ -620,7 +624,7 @@ namespace IntersectUtilities
             return count;
         }
 
-        [CommandMethod("createcrossings")]
+        [CommandMethod("createlerdatausingfls")]
         public void longitudinalprofilecrossings()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -747,7 +751,7 @@ namespace IntersectUtilities
                         {
                             alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
                             string type = ReadStringParameterFromDataTable(ent.Layer, dtKrydsninger, "Type", 0);
-                            if (type.IsNOE())
+                            if (type.IsNoE())
                             {
                                 editor.WriteMessage($"\nFejl: For xref lag {ent.Layer} mangler der enten" +
                                     $"selve definitionen eller 'Type'!");
@@ -846,8 +850,42 @@ namespace IntersectUtilities
                                 fl.UpgradeOpen();
                                 fl.Layer = localEntity.Layer;
 
+                                #region Populate description field
+                                //Populate description field
+                                //1. Read size record
+                                MapValue sizeRecord = Utils.ReadRecordData(
+                                    tables, localEntity.ObjectId, "SizeTable", "Size");
+                                int size = 0;
+                                string sizeDescrPart = "";
+                                if (sizeRecord != null)
+                                {
+                                    size = sizeRecord.Int16Value;
+                                    sizeDescrPart = $"ø{size}";
+                                }
+
+                                //2. Read description from Krydsninger
+                                string descrFromKrydsninger = ReadStringParameterFromDataTable(
+                                    localEntity.Layer, dtKrydsninger, "Description", 0);
+                                
+                                //Compose description field and assign to FL
+                                List<string> descrParts = new List<string>();
+                                //1.
+                                if (size != 0) descrParts.Add(sizeDescrPart);
+                                //2.
+                                if (descrFromKrydsninger.IsNotNoE()) descrParts.Add(descrFromKrydsninger);
+
+                                string description = "";
+                                if (descrParts.Count == 1) description = descrParts[0];
+                                else if (descrParts.Count > 1)
+                                    description = string.Join("; ", descrParts);
+
+                                //assign description
+                                fl.Description = description;
+
+                                #endregion
+
                                 string type = ReadStringParameterFromDataTable(fl.Layer, dtKrydsninger, "Type", 0);
-                                if (type.IsNOE())
+                                if (type.IsNoE())
                                 {
                                     editor.WriteMessage($"\nFejl: For lag {fl.Layer} mangler der enten " +
                                         $"selve definitionen eller 'Type'!");
@@ -857,7 +895,7 @@ namespace IntersectUtilities
 
                                 //Read depth value for type
                                 double depth = 0;
-                                if (!type.IsNOE())
+                                if (!type.IsNoE())
                                 {
                                     depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
                                 }
@@ -876,12 +914,10 @@ namespace IntersectUtilities
                             catch (System.Exception ex)
                             {
                                 editor.WriteMessage("\n" + ex.Message);
-                                tx2.Abort();
-                                tx2.Dispose();
+                                return;
                             }
                             tx2.Commit();
                         }
-
                     }
                     #endregion
 
@@ -890,10 +926,11 @@ namespace IntersectUtilities
                     {
                         try
                         {
-                            HashSet<FeatureLine> flSet = localDb.HashSetOfType<FeatureLine>(tx3);
+                            #region Find only crossing FLs
+                            HashSet<FeatureLine> flAllSet = localDb.HashSetOfType<FeatureLine>(tx3);
                             //List to hold only the crossing FLs
-                            HashSet<FeatureLine> flList = new HashSet<FeatureLine>();
-                            foreach (FeatureLine fl in flSet)
+                            HashSet<FeatureLine> flCrossingSet = new HashSet<FeatureLine>();
+                            foreach (FeatureLine fl in flAllSet)
                             {
                                 //Filter out fl's not crossing the alignment in question
                                 using (Point3dCollection p3dcol = new Point3dCollection())
@@ -902,10 +939,11 @@ namespace IntersectUtilities
 
                                     if (p3dcol.Count > 0)
                                     {
-                                        flList.Add(fl);
+                                        flCrossingSet.Add(fl);
                                     }
                                 }
                             }
+                            #endregion
 
                             //Debug
                             string pathToLog = Environment.GetFolderPath(
@@ -913,10 +951,11 @@ namespace IntersectUtilities
                             Utils.ClrFile(pathToLog);
                             int counter = 0;
 
-                            foreach (FeatureLine fl in flList)
+                            foreach (FeatureLine fl in flCrossingSet)
                             {
+                                //Read 'Type' value
                                 string type = ReadStringParameterFromDataTable(fl.Layer, dtKrydsninger, "Type", 0);
-                                if (type.IsNOE())
+                                if (type.IsNoE())
                                 {
                                     editor.WriteMessage($"\nFejl: For lag {fl.Layer} mangler der enten " +
                                         $"selve definitionen eller 'Type'!");
@@ -927,7 +966,375 @@ namespace IntersectUtilities
 
                                 //Read depth value for type
                                 double depth = 0;
-                                if (!type.IsNOE())
+                                if (!type.IsNoE())
+                                {
+                                    depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                                }
+
+                                //Bogus 3D poly
+                                if (depth > 0.001 && type != "3D")
+                                {
+                                    fl.UpgradeOpen();
+
+                                    string originalName = fl.Name;
+                                    string originalLayer = fl.Layer;
+
+
+                                    oid newPolyId;
+
+                                    //Create a bogus 3d polyline and offset it
+                                    using (Transaction tx4 = localDb.TransactionManager.StartTransaction())
+                                    {
+                                        Point3dCollection p3dcol = fl.GetPoints(FeatureLinePointType.AllPoints);
+                                        Point3dCollection newP3dCol = new Point3dCollection();
+                                        for (int i = 0; i < p3dcol.Count; i++)
+                                        {
+                                            Point3d originalP = p3dcol[i];
+                                            Point3d newP = new Point3d(originalP.X, originalP.Y,
+                                                originalP.Z - depth);
+                                            newP3dCol.Add(newP);
+                                        }
+
+                                        Polyline3d newPoly = new Polyline3d(Poly3dType.SimplePoly, newP3dCol, false);
+
+                                        //Open modelspace
+                                        acBlkTbl = tx4.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                                        acBlkTblRec = tx4.GetObject(acBlkTbl[BlockTableRecord.ModelSpace],
+                                                         OpenMode.ForWrite) as BlockTableRecord;
+
+                                        acBlkTblRec.AppendEntity(newPoly);
+                                        tx4.AddNewlyCreatedDBObject(newPoly, true);
+                                        newPolyId = newPoly.ObjectId;
+                                        tx4.Commit();
+                                    }
+
+                                    //Erase original FL
+                                    fl.Erase(true);
+
+                                    oid flOid = FeatureLine.Create(originalName, newPolyId);
+                                    Entity ent1 = newPolyId.Go<Entity>(tx3, OpenMode.ForWrite);
+                                    ent1.Erase(true);
+
+                                    FeatureLine newFl = flOid.Go<FeatureLine>(tx3, OpenMode.ForWrite);
+                                    newFl.Layer = originalLayer;
+                                }
+                            }
+
+                            #region Choose continue or not (Debugging)
+                            //if (AskToContinueOrAbort(editor) == "Continue") continue; else break;
+
+                            //string AskToContinueOrAbort(Editor locEd)
+                            //{
+                            //    string ckwd1 = "Continue";
+                            //    string ckwd2 = "Abort";
+                            //    PromptKeywordOptions pKeyOpts2 = new PromptKeywordOptions("");
+                            //    pKeyOpts2.Message = "\nChoose next action: ";
+                            //    pKeyOpts2.Keywords.Add(ckwd1);
+                            //    pKeyOpts2.Keywords.Add(ckwd2);
+                            //    pKeyOpts2.AllowNone = true;
+                            //    pKeyOpts2.Keywords.Default = ckwd1;
+                            //    PromptResult locpKeyRes2 = locEd.GetKeywords(pKeyOpts2);
+                            //    return locpKeyRes2.StringResult;
+                            //}
+
+                            #endregion
+
+                        }
+                        catch (System.Exception ex)
+                        {
+                            editor.WriteMessage("\n" + ex.Message);
+                            return;
+                        }
+
+                        tx3.Commit();
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("createlerdata")]
+        public void createlerdata()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                tx.TransactionManager.QueueForGraphicsFlush();
+
+                try
+                {
+                    #region Select and open XREF
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
+                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
+                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
+                    Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef
+                        = tx.GetObject(blkObjId, OpenMode.ForRead, false)
+                        as Autodesk.AutoCAD.DatabaseServices.BlockReference;
+
+                    // open the block definition?
+                    BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                    // is not from external reference, exit
+                    if (!blockDef.IsFromExternalReference) return;
+
+                    // open the xref database
+                    Database xRefDB = new Database(false, true);
+                    editor.WriteMessage($"\nPathName of the blockDef -> {blockDef.PathName}");
+
+                    //Relative path handling
+                    //I
+                    string curPathName = blockDef.PathName;
+                    bool isFullPath = IsFullPath(curPathName);
+                    if (isFullPath == false)
+                    {
+                        string sourcePath = Path.GetDirectoryName(doc.Name);
+                        editor.WriteMessage($"\nSourcePath -> {sourcePath}");
+                        curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
+                        editor.WriteMessage($"\nTargetPath -> {curPathName}");
+                    }
+
+                    xRefDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
+
+                    //Transaction from Database of the Xref
+                    Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
+
+                    #endregion
+
+                    #region ModelSpaces
+                    //oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(xRefDB);
+                    oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                    #endregion
+
+                    #region Load linework from Xref
+                    List<Polyline3d> allLinework = xRefDB.ListOfType<Polyline3d>(xrefTx);
+                    editor.WriteMessage($"\nNr. of 3D polies: {allLinework.Count}");
+                    #endregion
+
+                    #region Select Alignment
+                    //Get alignment
+                    PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select alignment to intersect: ");
+                    promptEntityOptions2.SetRejectMessage("\n Not an alignment");
+                    promptEntityOptions2.AddAllowedClass(typeof(Alignment), true);
+                    PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                    if (((PromptResult)entity2).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity2.ObjectId;
+                    Alignment alignment = tx.GetObject(alObjId, OpenMode.ForRead, false) as Alignment;
+                    #endregion
+
+                    #region Select surface
+                    //Get surface
+                    PromptEntityOptions promptEntityOptions3 = new PromptEntityOptions("\n Select surface to get elevations: ");
+                    promptEntityOptions3.SetRejectMessage("\n Not a surface");
+                    promptEntityOptions3.AddAllowedClass(typeof(TinSurface), true);
+                    promptEntityOptions3.AddAllowedClass(typeof(GridSurface), true);
+                    PromptEntityResult entity3 = editor.GetEntity(promptEntityOptions3);
+                    if (((PromptResult)entity3).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId surfaceObjId = entity3.ObjectId;
+                    CivSurface surface = surfaceObjId.GetObject(OpenMode.ForRead, false) as CivSurface;
+                    #endregion
+
+                    #region Read Csv Data for Layers and Depth
+
+                    //Establish the pathnames to files
+                    //Files should be placed in a specific folder on desktop
+                    string pathKrydsninger = Environment.GetFolderPath(
+                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Krydsninger.csv";
+                    string pathDybde = Environment.GetFolderPath(
+                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Dybde.csv";
+
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
+
+                    #endregion
+
+                    #region Clone remote objects to local dwg
+
+                    BlockTable acBlkTbl = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    BlockTableRecord acBlkTblRec =
+                        tx.GetObject(acBlkTbl[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
+
+                    Plane plane = new Plane();
+
+                    int intersections = 0;
+
+                    ObjectIdCollection sourceIds = new ObjectIdCollection();
+                    List<Entity> sourceEnts = new List<Entity>();
+
+                    //Gather the intersected objectIds
+                    foreach (Entity ent in allLinework)
+                    {
+                        using (Point3dCollection p3dcol = new Point3dCollection())
+                        {
+                            alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+                            string type = ReadStringParameterFromDataTable(ent.Layer, dtKrydsninger, "Type", 0);
+                            if (type.IsNoE())
+                            {
+                                editor.WriteMessage($"\nFejl: For xref lag {ent.Layer} mangler der enten" +
+                                    $"selve definitionen eller 'Type'!");
+                                return;
+                            }
+                            //Create 3d polyline if there's an intersection and
+                            //if the type of the layer is not "IGNORE"
+                            if (p3dcol.Count > 0 && type != "IGNORE")
+                            {
+                                intersections++;
+                                sourceIds.Add(ent.ObjectId);
+                                sourceEnts.Add(ent);
+                            }
+                        }
+                    }
+
+                    //Deepclone the objects
+                    IdMapping mapping = new IdMapping();
+                    xRefDB.WblockCloneObjects(
+                        sourceIds, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+
+                    editor.WriteMessage($"\nTotal {intersections} intersections detected.");
+                    #endregion
+
+                    #region Load linework from local db
+                    List<Polyline3d> localPlines3d = localDb.ListOfType<Polyline3d>(tx);
+                    editor.WriteMessage($"\nNr. of local 3D polies: {localPlines3d.Count}");
+
+                    List<Entity> allLocalLinework = new List<Entity>(
+                        localPlines3d.Count
+                        );
+
+                    allLocalLinework.AddRange(localPlines3d.Cast<Entity>());
+                    #endregion
+
+                    #region Try creating FeatureLines
+                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                    int flCounter = 1;
+                    foreach (Entity localEntity in allLocalLinework)
+                    {
+                        using (Transaction tx2 = tx.TransactionManager.StartTransaction())
+                        {
+                            try
+                            {
+                                editor.WriteMessage($"\nProcessing entity handle: {localEntity.Handle}.");
+
+                                tx2.TransactionManager.QueueForGraphicsFlush();
+
+                                //TODO: Stopped here !!!! <--- Continue here!
+                                //Read the Handle value of the original object in the Ler Xref
+                                //To use as the resulting
+                                MapValue handleValue = ReadRecordData(
+                                    tables, localEntity.ObjectId, "IdRecord", "Handle");
+
+                                string flName = "";
+
+                                if (handleValue != null) flName = handleValue.StrValue;
+                                else flName = "Reading of Handle failed.";
+
+                                oid flOid = FeatureLine.Create(flName, localEntity.ObjectId);
+
+                                editor.WriteMessage($"\nCreate nr. {flCounter} returned {flOid.ToString()}");
+                                doc.TransactionManager.EnableGraphicsFlush(true);
+                                doc.TransactionManager.QueueForGraphicsFlush();
+                                Autodesk.AutoCAD.Internal.Utils.FlushGraphics();
+
+                                //Modify the feature lines not assigned type '3D' to drape on surface
+                                FeatureLine fl = flOid.Go<FeatureLine>(tx2);
+                                fl.UpgradeOpen();
+                                fl.Layer = localEntity.Layer;
+
+                                string type = ReadStringParameterFromDataTable(fl.Layer, dtKrydsninger, "Type", 0);
+                                if (type.IsNoE())
+                                {
+                                    editor.WriteMessage($"\nFejl: For lag {fl.Layer} mangler der enten " +
+                                        $"selve definitionen eller 'Type'!");
+                                    tx2.Abort();
+                                    return;
+                                }
+
+                                //Read depth value for type
+                                double depth = 0;
+                                if (!type.IsNoE())
+                                {
+                                    depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                                }
+                                //If the geometry is not 3D, offset elevation values
+                                if (flOid.ToString() != "(0)" && type != "3D")
+                                {
+                                    fl.Layer = localEntity.Layer;
+                                    fl.AssignElevationsFromSurface(surfaceObjId, true);
+                                }
+
+                                localEntity.UpgradeOpen();
+                                localEntity.Erase(true);
+
+                                flCounter++;
+                            }
+                            catch (System.Exception ex)
+                            {
+                                editor.WriteMessage("\n" + ex.Message);
+                                return;
+                            }
+                            tx2.Commit();
+                        }
+                    }
+                    #endregion
+
+                    #region Try translating FLs by depth
+                    using (Transaction tx3 = localDb.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            #region Find only crossing FLs
+                            HashSet<FeatureLine> flAllSet = localDb.HashSetOfType<FeatureLine>(tx3);
+                            //List to hold only the crossing FLs
+                            HashSet<FeatureLine> flCrossingSet = new HashSet<FeatureLine>();
+                            foreach (FeatureLine fl in flAllSet)
+                            {
+                                //Filter out fl's not crossing the alignment in question
+                                using (Point3dCollection p3dcol = new Point3dCollection())
+                                {
+                                    alignment.IntersectWith(fl, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+                                    if (p3dcol.Count > 0)
+                                    {
+                                        flCrossingSet.Add(fl);
+                                    }
+                                }
+                            }
+                            #endregion
+
+                            //Debug
+                            string pathToLog = Environment.GetFolderPath(
+                                    Environment.SpecialFolder.Desktop) + "\\CivilNET\\log.txt";
+                            Utils.ClrFile(pathToLog);
+                            int counter = 0;
+
+                            foreach (FeatureLine fl in flCrossingSet)
+                            {
+                                //Read 'Type' value
+                                string type = ReadStringParameterFromDataTable(fl.Layer, dtKrydsninger, "Type", 0);
+                                if (type.IsNoE())
+                                {
+                                    editor.WriteMessage($"\nFejl: For lag {fl.Layer} mangler der enten " +
+                                        $"selve definitionen eller 'Type'!");
+                                    tx3.Abort();
+                                    tx.Abort();
+                                    return;
+                                }
+
+                                //Read depth value for type
+                                double depth = 0;
+                                if (!type.IsNoE())
                                 {
                                     depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
                                 }
@@ -975,24 +1382,6 @@ namespace IntersectUtilities
 
                                     FeatureLine newFl = flOid.Go<FeatureLine>(tx3, OpenMode.ForWrite);
                                     newFl.Layer = originalLayer;
-
-                                    //Utils.OutputWriter(pathToLog, $"\nProcessing FL {fl.Handle}" +
-                                    //    $" sourced from {fl.Name}.");
-                                    //int pCount = fl.ElevationPointsCount;
-                                    //Utils.OutputWriter(pathToLog, $"\nFL number of points {pCount}.");
-                                    //var flPoints = fl.GetPoints(FeatureLinePointType.AllPoints);
-                                    //for (int i = 0; i < pCount; i++)
-                                    //{
-                                    //    Point3d p3d = flPoints[i];
-                                    //    double curElevation = p3d.Z;
-                                    //    double targetElevation = curElevation - depth;
-                                    //    editor.WriteMessage($"\nFL idx: {i}, " +
-                                    //        $"elevation: {curElevation}, target el.: {targetElevation}.");
-                                    //    //Point3d newp3d = new Point3d(p3d.X, p3d.Y, targetElevation);
-                                    //    //flPoints[i] = newp3d;
-                                    //    //fl.SetPointElevation(i, targetElevation);
-                                    //}
-                                    //counter++;
                                 }
                             }
 
@@ -1019,8 +1408,7 @@ namespace IntersectUtilities
                         catch (System.Exception ex)
                         {
                             editor.WriteMessage("\n" + ex.Message);
-                            tx3.Abort();
-                            tx3.Dispose();
+                            return;
                         }
 
                         tx3.Commit();
@@ -1030,13 +1418,81 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     editor.WriteMessage("\n" + ex.Message);
-                    tx.Abort();
-                    tx.Dispose();
+                    return;
                 }
                 tx.Commit();
             }
+        }
 
+        /// <summary>
+        /// Add featurelines to selected profile view as crossings.
+        /// </summary>
+        [CommandMethod("createcrossings")]
+        public void createcrossings()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Select Alignment
+                    //Get alignment
+                    PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select alignment: ");
+                    promptEntityOptions2.SetRejectMessage("\n Not an alignment");
+                    promptEntityOptions2.AddAllowedClass(typeof(Alignment), true);
+                    PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                    if (((PromptResult)entity2).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity2.ObjectId;
+                    Alignment alignment = tx.GetObject(alObjId, OpenMode.ForRead, false) as Alignment;
+                    #endregion
+
+                    #region Select profile view
+                    //Get profile view
+                    PromptEntityOptions promptEntityOptions3 = new PromptEntityOptions("\n Select profile view: ");
+                    promptEntityOptions3.SetRejectMessage("\n Not a profile view");
+                    promptEntityOptions3.AddAllowedClass(typeof(ProfileView), true);
+                    PromptEntityResult entity3 = editor.GetEntity(promptEntityOptions3);
+                    if (((PromptResult)entity3).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId pvObjId = entity3.ObjectId;
+                    //ProfileView pv = pvObjId.Go<ProfileView>(tx);
+                    #endregion
+
+                    Plane plane = new Plane();
+
+                    HashSet<FeatureLine> flAllSet = db.HashSetOfType<FeatureLine>(tx);
+                    //List to hold only the crossing FLs
+                    HashSet<FeatureLine> flCrossingSet = new HashSet<FeatureLine>();
+                    foreach (FeatureLine fl in flAllSet)
+                    {
+                        //Filter out fl's not crossing the alignment in question
+                        using (Point3dCollection p3dcol = new Point3dCollection())
+                        {
+                            alignment.IntersectWith(fl, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+                            if (p3dcol.Count > 0)
+                            {
+                                flCrossingSet.Add(fl);
+                            }
+                        }
+                    }
+
+                    editor.SetImpliedSelection(flCrossingSet.Select(x => x.ObjectId).ToArray());
+
+                    editor.Command("_AeccAddCrossingsProfile", pvObjId);
+                }
+
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
         }
 
         [CommandMethod("debugfl")]
@@ -1083,23 +1539,13 @@ namespace IntersectUtilities
                         editor.WriteMessage($"\nProcessing FL {fl.Handle} derived from {fl.Name}.");
                         int pCount = fl.ElevationPointsCount;
                         editor.WriteMessage($"\nFL number of points {pCount.ToString()}.");
-                        //var flPoints = fl.GetPoints(FeatureLinePointType.ElevationPoint);
-                        //for (int i = 0; i < pCount; i++)
-                        //{
-                        //    double curElevation = flPoints[i].Z;
-                        //    double targetElevation = curElevation - depth;
-                        //    editor.WriteMessage($"\nFL idx: {i}, " +
-                        //        $"elevation: {curElevation}, target el.: {targetElevation}.");
-                        //    fl.SetPointElevation(i, targetElevation);
-                        //}
-
-
                     }
                 }
 
                 catch (System.Exception ex)
                 {
                     editor.WriteMessage("\n" + ex.Message);
+                    return;
                 }
                 tx.Commit();
             }
@@ -1187,6 +1633,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     editor.WriteMessage("\n" + ex.Message);
+                    return;
                 }
                 tx.Commit();
             }
@@ -1278,6 +1725,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     editor.WriteMessage("\n" + ex.Message);
+                    return false;
                 }
                 tx.Commit();
                 return true;
@@ -1321,6 +1769,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     editor.WriteMessage("\n" + ex.Message);
+                    return;
                 }
                 tx.Commit();
             }
@@ -1415,6 +1864,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     editor.WriteMessage("\n" + ex.Message);
+                    return;
                 }
                 tx.Commit();
             }
@@ -1451,6 +1901,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     editor.WriteMessage("\n" + ex.Message);
+                    return;
                 }
                 tx.Commit();
             }
@@ -1464,7 +1915,11 @@ namespace IntersectUtilities
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            SelectCrossingObjects(localDb, editor, true);
+        }
 
+        private static void SelectCrossingObjects(Database localDb, Editor editor, bool askToKeepPointsAndText = false)
+        {
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -1496,17 +1951,22 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Choose to keep points and text or not
-                    const string ckwd1 = "Keep";
-                    const string ckwd2 = "Discard";
-                    PromptKeywordOptions pKeyOpts2 = new PromptKeywordOptions("");
-                    pKeyOpts2.Message = "\nChoose to (K)eep points and text or (D)iscard: ";
-                    pKeyOpts2.Keywords.Add(ckwd1);
-                    pKeyOpts2.Keywords.Add(ckwd2);
-                    pKeyOpts2.AllowNone = true;
-                    pKeyOpts2.Keywords.Default = ckwd1;
-                    PromptResult locpKeyRes2 = editor.GetKeywords(pKeyOpts2);
-                    
-                    bool keepPointsAndText = locpKeyRes2.StringResult == ckwd1;
+                    bool keepPointsAndText = false;
+
+                    if (askToKeepPointsAndText)
+                    {
+                        const string ckwd1 = "Keep";
+                        const string ckwd2 = "Discard";
+                        PromptKeywordOptions pKeyOpts2 = new PromptKeywordOptions("");
+                        pKeyOpts2.Message = "\nChoose to (K)eep points and text or (D)iscard: ";
+                        pKeyOpts2.Keywords.Add(ckwd1);
+                        pKeyOpts2.Keywords.Add(ckwd2);
+                        pKeyOpts2.AllowNone = true;
+                        pKeyOpts2.Keywords.Default = ckwd1;
+                        PromptResult locpKeyRes2 = editor.GetKeywords(pKeyOpts2);
+
+                        keepPointsAndText = locpKeyRes2.StringResult == ckwd1;
+                    }
                     #endregion
 
                     Plane plane = new Plane();
@@ -1535,7 +1995,7 @@ namespace IntersectUtilities
                         foreach (DBPoint item in points) sourceIds.Add(item.ObjectId);
                         foreach (DBText item in text) sourceIds.Add(item.ObjectId);
 
-                        sourceIds.Add(alignment.ObjectId); 
+                        sourceIds.Add(alignment.ObjectId);
                     }
 
                     editor.SetImpliedSelection(sourceIds.ToArray());
@@ -1543,6 +2003,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     editor.WriteMessage("\n" + ex.Message);
+                    return;
                 }
                 tx.Commit();
             }
@@ -1596,6 +2057,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     editor.WriteMessage("\n" + ex.Message);
+                    return;
                 }
                 tx.Commit();
             }
@@ -1735,6 +2197,7 @@ namespace IntersectUtilities
                     catch (System.Exception ex)
                     {
                         editor.WriteMessage("\n" + ex.Message);
+                        return;
                     }
                     tx.Commit();
                 }

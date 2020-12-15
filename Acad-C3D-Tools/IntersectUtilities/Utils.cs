@@ -99,7 +99,7 @@ namespace IntersectUtilities
 
                 string value = query.FirstOrDefault();
 
-                if (value.IsNOE() || value == null) return 0;
+                if (value.IsNoE() || value == null) return 0;
 
                 double result;
 
@@ -561,7 +561,9 @@ namespace IntersectUtilities
 
     public static class Extensions
     {
-        public static bool IsNOE(this string s) => string.IsNullOrEmpty(s);
+        public static bool IsNoE(this string s) => string.IsNullOrEmpty(s);
+
+        public static bool IsNotNoE(this string s) => !string.IsNullOrEmpty(s);
 
         public static bool Equalz(this double a, double b, double tol) => Math.Abs(a - b) <= tol;
 
