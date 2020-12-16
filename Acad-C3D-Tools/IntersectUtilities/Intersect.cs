@@ -633,6 +633,7 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            //Using feature lines must be abandoned, because a reference crossing featur
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 tx.TransactionManager.QueueForGraphicsFlush();
@@ -881,7 +882,6 @@ namespace IntersectUtilities
 
                                 //assign description
                                 fl.Description = description;
-
                                 #endregion
 
                                 string type = ReadStringParameterFromDataTable(fl.Layer, dtKrydsninger, "Type", 0);
@@ -978,7 +978,7 @@ namespace IntersectUtilities
 
                                     string originalName = fl.Name;
                                     string originalLayer = fl.Layer;
-
+                                    string originalDescription = fl.Description;
 
                                     oid newPolyId;
 
@@ -1017,6 +1017,7 @@ namespace IntersectUtilities
 
                                     FeatureLine newFl = flOid.Go<FeatureLine>(tx3, OpenMode.ForWrite);
                                     newFl.Layer = originalLayer;
+                                    newFl.Description = originalDescription;
                                 }
                             }
 
@@ -1484,6 +1485,48 @@ namespace IntersectUtilities
                     editor.SetImpliedSelection(flCrossingSet.Select(x => x.ObjectId).ToArray());
 
                     editor.Command("_AeccAddCrossingsProfile", pvObjId);
+                }
+
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("populateprofile")]
+        public void populateprofile()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PromptSelectionOptions pOptions = new PromptSelectionOptions();
+
+                    PromptSelectionResult sSetResult = editor.GetSelection(pOptions);
+
+                    if (sSetResult.Status != PromptStatus.OK) return;
+
+                    foreach (oid Oid in sSetResult.Value.GetObjectIds().ToList())
+                    {
+                        Entity ent = Oid.Go<Entity>(tx);
+                        if (ent is Label label)
+                        {
+                            
+                            
+
+                            //label.UpgradeOpen();
+                            //label.Layer = fEnt.Layer;
+                        }
+                    }
                 }
 
                 catch (System.Exception ex)
