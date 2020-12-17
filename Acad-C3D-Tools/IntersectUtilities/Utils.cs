@@ -517,6 +517,31 @@ namespace IntersectUtilities
             return vertices.ToArray();
         }
         #endregion
+
+        public static List<T> FilterForCrossingEntities<T>(List<T> entList, Alignment alignment) where T : Entity
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Plane plane = new Plane();
+            //Gather the intersected objectIds
+            List<Entity> returnList = new List<Entity>();
+            foreach (Entity ent in entList)
+            {
+                using (Point3dCollection p3dcol = new Point3dCollection())
+                {
+                    alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+                    
+                    //Create feature line if there's an intersection and
+                    //if the type of the layer is not "IGNORE"
+                    if (p3dcol.Count > 0)
+                    {
+                        returnList.Add(ent);
+                    }
+                }
+            }
+            return returnList.Cast<T>().ToList();
+        }
     }
     public static class Enums
     {
@@ -636,7 +661,7 @@ namespace IntersectUtilities
             //}
         }
 
-        public static HashSet<T> HashSetOfType<T>(this Database db, Transaction tr) 
+        public static HashSet<T> HashSetOfType<T>(this Database db, Transaction tr)
             where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
             return new HashSet<T>(db.ListOfType<T>(tr));
