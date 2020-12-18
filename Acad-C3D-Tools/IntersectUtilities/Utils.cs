@@ -397,6 +397,54 @@ namespace IntersectUtilities
             }
         }
 
+        public static int ReadIntPropertyValue(Tables tables, oid id, string tableName, string columnName)
+        {
+            ErrorCode errCode = ErrorCode.OK;
+            try
+            {
+                return ReadRecordData(tables, id, tableName, columnName).Int32Value;
+            }
+            catch (MapException e)
+            {
+                errCode = (ErrorCode)(e.ErrorCode);
+                // Deal with the exception here as your will
+
+                return default;
+            }
+        }
+
+        public static double ReadDoublePropertyValue(Tables tables, oid id, string tableName, string columnName)
+        {
+            ErrorCode errCode = ErrorCode.OK;
+            try
+            {
+                return ReadRecordData(tables, id, tableName, columnName).DoubleValue;
+            }
+            catch (MapException e)
+            {
+                errCode = (ErrorCode)(e.ErrorCode);
+                // Deal with the exception here as your will
+
+                return default;
+            }
+        }
+
+        public static string ReadStringPropertyValue(Tables tables, oid id, string tableName, string columnName)
+        {
+            ErrorCode errCode = ErrorCode.OK;
+            try
+            {
+                return ReadRecordData(tables, id, tableName, columnName).StrValue;
+            }
+            catch (MapException e)
+            {
+                errCode = (ErrorCode)(e.ErrorCode);
+                // Deal with the exception here as your will
+
+                return default;
+            }
+        }
+
         public static bool DoesRecordExist(Tables tables, oid id, string columnName)
         {
             ErrorCode errCode = ErrorCode.OK;
@@ -451,6 +499,7 @@ namespace IntersectUtilities
                 foreach (Record record in records)
                 {
                     Autodesk.Gis.Map.ObjectData.Table table = tables[record.TableName];
+
                     Record newRecord = Record.Create();
                     table.InitRecord(newRecord);
 
@@ -465,29 +514,23 @@ namespace IntersectUtilities
                             case Autodesk.Gis.Map.Constants.DataType.Integer:
                                 newVal = newRecord[i];
                                 newVal.Assign(sourceValue.Int32Value);
-                                Editor.WriteMessage($"\n{sourceValue.Int32Value}");
                                 break;
                             case Autodesk.Gis.Map.Constants.DataType.Real:
                                 newVal = newRecord[i];
                                 newVal.Assign(sourceValue.DoubleValue);
-                                Editor.WriteMessage($"\n{sourceValue.DoubleValue}");
                                 break;
                             case Autodesk.Gis.Map.Constants.DataType.Character:
                                 newVal = newRecord[i];
                                 newVal.Assign(sourceValue.StrValue);
-                                Editor.WriteMessage($"\n{sourceValue.StrValue}");
                                 break;
                             case Autodesk.Gis.Map.Constants.DataType.Point:
                                 newVal = newRecord[i];
                                 newVal.Assign(sourceValue.Point);
-                                Editor.WriteMessage($"\n{sourceValue.Point}");
                                 break;
                             default:
                                 break;
                         }
-                        //newRecord[i].Assign(record[i]);
                     }
-                    Editor.WriteMessage($"\nBreaking after this: 2");
                     try
                     {
                         table.AddRecord(newRecord, entTarget.ObjectId);

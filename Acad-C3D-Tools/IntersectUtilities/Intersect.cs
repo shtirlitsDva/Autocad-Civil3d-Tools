@@ -2028,6 +2028,94 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("linewidth")]
+        public void setlinewidth()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Load linework
+                    List<Line> lines = localDb.ListOfType<Line>(tx);
+                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
+                    List<Polyline> plines = localDb.ListOfType<Polyline>(tx);
+                    editor.WriteMessage($"\nNr. of plines: {plines.Count}");
+                    List<Polyline3d> plines3d = localDb.ListOfType<Polyline3d>(tx);
+                    editor.WriteMessage($"\nNr. of 3D polies: {plines3d.Count}");
+                    List<Spline> splines = localDb.ListOfType<Spline>(tx);
+                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
+
+                    List<Entity> allLinework = new List<Entity>(
+                        lines.Count + plines.Count + plines3d.Count + splines.Count);
+
+                    allLinework.AddRange(lines.Cast<Entity>());
+                    allLinework.AddRange(plines.Cast<Entity>());
+                    allLinework.AddRange(plines3d.Cast<Entity>());
+                    allLinework.AddRange(splines.Cast<Entity>());
+                    #endregion
+
+                    #region Try creating records
+
+                    string m_tableName = "IdRecord";
+                    string columnName = "Handle";
+
+                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                    if (DoesTableExist(tables, m_tableName))
+                    {
+                        editor.WriteMessage("\nTable already exists!");
+                    }
+                    else
+                    {
+                        if (CreateTable(
+                            tables, m_tableName, "Object handle", columnName, "Handle to string",
+                            Autodesk.Gis.Map.Constants.DataType.Character))
+                        {
+                            editor.WriteMessage($"\nCreated table {m_tableName}.");
+                        }
+                        else
+                        {
+                            editor.WriteMessage("\nFailed to create the ObjectData table.");
+                            return;
+                        }
+                    }
+                    int successCounter = 0;
+                    int failureCounter = 0;
+                    foreach (Entity ent in allLinework)
+                    {
+                        string value = ent.Handle.ToString().Replace("(", "").Replace(")", "");
+
+                        if (DoesRecordExist(tables, ent.ObjectId, "Id"))
+                        {
+                            UpdateODRecord(tables, m_tableName, columnName, ent.ObjectId, value);
+                        }
+                        else if (AddODRecord(tables, m_tableName, ent.ObjectId, value))
+                        {
+                            successCounter++;
+                        }
+                        else failureCounter++;
+                    }
+
+                    editor.WriteMessage($"\nId record created successfully for {successCounter} entities.");
+                    editor.WriteMessage($"\nId record creation failed for {failureCounter} entities.");
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("addsize")]
         public void addsize()
         {
