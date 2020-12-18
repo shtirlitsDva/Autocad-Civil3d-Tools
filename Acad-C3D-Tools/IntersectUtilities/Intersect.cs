@@ -2188,13 +2188,16 @@ namespace IntersectUtilities
                     List<Spline> splines = localDb.ListOfType<Spline>(tx);
                     editor.WriteMessage($"\nNr. of splines: {splines.Count}");
 
+                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
                     foreach (Spline spline in splines)
                     {
                         Curve curve = spline.ToPolylineWithPrecision(10);
-
-                        curve.Layer = spline.Layer;
                         acBlkTblRec.AppendEntity(curve);
                         tx.AddNewlyCreatedDBObject(curve, true);
+                        curve.CheckOrOpenForWrite();
+                        curve.Layer = spline.Layer;
+                        CopyAllOD(tables, spline, curve);
                     }
                     #endregion
 
@@ -2211,9 +2214,11 @@ namespace IntersectUtilities
                         for (int i = 0; i < vn; i++) p3dcol.Add(pline.GetPoint3dAt(i));
 
                         Polyline3d polyline3D = new Polyline3d(Poly3dType.SimplePoly, p3dcol, false);
+                        polyline3D.CheckOrOpenForWrite();
                         polyline3D.Layer = pline.Layer;
                         acBlkTblRec.AppendEntity(polyline3D);
                         tx.AddNewlyCreatedDBObject(polyline3D, true);
+                        CopyAllOD(tables, pline, polyline3D);
                     }
 
                     List<Line> lines = localDb.ListOfType<Line>(tx);
@@ -2227,26 +2232,28 @@ namespace IntersectUtilities
                         p3dcol.Add(line.EndPoint);
 
                         Polyline3d polyline3D = new Polyline3d(Poly3dType.SimplePoly, p3dcol, false);
+                        polyline3D.CheckOrOpenForWrite();
                         polyline3D.Layer = line.Layer;
                         acBlkTblRec.AppendEntity(polyline3D);
                         tx.AddNewlyCreatedDBObject(polyline3D, true);
+                        CopyAllOD(tables, line, polyline3D);
                     }
 
                     foreach (Line line in lines)
                     {
-                        line.UpgradeOpen();
+                        line.CheckOrOpenForWrite();
                         line.Erase(true);
                     }
 
                     foreach (Spline spline in splines)
                     {
-                        spline.UpgradeOpen();
+                        spline.CheckOrOpenForWrite();
                         spline.Erase(true);
                     }
 
                     foreach (Polyline pl in polies)
                     {
-                        pl.UpgradeOpen();
+                        pl.CheckOrOpenForWrite();
                         pl.Erase(true);
                     }
                 }
@@ -2257,6 +2264,9 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+
+            //Run create ids also
+            createids();
         }
 
         [CommandMethod("selectbyhandle")]

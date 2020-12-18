@@ -293,7 +293,7 @@ namespace IntersectUtilities
                 {
                     if (records.Count == 0)
                     {
-                        AcadEditor.WriteMessage($"\nThere is no ObjectData record attached on the entity.");
+                        Editor.WriteMessage($"\nThere is no ObjectData record attached on the entity.");
                         return false;
                     }
 
@@ -363,7 +363,7 @@ namespace IntersectUtilities
                 {
                     if (records.Count == 0)
                     {
-                        AcadEditor.WriteMessage($"\nThere is no ObjectData record attached on the entity.");
+                        Editor.WriteMessage($"\nThere is no ObjectData record attached on the entity.");
                         return null;
                     }
 
@@ -439,7 +439,70 @@ namespace IntersectUtilities
             }
         }
 
-        public static Editor AcadEditor
+        public static void CopyAllOD(Tables tables, Entity entSource, Entity entTarget)
+        {
+            using (Records records = tables.GetObjectRecords(
+                   0, entSource.ObjectId, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+            {
+                if (records == null || records.Count == 0) return;
+
+                Editor.WriteMessage($"\nEntity: {entSource.Handle}");
+
+                foreach (Record record in records)
+                {
+                    Autodesk.Gis.Map.ObjectData.Table table = tables[record.TableName];
+                    Record newRecord = Record.Create();
+                    table.InitRecord(newRecord);
+
+                    for (int i = 0; i < record.Count; i++)
+                    {
+                        MapValue sourceValue = record[i];
+                        MapValue newVal = null;
+                        switch (sourceValue.Type)
+                        {
+                            case Autodesk.Gis.Map.Constants.DataType.UnknownType:
+                                continue;
+                            case Autodesk.Gis.Map.Constants.DataType.Integer:
+                                newVal = newRecord[i];
+                                newVal.Assign(sourceValue.Int32Value);
+                                Editor.WriteMessage($"\n{sourceValue.Int32Value}");
+                                break;
+                            case Autodesk.Gis.Map.Constants.DataType.Real:
+                                newVal = newRecord[i];
+                                newVal.Assign(sourceValue.DoubleValue);
+                                Editor.WriteMessage($"\n{sourceValue.DoubleValue}");
+                                break;
+                            case Autodesk.Gis.Map.Constants.DataType.Character:
+                                newVal = newRecord[i];
+                                newVal.Assign(sourceValue.StrValue);
+                                Editor.WriteMessage($"\n{sourceValue.StrValue}");
+                                break;
+                            case Autodesk.Gis.Map.Constants.DataType.Point:
+                                newVal = newRecord[i];
+                                newVal.Assign(sourceValue.Point);
+                                Editor.WriteMessage($"\n{sourceValue.Point}");
+                                break;
+                            default:
+                                break;
+                        }
+                        //newRecord[i].Assign(record[i]);
+                    }
+                    Editor.WriteMessage($"\nBreaking after this: 2");
+                    try
+                    {
+                        table.AddRecord(newRecord, entTarget.ObjectId);
+                    }
+                    catch (Autodesk.Gis.Map.MapException ex)
+                    {
+                        string ErrorText = ((Autodesk.Gis.Map.Constants.ErrorCode)ex.ErrorCode).ToString();
+                        Editor.WriteMessage($"\n{ErrorText}: {ex.Message}: {ex.Source}: {ex.StackTrace}");
+                        throw;
+                    }
+                }
+            }
+        }
+
+        public static Editor Editor
         {
             get
             {
@@ -531,7 +594,7 @@ namespace IntersectUtilities
                 using (Point3dCollection p3dcol = new Point3dCollection())
                 {
                     alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
-                    
+
                     //Create feature line if there's an intersection and
                     //if the type of the layer is not "IGNORE"
                     if (p3dcol.Count > 0)
@@ -594,6 +657,25 @@ namespace IntersectUtilities
 
         public static bool HorizontalEqualz(this Point3d a, Point3d b, double tol = 0.001) =>
             null != a && null != b && a.X.Equalz(b.X, tol) && a.Y.Equalz(b.Y, tol);
+
+        public static void CheckOrOpenForWrite(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject)
+        {
+            if (dbObject.IsWriteEnabled == false)
+            {
+                if (dbObject.IsReadEnabled == true)
+                {
+                    dbObject.UpgradeOpen();
+                }
+
+                else if (dbObject.IsReadEnabled == false)
+                {
+                    dbObject.UpgradeOpen();
+                    dbObject.UpgradeOpen();
+                }
+
+
+            }
+        }
     }
 
     public static class ExtensionMethods
