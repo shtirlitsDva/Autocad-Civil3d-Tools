@@ -186,7 +186,7 @@ namespace IntersectUtilities
 
                     xrefTx.Dispose();
 
-                    layNames = layNames.Distinct().ToList();
+                    layNames = layNames.Distinct().OrderBy(x => x).ToList();
                     StringBuilder sb = new StringBuilder();
                     foreach (string name in layNames) sb.AppendLine(name);
 
@@ -1396,22 +1396,25 @@ namespace IntersectUtilities
                         //1. Read size record
                         MapValue sizeRecord = Utils.ReadRecordData(
                             tables, ent.ObjectId, "SizeTable", "Size");
-                        int size = 0;
+                        int SizeTableSize = 0;
                         string sizeDescrPart = "";
                         if (sizeRecord != null)
                         {
-                            size = sizeRecord.Int16Value;
-                            sizeDescrPart = $"ø{size}";
+                            SizeTableSize = sizeRecord.Int32Value;
+                            sizeDescrPart = $"ø{SizeTableSize}";
                         }
 
                         //2. Read description from Krydsninger
                         string descrFromKrydsninger = ReadStringParameterFromDataTable(
                             ent.Layer, dtKrydsninger, "Description", 0);
 
+                        //2.1 Read the formatting in the description field
+
+
                         //Finally: Compose description field
                         List<string> descrParts = new List<string>();
                         //1.
-                        if (size != 0) descrParts.Add(sizeDescrPart);
+                        if (SizeTableSize != 0) descrParts.Add(sizeDescrPart);
                         //2.
                         if (descrFromKrydsninger.IsNotNoE()) descrParts.Add(descrFromKrydsninger);
 
