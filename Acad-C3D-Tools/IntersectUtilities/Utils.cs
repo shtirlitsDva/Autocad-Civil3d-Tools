@@ -655,7 +655,9 @@ namespace IntersectUtilities
         {
             None,
             Manual,
-            Text
+            Text,
+            OnOtherPl3d,
+            CalculateFromSlope
         }
     }
     public class PointDBHorizontalComparer : IEqualityComparer<DBPoint>
