@@ -276,7 +276,7 @@ namespace IntersectUtilities
                         }
                         return list;
                     }
-                    
+
                     layNames = LocalListNames(layNames, plines3d);
 
                     xrefTx.Dispose();
@@ -2553,6 +2553,133 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("detectknudepunkterandinterpolate")]
+        public void detectknudepunkterandinterpolate()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Load linework from local db
+                    HashSet<Polyline3d> localPlines3d = localDb
+                        .HashSetOfType<Polyline3d>(tx)
+                        .Where(x => x.Layer == "Afløb-kloakledning")
+                        .ToHashSet();
+                    editor.WriteMessage($"\nNr. of local 3D polies: {localPlines3d.Count}");
+                    #endregion
+
+                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                    //Points to intersect
+                    HashSet<DBPoint> points = new HashSet<DBPoint>(localDb.ListOfType<DBPoint>(tx),
+                                                  new PointDBHorizontalComparer());
+                    editor.WriteMessage($"\nNr. of local points: {points.Count}");
+                    editor.WriteMessage($"\nTotal number of combinations: " +
+                        $"{points.Count * (localPlines3d.Count)}");
+
+                    foreach (Polyline3d pline3d in localPlines3d)
+                    {
+                        var vertices = pline3d.GetVertices(tx);
+
+                        int endIdx = vertices.Length - 1;
+
+                        //Start point
+                        DBPoint startMatch = points.Where(x => x.Position.HorizontalEqualz(vertices[0].Position)).FirstOrDefault();
+                        //End point
+                        DBPoint endMatch = points.Where(x => x.Position.HorizontalEqualz(vertices[endIdx].Position)).FirstOrDefault();
+
+                        if (startMatch != null && endMatch != null)
+                        {
+                            double startElevation = ReadDoublePropertyValue(tables, startMatch.ObjectId,
+                                "AFL_knude", "BUNDKOTE");
+
+                            double endElevation = ReadDoublePropertyValue(tables, endMatch.ObjectId,
+                                "AFL_knude", "BUNDKOTE");
+
+                            if (startElevation != 0 && endElevation != 0)
+                            {
+                                //Start match
+                                vertices[0].CheckOrOpenForWrite();
+                                vertices[0].Position = new Point3d(
+                                    vertices[0].Position.X, vertices[0].Position.Y, startElevation);
+
+                                //End match
+                                vertices[endIdx].CheckOrOpenForWrite();
+                                vertices[endIdx].Position = new Point3d(
+                                    vertices[endIdx].Position.X, vertices[endIdx].Position.Y, endElevation);
+
+                                //Trig
+                                //Start elevation is higher, thus we must start from backwards
+                                if (startElevation > endElevation)
+                                {
+                                    double AB = pline3d.GetHorizontalLength(tx);
+                                    double AAmark = startElevation - endElevation;
+                                    double PB = 0;
+
+                                    for (int i = endIdx; i >= 0; i--)
+                                    {
+                                        //We don't need to interpolate start and end points,
+                                        //So skip them
+                                        if (i != 0 || i != endIdx)
+                                        {
+                                            PB += vertices[i + 1].Position.DistanceHorizontalTo(
+                                                 vertices[i].Position);
+                                            double newElevation = PB * (AAmark / AB);
+                                            //Change the elevation
+                                            vertices[i].CheckOrOpenForWrite();
+                                            vertices[i].Position = new Point3d(
+                                                vertices[i].Position.X, vertices[i].Position.Y, newElevation);
+                                            vertices[i].DowngradeOpen();
+                                        }
+                                    }
+                                }
+                                else if (startElevation < endElevation)
+                                {
+                                    double AB = pline3d.GetHorizontalLength(tx);
+                                    double AAmark = endElevation - startElevation;
+                                    double PB = 0;
+
+                                    for (int i = 0; i < endIdx; i++)
+                                    {
+                                        //We don't need to interpolate start and end points,
+                                        //So skip them
+                                        if (i != 0 || i != endIdx)
+                                        {
+                                            PB += vertices[i - 1].Position.DistanceHorizontalTo(
+                                                 vertices[i].Position);
+                                            double newElevation = PB * (AAmark / AB);
+                                            //Change the elevation
+                                            vertices[i].CheckOrOpenForWrite();
+                                            vertices[i].Position = new Point3d(
+                                                vertices[i].Position.X, vertices[i].Position.Y, newElevation);
+                                            vertices[i].DowngradeOpen();
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    editor.WriteMessage("\nElevations are the same!");
+                                    //Make all elevations the same
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("editelevations")]
         public void editelevations()
         {
@@ -2610,15 +2737,7 @@ namespace IntersectUtilities
                 }
                 #endregion
 
-                #region Select point
-                PromptPointOptions pPtOpts = new PromptPointOptions("");
-                // Prompt for the start point
-                pPtOpts.Message = "\nEnter location where to modify the pline3d (must be a vertex):";
-                PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
-                Point3d point = pPtRes.Value;
-                // Exit if the user presses ESC or cancels the command
-                if (pPtRes.Status != PromptStatus.OK) return;
-                #endregion
+                Point3d selectedPoint;
 
                 #region Get elevation depending on method
                 double elevation = 0;
@@ -2627,152 +2746,226 @@ namespace IntersectUtilities
                     case ElevationInputMethod.None:
                         return;
                     case ElevationInputMethod.Manual:
-                        PromptDoubleResult result = editor.GetDouble("\nEnter elevation in meters:");
-                        if (((PromptResult)result).Status != PromptStatus.OK) return;
-                        elevation = result.Value;
+                        {
+                            #region Select point
+                            PromptPointOptions pPtOpts = new PromptPointOptions("");
+                            // Prompt for the start point
+                            pPtOpts.Message = "\nEnter location where to modify the pline3d (must be a vertex):";
+                            PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
+                            selectedPoint = pPtRes.Value;
+                            // Exit if the user presses ESC or cancels the command
+                            if (pPtRes.Status != PromptStatus.OK) return;
+                            #endregion
+
+                            #region Get elevation
+                            PromptDoubleResult result = editor.GetDouble("\nEnter elevation in meters:");
+                            if (((PromptResult)result).Status != PromptStatus.OK) return;
+                            elevation = result.Value;
+                            #endregion 
+                        }
+
                         break;
                     case ElevationInputMethod.Text:
-                        #region Select and parse text
-                        PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
-                            "\nSelect to parse as elevation:");
-                        promptEntityOptions2.SetRejectMessage("\n Not a text!");
-                        promptEntityOptions2.AddAllowedClass(typeof(DBText), true);
-                        PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
-                        if (((PromptResult)entity2).Status != PromptStatus.OK) return;
-                        Autodesk.AutoCAD.DatabaseServices.ObjectId DBtextId = entity2.ObjectId;
-
-                        using (Transaction tx2 = localDb.TransactionManager.StartTransaction())
                         {
-                            DBText dBText = DBtextId.Go<DBText>(tx2);
-                            string readValue = dBText.TextString;
+                            #region Select point
+                            PromptPointOptions pPtOpts = new PromptPointOptions("");
+                            // Prompt for the start point
+                            pPtOpts.Message = "\nEnter location where to modify the pline3d (must be a vertex):";
+                            PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
+                            selectedPoint = pPtRes.Value;
+                            // Exit if the user presses ESC or cancels the command
+                            if (pPtRes.Status != PromptStatus.OK) return;
+                            #endregion
 
-                            double parsedResult;
+                            #region Select and parse text
+                            PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
+                                "\nSelect to parse as elevation:");
+                            promptEntityOptions2.SetRejectMessage("\n Not a text!");
+                            promptEntityOptions2.AddAllowedClass(typeof(DBText), true);
+                            PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                            if (((PromptResult)entity2).Status != PromptStatus.OK) return;
+                            Autodesk.AutoCAD.DatabaseServices.ObjectId DBtextId = entity2.ObjectId;
 
-                            if (double.TryParse(readValue, NumberStyles.AllowDecimalPoint,
-                                    CultureInfo.InvariantCulture, out parsedResult))
+                            using (Transaction tx2 = localDb.TransactionManager.StartTransaction())
                             {
-                                elevation = parsedResult;
+                                DBText dBText = DBtextId.Go<DBText>(tx2);
+                                string readValue = dBText.TextString;
+
+                                double parsedResult;
+
+                                if (double.TryParse(readValue, NumberStyles.AllowDecimalPoint,
+                                        CultureInfo.InvariantCulture, out parsedResult))
+                                {
+                                    elevation = parsedResult;
+                                }
+                                else
+                                {
+                                    editor.WriteMessage("\nParsing of text failed!");
+                                    return;
+                                }
+                                tx2.Commit();
                             }
-                            else
-                            {
-                                editor.WriteMessage("\nParsing of text failed!");
-                                return;
-                            }
-                            tx2.Commit();
                         }
                         break;
                     #endregion
                     case ElevationInputMethod.OnOtherPl3d:
-                        //Create vertical line to intersect the Ler line
-
-                        oid newPolyId;
-
-                        using (Transaction txp3d = localDb.TransactionManager.StartTransaction())
                         {
-                            Point3dCollection newP3dCol = new Point3dCollection();
-                            //Intersection at 0
-                            newP3dCol.Add(point);
-                            //New point at very far away
-                            newP3dCol.Add(new Point3d(point.X, point.Y, 1000));
+                            //Create vertical line to intersect the Ler line
 
-                            Polyline3d newPoly = new Polyline3d(Poly3dType.SimplePoly, newP3dCol, false);
+                            #region Select point
+                            PromptPointOptions pPtOpts = new PromptPointOptions("");
+                            // Prompt for the start point
+                            pPtOpts.Message = "\nEnter location where to modify the pline3d (must be a vertex):";
+                            PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
+                            selectedPoint = pPtRes.Value;
+                            // Exit if the user presses ESC or cancels the command
+                            if (pPtRes.Status != PromptStatus.OK) return;
+                            #endregion
 
-                            //Open modelspace
-                            BlockTable bTbl = txp3d.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                            BlockTableRecord bTblRec = txp3d.GetObject(bTbl[BlockTableRecord.ModelSpace],
-                                             OpenMode.ForWrite) as BlockTableRecord;
+                            oid newPolyId;
 
-                            bTblRec.AppendEntity(newPoly);
-                            txp3d.AddNewlyCreatedDBObject(newPoly, true);
-                            newPolyId = newPoly.ObjectId;
-                            txp3d.Commit();
-                        }
-
-                        #region Select pline3d
-                        PromptEntityOptions promptEntityOptions3 = new PromptEntityOptions(
-                            "\nSelect polyline3d to get elevation:");
-                        promptEntityOptions3.SetRejectMessage("\n Not a polyline3d!");
-                        promptEntityOptions3.AddAllowedClass(typeof(Polyline3d), true);
-                        PromptEntityResult entity3 = editor.GetEntity(promptEntityOptions3);
-                        if (((PromptResult)entity3).Status != PromptStatus.OK) return;
-                        oid pline3dToGetElevationsId = entity3.ObjectId;
-                        #endregion
-
-                        using (Transaction txOther = localDb.TransactionManager.StartTransaction())
-                        {
-                            Polyline3d otherPoly3d = pline3dToGetElevationsId.Go<Polyline3d>(txOther);
-                            Polyline3d newPoly3d = newPolyId.Go<Polyline3d>(txOther);
-                            using (Point3dCollection p3dIntCol = new Point3dCollection())
+                            using (Transaction txp3d = localDb.TransactionManager.StartTransaction())
                             {
-                                otherPoly3d.IntersectWith(newPoly3d, 0, p3dIntCol, new IntPtr(0), new IntPtr(0));
+                                Point3dCollection newP3dCol = new Point3dCollection();
+                                //Intersection at 0
+                                newP3dCol.Add(selectedPoint);
+                                //New point at very far away
+                                newP3dCol.Add(new Point3d(selectedPoint.X, selectedPoint.Y, 1000));
 
-                                if (p3dIntCol.Count > 0 && p3dIntCol.Count < 2)
+                                Polyline3d newPoly = new Polyline3d(Poly3dType.SimplePoly, newP3dCol, false);
+
+                                //Open modelspace
+                                BlockTable bTbl = txp3d.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                                BlockTableRecord bTblRec = txp3d.GetObject(bTbl[BlockTableRecord.ModelSpace],
+                                                 OpenMode.ForWrite) as BlockTableRecord;
+
+                                bTblRec.AppendEntity(newPoly);
+                                txp3d.AddNewlyCreatedDBObject(newPoly, true);
+                                newPolyId = newPoly.ObjectId;
+                                txp3d.Commit();
+                            }
+
+                            #region Select pline3d
+                            PromptEntityOptions promptEntityOptions3 = new PromptEntityOptions(
+                                "\nSelect polyline3d to get elevation:");
+                            promptEntityOptions3.SetRejectMessage("\n Not a polyline3d!");
+                            promptEntityOptions3.AddAllowedClass(typeof(Polyline3d), true);
+                            PromptEntityResult entity3 = editor.GetEntity(promptEntityOptions3);
+                            if (((PromptResult)entity3).Status != PromptStatus.OK) return;
+                            oid pline3dToGetElevationsId = entity3.ObjectId;
+                            #endregion
+
+                            using (Transaction txOther = localDb.TransactionManager.StartTransaction())
+                            {
+                                Polyline3d otherPoly3d = pline3dToGetElevationsId.Go<Polyline3d>(txOther);
+                                Polyline3d newPoly3d = newPolyId.Go<Polyline3d>(txOther);
+                                using (Point3dCollection p3dIntCol = new Point3dCollection())
                                 {
-                                    foreach (Point3d p3dInt in p3dIntCol)
+                                    otherPoly3d.IntersectWith(newPoly3d, 0, p3dIntCol, new IntPtr(0), new IntPtr(0));
+
+                                    if (p3dIntCol.Count > 0 && p3dIntCol.Count < 2)
                                     {
-                                        //Assume only one intersection
-                                        elevation = p3dInt.Z;
+                                        foreach (Point3d p3dInt in p3dIntCol)
+                                        {
+                                            //Assume only one intersection
+                                            elevation = p3dInt.Z;
+                                        }
                                     }
                                 }
+                                newPoly3d.UpgradeOpen();
+                                newPoly3d.Erase(true);
                             }
-                            newPoly3d.UpgradeOpen();
-                            newPoly3d.Erase(true); 
-                        }
 
+                        }
                         break;
                     case ElevationInputMethod.CalculateFromSlope:
-                        #region Select point from which to calculate
-                        PromptPointOptions pPtOpts2 = new PromptPointOptions("");
-                        // Prompt for the start point
-                        pPtOpts2.Message = "\nEnter location from where to calculate using slope:";
-                        PromptPointResult pPtRes2 = editor.GetPoint(pPtOpts2);
-                        Point3d pointFrom = pPtRes2.Value;
-                        // Exit if the user presses ESC or cancels the command
-                        if (pPtRes.Status != PromptStatus.OK) return;
-                        #endregion
-
-                        #region Get slope value
-                        PromptDoubleResult result2 = editor.GetDouble("\nEnter slope in pro mille (negative slope downward):");
-                        if (((PromptResult)result2).Status != PromptStatus.OK) return;
-                        double slope = result2.Value; 
-                        #endregion
-
-                        using (Transaction tx = localDb.TransactionManager.StartTransaction())
                         {
-                            try
+                            #region Select point from which to calculate
+                            PromptPointOptions pPtOpts2 = new PromptPointOptions("");
+                            // Prompt for the start point
+                            pPtOpts2.Message = "\nEnter location from where to calculate using slope:";
+                            PromptPointResult pPtRes2 = editor.GetPoint(pPtOpts2);
+                            Point3d pointFrom = pPtRes2.Value;
+                            // Exit if the user presses ESC or cancels the command
+                            if (pPtRes2.Status != PromptStatus.OK) return;
+                            #endregion
+
+                            #region Get slope value
+                            PromptDoubleResult result2 = editor.GetDouble("\nEnter slope in pro mille (negative slope downward):");
+                            if (((PromptResult)result2).Status != PromptStatus.OK) return;
+                            double slope = result2.Value;
+                            #endregion
+
+                            using (Transaction tx = localDb.TransactionManager.StartTransaction())
                             {
-                                Polyline3d pline3d = pline3dId.Go<Polyline3d>(tx);
-
-                                var vertices = pline3d.GetVertices(tx);
-
-                                bool matchNotFound = true;
-                                for (int i = 0; i < vertices.Length; i++)
+                                try
                                 {
-                                    //True if the source
-                                    if (vertices[i].Position.HorizontalEqualz(pointFrom))
+                                    Polyline3d pline3d = pline3dId.Go<Polyline3d>(tx);
+
+                                    var vertices = pline3d.GetVertices(tx);
+
+                                    //Starts from start
+                                    if (pointFrom.HorizontalEqualz(vertices[0].Position))
                                     {
-                                        vertices[i].UpgradeOpen();
-                                        vertices[i].Position = new Point3d(
-                                            vertices[i].Position.X, vertices[i].Position.Y, elevation);
-                                        vertices[i].DowngradeOpen();
-                                        matchNotFound = false;
+                                        double totalLength = 0;
+                                        double startElevation = vertices[0].Position.Z;
+                                        for (int i = 0; i < vertices.Length; i++)
+                                        {
+                                            if (i == 0) continue; //Skip first iteration, assume elevation is set
+
+                                            totalLength += vertices[i - 1].Position
+                                                                        .DistanceHorizontalTo(
+                                                                               vertices[i].Position);
+
+                                            double newDelta = totalLength * slope / 1000;
+                                            double newElevation = startElevation + newDelta;
+
+                                            //Write the new elevation
+                                            vertices[i].CheckOrOpenForWrite();
+                                            vertices[i].Position = new Point3d(
+                                                vertices[i].Position.X, vertices[i].Position.Y, newElevation);
+                                            vertices[i].DowngradeOpen();
+                                        }
+                                    }
+                                    //Starts from end
+                                    else if (pointFrom.HorizontalEqualz(vertices[vertices.Length - 1].Position))
+                                    {
+                                        double totalLength = 0;
+                                        double startElevation = vertices[vertices.Length - 1].Position.Z;
+                                        for (int i = vertices.Length - 1; i >= 0; i--)
+                                        {
+                                            if (i == vertices.Length - 1) continue; //Skip first iteration, assume elevation is set
+
+                                            totalLength += vertices[i + 1].Position
+                                                                        .DistanceHorizontalTo(
+                                                                               vertices[i].Position);
+
+                                            double newDelta = totalLength * slope / 1000;
+                                            double newElevation = startElevation + newDelta;
+
+                                            //Write the new elevation
+                                            vertices[i].CheckOrOpenForWrite();
+                                            vertices[i].Position = new Point3d(
+                                                vertices[i].Position.X, vertices[i].Position.Y, newElevation);
+                                            vertices[i].DowngradeOpen();
+                                        }
+                                    }
+                                    else
+                                    {
+                                        editor.WriteMessage("\nSelected point is neither start nor end of the poly3d!");
+                                        continue;
                                     }
                                 }
-
-                                if (matchNotFound)
+                                catch (System.Exception ex)
                                 {
-                                    editor.WriteMessage("\nNo match found for vertices! P3d was not modified!");
+                                    editor.WriteMessage("\n" + ex.Message);
+                                    return;
                                 }
+                                tx.Commit();
                             }
-                            catch (System.Exception ex)
-                            {
-                                editor.WriteMessage("\n" + ex.Message);
-                                return;
-                            }
-                            tx.Commit();
+                            //Continue the while loop
+                            continue;
                         }
-
-                        break;
                     default:
                         return;
                 }
@@ -2790,7 +2983,7 @@ namespace IntersectUtilities
                         bool matchNotFound = true;
                         for (int i = 0; i < vertices.Length; i++)
                         {
-                            if (vertices[i].Position.HorizontalEqualz(point))
+                            if (vertices[i].Position.HorizontalEqualz(selectedPoint))
                             {
                                 vertices[i].UpgradeOpen();
                                 vertices[i].Position = new Point3d(

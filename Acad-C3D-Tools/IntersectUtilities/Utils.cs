@@ -402,14 +402,16 @@ namespace IntersectUtilities
             ErrorCode errCode = ErrorCode.OK;
             try
             {
-                return ReadRecordData(tables, id, tableName, columnName).Int32Value;
+                MapValue value = ReadRecordData(tables, id, tableName, columnName);
+                if (value != null) return value.Int32Value;
+                else return 0;
             }
             catch (MapException e)
             {
                 errCode = (ErrorCode)(e.ErrorCode);
                 // Deal with the exception here as your will
 
-                return default;
+                return 0;
             }
         }
 
@@ -418,14 +420,16 @@ namespace IntersectUtilities
             ErrorCode errCode = ErrorCode.OK;
             try
             {
-                return ReadRecordData(tables, id, tableName, columnName).DoubleValue;
+                MapValue value = ReadRecordData(tables, id, tableName, columnName);
+                if (value != null) return value.DoubleValue;
+                else return 0;
             }
             catch (MapException e)
             {
                 errCode = (ErrorCode)(e.ErrorCode);
                 // Deal with the exception here as your will
 
-                return default;
+                return 0;
             }
         }
 
@@ -434,14 +438,16 @@ namespace IntersectUtilities
             ErrorCode errCode = ErrorCode.OK;
             try
             {
-                return ReadRecordData(tables, id, tableName, columnName).StrValue;
+                MapValue value = ReadRecordData(tables, id, tableName, columnName);
+                if (value != null) return value.StrValue;
+                else return "";
             }
             catch (MapException e)
             {
                 errCode = (ErrorCode)(e.ErrorCode);
                 // Deal with the exception here as your will
 
-                return default;
+                return "";
             }
         }
 
@@ -711,15 +717,50 @@ namespace IntersectUtilities
                 {
                     dbObject.UpgradeOpen();
                 }
-
                 else if (dbObject.IsReadEnabled == false)
                 {
                     dbObject.UpgradeOpen();
                     dbObject.UpgradeOpen();
                 }
-
-
             }
+        }
+
+        public static void CheckOrOpenForRead(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject,
+            bool DowngradeIfWriteEnabled = false)
+        {
+            if (dbObject.IsReadEnabled == false)
+            {
+                if (dbObject.IsWriteEnabled == true)
+                {
+                    if (DowngradeIfWriteEnabled)
+                    {
+                        dbObject.DowngradeOpen();
+                    }
+                    return;
+                }
+                dbObject.UpgradeOpen();
+            }
+        }
+
+        public static double GetHorizontalLength(this Polyline3d poly3d, Transaction tx)
+        {
+            poly3d.CheckOrOpenForRead();
+            var vertices = poly3d.GetVertices(tx);
+            double totalLength = 0;
+            for (int i = 0; i < vertices.Length - 1; i++)
+            {
+                totalLength += vertices[i].Position.DistanceHorizontalTo(vertices[i + 1].Position);
+            }
+            return totalLength;
+        }
+
+        public static double DistanceHorizontalTo(this Point3d sourceP3d, Point3d targetP3d)
+        {
+            double X1 = sourceP3d.X;
+            double Y1 = sourceP3d.Y;
+            double X2 = targetP3d.X;
+            double Y2 = targetP3d.Y;
+            return Math.Sqrt(Math.Pow((X2 - X1), 2) + Math.Pow((Y2 - Y1), 2));
         }
     }
 
