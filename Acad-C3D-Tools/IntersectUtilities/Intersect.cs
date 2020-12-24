@@ -2604,6 +2604,12 @@ namespace IntersectUtilities
 
                             if (startElevation != 0 && endElevation != 0)
                             {
+                                //Feedback
+                                int counter = 1;
+                                //editor.WriteMessage($"\nInterpolating {pline3d.Handle}.");
+                                //editor.WriteMessage($"\nNumber of vertices: {vertices.Length}.");
+                                //editor.WriteMessage($"\nLast idx: {endIdx}.");
+
                                 //Start match
                                 vertices[0].CheckOrOpenForWrite();
                                 vertices[0].Position = new Point3d(
@@ -2619,23 +2625,26 @@ namespace IntersectUtilities
                                 if (startElevation > endElevation)
                                 {
                                     double AB = pline3d.GetHorizontalLength(tx);
+                                    //editor.WriteMessage($"\nAB: {AB}.");
                                     double AAmark = startElevation - endElevation;
+                                    //editor.WriteMessage($"\nAAmark: {AAmark}.");
                                     double PB = 0;
 
                                     for (int i = endIdx; i >= 0; i--)
                                     {
                                         //We don't need to interpolate start and end points,
                                         //So skip them
-                                        if (i != 0 || i != endIdx)
+                                        if (i != 0 && i != endIdx)
                                         {
                                             PB += vertices[i + 1].Position.DistanceHorizontalTo(
                                                  vertices[i].Position);
-                                            double newElevation = PB * (AAmark / AB);
+                                            //editor.WriteMessage($"\nPB: {PB}.");
+                                            double newElevation = endElevation + PB * (AAmark / AB);
+                                            //editor.WriteMessage($"\nNew elevation: {newElevation}.");
                                             //Change the elevation
                                             vertices[i].CheckOrOpenForWrite();
                                             vertices[i].Position = new Point3d(
                                                 vertices[i].Position.X, vertices[i].Position.Y, newElevation);
-                                            vertices[i].DowngradeOpen();
                                         }
                                     }
                                 }
@@ -2649,16 +2658,16 @@ namespace IntersectUtilities
                                     {
                                         //We don't need to interpolate start and end points,
                                         //So skip them
-                                        if (i != 0 || i != endIdx)
+                                        if (i != 0 && i != endIdx)
                                         {
                                             PB += vertices[i - 1].Position.DistanceHorizontalTo(
                                                  vertices[i].Position);
-                                            double newElevation = PB * (AAmark / AB);
+                                            double newElevation = startElevation + PB * (AAmark / AB);
+                                            editor.WriteMessage($"\nNew elevation: {newElevation}.");
                                             //Change the elevation
                                             vertices[i].CheckOrOpenForWrite();
                                             vertices[i].Position = new Point3d(
                                                 vertices[i].Position.X, vertices[i].Position.Y, newElevation);
-                                            vertices[i].DowngradeOpen();
                                         }
                                     }
                                 }
