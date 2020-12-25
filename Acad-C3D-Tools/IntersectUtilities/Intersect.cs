@@ -2556,12 +2556,24 @@ namespace IntersectUtilities
         [CommandMethod("detectknudepunkterandinterpolate")]
         public void detectknudepunkterandinterpolate()
         {
+            //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            //Slope in pro mille
+            double slope = 20;
+            //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            //Prepare list to hold processed lines.
+            //For use for secondary interpolation for lines missing one or both end nodes.
+            HashSet<Polyline3d> linesWithMissingNodes = new HashSet<Polyline3d>();
+            //List to hold the interpolated lines
+            HashSet<Polyline3d> interpolatedLines = new HashSet<Polyline3d>();
+
+            //Process all lines and detect with nodes at both ends
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -2569,7 +2581,8 @@ namespace IntersectUtilities
                     #region Load linework from local db
                     HashSet<Polyline3d> localPlines3d = localDb
                         .HashSetOfType<Polyline3d>(tx)
-                        .Where(x => x.Layer == "Afløb-kloakledning")
+                        .Where(x => x.Layer == "Afløb-kloakledning" ||
+                                    x.Layer == "Regnvand")
                         .ToHashSet();
                     editor.WriteMessage($"\nNr. of local 3D polies: {localPlines3d.Count}");
                     #endregion
@@ -2583,6 +2596,7 @@ namespace IntersectUtilities
                     editor.WriteMessage($"\nTotal number of combinations: " +
                         $"{points.Count * (localPlines3d.Count)}");
 
+                    #region Poly3ds with knudepunkter at ends
                     foreach (Polyline3d pline3d in localPlines3d)
                     {
                         var vertices = pline3d.GetVertices(tx);
@@ -2604,11 +2618,8 @@ namespace IntersectUtilities
 
                             if (startElevation != 0 && endElevation != 0)
                             {
-                                //Feedback
-                                int counter = 1;
-                                //editor.WriteMessage($"\nInterpolating {pline3d.Handle}.");
-                                //editor.WriteMessage($"\nNumber of vertices: {vertices.Length}.");
-                                //editor.WriteMessage($"\nLast idx: {endIdx}.");
+                                //Add to interpolated list
+                                interpolatedLines.Add(pline3d);
 
                                 //Start match
                                 vertices[0].CheckOrOpenForWrite();
@@ -2663,7 +2674,7 @@ namespace IntersectUtilities
                                             PB += vertices[i - 1].Position.DistanceHorizontalTo(
                                                  vertices[i].Position);
                                             double newElevation = startElevation + PB * (AAmark / AB);
-                                            editor.WriteMessage($"\nNew elevation: {newElevation}.");
+                                            //editor.WriteMessage($"\nNew elevation: {newElevation}.");
                                             //Change the elevation
                                             vertices[i].CheckOrOpenForWrite();
                                             vertices[i].Position = new Point3d(
@@ -2678,7 +2689,272 @@ namespace IntersectUtilities
                                 }
                             }
                         }
+                        else
+                        {
+                            //The rest of the lines assumed missing one or both nodes
+                            linesWithMissingNodes.Add(pline3d);
+                        }
                     }
+                    #endregion
+
+                    //Process lines with missing one or both end nodes
+                    using (Transaction tx2 = localDb.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            editor.WriteMessage($"\nInterpolated: {interpolatedLines.Count}, " +
+                                                $"Missing ends: {linesWithMissingNodes.Count}.");
+
+                            #region Poly3ds without nodes at ends
+                            foreach (Polyline3d pline3dWithMissingNodes in linesWithMissingNodes)
+                            {
+                                //Create 3d polies at both ends to intersect later
+                                oid startPolyId;
+                                oid endPolyId;
+
+                                var vertices1 = pline3dWithMissingNodes.GetVertices(tx2);
+                                int endIdx = vertices1.Length - 1;
+
+                                using (Transaction tx2p3d = localDb.TransactionManager.StartTransaction())
+                                {
+                                    //Start point
+                                    Point3dCollection newP3dColStart = new Point3dCollection();
+                                    newP3dColStart.Add(vertices1[0].Position);
+                                    //New point at very far away
+                                    newP3dColStart.Add(new Point3d(vertices1[0].Position.X,
+                                        vertices1[0].Position.Y, 1000));
+                                    Polyline3d newPolyStart = new Polyline3d(Poly3dType.SimplePoly, newP3dColStart, false);
+
+                                    //End point
+                                    Point3dCollection newP3dColEnd = new Point3dCollection();
+                                    newP3dColEnd.Add(vertices1[endIdx].Position);
+                                    //New point at very far away
+                                    newP3dColEnd.Add(new Point3d(vertices1[endIdx].Position.X,
+                                        vertices1[endIdx].Position.Y, 1000));
+                                    Polyline3d newPolyEnd = new Polyline3d(Poly3dType.SimplePoly, newP3dColEnd, false);
+
+                                    //Open modelspace
+                                    BlockTable bTbl = tx2p3d.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                                    BlockTableRecord bTblRec = tx2p3d.GetObject(bTbl[BlockTableRecord.ModelSpace],
+                                                     OpenMode.ForWrite) as BlockTableRecord;
+
+                                    bTblRec.AppendEntity(newPolyStart);
+                                    tx2p3d.AddNewlyCreatedDBObject(newPolyStart, true);
+                                    startPolyId = newPolyStart.ObjectId;
+
+                                    bTblRec.AppendEntity(newPolyEnd);
+                                    tx2p3d.AddNewlyCreatedDBObject(newPolyEnd, true);
+                                    endPolyId = newPolyEnd.ObjectId;
+
+                                    tx2p3d.Commit();
+                                }
+
+                                //Analyze intersection points with interpolated lines
+                                using (Transaction tx2Other = localDb.TransactionManager.StartTransaction())
+                                {
+                                    Polyline3d startIntersector = startPolyId.Go<Polyline3d>(tx2Other);
+                                    Polyline3d endIntersector = endPolyId.Go<Polyline3d>(tx2Other);
+
+                                    double detectedStartElevation = 0;
+                                    double detectedEndElevation = 0;
+
+                                    var vertices2 = pline3dWithMissingNodes.GetVertices(tx2Other);
+
+                                    foreach (Polyline3d poly3dOther in interpolatedLines)
+                                    {
+                                        #region Detect START elevation
+                                        using (Point3dCollection p3dIntCol = new Point3dCollection())
+                                        {
+                                            poly3dOther.IntersectWith(startIntersector, 0, p3dIntCol, new IntPtr(0), new IntPtr(0));
+
+                                            if (p3dIntCol.Count > 0 && p3dIntCol.Count < 2)
+                                            {
+                                                foreach (Point3d p3dInt in p3dIntCol)
+                                                {
+                                                    //Assume only one intersection
+                                                    detectedStartElevation = p3dInt.Z;
+                                                }
+                                            }
+                                        }
+                                        #endregion
+                                        #region Detect END elevation
+                                        using (Point3dCollection p3dIntCol = new Point3dCollection())
+                                        {
+                                            poly3dOther.IntersectWith(endIntersector, 0, p3dIntCol, new IntPtr(0), new IntPtr(0));
+
+                                            if (p3dIntCol.Count > 0 && p3dIntCol.Count < 2)
+                                            {
+                                                foreach (Point3d p3dInt in p3dIntCol)
+                                                {
+                                                    //Assume only one intersection
+                                                    detectedEndElevation = p3dInt.Z;
+                                                }
+                                            }
+                                        }
+                                        #endregion
+
+                                        if (detectedStartElevation > 0 && detectedEndElevation > 0)
+                                        {
+                                            //Trig
+                                            //Start elevation is higher, thus we must start from backwards
+                                            if (detectedStartElevation > detectedEndElevation)
+                                            {
+                                                double AB = pline3dWithMissingNodes.GetHorizontalLength(tx2Other);
+                                                double AAmark = detectedStartElevation - detectedEndElevation;
+                                                double PB = 0;
+
+                                                for (int i = endIdx; i >= 0; i--)
+                                                {
+                                                    //We don't need to interpolate start and end points,
+                                                    //So skip them
+                                                    if (i != 0 && i != endIdx)
+                                                    {
+                                                        PB += vertices2[i + 1].Position.DistanceHorizontalTo(
+                                                             vertices2[i].Position);
+                                                        //editor.WriteMessage($"\nPB: {PB}.");
+                                                        double newElevation = detectedEndElevation + PB * (AAmark / AB);
+                                                        //editor.WriteMessage($"\nNew elevation: {newElevation}.");
+                                                        //Change the elevation
+                                                        vertices2[i].CheckOrOpenForWrite();
+                                                        vertices2[i].Position = new Point3d(
+                                                            vertices2[i].Position.X, vertices2[i].Position.Y, newElevation);
+                                                    }
+                                                    else if (i == 0)
+                                                    {
+                                                        vertices2[i].CheckOrOpenForWrite();
+                                                        vertices2[i].Position = new Point3d(
+                                                            vertices2[i].Position.X,
+                                                            vertices2[i].Position.Y,
+                                                            detectedStartElevation);
+                                                    }
+                                                    else if (i == endIdx)
+                                                    {
+                                                        vertices2[i].CheckOrOpenForWrite();
+                                                        vertices2[i].Position = new Point3d(
+                                                            vertices2[i].Position.X,
+                                                            vertices2[i].Position.Y,
+                                                            detectedEndElevation);
+                                                    }
+                                                }
+                                            }
+                                            else if (detectedStartElevation < detectedEndElevation)
+                                            {
+                                                double AB = pline3dWithMissingNodes.GetHorizontalLength(tx2Other);
+                                                double AAmark = detectedEndElevation - detectedStartElevation;
+                                                double PB = 0;
+
+                                                for (int i = 0; i < endIdx; i++)
+                                                {
+                                                    //We don't need to interpolate start and end points,
+                                                    //So skip them
+                                                    if (i != 0 && i != endIdx)
+                                                    {
+                                                        PB += vertices2[i - 1].Position.DistanceHorizontalTo(
+                                                             vertices2[i].Position);
+                                                        double newElevation = detectedStartElevation + PB * (AAmark / AB);
+                                                        //editor.WriteMessage($"\nNew elevation: {newElevation}.");
+                                                        //Change the elevation
+                                                        vertices2[i].CheckOrOpenForWrite();
+                                                        vertices2[i].Position = new Point3d(
+                                                            vertices2[i].Position.X, vertices2[i].Position.Y, newElevation);
+                                                    }
+                                                    else if (i == 0)
+                                                    {
+                                                        vertices2[i].CheckOrOpenForWrite();
+                                                        vertices2[i].Position = new Point3d(
+                                                            vertices2[i].Position.X,
+                                                            vertices2[i].Position.Y,
+                                                            detectedStartElevation);
+                                                    }
+                                                    else if (i == endIdx)
+                                                    {
+                                                        vertices2[i].CheckOrOpenForWrite();
+                                                        vertices2[i].Position = new Point3d(
+                                                            vertices2[i].Position.X,
+                                                            vertices2[i].Position.Y,
+                                                            detectedEndElevation);
+                                                    }
+                                                }
+                                            }
+                                            else
+                                            {
+                                                editor.WriteMessage("\nElevations are the same!");
+                                                //Make all elevations the same
+                                            }
+                                        }
+                                        else if (detectedStartElevation > 0)
+                                        {
+                                            double PB = 0;
+
+                                            for (int i = 0; i < endIdx; i++)
+                                            {
+
+                                                if (i != 0)
+                                                {
+                                                    PB += vertices2[i - 1].Position.DistanceHorizontalTo(
+                                                         vertices2[i].Position);
+                                                    double newElevation = detectedStartElevation + PB * slope / 1000;
+                                                    //Change the elevation
+                                                    vertices2[i].CheckOrOpenForWrite();
+                                                    vertices2[i].Position = new Point3d(
+                                                        vertices2[i].Position.X, vertices2[i].Position.Y, newElevation);
+                                                }
+                                                else if (i == 0)
+                                                {
+                                                    vertices2[i].CheckOrOpenForWrite();
+                                                    vertices2[i].Position = new Point3d(
+                                                        vertices2[i].Position.X,
+                                                        vertices2[i].Position.Y,
+                                                        detectedStartElevation);
+                                                }
+                                            }
+                                        }
+                                        else if (detectedEndElevation > 0)
+                                        {
+                                            double PB = 0;
+
+                                            for (int i = endIdx; i >= 0; i--)
+                                            {
+                                                if (i != endIdx)
+                                                {
+                                                    PB += vertices2[i + 1].Position.DistanceHorizontalTo(
+                                                         vertices2[i].Position);
+                                                    double newElevation = detectedEndElevation + PB * slope / 1000;
+                                                    //Change the elevation
+                                                    vertices2[i].CheckOrOpenForWrite();
+                                                    vertices2[i].Position = new Point3d(
+                                                        vertices2[i].Position.X, vertices2[i].Position.Y, newElevation);
+                                                }
+
+                                                else if (i == endIdx)
+                                                {
+                                                    vertices2[i].CheckOrOpenForWrite();
+                                                    vertices2[i].Position = new Point3d(
+                                                        vertices2[i].Position.X,
+                                                        vertices2[i].Position.Y,
+                                                        detectedEndElevation);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    startIntersector.UpgradeOpen();
+                                    startIntersector.Erase(true);
+                                    endIntersector.UpgradeOpen();
+                                    endIntersector.Erase(true);
+
+                                    tx2Other.Commit();
+                                }
+                            }
+                            #endregion
+                        }
+                        catch (System.Exception ex)
+                        {
+                            editor.WriteMessage("\n" + ex.Message);
+                            return;
+                        }
+                        tx2.Commit();
+                    }
+
                 }
                 catch (System.Exception ex)
                 {
@@ -2687,6 +2963,8 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+
+
         }
 
         [CommandMethod("editelevations")]

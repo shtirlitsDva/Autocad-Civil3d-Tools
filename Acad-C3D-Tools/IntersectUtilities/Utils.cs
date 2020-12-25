@@ -706,7 +706,7 @@ namespace IntersectUtilities
 
         public static bool Equalz(this double a, double b, double tol) => Math.Abs(a - b) <= tol;
 
-        public static bool HorizontalEqualz(this Point3d a, Point3d b, double tol = 0.001) =>
+        public static bool HorizontalEqualz(this Point3d a, Point3d b, double tol = 0.01) =>
             null != a && null != b && a.X.Equalz(b.X, tol) && a.Y.Equalz(b.Y, tol);
 
         public static void CheckOrOpenForWrite(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject)
