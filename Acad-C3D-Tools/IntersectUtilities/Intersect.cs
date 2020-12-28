@@ -1831,6 +1831,9 @@ namespace IntersectUtilities
                         {
                             oid fId = label.FeatureId;
                             Entity fEnt = fId.Go<Entity>(tx);
+                            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                            int dia = ReadIntPropertyValue(tables, fId, "CrossingData", "Diameter") / 1000;
 
                             string blockName = ReadStringParameterFromDataTable(
                                 fEnt.Layer, dtKrydsninger, "Block", 1);
@@ -1845,6 +1848,15 @@ namespace IntersectUtilities
                                     {
                                         space.AppendEntity(br);
                                         tx.AddNewlyCreatedDBObject(br, true);
+
+                                        foreach(DynamicBlockReferenceProperty prop in
+                                            br.DynamicBlockReferencePropertyCollection)
+                                        {
+                                            if (prop.PropertyName == "OD")
+                                            {
+                                                prop.Value = dia;
+                                            }
+                                        }
                                     }
                                 }
                             }
