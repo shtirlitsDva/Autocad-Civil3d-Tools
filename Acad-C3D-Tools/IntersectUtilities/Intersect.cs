@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Autodesk.Aec.DatabaseServices;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -1393,7 +1394,7 @@ namespace IntersectUtilities
 
                         #region Populate description field
                         //Populate description field
-                        //1. Read size record
+                        //1. Read size record if it exists
                         MapValue sizeRecord = Utils.ReadRecordData(
                             tables, ent.ObjectId, "SizeTable", "Size");
                         int SizeTableSize = 0;
@@ -1409,14 +1410,31 @@ namespace IntersectUtilities
                             ent.Layer, dtKrydsninger, "Description", 0);
 
                         //2.1 Read the formatting in the description field
-
+                        List<(string ToReplace, string Data)> descrFormatList = null;
+                        if (descrFromKrydsninger.IsNotNoE()) 
+                            descrFormatList = FindDescriptionParts(descrFromKrydsninger);
 
                         //Finally: Compose description field
                         List<string> descrParts = new List<string>();
-                        //1.
+                        //1. Add custom size
                         if (SizeTableSize != 0) descrParts.Add(sizeDescrPart);
-                        //2.
-                        if (descrFromKrydsninger.IsNotNoE()) descrParts.Add(descrFromKrydsninger);
+                        //2. Process and add parts from format bits in OD
+                        if (descrFromKrydsninger.IsNotNoE())
+                        {
+                            //Interpolate description from Krydsninger with format setting, if they exist
+                            if (descrFormatList != null && descrFormatList.Count > 0)
+                            {
+                                for (int i = 0; i < descrFormatList.Count; i++)
+                                {
+                                    var tuple = descrFormatList[i];
+                                    string result = ReadDescriptionPartsFromOD(tables, ent, tuple.Data, dtKrydsninger);
+                                    descrFromKrydsninger = descrFromKrydsninger.Replace(tuple.ToReplace, result);
+                                }
+                            }
+
+                            //Add the description field to parts
+                            descrParts.Add(descrFromKrydsninger);
+                        }
 
                         string description = "";
                         if (descrParts.Count == 1) description = descrParts[0];
@@ -1531,209 +1549,49 @@ namespace IntersectUtilities
                     //ProfileView pv = pvObjId.Go<ProfileView>(tx);
                     #endregion
 
+                    //bool pointGroupAlreadyExists = civilDoc.PointGroups.Contains(alignment.Name);
+
+                    //PointGroup pg = null;
+
+                    //if (pointGroupAlreadyExists)
+                    //{
+                    //    pg = civilDoc.PointGroups[alignment.Name].GetObject(OpenMode.ForWrite) as PointGroup;
+
+                    //    uint[] numbers = pg.GetPointNumbers();
+
+                    //    CogoPointCollection cpc = civilDoc.CogoPoints;
+
+                    //    for (int i = 0; i < numbers.Length; i++)
+                    //    {
+                    //        uint number = numbers[i];
+
+                    //        if (cpc.Contains(number))
+                    //        {
+                    //            cpc.Remove(number);
+                    //        }
+                    //    }
+
+                    //    pg.Update();
+                    //}
+                    //else
+                    //{
+                    //    oid pgId = civilDoc.PointGroups.Add(alignment.Name);
+
+                    //    pg = pgId.GetObject(OpenMode.ForWrite) as PointGroup;
+                    //}
+
+                    ////Build query
+                    //StandardPointGroupQuery spgq = new StandardPointGroupQuery();
+                    //List<string> newPointNumbers = allNewlyCreatedPoints.Select(x => x.PointNumber.ToString()).ToList();
+                    //string pointNumbersToInclude = string.Join(",", newPointNumbers.ToArray());
+                    //spgq.IncludeNumbers = pointNumbersToInclude;
+                    //pg.SetQuery(spgq);
+                    //pg.Update();
+
                     editor.SetImpliedSelection(allNewlyCreatedPoints.Select(x => x.ObjectId).ToArray());
 
                     editor.Command("_AeccProjectObjectsToProf", pvObjId);
 
-                    #endregion
-
-                    #region Try creating FeatureLines | Skipped
-                    //Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-                    //int flCounter = 1;
-                    //foreach (Entity localEntity in allLocalLinework)
-                    //{
-                    //    using (Transaction tx2 = tx.TransactionManager.StartTransaction())
-                    //    {
-                    //        try
-                    //        {
-                    //            editor.WriteMessage($"\nProcessing entity handle: {localEntity.Handle}.");
-
-                    //            tx2.TransactionManager.QueueForGraphicsFlush();
-
-                    //            //TODO: Stopped here !!!! <--- Continue here!
-                    //            //Read the Handle value of the original object in the Ler Xref
-                    //            //To use as the resulting
-                    //            MapValue handleValue = ReadRecordData(
-                    //                tables, localEntity.ObjectId, "IdRecord", "Handle");
-
-                    //            string flName = "";
-
-                    //            if (handleValue != null) flName = handleValue.StrValue;
-                    //            else flName = "Reading of Handle failed.";
-
-                    //            oid flOid = FeatureLine.Create(flName, localEntity.ObjectId);
-
-                    //            editor.WriteMessage($"\nCreate nr. {flCounter} returned {flOid.ToString()}");
-                    //            doc.TransactionManager.EnableGraphicsFlush(true);
-                    //            doc.TransactionManager.QueueForGraphicsFlush();
-                    //            Autodesk.AutoCAD.Internal.Utils.FlushGraphics();
-
-                    //            //Modify the feature lines not assigned type '3D' to drape on surface
-                    //            FeatureLine fl = flOid.Go<FeatureLine>(tx2);
-                    //            fl.UpgradeOpen();
-                    //            fl.Layer = localEntity.Layer;
-
-                    //            string type = ReadStringParameterFromDataTable(fl.Layer, dtKrydsninger, "Type", 0);
-                    //            if (type.IsNoE())
-                    //            {
-                    //                editor.WriteMessage($"\nFejl: For lag {fl.Layer} mangler der enten " +
-                    //                    $"selve definitionen eller 'Type'!");
-                    //                tx2.Abort();
-                    //                return;
-                    //            }
-
-                    //            //Read depth value for type
-                    //            double depth = 0;
-                    //            if (!type.IsNoE())
-                    //            {
-                    //                depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
-                    //            }
-                    //            //If the geometry is not 3D, offset elevation values
-                    //            if (flOid.ToString() != "(0)" && type != "3D")
-                    //            {
-                    //                fl.Layer = localEntity.Layer;
-                    //                fl.AssignElevationsFromSurface(surfaceObjId, true);
-                    //            }
-
-                    //            localEntity.UpgradeOpen();
-                    //            localEntity.Erase(true);
-
-                    //            flCounter++;
-                    //        }
-                    //        catch (System.Exception ex)
-                    //        {
-                    //            editor.WriteMessage("\n" + ex.Message);
-                    //            return;
-                    //        }
-                    //        tx2.Commit();
-                    //    }
-                    //}
-                    #endregion
-
-                    #region Try translating FLs by depth | Skipped
-                    //using (Transaction tx3 = localDb.TransactionManager.StartTransaction())
-                    //{
-                    //    try
-                    //    {
-                    //        #region Find only crossing FLs
-                    //        HashSet<FeatureLine> flAllSet = localDb.HashSetOfType<FeatureLine>(tx3);
-                    //        //List to hold only the crossing FLs
-                    //        HashSet<FeatureLine> flCrossingSet = new HashSet<FeatureLine>();
-                    //        foreach (FeatureLine fl in flAllSet)
-                    //        {
-                    //            //Filter out fl's not crossing the alignment in question
-                    //            using (Point3dCollection p3dcol = new Point3dCollection())
-                    //            {
-                    //                alignment.IntersectWith(fl, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
-
-                    //                if (p3dcol.Count > 0)
-                    //                {
-                    //                    flCrossingSet.Add(fl);
-                    //                }
-                    //            }
-                    //        }
-                    //        #endregion
-
-                    //        //Debug
-                    //        string pathToLog = Environment.GetFolderPath(
-                    //                Environment.SpecialFolder.Desktop) + "\\CivilNET\\log.txt";
-                    //        Utils.ClrFile(pathToLog);
-                    //        int counter = 0;
-
-                    //        foreach (FeatureLine fl in flCrossingSet)
-                    //        {
-                    //            //Read 'Type' value
-                    //            string type = ReadStringParameterFromDataTable(fl.Layer, dtKrydsninger, "Type", 0);
-                    //            if (type.IsNoE())
-                    //            {
-                    //                editor.WriteMessage($"\nFejl: For lag {fl.Layer} mangler der enten " +
-                    //                    $"selve definitionen eller 'Type'!");
-                    //                tx3.Abort();
-                    //                tx.Abort();
-                    //                return;
-                    //            }
-
-                    //            //Read depth value for type
-                    //            double depth = 0;
-                    //            if (!type.IsNoE())
-                    //            {
-                    //                depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
-                    //            }
-
-                    //            //Bogus 3D poly
-                    //            if (depth > 0.001 && type != "3D")
-                    //            {
-                    //                fl.UpgradeOpen();
-
-                    //                string originalName = fl.Name;
-                    //                string originalLayer = fl.Layer;
-                    //                fl.Erase(true);
-
-                    //                oid newPolyId;
-
-                    //                //Create a bogus 3d polyline and offset it
-                    //                using (Transaction tx4 = localDb.TransactionManager.StartTransaction())
-                    //                {
-                    //                    Point3dCollection p3dcol = fl.GetPoints(FeatureLinePointType.AllPoints);
-                    //                    Point3dCollection newP3dCol = new Point3dCollection();
-                    //                    for (int i = 0; i < p3dcol.Count; i++)
-                    //                    {
-                    //                        Point3d originalP = p3dcol[i];
-                    //                        Point3d newP = new Point3d(originalP.X, originalP.Y,
-                    //                            originalP.Z - depth);
-                    //                        newP3dCol.Add(newP);
-                    //                    }
-
-                    //                    Polyline3d newPoly = new Polyline3d(Poly3dType.SimplePoly, newP3dCol, false);
-
-                    //                    //Open modelspace
-                    //                    acBlkTbl = tx4.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                    //                    acBlkTblRec = tx4.GetObject(acBlkTbl[BlockTableRecord.ModelSpace],
-                    //                                     OpenMode.ForWrite) as BlockTableRecord;
-
-                    //                    acBlkTblRec.AppendEntity(newPoly);
-                    //                    tx4.AddNewlyCreatedDBObject(newPoly, true);
-                    //                    newPolyId = newPoly.ObjectId;
-                    //                    tx4.Commit();
-                    //                }
-
-                    //                oid flOid = FeatureLine.Create(originalName, newPolyId);
-                    //                Entity ent1 = newPolyId.Go<Entity>(tx3, OpenMode.ForWrite);
-                    //                ent1.Erase(true);
-
-                    //                FeatureLine newFl = flOid.Go<FeatureLine>(tx3, OpenMode.ForWrite);
-                    //                newFl.Layer = originalLayer;
-                    //            }
-                    //        }
-
-                    //        #region Choose continue or not (Debugging)
-                    //        //if (AskToContinueOrAbort(editor) == "Continue") continue; else break;
-
-                    //        //string AskToContinueOrAbort(Editor locEd)
-                    //        //{
-                    //        //    string ckwd1 = "Continue";
-                    //        //    string ckwd2 = "Abort";
-                    //        //    PromptKeywordOptions pKeyOpts2 = new PromptKeywordOptions("");
-                    //        //    pKeyOpts2.Message = "\nChoose next action: ";
-                    //        //    pKeyOpts2.Keywords.Add(ckwd1);
-                    //        //    pKeyOpts2.Keywords.Add(ckwd2);
-                    //        //    pKeyOpts2.AllowNone = true;
-                    //        //    pKeyOpts2.Keywords.Default = ckwd1;
-                    //        //    PromptResult locpKeyRes2 = locEd.GetKeywords(pKeyOpts2);
-                    //        //    return locpKeyRes2.StringResult;
-                    //        //}
-
-                    //        #endregion
-
-                    //    }
-                    //    catch (System.Exception ex)
-                    //    {
-                    //        editor.WriteMessage("\n" + ex.Message);
-                    //        return;
-                    //    }
-
-                    //    tx3.Commit();
-                    //}
                     #endregion
                 }
                 catch (System.Exception ex)

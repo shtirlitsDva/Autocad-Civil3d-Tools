@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Data;
 using System.Globalization;
 using System.Threading.Tasks;
@@ -70,7 +71,14 @@ namespace IntersectUtilities
                 w.Close();
             }
         }
-
+        /// <summary>
+        /// Reads a string value from supplied datatable.
+        /// </summary>
+        /// <param name="key">Key column.</param>
+        /// <param name="table">DataTable to read.</param>
+        /// <param name="parameter">Column name to read from.</param>
+        /// <param name="keyColumnIdx">Usually 0, but can be set to any column index.</param>
+        /// <returns>The read value or NULL.</returns>
         public static string ReadStringParameterFromDataTable(string key, System.Data.DataTable table, string parameter, int keyColumnIdx)
         {
             //Test if value exists
@@ -451,6 +459,41 @@ namespace IntersectUtilities
             }
         }
 
+        public static string ReadPropertyToStringValue(Tables tables, oid id, string tableName, string columnName)
+        {
+            ErrorCode errCode = ErrorCode.OK;
+            try
+            {
+                MapValue value = ReadRecordData(tables, id, tableName, columnName);
+                if (value != null)
+                {
+                    switch (value.Type)
+                    {
+                        case Autodesk.Gis.Map.Constants.DataType.UnknownType:
+                            return "";
+                        case Autodesk.Gis.Map.Constants.DataType.Integer:
+                            return value.Int32Value.ToString();
+                        case Autodesk.Gis.Map.Constants.DataType.Real:
+                            return value.DoubleValue.ToString();
+                        case Autodesk.Gis.Map.Constants.DataType.Character:
+                            return value.StrValue;
+                        case Autodesk.Gis.Map.Constants.DataType.Point:
+                            return value.Point.ToString();
+                        default:
+                            return "";
+                    }
+                }
+                else return "";
+            }
+            catch (MapException e)
+            {
+                errCode = (ErrorCode)(e.ErrorCode);
+                // Deal with the exception here as your will
+
+                return "";
+            }
+        }
+
         public static bool DoesRecordExist(Tables tables, oid id, string columnName)
         {
             ErrorCode errCode = ErrorCode.OK;
@@ -653,6 +696,54 @@ namespace IntersectUtilities
                 }
             }
             return returnList.Cast<T>().ToList();
+        }
+
+        /// <summary>
+        /// Returns the matched string and value with curly braces removed.
+        /// </summary>
+        /// <param name="input">String where to find groups.</param>
+        /// <returns>List of tuples or empty list.</returns>
+        public static List<(string, string)> FindDescriptionParts(string input)
+        {
+            List<(string, string)> list = new List<(string, string)>();
+            Regex regex = new Regex(@"({[a-zæøåA-ZÆØÅ_:-]*})");
+
+            MatchCollection mc = regex.Matches(input);
+
+            if (mc.Count > 0)
+            {
+                foreach (Match match in mc)
+                {
+                    string toReplace = match.Groups[0].Value;
+                    string columnName = toReplace.Replace("{", "").Replace("}", "");
+                    list.Add((toReplace, columnName));
+                }
+                return list;
+            }
+            else return list;
+        }
+
+        public static string ReadDescriptionPartsFromOD(Tables tables, Entity ent,
+                                                        string ColumnName, System.Data.DataTable dataTable)
+        {
+            string readStructure = ReadStringParameterFromDataTable(ent.Layer, dataTable, ColumnName, 0);
+            if (readStructure != null)
+            {
+                List<(string ToReplace, string Data)> list = FindDescriptionParts(readStructure);
+
+                if (list.Count > 0)
+                {
+                    //Assume only one result
+                    string[] parts = list[0].Data.Split(':');
+                    string value = ReadPropertyToStringValue(tables, ent.ObjectId, parts[0], parts[1]);
+                    if (value.IsNotNoE())
+                    {
+                        string result = readStructure.Replace(list[0].ToReplace, value);
+                        return result;
+                    }
+                }
+            }
+            return "";
         }
     }
     public static class Enums
