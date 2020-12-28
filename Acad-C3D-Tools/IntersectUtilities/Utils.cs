@@ -281,6 +281,68 @@ namespace IntersectUtilities
             }
         }
 
+        public static bool AddODRecord(Tables tables, string tableName, string columnName,
+                                          oid id, MapValue originalValue)
+        {
+            try
+            {
+                Autodesk.Gis.Map.ObjectData.Table table = tables[tableName];
+                FieldDefinitions tableDef = table.FieldDefinitions;
+
+                // Create and initialize an record 
+                Record tblRcd = Record.Create();
+                table.InitRecord(tblRcd);
+
+                for (int i = 0; i < tblRcd.Count; i++)
+                {
+                    FieldDefinition column = tableDef[i];
+                    if (column.Name == columnName && table.Name == tableName)
+                    {
+                        MapValue newValue = tblRcd[i];
+
+                        switch (newValue.Type)
+                        {
+                            case Autodesk.Gis.Map.Constants.DataType.UnknownType:
+                                return false;
+                            case Autodesk.Gis.Map.Constants.DataType.Integer:
+                                if (originalValue.Type == newValue.Type)
+                                {
+                                    newValue.Assign(originalValue.Int32Value);
+                                }
+                                break;
+                            case Autodesk.Gis.Map.Constants.DataType.Real:
+                                if (originalValue.Type == newValue.Type)
+                                {
+                                    newValue.Assign(originalValue.DoubleValue);
+                                }
+                                break;
+                            case Autodesk.Gis.Map.Constants.DataType.Character:
+                                if (originalValue.Type == newValue.Type)
+                                {
+                                    newValue.Assign(originalValue.StrValue);
+                                }
+                                break;
+                            case Autodesk.Gis.Map.Constants.DataType.Point:
+                                if (originalValue.Type == newValue.Type)
+                                {
+                                    newValue.Assign(originalValue.Point);
+                                }
+                                break;
+                            default:
+                                return false;
+                        }
+                    }
+                }
+
+                table.AddRecord(tblRcd, id);
+                return true;
+            }
+            catch (MapException)
+            {
+                return false;
+            }
+        }
+
         /// <summary>
         /// Updates a record to a Table named tableName, the record is generated automatically.
         /// </summary>
@@ -296,12 +358,12 @@ namespace IntersectUtilities
                 bool success = true;
 
                 // Get and Initialize Records
-                using (Records records
-                           = tables.GetObjectRecords(0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+                using (Records records = tables.GetObjectRecords
+                    (0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
                 {
                     if (records.Count == 0)
                     {
-                        Editor.WriteMessage($"\nThere is no ObjectData record attached on the entity.");
+                        //Editor.WriteMessage($"\nThere is no ObjectData record attached on the entity.");
                         return false;
                     }
 
@@ -355,6 +417,86 @@ namespace IntersectUtilities
             }
         }
 
+        public static bool UpdateODRecord(Tables tables, string tableName, string columnName,
+                                          oid id, MapValue value)
+        {
+            try
+            {
+                Autodesk.Gis.Map.ObjectData.Table table = tables[tableName];
+
+                ErrorCode errCode = ErrorCode.OK;
+
+                bool success = true;
+
+                // Get and Initialize Records
+                using (Records records = tables.GetObjectRecords
+                    (0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+                {
+                    if (records.Count == 0)
+                    {
+                        //Editor.WriteMessage($"\nThere is no ObjectData record attached on the entity.");
+                        return false;
+                    }
+
+                    // Iterate through all records
+                    foreach (Record record in records)
+                    {
+                        // Get record info
+                        for (int i = 0; i < record.Count; i++)
+                        {
+                            FieldDefinitions tableDef = table.FieldDefinitions;
+                            FieldDefinition column = tableDef[i];
+                            if (column.Name == columnName && record.TableName == tableName)
+                            {
+                                MapValue val = record[i];
+
+                                switch (val.Type)
+                                {
+                                    case Autodesk.Gis.Map.Constants.DataType.UnknownType:
+                                        return false;
+                                    case Autodesk.Gis.Map.Constants.DataType.Integer:
+                                        if (value.Type == val.Type)
+                                        {
+                                            val.Assign(value.Int32Value);
+                                            return true;
+                                        }
+                                        break;
+                                    case Autodesk.Gis.Map.Constants.DataType.Real:
+                                        if (value.Type == val.Type)
+                                        {
+                                            val.Assign(value.DoubleValue);
+                                            return true;
+                                        }
+                                        break;
+                                    case Autodesk.Gis.Map.Constants.DataType.Character:
+                                        if (value.Type == val.Type)
+                                        {
+                                            val.Assign(value.StrValue);
+                                            return true;
+                                        }
+                                        break;
+                                    case Autodesk.Gis.Map.Constants.DataType.Point:
+                                        if (value.Type == val.Type)
+                                        {
+                                            val.Assign(value.Point);
+                                            return true;
+                                        }
+                                        break;
+                                    default:
+                                        return false;
+                                }
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+            catch (MapException)
+            {
+                return false;
+            }
+        }
+
         /// <summary>
         /// Prints the records obtained by id.
         /// </summary>
@@ -363,15 +505,13 @@ namespace IntersectUtilities
             ErrorCode errCode = ErrorCode.OK;
             try
             {
-                bool success = true;
-
                 // Get and Initialize Records
                 using (Records records
                            = tables.GetObjectRecords(0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
                 {
                     if (records.Count == 0)
                     {
-                        Editor.WriteMessage($"\nThere is no ObjectData record attached on the entity.");
+                        //Editor.WriteMessage($"\nThere is no ObjectData record attached on the entity.");
                         return null;
                     }
 
@@ -543,7 +683,7 @@ namespace IntersectUtilities
             {
                 if (records == null || records.Count == 0) return;
 
-                Editor.WriteMessage($"\nEntity: {entSource.Handle}");
+                //Editor.WriteMessage($"\nEntity: {entSource.Handle}");
 
                 foreach (Record record in records)
                 {
@@ -592,6 +732,27 @@ namespace IntersectUtilities
                     }
                 }
             }
+        }
+
+        public static void TryCopySpecificOD(Tables tables, Entity entSource, Entity entTarget,
+            List<(string tableName, string columnName)> odList)
+        {
+            foreach (var item in odList)
+            {
+                MapValue originalValue = ReadRecordData(tables, entSource.ObjectId, item.tableName, item.columnName);
+                if (originalValue != null)
+                {
+                    if (DoesRecordExist(tables, entTarget.ObjectId, item.columnName))
+                    {
+                        UpdateODRecord(tables, item.tableName, item.columnName, entTarget.ObjectId, originalValue);
+                    }
+                    else
+                    {
+                        AddODRecord(tables, item.tableName, item.columnName, entTarget.ObjectId, originalValue);
+                    }
+                }
+            }
+
         }
 
         public static Editor Editor

@@ -1368,10 +1368,49 @@ namespace IntersectUtilities
                     allLocalLinework.AddRange(localPlines3d.Cast<Entity>());
                     #endregion
 
+                    #region Prepare variables
                     //Load things
                     Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
                     CogoPointCollection cogoPoints = civilDoc.CogoPoints;
                     HashSet<CogoPoint> allNewlyCreatedPoints = new HashSet<CogoPoint>();
+                    #endregion
+
+                    #region Handle PointGroups
+                    bool pointGroupAlreadyExists = civilDoc.PointGroups.Contains(alignment.Name);
+
+                    PointGroup pg = null;
+
+                    if (pointGroupAlreadyExists)
+                    {
+                        pg = civilDoc.PointGroups[alignment.Name].GetObject(OpenMode.ForWrite) as PointGroup;
+
+                        pg.Update();
+
+                        uint[] numbers = pg.GetPointNumbers();
+
+                        CogoPointCollection cpc = civilDoc.CogoPoints;
+
+                        for (int i = 0; i < numbers.Length; i++)
+                        {
+                            uint number = numbers[i];
+
+                            if (cpc.Contains(number))
+                            {
+                                cpc.Remove(number);
+                            }
+                        }
+
+                        pg.Update();
+                    }
+                    else
+                    {
+                        oid pgId = civilDoc.PointGroups.Add(alignment.Name);
+
+                        pg = pgId.GetObject(OpenMode.ForWrite) as PointGroup;
+                    }
+
+                    
+                    #endregion
 
                     foreach (Entity ent in allLocalLinework)
                     {
@@ -1391,6 +1430,10 @@ namespace IntersectUtilities
                         {
                             depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
                         }
+
+                        //Read layer value for the object
+                        string localLayerName = Utils.ReadStringParameterFromDataTable(
+                                            ent.Layer, dtKrydsninger, "Layer", 0);
 
                         #region Populate description field
                         //Populate description field
@@ -1442,6 +1485,7 @@ namespace IntersectUtilities
                             description = string.Join("; ", descrParts);
 
                         #endregion
+
                         //Source object (xref) handle
                         MapValue handleValue = ReadRecordData(
                                     tables, ent.ObjectId, "IdRecord", "Handle");
@@ -1520,10 +1564,115 @@ namespace IntersectUtilities
                                 #endregion
 
                                 //Set the layer
-                                cogoPoint.Layer = ent.Layer;
+                                #region Layer handling
+                                bool localLayerExists = false;
+
+                                if (!localLayerName.IsNoE() || localLayerName != null)
+                                {
+                                    LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+                                    if (lt.Has(localLayerName))
+                                    {
+                                        localLayerExists = true;
+                                    }
+                                    else
+                                    {
+                                        //Create layer if it doesn't exist
+                                        try
+                                        {
+                                            //Validate the name of layer
+                                            //It throws an exception if not, so need to catch it
+                                            SymbolUtilityServices.ValidateSymbolName(localLayerName, false);
+
+                                            LayerTableRecord ltr = new LayerTableRecord();
+                                            ltr.Name = localLayerName;
+
+                                            //Make layertable writable
+                                            lt.UpgradeOpen();
+
+                                            //Add the new layer to layer table
+                                            oid ltId = lt.Add(ltr);
+                                            tx.AddNewlyCreatedDBObject(ltr, true);
+
+                                            //Flag that the layer exists now
+                                            localLayerExists = true;
+
+                                        }
+                                        catch (System.Exception)
+                                        {
+                                            //Eat the exception and continue
+                                            //localLayerExists must remain false
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    editor.WriteMessage($"\nLocal layer name for source layer {ent.Layer} does not" +
+                                        $" exist in Krydsninger.csv!");
+                                }
+
+                                cogoPoint.Layer = localLayerName;
+                                #endregion
+
                                 cogoPoint.PointName = pName + "_" + count;
                                 count++;
                                 cogoPoint.RawDescription = description;
+
+                                #region Copy OD from polies to the new point
+                                //Copy specific OD from cloned 3D polies to the new point
+
+                                List<(string TableName, string RecordName)> odList =
+                                    new List<(string TableName, string RecordName)>();
+                                odList.Add(("IdRecord", "Handle"));
+                                TryCopySpecificOD(tables, ent, cogoPoint, odList);
+                                #endregion
+
+                                #region Create Diameter OD
+                                odList.Clear();
+                                odList.Add(("SizeTable", "Size"));
+                                //Fetch diameter definitions if any
+                                string diaDef = ReadStringParameterFromDataTable(ent.Layer,
+                                    dtKrydsninger, "Diameter", 0);
+                                if (diaDef.IsNotNoE())
+                                {
+                                    var list = FindDescriptionParts(diaDef);
+                                    //Be careful if FindDescriptionParts implementation changes
+                                    string[] parts = list[0].Item2.Split(':');
+                                    odList.Add((parts[0], parts[1]));
+                                }
+
+                                foreach (var item in odList)
+                                {
+                                    MapValue originalValue = ReadRecordData(
+                                        tables, ent.ObjectId, item.TableName, item.RecordName);
+
+                                    if (originalValue != null)
+                                    {
+                                        if (DoesTableExist(tables, "CrossingData"))
+                                        {
+                                            if (DoesRecordExist(tables, cogoPoint.ObjectId, "Diameter"))
+                                            {
+                                                UpdateODRecord(tables, "CrossingData", "Diameter",
+                                                    cogoPoint.ObjectId, originalValue);
+                                            }
+                                            else
+                                            {
+                                                AddODRecord(tables, "CrossingData", "Diameter",
+                                                    cogoPoint.ObjectId, originalValue);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
+                                                "Diameter", "Diameter of crossing pipe",
+                                                Autodesk.Gis.Map.Constants.DataType.Integer))
+                                            {
+                                                AddODRecord(tables, "CrossingData", "Diameter",
+                                                    cogoPoint.ObjectId, originalValue);
+                                            }
+                                        }
+                                    }
+                                }
+                                #endregion
 
                                 //Reference newly created cogoPoint to gathering collection
                                 allNewlyCreatedPoints.Add(cogoPoint);
@@ -1538,59 +1687,30 @@ namespace IntersectUtilities
                     }
 
                     #region Assign newly created points to projection on a profile view
-                    #region Select profile view
-                    //Get profile view
-                    PromptEntityOptions promptEntityOptions4 = new PromptEntityOptions("\n Select profile view: ");
-                    promptEntityOptions4.SetRejectMessage("\n Not a profile view");
-                    promptEntityOptions4.AddAllowedClass(typeof(ProfileView), true);
-                    PromptEntityResult entity4 = editor.GetEntity(promptEntityOptions4);
-                    if (((PromptResult)entity4).Status != PromptStatus.OK) return;
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId pvObjId = entity4.ObjectId;
-                    //ProfileView pv = pvObjId.Go<ProfileView>(tx);
+                    //#region Select profile view
+                    ////Get profile view
+                    //PromptEntityOptions promptEntityOptions4 = new PromptEntityOptions("\n Select profile view: ");
+                    //promptEntityOptions4.SetRejectMessage("\n Not a profile view");
+                    //promptEntityOptions4.AddAllowedClass(typeof(ProfileView), true);
+                    //PromptEntityResult entity4 = editor.GetEntity(promptEntityOptions4);
+                    //if (((PromptResult)entity4).Status != PromptStatus.OK) return;
+                    //Autodesk.AutoCAD.DatabaseServices.ObjectId pvObjId = entity4.ObjectId;
+                    ////ProfileView pv = pvObjId.Go<ProfileView>(tx);
+                    //#endregion
+
+                    #region Build query for PointGroup
+                    //Build query
+                    StandardPointGroupQuery spgq = new StandardPointGroupQuery();
+                    List<string> newPointNumbers = allNewlyCreatedPoints.Select(x => x.PointNumber.ToString()).ToList();
+                    string pointNumbersToInclude = string.Join(",", newPointNumbers.ToArray());
+                    spgq.IncludeNumbers = pointNumbersToInclude;
+                    pg.SetQuery(spgq);
+                    pg.Update(); 
                     #endregion
 
-                    //bool pointGroupAlreadyExists = civilDoc.PointGroups.Contains(alignment.Name);
+                    //editor.SetImpliedSelection(allNewlyCreatedPoints.Select(x => x.ObjectId).ToArray());
 
-                    //PointGroup pg = null;
-
-                    //if (pointGroupAlreadyExists)
-                    //{
-                    //    pg = civilDoc.PointGroups[alignment.Name].GetObject(OpenMode.ForWrite) as PointGroup;
-
-                    //    uint[] numbers = pg.GetPointNumbers();
-
-                    //    CogoPointCollection cpc = civilDoc.CogoPoints;
-
-                    //    for (int i = 0; i < numbers.Length; i++)
-                    //    {
-                    //        uint number = numbers[i];
-
-                    //        if (cpc.Contains(number))
-                    //        {
-                    //            cpc.Remove(number);
-                    //        }
-                    //    }
-
-                    //    pg.Update();
-                    //}
-                    //else
-                    //{
-                    //    oid pgId = civilDoc.PointGroups.Add(alignment.Name);
-
-                    //    pg = pgId.GetObject(OpenMode.ForWrite) as PointGroup;
-                    //}
-
-                    ////Build query
-                    //StandardPointGroupQuery spgq = new StandardPointGroupQuery();
-                    //List<string> newPointNumbers = allNewlyCreatedPoints.Select(x => x.PointNumber.ToString()).ToList();
-                    //string pointNumbersToInclude = string.Join(",", newPointNumbers.ToArray());
-                    //spgq.IncludeNumbers = pointNumbersToInclude;
-                    //pg.SetQuery(spgq);
-                    //pg.Update();
-
-                    editor.SetImpliedSelection(allNewlyCreatedPoints.Select(x => x.ObjectId).ToArray());
-
-                    editor.Command("_AeccProjectObjectsToProf", pvObjId);
+                    //editor.Command("_AeccProjectObjectsToProf", pvObjId);
 
                     #endregion
                 }
@@ -1713,7 +1833,7 @@ namespace IntersectUtilities
                             Entity fEnt = fId.Go<Entity>(tx);
 
                             string blockName = ReadStringParameterFromDataTable(
-                                fEnt.Layer, dtKrydsninger, "Block", 0);
+                                fEnt.Layer, dtKrydsninger, "Block", 1);
 
                             if (blockName.IsNotNoE())
                             {
@@ -1729,8 +1849,7 @@ namespace IntersectUtilities
                                 }
                             }
 
-                            ent.UpgradeOpen();
-                            ent.UpgradeOpen();
+                            ent.CheckOrOpenForWrite();
                             ent.Layer = fEnt.Layer;
                         }
                     }
@@ -3019,6 +3138,7 @@ namespace IntersectUtilities
                                 }
                                 newPoly3d.UpgradeOpen();
                                 newPoly3d.Erase(true);
+                                txOther.Commit();
                             }
 
                         }
