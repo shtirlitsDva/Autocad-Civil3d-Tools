@@ -906,6 +906,141 @@ namespace IntersectUtilities
             }
             return "";
         }
+
+        public static ObjectId AddToBlock(Entity entity, ObjectId btrId)
+        {
+            using (Transaction tr = btrId.Database.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    BlockTableRecord btr = tr.GetObject(
+                        btrId,
+                        OpenMode.ForWrite)
+                            as BlockTableRecord;
+
+                    ObjectId id = btr.AppendEntity(entity);
+
+                    tr.AddNewlyCreatedDBObject(entity, true);
+
+                    tr.Commit();
+
+                    return id;
+                }
+                catch (Autodesk.AutoCAD.Runtime.Exception ex)
+                {
+                    Autodesk.AutoCAD.Runtime.ErrorStatus es = ex.ErrorStatus;
+
+                    tr.Abort();
+                    return ObjectId.Null;
+                }
+                catch (System.Exception ex)
+                {
+                    string error = ex.Message;
+
+                    tr.Abort();
+                    return ObjectId.Null;
+                }
+            }
+        }
+
+        public static bool EraseBlock(Document doc, string blkName)
+        {
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+
+            try
+            {
+                var blkId = GetBlkId(db, blkName);
+
+                if (!blkId.IsNull)
+                {
+                    EraseBlkRefs(blkId);
+                    EraseBlk(blkId);
+                }
+                return true;
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage(ex.Message);
+                return false;
+            }
+        }
+
+        private static ObjectId GetBlkId(Database db, string blkName)
+        {
+
+            ObjectId blkId = ObjectId.Null;
+
+            if (db == null)
+                return ObjectId.Null;
+
+            if (string.IsNullOrWhiteSpace(blkName))
+                return ObjectId.Null;
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                if (bt.Has(blkName))
+                    blkId = bt[blkName];
+                tr.Commit();
+            }
+            return blkId;
+        }
+        private static bool EraseBlkRefs(ObjectId blkId)
+        {
+            bool blkRefsErased = false;
+
+            if (blkId.IsNull)
+                return false;
+
+            Database db = blkId.Database;
+            if (db == null)
+                return false;
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                BlockTableRecord blk = (BlockTableRecord)tr.GetObject(blkId, OpenMode.ForRead);
+                var blkRefs = blk.GetBlockReferenceIds(true, true);
+                if (blkRefs != null && blkRefs.Count > 0)
+                {
+                    foreach (ObjectId blkRefId in blkRefs)
+                    {
+                        Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef = 
+                            (Autodesk.AutoCAD.DatabaseServices.BlockReference)tr.GetObject(blkRefId, OpenMode.ForWrite);
+                        blkRef.Erase();
+                    }
+                    blkRefsErased = true;
+                }
+                tr.Commit();
+            }
+            return blkRefsErased;
+        }
+        private static bool EraseBlk(ObjectId blkId)
+        {
+            bool blkIsErased = false;
+
+            if (blkId.IsNull)
+                return false;
+
+            Database db = blkId.Database;
+            if (db == null)
+                return false;
+
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+
+                BlockTableRecord blk = (BlockTableRecord)tr.GetObject(blkId, OpenMode.ForRead);
+                var blkRefs = blk.GetBlockReferenceIds(true, true);
+                if (blkRefs == null || blkRefs.Count == 0)
+                {
+                    blk.UpgradeOpen();
+                    blk.Erase();
+                    blkIsErased = true;
+                }
+                tr.Commit();
+            }
+            return blkIsErased;
+        }
     }
     public static class Enums
     {

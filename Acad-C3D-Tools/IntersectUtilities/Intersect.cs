@@ -1817,46 +1817,112 @@ namespace IntersectUtilities
                     #endregion
 
                     BlockTableRecord space = (BlockTableRecord)tx.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
+                    BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForWrite) as BlockTable;
 
+                    #region Get the selection set of all objects and profile view
                     PromptSelectionOptions pOptions = new PromptSelectionOptions();
-
                     PromptSelectionResult sSetResult = editor.GetSelection(pOptions);
-
                     if (sSetResult.Status != PromptStatus.OK) return;
+                    HashSet<Entity> allEnts = sSetResult.Value.GetObjectIds().Select(e => e.Go<Entity>(tx)).ToHashSet();
+                    #endregion
 
-                    foreach (oid Oid in sSetResult.Value.GetObjectIds().ToList())
+                    #region Create a block for profile view detailing
+                    //First, get the profile view
+                    ProfileView pv = (ProfileView)allEnts.Where(p => p is ProfileView).FirstOrDefault();
+
+                    if (pv == null)
                     {
-                        Entity ent = Oid.Go<Entity>(tx);
+                        editor.WriteMessage($"\nNo profile view found in selection!");
+                        return;
+                    }
+
+                    pv.CheckOrOpenForWrite();
+                    double x = 0.0;
+                    double y = 0.0;
+                    if (pv.ElevationRangeMode == ElevationRangeType.Automatic)
+                    {
+                        pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+                        pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y);
+                    }
+                    else
+                        pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y);
+
+                    #region Erase existing detailing block if it exists
+                    if (bt.Has(pv.Name))
+                    {
+                        if (!EraseBlock(doc, pv.Name))
+                        {
+                            editor.WriteMessage($"\nFailed to erase block: {pv.Name}.");
+                            return;
+                        }
+                    } 
+                    #endregion
+
+                    BlockTableRecord detailingBlock = new BlockTableRecord();
+                    detailingBlock.Name = pv.Name;
+                    detailingBlock.Origin = new Point3d(x, y, 0);
+
+                    bt.Add(detailingBlock);
+                    tx.AddNewlyCreatedDBObject(detailingBlock, true);
+                    #endregion
+
+                    #region Process labels
+                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                    
+                    foreach (Entity ent in allEnts)
+                    {
                         if (ent is Label label)
                         {
                             oid fId = label.FeatureId;
                             Entity fEnt = fId.Go<Entity>(tx);
-                            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
 
-                            int dia = ReadIntPropertyValue(tables, fId, "CrossingData", "Diameter") / 1000;
+                            int diaOriginal = ReadIntPropertyValue(tables, fId, "CrossingData", "Diameter");
+
+                            double dia = Convert.ToDouble(diaOriginal) / 1000;
+
+                            if (dia == 0) dia = 0.11;
 
                             string blockName = ReadStringParameterFromDataTable(
                                 fEnt.Layer, dtKrydsninger, "Block", 1);
 
                             if (blockName.IsNotNoE())
                             {
-                                BlockTable bt = (BlockTable)tx.GetObject(db.BlockTableId, OpenMode.ForRead);
-                                if (bt.Has(blockName))
+                                if (blockName == "Cirkel, Bund" || blockName == "Cirkel, Top")
+                                {
+                                    Circle circle = null;
+                                    if (blockName.Contains("Bund"))
+                                    {
+                                        circle = new Circle(new Point3d(
+                                        label.LabelLocation.X, label.LabelLocation.Y + (dia / 2), 0),
+                                        Vector3d.ZAxis, dia / 2);
+                                    }
+                                    else if (blockName.Contains("Top"))
+                                    {
+                                        circle = new Circle(new Point3d(
+                                        label.LabelLocation.X, label.LabelLocation.Y - (dia / 2), 0),
+                                        Vector3d.ZAxis, dia / 2);
+                                    }
+
+                                    space.AppendEntity(circle);
+                                    tx.AddNewlyCreatedDBObject(circle, false);
+                                    circle.Layer = fEnt.Layer;
+
+                                    Entity clone = circle.Clone() as Entity;
+                                    detailingBlock.AppendEntity(clone);
+                                    tx.AddNewlyCreatedDBObject(clone, true);
+                                }
+                                else if (bt.Has(blockName))
                                 {
                                     using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
                                         label.LabelLocation, bt[blockName]))
                                     {
                                         space.AppendEntity(br);
-                                        tx.AddNewlyCreatedDBObject(br, true);
+                                        tx.AddNewlyCreatedDBObject(br, false);
+                                        br.Layer = fEnt.Layer;
 
-                                        foreach(DynamicBlockReferenceProperty prop in
-                                            br.DynamicBlockReferencePropertyCollection)
-                                        {
-                                            if (prop.PropertyName == "OD")
-                                            {
-                                                prop.Value = dia;
-                                            }
-                                        }
+                                        Entity clone = br.Clone() as Entity;
+                                        detailingBlock.AppendEntity(clone);
+                                        tx.AddNewlyCreatedDBObject(clone, true);
                                     }
                                 }
                             }
@@ -1865,10 +1931,19 @@ namespace IntersectUtilities
                             ent.Layer = fEnt.Layer;
                         }
                     }
+                    #endregion
+
+                    using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                    new Point3d(x, y, 0), bt[pv.Name]))
+                    {
+                        space.AppendEntity(br);
+                        tx.AddNewlyCreatedDBObject(br, true);
+                    }
                 }
 
                 catch (System.Exception ex)
                 {
+                    throw new System.Exception(ex.Message);
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
