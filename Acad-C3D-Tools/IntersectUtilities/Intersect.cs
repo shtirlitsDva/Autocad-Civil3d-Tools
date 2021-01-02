@@ -508,6 +508,8 @@ namespace IntersectUtilities
             }
         }
 
+        //Bruges ikke
+        [Obsolete("Kommando bruges ikke.", false)]
         [CommandMethod("intal")]
         public void intersectalignment()
         {
@@ -655,7 +657,8 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
+        //Bruges ikke
+        [Obsolete("Kommando bruges ikke.", false)]
         private static int IntersectEntities<T>(
             Transaction tx,
             Database db,
@@ -775,6 +778,8 @@ namespace IntersectUtilities
             return count;
         }
 
+        //Bruges ikke
+        [Obsolete("Kommando bruges ikke.", false)]
         [CommandMethod("createlerdatausingfls")]
         public void longitudinalprofilecrossings()
         {
@@ -1722,7 +1727,8 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
+        //Bruges ikke
+        [Obsolete("Kommando bruges ikke.", false)]
         /// <summary>
         /// Add featurelines to selected profile view as crossings.
         /// </summary>
@@ -1950,7 +1956,8 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
+        //Bruges ikke
+        [Obsolete("Kommando bruges ikke.", false)]
         [CommandMethod("debugfl")]
         public void debugfl()
         {
