@@ -3566,5 +3566,76 @@ namespace IntersectUtilities
             }
 
         }
+
+        [CommandMethod("createprofileviews")]
+        public void createprofileviews()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    BlockTableRecord space = (BlockTableRecord)tx.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
+                    BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForWrite) as BlockTable;
+
+                    HashSet<Alignment> allAlignments = db.HashSetOfType<Alignment>(tx);
+
+                    #region Create surface profiles
+
+                    #region Select "surface"
+                    //Get surface
+                    PromptEntityOptions promptEntityOptions3 = new PromptEntityOptions("\n Select surface to get elevations: ");
+                    promptEntityOptions3.SetRejectMessage("\n Not a surface");
+                    promptEntityOptions3.AddAllowedClass(typeof(TinSurface), true);
+                    promptEntityOptions3.AddAllowedClass(typeof(GridSurface), true);
+                    PromptEntityResult entity3 = editor.GetEntity(promptEntityOptions3);
+                    if (((PromptResult)entity3).Status != PromptStatus.OK) return;
+                    oid surfaceObjId = entity3.ObjectId;
+                    CivSurface surface = surfaceObjId.GetObject(OpenMode.ForRead, false) as CivSurface;
+                    #endregion
+
+                    #region Get terrain layer id
+
+                    LayerTable lt = db.LayerTableId.GetObject(OpenMode.ForRead) as LayerTable;
+                    string terrainLayerName = "0_TERRAIN_PROFILE";
+                    oid terrainLayerId = oid.Null;
+                    foreach (oid id in lt)
+                    {
+                        LayerTableRecord ltr = id.GetObject(OpenMode.ForRead) as LayerTableRecord;
+                        if (ltr.Name == terrainLayerName) terrainLayerId = ltr.Id;
+                    }
+                    if (terrainLayerId == oid.Null)
+                    {
+                        editor.WriteMessage("Terrain layer missing!");
+                        return;
+                    }
+
+                    #endregion
+
+                    foreach (Alignment alignment in allAlignments)
+                    {
+                        oid surfaceProfileId = Profile.CreateFromSurface(
+                            $"{alignment.Name}_surface_P", alignment.ObjectId, surfaceObjId,
+                            terrainLayerId, );
+                    }
+
+                    #endregion
+
+                }
+
+                catch (System.Exception ex)
+                {
+                    throw new System.Exception(ex.Message);
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
     }
 }
