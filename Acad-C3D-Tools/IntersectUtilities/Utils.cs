@@ -1221,6 +1221,49 @@ namespace IntersectUtilities
         {
             return new HashSet<T>(db.ListOfType<T>(tr));
         }
+
+        // Searches the drawing for a block with the specified name.
+        // Returns either the block, or null - check accordingly.
+        public static HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference> GetBlockReferenceByName(
+            this Database db, string _BlockName)
+        {
+            HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference> set =
+                    new HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference>();
+
+            using (Transaction _trans = db.TransactionManager.StartTransaction())
+            {
+
+                BlockTable blkTable = _trans.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
+                BlockTableRecord blkRecord;
+
+                if (blkTable.Has(_BlockName))
+                {
+                    ObjectId BlkRecId = blkTable[_BlockName];
+
+                    if (BlkRecId != null)
+                    {
+                        blkRecord = _trans.GetObject(BlkRecId, OpenMode.ForRead) as BlockTableRecord;
+
+                        Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection blockRefIds =
+                            blkRecord.GetBlockReferenceIds(true, true);
+
+                        foreach (ObjectId blockRefId in blockRefIds)
+                        {
+                            if ((_trans.GetObject(blockRefId, OpenMode.ForRead) as
+                                Autodesk.AutoCAD.DatabaseServices.BlockReference).Name ==
+                                _BlockName && (_trans.GetObject(blockRefId, OpenMode.ForRead) != null))
+                            {
+                                set.Add(_trans.GetObject(blockRefId, OpenMode.ForRead) as
+                                    Autodesk.AutoCAD.DatabaseServices.BlockReference);
+                            }
+                        }
+                    }
+
+                }
+                _trans.Commit();
+            }
+            return set;
+        }
     }
 
     public static class HelperMethods

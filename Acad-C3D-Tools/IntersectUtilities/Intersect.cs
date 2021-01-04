@@ -1414,7 +1414,7 @@ namespace IntersectUtilities
                         pg = pgId.GetObject(OpenMode.ForWrite) as PointGroup;
                     }
 
-                    
+
                     #endregion
 
                     foreach (Entity ent in allLocalLinework)
@@ -1459,7 +1459,7 @@ namespace IntersectUtilities
 
                         //2.1 Read the formatting in the description field
                         List<(string ToReplace, string Data)> descrFormatList = null;
-                        if (descrFromKrydsninger.IsNotNoE()) 
+                        if (descrFromKrydsninger.IsNotNoE())
                             descrFormatList = FindDescriptionParts(descrFromKrydsninger);
 
                         //Finally: Compose description field
@@ -1710,7 +1710,7 @@ namespace IntersectUtilities
                     string pointNumbersToInclude = string.Join(",", newPointNumbers.ToArray());
                     spgq.IncludeNumbers = pointNumbersToInclude;
                     pg.SetQuery(spgq);
-                    pg.Update(); 
+                    pg.Update();
                     #endregion
 
                     //editor.SetImpliedSelection(allNewlyCreatedPoints.Select(x => x.ObjectId).ToArray());
@@ -1861,7 +1861,7 @@ namespace IntersectUtilities
                             editor.WriteMessage($"\nFailed to erase block: {pv.Name}.");
                             return;
                         }
-                    } 
+                    }
                     #endregion
 
                     BlockTableRecord detailingBlock = new BlockTableRecord();
@@ -1874,7 +1874,7 @@ namespace IntersectUtilities
 
                     #region Process labels
                     Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-                    
+
                     foreach (Entity ent in allEnts)
                     {
                         if (ent is Label label)
@@ -3389,6 +3389,182 @@ namespace IntersectUtilities
                 }
                 #endregion
             }
+        }
+
+        [CommandMethod("decoratepolylines")]
+        public void decoratepolylines()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Load linework
+                    List<Polyline> plines = db.ListOfType<Polyline>(tx);
+                    editor.WriteMessage($"\nNr. of plines: {plines.Count}");
+                    #endregion
+
+                    #region Layer handling
+                    string localLayerName = "0-PLDECORATOR";
+                    bool localLayerExists = false;
+
+                    LayerTable lt = tx.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    if (lt.Has(localLayerName))
+                    {
+                        localLayerExists = true;
+                    }
+                    else
+                    {
+                        //Create layer if it doesn't exist
+                        try
+                        {
+                            //Validate the name of layer
+                            //It throws an exception if not, so need to catch it
+                            SymbolUtilityServices.ValidateSymbolName(localLayerName, false);
+
+                            LayerTableRecord ltr = new LayerTableRecord();
+                            ltr.Name = localLayerName;
+
+                            //Make layertable writable
+                            lt.UpgradeOpen();
+
+                            //Add the new layer to layer table
+                            oid ltId = lt.Add(ltr);
+                            tx.AddNewlyCreatedDBObject(ltr, true);
+
+                            //Flag that the layer exists now
+                            localLayerExists = true;
+
+                        }
+                        catch (System.Exception)
+                        {
+                            //Eat the exception and continue
+                            //localLayerExists must remain false
+                        }
+                    }
+                    #endregion
+
+                    #region Decorate polyline vertices
+                    BlockTableRecord space = (BlockTableRecord)tx.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
+                    BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForWrite) as BlockTable;
+
+                    #region Delete previous blocks
+
+                    List<string> blockNameList = new List<string>() { "VerticeLine", "VerticeArc" };
+
+                    foreach (string blockName in blockNameList)
+                    {
+                        var existingBlocks = db.GetBlockReferenceByName(blockName)
+                            .Where(x => x.Layer == localLayerName)
+                            .ToList();
+                        editor.WriteMessage($"\n{existingBlocks.Count} existing blocks found of name {blockName}.");
+                        foreach (Autodesk.AutoCAD.DatabaseServices.BlockReference br in existingBlocks)
+                        {
+                            br.CheckOrOpenForWrite();
+                            br.Erase(true);
+                        }
+                    }
+
+                    #endregion
+                    
+                    foreach (Polyline pline in plines)
+                    {
+                        int numOfVerts = pline.NumberOfVertices - 1;
+                        for (int i = 0; i < numOfVerts; i++)
+                        {
+                            switch (pline.GetSegmentType(i))
+                            {
+                                case SegmentType.Line:
+                                    {
+                                        string blockName = "VerticeLine";
+                                        if (bt.Has(blockName))
+                                        {
+                                            LineSegment2d lineSegment2dAt = pline.GetLineSegment2dAt(i);
+
+                                            Point2d point2d1 = lineSegment2dAt.StartPoint;
+                                            using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                                new Point3d(point2d1.X, point2d1.Y, 0) , bt[blockName]))
+                                            {
+                                                space.AppendEntity(br);
+                                                tx.AddNewlyCreatedDBObject(br, true);
+                                                br.Layer = localLayerName;
+                                            }
+
+                                            Point2d point2d2 = lineSegment2dAt.EndPoint;
+                                            using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                                new Point3d(point2d2.X, point2d2.Y, 0), bt[blockName]))
+                                            {
+                                                space.AppendEntity(br);
+                                                tx.AddNewlyCreatedDBObject(br, true);
+                                                br.Layer = localLayerName;
+                                            }
+                                        }
+                                    }
+                                    break;
+                                case SegmentType.Arc:
+                                    {
+                                        string blockName = "VerticeArc";
+                                        if (bt.Has(blockName))
+                                        {
+                                            CircularArc2d arcSegment2dAt = pline.GetArcSegment2dAt(i);
+
+                                            Point2d point2d1 = arcSegment2dAt.StartPoint;
+                                            using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                                new Point3d(point2d1.X, point2d1.Y, 0), bt[blockName]))
+                                            {
+                                                space.AppendEntity(br);
+                                                tx.AddNewlyCreatedDBObject(br, true);
+                                                br.Layer = localLayerName;
+                                            }
+
+                                            Point2d point2d2 = arcSegment2dAt.EndPoint;
+                                            using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                                new Point3d(point2d2.X, point2d2.Y, 0), bt[blockName]))
+                                            {
+                                                space.AppendEntity(br);
+                                                tx.AddNewlyCreatedDBObject(br, true);
+                                                br.Layer = localLayerName;
+                                            }
+
+                                            Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
+                                            using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                                new Point3d(samplePoint.X, samplePoint.Y, 0), bt[blockName]))
+                                            {
+                                                space.AppendEntity(br);
+                                                tx.AddNewlyCreatedDBObject(br, true);
+                                                br.Layer = localLayerName;
+                                            }
+                                        }
+                                    }
+                                    break;
+                                case SegmentType.Coincident:
+                                    break;
+                                case SegmentType.Point:
+                                    break;
+                                case SegmentType.Empty:
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                    }
+
+                    #endregion
+
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+
         }
     }
 }
