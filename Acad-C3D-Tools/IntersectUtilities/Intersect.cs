@@ -29,6 +29,7 @@ using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
+using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 
 namespace IntersectUtilities
 {
@@ -191,7 +192,7 @@ namespace IntersectUtilities
                     StringBuilder sb = new StringBuilder();
                     foreach (string name in layNames) sb.AppendLine(name);
 
-                    string path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + "\\CivilNET\\LayerNames.txt";
+                    string path = "X:\\AutoCAD DRI - 01 Civil 3D\\LayerNames.txt";
 
                     Utils.ClrFile(path);
                     Utils.OutputWriter(path, sb.ToString());
@@ -291,10 +292,8 @@ namespace IntersectUtilities
 
                     //Establish the pathnames to files
                     //Files should be placed in a specific folder on desktop
-                    string pathKrydsninger = Environment.GetFolderPath(
-                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Krydsninger.csv";
-                    string pathDybde = Environment.GetFolderPath(
-                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Dybde.csv";
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
 
                     System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
                     System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
@@ -449,10 +448,8 @@ namespace IntersectUtilities
 
                     //Establish the pathnames to files
                     //Files should be placed in a specific folder on desktop
-                    string pathKrydsninger = Environment.GetFolderPath(
-                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Krydsninger.csv";
-                    string pathDybde = Environment.GetFolderPath(
-                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Dybde.csv";
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
 
                     System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
                     System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
@@ -498,6 +495,167 @@ namespace IntersectUtilities
                     #region Read Krydsninger data
 
                     #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("listintlaycheckalignments")]
+        public void listintlaycheckalignments()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Select XREF
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
+                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
+                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
+                    Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef
+                        = tx.GetObject(blkObjId, OpenMode.ForRead, false)
+                        as Autodesk.AutoCAD.DatabaseServices.BlockReference;
+                    #endregion
+
+                    #region Open XREF and tx
+                    // open the block definition?
+                    BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                    // is not from external reference, exit
+                    if (!blockDef.IsFromExternalReference) return;
+
+                    // open the xref database
+                    Database xRefDB = new Database(false, true);
+                    editor.WriteMessage($"\nPathName of the blockDef -> {blockDef.PathName}");
+
+                    //Relative path handling
+                    //I
+                    string curPathName = blockDef.PathName;
+                    bool isFullPath = IsFullPath(curPathName);
+                    if (isFullPath == false)
+                    {
+                        string sourcePath = Path.GetDirectoryName(doc.Name);
+                        editor.WriteMessage($"\nSourcePath -> {sourcePath}");
+                        curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
+                        editor.WriteMessage($"\nTargetPath -> {curPathName}");
+                    }
+
+                    xRefDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
+
+                    //Transaction from Database of the Xref
+                    //Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
+                    #endregion
+
+                    #region Read Csv Data for Layers and Depth
+
+                    //Establish the pathnames to files
+                    //Files should be placed in a specific folder on desktop
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
+
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
+
+                    #endregion
+
+                    List<Alignment> alignments = db.ListOfType<Alignment>(tx);
+
+                    foreach (Alignment al in alignments)
+                    {
+                        using (Transaction xrefTx = xRefDB.TransactionManager.StartTransaction())
+                        {
+                            List<Polyline3d> allPlines3d = xRefDB.ListOfType<Polyline3d>(xrefTx);
+                            List<Polyline3d> plines3d = FilterForCrossingEntities(allPlines3d, al);
+
+                            if (allPlines3d.Count == 0)
+                            {
+                                editor.WriteMessage("\nNo 3D polylines found in drawing!" +
+                                    " Did you remember to run 'convertlinework'?");
+                                return;
+                            }
+
+                            List<string> layNames = new List<string>(plines3d.Count);
+
+                            //Local function to avoid duplicate code
+                            List<string> LocalListNames<T>(List<string> list, List<T> ents)
+                            {
+                                foreach (Entity ent in ents.Cast<Entity>())
+                                {
+                                    LayerTableRecord layer = (LayerTableRecord)xrefTx.GetObject(ent.LayerId, OpenMode.ForRead);
+                                    if (layer.IsFrozen) continue;
+
+                                    list.Add(layer.Name);
+                                }
+                                return list;
+                            }
+
+                            layNames = LocalListNames(layNames, plines3d);
+
+                            layNames = layNames.Distinct().ToList();
+                            //StringBuilder sb = new StringBuilder();
+                            //foreach (string name in layNames) sb.AppendLine(name); 
+
+                            foreach (string name in layNames)
+                            {
+                                string nameInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Navn", 0);
+                                if (nameInFile.IsNoE())
+                                {
+                                    editor.WriteMessage($"\nDefinition af ledningslag '{name}' mangler i Krydsninger.csv!");
+                                }
+                                else
+                                {
+                                    string typeInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Type", 0);
+
+                                    if (typeInFile == "IGNORE")
+                                    {
+                                        editor.WriteMessage($"\nAdvarsel: Ledningslag" +
+                                                $" '{name}' er sat til 'IGNORE' og dermed ignoreres.");
+                                    }
+                                    else
+                                    {
+                                        editor.WriteMessage($"\nKontrollerer lag {name}:");
+
+                                        string layerInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Layer", 0);
+                                        if (layerInFile.IsNoE())
+                                            editor.WriteMessage($"\nFejl: Definition af kolonne \"Layer\" for ledningslag" +
+                                                $" '{name}' mangler i Krydsninger.csv!");
+
+                                        if (typeInFile.IsNoE())
+                                            editor.WriteMessage($"\nFejl: Definition af kolonne \"Type\" for ledningslag" +
+                                                $" '{name}' mangler i Krydsninger.csv!");
+
+                                        string blockInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Block", 0);
+                                        if (blockInFile.IsNoE())
+                                            editor.WriteMessage($"\nAdvarsel: Definition af kolonne \"Block\" for ledningslag" +
+                                                $" '{name}' mangler i Krydsninger.csv! Intet figur vil blive tegnet ved detaljering!");
+
+                                        string descrInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Description", 0);
+                                        if (descrInFile.IsNoE())
+                                            editor.WriteMessage($"\nAdvarsel: Definition af kolonne \"Description\" for ledningslag" +
+                                                $" '{name}' mangler i Krydsninger.csv! Intet beskrivelse vil blive skrevet i labels!");
+                                    }
+                                }
+                            }
+
+                            //string path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
+                            //    + "\\CivilNET\\LayerNames.txt";
+
+                            //Utils.ClrFile(path);
+                            //Utils.OutputWriter(path, sb.ToString());  
+                        }
+                    }
                 }
                 catch (System.Exception ex)
                 {
@@ -599,10 +757,8 @@ namespace IntersectUtilities
 
                     //Establish the pathnames to files
                     //Files should be placed in a specific folder on desktop
-                    string pathKrydsninger = Environment.GetFolderPath(
-                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Krydsninger.csv";
-                    string pathDybde = Environment.GetFolderPath(
-                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Dybde.csv";
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
 
                     System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
                     System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
@@ -878,10 +1034,8 @@ namespace IntersectUtilities
 
                     //Establish the pathnames to files
                     //Files should be placed in a specific folder on desktop
-                    string pathKrydsninger = Environment.GetFolderPath(
-                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Krydsninger.csv";
-                    string pathDybde = Environment.GetFolderPath(
-                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Dybde.csv";
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
 
                     System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
                     System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
@@ -1102,8 +1256,7 @@ namespace IntersectUtilities
                             #endregion
 
                             //Debug
-                            string pathToLog = Environment.GetFolderPath(
-                                    Environment.SpecialFolder.Desktop) + "\\CivilNET\\log.txt";
+                            string pathToLog = "X:\\AutoCAD DRI - 01 Civil 3D\\log.txt";
                             Utils.ClrFile(pathToLog);
                             int counter = 0;
 
@@ -1217,7 +1370,8 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("createlerdata")]
-        public void createlerdata()
+        public void createlerdata(BlockReference blkRef = null, Alignment alignment = null,
+                                  CivSurface surface = null, ProfileView pv = null)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -1232,15 +1386,17 @@ namespace IntersectUtilities
                 try
                 {
                     #region Select and open XREF
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
-                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
-                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
-                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
-                    Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef
-                        = tx.GetObject(blkObjId, OpenMode.ForRead, false)
-                        as Autodesk.AutoCAD.DatabaseServices.BlockReference;
+                    if (blkRef == null)
+                    {
+                        PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
+                        promptEntityOptions1.SetRejectMessage("\n Not a XREF");
+                        promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
+                        PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                        if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                        Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
+                        blkRef = tx.GetObject(blkObjId, OpenMode.ForRead, false)
+                            as Autodesk.AutoCAD.DatabaseServices.BlockReference;
+                    }
 
                     // open the block definition?
                     BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
@@ -1281,36 +1437,40 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Select Alignment
-                    //Get alignment
-                    PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select alignment to intersect: ");
-                    promptEntityOptions2.SetRejectMessage("\n Not an alignment");
-                    promptEntityOptions2.AddAllowedClass(typeof(Alignment), true);
-                    PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
-                    if (((PromptResult)entity2).Status != PromptStatus.OK) return;
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity2.ObjectId;
-                    Alignment alignment = tx.GetObject(alObjId, OpenMode.ForRead, false) as Alignment;
+                    if (alignment == null)
+                    {
+                        //Get alignment
+                        PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select alignment to intersect: ");
+                        promptEntityOptions2.SetRejectMessage("\n Not an alignment");
+                        promptEntityOptions2.AddAllowedClass(typeof(Alignment), true);
+                        PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                        if (((PromptResult)entity2).Status != PromptStatus.OK) return;
+                        Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity2.ObjectId;
+                        alignment = tx.GetObject(alObjId, OpenMode.ForRead, false) as Alignment;
+                    }
                     #endregion
 
                     #region Select surface
                     //Get surface
-                    PromptEntityOptions promptEntityOptions3 = new PromptEntityOptions("\n Select surface to get elevations: ");
-                    promptEntityOptions3.SetRejectMessage("\n Not a surface");
-                    promptEntityOptions3.AddAllowedClass(typeof(TinSurface), true);
-                    promptEntityOptions3.AddAllowedClass(typeof(GridSurface), true);
-                    PromptEntityResult entity3 = editor.GetEntity(promptEntityOptions3);
-                    if (((PromptResult)entity3).Status != PromptStatus.OK) return;
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId surfaceObjId = entity3.ObjectId;
-                    CivSurface surface = surfaceObjId.GetObject(OpenMode.ForRead, false) as CivSurface;
+                    if (surface == null)
+                    {
+                        PromptEntityOptions promptEntityOptions3 = new PromptEntityOptions("\n Select surface to get elevations: ");
+                        promptEntityOptions3.SetRejectMessage("\n Not a surface");
+                        promptEntityOptions3.AddAllowedClass(typeof(TinSurface), true);
+                        promptEntityOptions3.AddAllowedClass(typeof(GridSurface), true);
+                        PromptEntityResult entity3 = editor.GetEntity(promptEntityOptions3);
+                        if (((PromptResult)entity3).Status != PromptStatus.OK) return;
+                        Autodesk.AutoCAD.DatabaseServices.ObjectId surfaceObjId = entity3.ObjectId;
+                        surface = surfaceObjId.GetObject(OpenMode.ForRead, false) as CivSurface;
+                    }
                     #endregion
 
                     #region Read Csv Data for Layers and Depth
 
                     //Establish the pathnames to files
                     //Files should be placed in a specific folder on desktop
-                    string pathKrydsninger = Environment.GetFolderPath(
-                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Krydsninger.csv";
-                    string pathDybde = Environment.GetFolderPath(
-                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Dybde.csv";
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
 
                     System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
                     System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
@@ -1816,8 +1976,7 @@ namespace IntersectUtilities
                     #region Read Csv Data for Layers
                     //Establish the pathnames to files
                     //Files should be placed in a specific folder on desktop
-                    string pathKrydsninger = Environment.GetFolderPath(
-                        Environment.SpecialFolder.Desktop) + "\\CivilNET\\Krydsninger.csv";
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
 
                     System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
                     #endregion
@@ -3471,7 +3630,7 @@ namespace IntersectUtilities
                     }
 
                     #endregion
-                    
+
                     foreach (Polyline pline in plines)
                     {
                         int numOfVerts = pline.NumberOfVertices - 1;
@@ -3488,7 +3647,7 @@ namespace IntersectUtilities
 
                                             Point2d point2d1 = lineSegment2dAt.StartPoint;
                                             using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
-                                                new Point3d(point2d1.X, point2d1.Y, 0) , bt[blockName]))
+                                                new Point3d(point2d1.X, point2d1.Y, 0), bt[blockName]))
                                             {
                                                 space.AppendEntity(br);
                                                 tx.AddNewlyCreatedDBObject(br, true);
@@ -3583,9 +3742,20 @@ namespace IntersectUtilities
                     BlockTableRecord space = (BlockTableRecord)tx.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
                     BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForWrite) as BlockTable;
 
-                    HashSet<Alignment> allAlignments = db.HashSetOfType<Alignment>(tx);
+                    List<Alignment> allAlignments = db.ListOfType<Alignment>(tx).OrderBy(x => x.Name).ToList();
 
-                    #region Create surface profiles
+                    #region Select and open XREF
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
+                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
+                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
+                    BlockReference blkRef = tx.GetObject(blkObjId, OpenMode.ForRead, false)
+                        as Autodesk.AutoCAD.DatabaseServices.BlockReference;
+                    #endregion
+
+                    #region Create surface profiles and profile views
 
                     #region Select "surface"
                     //Get surface
@@ -3617,15 +3787,71 @@ namespace IntersectUtilities
 
                     #endregion
 
+                    oid profileStyleId = civilDoc.Styles.ProfileStyles["Terræn"];
+
+                    oid profileLabelSetStyleId = civilDoc.Styles.LabelSetStyles.ProfileLabelSetStyles["_No Labels"];
+
+                    int index = 1;
+
+                    #region Select point
+                    PromptPointOptions pPtOpts = new PromptPointOptions("");
+                    // Prompt for the start point
+                    pPtOpts.Message = "\nSelect location where to draw first profile view:";
+                    PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
+                    Point3d selectedPoint = pPtRes.Value;
+                    // Exit if the user presses ESC or cancels the command
+                    if (pPtRes.Status != PromptStatus.OK) return;
+                    #endregion
+
                     foreach (Alignment alignment in allAlignments)
                     {
-                        oid surfaceProfileId = Profile.CreateFromSurface(
-                            $"{alignment.Name}_surface_P", alignment.ObjectId, surfaceObjId,
-                            terrainLayerId, );
+                        oid surfaceProfileId = oid.Null;
+                        string profileName = $"{alignment.Name}_surface_P";
+                        bool noProfileExists = true;
+                        ObjectIdCollection pIds = alignment.GetProfileIds();
+                        foreach (oid pId in pIds)
+                        {
+                            Profile p = pId.Go<Profile>(tx);
+                            if (p.Name == profileName)
+                            {
+                                noProfileExists = false;
+                                surfaceProfileId = pId;
+                            }
+                        }
+
+                        if (noProfileExists)
+                        {
+                            surfaceProfileId = Profile.CreateFromSurface(
+                                                profileName, alignment.ObjectId, surfaceObjId,
+                                                terrainLayerId, profileStyleId, profileLabelSetStyleId);
+                        }
+
+                        #region Create profile view
+                        #region Calculate point
+                        Point3d insertionPoint = new Point3d(selectedPoint.X, selectedPoint.Y + index * -50, 0);
+                        #endregion
+
+                        oid profileViewBandSetStyleId = civilDoc.Styles
+                            .ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
+
+                        oid profileViewStyleId = civilDoc.Styles
+                            .ProfileViewStyles["PROFILE VIEW L TO R NO SCALE"];
+
+                        oid pvId = ProfileView.Create(alignment.ObjectId, insertionPoint,
+                            $"{alignment.Name}_PV", profileViewBandSetStyleId, profileViewStyleId);
+
+                        index++;
+                        #endregion
+
+                        #region Create ler data
+
+                        createlerdata(blkRef, alignment, surface, pvId.Go<ProfileView>(tx));
+
+                        #endregion
                     }
 
                     #endregion
-
+                    
                 }
 
                 catch (System.Exception ex)
