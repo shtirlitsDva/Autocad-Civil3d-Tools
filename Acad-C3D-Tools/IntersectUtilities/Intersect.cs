@@ -409,7 +409,7 @@ namespace IntersectUtilities
 
                     #region Select Alignment
                     //Get alignment
-                    PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select alignment to intersect: ");
+                    PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select alignment to check: ");
                     promptEntityOptions2.SetRejectMessage("\n Not an alignment");
                     promptEntityOptions2.AddAllowedClass(typeof(Alignment), true);
                     PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
@@ -417,7 +417,8 @@ namespace IntersectUtilities
                     Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity2.ObjectId;
                     Alignment alignment = tx.GetObject(alObjId, OpenMode.ForRead, false) as Alignment;
                     #endregion
-
+                    //int counter = 1;
+                    //editor.WriteMessage($"Linemarking {counter}."); counter++;
                     plines3d = FilterForCrossingEntities(plines3d, alignment);
 
                     List<string> layNames = new List<string>(plines3d.Count);
@@ -428,7 +429,7 @@ namespace IntersectUtilities
                         foreach (Entity ent in ents.Cast<Entity>())
                         {
                             LayerTableRecord layer = (LayerTableRecord)xrefTx.GetObject(ent.LayerId, OpenMode.ForRead);
-                            if (layer.IsFrozen) continue;
+                            //if (layer.IsFrozen) continue;
 
                             list.Add(layer.Name);
                         }
@@ -450,6 +451,12 @@ namespace IntersectUtilities
                     //Files should be placed in a specific folder on desktop
                     string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
                     string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
+
+                    if (!File.Exists(pathKrydsninger) || !File.Exists(pathDybde))
+                    {
+                        editor.WriteMessage("\nCSV input files cannot be reached!");
+                        return;
+                    }
 
                     System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
                     System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
@@ -474,6 +481,8 @@ namespace IntersectUtilities
                             }
                             else
                             {
+                                editor.WriteMessage($"\nKontrollerer lag {name}:");
+
                                 string layerInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Layer", 0);
                                 if (layerInFile.IsNoE())
                                     editor.WriteMessage($"\nFejl: Definition af kolonne \"Layer\" for ledningslag" +
@@ -482,19 +491,19 @@ namespace IntersectUtilities
                                 if (typeInFile.IsNoE())
                                     editor.WriteMessage($"\nFejl: Definition af kolonne \"Type\" for ledningslag" +
                                         $" '{name}' mangler i Krydsninger.csv!");
+
+                                string blockInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Block", 0);
+                                if (blockInFile.IsNoE())
+                                    editor.WriteMessage($"\nAdvarsel: Definition af kolonne \"Block\" for ledningslag" +
+                                        $" '{name}' mangler i Krydsninger.csv! Intet figur vil blive tegnet ved detaljering!");
+
+                                string descrInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Description", 0);
+                                if (descrInFile.IsNoE())
+                                    editor.WriteMessage($"\nAdvarsel: Definition af kolonne \"Description\" for ledningslag" +
+                                        $" '{name}' mangler i Krydsninger.csv! Intet beskrivelse vil blive skrevet i labels!");
                             }
                         }
                     }
-
-                    //string path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
-                    //    + "\\CivilNET\\LayerNames.txt";
-
-                    //Utils.ClrFile(path);
-                    //Utils.OutputWriter(path, sb.ToString());
-
-                    #region Read Krydsninger data
-
-                    #endregion
                 }
                 catch (System.Exception ex)
                 {
@@ -569,93 +578,90 @@ namespace IntersectUtilities
                     System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
 
                     #endregion
+                    Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
+                    List<Polyline3d> allPlines3d = xRefDB.ListOfType<Polyline3d>(xrefTx);
 
                     List<Alignment> alignments = db.ListOfType<Alignment>(tx);
 
+                    List<string> layNames = new List<string>();
+
                     foreach (Alignment al in alignments)
                     {
-                        using (Transaction xrefTx = xRefDB.TransactionManager.StartTransaction())
+                        editor.WriteMessage($"\n++++++++ Indlæser alignment {al.Name}. ++++++++");
+
+                        List<Polyline3d> plines3d = FilterForCrossingEntities(allPlines3d, al);
+
+                        if (allPlines3d.Count == 0)
                         {
-                            List<Polyline3d> allPlines3d = xRefDB.ListOfType<Polyline3d>(xrefTx);
-                            List<Polyline3d> plines3d = FilterForCrossingEntities(allPlines3d, al);
+                            editor.WriteMessage("\nNo 3D polylines found in drawing!" +
+                                " Did you remember to run 'convertlinework'?");
+                            return;
+                        }
 
-                            if (allPlines3d.Count == 0)
+                        //Local function to avoid duplicate code
+                        List<string> LocalListNames<T>(List<string> list, List<T> ents)
+                        {
+                            foreach (Entity ent in ents.Cast<Entity>())
                             {
-                                editor.WriteMessage("\nNo 3D polylines found in drawing!" +
-                                    " Did you remember to run 'convertlinework'?");
-                                return;
+                                LayerTableRecord layer = (LayerTableRecord)xrefTx.GetObject(ent.LayerId, OpenMode.ForRead);
+                                //if (layer.IsFrozen) continue;
+
+                                list.Add(layer.Name);
                             }
+                            return list;
+                        }
 
-                            List<string> layNames = new List<string>(plines3d.Count);
+                        layNames.AddRange(LocalListNames(layNames, plines3d));
 
-                            //Local function to avoid duplicate code
-                            List<string> LocalListNames<T>(List<string> list, List<T> ents)
+                    }
+                    
+                    layNames = layNames.Distinct().OrderBy(x => x).ToList();
+
+                    editor.WriteMessage($"\n++++++++ KONTROL ++++++++");
+
+                    foreach (string name in layNames)
+                    {
+                        string nameInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Navn", 0);
+                        if (nameInFile.IsNoE())
+                        {
+                            editor.WriteMessage($"\nDefinition af ledningslag '{name}' mangler i Krydsninger.csv!");
+                        }
+                        else
+                        {
+                            string typeInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Type", 0);
+
+                            if (typeInFile == "IGNORE")
                             {
-                                foreach (Entity ent in ents.Cast<Entity>())
-                                {
-                                    LayerTableRecord layer = (LayerTableRecord)xrefTx.GetObject(ent.LayerId, OpenMode.ForRead);
-                                    if (layer.IsFrozen) continue;
-
-                                    list.Add(layer.Name);
-                                }
-                                return list;
+                                editor.WriteMessage($"\nAdvarsel: Ledningslag" +
+                                        $" '{name}' er sat til 'IGNORE' og dermed ignoreres.");
                             }
-
-                            layNames = LocalListNames(layNames, plines3d);
-
-                            layNames = layNames.Distinct().ToList();
-                            //StringBuilder sb = new StringBuilder();
-                            //foreach (string name in layNames) sb.AppendLine(name); 
-
-                            foreach (string name in layNames)
+                            else
                             {
-                                string nameInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Navn", 0);
-                                if (nameInFile.IsNoE())
-                                {
-                                    editor.WriteMessage($"\nDefinition af ledningslag '{name}' mangler i Krydsninger.csv!");
-                                }
-                                else
-                                {
-                                    string typeInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Type", 0);
+                                editor.WriteMessage($"\nKontrollerer lag {name}:");
 
-                                    if (typeInFile == "IGNORE")
-                                    {
-                                        editor.WriteMessage($"\nAdvarsel: Ledningslag" +
-                                                $" '{name}' er sat til 'IGNORE' og dermed ignoreres.");
-                                    }
-                                    else
-                                    {
-                                        editor.WriteMessage($"\nKontrollerer lag {name}:");
+                                string layerInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Layer", 0);
+                                if (layerInFile.IsNoE())
+                                    editor.WriteMessage($"\nFejl: Definition af kolonne \"Layer\" for ledningslag" +
+                                        $" '{name}' mangler i Krydsninger.csv!");
 
-                                        string layerInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Layer", 0);
-                                        if (layerInFile.IsNoE())
-                                            editor.WriteMessage($"\nFejl: Definition af kolonne \"Layer\" for ledningslag" +
-                                                $" '{name}' mangler i Krydsninger.csv!");
+                                if (typeInFile.IsNoE())
+                                    editor.WriteMessage($"\nFejl: Definition af kolonne \"Type\" for ledningslag" +
+                                        $" '{name}' mangler i Krydsninger.csv!");
 
-                                        if (typeInFile.IsNoE())
-                                            editor.WriteMessage($"\nFejl: Definition af kolonne \"Type\" for ledningslag" +
-                                                $" '{name}' mangler i Krydsninger.csv!");
+                                string blockInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Block", 0);
+                                if (blockInFile.IsNoE())
+                                    editor.WriteMessage($"\nAdvarsel: Definition af kolonne \"Block\" for ledningslag" +
+                                        $" '{name}' mangler i Krydsninger.csv! Intet figur vil blive tegnet ved detaljering!");
 
-                                        string blockInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Block", 0);
-                                        if (blockInFile.IsNoE())
-                                            editor.WriteMessage($"\nAdvarsel: Definition af kolonne \"Block\" for ledningslag" +
-                                                $" '{name}' mangler i Krydsninger.csv! Intet figur vil blive tegnet ved detaljering!");
-
-                                        string descrInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Description", 0);
-                                        if (descrInFile.IsNoE())
-                                            editor.WriteMessage($"\nAdvarsel: Definition af kolonne \"Description\" for ledningslag" +
-                                                $" '{name}' mangler i Krydsninger.csv! Intet beskrivelse vil blive skrevet i labels!");
-                                    }
-                                }
+                                string descrInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Description", 0);
+                                if (descrInFile.IsNoE())
+                                    editor.WriteMessage($"\nAdvarsel: Definition af kolonne \"Description\" for ledningslag" +
+                                        $" '{name}' mangler i Krydsninger.csv! Intet beskrivelse vil blive skrevet i labels!");
                             }
-
-                            //string path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
-                            //    + "\\CivilNET\\LayerNames.txt";
-
-                            //Utils.ClrFile(path);
-                            //Utils.OutputWriter(path, sb.ToString());  
                         }
                     }
+
+                    xrefTx.Commit();
                 }
                 catch (System.Exception ex)
                 {
@@ -2811,7 +2817,8 @@ namespace IntersectUtilities
                     #region Load linework from local db
                     HashSet<Polyline3d> localPlines3d = localDb
                         .HashSetOfType<Polyline3d>(tx)
-                        .Where(x => x.Layer == "Afløb-kloakledning" ||
+                        .Where(x => x.Layer == "AFL_ledning_faelles" ||
+                                    x.Layer == "Afløb-kloakledning" ||
                                     x.Layer == "Regnvand")
                         .ToHashSet();
                     editor.WriteMessage($"\nNr. of local 3D polies: {localPlines3d.Count}");
@@ -3753,6 +3760,41 @@ namespace IntersectUtilities
                     Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
                     BlockReference blkRef = tx.GetObject(blkObjId, OpenMode.ForRead, false)
                         as Autodesk.AutoCAD.DatabaseServices.BlockReference;
+
+                    // open the block definition?
+                    BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                    // is not from external reference, exit
+                    if (!blockDef.IsFromExternalReference) return;
+
+                    // open the xref database
+                    Database xRefDB = new Database(false, true);
+                    editor.WriteMessage($"\nPathName of the blockDef -> {blockDef.PathName}");
+
+                    //Relative path handling
+                    //I
+                    string curPathName = blockDef.PathName;
+                    bool isFullPath = IsFullPath(curPathName);
+                    if (isFullPath == false)
+                    {
+                        string sourcePath = Path.GetDirectoryName(doc.Name);
+                        editor.WriteMessage($"\nSourcePath -> {sourcePath}");
+                        curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
+                        editor.WriteMessage($"\nTargetPath -> {curPathName}");
+                    }
+
+                    xRefDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
+                    #endregion
+
+                    #region Read Csv Data for Layers and Depth
+
+                    //Establish the pathnames to files
+                    //Files should be placed in a specific folder on desktop
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
+
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
+
                     #endregion
 
                     #region Create surface profiles and profile views
@@ -3788,8 +3830,14 @@ namespace IntersectUtilities
                     #endregion
 
                     oid profileStyleId = civilDoc.Styles.ProfileStyles["Terræn"];
-
                     oid profileLabelSetStyleId = civilDoc.Styles.LabelSetStyles.ProfileLabelSetStyles["_No Labels"];
+
+                    oid profileViewBandSetStyleId = civilDoc.Styles
+                            .ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
+                    oid profileViewStyleId = civilDoc.Styles
+                        .ProfileViewStyles["PROFILE VIEW L TO R NO SCALE"];
+
+                    HashSet<ProfileView> pvSetExisting = db.HashSetOfType<ProfileView>(tx);
 
                     int index = 1;
 
@@ -3805,6 +3853,9 @@ namespace IntersectUtilities
 
                     foreach (Alignment alignment in allAlignments)
                     {
+                        //If ProfileView already exists -> continue
+                        if (pvSetExisting.Any(x => x.Name == $"{alignment.Name}_PV")) continue;
+
                         oid surfaceProfileId = oid.Null;
                         string profileName = $"{alignment.Name}_surface_P";
                         bool noProfileExists = true;
@@ -3831,12 +3882,6 @@ namespace IntersectUtilities
                         Point3d insertionPoint = new Point3d(selectedPoint.X, selectedPoint.Y + index * -50, 0);
                         #endregion
 
-                        oid profileViewBandSetStyleId = civilDoc.Styles
-                            .ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
-
-                        oid profileViewStyleId = civilDoc.Styles
-                            .ProfileViewStyles["PROFILE VIEW L TO R NO SCALE"];
-
                         oid pvId = ProfileView.Create(alignment.ObjectId, insertionPoint,
                             $"{alignment.Name}_PV", profileViewBandSetStyleId, profileViewStyleId);
 
@@ -3845,13 +3890,14 @@ namespace IntersectUtilities
 
                         #region Create ler data
 
-                        createlerdata(blkRef, alignment, surface, pvId.Go<ProfileView>(tx));
+                        createlerdataloop(xRefDB, alignment, surface, pvId.Go<ProfileView>(tx),
+                                          dtKrydsninger, dtDybde);
 
                         #endregion
                     }
 
                     #endregion
-                    
+
                 }
 
                 catch (System.Exception ex)
@@ -3861,6 +3907,454 @@ namespace IntersectUtilities
                     return;
                 }
                 tx.Commit();
+            }
+        }
+
+        public void createlerdataloop(Database xRefDB, Alignment alignment,
+                                      CivSurface surface, ProfileView pv,
+                                      System.Data.DataTable dtKrydsninger, System.Data.DataTable dtDybde)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            Transaction tx = localDb.TransactionManager.TopTransaction;
+
+            try
+            {
+                #region ModelSpaces
+                //oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(xRefDB);
+                oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                #endregion
+
+                #region Load linework from Xref
+                //Transaction from Database of the Xref
+                Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
+                List<Polyline3d> allLinework = xRefDB.ListOfType<Polyline3d>(xrefTx);
+                editor.WriteMessage($"\nNr. of 3D polies: {allLinework.Count}");
+                #endregion
+
+                #region Clone remote objects to local dwg
+
+                BlockTable acBlkTbl = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                BlockTableRecord acBlkTblRec =
+                    tx.GetObject(acBlkTbl[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
+
+                Plane plane = new Plane();
+
+                int intersections = 0;
+
+                ObjectIdCollection sourceIds = new ObjectIdCollection();
+                List<Entity> sourceEnts = new List<Entity>();
+
+                //Gather the intersected objectIds
+                foreach (Entity ent in allLinework)
+                {
+                    using (Point3dCollection p3dcol = new Point3dCollection())
+                    {
+                        alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+                        string type = ReadStringParameterFromDataTable(ent.Layer, dtKrydsninger, "Type", 0);
+                        //if (type.IsNoE())
+                        //{
+                        //    editor.WriteMessage($"\nFejl: For xref lag {ent.Layer} mangler der enten" +
+                        //        $"selve definitionen eller 'Type'!");
+                        //    return;
+                        //}
+                        //Create 3d polyline if there's an intersection and
+                        //if the type of the layer is not "IGNORE"
+                        if (p3dcol.Count > 0 && type != "IGNORE")
+                        {
+                            intersections++;
+                            sourceIds.Add(ent.ObjectId);
+                            sourceEnts.Add(ent);
+                        }
+                    }
+                }
+
+                //Deepclone the objects
+                IdMapping mapping = new IdMapping();
+                xRefDB.WblockCloneObjects(
+                    sourceIds, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+
+                editor.WriteMessage($"\nTotal {intersections} intersections detected.");
+                #endregion
+
+                #region Load linework from local db
+                List<Polyline3d> localPlines3d = localDb.ListOfType<Polyline3d>(tx);
+                editor.WriteMessage($"\nNr. of local 3D polies: {localPlines3d.Count}");
+
+                List<Entity> allLocalLinework = new List<Entity>(
+                    localPlines3d.Count
+                    );
+
+                allLocalLinework.AddRange(localPlines3d.Cast<Entity>());
+                #endregion
+
+                #region Prepare variables
+                //Load things
+                Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                CogoPointCollection cogoPoints = civilDoc.CogoPoints;
+                HashSet<CogoPoint> allNewlyCreatedPoints = new HashSet<CogoPoint>();
+                #endregion
+
+                #region Handle PointGroups
+                bool pointGroupAlreadyExists = civilDoc.PointGroups.Contains(alignment.Name);
+
+                PointGroup pg = null;
+
+                if (pointGroupAlreadyExists)
+                {
+                    pg = civilDoc.PointGroups[alignment.Name].GetObject(OpenMode.ForWrite) as PointGroup;
+
+                    pg.Update();
+
+                    uint[] numbers = pg.GetPointNumbers();
+
+                    CogoPointCollection cpc = civilDoc.CogoPoints;
+
+                    for (int i = 0; i < numbers.Length; i++)
+                    {
+                        uint number = numbers[i];
+
+                        if (cpc.Contains(number))
+                        {
+                            cpc.Remove(number);
+                        }
+                    }
+
+                    pg.Update();
+                }
+                else
+                {
+                    oid pgId = civilDoc.PointGroups.Add(alignment.Name);
+
+                    pg = pgId.GetObject(OpenMode.ForWrite) as PointGroup;
+                }
+
+
+                #endregion
+
+                foreach (Entity ent in allLocalLinework)
+                {
+                    #region Read data parameters from csvs
+                    //Read 'Type' value
+                    string type = ReadStringParameterFromDataTable(ent.Layer, dtKrydsninger, "Type", 0);
+                    if (type.IsNoE())
+                    {
+                        editor.WriteMessage($"\nFejl: For lag {ent.Layer} mangler der enten " +
+                            $"selve definitionen eller 'Type'!");
+                        return;
+                    }
+
+                    //Read depth value for type
+                    double depth = 0;
+                    if (!type.IsNoE())
+                    {
+                        depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                    }
+
+                    //Read layer value for the object
+                    string localLayerName = Utils.ReadStringParameterFromDataTable(
+                                        ent.Layer, dtKrydsninger, "Layer", 0);
+
+                    #region Populate description field
+                    //Populate description field
+                    //1. Read size record if it exists
+                    MapValue sizeRecord = Utils.ReadRecordData(
+                        tables, ent.ObjectId, "SizeTable", "Size");
+                    int SizeTableSize = 0;
+                    string sizeDescrPart = "";
+                    if (sizeRecord != null)
+                    {
+                        SizeTableSize = sizeRecord.Int32Value;
+                        sizeDescrPart = $"ø{SizeTableSize}";
+                    }
+
+                    //2. Read description from Krydsninger
+                    string descrFromKrydsninger = ReadStringParameterFromDataTable(
+                        ent.Layer, dtKrydsninger, "Description", 0);
+
+                    //2.1 Read the formatting in the description field
+                    List<(string ToReplace, string Data)> descrFormatList = null;
+                    if (descrFromKrydsninger.IsNotNoE())
+                        descrFormatList = FindDescriptionParts(descrFromKrydsninger);
+
+                    //Finally: Compose description field
+                    List<string> descrParts = new List<string>();
+                    //1. Add custom size
+                    if (SizeTableSize != 0) descrParts.Add(sizeDescrPart);
+                    //2. Process and add parts from format bits in OD
+                    if (descrFromKrydsninger.IsNotNoE())
+                    {
+                        //Interpolate description from Krydsninger with format setting, if they exist
+                        if (descrFormatList != null && descrFormatList.Count > 0)
+                        {
+                            for (int i = 0; i < descrFormatList.Count; i++)
+                            {
+                                var tuple = descrFormatList[i];
+                                string result = ReadDescriptionPartsFromOD(tables, ent, tuple.Data, dtKrydsninger);
+                                descrFromKrydsninger = descrFromKrydsninger.Replace(tuple.ToReplace, result);
+                            }
+                        }
+
+                        //Add the description field to parts
+                        descrParts.Add(descrFromKrydsninger);
+                    }
+
+                    string description = "";
+                    if (descrParts.Count == 1) description = descrParts[0];
+                    else if (descrParts.Count > 1)
+                        description = string.Join("; ", descrParts);
+
+                    #endregion
+
+                    //Source object (xref) handle
+                    MapValue handleValue = ReadRecordData(
+                                tables, ent.ObjectId, "IdRecord", "Handle");
+
+                    string pName = "";
+
+                    if (handleValue != null) pName = handleValue.StrValue;
+                    else
+                    {
+                        pName = "Reading of Handle failed.";
+                        editor.WriteMessage($"\nEntity on layer {ent.Layer} failed to read Handle!");
+                    }
+
+                    #endregion
+
+                    #region Create points
+                    using (Point3dCollection p3dcol = new Point3dCollection())
+                    {
+                        alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+                        int count = 1;
+                        foreach (Point3d p3d in p3dcol)
+                        {
+                            oid pointId = cogoPoints.Add(p3d, true);
+                            CogoPoint cogoPoint = pointId.Go<CogoPoint>(tx, OpenMode.ForWrite);
+
+                            //Id of the new Poly3d if type == 3D
+                            oid newPolyId;
+
+                            #region Assign elevation based on 3D conditions
+                            double zElevation = 0;
+                            if (type != "3D")
+                            {
+                                var intPoint = surface.GetIntersectionPoint(p3d, new Vector3d(0, 0, 1));
+                                zElevation = intPoint.Z;
+
+                                //Subtract the depth (if invalid it is zero, so no modification will occur)
+                                zElevation -= depth;
+
+                                cogoPoint.Elevation = zElevation;
+                            }
+                            else if (type == "3D")
+                            {
+                                //Create vertical line to intersect the Ler line
+                                using (Transaction txp3d = localDb.TransactionManager.StartTransaction())
+                                {
+                                    Point3dCollection newP3dCol = new Point3dCollection();
+                                    //Intersection at 0
+                                    newP3dCol.Add(p3d);
+                                    //New point at very far away
+                                    newP3dCol.Add(new Point3d(p3d.X, p3d.Y, 1000));
+
+                                    Polyline3d newPoly = new Polyline3d(Poly3dType.SimplePoly, newP3dCol, false);
+
+                                    //Open modelspace
+                                    acBlkTbl = txp3d.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                                    acBlkTblRec = txp3d.GetObject(acBlkTbl[BlockTableRecord.ModelSpace],
+                                                     OpenMode.ForWrite) as BlockTableRecord;
+
+                                    acBlkTblRec.AppendEntity(newPoly);
+                                    txp3d.AddNewlyCreatedDBObject(newPoly, true);
+                                    newPolyId = newPoly.ObjectId;
+                                    txp3d.Commit();
+                                }
+
+                                Polyline3d newPoly3d = newPolyId.Go<Polyline3d>(tx);
+                                using (Point3dCollection p3dIntCol = new Point3dCollection())
+                                {
+                                    ent.IntersectWith(newPoly3d, 0, p3dIntCol, new IntPtr(0), new IntPtr(0));
+
+                                    foreach (Point3d p3dInt in p3dIntCol)
+                                    {
+                                        //Assume only one intersection
+                                        cogoPoint.Elevation = p3dInt.Z;
+                                    }
+
+                                    if (cogoPoint.Elevation == 0)
+                                    {
+                                        editor.WriteMessage($"\nFor type 3D entity {handleValue.StrValue}" +
+                                            $" layer {ent.Layer}," +
+                                            $" elevation is 0!");
+                                    }
+                                }
+                                newPoly3d.UpgradeOpen();
+                                newPoly3d.Erase(true);
+                            }
+                            #endregion
+
+                            //Set the layer
+                            #region Layer handling
+                            bool localLayerExists = false;
+
+                            if (!localLayerName.IsNoE() || localLayerName != null)
+                            {
+                                LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+                                if (lt.Has(localLayerName))
+                                {
+                                    localLayerExists = true;
+                                }
+                                else
+                                {
+                                    //Create layer if it doesn't exist
+                                    try
+                                    {
+                                        //Validate the name of layer
+                                        //It throws an exception if not, so need to catch it
+                                        SymbolUtilityServices.ValidateSymbolName(localLayerName, false);
+
+                                        LayerTableRecord ltr = new LayerTableRecord();
+                                        ltr.Name = localLayerName;
+
+                                        //Make layertable writable
+                                        lt.UpgradeOpen();
+
+                                        //Add the new layer to layer table
+                                        oid ltId = lt.Add(ltr);
+                                        tx.AddNewlyCreatedDBObject(ltr, true);
+
+                                        //Flag that the layer exists now
+                                        localLayerExists = true;
+
+                                    }
+                                    catch (System.Exception)
+                                    {
+                                        //Eat the exception and continue
+                                        //localLayerExists must remain false
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                editor.WriteMessage($"\nLocal layer name for source layer {ent.Layer} does not" +
+                                    $" exist in Krydsninger.csv!");
+                            }
+
+                            cogoPoint.Layer = localLayerName;
+                            #endregion
+
+                            cogoPoint.PointName = pName + "_" + count;
+                            count++;
+                            cogoPoint.RawDescription = description;
+
+                            #region Copy OD from polies to the new point
+                            //Copy specific OD from cloned 3D polies to the new point
+
+                            List<(string TableName, string RecordName)> odList =
+                                new List<(string TableName, string RecordName)>();
+                            odList.Add(("IdRecord", "Handle"));
+                            TryCopySpecificOD(tables, ent, cogoPoint, odList);
+                            #endregion
+
+                            #region Create Diameter OD
+                            odList.Clear();
+                            odList.Add(("SizeTable", "Size"));
+                            //Fetch diameter definitions if any
+                            string diaDef = ReadStringParameterFromDataTable(ent.Layer,
+                                dtKrydsninger, "Diameter", 0);
+                            if (diaDef.IsNotNoE())
+                            {
+                                var list = FindDescriptionParts(diaDef);
+                                //Be careful if FindDescriptionParts implementation changes
+                                string[] parts = list[0].Item2.Split(':');
+                                odList.Add((parts[0], parts[1]));
+                            }
+
+                            foreach (var item in odList)
+                            {
+                                MapValue originalValue = ReadRecordData(
+                                    tables, ent.ObjectId, item.TableName, item.RecordName);
+
+                                if (originalValue != null)
+                                {
+                                    if (DoesTableExist(tables, "CrossingData"))
+                                    {
+                                        if (DoesRecordExist(tables, cogoPoint.ObjectId, "Diameter"))
+                                        {
+                                            UpdateODRecord(tables, "CrossingData", "Diameter",
+                                                cogoPoint.ObjectId, originalValue);
+                                        }
+                                        else
+                                        {
+                                            AddODRecord(tables, "CrossingData", "Diameter",
+                                                cogoPoint.ObjectId, originalValue);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
+                                            "Diameter", "Diameter of crossing pipe",
+                                            Autodesk.Gis.Map.Constants.DataType.Integer))
+                                        {
+                                            AddODRecord(tables, "CrossingData", "Diameter",
+                                                cogoPoint.ObjectId, originalValue);
+                                        }
+                                    }
+                                }
+                            }
+                            #endregion
+
+                            //Reference newly created cogoPoint to gathering collection
+                            allNewlyCreatedPoints.Add(cogoPoint);
+                        }
+                    }
+                    #endregion
+
+                    #region Erase the cloned 3D polies
+                    ent.UpgradeOpen();
+                    ent.Erase(true);
+                    #endregion
+                }
+
+                #region Assign newly created points to projection on a profile view
+                //#region Select profile view
+                ////Get profile view
+                //PromptEntityOptions promptEntityOptions4 = new PromptEntityOptions("\n Select profile view: ");
+                //promptEntityOptions4.SetRejectMessage("\n Not a profile view");
+                //promptEntityOptions4.AddAllowedClass(typeof(ProfileView), true);
+                //PromptEntityResult entity4 = editor.GetEntity(promptEntityOptions4);
+                //if (((PromptResult)entity4).Status != PromptStatus.OK) return;
+                //Autodesk.AutoCAD.DatabaseServices.ObjectId pvObjId = entity4.ObjectId;
+                ////ProfileView pv = pvObjId.Go<ProfileView>(tx);
+                //#endregion
+
+                #region Build query for PointGroup
+                //Build query
+                StandardPointGroupQuery spgq = new StandardPointGroupQuery();
+                List<string> newPointNumbers = allNewlyCreatedPoints.Select(x => x.PointNumber.ToString()).ToList();
+                string pointNumbersToInclude = string.Join(",", newPointNumbers.ToArray());
+                spgq.IncludeNumbers = pointNumbersToInclude;
+                pg.SetQuery(spgq);
+                pg.Update();
+                #endregion
+
+                //editor.SetImpliedSelection(allNewlyCreatedPoints.Select(x => x.ObjectId).ToArray());
+
+                //editor.Command("_AeccProjectObjectsToProf", pvObjId);
+
+                #endregion
+
+                xrefTx.Commit();
+            }
+            catch (System.Exception ex)
+            {
+                editor.WriteMessage("\n" + ex.Message);
+                return;
             }
         }
     }
