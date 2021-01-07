@@ -614,7 +614,7 @@ namespace IntersectUtilities
                         layNames.AddRange(LocalListNames(layNames, plines3d));
 
                     }
-                    
+
                     layNames = layNames.Distinct().OrderBy(x => x).ToList();
 
                     editor.WriteMessage($"\n++++++++ KONTROL ++++++++");
@@ -1375,7 +1375,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("createlerdata")]
+        //[CommandMethod("createlerdata")]
         public void createlerdata(BlockReference blkRef = null, Alignment alignment = null,
                                   CivSurface surface = null, ProfileView pv = null)
         {
@@ -2040,6 +2040,18 @@ namespace IntersectUtilities
                     #region Process labels
                     Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
 
+                    LabelStyleCollection stc = civilDoc.Styles.LabelStyles
+                                                       .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
+
+                    //for (int i = 0; i < stc.Count; i++)
+                    //{
+                    //    oid id = stc[i];
+                    //    LabelStyle ls = tx.GetObject(id, OpenMode.ForRead) as LabelStyle;
+                    //    editor.WriteMessage($"\n{ls.Name}.");
+                    //}
+
+                    oid prStId = stc["PROFILE PROJEKTION MGO"];
+
                     foreach (Entity ent in allEnts)
                     {
                         if (ent is Label label)
@@ -2100,6 +2112,8 @@ namespace IntersectUtilities
 
                             ent.CheckOrOpenForWrite();
                             ent.Layer = fEnt.Layer;
+                            label.CheckOrOpenForWrite();
+                            label.StyleId = prStId;
                         }
                     }
                     #endregion
@@ -2121,6 +2135,169 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        //[CommandMethod("populateprofiles")]
+        public void populateprofiles()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Read Csv Data for Layers
+                    //Establish the pathnames to files
+                    //Files should be placed in a specific folder on desktop
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    #endregion
+
+                    BlockTableRecord space = (BlockTableRecord)tx.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
+                    BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForWrite) as BlockTable;
+
+                    //#region Get the selection set of all objects and profile view
+                    //PromptSelectionOptions pOptions = new PromptSelectionOptions();
+                    //PromptSelectionResult sSetResult = editor.GetSelection(pOptions);
+                    //if (sSetResult.Status != PromptStatus.OK) return;
+                    //HashSet<Entity> allEnts = sSetResult.Value.GetObjectIds().Select(e => e.Go<Entity>(tx)).ToHashSet();
+                    //#endregion
+
+                    HashSet<ProfileView> pvs = db.HashSetOfType<ProfileView>(tx);
+
+                    foreach (ProfileView pv in pvs)
+                    {
+                        #region Create a block for profile view detailing
+                        //First, get the profile view
+
+                        if (pv == null)
+                        {
+                            editor.WriteMessage($"\nNo profile view found in document!");
+                            return;
+                        }
+
+                        pv.CheckOrOpenForWrite();
+                        double x = 0.0;
+                        double y = 0.0;
+                        if (pv.ElevationRangeMode == ElevationRangeType.Automatic)
+                        {
+                            pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+                            pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y);
+                        }
+                        else
+                            pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y);
+
+                        #region Erase existing detailing block if it exists
+                        if (bt.Has(pv.Name))
+                        {
+                            if (!EraseBlock(doc, pv.Name))
+                            {
+                                editor.WriteMessage($"\nFailed to erase block: {pv.Name}.");
+                                return;
+                            }
+                        }
+                        #endregion
+
+                        BlockTableRecord detailingBlock = new BlockTableRecord();
+                        detailingBlock.Name = pv.Name;
+                        detailingBlock.Origin = new Point3d(x, y, 0);
+
+                        bt.Add(detailingBlock);
+                        tx.AddNewlyCreatedDBObject(detailingBlock, true);
+                        #endregion
+
+                        #region Process labels
+                        Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                        ObjectIdCollection lIds = pv.GetProfileViewLabelIds();
+
+                        foreach (oid lId in lIds)
+                        {
+                            Label label = lId.Go<Label>(tx);
+
+                            oid fId = label.FeatureId;
+                            Entity fEnt = fId.Go<Entity>(tx);
+
+                            int diaOriginal = ReadIntPropertyValue(tables, fId, "CrossingData", "Diameter");
+
+                            double dia = Convert.ToDouble(diaOriginal) / 1000;
+
+                            if (dia == 0) dia = 0.11;
+
+                            string blockName = ReadStringParameterFromDataTable(
+                                fEnt.Layer, dtKrydsninger, "Block", 1);
+
+                            if (blockName.IsNotNoE())
+                            {
+                                if (blockName == "Cirkel, Bund" || blockName == "Cirkel, Top")
+                                {
+                                    Circle circle = null;
+                                    if (blockName.Contains("Bund"))
+                                    {
+                                        circle = new Circle(new Point3d(
+                                        label.LabelLocation.X, label.LabelLocation.Y + (dia / 2), 0),
+                                        Vector3d.ZAxis, dia / 2);
+                                    }
+                                    else if (blockName.Contains("Top"))
+                                    {
+                                        circle = new Circle(new Point3d(
+                                        label.LabelLocation.X, label.LabelLocation.Y - (dia / 2), 0),
+                                        Vector3d.ZAxis, dia / 2);
+                                    }
+
+                                    space.AppendEntity(circle);
+                                    tx.AddNewlyCreatedDBObject(circle, false);
+                                    circle.Layer = fEnt.Layer;
+
+                                    Entity clone = circle.Clone() as Entity;
+                                    detailingBlock.AppendEntity(clone);
+                                    tx.AddNewlyCreatedDBObject(clone, true);
+                                }
+                                else if (bt.Has(blockName))
+                                {
+                                    using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                        label.LabelLocation, bt[blockName]))
+                                    {
+                                        space.AppendEntity(br);
+                                        tx.AddNewlyCreatedDBObject(br, false);
+                                        br.Layer = fEnt.Layer;
+
+                                        Entity clone = br.Clone() as Entity;
+                                        detailingBlock.AppendEntity(clone);
+                                        tx.AddNewlyCreatedDBObject(clone, true);
+                                    }
+                                }
+                            }
+
+                            label.CheckOrOpenForWrite();
+                            label.Layer = fEnt.Layer;
+                        }
+                        #endregion
+
+                        using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                        new Point3d(x, y, 0), bt[pv.Name]))
+                        {
+                            space.AppendEntity(br);
+                            tx.AddNewlyCreatedDBObject(br, true);
+                        }
+                    }
+                }
+
+                catch (System.Exception ex)
+                {
+                    throw new System.Exception(ex.Message);
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+
         //Bruges ikke
         [Obsolete("Kommando bruges ikke.", false)]
         [CommandMethod("debugfl")]
@@ -3750,6 +3927,7 @@ namespace IntersectUtilities
                     BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForWrite) as BlockTable;
 
                     List<Alignment> allAlignments = db.ListOfType<Alignment>(tx).OrderBy(x => x.Name).ToList();
+                    HashSet<ProfileView> pvSetExisting = db.HashSetOfType<ProfileView>(tx);
 
                     #region Select and open XREF
                     PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
@@ -3797,6 +3975,40 @@ namespace IntersectUtilities
 
                     #endregion
 
+                    #region Delete existing points
+                    PointGroupCollection pgs = civilDoc.PointGroups;
+
+                    for (int i = 0; i < pgs.Count; i++)
+                    {
+                        PointGroup pg = tx.GetObject(pgs[i], OpenMode.ForRead) as PointGroup;
+                        if (allAlignments.Any(x => x.Name == pg.Name) &&
+                            !pvSetExisting.Any(x => x.Name == pg.Name + "_PV"))
+                        {
+                            pg.CheckOrOpenForWrite();
+                            pg.Update();
+                            uint[] numbers = pg.GetPointNumbers();
+
+                            CogoPointCollection cpc = civilDoc.CogoPoints;
+
+                            for (int j = 0; j < numbers.Length; j++)
+                            {
+                                uint number = numbers[j];
+
+                                if (cpc.Contains(number))
+                                {
+                                    cpc.Remove(number);
+                                }
+                            }
+
+                            StandardPointGroupQuery spgqEmpty = new StandardPointGroupQuery();
+                            spgqEmpty.IncludeNumbers = "";
+                            pg.SetQuery(spgqEmpty);
+
+                            pg.Update();
+                        }
+                    }
+                    #endregion
+
                     #region Create surface profiles and profile views
 
                     #region Select "surface"
@@ -3837,7 +4049,8 @@ namespace IntersectUtilities
                     oid profileViewStyleId = civilDoc.Styles
                         .ProfileViewStyles["PROFILE VIEW L TO R NO SCALE"];
 
-                    HashSet<ProfileView> pvSetExisting = db.HashSetOfType<ProfileView>(tx);
+                    //Used to keep track of point names
+                    HashSet<string> pNames = new HashSet<string>();
 
                     int index = 1;
 
@@ -3879,7 +4092,7 @@ namespace IntersectUtilities
 
                         #region Create profile view
                         #region Calculate point
-                        Point3d insertionPoint = new Point3d(selectedPoint.X, selectedPoint.Y + index * -50, 0);
+                        Point3d insertionPoint = new Point3d(selectedPoint.X, selectedPoint.Y + index * -200, 0);
                         #endregion
 
                         oid pvId = ProfileView.Create(alignment.ObjectId, insertionPoint,
@@ -3891,8 +4104,9 @@ namespace IntersectUtilities
                         #region Create ler data
 
                         createlerdataloop(xRefDB, alignment, surface, pvId.Go<ProfileView>(tx),
-                                          dtKrydsninger, dtDybde);
-
+                                          dtKrydsninger, dtDybde, ref pNames);
+                        //tx.Commit();
+                        //return;
                         #endregion
                     }
 
@@ -3912,7 +4126,8 @@ namespace IntersectUtilities
 
         public void createlerdataloop(Database xRefDB, Alignment alignment,
                                       CivSurface surface, ProfileView pv,
-                                      System.Data.DataTable dtKrydsninger, System.Data.DataTable dtDybde)
+                                      System.Data.DataTable dtKrydsninger, System.Data.DataTable dtDybde,
+                                      ref HashSet<string> pNames)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -4006,25 +4221,7 @@ namespace IntersectUtilities
 
                 if (pointGroupAlreadyExists)
                 {
-                    pg = civilDoc.PointGroups[alignment.Name].GetObject(OpenMode.ForWrite) as PointGroup;
-
-                    pg.Update();
-
-                    uint[] numbers = pg.GetPointNumbers();
-
-                    CogoPointCollection cpc = civilDoc.CogoPoints;
-
-                    for (int i = 0; i < numbers.Length; i++)
-                    {
-                        uint number = numbers[i];
-
-                        if (cpc.Contains(number))
-                        {
-                            cpc.Remove(number);
-                        }
-                    }
-
-                    pg.Update();
+                    pg = tx.GetObject(civilDoc.PointGroups[alignment.Name], OpenMode.ForWrite) as PointGroup;
                 }
                 else
                 {
@@ -4248,8 +4445,15 @@ namespace IntersectUtilities
                             cogoPoint.Layer = localLayerName;
                             #endregion
 
-                            cogoPoint.PointName = pName + "_" + count;
-                            count++;
+                            string pointName = pName + "_" + count;
+
+                            while (pNames.Contains(pointName))
+                            {
+                                count++;
+                                pointName = pName + "_" + count;
+                            }
+                            pNames.Add(pointName);
+                            cogoPoint.PointName = pointName;
                             cogoPoint.RawDescription = description;
 
                             #region Copy OD from polies to the new point
@@ -4322,17 +4526,6 @@ namespace IntersectUtilities
                 }
 
                 #region Assign newly created points to projection on a profile view
-                //#region Select profile view
-                ////Get profile view
-                //PromptEntityOptions promptEntityOptions4 = new PromptEntityOptions("\n Select profile view: ");
-                //promptEntityOptions4.SetRejectMessage("\n Not a profile view");
-                //promptEntityOptions4.AddAllowedClass(typeof(ProfileView), true);
-                //PromptEntityResult entity4 = editor.GetEntity(promptEntityOptions4);
-                //if (((PromptResult)entity4).Status != PromptStatus.OK) return;
-                //Autodesk.AutoCAD.DatabaseServices.ObjectId pvObjId = entity4.ObjectId;
-                ////ProfileView pv = pvObjId.Go<ProfileView>(tx);
-                //#endregion
-
                 #region Build query for PointGroup
                 //Build query
                 StandardPointGroupQuery spgq = new StandardPointGroupQuery();
@@ -4343,9 +4536,21 @@ namespace IntersectUtilities
                 pg.Update();
                 #endregion
 
-                //editor.SetImpliedSelection(allNewlyCreatedPoints.Select(x => x.ObjectId).ToArray());
+                double elMax = pv.ElevationMax;
+                double elMin = pv.ElevationMin;
 
-                //editor.Command("_AeccProjectObjectsToProf", pvObjId);
+                double tryGetMin = allNewlyCreatedPoints.Min(x => x.Elevation);
+
+                if (tryGetMin != 0)
+                {
+                    pv.CheckOrOpenForWrite();
+                    elMin = tryGetMin - 1;
+                    pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+                    pv.ElevationMin = elMin;
+                }
+
+                editor.SetImpliedSelection(allNewlyCreatedPoints.Select(x => x.ObjectId).ToArray());
+                editor.Command("_AeccProjectObjectsToProf", pv.ObjectId);
 
                 #endregion
 
@@ -4355,6 +4560,870 @@ namespace IntersectUtilities
             {
                 editor.WriteMessage("\n" + ex.Message);
                 return;
+            }
+        }
+
+        [CommandMethod("createmultipleprofileviews")]
+        public void createmultipleprofileviews()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    BlockTableRecord space = (BlockTableRecord)tx.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
+                    BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForWrite) as BlockTable;
+
+                    List<Alignment> allAlignments = db.ListOfType<Alignment>(tx).OrderBy(x => x.Name).ToList();
+                    HashSet<ProfileView> pvSetExisting = db.HashSetOfType<ProfileView>(tx);
+
+                    #region Select and open XREF
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
+                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
+                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
+                    BlockReference blkRef = tx.GetObject(blkObjId, OpenMode.ForRead, false)
+                        as Autodesk.AutoCAD.DatabaseServices.BlockReference;
+
+                    // open the block definition?
+                    BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                    // is not from external reference, exit
+                    if (!blockDef.IsFromExternalReference) return;
+
+                    // open the xref database
+                    Database xRefDB = new Database(false, true);
+                    editor.WriteMessage($"\nPathName of the blockDef -> {blockDef.PathName}");
+
+                    //Relative path handling
+                    //I
+                    string curPathName = blockDef.PathName;
+                    bool isFullPath = IsFullPath(curPathName);
+                    if (isFullPath == false)
+                    {
+                        string sourcePath = Path.GetDirectoryName(doc.Name);
+                        editor.WriteMessage($"\nSourcePath -> {sourcePath}");
+                        curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
+                        editor.WriteMessage($"\nTargetPath -> {curPathName}");
+                    }
+
+                    xRefDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
+                    #endregion
+
+                    #region Read Csv Data for Layers and Depth
+
+                    //Establish the pathnames to files
+                    //Files should be placed in a specific folder on desktop
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
+
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
+
+                    #endregion
+
+                    #region Delete existing points
+                    PointGroupCollection pgs = civilDoc.PointGroups;
+
+                    for (int i = 0; i < pgs.Count; i++)
+                    {
+                        PointGroup pg = tx.GetObject(pgs[i], OpenMode.ForRead) as PointGroup;
+                        //If profile views already exist -- skip deleting of points
+                        if (allAlignments.Any(x => x.Name == pg.Name) &&
+                            !pvSetExisting.Any(x => x.Name.Contains(pg.Name + "_PV")))
+                        {
+                            pg.CheckOrOpenForWrite();
+                            pg.Update();
+                            uint[] numbers = pg.GetPointNumbers();
+
+                            CogoPointCollection cpc = civilDoc.CogoPoints;
+
+                            for (int j = 0; j < numbers.Length; j++)
+                            {
+                                uint number = numbers[j];
+
+                                if (cpc.Contains(number))
+                                {
+                                    cpc.Remove(number);
+                                }
+                            }
+
+                            StandardPointGroupQuery spgqEmpty = new StandardPointGroupQuery();
+                            spgqEmpty.IncludeNumbers = "";
+                            pg.SetQuery(spgqEmpty);
+
+                            pg.Update();
+                        }
+                    }
+                    #endregion
+
+                    #region Create surface profiles and profile views
+
+                    #region Select "surface"
+                    //Get surface
+                    PromptEntityOptions promptEntityOptions3 = new PromptEntityOptions("\n Select surface to get elevations: ");
+                    promptEntityOptions3.SetRejectMessage("\n Not a surface");
+                    promptEntityOptions3.AddAllowedClass(typeof(TinSurface), true);
+                    promptEntityOptions3.AddAllowedClass(typeof(GridSurface), true);
+                    PromptEntityResult entity3 = editor.GetEntity(promptEntityOptions3);
+                    if (((PromptResult)entity3).Status != PromptStatus.OK) return;
+                    oid surfaceObjId = entity3.ObjectId;
+                    CivSurface surface = surfaceObjId.GetObject(OpenMode.ForRead, false) as CivSurface;
+                    #endregion
+
+                    #region Get terrain layer id
+
+                    LayerTable lt = db.LayerTableId.GetObject(OpenMode.ForRead) as LayerTable;
+                    string terrainLayerName = "0_TERRAIN_PROFILE";
+                    oid terrainLayerId = oid.Null;
+                    foreach (oid id in lt)
+                    {
+                        LayerTableRecord ltr = id.GetObject(OpenMode.ForRead) as LayerTableRecord;
+                        if (ltr.Name == terrainLayerName) terrainLayerId = ltr.Id;
+                    }
+                    if (terrainLayerId == oid.Null)
+                    {
+                        editor.WriteMessage("Terrain layer missing!");
+                        return;
+                    }
+
+                    #endregion
+
+                    #region ProfileView styles ids
+                    oid profileStyleId = civilDoc.Styles.ProfileStyles["Terræn"];
+                    oid profileLabelSetStyleId = civilDoc.Styles.LabelSetStyles.ProfileLabelSetStyles["_No Labels"];
+
+                    oid profileViewBandSetStyleId = civilDoc.Styles
+                            .ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
+                    oid profileViewStyleId = civilDoc.Styles
+                        .ProfileViewStyles["PROFILE VIEW L TO R NO SCALE"];
+                    #endregion
+
+                    //Used to keep track of point names
+                    HashSet<string> pNames = new HashSet<string>();
+
+                    int index = 1;
+
+                    #region Select point
+                    PromptPointOptions pPtOpts = new PromptPointOptions("");
+                    // Prompt for the start point
+                    pPtOpts.Message = "\nSelect location where to draw first profile view:";
+                    PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
+                    Point3d selectedPoint = pPtRes.Value;
+                    // Exit if the user presses ESC or cancels the command
+                    if (pPtRes.Status != PromptStatus.OK) return;
+                    #endregion
+
+                    foreach (Alignment alignment in allAlignments)
+                    {
+                        #region Create surface profiles
+                        //If ProfileView already exists -> continue
+                        if (pvSetExisting.Any(x => x.Name == $"{alignment.Name}_PV")) continue;
+
+                        oid surfaceProfileId = oid.Null;
+                        string profileName = $"{alignment.Name}_surface_P";
+                        bool noProfileExists = true;
+                        ObjectIdCollection pIds = alignment.GetProfileIds();
+                        foreach (oid pId in pIds)
+                        {
+                            Profile p = pId.Go<Profile>(tx);
+                            if (p.Name == profileName)
+                            {
+                                noProfileExists = false;
+                                surfaceProfileId = pId;
+                            }
+                        }
+
+                        if (noProfileExists)
+                        {
+                            surfaceProfileId = Profile.CreateFromSurface(
+                                                profileName, alignment.ObjectId, surfaceObjId,
+                                                terrainLayerId, profileStyleId, profileLabelSetStyleId);
+                        }
+                        #endregion
+
+                        #region Create profile view
+                        #region Calculate point
+                        Point3d insertionPoint = new Point3d(selectedPoint.X, selectedPoint.Y + index * -200, 0);
+                        #endregion
+
+                        //oid pvId = ProfileView.Create(alignment.ObjectId, insertionPoint,
+                        //    $"{alignment.Name}_PV", profileViewBandSetStyleId, profileViewStyleId);
+
+                        MultipleProfileViewsCreationOptions mpvco = new MultipleProfileViewsCreationOptions();
+                        mpvco.DrawOrder = ProfileViewPlotType.ByRows;
+                        mpvco.GapBetweenViewsInColumn = 100;
+                        mpvco.GapBetweenViewsInRow = 100;
+                        mpvco.LengthOfEachView = 200;
+                        mpvco.MaxViewInRowOrColumn = 50;
+                        mpvco.StartCorner = ProfileViewStartCornerType.LowerLeft;
+
+                        //Naming format of created multiple PVs
+                        //j = row, k = col
+                        // {AlignmentName}_PV (jk)
+                        ObjectIdCollection mPvIds = ProfileView.CreateMultiple(alignment.ObjectId, insertionPoint,
+                            $"{alignment.Name}_PV", profileViewBandSetStyleId, profileViewStyleId, mpvco);
+
+                        index++;
+                        #endregion
+
+                        #region Create ler data
+
+                        //createlerdataloop(xRefDB, alignment, surface, pvId.Go<ProfileView>(tx),
+                        //                  dtKrydsninger, dtDybde, ref pNames);
+                        #endregion
+                    }
+
+                    #endregion
+
+                }
+
+                catch (System.Exception ex)
+                {
+                    throw new System.Exception(ex.Message);
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("createsurfaceprofiles")]
+        public void createsurfaceprofiles()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    List<Alignment> allAlignments = db.ListOfType<Alignment>(tx).OrderBy(x => x.Name).ToList();
+
+                    #region Create surface profiles
+
+                    #region Select "surface"
+                    //Get surface
+                    PromptEntityOptions promptEntityOptions3 = new PromptEntityOptions("\n Select surface to get elevations: ");
+                    promptEntityOptions3.SetRejectMessage("\n Not a surface");
+                    promptEntityOptions3.AddAllowedClass(typeof(TinSurface), true);
+                    promptEntityOptions3.AddAllowedClass(typeof(GridSurface), true);
+                    PromptEntityResult entity3 = editor.GetEntity(promptEntityOptions3);
+                    if (((PromptResult)entity3).Status != PromptStatus.OK) return;
+                    oid surfaceObjId = entity3.ObjectId;
+                    CivSurface surface = surfaceObjId.GetObject(OpenMode.ForRead, false) as CivSurface;
+                    #endregion
+
+                    #region Get terrain layer id
+
+                    LayerTable lt = db.LayerTableId.GetObject(OpenMode.ForRead) as LayerTable;
+                    string terrainLayerName = "0_TERRAIN_PROFILE";
+                    oid terrainLayerId = oid.Null;
+                    foreach (oid id in lt)
+                    {
+                        LayerTableRecord ltr = id.GetObject(OpenMode.ForRead) as LayerTableRecord;
+                        if (ltr.Name == terrainLayerName) terrainLayerId = ltr.Id;
+                    }
+                    if (terrainLayerId == oid.Null)
+                    {
+                        editor.WriteMessage("Terrain layer missing!");
+                        return;
+                    }
+
+                    #endregion
+
+                    oid profileStyleId = civilDoc.Styles.ProfileStyles["Terræn"];
+                    oid profileLabelSetStyleId = civilDoc.Styles.LabelSetStyles.ProfileLabelSetStyles["_No Labels"];
+
+                    foreach (Alignment alignment in allAlignments)
+                    {
+                        oid surfaceProfileId = oid.Null;
+                        string profileName = $"{alignment.Name}_surface_P";
+                        bool noProfileExists = true;
+                        ObjectIdCollection pIds = alignment.GetProfileIds();
+                        foreach (oid pId in pIds)
+                        {
+                            Profile p = pId.Go<Profile>(tx);
+                            if (p.Name == profileName)
+                            {
+                                noProfileExists = false;
+                                surfaceProfileId = pId;
+                            }
+                        }
+                        if (noProfileExists)
+                        {
+                            surfaceProfileId = Profile.CreateFromSurface(
+                                                profileName, alignment.ObjectId, surfaceObjId,
+                                                terrainLayerId, profileStyleId, profileLabelSetStyleId);
+                        }
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    throw new System.Exception(ex.Message);
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("createlerdata")]
+        public void createlerdata()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+
+                    List<Alignment> allAlignments = localDb.ListOfType<Alignment>(tx).OrderBy(x => x.Name).ToList();
+                    HashSet<ProfileView> pvSetExisting = localDb.HashSetOfType<ProfileView>(tx);
+
+                    #region Select and open XREF
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select an alignment XREF:");
+                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
+                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
+                    BlockReference blkRef = tx.GetObject(blkObjId, OpenMode.ForRead, false)
+                        as Autodesk.AutoCAD.DatabaseServices.BlockReference;
+
+                    // open the block definition?
+                    BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                    // is not from external reference, exit
+                    if (!blockDef.IsFromExternalReference) return;
+
+                    // open the xref database
+                    Database xRefSurfaceDB = new Database(false, true);
+                    editor.WriteMessage($"\nPathName of the blockDef -> {blockDef.PathName}");
+
+                    //Relative path handling
+                    //I
+                    string curPathName = blockDef.PathName;
+                    bool isFullPath = IsFullPath(curPathName);
+                    if (isFullPath == false)
+                    {
+                        string sourcePath = Path.GetDirectoryName(doc.Name);
+                        editor.WriteMessage($"\nSourcePath -> {sourcePath}");
+                        curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
+                        editor.WriteMessage($"\nTargetPath -> {curPathName}");
+                    }
+
+                    xRefSurfaceDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
+                    Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
+                    #endregion
+
+                    #region Read surface from xref
+                    CivSurface surface = xRefSurfaceDB
+                        .HashSetOfType<TinSurface>(xRefSurfaceTx)
+                        .FirstOrDefault() as CivSurface;
+
+                    if (surface == null)
+                    {
+                        editor.WriteMessage("\nSurface could not be loaded from the xref!");
+                        xRefSurfaceTx.Commit();
+                        return;
+                    }
+                    #endregion
+
+                    #region Read Csv Data for Layers and Depth
+
+                    //Establish the pathnames to files
+                    //Files should be placed in a specific folder on desktop
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
+
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
+
+                    #endregion
+
+                    #region Delete existing points
+                    PointGroupCollection pgs = civilDoc.PointGroups;
+
+                    for (int i = 0; i < pgs.Count; i++)
+                    {
+                        PointGroup pg = tx.GetObject(pgs[i], OpenMode.ForRead) as PointGroup;
+                        if (allAlignments.Any(x => x.Name == pg.Name))
+                        {
+                            pg.CheckOrOpenForWrite();
+                            pg.Update();
+                            uint[] numbers = pg.GetPointNumbers();
+
+                            CogoPointCollection cpc = civilDoc.CogoPoints;
+
+                            for (int j = 0; j < numbers.Length; j++)
+                            {
+                                uint number = numbers[j];
+
+                                if (cpc.Contains(number))
+                                {
+                                    cpc.Remove(number);
+                                }
+                            }
+
+                            StandardPointGroupQuery spgqEmpty = new StandardPointGroupQuery();
+                            spgqEmpty.IncludeNumbers = "";
+                            pg.SetQuery(spgqEmpty);
+
+                            pg.Update();
+                        }
+                    }
+                    #endregion
+
+                    //Used to keep track of point names
+                    HashSet<string> pNames = new HashSet<string>();
+
+                    int index = 1;
+
+                    #region Load linework from LER Xref
+
+                    // open the LER dwg database
+                    Database xRefLerDB = new Database(false, true);
+
+                    xRefLerDB.ReadDwgFile(GetPathToLerFile(editor), System.IO.FileShare.Read, false, string.Empty);
+                    Transaction xRefLerTx = xRefSurfaceDB.TransactionManager.StartTransaction();
+                    List<Polyline3d> allLinework = xRefLerDB.ListOfType<Polyline3d>(xRefLerTx);
+                    editor.WriteMessage($"\nNr. of 3D polies: {allLinework.Count}");
+                    #endregion
+
+                    foreach (Alignment alignment in allAlignments)
+                    {
+                        #region Create ler data
+                        #region ModelSpaces
+                        //oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(xRefDB);
+                        oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                        #endregion
+                        
+                        #region Clone remote objects to local dwg
+
+                        BlockTable acBlkTbl = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                        BlockTableRecord acBlkTblRec =
+                            tx.GetObject(acBlkTbl[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
+
+                        Plane plane = new Plane();
+
+                        int intersections = 0;
+
+                        ObjectIdCollection sourceIds = new ObjectIdCollection();
+                        List<Entity> sourceEnts = new List<Entity>();
+
+                        //Gather the intersected objectIds
+                        foreach (Entity ent in allLinework)
+                        {
+                            using (Point3dCollection p3dcol = new Point3dCollection())
+                            {
+                                alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+                                string type = ReadStringParameterFromDataTable(ent.Layer, dtKrydsninger, "Type", 0);
+                                if (p3dcol.Count > 0 && type != "IGNORE")
+                                {
+                                    intersections++;
+                                    sourceIds.Add(ent.ObjectId);
+                                    sourceEnts.Add(ent);
+                                }
+                            }
+                        }
+
+                        //Deepclone the objects
+                        IdMapping mapping = new IdMapping();
+                        xRefLerDB.WblockCloneObjects(
+                            sourceIds, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+
+                        editor.WriteMessage($"\nTotal {intersections} intersections detected.");
+                        #endregion
+
+                        #region Load linework from local db
+                        List<Polyline3d> localPlines3d = localDb.ListOfType<Polyline3d>(tx);
+                        editor.WriteMessage($"\nNr. of local 3D polies: {localPlines3d.Count}");
+
+                        List<Entity> allLocalLinework = new List<Entity>(
+                            localPlines3d.Count
+                            );
+
+                        allLocalLinework.AddRange(localPlines3d.Cast<Entity>());
+                        #endregion
+
+                        #region Prepare variables
+                        //Load things
+                        Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                        CogoPointCollection cogoPoints = civilDoc.CogoPoints;
+                        HashSet<CogoPoint> allNewlyCreatedPoints = new HashSet<CogoPoint>();
+                        #endregion
+
+                        #region Handle PointGroups
+                        bool pointGroupAlreadyExists = civilDoc.PointGroups.Contains(alignment.Name);
+
+                        PointGroup pg = null;
+
+                        if (pointGroupAlreadyExists)
+                        {
+                            pg = tx.GetObject(civilDoc.PointGroups[alignment.Name], OpenMode.ForWrite) as PointGroup;
+                        }
+                        else
+                        {
+                            oid pgId = civilDoc.PointGroups.Add(alignment.Name);
+
+                            pg = pgId.GetObject(OpenMode.ForWrite) as PointGroup;
+                        }
+
+
+                        #endregion
+
+                        foreach (Entity ent in allLocalLinework)
+                        {
+                            #region Read data parameters from csvs
+                            //Read 'Type' value
+                            string type = ReadStringParameterFromDataTable(ent.Layer, dtKrydsninger, "Type", 0);
+                            if (type.IsNoE())
+                            {
+                                editor.WriteMessage($"\nFejl: For lag {ent.Layer} mangler der enten " +
+                                    $"selve definitionen eller 'Type'!");
+                                return;
+                            }
+
+                            //Read depth value for type
+                            double depth = 0;
+                            if (!type.IsNoE())
+                            {
+                                depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                            }
+
+                            //Read layer value for the object
+                            string localLayerName = Utils.ReadStringParameterFromDataTable(
+                                                ent.Layer, dtKrydsninger, "Layer", 0);
+
+                            #region Populate description field
+                            //Populate description field
+                            //1. Read size record if it exists
+                            MapValue sizeRecord = Utils.ReadRecordData(
+                                tables, ent.ObjectId, "SizeTable", "Size");
+                            int SizeTableSize = 0;
+                            string sizeDescrPart = "";
+                            if (sizeRecord != null)
+                            {
+                                SizeTableSize = sizeRecord.Int32Value;
+                                sizeDescrPart = $"ø{SizeTableSize}";
+                            }
+
+                            //2. Read description from Krydsninger
+                            string descrFromKrydsninger = ReadStringParameterFromDataTable(
+                                ent.Layer, dtKrydsninger, "Description", 0);
+
+                            //2.1 Read the formatting in the description field
+                            List<(string ToReplace, string Data)> descrFormatList = null;
+                            if (descrFromKrydsninger.IsNotNoE())
+                                descrFormatList = FindDescriptionParts(descrFromKrydsninger);
+
+                            //Finally: Compose description field
+                            List<string> descrParts = new List<string>();
+                            //1. Add custom size
+                            if (SizeTableSize != 0) descrParts.Add(sizeDescrPart);
+                            //2. Process and add parts from format bits in OD
+                            if (descrFromKrydsninger.IsNotNoE())
+                            {
+                                //Interpolate description from Krydsninger with format setting, if they exist
+                                if (descrFormatList != null && descrFormatList.Count > 0)
+                                {
+                                    for (int i = 0; i < descrFormatList.Count; i++)
+                                    {
+                                        var tuple = descrFormatList[i];
+                                        string result = ReadDescriptionPartsFromOD(tables, ent, tuple.Data, dtKrydsninger);
+                                        descrFromKrydsninger = descrFromKrydsninger.Replace(tuple.ToReplace, result);
+                                    }
+                                }
+
+                                //Add the description field to parts
+                                descrParts.Add(descrFromKrydsninger);
+                            }
+
+                            string description = "";
+                            if (descrParts.Count == 1) description = descrParts[0];
+                            else if (descrParts.Count > 1)
+                                description = string.Join("; ", descrParts);
+
+                            #endregion
+
+                            //Source object (xref) handle
+                            MapValue handleValue = ReadRecordData(
+                                        tables, ent.ObjectId, "IdRecord", "Handle");
+
+                            string pName = "";
+
+                            if (handleValue != null) pName = handleValue.StrValue;
+                            else
+                            {
+                                pName = "Reading of Handle failed.";
+                                editor.WriteMessage($"\nEntity on layer {ent.Layer} failed to read Handle!");
+                            }
+
+                            #endregion
+
+                            #region Create points
+                            using (Point3dCollection p3dcol = new Point3dCollection())
+                            {
+                                alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+                                int count = 1;
+                                foreach (Point3d p3d in p3dcol)
+                                {
+                                    oid pointId = cogoPoints.Add(p3d, true);
+                                    CogoPoint cogoPoint = pointId.Go<CogoPoint>(tx, OpenMode.ForWrite);
+
+                                    //Id of the new Poly3d if type == 3D
+                                    oid newPolyId;
+
+                                    #region Assign elevation based on 3D conditions
+                                    double zElevation = 0;
+                                    if (type != "3D")
+                                    {
+                                        var intPoint = surface.GetIntersectionPoint(p3d, new Vector3d(0, 0, 1));
+                                        zElevation = intPoint.Z;
+
+                                        //Subtract the depth (if invalid it is zero, so no modification will occur)
+                                        zElevation -= depth;
+
+                                        cogoPoint.Elevation = zElevation;
+                                    }
+                                    else if (type == "3D")
+                                    {
+                                        //Create vertical line to intersect the Ler line
+                                        using (Transaction txp3d = localDb.TransactionManager.StartTransaction())
+                                        {
+                                            Point3dCollection newP3dCol = new Point3dCollection();
+                                            //Intersection at 0
+                                            newP3dCol.Add(p3d);
+                                            //New point at very far away
+                                            newP3dCol.Add(new Point3d(p3d.X, p3d.Y, 1000));
+
+                                            Polyline3d newPoly = new Polyline3d(Poly3dType.SimplePoly, newP3dCol, false);
+
+                                            //Open modelspace
+                                            acBlkTbl = txp3d.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                                            acBlkTblRec = txp3d.GetObject(acBlkTbl[BlockTableRecord.ModelSpace],
+                                                             OpenMode.ForWrite) as BlockTableRecord;
+
+                                            acBlkTblRec.AppendEntity(newPoly);
+                                            txp3d.AddNewlyCreatedDBObject(newPoly, true);
+                                            newPolyId = newPoly.ObjectId;
+                                            txp3d.Commit();
+                                        }
+
+                                        Polyline3d newPoly3d = newPolyId.Go<Polyline3d>(tx);
+                                        using (Point3dCollection p3dIntCol = new Point3dCollection())
+                                        {
+                                            ent.IntersectWith(newPoly3d, 0, p3dIntCol, new IntPtr(0), new IntPtr(0));
+
+                                            foreach (Point3d p3dInt in p3dIntCol)
+                                            {
+                                                //Assume only one intersection
+                                                cogoPoint.Elevation = p3dInt.Z;
+                                            }
+
+                                            if (cogoPoint.Elevation == 0)
+                                            {
+                                                editor.WriteMessage($"\nFor type 3D entity {handleValue.StrValue}" +
+                                                    $" layer {ent.Layer}," +
+                                                    $" elevation is 0!");
+                                            }
+                                        }
+                                        newPoly3d.UpgradeOpen();
+                                        newPoly3d.Erase(true);
+                                    }
+                                    #endregion
+
+                                    //Set the layer
+                                    #region Layer handling
+                                    bool localLayerExists = false;
+
+                                    if (!localLayerName.IsNoE() || localLayerName != null)
+                                    {
+                                        LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+                                        if (lt.Has(localLayerName))
+                                        {
+                                            localLayerExists = true;
+                                        }
+                                        else
+                                        {
+                                            //Create layer if it doesn't exist
+                                            try
+                                            {
+                                                //Validate the name of layer
+                                                //It throws an exception if not, so need to catch it
+                                                SymbolUtilityServices.ValidateSymbolName(localLayerName, false);
+
+                                                LayerTableRecord ltr = new LayerTableRecord();
+                                                ltr.Name = localLayerName;
+
+                                                //Make layertable writable
+                                                lt.UpgradeOpen();
+
+                                                //Add the new layer to layer table
+                                                oid ltId = lt.Add(ltr);
+                                                tx.AddNewlyCreatedDBObject(ltr, true);
+
+                                                //Flag that the layer exists now
+                                                localLayerExists = true;
+
+                                            }
+                                            catch (System.Exception)
+                                            {
+                                                //Eat the exception and continue
+                                                //localLayerExists must remain false
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        editor.WriteMessage($"\nLocal layer name for source layer {ent.Layer} does not" +
+                                            $" exist in Krydsninger.csv!");
+                                    }
+
+                                    cogoPoint.Layer = localLayerName;
+                                    #endregion
+
+                                    string pointName = pName + "_" + count;
+
+                                    while (pNames.Contains(pointName))
+                                    {
+                                        count++;
+                                        pointName = pName + "_" + count;
+                                    }
+                                    pNames.Add(pointName);
+                                    cogoPoint.PointName = pointName;
+                                    cogoPoint.RawDescription = description;
+
+                                    #region Copy OD from polies to the new point
+                                    //Copy specific OD from cloned 3D polies to the new point
+
+                                    List<(string TableName, string RecordName)> odList =
+                                        new List<(string TableName, string RecordName)>();
+                                    odList.Add(("IdRecord", "Handle"));
+                                    TryCopySpecificOD(tables, ent, cogoPoint, odList);
+                                    #endregion
+
+                                    #region Create Diameter OD
+                                    odList.Clear();
+                                    odList.Add(("SizeTable", "Size"));
+                                    //Fetch diameter definitions if any
+                                    string diaDef = ReadStringParameterFromDataTable(ent.Layer,
+                                        dtKrydsninger, "Diameter", 0);
+                                    if (diaDef.IsNotNoE())
+                                    {
+                                        var list = FindDescriptionParts(diaDef);
+                                        //Be careful if FindDescriptionParts implementation changes
+                                        string[] parts = list[0].Item2.Split(':');
+                                        odList.Add((parts[0], parts[1]));
+                                    }
+
+                                    foreach (var item in odList)
+                                    {
+                                        MapValue originalValue = ReadRecordData(
+                                            tables, ent.ObjectId, item.TableName, item.RecordName);
+
+                                        if (originalValue != null)
+                                        {
+                                            if (DoesTableExist(tables, "CrossingData"))
+                                            {
+                                                if (DoesRecordExist(tables, cogoPoint.ObjectId, "Diameter"))
+                                                {
+                                                    UpdateODRecord(tables, "CrossingData", "Diameter",
+                                                        cogoPoint.ObjectId, originalValue);
+                                                }
+                                                else
+                                                {
+                                                    AddODRecord(tables, "CrossingData", "Diameter",
+                                                        cogoPoint.ObjectId, originalValue);
+                                                }
+                                            }
+                                            else
+                                            {
+                                                if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
+                                                    "Diameter", "Diameter of crossing pipe",
+                                                    Autodesk.Gis.Map.Constants.DataType.Integer))
+                                                {
+                                                    AddODRecord(tables, "CrossingData", "Diameter",
+                                                        cogoPoint.ObjectId, originalValue);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    #endregion
+
+                                    //Reference newly created cogoPoint to gathering collection
+                                    allNewlyCreatedPoints.Add(cogoPoint);
+                                }
+                            }
+                            #endregion
+
+                            #region Erase the cloned 3D polies
+                            ent.UpgradeOpen();
+                            ent.Erase(true);
+                            #endregion
+                        }
+
+                        #region Assign newly created points to projection on a profile view
+                        #region Build query for PointGroup
+                        //Build query
+                        StandardPointGroupQuery spgq = new StandardPointGroupQuery();
+                        List<string> newPointNumbers = allNewlyCreatedPoints.Select(x => x.PointNumber.ToString()).ToList();
+                        string pointNumbersToInclude = string.Join(",", newPointNumbers.ToArray());
+                        spgq.IncludeNumbers = pointNumbersToInclude;
+                        pg.SetQuery(spgq);
+                        pg.Update();
+                        #endregion
+
+                        double elMax = pv.ElevationMax;
+                        double elMin = pv.ElevationMin;
+
+                        double tryGetMin = allNewlyCreatedPoints.Min(x => x.Elevation);
+
+                        if (tryGetMin != 0)
+                        {
+                            pv.CheckOrOpenForWrite();
+                            elMin = tryGetMin - 1;
+                            pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+                            pv.ElevationMin = elMin;
+                        }
+
+                        editor.SetImpliedSelection(allNewlyCreatedPoints.Select(x => x.ObjectId).ToArray());
+                        editor.Command("_AeccProjectObjectsToProf", pv.ObjectId);
+
+                        #endregion
+
+
+                        #endregion
+                    }
+
+                    xRefLerTx.Commit();
+                    xRefSurfaceTx.Commit();
+                }
+
+                catch (System.Exception ex)
+                {
+                    throw new System.Exception(ex.Message);
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
             }
         }
     }

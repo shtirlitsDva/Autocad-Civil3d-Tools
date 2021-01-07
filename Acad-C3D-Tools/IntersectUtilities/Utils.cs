@@ -1041,6 +1041,43 @@ namespace IntersectUtilities
             }
             return blkIsErased;
         }
+        public static string GetPathToLerFile(Editor editor)
+        {
+            const string kwd1 = "4.1";
+            const string kwd2 = "4.2";
+            const string kwd3 = "4.3";
+            const string kwd4 = "4.4";
+            const string kwd5 = "4.5";
+            const string kwd6 = "4.6";
+
+            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
+            pKeyOpts.Message = "\nChoose elevation input method: ";
+            pKeyOpts.Keywords.Add(kwd1);
+            pKeyOpts.Keywords.Add(kwd2);
+            pKeyOpts.Keywords.Add(kwd3);
+            pKeyOpts.Keywords.Add(kwd4);
+            pKeyOpts.Keywords.Add(kwd5);
+            pKeyOpts.Keywords.Add(kwd6);
+            pKeyOpts.AllowNone = true;
+            pKeyOpts.Keywords.Default = kwd1;
+            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+
+            switch (pKeyRes.StringResult)
+            {
+                case kwd1:
+                    return "X:\\0371-1158 - Gentofte Fase 4 - Dokumenter\\01 Intern\\" +
+                           "02 Tegninger\\01 Autocad\\Autocad\\01 Views\\4.1\\Fremmede ledninger 4.1.dwg";
+                case kwd2:
+                    return "X:\\0371-1158 - Gentofte Fase 4 - Dokumenter\\01 Intern\\" +
+                           "02 Tegninger\\01 Autocad\\Autocad\\01 Views\\4.2\\LER 4.2 3D.dwg";
+                case kwd3:
+                case kwd4:
+                case kwd5:
+                case kwd6:
+                default:
+                    return "";
+            }
+        }
     }
     public static class Enums
     {
