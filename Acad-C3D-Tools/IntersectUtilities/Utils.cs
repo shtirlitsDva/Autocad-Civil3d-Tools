@@ -1005,7 +1005,7 @@ namespace IntersectUtilities
                 {
                     foreach (ObjectId blkRefId in blkRefs)
                     {
-                        Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef = 
+                        Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef =
                             (Autodesk.AutoCAD.DatabaseServices.BlockReference)tr.GetObject(blkRefId, OpenMode.ForWrite);
                         blkRef.Erase();
                     }
@@ -1122,223 +1122,238 @@ namespace IntersectUtilities
         Math.Round(a.X, 3), Math.Round(a.Y, 3)).GetHashCode();
     }
 
-    public static class Extensions
+    public class StationPoint
     {
-        public static bool IsNoE(this string s) => string.IsNullOrEmpty(s);
+        public CogoPoint CogoPoint { get; }
+        public double Station;
+        private double Offset;
+        public int ProfileViewNumber { get; set; } = 0;
 
-        public static bool IsNotNoE(this string s) => !string.IsNullOrEmpty(s);
+    public StationPoint(CogoPoint cogoPoint, Alignment alignment)
+    {
+        CogoPoint = cogoPoint;
+        alignment.StationOffset(cogoPoint.Location.X, cogoPoint.Location.Y,
+                                          ref Station, ref Offset);
+    }
+}
 
-        public static bool Equalz(this double a, double b, double tol) => Math.Abs(a - b) <= tol;
+public static class Extensions
+{
+    public static bool IsNoE(this string s) => string.IsNullOrEmpty(s);
 
-        public static bool HorizontalEqualz(this Point3d a, Point3d b, double tol = 0.01) =>
-            null != a && null != b && a.X.Equalz(b.X, tol) && a.Y.Equalz(b.Y, tol);
+    public static bool IsNotNoE(this string s) => !string.IsNullOrEmpty(s);
 
-        public static void CheckOrOpenForWrite(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject)
+    public static bool Equalz(this double a, double b, double tol) => Math.Abs(a - b) <= tol;
+
+    public static bool HorizontalEqualz(this Point3d a, Point3d b, double tol = 0.01) =>
+        null != a && null != b && a.X.Equalz(b.X, tol) && a.Y.Equalz(b.Y, tol);
+
+    public static void CheckOrOpenForWrite(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject)
+    {
+        if (dbObject.IsWriteEnabled == false)
         {
-            if (dbObject.IsWriteEnabled == false)
+            if (dbObject.IsReadEnabled == true)
             {
-                if (dbObject.IsReadEnabled == true)
-                {
-                    dbObject.UpgradeOpen();
-                }
-                else if (dbObject.IsReadEnabled == false)
-                {
-                    dbObject.UpgradeOpen();
-                    dbObject.UpgradeOpen();
-                }
+                dbObject.UpgradeOpen();
             }
-        }
-
-        public static void CheckOrOpenForRead(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject,
-            bool DowngradeIfWriteEnabled = false)
-        {
-            if (dbObject.IsReadEnabled == false)
+            else if (dbObject.IsReadEnabled == false)
             {
-                if (dbObject.IsWriteEnabled == true)
-                {
-                    if (DowngradeIfWriteEnabled)
-                    {
-                        dbObject.DowngradeOpen();
-                    }
-                    return;
-                }
+                dbObject.UpgradeOpen();
                 dbObject.UpgradeOpen();
             }
         }
+    }
 
-        public static double GetHorizontalLength(this Polyline3d poly3d, Transaction tx)
+    public static void CheckOrOpenForRead(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject,
+        bool DowngradeIfWriteEnabled = false)
+    {
+        if (dbObject.IsReadEnabled == false)
         {
-            poly3d.CheckOrOpenForRead();
-            var vertices = poly3d.GetVertices(tx);
-            double totalLength = 0;
-            for (int i = 0; i < vertices.Length - 1; i++)
+            if (dbObject.IsWriteEnabled == true)
             {
-                totalLength += vertices[i].Position.DistanceHorizontalTo(vertices[i + 1].Position);
+                if (DowngradeIfWriteEnabled)
+                {
+                    dbObject.DowngradeOpen();
+                }
+                return;
             }
-            return totalLength;
-        }
-
-        public static double DistanceHorizontalTo(this Point3d sourceP3d, Point3d targetP3d)
-        {
-            double X1 = sourceP3d.X;
-            double Y1 = sourceP3d.Y;
-            double X2 = targetP3d.X;
-            double Y2 = targetP3d.Y;
-            return Math.Sqrt(Math.Pow((X2 - X1), 2) + Math.Pow((Y2 - Y1), 2));
+            dbObject.UpgradeOpen();
         }
     }
 
-    public static class ExtensionMethods
+    public static double GetHorizontalLength(this Polyline3d poly3d, Transaction tx)
     {
-        public static T Go<T>(this oid Oid, Transaction tx,
-            Autodesk.AutoCAD.DatabaseServices.OpenMode openMode =
-            Autodesk.AutoCAD.DatabaseServices.OpenMode.ForRead) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        poly3d.CheckOrOpenForRead();
+        var vertices = poly3d.GetVertices(tx);
+        double totalLength = 0;
+        for (int i = 0; i < vertices.Length - 1; i++)
         {
-            return (T)tx.GetObject(Oid, openMode, false);
+            totalLength += vertices[i].Position.DistanceHorizontalTo(vertices[i + 1].Position);
         }
-        public static void ForEach<T>(this Database database, Action<T> action, Transaction tr) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        return totalLength;
+    }
+
+    public static double DistanceHorizontalTo(this Point3d sourceP3d, Point3d targetP3d)
+    {
+        double X1 = sourceP3d.X;
+        double Y1 = sourceP3d.Y;
+        double X2 = targetP3d.X;
+        double Y2 = targetP3d.Y;
+        return Math.Sqrt(Math.Pow((X2 - X1), 2) + Math.Pow((Y2 - Y1), 2));
+    }
+}
+
+public static class ExtensionMethods
+{
+    public static T Go<T>(this oid Oid, Transaction tx,
+        Autodesk.AutoCAD.DatabaseServices.OpenMode openMode =
+        Autodesk.AutoCAD.DatabaseServices.OpenMode.ForRead) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+    {
+        return (T)tx.GetObject(Oid, openMode, false);
+    }
+    public static void ForEach<T>(this Database database, Action<T> action, Transaction tr) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+    {
+        //using (var tr = database.TransactionManager.StartTransaction())
+        //{
+        // Get the block table for the current database
+        var blockTable = (BlockTable)tr.GetObject(database.BlockTableId, OpenMode.ForRead);
+
+        // Get the model space block table record
+        var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+
+        RXClass theClass = RXObject.GetClass(typeof(T));
+
+        // Loop through the entities in model space
+        foreach (oid objectId in modelSpace)
         {
-            //using (var tr = database.TransactionManager.StartTransaction())
-            //{
-            // Get the block table for the current database
-            var blockTable = (BlockTable)tr.GetObject(database.BlockTableId, OpenMode.ForRead);
-
-            // Get the model space block table record
-            var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
-
-            RXClass theClass = RXObject.GetClass(typeof(T));
-
-            // Loop through the entities in model space
-            foreach (oid objectId in modelSpace)
+            // Look for entities of the correct type
+            if (objectId.ObjectClass.IsDerivedFrom(theClass))
             {
-                // Look for entities of the correct type
-                if (objectId.ObjectClass.IsDerivedFrom(theClass))
-                {
-                    var entity = (T)tr.GetObject(objectId, OpenMode.ForRead);
-                    action(entity);
-                }
+                var entity = (T)tr.GetObject(objectId, OpenMode.ForRead);
+                action(entity);
             }
-            //tr.Commit();
-            //}
         }
+        //tr.Commit();
+        //}
+    }
 
-        public static List<T> ListOfType<T>(this Database database, Transaction tr) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+    public static List<T> ListOfType<T>(this Database database, Transaction tr) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+    {
+        //using (var tr = database.TransactionManager.StartTransaction())
+        //{
+
+        //Init the list of the objects
+        List<T> objs = new List<T>();
+
+        // Get the block table for the current database
+        var blockTable = (BlockTable)tr.GetObject(database.BlockTableId, OpenMode.ForRead);
+
+        // Get the model space block table record
+        var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+
+        RXClass theClass = RXObject.GetClass(typeof(T));
+
+        // Loop through the entities in model space
+        foreach (oid objectId in modelSpace)
         {
-            //using (var tr = database.TransactionManager.StartTransaction())
-            //{
-
-            //Init the list of the objects
-            List<T> objs = new List<T>();
-
-            // Get the block table for the current database
-            var blockTable = (BlockTable)tr.GetObject(database.BlockTableId, OpenMode.ForRead);
-
-            // Get the model space block table record
-            var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
-
-            RXClass theClass = RXObject.GetClass(typeof(T));
-
-            // Loop through the entities in model space
-            foreach (oid objectId in modelSpace)
+            // Look for entities of the correct type
+            if (objectId.ObjectClass.IsDerivedFrom(theClass))
             {
-                // Look for entities of the correct type
-                if (objectId.ObjectClass.IsDerivedFrom(theClass))
-                {
-                    var entity = (T)tr.GetObject(objectId, OpenMode.ForRead);
-                    objs.Add(entity);
-                }
+                var entity = (T)tr.GetObject(objectId, OpenMode.ForRead);
+                objs.Add(entity);
             }
-            return objs;
-            //tr.Commit();
-            //}
         }
+        return objs;
+        //tr.Commit();
+        //}
+    }
 
-        public static HashSet<T> HashSetOfType<T>(this Database db, Transaction tr)
-            where T : Autodesk.AutoCAD.DatabaseServices.Entity
+    public static HashSet<T> HashSetOfType<T>(this Database db, Transaction tr)
+        where T : Autodesk.AutoCAD.DatabaseServices.Entity
+    {
+        return new HashSet<T>(db.ListOfType<T>(tr));
+    }
+
+    // Searches the drawing for a block with the specified name.
+    // Returns either the block, or null - check accordingly.
+    public static HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference> GetBlockReferenceByName(
+        this Database db, string _BlockName)
+    {
+        HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference> set =
+                new HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference>();
+
+        using (Transaction _trans = db.TransactionManager.StartTransaction())
         {
-            return new HashSet<T>(db.ListOfType<T>(tr));
-        }
 
-        // Searches the drawing for a block with the specified name.
-        // Returns either the block, or null - check accordingly.
-        public static HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference> GetBlockReferenceByName(
-            this Database db, string _BlockName)
-        {
-            HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference> set =
-                    new HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference>();
+            BlockTable blkTable = _trans.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
+            BlockTableRecord blkRecord;
 
-            using (Transaction _trans = db.TransactionManager.StartTransaction())
+            if (blkTable.Has(_BlockName))
             {
+                ObjectId BlkRecId = blkTable[_BlockName];
 
-                BlockTable blkTable = _trans.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
-                BlockTableRecord blkRecord;
-
-                if (blkTable.Has(_BlockName))
+                if (BlkRecId != null)
                 {
-                    ObjectId BlkRecId = blkTable[_BlockName];
+                    blkRecord = _trans.GetObject(BlkRecId, OpenMode.ForRead) as BlockTableRecord;
 
-                    if (BlkRecId != null)
+                    Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection blockRefIds =
+                        blkRecord.GetBlockReferenceIds(true, true);
+
+                    foreach (ObjectId blockRefId in blockRefIds)
                     {
-                        blkRecord = _trans.GetObject(BlkRecId, OpenMode.ForRead) as BlockTableRecord;
-
-                        Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection blockRefIds =
-                            blkRecord.GetBlockReferenceIds(true, true);
-
-                        foreach (ObjectId blockRefId in blockRefIds)
+                        if ((_trans.GetObject(blockRefId, OpenMode.ForRead) as
+                            Autodesk.AutoCAD.DatabaseServices.BlockReference).Name ==
+                            _BlockName && (_trans.GetObject(blockRefId, OpenMode.ForRead) != null))
                         {
-                            if ((_trans.GetObject(blockRefId, OpenMode.ForRead) as
-                                Autodesk.AutoCAD.DatabaseServices.BlockReference).Name ==
-                                _BlockName && (_trans.GetObject(blockRefId, OpenMode.ForRead) != null))
-                            {
-                                set.Add(_trans.GetObject(blockRefId, OpenMode.ForRead) as
-                                    Autodesk.AutoCAD.DatabaseServices.BlockReference);
-                            }
+                            set.Add(_trans.GetObject(blockRefId, OpenMode.ForRead) as
+                                Autodesk.AutoCAD.DatabaseServices.BlockReference);
                         }
                     }
-
                 }
-                _trans.Commit();
-            }
-            return set;
-        }
-    }
 
-    public static class HelperMethods
+            }
+            _trans.Commit();
+        }
+        return set;
+    }
+}
+
+public static class HelperMethods
+{
+    public static bool IsFullPath(string path)
     {
-        public static bool IsFullPath(string path)
-        {
-            if (string.IsNullOrWhiteSpace(path) || path.IndexOfAny(Path.GetInvalidPathChars()) != -1 || !Path.IsPathRooted(path))
-                return false;
+        if (string.IsNullOrWhiteSpace(path) || path.IndexOfAny(Path.GetInvalidPathChars()) != -1 || !Path.IsPathRooted(path))
+            return false;
 
-            var pathRoot = Path.GetPathRoot(path);
-            if (pathRoot.Length <= 2 && pathRoot != "/") // Accepts X:\ and \\UNC\PATH, rejects empty string, \ and X:, but accepts / to support Linux
-                return false;
+        var pathRoot = Path.GetPathRoot(path);
+        if (pathRoot.Length <= 2 && pathRoot != "/") // Accepts X:\ and \\UNC\PATH, rejects empty string, \ and X:, but accepts / to support Linux
+            return false;
 
-            return !(pathRoot == path && pathRoot.StartsWith("\\\\") && pathRoot.IndexOf('\\', 2) == -1); // A UNC server name without a share name (e.g "\\NAME") is invalid
-        }
-
-        public static string GetAbsolutePath(String basePath, String path)
-        {
-            if (path == null)
-                return null;
-            if (basePath == null)
-                basePath = Path.GetFullPath("."); // quick way of getting current working directory
-            else
-                basePath = GetAbsolutePath(null, basePath); // to be REALLY sure ;)
-            string finalPath;
-            // specific for windows paths starting on \ - they need the drive added to them.
-            // I constructed this piece like this for possible Mono support.
-            if (!Path.IsPathRooted(path) || "\\".Equals(Path.GetPathRoot(path)))
-            {
-                if (path.StartsWith(Path.DirectorySeparatorChar.ToString()))
-                    finalPath = Path.Combine(Path.GetPathRoot(basePath), path.TrimStart(Path.DirectorySeparatorChar));
-                else
-                    finalPath = Path.Combine(basePath, path);
-            }
-            else
-                finalPath = path;
-            // resolves any internal "..\" to get the true full path.
-            return Path.GetFullPath(finalPath);
-        }
+        return !(pathRoot == path && pathRoot.StartsWith("\\\\") && pathRoot.IndexOf('\\', 2) == -1); // A UNC server name without a share name (e.g "\\NAME") is invalid
     }
+
+    public static string GetAbsolutePath(String basePath, String path)
+    {
+        if (path == null)
+            return null;
+        if (basePath == null)
+            basePath = Path.GetFullPath("."); // quick way of getting current working directory
+        else
+            basePath = GetAbsolutePath(null, basePath); // to be REALLY sure ;)
+        string finalPath;
+        // specific for windows paths starting on \ - they need the drive added to them.
+        // I constructed this piece like this for possible Mono support.
+        if (!Path.IsPathRooted(path) || "\\".Equals(Path.GetPathRoot(path)))
+        {
+            if (path.StartsWith(Path.DirectorySeparatorChar.ToString()))
+                finalPath = Path.Combine(Path.GetPathRoot(basePath), path.TrimStart(Path.DirectorySeparatorChar));
+            else
+                finalPath = Path.Combine(basePath, path);
+        }
+        else
+            finalPath = path;
+        // resolves any internal "..\" to get the true full path.
+        return Path.GetFullPath(finalPath);
+    }
+}
 }

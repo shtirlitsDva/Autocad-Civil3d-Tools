@@ -4898,7 +4898,7 @@ namespace IntersectUtilities
                     HashSet<ProfileView> pvSetExisting = localDb.HashSetOfType<ProfileView>(tx);
 
                     #region Select and open XREF
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select an alignment XREF:");
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a surface XREF:");
                     promptEntityOptions1.SetRejectMessage("\n Not a XREF");
                     promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
                     PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
@@ -5013,7 +5013,7 @@ namespace IntersectUtilities
                         //oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(xRefDB);
                         oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
                         #endregion
-                        
+
                         #region Clone remote objects to local dwg
 
                         BlockTable acBlkTbl = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
@@ -5084,10 +5084,9 @@ namespace IntersectUtilities
 
                             pg = pgId.GetObject(OpenMode.ForWrite) as PointGroup;
                         }
-
-
                         #endregion
 
+                        #region Create Points, assign elevation, layer and OD
                         foreach (Entity ent in allLocalLinework)
                         {
                             #region Read data parameters from csvs
@@ -5300,6 +5299,7 @@ namespace IntersectUtilities
                                     cogoPoint.Layer = localLayerName;
                                     #endregion
 
+                                    #region Point names, avoids duplicate names
                                     string pointName = pName + "_" + count;
 
                                     while (pNames.Contains(pointName))
@@ -5310,6 +5310,7 @@ namespace IntersectUtilities
                                     pNames.Add(pointName);
                                     cogoPoint.PointName = pointName;
                                     cogoPoint.RawDescription = description;
+                                    #endregion
 
                                     #region Copy OD from polies to the new point
                                     //Copy specific OD from cloned 3D polies to the new point
@@ -5379,6 +5380,7 @@ namespace IntersectUtilities
                             ent.Erase(true);
                             #endregion
                         }
+                        #endregion
 
                         #region Assign newly created points to projection on a profile view
                         #region Build query for PointGroup
@@ -5391,24 +5393,91 @@ namespace IntersectUtilities
                         pg.Update();
                         #endregion
 
-                        double elMax = pv.ElevationMax;
-                        double elMin = pv.ElevationMin;
-
-                        double tryGetMin = allNewlyCreatedPoints.Min(x => x.Elevation);
-
-                        if (tryGetMin != 0)
+                        #region Manage PVs
+                        ObjectIdCollection pIds = alignment.GetProfileIds();
+                        Profile p = null;
+                        foreach (oid Oid in pIds)
                         {
-                            pv.CheckOrOpenForWrite();
-                            elMin = tryGetMin - 1;
-                            pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
-                            pv.ElevationMin = elMin;
+                            Profile pt = Oid.Go<Profile>(tx);
+                            if (pt.Name == $"{alignment.Name}_surface_P") p = pt;
                         }
+                        if (p == null)
+                        {
+                            editor.WriteMessage($"\nNo profile named {alignment.Name}_surface_P found!");
+                            return;
+                        }
+                        else editor.WriteMessage($"\nProfile {p.Name} found!");
 
-                        editor.SetImpliedSelection(allNewlyCreatedPoints.Select(x => x.ObjectId).ToArray());
-                        editor.Command("_AeccProjectObjectsToProf", pv.ObjectId);
+                        ProfileView[] pvs = localDb.ListOfType<ProfileView>(tx).ToArray();
 
+                        #region Find and set max elevation for PVs
+                        foreach (ProfileView pv in pvs)
+                        {
+                            double pvStStart = pv.StationStart;
+                            double pvStEnd = pv.StationEnd;
+
+                            int nrOfIntervals = 100;
+                            double delta = (pvStEnd - pvStStart) / nrOfIntervals;
+                            HashSet<double> elevs = new HashSet<double>();
+
+                            for (int i = 0; i < nrOfIntervals + 1; i++)
+                            {
+                                double testEl = p.ElevationAt(pvStStart + delta * i);
+                                elevs.Add(testEl);
+                                editor.WriteMessage($"\nElevation at {i} is {testEl}.");
+                            }
+
+                            double maxEl = elevs.Max();
+                            editor.WriteMessage($"\nMax elevation of {pv.Name} is {maxEl}.");
+
+                            pv.CheckOrOpenForWrite();
+                            pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+
+                            pv.ElevationMax = Math.Ceiling(maxEl);
+                        }
                         #endregion
 
+                        //Create StationPoints and assign PV number to them
+                        HashSet<StationPoint> staPoints = new HashSet<StationPoint>(allNewlyCreatedPoints.Count);
+                        foreach (CogoPoint cp in allNewlyCreatedPoints)
+                        {
+                            StationPoint sp = new StationPoint(cp, alignment);
+
+                            int counter = 0;
+                            foreach (ProfileView pv in pvs)
+                            {
+                                counter++;
+                                if (sp.Station >= pv.StationStart &&
+                                    sp.Station <= pv.StationEnd)
+                                {
+                                    sp.ProfileViewNumber = counter;
+                                    break;
+                                }
+                            }
+                            staPoints.Add(sp);
+                        }
+
+                        //Set minimum height
+                        for (int i = 0; i < pvs.Length; i++)
+                        {
+                            int idx = i + 1;
+                            double elMin = staPoints.Where(x => x.ProfileViewNumber == idx)
+                                                    .Select(x => x.CogoPoint.Elevation)
+                                                    .Min();
+                            pvs[i].CheckOrOpenForWrite();
+                            pvs[i].ElevationRangeMode = ElevationRangeType.UserSpecified;
+                            pvs[i].ElevationMin = Math.Floor(elMin) - 1;
+
+                            //Project the points
+                            editor.SetImpliedSelection(staPoints
+                                .Where(x => x.ProfileViewNumber == idx)
+                                .Select(x => x.CogoPoint.ObjectId)
+                                .ToArray());
+                            editor.Command("_AeccProjectObjectsToProf", pvs[i].ObjectId); 
+                        }
+                        #endregion
+
+                        #endregion
 
                         #endregion
                     }
@@ -5420,6 +5489,104 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     throw new System.Exception(ex.Message);
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("testing")]
+        public void testing()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Test PV start and end station
+
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                    foreach (Alignment al in als)
+                    {
+                        ObjectIdCollection pIds = al.GetProfileIds();
+                        Profile p = null;
+                        foreach (oid Oid in pIds)
+                        {
+                            Profile pt = Oid.Go<Profile>(tx);
+                            if (pt.Name == $"{al.Name}_surface_P") p = pt;
+                        }
+                        if (p == null) return;
+                        else editor.WriteMessage($"\nProfile {p.Name} found!");
+
+                        ProfileView[] pvs = localDb.ListOfType<ProfileView>(tx).ToArray();
+
+                        foreach (ProfileView pv in pvs)
+                        {
+                            editor.WriteMessage($"\nName of pv: {pv.Name}.");
+
+                            #region Test finding of max elevation
+                            //double pvStStart = pv.StationStart;
+                            //double pvStEnd = pv.StationEnd;
+
+                            //int nrOfIntervals = 100;
+                            //double delta = (pvStEnd - pvStStart) / nrOfIntervals;
+                            //HashSet<double> elevs = new HashSet<double>();
+
+                            //for (int i = 0; i < nrOfIntervals + 1; i++)
+                            //{
+                            //    double testEl = p.ElevationAt(pvStStart + delta * i);
+                            //    elevs.Add(testEl);
+                            //    editor.WriteMessage($"\nElevation at {i} is {testEl}.");
+                            //}
+
+                            //double maxEl = elevs.Max();
+                            //editor.WriteMessage($"\nMax elevation of {pv.Name} is {maxEl}.");
+
+                            //pv.CheckOrOpenForWrite();
+                            //pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+
+                            //pv.ElevationMax = Math.Ceiling(maxEl); 
+                            #endregion
+                        }
+                    }
+
+
+
+                    #endregion
+
+                    #region Test station and offset alignment
+                    //#region Select point
+                    //PromptPointOptions pPtOpts = new PromptPointOptions("");
+                    //// Prompt for the start point
+                    //pPtOpts.Message = "\nEnter location to test the alignment:";
+                    //PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
+                    //Point3d selectedPoint = pPtRes.Value;
+                    //// Exit if the user presses ESC or cancels the command
+                    //if (pPtRes.Status != PromptStatus.OK) return;
+                    //#endregion
+
+                    //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+
+                    //foreach (Alignment al in als)
+                    //{
+                    //    double station = 0;
+                    //    double offset = 0;
+
+                    //    al.StationOffset(selectedPoint.X, selectedPoint.Y, ref station, ref offset);
+
+                    //    editor.WriteMessage($"\nReported: ST: {station}, OS: {offset}.");
+                    //} 
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
