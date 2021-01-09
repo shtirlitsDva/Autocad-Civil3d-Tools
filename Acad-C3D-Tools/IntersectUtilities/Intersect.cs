@@ -4889,6 +4889,53 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
+                string etapeName = GetEtapeName(editor);
+
+                editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Ler"));
+                editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Surface"));
+
+                #region Select and open XREF
+                // open the xref database
+                Database xRefSurfaceDB = new Database(false, true);
+                xRefSurfaceDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Surface"),
+                    System.IO.FileShare.Read, false, string.Empty);
+                Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
+
+                CivSurface surface = null;
+                try
+                {
+                    #region Read surface from file
+                    surface = xRefSurfaceDB
+                        .HashSetOfType<TinSurface>(xRefSurfaceTx)
+                        .FirstOrDefault() as CivSurface;
+                }
+                catch (System.Exception)
+                {
+                    xRefSurfaceTx.Abort();
+                    throw;
+                }
+
+                if (surface == null)
+                {
+                    editor.WriteMessage("\nSurface could not be loaded from the xref!");
+                    xRefSurfaceTx.Commit();
+                    return;
+                }
+                #endregion
+                #endregion
+
+                #region Load linework from LER Xref
+
+                // open the LER dwg database
+                Database xRefLerDB = new Database(false, true);
+
+                xRefLerDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Ler"),
+                    System.IO.FileShare.Read, false, string.Empty);
+                Transaction xRefLerTx = xRefSurfaceDB.TransactionManager.StartTransaction();
+                List<Polyline3d> allLinework = xRefLerDB.ListOfType<Polyline3d>(xRefLerTx);
+                editor.WriteMessage($"\nNr. of 3D polies: {allLinework.Count}");
+                #endregion
+
                 try
                 {
                     BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
@@ -4897,26 +4944,7 @@ namespace IntersectUtilities
                     List<Alignment> allAlignments = localDb.ListOfType<Alignment>(tx).OrderBy(x => x.Name).ToList();
                     HashSet<ProfileView> pvSetExisting = localDb.HashSetOfType<ProfileView>(tx);
 
-                    #region Select and open XREF
-                    // open the xref database
-                    Database xRefSurfaceDB = new Database(false, true);
-                    xRefSurfaceDB.ReadDwgFile(GetPathsToDataFiles(editor).Surface,
-                        System.IO.FileShare.Read, false, string.Empty);
-                    Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
-                    #endregion
-
-                    #region Read surface from file
-                    CivSurface surface = xRefSurfaceDB
-                        .HashSetOfType<TinSurface>(xRefSurfaceTx)
-                        .FirstOrDefault() as CivSurface;
-
-                    if (surface == null)
-                    {
-                        editor.WriteMessage("\nSurface could not be loaded from the xref!");
-                        xRefSurfaceTx.Commit();
-                        return;
-                    }
-                    #endregion
+                    
 
                     #region Read Csv Data for Layers and Depth
 
@@ -4963,20 +4991,18 @@ namespace IntersectUtilities
                     }
                     #endregion
 
+                    #region Name handling of point names
                     //Used to keep track of point names
                     HashSet<string> pNames = new HashSet<string>();
 
                     int index = 1;
+                    #endregion
 
-                    #region Load linework from LER Xref
+                    #region CogoPoint style and label reference
 
-                    // open the LER dwg database
-                    Database xRefLerDB = new Database(false, true);
+                    oid cogoPointStyle = civilDoc.Styles.PointStyles["LER KRYDS"];
 
-                    xRefLerDB.ReadDwgFile(GetPathsToDataFiles(editor).Ler, System.IO.FileShare.Read, false, string.Empty);
-                    Transaction xRefLerTx = xRefSurfaceDB.TransactionManager.StartTransaction();
-                    List<Polyline3d> allLinework = xRefLerDB.ListOfType<Polyline3d>(xRefLerTx);
-                    editor.WriteMessage($"\nNr. of 3D polies: {allLinework.Count}");
+
                     #endregion
 
                     foreach (Alignment alignment in allAlignments)
@@ -5283,6 +5309,7 @@ namespace IntersectUtilities
                                     pNames.Add(pointName);
                                     cogoPoint.PointName = pointName;
                                     cogoPoint.RawDescription = description;
+                                    cogoPoint.StyleId = cogoPointStyle;
                                     #endregion
 
                                     #region Copy OD from polies to the new point
@@ -5395,7 +5422,17 @@ namespace IntersectUtilities
 
                             for (int i = 0; i < nrOfIntervals + 1; i++)
                             {
-                                double testEl = p.ElevationAt(pvStStart + delta * i);
+                                double testEl = 0;
+                                try
+                                {
+                                    testEl = p.ElevationAt(pvStStart + delta * i);
+                                }
+                                catch (System.Exception)
+                                {
+                                    editor.WriteMessage($"\n{pvStStart + delta * i} threw an exception! " +
+                                        $"PV: {pv.StationStart}-{pv.StationEnd}.");
+                                    continue;
+                                }
                                 elevs.Add(testEl);
                                 //editor.WriteMessage($"\nElevation at {i} is {testEl}.");
                             }
@@ -5446,7 +5483,7 @@ namespace IntersectUtilities
                                 .Where(x => x.ProfileViewNumber == idx)
                                 .Select(x => x.CogoPoint.ObjectId)
                                 .ToArray());
-                            editor.Command("_AeccProjectObjectsToProf", pvs[i].ObjectId); 
+                            editor.Command("_AeccProjectObjectsToProf", pvs[i].ObjectId);
                         }
                         #endregion
 
@@ -5461,6 +5498,8 @@ namespace IntersectUtilities
 
                 catch (System.Exception ex)
                 {
+                    xRefLerTx.Abort();
+                    xRefSurfaceTx.Abort();
                     throw new System.Exception(ex.Message);
                     editor.WriteMessage("\n" + ex.Message);
                     return;
@@ -5485,50 +5524,50 @@ namespace IntersectUtilities
                 {
                     #region Test PV start and end station
 
-                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-                    foreach (Alignment al in als)
-                    {
-                        ObjectIdCollection pIds = al.GetProfileIds();
-                        Profile p = null;
-                        foreach (oid Oid in pIds)
-                        {
-                            Profile pt = Oid.Go<Profile>(tx);
-                            if (pt.Name == $"{al.Name}_surface_P") p = pt;
-                        }
-                        if (p == null) return;
-                        else editor.WriteMessage($"\nProfile {p.Name} found!");
+                    //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                    //foreach (Alignment al in als)
+                    //{
+                    //    ObjectIdCollection pIds = al.GetProfileIds();
+                    //    Profile p = null;
+                    //    foreach (oid Oid in pIds)
+                    //    {
+                    //        Profile pt = Oid.Go<Profile>(tx);
+                    //        if (pt.Name == $"{al.Name}_surface_P") p = pt;
+                    //    }
+                    //    if (p == null) return;
+                    //    else editor.WriteMessage($"\nProfile {p.Name} found!");
 
-                        ProfileView[] pvs = localDb.ListOfType<ProfileView>(tx).ToArray();
+                    //    ProfileView[] pvs = localDb.ListOfType<ProfileView>(tx).ToArray();
 
-                        foreach (ProfileView pv in pvs)
-                        {
-                            editor.WriteMessage($"\nName of pv: {pv.Name}.");
+                    //    foreach (ProfileView pv in pvs)
+                    //    {
+                    //        editor.WriteMessage($"\nName of pv: {pv.Name}.");
 
-                            #region Test finding of max elevation
-                            //double pvStStart = pv.StationStart;
-                            //double pvStEnd = pv.StationEnd;
+                    #region Test finding of max elevation
+                    //double pvStStart = pv.StationStart;
+                    //double pvStEnd = pv.StationEnd;
 
-                            //int nrOfIntervals = 100;
-                            //double delta = (pvStEnd - pvStStart) / nrOfIntervals;
-                            //HashSet<double> elevs = new HashSet<double>();
+                    //int nrOfIntervals = 100;
+                    //double delta = (pvStEnd - pvStStart) / nrOfIntervals;
+                    //HashSet<double> elevs = new HashSet<double>();
 
-                            //for (int i = 0; i < nrOfIntervals + 1; i++)
-                            //{
-                            //    double testEl = p.ElevationAt(pvStStart + delta * i);
-                            //    elevs.Add(testEl);
-                            //    editor.WriteMessage($"\nElevation at {i} is {testEl}.");
-                            //}
+                    //for (int i = 0; i < nrOfIntervals + 1; i++)
+                    //{
+                    //    double testEl = p.ElevationAt(pvStStart + delta * i);
+                    //    elevs.Add(testEl);
+                    //    editor.WriteMessage($"\nElevation at {i} is {testEl}.");
+                    //}
 
-                            //double maxEl = elevs.Max();
-                            //editor.WriteMessage($"\nMax elevation of {pv.Name} is {maxEl}.");
+                    //double maxEl = elevs.Max();
+                    //editor.WriteMessage($"\nMax elevation of {pv.Name} is {maxEl}.");
 
-                            //pv.CheckOrOpenForWrite();
-                            //pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+                    //pv.CheckOrOpenForWrite();
+                    //pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
 
-                            //pv.ElevationMax = Math.Ceiling(maxEl); 
-                            #endregion
-                        }
-                    }
+                    //pv.ElevationMax = Math.Ceiling(maxEl); 
+                    #endregion
+                    //}
+                    //}
 
 
 
@@ -5556,6 +5595,18 @@ namespace IntersectUtilities
 
                     //    editor.WriteMessage($"\nReported: ST: {station}, OS: {offset}.");
                     //} 
+                    #endregion
+
+                    #region Test assigning labels and point styles
+                    //oid cogoPointStyle = civilDoc.Styles.PointStyles["LER KRYDS"];
+                    //CogoPointCollection cpc = civilDoc.CogoPoints;
+
+                    //foreach (oid cpOid in cpc)
+                    //{
+                    //    CogoPoint cp = cpOid.Go<CogoPoint>(tx, OpenMode.ForWrite);
+                    //    cp.StyleId = cogoPointStyle;
+                    //}
+
                     #endregion
                 }
                 catch (System.Exception ex)

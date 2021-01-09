@@ -1041,44 +1041,43 @@ namespace IntersectUtilities
             }
             return blkIsErased;
         }
-        public static (string Ler, string Surface) GetPathsToDataFiles(Editor editor)
+        public static string GetEtapeName(Editor editor)
         {
-            const string kwd1 = "4.1";
-            const string kwd2 = "4.2";
-            const string kwd3 = "4.3";
-            const string kwd4 = "4.4";
-            const string kwd5 = "4.5";
-            const string kwd6 = "4.6";
+            #region Read Csv Data for Layers and Depth
+            string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
+            System.Data.DataTable dtStier = CsvReader.ReadCsvToDataTable(pathStier, "Stier");
+            #endregion
+
+            List<string> kwds = new List<string>(dtStier.Rows.Count);
+            foreach (DataRow row in dtStier.Rows)
+                kwds.Add((string)row["Etape"]);
 
             PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
             pKeyOpts.Message = "\nVælg etape: ";
-            pKeyOpts.Keywords.Add(kwd1);
-            pKeyOpts.Keywords.Add(kwd2);
-            pKeyOpts.Keywords.Add(kwd3);
-            pKeyOpts.Keywords.Add(kwd4);
-            pKeyOpts.Keywords.Add(kwd5);
-            pKeyOpts.Keywords.Add(kwd6);
+            foreach (string kwd in kwds)
+            {
+                pKeyOpts.Keywords.Add(kwd);
+            }
             pKeyOpts.AllowNone = true;
-            pKeyOpts.Keywords.Default = kwd1;
+            pKeyOpts.Keywords.Default = kwds[0];
             PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
 
-            switch (pKeyRes.StringResult)
-            {
-                case kwd1:
-                    return ("X:\\0371-1158 - Gentofte Fase 4 - Dokumenter\\01 Intern\\" +
-                            "02 Tegninger\\01 Autocad\\Autocad\\01 Views\\4.1\\Fremmede ledninger 4.1.dwg",
-                            "X:\\0371-1158 - Gentofte Fase 4 - Dokumenter\\01 Intern\\" +
-                            "02 Tegninger\\01 Autocad\\Autocad\\01 Views\\4.1\\Terræn\\Terræn 4.1-2.dwg");
-                case kwd2:
-                    return ("X:\\0371-1158 - Gentofte Fase 4 - Dokumenter\\01 Intern\\" +
-                           "02 Tegninger\\01 Autocad\\Autocad\\01 Views\\4.2\\LER 4.2 3D.dwg", "");
-                case kwd3:
-                case kwd4:
-                case kwd5:
-                case kwd6:
-                default:
-                    return ("","");
-            }
+            return pKeyRes.StringResult;
+        }
+        /// <summary>
+        /// Returns path to dwg file.
+        /// </summary>
+        /// <param name="etapeName">4.1 .. 4.12</param>
+        /// <param name="pathType">Ler, Surface</param>
+        /// <returns>Path as string</returns>
+        public static string GetPathToDataFiles(string etapeName, string pathType)
+        {
+            #region Read Csv Data for Layers and Depth
+            string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
+            System.Data.DataTable dtStier = CsvReader.ReadCsvToDataTable(pathStier, "Stier");
+            #endregion
+
+            return ReadStringParameterFromDataTable(etapeName, dtStier, pathType, 0);
         }
     }
     public static class Enums
@@ -1131,231 +1130,231 @@ namespace IntersectUtilities
         private double Offset;
         public int ProfileViewNumber { get; set; } = 0;
 
-    public StationPoint(CogoPoint cogoPoint, Alignment alignment)
-    {
-        CogoPoint = cogoPoint;
-        alignment.StationOffset(cogoPoint.Location.X, cogoPoint.Location.Y,
-                                          ref Station, ref Offset);
-    }
-}
-
-public static class Extensions
-{
-    public static bool IsNoE(this string s) => string.IsNullOrEmpty(s);
-
-    public static bool IsNotNoE(this string s) => !string.IsNullOrEmpty(s);
-
-    public static bool Equalz(this double a, double b, double tol) => Math.Abs(a - b) <= tol;
-
-    public static bool HorizontalEqualz(this Point3d a, Point3d b, double tol = 0.01) =>
-        null != a && null != b && a.X.Equalz(b.X, tol) && a.Y.Equalz(b.Y, tol);
-
-    public static void CheckOrOpenForWrite(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject)
-    {
-        if (dbObject.IsWriteEnabled == false)
+        public StationPoint(CogoPoint cogoPoint, Alignment alignment)
         {
-            if (dbObject.IsReadEnabled == true)
-            {
-                dbObject.UpgradeOpen();
-            }
-            else if (dbObject.IsReadEnabled == false)
-            {
-                dbObject.UpgradeOpen();
-                dbObject.UpgradeOpen();
-            }
+            CogoPoint = cogoPoint;
+            alignment.StationOffset(cogoPoint.Location.X, cogoPoint.Location.Y,
+                                              ref Station, ref Offset);
         }
     }
 
-    public static void CheckOrOpenForRead(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject,
-        bool DowngradeIfWriteEnabled = false)
+    public static class Extensions
     {
-        if (dbObject.IsReadEnabled == false)
+        public static bool IsNoE(this string s) => string.IsNullOrEmpty(s);
+
+        public static bool IsNotNoE(this string s) => !string.IsNullOrEmpty(s);
+
+        public static bool Equalz(this double a, double b, double tol) => Math.Abs(a - b) <= tol;
+
+        public static bool HorizontalEqualz(this Point3d a, Point3d b, double tol = 0.01) =>
+            null != a && null != b && a.X.Equalz(b.X, tol) && a.Y.Equalz(b.Y, tol);
+
+        public static void CheckOrOpenForWrite(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject)
         {
-            if (dbObject.IsWriteEnabled == true)
+            if (dbObject.IsWriteEnabled == false)
             {
-                if (DowngradeIfWriteEnabled)
+                if (dbObject.IsReadEnabled == true)
                 {
-                    dbObject.DowngradeOpen();
+                    dbObject.UpgradeOpen();
                 }
-                return;
-            }
-            dbObject.UpgradeOpen();
-        }
-    }
-
-    public static double GetHorizontalLength(this Polyline3d poly3d, Transaction tx)
-    {
-        poly3d.CheckOrOpenForRead();
-        var vertices = poly3d.GetVertices(tx);
-        double totalLength = 0;
-        for (int i = 0; i < vertices.Length - 1; i++)
-        {
-            totalLength += vertices[i].Position.DistanceHorizontalTo(vertices[i + 1].Position);
-        }
-        return totalLength;
-    }
-
-    public static double DistanceHorizontalTo(this Point3d sourceP3d, Point3d targetP3d)
-    {
-        double X1 = sourceP3d.X;
-        double Y1 = sourceP3d.Y;
-        double X2 = targetP3d.X;
-        double Y2 = targetP3d.Y;
-        return Math.Sqrt(Math.Pow((X2 - X1), 2) + Math.Pow((Y2 - Y1), 2));
-    }
-}
-
-public static class ExtensionMethods
-{
-    public static T Go<T>(this oid Oid, Transaction tx,
-        Autodesk.AutoCAD.DatabaseServices.OpenMode openMode =
-        Autodesk.AutoCAD.DatabaseServices.OpenMode.ForRead) where T : Autodesk.AutoCAD.DatabaseServices.Entity
-    {
-        return (T)tx.GetObject(Oid, openMode, false);
-    }
-    public static void ForEach<T>(this Database database, Action<T> action, Transaction tr) where T : Autodesk.AutoCAD.DatabaseServices.Entity
-    {
-        //using (var tr = database.TransactionManager.StartTransaction())
-        //{
-        // Get the block table for the current database
-        var blockTable = (BlockTable)tr.GetObject(database.BlockTableId, OpenMode.ForRead);
-
-        // Get the model space block table record
-        var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
-
-        RXClass theClass = RXObject.GetClass(typeof(T));
-
-        // Loop through the entities in model space
-        foreach (oid objectId in modelSpace)
-        {
-            // Look for entities of the correct type
-            if (objectId.ObjectClass.IsDerivedFrom(theClass))
-            {
-                var entity = (T)tr.GetObject(objectId, OpenMode.ForRead);
-                action(entity);
-            }
-        }
-        //tr.Commit();
-        //}
-    }
-
-    public static List<T> ListOfType<T>(this Database database, Transaction tr) where T : Autodesk.AutoCAD.DatabaseServices.Entity
-    {
-        //using (var tr = database.TransactionManager.StartTransaction())
-        //{
-
-        //Init the list of the objects
-        List<T> objs = new List<T>();
-
-        // Get the block table for the current database
-        var blockTable = (BlockTable)tr.GetObject(database.BlockTableId, OpenMode.ForRead);
-
-        // Get the model space block table record
-        var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
-
-        RXClass theClass = RXObject.GetClass(typeof(T));
-
-        // Loop through the entities in model space
-        foreach (oid objectId in modelSpace)
-        {
-            // Look for entities of the correct type
-            if (objectId.ObjectClass.IsDerivedFrom(theClass))
-            {
-                var entity = (T)tr.GetObject(objectId, OpenMode.ForRead);
-                objs.Add(entity);
-            }
-        }
-        return objs;
-        //tr.Commit();
-        //}
-    }
-
-    public static HashSet<T> HashSetOfType<T>(this Database db, Transaction tr)
-        where T : Autodesk.AutoCAD.DatabaseServices.Entity
-    {
-        return new HashSet<T>(db.ListOfType<T>(tr));
-    }
-
-    // Searches the drawing for a block with the specified name.
-    // Returns either the block, or null - check accordingly.
-    public static HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference> GetBlockReferenceByName(
-        this Database db, string _BlockName)
-    {
-        HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference> set =
-                new HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference>();
-
-        using (Transaction _trans = db.TransactionManager.StartTransaction())
-        {
-
-            BlockTable blkTable = _trans.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
-            BlockTableRecord blkRecord;
-
-            if (blkTable.Has(_BlockName))
-            {
-                ObjectId BlkRecId = blkTable[_BlockName];
-
-                if (BlkRecId != null)
+                else if (dbObject.IsReadEnabled == false)
                 {
-                    blkRecord = _trans.GetObject(BlkRecId, OpenMode.ForRead) as BlockTableRecord;
+                    dbObject.UpgradeOpen();
+                    dbObject.UpgradeOpen();
+                }
+            }
+        }
 
-                    Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection blockRefIds =
-                        blkRecord.GetBlockReferenceIds(true, true);
-
-                    foreach (ObjectId blockRefId in blockRefIds)
+        public static void CheckOrOpenForRead(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject,
+            bool DowngradeIfWriteEnabled = false)
+        {
+            if (dbObject.IsReadEnabled == false)
+            {
+                if (dbObject.IsWriteEnabled == true)
+                {
+                    if (DowngradeIfWriteEnabled)
                     {
-                        if ((_trans.GetObject(blockRefId, OpenMode.ForRead) as
-                            Autodesk.AutoCAD.DatabaseServices.BlockReference).Name ==
-                            _BlockName && (_trans.GetObject(blockRefId, OpenMode.ForRead) != null))
+                        dbObject.DowngradeOpen();
+                    }
+                    return;
+                }
+                dbObject.UpgradeOpen();
+            }
+        }
+
+        public static double GetHorizontalLength(this Polyline3d poly3d, Transaction tx)
+        {
+            poly3d.CheckOrOpenForRead();
+            var vertices = poly3d.GetVertices(tx);
+            double totalLength = 0;
+            for (int i = 0; i < vertices.Length - 1; i++)
+            {
+                totalLength += vertices[i].Position.DistanceHorizontalTo(vertices[i + 1].Position);
+            }
+            return totalLength;
+        }
+
+        public static double DistanceHorizontalTo(this Point3d sourceP3d, Point3d targetP3d)
+        {
+            double X1 = sourceP3d.X;
+            double Y1 = sourceP3d.Y;
+            double X2 = targetP3d.X;
+            double Y2 = targetP3d.Y;
+            return Math.Sqrt(Math.Pow((X2 - X1), 2) + Math.Pow((Y2 - Y1), 2));
+        }
+    }
+
+    public static class ExtensionMethods
+    {
+        public static T Go<T>(this oid Oid, Transaction tx,
+            Autodesk.AutoCAD.DatabaseServices.OpenMode openMode =
+            Autodesk.AutoCAD.DatabaseServices.OpenMode.ForRead) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        {
+            return (T)tx.GetObject(Oid, openMode, false);
+        }
+        public static void ForEach<T>(this Database database, Action<T> action, Transaction tr) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        {
+            //using (var tr = database.TransactionManager.StartTransaction())
+            //{
+            // Get the block table for the current database
+            var blockTable = (BlockTable)tr.GetObject(database.BlockTableId, OpenMode.ForRead);
+
+            // Get the model space block table record
+            var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+
+            RXClass theClass = RXObject.GetClass(typeof(T));
+
+            // Loop through the entities in model space
+            foreach (oid objectId in modelSpace)
+            {
+                // Look for entities of the correct type
+                if (objectId.ObjectClass.IsDerivedFrom(theClass))
+                {
+                    var entity = (T)tr.GetObject(objectId, OpenMode.ForRead);
+                    action(entity);
+                }
+            }
+            //tr.Commit();
+            //}
+        }
+
+        public static List<T> ListOfType<T>(this Database database, Transaction tr) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        {
+            //using (var tr = database.TransactionManager.StartTransaction())
+            //{
+
+            //Init the list of the objects
+            List<T> objs = new List<T>();
+
+            // Get the block table for the current database
+            var blockTable = (BlockTable)tr.GetObject(database.BlockTableId, OpenMode.ForRead);
+
+            // Get the model space block table record
+            var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+
+            RXClass theClass = RXObject.GetClass(typeof(T));
+
+            // Loop through the entities in model space
+            foreach (oid objectId in modelSpace)
+            {
+                // Look for entities of the correct type
+                if (objectId.ObjectClass.IsDerivedFrom(theClass))
+                {
+                    var entity = (T)tr.GetObject(objectId, OpenMode.ForRead);
+                    objs.Add(entity);
+                }
+            }
+            return objs;
+            //tr.Commit();
+            //}
+        }
+
+        public static HashSet<T> HashSetOfType<T>(this Database db, Transaction tr)
+            where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        {
+            return new HashSet<T>(db.ListOfType<T>(tr));
+        }
+
+        // Searches the drawing for a block with the specified name.
+        // Returns either the block, or null - check accordingly.
+        public static HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference> GetBlockReferenceByName(
+            this Database db, string _BlockName)
+        {
+            HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference> set =
+                    new HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference>();
+
+            using (Transaction _trans = db.TransactionManager.StartTransaction())
+            {
+
+                BlockTable blkTable = _trans.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
+                BlockTableRecord blkRecord;
+
+                if (blkTable.Has(_BlockName))
+                {
+                    ObjectId BlkRecId = blkTable[_BlockName];
+
+                    if (BlkRecId != null)
+                    {
+                        blkRecord = _trans.GetObject(BlkRecId, OpenMode.ForRead) as BlockTableRecord;
+
+                        Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection blockRefIds =
+                            blkRecord.GetBlockReferenceIds(true, true);
+
+                        foreach (ObjectId blockRefId in blockRefIds)
                         {
-                            set.Add(_trans.GetObject(blockRefId, OpenMode.ForRead) as
-                                Autodesk.AutoCAD.DatabaseServices.BlockReference);
+                            if ((_trans.GetObject(blockRefId, OpenMode.ForRead) as
+                                Autodesk.AutoCAD.DatabaseServices.BlockReference).Name ==
+                                _BlockName && (_trans.GetObject(blockRefId, OpenMode.ForRead) != null))
+                            {
+                                set.Add(_trans.GetObject(blockRefId, OpenMode.ForRead) as
+                                    Autodesk.AutoCAD.DatabaseServices.BlockReference);
+                            }
                         }
                     }
+
                 }
-
+                _trans.Commit();
             }
-            _trans.Commit();
+            return set;
         }
-        return set;
-    }
-}
-
-public static class HelperMethods
-{
-    public static bool IsFullPath(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path) || path.IndexOfAny(Path.GetInvalidPathChars()) != -1 || !Path.IsPathRooted(path))
-            return false;
-
-        var pathRoot = Path.GetPathRoot(path);
-        if (pathRoot.Length <= 2 && pathRoot != "/") // Accepts X:\ and \\UNC\PATH, rejects empty string, \ and X:, but accepts / to support Linux
-            return false;
-
-        return !(pathRoot == path && pathRoot.StartsWith("\\\\") && pathRoot.IndexOf('\\', 2) == -1); // A UNC server name without a share name (e.g "\\NAME") is invalid
     }
 
-    public static string GetAbsolutePath(String basePath, String path)
+    public static class HelperMethods
     {
-        if (path == null)
-            return null;
-        if (basePath == null)
-            basePath = Path.GetFullPath("."); // quick way of getting current working directory
-        else
-            basePath = GetAbsolutePath(null, basePath); // to be REALLY sure ;)
-        string finalPath;
-        // specific for windows paths starting on \ - they need the drive added to them.
-        // I constructed this piece like this for possible Mono support.
-        if (!Path.IsPathRooted(path) || "\\".Equals(Path.GetPathRoot(path)))
+        public static bool IsFullPath(string path)
         {
-            if (path.StartsWith(Path.DirectorySeparatorChar.ToString()))
-                finalPath = Path.Combine(Path.GetPathRoot(basePath), path.TrimStart(Path.DirectorySeparatorChar));
-            else
-                finalPath = Path.Combine(basePath, path);
+            if (string.IsNullOrWhiteSpace(path) || path.IndexOfAny(Path.GetInvalidPathChars()) != -1 || !Path.IsPathRooted(path))
+                return false;
+
+            var pathRoot = Path.GetPathRoot(path);
+            if (pathRoot.Length <= 2 && pathRoot != "/") // Accepts X:\ and \\UNC\PATH, rejects empty string, \ and X:, but accepts / to support Linux
+                return false;
+
+            return !(pathRoot == path && pathRoot.StartsWith("\\\\") && pathRoot.IndexOf('\\', 2) == -1); // A UNC server name without a share name (e.g "\\NAME") is invalid
         }
-        else
-            finalPath = path;
-        // resolves any internal "..\" to get the true full path.
-        return Path.GetFullPath(finalPath);
+
+        public static string GetAbsolutePath(String basePath, String path)
+        {
+            if (path == null)
+                return null;
+            if (basePath == null)
+                basePath = Path.GetFullPath("."); // quick way of getting current working directory
+            else
+                basePath = GetAbsolutePath(null, basePath); // to be REALLY sure ;)
+            string finalPath;
+            // specific for windows paths starting on \ - they need the drive added to them.
+            // I constructed this piece like this for possible Mono support.
+            if (!Path.IsPathRooted(path) || "\\".Equals(Path.GetPathRoot(path)))
+            {
+                if (path.StartsWith(Path.DirectorySeparatorChar.ToString()))
+                    finalPath = Path.Combine(Path.GetPathRoot(basePath), path.TrimStart(Path.DirectorySeparatorChar));
+                else
+                    finalPath = Path.Combine(basePath, path);
+            }
+            else
+                finalPath = path;
+            // resolves any internal "..\" to get the true full path.
+            return Path.GetFullPath(finalPath);
+        }
     }
-}
 }
