@@ -4898,41 +4898,14 @@ namespace IntersectUtilities
                     HashSet<ProfileView> pvSetExisting = localDb.HashSetOfType<ProfileView>(tx);
 
                     #region Select and open XREF
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a surface XREF:");
-                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
-                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
-                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
-                    BlockReference blkRef = tx.GetObject(blkObjId, OpenMode.ForRead, false)
-                        as Autodesk.AutoCAD.DatabaseServices.BlockReference;
-
-                    // open the block definition?
-                    BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
-                    // is not from external reference, exit
-                    if (!blockDef.IsFromExternalReference) return;
-
                     // open the xref database
                     Database xRefSurfaceDB = new Database(false, true);
-                    editor.WriteMessage($"\nPathName of the blockDef -> {blockDef.PathName}");
-
-                    //Relative path handling
-                    //I
-                    string curPathName = blockDef.PathName;
-                    bool isFullPath = IsFullPath(curPathName);
-                    if (isFullPath == false)
-                    {
-                        string sourcePath = Path.GetDirectoryName(doc.Name);
-                        editor.WriteMessage($"\nSourcePath -> {sourcePath}");
-                        curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
-                        editor.WriteMessage($"\nTargetPath -> {curPathName}");
-                    }
-
-                    xRefSurfaceDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
+                    xRefSurfaceDB.ReadDwgFile(GetPathsToDataFiles(editor).Surface,
+                        System.IO.FileShare.Read, false, string.Empty);
                     Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
                     #endregion
 
-                    #region Read surface from xref
+                    #region Read surface from file
                     CivSurface surface = xRefSurfaceDB
                         .HashSetOfType<TinSurface>(xRefSurfaceTx)
                         .FirstOrDefault() as CivSurface;
@@ -5000,7 +4973,7 @@ namespace IntersectUtilities
                     // open the LER dwg database
                     Database xRefLerDB = new Database(false, true);
 
-                    xRefLerDB.ReadDwgFile(GetPathToLerFile(editor), System.IO.FileShare.Read, false, string.Empty);
+                    xRefLerDB.ReadDwgFile(GetPathsToDataFiles(editor).Ler, System.IO.FileShare.Read, false, string.Empty);
                     Transaction xRefLerTx = xRefSurfaceDB.TransactionManager.StartTransaction();
                     List<Polyline3d> allLinework = xRefLerDB.ListOfType<Polyline3d>(xRefLerTx);
                     editor.WriteMessage($"\nNr. of 3D polies: {allLinework.Count}");
@@ -5424,7 +5397,7 @@ namespace IntersectUtilities
                             {
                                 double testEl = p.ElevationAt(pvStStart + delta * i);
                                 elevs.Add(testEl);
-                                editor.WriteMessage($"\nElevation at {i} is {testEl}.");
+                                //editor.WriteMessage($"\nElevation at {i} is {testEl}.");
                             }
 
                             double maxEl = elevs.Max();

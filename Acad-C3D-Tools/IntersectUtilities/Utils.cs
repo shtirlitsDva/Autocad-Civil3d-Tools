@@ -1041,7 +1041,7 @@ namespace IntersectUtilities
             }
             return blkIsErased;
         }
-        public static string GetPathToLerFile(Editor editor)
+        public static (string Ler, string Surface) GetPathsToDataFiles(Editor editor)
         {
             const string kwd1 = "4.1";
             const string kwd2 = "4.2";
@@ -1051,7 +1051,7 @@ namespace IntersectUtilities
             const string kwd6 = "4.6";
 
             PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
-            pKeyOpts.Message = "\nChoose elevation input method: ";
+            pKeyOpts.Message = "\nVælg etape: ";
             pKeyOpts.Keywords.Add(kwd1);
             pKeyOpts.Keywords.Add(kwd2);
             pKeyOpts.Keywords.Add(kwd3);
@@ -1065,17 +1065,19 @@ namespace IntersectUtilities
             switch (pKeyRes.StringResult)
             {
                 case kwd1:
-                    return "X:\\0371-1158 - Gentofte Fase 4 - Dokumenter\\01 Intern\\" +
-                           "02 Tegninger\\01 Autocad\\Autocad\\01 Views\\4.1\\Fremmede ledninger 4.1.dwg";
+                    return ("X:\\0371-1158 - Gentofte Fase 4 - Dokumenter\\01 Intern\\" +
+                            "02 Tegninger\\01 Autocad\\Autocad\\01 Views\\4.1\\Fremmede ledninger 4.1.dwg",
+                            "X:\\0371-1158 - Gentofte Fase 4 - Dokumenter\\01 Intern\\" +
+                            "02 Tegninger\\01 Autocad\\Autocad\\01 Views\\4.1\\Terræn\\Terræn 4.1-2.dwg");
                 case kwd2:
-                    return "X:\\0371-1158 - Gentofte Fase 4 - Dokumenter\\01 Intern\\" +
-                           "02 Tegninger\\01 Autocad\\Autocad\\01 Views\\4.2\\LER 4.2 3D.dwg";
+                    return ("X:\\0371-1158 - Gentofte Fase 4 - Dokumenter\\01 Intern\\" +
+                           "02 Tegninger\\01 Autocad\\Autocad\\01 Views\\4.2\\LER 4.2 3D.dwg", "");
                 case kwd3:
                 case kwd4:
                 case kwd5:
                 case kwd6:
                 default:
-                    return "";
+                    return ("","");
             }
         }
     }
