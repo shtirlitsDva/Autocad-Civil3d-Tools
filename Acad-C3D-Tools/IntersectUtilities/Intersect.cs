@@ -2140,6 +2140,7 @@ namespace IntersectUtilities
                     if (pv == null)
                     {
                         editor.WriteMessage($"\nNo profile view found in selection!");
+                        tx.Abort();
                         return;
                     }
 
@@ -2264,6 +2265,7 @@ namespace IntersectUtilities
 
                 catch (System.Exception ex)
                 {
+                    tx.Abort();
                     throw new System.Exception(ex.Message);
                     editor.WriteMessage("\n" + ex.Message);
                     return;
@@ -2432,7 +2434,6 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
 
         //Bruges ikke
         [Obsolete("Kommando bruges ikke.", false)]
@@ -5420,8 +5421,6 @@ namespace IntersectUtilities
 
                     List<Alignment> allAlignments = localDb.ListOfType<Alignment>(tx).OrderBy(x => x.Name).ToList();
                     HashSet<ProfileView> pvSetExisting = localDb.HashSetOfType<ProfileView>(tx);
-
-
 
                     #region Read Csv Data for Layers and Depth
 
