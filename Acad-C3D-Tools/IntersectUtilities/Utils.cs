@@ -859,6 +859,31 @@ namespace IntersectUtilities
             return returnList.Cast<T>().ToList();
         }
 
+        public static HashSet<T> FilterForCrossingEntities<T>(HashSet<T> entList, Alignment alignment) where T : Entity
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Plane plane = new Plane();
+            //Gather the intersected objectIds
+            HashSet<Entity> returnList = new HashSet<Entity>();
+            foreach (Entity ent in entList)
+            {
+                using (Point3dCollection p3dcol = new Point3dCollection())
+                {
+                    alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+                    //Create feature line if there's an intersection and
+                    //if the type of the layer is not "IGNORE"
+                    if (p3dcol.Count > 0)
+                    {
+                        returnList.Add(ent);
+                    }
+                }
+            }
+            return returnList.Cast<T>().ToHashSet();
+        }
+
         /// <summary>
         /// Returns the matched string and value with curly braces removed.
         /// </summary>
