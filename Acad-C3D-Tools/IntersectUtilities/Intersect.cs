@@ -2581,6 +2581,106 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("copytexttoattribute")]
+        public void copytexttoattribute()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            while (true)
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        #region Select pline3d
+                        PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                            "\nSelect polyline3d to modify:");
+                        promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
+                        promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                        PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                        if (((PromptResult)entity1).Status != PromptStatus.OK) { return; }
+                        Autodesk.AutoCAD.DatabaseServices.ObjectId pline3dId = entity1.ObjectId;
+                        #endregion
+
+                        #region Select text
+                        PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
+                            "\nSelect text to copy:");
+                        promptEntityOptions2.SetRejectMessage("\n Not a text!");
+                        promptEntityOptions2.AddAllowedClass(typeof(DBText), true);
+                        PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                        if (((PromptResult)entity2).Status != PromptStatus.OK) { return; }
+                        Autodesk.AutoCAD.DatabaseServices.ObjectId textId = entity2.ObjectId;
+                        #endregion
+
+                        #region Try creating records
+
+                        string m_tableName = "GasDimOgMat";
+                        string columnName = "DimOgMat";
+
+                        Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                        if (DoesTableExist(tables, m_tableName))
+                        {
+                            editor.WriteMessage("\nTable already exists!");
+                        }
+                        else
+                        {
+                            if (CreateTable(
+                                tables, m_tableName, "Gas data", columnName, "Dimension og material",
+                                Autodesk.Gis.Map.Constants.DataType.Character))
+                            {
+                                editor.WriteMessage($"\nCreated table {m_tableName}.");
+                            }
+                            else
+                            {
+                                editor.WriteMessage("\nFailed to create the ObjectData table.");
+                                return;
+                            }
+                        }
+                        int successCounter = 0;
+                        int failureCounter = 0;
+
+                        string value = textId.Go<DBText>(tx).TextString;
+
+                        if (DoesRecordExist(tables, pline3dId, columnName))
+                        {
+                            editor.WriteMessage("\nRecord already exists, updating...");
+                            MapValue mapValue = new MapValue(value);
+                            if (UpdateODRecord(tables, m_tableName, columnName, pline3dId, mapValue))
+                            {
+                                successCounter++;
+                            }
+                        }
+                        else if (AddODRecord(tables, m_tableName, pline3dId, value))
+                        {
+                            successCounter++;
+                        }
+                        else failureCounter++;
+
+                        if (successCounter > 0)
+                        {
+                            editor.WriteMessage($"\n{columnName} record created succesfully!");
+                            Entity ent = pline3dId.Go<Entity>(tx, OpenMode.ForWrite);
+                            ent.ColorIndex = 1;
+                        }
+                        else editor.WriteMessage($"\n{columnName} record creation failed!");
+
+                        #endregion
+                    }
+                    catch (System.Exception ex)
+                    {
+                        editor.WriteMessage("\n" + ex.Message);
+                        return;
+                    }
+                    tx.Commit();
+                }
+            }
+        }
+
         [CommandMethod("linewidth")]
         public void setlinewidth()
         {
@@ -2965,29 +3065,12 @@ namespace IntersectUtilities
                 try
                 {
                     #region Load linework from local db
-                    List<FeatureLine> localFLines = localDb.ListOfType<FeatureLine>(tx);
-                    editor.WriteMessage($"\nNr. of feature lines: {localFLines.Count}");
-                    List<Polyline3d> localPlines3d = localDb.ListOfType<Polyline3d>(tx);
-                    editor.WriteMessage($"\nNr. of 3D polies: {localPlines3d.Count}");
-
-                    List<Entity> allLocalLinework = new List<Entity>(
-                        localFLines.Count +
-                        localPlines3d.Count
-                        );
-
-                    allLocalLinework.AddRange(localFLines.Cast<Entity>());
-                    allLocalLinework.AddRange(localPlines3d.Cast<Entity>());
+                    HashSet<Polyline3d> plines3d = localDb.HashSetOfType<Polyline3d>(tx);
+                    editor.WriteMessage($"\nNr. of 3D polies: {plines3d.Count}");
                     #endregion
 
                     #region Select Alignment
-                    //Get alignment
-                    PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select alignment to intersect: ");
-                    promptEntityOptions2.SetRejectMessage("\n Not an alignment");
-                    promptEntityOptions2.AddAllowedClass(typeof(Alignment), true);
-                    PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
-                    if (((PromptResult)entity2).Status != PromptStatus.OK) return;
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity2.ObjectId;
-                    Alignment alignment = tx.GetObject(alObjId, OpenMode.ForRead, false) as Alignment;
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
                     #endregion
 
                     #region Choose to keep points and text or not
@@ -3013,29 +3096,32 @@ namespace IntersectUtilities
 
                     List<oid> sourceIds = new List<oid>();
 
-                    //Gather the intersected objectIds
-                    foreach (Entity ent in allLocalLinework)
+                    foreach (Alignment al in als)
                     {
-                        using (Point3dCollection p3dcol = new Point3dCollection())
+                        //Gather the intersected objectIds
+                        foreach (Polyline3d pl3d in plines3d)
                         {
-                            alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+                            using (Point3dCollection p3dcol = new Point3dCollection())
+                            {
+                                al.IntersectWith(pl3d, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
 
-                            if (p3dcol.Count > 0) sourceIds.Add(ent.ObjectId);
+                                if (p3dcol.Count > 0) sourceIds.Add(pl3d.ObjectId);
+                            }
                         }
-                    }
 
-                    if (keepPointsAndText)
-                    {
-                        //Additional object classes to keep showing
-                        List<DBPoint> points = localDb.ListOfType<DBPoint>(tx)
-                                                      .Where(x => x.Position.Z > 0.1)
-                                                      .ToList();
-                        List<DBText> text = localDb.ListOfType<DBText>(tx);
-                        //Add additional objects to isolation
-                        foreach (DBPoint item in points) sourceIds.Add(item.ObjectId);
-                        foreach (DBText item in text) sourceIds.Add(item.ObjectId);
+                        if (keepPointsAndText)
+                        {
+                            //Additional object classes to keep showing
+                            List<DBPoint> points = localDb.ListOfType<DBPoint>(tx)
+                                                          .Where(x => x.Position.Z > 0.1)
+                                                          .ToList();
+                            List<DBText> text = localDb.ListOfType<DBText>(tx);
+                            //Add additional objects to isolation
+                            foreach (DBPoint item in points) sourceIds.Add(item.ObjectId);
+                            foreach (DBText item in text) sourceIds.Add(item.ObjectId);
 
-                        sourceIds.Add(alignment.ObjectId);
+                            sourceIds.Add(al.ObjectId);
+                        }
                     }
 
                     editor.SetImpliedSelection(sourceIds.ToArray());
@@ -4221,7 +4307,7 @@ namespace IntersectUtilities
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
-                
+
                 tx.Commit();
             }
         }

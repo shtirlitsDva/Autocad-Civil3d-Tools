@@ -359,7 +359,7 @@ namespace IntersectUtilities
 
                 // Get and Initialize Records
                 using (Records records = tables.GetObjectRecords
-                    (0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+                    (0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForWrite, false))
                 {
                     if (records.Count == 0)
                     {
@@ -420,17 +420,19 @@ namespace IntersectUtilities
         public static bool UpdateODRecord(Tables tables, string tableName, string columnName,
                                           oid id, MapValue value)
         {
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+
             try
             {
                 Autodesk.Gis.Map.ObjectData.Table table = tables[tableName];
 
                 ErrorCode errCode = ErrorCode.OK;
 
-                bool success = true;
+                bool success = false;
 
                 // Get and Initialize Records
                 using (Records records = tables.GetObjectRecords
-                    (0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+                    (0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForWrite, false))
                 {
                     if (records.Count == 0)
                     {
@@ -457,28 +459,29 @@ namespace IntersectUtilities
                                     case Autodesk.Gis.Map.Constants.DataType.Integer:
                                         if (value.Type == val.Type)
                                         {
-                                            val.Assign(value.Int32Value);
+                                            record[i].Assign(value.Int32Value);
                                             return true;
                                         }
                                         break;
                                     case Autodesk.Gis.Map.Constants.DataType.Real:
                                         if (value.Type == val.Type)
                                         {
-                                            val.Assign(value.DoubleValue);
+                                            record[i].Assign(value.DoubleValue);
                                             return true;
                                         }
                                         break;
                                     case Autodesk.Gis.Map.Constants.DataType.Character:
                                         if (value.Type == val.Type)
                                         {
-                                            val.Assign(value.StrValue);
+                                            ed.WriteMessage("\nString record found!");
+                                            record[i].Assign(value.StrValue);
                                             return true;
                                         }
                                         break;
                                     case Autodesk.Gis.Map.Constants.DataType.Point:
                                         if (value.Type == val.Type)
                                         {
-                                            val.Assign(value.Point);
+                                            record[i].Assign(value.Point);
                                             return true;
                                         }
                                         break;
@@ -486,6 +489,7 @@ namespace IntersectUtilities
                                         return false;
                                 }
                             }
+                            else ed.WriteMessage("\nRecord not found!");
                         }
                     }
                 }
