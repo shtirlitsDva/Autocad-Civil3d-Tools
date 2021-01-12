@@ -6070,6 +6070,141 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("listallblocknames")]
+        public void listallblocknames()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    //HashSet<string> names = new HashSet<string>();
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    BlockTableRecord btr = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
+                        as BlockTableRecord;
+                    foreach (oid Oid in btr)
+                    {
+                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        {
+                            BlockReference br = Oid.Go<BlockReference>(tx);
+                            editor.WriteMessage($"\n{br.Name}");
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("addattributetoallblocks")]
+        public void addattributetoallblocks()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PromptResult pr = editor.GetString("\nEnter name of attribute to create: ");
+                    if (pr.Status != PromptStatus.OK) return;
+                    string attName = pr.StringResult;
+
+                    PromptResult pr1 = editor.GetString("\nEnter value to assign: ");
+                    if (pr1.Status != PromptStatus.OK) return;
+                    string valueToAssign = pr1.StringResult;
+
+                    HashSet<string> allNames = File.ReadAllLines(@"X:\AutoCAD DRI - 01 Civil 3D\SymbolNames.txt")
+                                               .Distinct().ToHashSet();
+
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+
+                    foreach (string blockName in allNames)
+                    {
+                        if (bt.Has(blockName))
+                        {
+                            BlockTableRecord btr = tx.GetObject(bt[blockName], OpenMode.ForWrite)
+                                as BlockTableRecord;
+                            ObjectIdCollection brefIds = btr.GetBlockReferenceIds(false, true);
+                            AttributeDefinition attDef = new AttributeDefinition();
+                            attDef.SetDatabaseDefaults(localDb);
+                            //attDef.Position = new Point3d(0, 0, 0);
+                            //attDef.AlignmentPoint = new Point3d(0, 0, 0);
+                            attDef.Tag = attName;
+                            attDef.TextString = valueToAssign;
+                            attDef.Invisible = true;
+                            attDef.Justify = AttachmentPoint.MiddleCenter;
+                            attDef.Height = 0.1;
+                            btr.AppendEntity(attDef);
+                            tx.AddNewlyCreatedDBObject(attDef, true);
+
+                            foreach (oid Oid in brefIds)
+                            {
+                                AttributeReference attRef = new AttributeReference();
+                                attRef.SetDatabaseDefaults(localDb);
+                                attRef.Tag = attName;
+                                attRef.TextString = valueToAssign;
+                                attRef.Invisible = true;
+                                attRef.Justify = AttachmentPoint.MiddleCenter;
+                                attRef.Height = 0.1;
+
+                                BlockReference bref = tx.GetObject(Oid, OpenMode.ForWrite) as BlockReference;
+                                bref.AttributeCollection.AppendAttribute(attRef);
+                                //editor.SetImpliedSelection(new oid[1] { Oid });
+                                //editor.Command("_.attsync", "_name", blockName);
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("addattributetoblocks")]
+        public void addattributetoblocks()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("testing")]
         public void testing()
         {
