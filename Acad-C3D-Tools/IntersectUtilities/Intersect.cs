@@ -6180,8 +6180,8 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("addattributetoblocks")]
-        public void addattributetoblocks()
+        [CommandMethod("listblockswithnoattributes")]
+        public void listblockswithnoattributes()
         {
 
             DocumentCollection docCol = Application.DocumentManager;
@@ -6194,6 +6194,28 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    HashSet<string> list = new HashSet<string>();
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+                    BlockTableRecord btrMs = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
+                        as BlockTableRecord;
+                    foreach (oid Oid in btrMs)
+                    {
+                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        {
+                            BlockReference blkRef = Oid.Go<BlockReference>(tx, OpenMode.ForRead);
+                            AttributeCollection aCol = blkRef.AttributeCollection;
+                            if (aCol.Count < 1)
+                            {
+                                if (blkRef.Name.Contains("Vertice")) continue;
+                                list.Add(blkRef.Name);
+                            }
+                        }
+                    }
+
+                    foreach (string name in list.Distinct().OrderBy(x => x))
+                    {
+                        editor.WriteMessage($"\n{name}");
+                    }
 
                 }
                 catch (System.Exception ex)
