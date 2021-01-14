@@ -2619,7 +2619,11 @@ namespace IntersectUtilities
                         #region Try creating records
 
                         string m_tableName = "GasDimOgMat";
-                        string columnName = "DimOgMat";
+
+                        string[] columnNames = new string[2] { "Dimension", "Material" };
+                        string[] columnDescriptions = new string[2] { "Pipe diameter", "Pipe material" };
+                        Autodesk.Gis.Map.Constants.DataType[] dataTypes = new Autodesk.Gis.Map.Constants.DataType[2]
+                        {Autodesk.Gis.Map.Constants.DataType.Integer, Autodesk.Gis.Map.Constants.DataType.Character};
 
                         Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
 
@@ -2630,8 +2634,7 @@ namespace IntersectUtilities
                         else
                         {
                             if (CreateTable(
-                                tables, m_tableName, "Gas data", columnName, "Dimension og material",
-                                Autodesk.Gis.Map.Constants.DataType.Character))
+                                tables, m_tableName, "Gas data", columnNames, columnDescriptions, dataTypes))
                             {
                                 editor.WriteMessage($"\nCreated table {m_tableName}.");
                             }
@@ -2641,33 +2644,48 @@ namespace IntersectUtilities
                                 return;
                             }
                         }
-                        int successCounter = 0;
-                        int failureCounter = 0;
-
+                        
                         string value = textId.Go<DBText>(tx).TextString;
 
-                        if (DoesRecordExist(tables, pline3dId, columnName))
+                        //Gas specific handling
+                        string[] output = value.Split((char[])null); //Splits by whitespace
+                        int parsedInt = 0;
+                        int.TryParse(output[0], out parsedInt);
+                        string parsedMat = output[1];
+
+
+                        for (int i = 0; i < columnNames.Length; i++)
                         {
-                            editor.WriteMessage("\nRecord already exists, updating...");
-                            MapValue mapValue = new MapValue(value);
-                            if (UpdateODRecord(tables, m_tableName, columnName, pline3dId, mapValue))
+                            int successCounter = 0;
+                            int failureCounter = 0;
+
+                            MapValue mapValue = new MapValue();
+                            if (i == 0) mapValue = mapValue.Assign(parsedInt);
+                            else mapValue = mapValue.Assign(parsedMat);
+
+                            if (DoesRecordExist(tables, pline3dId, columnNames[i]))
+                            {
+                                editor.WriteMessage("\nRecord already exists, updating...");
+
+                                if (UpdateODRecord(tables, m_tableName, columnNames[i], pline3dId, mapValue))
+                                {
+                                    successCounter++;
+                                }
+                            }
+                            else if (AddODRecord(tables, m_tableName, columnNames[i], pline3dId, mapValue))
                             {
                                 successCounter++;
                             }
-                        }
-                        else if (AddODRecord(tables, m_tableName, pline3dId, value))
-                        {
-                            successCounter++;
-                        }
-                        else failureCounter++;
+                            else failureCounter++;
 
-                        if (successCounter > 0)
-                        {
-                            editor.WriteMessage($"\n{columnName} record created succesfully!");
-                            Entity ent = pline3dId.Go<Entity>(tx, OpenMode.ForWrite);
-                            ent.ColorIndex = 1;
+                            if (successCounter > 0)
+                            {
+                                editor.WriteMessage($"\n{columnNames[i]} record created succesfully!");
+                                Entity ent = pline3dId.Go<Entity>(tx, OpenMode.ForWrite);
+                                ent.ColorIndex = 1;
+                            }
+                            else editor.WriteMessage($"\n{columnNames[i]} record creation failed!");
                         }
-                        else editor.WriteMessage($"\n{columnName} record creation failed!");
 
                         #endregion
                     }
@@ -3092,6 +3110,24 @@ namespace IntersectUtilities
                     }
                     #endregion
 
+                    #region Choose to keep points and text or not
+                    bool NoFilter = true;
+                    //Subsection for Gasfilter
+                    {
+                        const string ckwd1 = "No filter";
+                        const string ckwd2 = "Gas filter";
+                        PromptKeywordOptions pKeyOpts2 = new PromptKeywordOptions("");
+                        pKeyOpts2.Message = "\nChoose if text should be filtered: ";
+                        pKeyOpts2.Keywords.Add(ckwd1);
+                        pKeyOpts2.Keywords.Add(ckwd2);
+                        pKeyOpts2.AllowNone = true;
+                        pKeyOpts2.Keywords.Default = ckwd1;
+                        PromptResult locpKeyRes2 = editor.GetKeywords(pKeyOpts2);
+
+                        NoFilter = locpKeyRes2.StringResult == ckwd1;
+                    }
+                    #endregion
+
                     Plane plane = new Plane();
 
                     List<oid> sourceIds = new List<oid>();
@@ -3118,8 +3154,21 @@ namespace IntersectUtilities
                             List<DBText> text = localDb.ListOfType<DBText>(tx);
                             //Add additional objects to isolation
                             foreach (DBPoint item in points) sourceIds.Add(item.ObjectId);
-                            foreach (DBText item in text) sourceIds.Add(item.ObjectId);
-
+                            foreach (DBText item in text)
+                            {
+                                if (NoFilter) sourceIds.Add(item.ObjectId);
+                                else
+                                {
+                                    //Gas specific filtering
+                                    string[] output = item.TextString.Split((char[])null); //Splits by whitespace
+                                    int parsedInt = 0;
+                                    if (int.TryParse(output[0], out parsedInt))
+                                    {
+                                        if (parsedInt <= 90) continue;
+                                        sourceIds.Add(item.ObjectId);
+                                    }
+                                }
+                            }
                             sourceIds.Add(al.ObjectId);
                         }
                     }

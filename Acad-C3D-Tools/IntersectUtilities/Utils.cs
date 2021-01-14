@@ -185,8 +185,8 @@ namespace IntersectUtilities
         /// </remarks>
         public static bool CreateTable(
             Tables tables, string tableName, string tableDescription,
-            string columnName, string columnDescription,
-            Autodesk.Gis.Map.Constants.DataType dataType)
+            string[] columnNames, string[] columnDescriptions,
+            Autodesk.Gis.Map.Constants.DataType[] dataTypes)
         {
             ErrorCode errODCode = ErrorCode.OK;
             Autodesk.Gis.Map.ObjectData.Table table = null;
@@ -208,9 +208,11 @@ namespace IntersectUtilities
 
                     FieldDefinitions tabDefs = app.ActiveProject.MapUtility.NewODFieldDefinitions();
 
-                    FieldDefinition def = FieldDefinition.Create(columnName, columnDescription, dataType);
-
-                    tabDefs.AddColumn(def, 0);
+                    for (int i = 0; i < columnNames.Length; i++)
+                    {
+                        FieldDefinition def = FieldDefinition.Create(columnNames[i], columnDescriptions[i], dataTypes[i]);
+                        tabDefs.AddColumn(def, 0); 
+                    }
 
                     tables.Add(tableName, tabDefs, tableDescription, true);
 
@@ -231,8 +233,8 @@ namespace IntersectUtilities
         /// <summary>
         /// Adds a record to a Table named tableName, the record is generated automatically.
         /// </summary>
-        public static bool AddODRecord<T>(Tables tables, string tableName,
-                                          oid id, T value)
+        public static bool AddODRecord(Tables tables, string tableName,
+                                          oid id, MapValue[] values)
         {
             try
             {
@@ -242,33 +244,43 @@ namespace IntersectUtilities
                 Record tblRcd = Record.Create();
                 table.InitRecord(tblRcd);
 
-                MapValue val = tblRcd[0]; //TODO: Works only with one column.
-
-                switch (value)
+                for (int i = 0; i < tblRcd.Count; i++)
                 {
-                    case int integer:
-                        if (val.Type == Autodesk.Gis.Map.Constants.DataType.Integer)
-                        {
-                            val.Assign(integer);
-                        }
-                        else return false;
-                        break;
-                    case string str:
-                        if (val.Type == Autodesk.Gis.Map.Constants.DataType.Character)
-                        {
-                            val.Assign(str);
-                        }
-                        else return false;
-                        break;
-                    case double real:
-                        if (val.Type == Autodesk.Gis.Map.Constants.DataType.Real)
-                        {
-                            val.Assign(real);
-                        }
-                        else return false;
-                        break;
-                    default:
-                        return false;
+                    switch (tblRcd[i].Type)
+                    {
+                        case Autodesk.Gis.Map.Constants.DataType.UnknownType:
+                            return false;
+                        case Autodesk.Gis.Map.Constants.DataType.Integer:
+                            if (tblRcd[i].Type == values[i].Type)
+                            {
+                                tblRcd[i].Assign(values[i]);
+                            }
+                            else return false;
+                            break;
+                        case Autodesk.Gis.Map.Constants.DataType.Real:
+                            if (tblRcd[i].Type == values[i].Type)
+                            {
+                                tblRcd[i].Assign(values[i]);
+                            }
+                            else return false;
+                            break;
+                        case Autodesk.Gis.Map.Constants.DataType.Character:
+                            if (tblRcd[i].Type == values[i].Type)
+                            {
+                                tblRcd[i].Assign(values[i]);
+                            }
+                            else return false;
+                            break;
+                        case Autodesk.Gis.Map.Constants.DataType.Point:
+                            if (tblRcd[i].Type == values[i].Type)
+                            {
+                                tblRcd[i].Assign(values[i]);
+                            }
+                            else return false;
+                            break;
+                        default:
+                            return false;
+                    }
                 }
 
                 table.AddRecord(tblRcd, id);
@@ -289,7 +301,7 @@ namespace IntersectUtilities
                 Autodesk.Gis.Map.ObjectData.Table table = tables[tableName];
                 FieldDefinitions tableDef = table.FieldDefinitions;
 
-                // Create and initialize an record 
+                // Create and initialize an record B
                 Record tblRcd = Record.Create();
                 table.InitRecord(tblRcd);
 
@@ -384,21 +396,21 @@ namespace IntersectUtilities
                                     case int integer:
                                         if (val.Type == Autodesk.Gis.Map.Constants.DataType.Integer)
                                         {
-                                            val.Assign(integer);
+                                            val = val.Assign(integer);
                                         }
                                         else return false;
                                         break;
                                     case string str:
                                         if (val.Type == Autodesk.Gis.Map.Constants.DataType.Character)
                                         {
-                                            val.Assign(str);
+                                            val = val.Assign(str);
                                         }
                                         else return false;
                                         break;
                                     case double real:
                                         if (val.Type == Autodesk.Gis.Map.Constants.DataType.Real)
                                         {
-                                            val.Assign(real);
+                                            val = val.Assign(real);
                                         }
                                         else return false;
                                         break;
@@ -491,6 +503,7 @@ namespace IntersectUtilities
                             }
                             else ed.WriteMessage("\nRecord not found!");
                         }
+                        records.UpdateRecord(record);
                     }
                 }
                 return false;
