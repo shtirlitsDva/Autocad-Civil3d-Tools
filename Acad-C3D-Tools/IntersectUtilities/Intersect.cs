@@ -30,6 +30,7 @@ using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
+using DataType = Autodesk.Gis.Map.Constants.DataType;
 
 namespace IntersectUtilities
 {
@@ -1969,9 +1970,13 @@ namespace IntersectUtilities
                                         }
                                         else
                                         {
+                                            string[] columnNames = new string[1] { "Diameter" };
+                                            string[] columnDescrs = new string[1] { "Diameter of crossing pipe" };
+
                                             if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
-                                                "Diameter", "Diameter of crossing pipe",
-                                                Autodesk.Gis.Map.Constants.DataType.Integer))
+                                                columnNames, columnDescrs,
+                                                new Autodesk.Gis.Map.Constants.DataType[1]
+                                                {Autodesk.Gis.Map.Constants.DataType.Character }))
                                             {
                                                 AddODRecord(tables, "CrossingData", "Diameter",
                                                     cogoPoint.ObjectId, originalValue);
@@ -2528,7 +2533,9 @@ namespace IntersectUtilities
                     #region Try creating records
 
                     string m_tableName = "IdRecord";
-                    string columnName = "Handle";
+                    string[] columnNames = new string[1] { "Handle" };
+                    string[] columnDescrs = new string[1] { "Handle to string" };
+                    DataType[] dataTypes = new DataType[1] { DataType.Character };
 
                     Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
 
@@ -2539,8 +2546,8 @@ namespace IntersectUtilities
                     else
                     {
                         if (CreateTable(
-                            tables, m_tableName, "Object handle", columnName, "Handle to string",
-                            Autodesk.Gis.Map.Constants.DataType.Character))
+                            tables, m_tableName, "Object handle", columnNames, columnDescrs,
+                            dataTypes))
                         {
                             editor.WriteMessage($"\nCreated table {m_tableName}.");
                         }
@@ -2558,9 +2565,10 @@ namespace IntersectUtilities
 
                         if (DoesRecordExist(tables, ent.ObjectId, "Id"))
                         {
-                            UpdateODRecord(tables, m_tableName, columnName, ent.ObjectId, value);
+                            UpdateODRecord(tables, m_tableName, columnNames[1], ent.ObjectId, value);
                         }
-                        else if (AddODRecord(tables, m_tableName, ent.ObjectId, value))
+                        else if (AddODRecord(tables, m_tableName, columnNames[1], ent.ObjectId,
+                            new MapValue(value)))
                         {
                             successCounter++;
                         }
@@ -2644,7 +2652,7 @@ namespace IntersectUtilities
                                 return;
                             }
                         }
-                        
+
                         string value = textId.Go<DBText>(tx).TextString;
 
                         //Gas specific handling
@@ -2699,94 +2707,6 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("linewidth")]
-        public void setlinewidth()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    #region Load linework
-                    List<Line> lines = localDb.ListOfType<Line>(tx);
-                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
-                    List<Polyline> plines = localDb.ListOfType<Polyline>(tx);
-                    editor.WriteMessage($"\nNr. of plines: {plines.Count}");
-                    List<Polyline3d> plines3d = localDb.ListOfType<Polyline3d>(tx);
-                    editor.WriteMessage($"\nNr. of 3D polies: {plines3d.Count}");
-                    List<Spline> splines = localDb.ListOfType<Spline>(tx);
-                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
-
-                    List<Entity> allLinework = new List<Entity>(
-                        lines.Count + plines.Count + plines3d.Count + splines.Count);
-
-                    allLinework.AddRange(lines.Cast<Entity>());
-                    allLinework.AddRange(plines.Cast<Entity>());
-                    allLinework.AddRange(plines3d.Cast<Entity>());
-                    allLinework.AddRange(splines.Cast<Entity>());
-                    #endregion
-
-                    #region Try creating records
-
-                    string m_tableName = "IdRecord";
-                    string columnName = "Handle";
-
-                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-
-                    if (DoesTableExist(tables, m_tableName))
-                    {
-                        editor.WriteMessage("\nTable already exists!");
-                    }
-                    else
-                    {
-                        if (CreateTable(
-                            tables, m_tableName, "Object handle", columnName, "Handle to string",
-                            Autodesk.Gis.Map.Constants.DataType.Character))
-                        {
-                            editor.WriteMessage($"\nCreated table {m_tableName}.");
-                        }
-                        else
-                        {
-                            editor.WriteMessage("\nFailed to create the ObjectData table.");
-                            return;
-                        }
-                    }
-                    int successCounter = 0;
-                    int failureCounter = 0;
-                    foreach (Entity ent in allLinework)
-                    {
-                        string value = ent.Handle.ToString().Replace("(", "").Replace(")", "");
-
-                        if (DoesRecordExist(tables, ent.ObjectId, "Id"))
-                        {
-                            UpdateODRecord(tables, m_tableName, columnName, ent.ObjectId, value);
-                        }
-                        else if (AddODRecord(tables, m_tableName, ent.ObjectId, value))
-                        {
-                            successCounter++;
-                        }
-                        else failureCounter++;
-                    }
-
-                    editor.WriteMessage($"\nId record created successfully for {successCounter} entities.");
-                    editor.WriteMessage($"\nId record creation failed for {failureCounter} entities.");
-
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    editor.WriteMessage("\n" + ex.Message);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
-
         [CommandMethod("addsize")]
         public void addsize()
         {
@@ -2832,7 +2752,9 @@ namespace IntersectUtilities
                     #region Try creating records
 
                     string m_tableName = "SizeTable";
-                    string columnName = "Size";
+                    string[] columnNames = new string[1] { "Size" };
+                    string[] columnDescrs = new string[1] { "Size of pipe" };
+                    DataType[] dataTypes = new DataType[1] { DataType.Integer };
 
                     Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
 
@@ -2843,8 +2765,8 @@ namespace IntersectUtilities
                     else
                     {
                         if (CreateTable(
-                            tables, m_tableName, "Pipe size table", columnName, "Size of pipe",
-                            Autodesk.Gis.Map.Constants.DataType.Integer))
+                            tables, m_tableName, "Pipe size table", columnNames, columnDescrs,
+                            dataTypes))
                         {
                             editor.WriteMessage($"\nCreated table {m_tableName}.");
                         }
@@ -2855,11 +2777,12 @@ namespace IntersectUtilities
                         }
                     }
 
-                    if (DoesRecordExist(tables, Entity.ObjectId, columnName))
+                    if (DoesRecordExist(tables, Entity.ObjectId, columnNames[0]))
                     {
-                        UpdateODRecord(tables, m_tableName, columnName, Entity.ObjectId, size);
+                        UpdateODRecord(tables, m_tableName, columnNames[0], Entity.ObjectId, size);
                     }
-                    else if (AddODRecord(tables, m_tableName, Entity.ObjectId, size))
+                    else if (AddODRecord(tables, m_tableName, columnNames[0], Entity.ObjectId,
+                        new MapValue(size)))
                     {
                         editor.WriteMessage("\nSize added!");
                     }
@@ -4680,9 +4603,13 @@ namespace IntersectUtilities
                                     }
                                     else
                                     {
+                                        string[] columnNames = new string[1] { "Diameter" };
+                                        string[] columnDescrs = new string[1] { "Diameter of crossing pipe" };
+
                                         if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
-                                            "Diameter", "Diameter of crossing pipe",
-                                            Autodesk.Gis.Map.Constants.DataType.Integer))
+                                            columnNames, columnDescrs,
+                                            new Autodesk.Gis.Map.Constants.DataType[1]
+                                            {Autodesk.Gis.Map.Constants.DataType.Character }))
                                         {
                                             AddODRecord(tables, "CrossingData", "Diameter",
                                                 cogoPoint.ObjectId, originalValue);
@@ -5116,9 +5043,13 @@ namespace IntersectUtilities
                                     }
                                     else
                                     {
+                                        string[] columnNames = new string[1] { "Diameter" };
+                                        string[] columnDescrs = new string[1] { "Diameter of crossing pipe" };
+
                                         if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
-                                            "Diameter", "Diameter of crossing pipe",
-                                            Autodesk.Gis.Map.Constants.DataType.Integer))
+                                            columnNames, columnDescrs,
+                                            new Autodesk.Gis.Map.Constants.DataType[1]
+                                            {Autodesk.Gis.Map.Constants.DataType.Character }))
                                         {
                                             AddODRecord(tables, "CrossingData", "Diameter",
                                                 cogoPoint.ObjectId, originalValue);
@@ -5968,9 +5899,13 @@ namespace IntersectUtilities
                                             }
                                             else
                                             {
+                                                string[] columnNames = new string[1] { "Diameter" };
+                                                string[] columnDescrs = new string[1] { "Diameter of crossing pipe" };
+
                                                 if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
-                                                    "Diameter", "Diameter of crossing pipe",
-                                                    Autodesk.Gis.Map.Constants.DataType.Integer))
+                                                    columnNames, columnDescrs,
+                                                    new Autodesk.Gis.Map.Constants.DataType[1]
+                                                    {Autodesk.Gis.Map.Constants.DataType.Character }))
                                                 {
                                                     AddODRecord(tables, "CrossingData", "Diameter",
                                                         cogoPoint.ObjectId, originalValue);
