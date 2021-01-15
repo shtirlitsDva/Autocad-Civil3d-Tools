@@ -3003,15 +3003,26 @@ namespace IntersectUtilities
         {
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
+                #region Get alignments
+                string etapeName = GetEtapeName(editor);
+
+                editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Alignments"));
+
+                // open the LER dwg database
+                Database xRefAlDB = new Database(false, true);
+
+                xRefAlDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Alignments"),
+                    System.IO.FileShare.Read, false, string.Empty);
+                Transaction xRefAlTx = xRefAlDB.TransactionManager.StartTransaction();
+                HashSet<Alignment> als = xRefAlDB.HashSetOfType<Alignment>(xRefAlTx);
+                editor.WriteMessage($"\nNr. of alignments: {als.Count}");
+                #endregion
+
                 try
                 {
                     #region Load linework from local db
                     HashSet<Polyline3d> plines3d = localDb.HashSetOfType<Polyline3d>(tx);
                     editor.WriteMessage($"\nNr. of 3D polies: {plines3d.Count}");
-                    #endregion
-
-                    #region Select Alignment
-                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
                     #endregion
 
                     #region Choose to keep points and text or not
@@ -3033,7 +3044,7 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    #region Choose to keep points and text or not
+                    #region Select to filter text for gas or not
                     bool NoFilter = true;
                     //Subsection for Gasfilter
                     {
@@ -3092,18 +3103,26 @@ namespace IntersectUtilities
                                     }
                                 }
                             }
-                            sourceIds.Add(al.ObjectId);
+                            //This is in memory only object now
+                            //sourceIds.Add(al.ObjectId);
                         }
                     }
 
                     editor.SetImpliedSelection(sourceIds.ToArray());
+
+
                 }
                 catch (System.Exception ex)
                 {
+                    tx.Abort();
+                    xRefAlTx.Abort();
+                    xRefAlDB.Dispose();
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
+                xRefAlTx.Commit();
                 tx.Commit();
+                xRefAlDB.Dispose();
             }
         }
 

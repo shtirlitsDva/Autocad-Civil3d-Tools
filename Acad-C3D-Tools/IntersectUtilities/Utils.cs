@@ -1085,7 +1085,7 @@ namespace IntersectUtilities
         }
         public static string GetEtapeName(Editor editor)
         {
-            #region Read Csv Data for Layers and Depth
+            #region Read Csv for paths
             string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
             System.Data.DataTable dtStier = CsvReader.ReadCsvToDataTable(pathStier, "Stier");
             #endregion
@@ -1114,7 +1114,7 @@ namespace IntersectUtilities
         /// <returns>Path as string</returns>
         public static string GetPathToDataFiles(string etapeName, string pathType)
         {
-            #region Read Csv Data for Layers and Depth
+            #region Read Csv Data for paths
             string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
             System.Data.DataTable dtStier = CsvReader.ReadCsvToDataTable(pathStier, "Stier");
             #endregion
