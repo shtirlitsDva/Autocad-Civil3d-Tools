@@ -6087,7 +6087,9 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    //HashSet<string> names = new HashSet<string>();
+                    HashSet<string> allExistingNames = File.ReadAllLines(@"X:\AutoCAD DRI - 01 Civil 3D\SymbolNames.txt")
+                                               .Distinct().ToHashSet();
+
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                     BlockTableRecord btr = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
                         as BlockTableRecord;
@@ -6096,7 +6098,10 @@ namespace IntersectUtilities
                         if (Oid.ObjectClass.Name == "AcDbBlockReference")
                         {
                             BlockReference br = Oid.Go<BlockReference>(tx);
-                            editor.WriteMessage($"\n{br.Name}");
+                            if (!allExistingNames.Contains(br.Name))
+                            {
+                                editor.WriteMessage($"\n{br.Name}");
+                            }
                         }
                     }
                 }
