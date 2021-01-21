@@ -6073,6 +6073,63 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("updateprofile")]
+        public void updateprofile()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                string etapeName = GetEtapeName(editor);
+
+                editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Ler"));
+
+                #region Load linework from LER Xref
+
+                // open the LER dwg database
+                Database xRefLerDB = new Database(false, true);
+
+                xRefLerDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Ler"),
+                    System.IO.FileShare.Read, false, string.Empty);
+                Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
+                #endregion
+
+                try
+                {
+
+
+                    HashSet<string> allExistingNames = File.ReadAllLines(@"X:\AutoCAD DRI - 01 Civil 3D\SymbolNames.txt")
+                                               .Distinct().ToHashSet();
+
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    BlockTableRecord btr = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
+                        as BlockTableRecord;
+                    foreach (oid Oid in btr)
+                    {
+                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        {
+                            BlockReference br = Oid.Go<BlockReference>(tx);
+                            if (!allExistingNames.Contains(br.Name))
+                            {
+                                editor.WriteMessage($"\n{br.Name}");
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("listallblocknames")]
         public void listallblocknames()
         {
