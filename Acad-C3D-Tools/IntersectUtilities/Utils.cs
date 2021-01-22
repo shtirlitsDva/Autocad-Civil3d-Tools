@@ -28,6 +28,7 @@ using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using ObjectId = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+using DataType = Autodesk.Gis.Map.Constants.DataType;
 
 namespace IntersectUtilities
 {
@@ -211,7 +212,7 @@ namespace IntersectUtilities
                     for (int i = 0; i < columnNames.Length; i++)
                     {
                         FieldDefinition def = FieldDefinition.Create(columnNames[i], columnDescriptions[i], dataTypes[i]);
-                        tabDefs.AddColumn(def, 0); 
+                        tabDefs.AddColumn(def, 0);
                     }
 
                     tables.Add(tableName, tabDefs, tableDescription, true);
@@ -311,38 +312,38 @@ namespace IntersectUtilities
                     if (column.Name == columnName && table.Name == tableName)
                     {
                         MapValue newValue = tblRcd[i];
-
-                        switch (newValue.Type)
-                        {
-                            case Autodesk.Gis.Map.Constants.DataType.UnknownType:
-                                return false;
-                            case Autodesk.Gis.Map.Constants.DataType.Integer:
-                                if (originalValue.Type == newValue.Type)
-                                {
-                                    newValue.Assign(originalValue.Int32Value);
-                                }
-                                break;
-                            case Autodesk.Gis.Map.Constants.DataType.Real:
-                                if (originalValue.Type == newValue.Type)
-                                {
-                                    newValue.Assign(originalValue.DoubleValue);
-                                }
-                                break;
-                            case Autodesk.Gis.Map.Constants.DataType.Character:
-                                if (originalValue.Type == newValue.Type)
-                                {
-                                    newValue.Assign(originalValue.StrValue);
-                                }
-                                break;
-                            case Autodesk.Gis.Map.Constants.DataType.Point:
-                                if (originalValue.Type == newValue.Type)
-                                {
-                                    newValue.Assign(originalValue.Point);
-                                }
-                                break;
-                            default:
-                                return false;
-                        }
+                        newValue.Assign(originalValue);
+                        //switch (newValue.Type)
+                        //{
+                        //    case Autodesk.Gis.Map.Constants.DataType.UnknownType:
+                        //        return false;
+                        //    case Autodesk.Gis.Map.Constants.DataType.Integer:
+                        //        if (originalValue.Type == newValue.Type)
+                        //        {
+                        //            newValue.Assign(originalValue.Int32Value);
+                        //        }
+                        //        break;
+                        //    case Autodesk.Gis.Map.Constants.DataType.Real:
+                        //        if (originalValue.Type == newValue.Type)
+                        //        {
+                        //            newValue.Assign(originalValue.DoubleValue);
+                        //        }
+                        //        break;
+                        //    case Autodesk.Gis.Map.Constants.DataType.Character:
+                        //        if (originalValue.Type == newValue.Type)
+                        //        {
+                        //            newValue.Assign(originalValue.StrValue);
+                        //        }
+                        //        break;
+                        //    case Autodesk.Gis.Map.Constants.DataType.Point:
+                        //        if (originalValue.Type == newValue.Type)
+                        //        {
+                        //            newValue.Assign(originalValue.Point);
+                        //        }
+                        //        break;
+                        //    default:
+                        //        return false;
+                        //}
                     }
                 }
 
@@ -448,7 +449,7 @@ namespace IntersectUtilities
                 {
                     if (records.Count == 0)
                     {
-                        //Editor.WriteMessage($"\nThere is no ObjectData record attached on the entity.");
+                        Editor.WriteMessage($"\nThere is no ObjectData record attached on the entity.");
                         return false;
                     }
 
@@ -463,47 +464,11 @@ namespace IntersectUtilities
                             if (column.Name == columnName && record.TableName == tableName)
                             {
                                 MapValue val = record[i];
-
-                                switch (val.Type)
-                                {
-                                    case Autodesk.Gis.Map.Constants.DataType.UnknownType:
-                                        return false;
-                                    case Autodesk.Gis.Map.Constants.DataType.Integer:
-                                        if (value.Type == val.Type)
-                                        {
-                                            record[i].Assign(value.Int32Value);
-                                            return true;
-                                        }
-                                        break;
-                                    case Autodesk.Gis.Map.Constants.DataType.Real:
-                                        if (value.Type == val.Type)
-                                        {
-                                            record[i].Assign(value.DoubleValue);
-                                            return true;
-                                        }
-                                        break;
-                                    case Autodesk.Gis.Map.Constants.DataType.Character:
-                                        if (value.Type == val.Type)
-                                        {
-                                            ed.WriteMessage("\nString record found!");
-                                            record[i].Assign(value.StrValue);
-                                            return true;
-                                        }
-                                        break;
-                                    case Autodesk.Gis.Map.Constants.DataType.Point:
-                                        if (value.Type == val.Type)
-                                        {
-                                            record[i].Assign(value.Point);
-                                            return true;
-                                        }
-                                        break;
-                                    default:
-                                        return false;
-                                }
+                                val.Assign(value);
+                                records.UpdateRecord(record);
+                                return true;
                             }
-                            else ed.WriteMessage("\nRecord not found!");
                         }
-                        records.UpdateRecord(record);
                     }
                 }
                 return false;
@@ -791,6 +756,53 @@ namespace IntersectUtilities
             {
                 return false;
             }
+        }
+
+        public static bool DoAllColumnsExist(Tables tables, string m_tableName, string[] columnNames)
+        {
+            // Get the table
+            Autodesk.Gis.Map.ObjectData.Table table = tables[m_tableName];
+            // Get tabledef info
+            FieldDefinitions tableDef = table.FieldDefinitions;
+            List<string> existingColumnNames = new List<string>(tableDef.Count);
+            for (int k = 0; k < tableDef.Count; k++)
+            {
+                FieldDefinition column = tableDef[k];
+                existingColumnNames.Add(column.Name);
+            }
+            foreach (string name in columnNames)
+            {
+                if (existingColumnNames.Any(x => x == name)) continue;
+                else return false;
+            }
+            return true;
+        }
+
+        public static bool CreateMissingColumns(Tables tables, string m_tableName, string[] columnNames, string[] columnDescriptions,
+            DataType[] dataTypes)
+        {
+            // Get the table
+            Autodesk.Gis.Map.ObjectData.Table table = tables[m_tableName];
+            // Get tabledef info
+            FieldDefinitions tableDef = table.FieldDefinitions;
+            List<string> existingColumnNames = new List<string>(tableDef.Count);
+            for (int k = 0; k < tableDef.Count; k++)
+            {
+                FieldDefinition column = tableDef[k];
+                existingColumnNames.Add(column.Name);
+            }
+            for (int i = 0; i < columnNames.Length; i++)
+            {
+                if (existingColumnNames.Any(x => x == columnNames[i])) continue;
+                else
+                {
+                    table.FieldDefinitions.AddColumn(
+                        FieldDefinition.Create(columnNames[i], columnDescriptions[i], dataTypes[i]),
+                        table.FieldDefinitions.Count);
+                    tables.UpdateTable(m_tableName, table.FieldDefinitions);
+                }
+            }
+            return true;
         }
         #endregion
 

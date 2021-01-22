@@ -526,73 +526,48 @@ namespace IntersectUtilities
 
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
+                #region Read Csv Data for Layers and Depth
+
+                //Establish the pathnames to files
+                //Files should be placed in a specific folder on desktop
+                string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
+
+                System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
+
+                #endregion
+
+                string etapeName = GetEtapeName(editor);
+
+                #region Load linework from LER Xref
+                editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Ler"));
+
+                // open the LER dwg database
+                Database xRefLerDB = new Database(false, true);
+
+                xRefLerDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Ler"),
+                    System.IO.FileShare.Read, false, string.Empty);
+                Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
+
+                HashSet<Polyline3d> allLinework = xRefLerDB.HashSetOfType<Polyline3d>(xRefLerTx)
+                    .Where(x => ReadStringParameterFromDataTable(x.Layer, dtKrydsninger, "Type", 0) != "IGNORE")
+                    .ToHashSet();
+                #endregion
+
                 try
                 {
-                    #region Select XREF
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
-                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
-                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
-                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
-                    Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef
-                        = tx.GetObject(blkObjId, OpenMode.ForRead, false)
-                        as Autodesk.AutoCAD.DatabaseServices.BlockReference;
-                    #endregion
+                    HashSet<Alignment> alignments = db.HashSetOfType<Alignment>(tx);
 
-                    #region Open XREF and tx
-                    // open the block definition?
-                    BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
-                    // is not from external reference, exit
-                    if (!blockDef.IsFromExternalReference) return;
-
-                    // open the xref database
-                    Database xRefDB = new Database(false, true);
-                    editor.WriteMessage($"\nPathName of the blockDef -> {blockDef.PathName}");
-
-                    //Relative path handling
-                    //I
-                    string curPathName = blockDef.PathName;
-                    bool isFullPath = IsFullPath(curPathName);
-                    if (isFullPath == false)
-                    {
-                        string sourcePath = Path.GetDirectoryName(doc.Name);
-                        editor.WriteMessage($"\nSourcePath -> {sourcePath}");
-                        curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
-                        editor.WriteMessage($"\nTargetPath -> {curPathName}");
-                    }
-
-                    xRefDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
-
-                    //Transaction from Database of the Xref
-                    //Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
-                    #endregion
-
-                    #region Read Csv Data for Layers and Depth
-
-                    //Establish the pathnames to files
-                    //Files should be placed in a specific folder on desktop
-                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-                    string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
-
-                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
-                    System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
-
-                    #endregion
-                    Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
-                    List<Polyline3d> allPlines3d = xRefDB.ListOfType<Polyline3d>(xrefTx);
-
-                    List<Alignment> alignments = db.ListOfType<Alignment>(tx);
-
-                    List<string> layNames = new List<string>();
+                    HashSet<string> layNames = new HashSet<string>();
 
                     foreach (Alignment al in alignments)
                     {
                         editor.WriteMessage($"\n++++++++ Indlæser alignment {al.Name}. ++++++++");
 
-                        List<Polyline3d> plines3d = FilterForCrossingEntities(allPlines3d, al);
+                        HashSet<Polyline3d> plines3d = FilterForCrossingEntities(allLinework, al);
 
-                        if (allPlines3d.Count == 0)
+                        if (plines3d.Count == 0)
                         {
                             editor.WriteMessage("\nNo 3D polylines found in drawing!" +
                                 " Did you remember to run 'convertlinework'?");
@@ -600,23 +575,22 @@ namespace IntersectUtilities
                         }
 
                         //Local function to avoid duplicate code
-                        List<string> LocalListNames<T>(List<string> list, List<T> ents)
+                        HashSet<string> LocalListNames<T>(HashSet<string> list, HashSet<T> ents)
                         {
                             foreach (Entity ent in ents.Cast<Entity>())
                             {
-                                LayerTableRecord layer = (LayerTableRecord)xrefTx.GetObject(ent.LayerId, OpenMode.ForRead);
-                                //if (layer.IsFrozen) continue;
-
+                                LayerTableRecord layer = (LayerTableRecord)xRefLerTx.GetObject(ent.LayerId, OpenMode.ForRead);
                                 list.Add(layer.Name);
                             }
                             return list;
                         }
 
-                        layNames.AddRange(LocalListNames(layNames, plines3d));
-                        layNames = layNames.Distinct().ToList();
+                        layNames.UnionWith(LocalListNames(layNames, plines3d));
+                        //Extra .Distinct() because the collection gets too large otherwise
+                        layNames = layNames.Distinct().ToHashSet();
                     }
 
-                    layNames = layNames.Distinct().OrderBy(x => x).ToList();
+                    layNames = layNames.Distinct().OrderBy(x => x).ToHashSet();
 
                     editor.WriteMessage($"\n++++++++ KONTROL ++++++++");
 
@@ -661,14 +635,15 @@ namespace IntersectUtilities
                             }
                         }
                     }
-
-                    xrefTx.Commit();
                 }
                 catch (System.Exception ex)
                 {
+                    xRefLerTx.Abort();
+                    tx.Abort();
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
+                xRefLerTx.Commit();
                 tx.Commit();
             }
         }
@@ -2565,9 +2540,9 @@ namespace IntersectUtilities
 
                         if (DoesRecordExist(tables, ent.ObjectId, "Id"))
                         {
-                            UpdateODRecord(tables, m_tableName, columnNames[1], ent.ObjectId, value);
+                            UpdateODRecord(tables, m_tableName, columnNames[0], ent.ObjectId, value);
                         }
-                        else if (AddODRecord(tables, m_tableName, columnNames[1], ent.ObjectId,
+                        else if (AddODRecord(tables, m_tableName, columnNames[0], ent.ObjectId,
                             new MapValue(value)))
                         {
                             successCounter++;
@@ -2624,20 +2599,46 @@ namespace IntersectUtilities
                         Autodesk.AutoCAD.DatabaseServices.ObjectId textId = entity2.ObjectId;
                         #endregion
 
+                        #region Er ledningen i brug
+                        const string kwd1 = "Ja";
+                        const string kwd2 = "Nej";
+
+                        PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
+                        pKeyOpts.Message = "\nEr ledningen i brug? ";
+                        pKeyOpts.Keywords.Add(kwd1);
+                        pKeyOpts.Keywords.Add(kwd2);
+                        pKeyOpts.AllowNone = true;
+                        pKeyOpts.Keywords.Default = kwd1;
+                        PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+
+                        bool ledningIbrug = pKeyRes.StringResult == kwd1;
+
+                        #endregion
+
                         #region Try creating records
 
                         string m_tableName = "GasDimOgMat";
 
-                        string[] columnNames = new string[2] { "Dimension", "Material" };
-                        string[] columnDescriptions = new string[2] { "Pipe diameter", "Pipe material" };
-                        Autodesk.Gis.Map.Constants.DataType[] dataTypes = new Autodesk.Gis.Map.Constants.DataType[2]
-                        {Autodesk.Gis.Map.Constants.DataType.Integer, Autodesk.Gis.Map.Constants.DataType.Character};
+                        string[] columnNames = new string[3] { "Dimension", "Material", "Bemærk" };
+                        string[] columnDescriptions = new string[3] { "Pipe diameter", "Pipe material", "Bemærkning til ledning" };
+                        Autodesk.Gis.Map.Constants.DataType[] dataTypes = new Autodesk.Gis.Map.Constants.DataType[3]
+                        {
+                            DataType.Integer,
+                            DataType.Character,
+                            DataType.Character
+                        };
+                        MapValue[] values = new MapValue[3];
 
                         Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
 
                         if (DoesTableExist(tables, m_tableName))
                         {
                             editor.WriteMessage("\nTable already exists!");
+
+                            if (!DoAllColumnsExist(tables, m_tableName, columnNames))
+                            {
+                                CreateMissingColumns(tables, m_tableName, columnNames, columnDescriptions, dataTypes);
+                            }
                         }
                         else
                         {
@@ -2657,36 +2658,40 @@ namespace IntersectUtilities
 
                         //Gas specific handling
                         string[] output = value.Split((char[])null); //Splits by whitespace
+                        //Diameter
                         int parsedInt = 0;
                         int.TryParse(output[0], out parsedInt);
+                        //Material
                         string parsedMat = output[1];
 
+                        //Aggregate
+                        values[0] = new MapValue(parsedInt);
+                        values[1] = new MapValue(parsedMat);
+                        if (ledningIbrug) values[2] = new MapValue("");
+                        else values[2] = new MapValue("Ikke i brug");
 
                         for (int i = 0; i < columnNames.Length; i++)
                         {
-                            int successCounter = 0;
-                            int failureCounter = 0;
-
-                            MapValue mapValue = new MapValue();
-                            if (i == 0) mapValue = mapValue.Assign(parsedInt);
-                            else mapValue = mapValue.Assign(parsedMat);
+                            bool success = false;
 
                             if (DoesRecordExist(tables, pline3dId, columnNames[i]))
                             {
-                                editor.WriteMessage("\nRecord already exists, updating...");
+                                editor.WriteMessage($"\nRecord {columnNames[i]} already exists, updating...");
 
-                                if (UpdateODRecord(tables, m_tableName, columnNames[i], pline3dId, mapValue))
+                                if (UpdateODRecord(tables, m_tableName, columnNames[i], pline3dId, values[i]))
                                 {
-                                    successCounter++;
+                                    editor.WriteMessage($"\nUpdating record {columnNames[i]} succeded!");
+                                    success = true;
                                 }
+                                else editor.WriteMessage($"\nUpdating record {columnNames[i]} failed!");
                             }
-                            else if (AddODRecord(tables, m_tableName, columnNames[i], pline3dId, mapValue))
+                            else if (AddODRecord(tables, m_tableName, columnNames[i], pline3dId, values[i]))
                             {
-                                successCounter++;
+                                editor.WriteMessage($"\nAdding record {columnNames[i]} succeded!");
+                                success = true;
                             }
-                            else failureCounter++;
 
-                            if (successCounter > 0)
+                            if (success)
                             {
                                 editor.WriteMessage($"\n{columnNames[i]} record created succesfully!");
                                 Entity ent = pline3dId.Go<Entity>(tx, OpenMode.ForWrite);
@@ -4290,6 +4295,8 @@ namespace IntersectUtilities
                     #endregion
                     xRefLerTx.Abort();
                     xRefSurfaceTx.Abort();
+                    xRefLerDB.Dispose();
+                    xRefSurfaceDB.Dispose();
                 }
 
                 catch (System.Exception ex)
@@ -5370,23 +5377,44 @@ namespace IntersectUtilities
 
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
+                string etapeName = GetEtapeName(editor);
+
+                editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Surface"));
+
+                #region Read surface from file
+                // open the xref database
+                Database xRefSurfaceDB = new Database(false, true);
+                xRefSurfaceDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Surface"),
+                    System.IO.FileShare.Read, false, string.Empty);
+                Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
+
+                CivSurface surface = null;
+                try
+                {
+
+                    surface = xRefSurfaceDB
+                        .HashSetOfType<TinSurface>(xRefSurfaceTx)
+                        .FirstOrDefault() as CivSurface;
+                }
+                catch (System.Exception)
+                {
+                    xRefSurfaceTx.Abort();
+                    throw;
+                }
+
+                if (surface == null)
+                {
+                    editor.WriteMessage("\nSurface could not be loaded from the xref!");
+                    xRefSurfaceTx.Commit();
+                    return;
+                }
+                #endregion
+
                 try
                 {
                     List<Alignment> allAlignments = db.ListOfType<Alignment>(tx).OrderBy(x => x.Name).ToList();
 
                     #region Create surface profiles
-
-                    #region Select "surface"
-                    //Get surface
-                    PromptEntityOptions promptEntityOptions3 = new PromptEntityOptions("\n Select surface to get elevations: ");
-                    promptEntityOptions3.SetRejectMessage("\n Not a surface");
-                    promptEntityOptions3.AddAllowedClass(typeof(TinSurface), true);
-                    promptEntityOptions3.AddAllowedClass(typeof(GridSurface), true);
-                    PromptEntityResult entity3 = editor.GetEntity(promptEntityOptions3);
-                    if (((PromptResult)entity3).Status != PromptStatus.OK) return;
-                    oid surfaceObjId = entity3.ObjectId;
-                    CivSurface surface = surfaceObjId.GetObject(OpenMode.ForRead, false) as CivSurface;
-                    #endregion
 
                     #region Get terrain layer id
 
@@ -5427,7 +5455,7 @@ namespace IntersectUtilities
                         if (noProfileExists)
                         {
                             surfaceProfileId = Profile.CreateFromSurface(
-                                                profileName, alignment.ObjectId, surfaceObjId,
+                                                profileName, alignment.ObjectId, surface.ObjectId,
                                                 terrainLayerId, profileStyleId, profileLabelSetStyleId);
                         }
                     }
@@ -5435,10 +5463,13 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
+                    xRefSurfaceTx.Abort();
+                    tx.Abort();
                     throw new System.Exception(ex.Message);
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
+                xRefSurfaceTx.Commit();
                 tx.Commit();
             }
         }
