@@ -2695,7 +2695,9 @@ namespace IntersectUtilities
                             {
                                 editor.WriteMessage($"\n{columnNames[i]} record created succesfully!");
                                 Entity ent = pline3dId.Go<Entity>(tx, OpenMode.ForWrite);
-                                ent.ColorIndex = 1;
+
+                                if (ledningIbrug) ent.ColorIndex = 1;
+                                else ent.ColorIndex = 130;
                             }
                             else editor.WriteMessage($"\n{columnNames[i]} record creation failed!");
                         }
