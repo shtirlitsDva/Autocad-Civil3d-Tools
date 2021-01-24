@@ -6121,9 +6121,9 @@ namespace IntersectUtilities
                 string etapeName = GetEtapeName(editor);
 
                 editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Ler"));
+                editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Fremtid"));
 
                 #region Load linework from LER Xref
-
                 // open the LER dwg database
                 Database xRefLerDB = new Database(false, true);
 
@@ -6132,14 +6132,22 @@ namespace IntersectUtilities
                 Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
                 #endregion
 
+                #region Load linework from Fremtid Xref
+                // open the Fremtid dwg database
+                Database xRefFremtidDB = new Database(false, true);
+
+                xRefFremtidDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Fremtid"),
+                    System.IO.FileShare.Read, false, string.Empty);
+                Transaction xRefFremtidTx = xRefFremtidDB.TransactionManager.StartTransaction();
+                #endregion
+
                 try
                 {
-
-
+                    #region Load blocks from Fremtid
                     HashSet<string> allExistingNames = File.ReadAllLines(@"X:\AutoCAD DRI - 01 Civil 3D\SymbolNames.txt")
-                                               .Distinct().ToHashSet();
+                                                           .Distinct().ToHashSet();
 
-                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    BlockTable bt = xRefFremtidTx.GetObject(xRefFremtidDB.BlockTableId, OpenMode.ForRead) as BlockTable;
                     BlockTableRecord btr = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
                         as BlockTableRecord;
                     foreach (oid Oid in btr)
@@ -6152,7 +6160,8 @@ namespace IntersectUtilities
                                 editor.WriteMessage($"\n{br.Name}");
                             }
                         }
-                    }
+                    } 
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
@@ -6280,6 +6289,53 @@ namespace IntersectUtilities
 
         [CommandMethod("listblockswithnoattributes")]
         public void listblockswithnoattributes()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<string> list = new HashSet<string>();
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+                    BlockTableRecord btrMs = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
+                        as BlockTableRecord;
+                    foreach (oid Oid in btrMs)
+                    {
+                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        {
+                            BlockReference blkRef = Oid.Go<BlockReference>(tx, OpenMode.ForRead);
+                            AttributeCollection aCol = blkRef.AttributeCollection;
+                            if (aCol.Count < 1)
+                            {
+                                if (blkRef.Name.Contains("Vertice")) continue;
+                                list.Add(blkRef.Name);
+                            }
+                        }
+                    }
+
+                    foreach (string name in list.Distinct().OrderBy(x => x))
+                    {
+                        editor.WriteMessage($"\n{name}");
+                    }
+
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("assigncomponents")]
+        public void assigncomponents()
         {
 
             DocumentCollection docCol = Application.DocumentManager;
