@@ -7,6 +7,8 @@ using System.Text.RegularExpressions;
 using System.Data;
 using System.Globalization;
 using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
+using System.Windows.Forms;
 using Autodesk.Aec.DatabaseServices;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -29,6 +31,7 @@ using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using ObjectId = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using DataType = Autodesk.Gis.Map.Constants.DataType;
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
 namespace IntersectUtilities
 {
@@ -1133,6 +1136,7 @@ namespace IntersectUtilities
 
             return ReadStringParameterFromDataTable(etapeName, dtStier, pathType, 0);
         }
+        public static int GetLineNumber([CallerLineNumber] int lineNumber = 0) => lineNumber;
     }
     public static class Enums
     {

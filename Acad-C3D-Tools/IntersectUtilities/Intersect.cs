@@ -6092,12 +6092,17 @@ namespace IntersectUtilities
 
                     xRefLerTx.Commit();
                     xRefSurfaceTx.Commit();
+                    xRefLerDB.Dispose();
+                    xRefSurfaceDB.Dispose();
                 }
 
                 catch (System.Exception ex)
                 {
                     xRefLerTx.Abort();
+                    xRefLerDB.Dispose();
+                    
                     xRefSurfaceTx.Abort();
+                    xRefSurfaceDB.Dispose();
                     throw new System.Exception(ex.Message);
                     editor.WriteMessage("\n" + ex.Message);
                     return;
