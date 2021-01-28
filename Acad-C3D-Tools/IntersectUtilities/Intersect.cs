@@ -6100,7 +6100,7 @@ namespace IntersectUtilities
                 {
                     xRefLerTx.Abort();
                     xRefLerDB.Dispose();
-                    
+
                     xRefSurfaceTx.Abort();
                     xRefSurfaceDB.Dispose();
                     throw new System.Exception(ex.Message);
@@ -6165,7 +6165,7 @@ namespace IntersectUtilities
                                 editor.WriteMessage($"\n{br.Name}");
                             }
                         }
-                    } 
+                    }
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -6383,6 +6383,265 @@ namespace IntersectUtilities
                     return;
                 }
                 tx.Commit();
+            }
+        }
+
+        [CommandMethod("staggerlabels")]
+        public void staggerlabels()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Get the selection set of all objects and profile view
+                    PromptSelectionOptions pOptions = new PromptSelectionOptions();
+                    PromptSelectionResult sSetResult = editor.GetSelection(pOptions);
+                    if (sSetResult.Status != PromptStatus.OK) return;
+                    HashSet<Entity> allEnts = sSetResult.Value.GetObjectIds().Select(e => e.Go<Entity>(tx)).ToHashSet();
+                    #endregion
+
+                    #region Setup styles
+                    LabelStyleCollection stc = civilDoc.Styles.LabelStyles
+                                                                   .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
+
+                    oid profileProjection_RIGHT_Style = oid.Null;
+                    oid profileProjection_LEFT_Style = oid.Null;
+
+                    try
+                    {
+                        profileProjection_RIGHT_Style = stc["PROFILE PROJECTION RIGHT"];
+                    }
+                    catch (System.Exception)
+                    {
+                        editor.WriteMessage($"\nPROFILE PROJECTION RIGHT style missing!");
+                        tx.Abort();
+                        return;
+                    }
+
+                    try
+                    {
+                        profileProjection_LEFT_Style = stc["PROFILE PROJECTION LEFT"];
+                    }
+                    catch (System.Exception)
+                    {
+                        editor.WriteMessage($"\nPROFILE PROJECTION LEFT style missing!");
+                        tx.Abort();
+                        return;
+                    }
+                    #endregion
+
+                    #region Choose left or right orientation
+
+                    string AskToChooseDirection(Editor locEd)
+                    {
+                        const string kwd1 = "Right";
+                        const string kwd2 = "Left";
+                        PromptKeywordOptions pKeyOpts2 = new PromptKeywordOptions("");
+                        pKeyOpts2.Message = "\nChoose next label direction: ";
+                        pKeyOpts2.Keywords.Add(kwd1);
+                        pKeyOpts2.Keywords.Add(kwd2);
+                        pKeyOpts2.AllowNone = true;
+                        pKeyOpts2.Keywords.Default = kwd1;
+                        PromptResult locpKeyRes2 = locEd.GetKeywords(pKeyOpts2);
+                        return locpKeyRes2.StringResult;
+                    }
+                    #endregion
+
+                    bool dirRight = AskToChooseDirection(editor) == "Right";
+
+                    #region Labels
+                    HashSet<ProfileProjectionLabel> unSortedLabels = new HashSet<ProfileProjectionLabel>();
+
+                    foreach (Entity ent in allEnts)
+                        if (ent is ProfileProjectionLabel label) unSortedLabels.Add(label);
+
+                    ProfileProjectionLabel[] labels;
+
+                    if (dirRight)
+                    {
+                        labels = unSortedLabels.OrderByDescending(x => x.LabelLocation.X).ToArray();
+                    }
+                    else
+                    {
+                        labels = unSortedLabels.OrderBy(x => x.LabelLocation.X).ToArray();
+                    }
+
+                    for (int i = 0; i < labels.Length - 1; i++)
+                    {
+                        ProfileProjectionLabel firstLabel = labels[i];
+                        ProfileProjectionLabel secondLabel = labels[i + 1];
+
+                        Point3d firstLocationPoint = firstLabel.LabelLocation;
+                        Point3d secondLocationPoint = secondLabel.LabelLocation;
+
+                        double firstAnchorDimensionInMeters = firstLabel.DimensionAnchorValue * 250 + 0.0625;
+
+                        double locationDelta = firstLocationPoint.Y - secondLocationPoint.Y;
+
+                        double secondAnchorDimensionInMeters = (locationDelta + firstAnchorDimensionInMeters + 0.75) / 250;
+
+                        oid styleId = dirRight ? profileProjection_RIGHT_Style : profileProjection_LEFT_Style;
+
+                        //Handle first label
+                        if (i == 0)
+                        {
+                            firstLabel.CheckOrOpenForWrite();
+                            firstLabel.StyleId = styleId;
+                        }
+
+                        secondLabel.CheckOrOpenForWrite();
+                        secondLabel.DimensionAnchorValue = secondAnchorDimensionInMeters;
+                        secondLabel.StyleId = styleId;
+                        secondLabel.DowngradeOpen();
+
+                        //editor.WriteMessage($"\nAnchorDimensionValue: {firstLabel.DimensionAnchorValue}.");
+                    }
+
+
+                    #endregion
+
+                    #region Test PV start and end station
+
+                    //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                    //foreach (Alignment al in als)
+                    //{
+                    //    ObjectIdCollection pIds = al.GetProfileIds();
+                    //    Profile p = null;
+                    //    foreach (oid Oid in pIds)
+                    //    {
+                    //        Profile pt = Oid.Go<Profile>(tx);
+                    //        if (pt.Name == $"{al.Name}_surface_P") p = pt;
+                    //    }
+                    //    if (p == null) return;
+                    //    else editor.WriteMessage($"\nProfile {p.Name} found!");
+
+                    //    ProfileView[] pvs = localDb.ListOfType<ProfileView>(tx).ToArray();
+
+                    //    foreach (ProfileView pv in pvs)
+                    //    {
+                    //        editor.WriteMessage($"\nName of pv: {pv.Name}.");
+
+                    #region Test finding of max elevation
+                    //double pvStStart = pv.StationStart;
+                    //double pvStEnd = pv.StationEnd;
+
+                    //int nrOfIntervals = 100;
+                    //double delta = (pvStEnd - pvStStart) / nrOfIntervals;
+                    //HashSet<double> elevs = new HashSet<double>();
+
+                    //for (int i = 0; i < nrOfIntervals + 1; i++)
+                    //{
+                    //    double testEl = p.ElevationAt(pvStStart + delta * i);
+                    //    elevs.Add(testEl);
+                    //    editor.WriteMessage($"\nElevation at {i} is {testEl}.");
+                    //}
+
+                    //double maxEl = elevs.Max();
+                    //editor.WriteMessage($"\nMax elevation of {pv.Name} is {maxEl}.");
+
+                    //pv.CheckOrOpenForWrite();
+                    //pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+
+                    //pv.ElevationMax = Math.Ceiling(maxEl); 
+                    #endregion
+                    //}
+                    //}
+
+
+
+                    #endregion
+
+                    #region Test station and offset alignment
+                    //#region Select point
+                    //PromptPointOptions pPtOpts = new PromptPointOptions("");
+                    //// Prompt for the start point
+                    //pPtOpts.Message = "\nEnter location to test the alignment:";
+                    //PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
+                    //Point3d selectedPoint = pPtRes.Value;
+                    //// Exit if the user presses ESC or cancels the command
+                    //if (pPtRes.Status != PromptStatus.OK) return;
+                    //#endregion
+
+                    //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+
+                    //foreach (Alignment al in als)
+                    //{
+                    //    double station = 0;
+                    //    double offset = 0;
+
+                    //    al.StationOffset(selectedPoint.X, selectedPoint.Y, ref station, ref offset);
+
+                    //    editor.WriteMessage($"\nReported: ST: {station}, OS: {offset}.");
+                    //} 
+                    #endregion
+
+                    #region Test assigning labels and point styles
+                    //oid cogoPointStyle = civilDoc.Styles.PointStyles["LER KRYDS"];
+                    //CogoPointCollection cpc = civilDoc.CogoPoints;
+
+                    //foreach (oid cpOid in cpc)
+                    //{
+                    //    CogoPoint cp = cpOid.Go<CogoPoint>(tx, OpenMode.ForWrite);
+                    //    cp.StyleId = cogoPointStyle;
+                    //}
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("importlabelstyles")]
+        public void importlabelstyles()
+        {
+            try
+            {
+                DocumentCollection docCol = Application.DocumentManager;
+                Database localDb = docCol.MdiActiveDocument.Database;
+                Editor editor = docCol.MdiActiveDocument.Editor;
+                Document doc = docCol.MdiActiveDocument;
+                CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+                #region Setup styles
+                string pathToStyles = @"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg";
+                
+                using (Database stylesDB = new Database(false, true))
+                {
+                    stylesDB.ReadDwgFile(pathToStyles, FileOpenMode.OpenForReadAndWriteNoShare, false, "");
+
+                    using (Transaction stylesTx = stylesDB.TransactionManager.StartTransaction())
+                    {
+                        CivilDocument stylesDoc = CivilDocument.GetCivilDocument(stylesDB);
+
+                        ObjectIdCollection objIds = new ObjectIdCollection();
+
+                        LabelStyleCollection stc = stylesDoc.Styles.LabelStyles
+                                                                       .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
+
+                        objIds.Add(stc["PROFILE PROJECTION RIGHT"]);
+                        objIds.Add(stc["PROFILE PROJECTION LEFT"]);
+
+                        Autodesk.Civil.DatabaseServices.Styles.StyleBase.ExportTo(objIds, localDb, Autodesk.Civil.StyleConflictResolverType.Override);
+                    }
+                }
+                #endregion
+            }
+            catch (System.Exception ex)
+            {
+                return;
             }
         }
 
