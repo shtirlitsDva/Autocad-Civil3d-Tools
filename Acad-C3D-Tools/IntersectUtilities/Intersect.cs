@@ -2140,6 +2140,7 @@ namespace IntersectUtilities
                     {
                         if (!EraseBlock(doc, pv.Name))
                         {
+                            tx.Abort();
                             editor.WriteMessage($"\nFailed to erase block: {pv.Name}.");
                             return;
                         }
@@ -2229,8 +2230,8 @@ namespace IntersectUtilities
 
                             ent.CheckOrOpenForWrite();
                             ent.Layer = fEnt.Layer;
-                            label.CheckOrOpenForWrite();
-                            label.StyleId = prStId;
+                            //label.CheckOrOpenForWrite();
+                            //label.StyleId = prStId;
                         }
                     }
                     #endregion
@@ -6617,7 +6618,7 @@ namespace IntersectUtilities
 
                 #region Setup styles
                 string pathToStyles = @"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg";
-                
+
                 using (Database stylesDB = new Database(false, true))
                 {
                     stylesDB.ReadDwgFile(pathToStyles, FileOpenMode.OpenForReadAndWriteNoShare, false, "");
@@ -6628,11 +6629,25 @@ namespace IntersectUtilities
 
                         ObjectIdCollection objIds = new ObjectIdCollection();
 
+                        //Projection Label Styles
                         LabelStyleCollection stc = stylesDoc.Styles.LabelStyles
                                                                        .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
 
                         objIds.Add(stc["PROFILE PROJECTION RIGHT"]);
                         objIds.Add(stc["PROFILE PROJECTION LEFT"]);
+
+                        //Profile View Style
+                        ProfileViewStyleCollection pvsc = stylesDoc.Styles.ProfileViewStyles;
+                        objIds.Add(pvsc["PROFILE VIEW L TO R 1:250:100"]);
+
+                        //Profile Style
+                        var psc = stylesDoc.Styles.ProfileStyles;
+                        objIds.Add(psc["PROFIL STYLE MGO"]);
+
+                        //Profile label styles
+                        var plss = stylesDoc.Styles.LabelStyles.ProfileLabelStyles.CurveLabelStyles;
+                        objIds.Add(plss["Radius Crest"]);
+                        objIds.Add(plss["Radius Sag"]);
 
                         Autodesk.Civil.DatabaseServices.Styles.StyleBase.ExportTo(objIds, localDb, Autodesk.Civil.StyleConflictResolverType.Override);
                     }
@@ -6641,7 +6656,160 @@ namespace IntersectUtilities
             }
             catch (System.Exception ex)
             {
+                Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+                ed.WriteMessage($"\n{ex.Message}");
                 return;
+            }
+        }
+
+        [CommandMethod("finalizesheets")]
+        public void finalizesheets()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor ed = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Stylize Profile Views
+                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
+
+                    oid pvStyleId = oid.Null;
+                    try
+                    {
+                        pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R 1:250:100"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nProfile view style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
+
+                    foreach (ProfileView pv in pvs)
+                    {
+                        pv.CheckOrOpenForWrite();
+                        pv.StyleId = pvStyleId;
+                    }
+                    #endregion
+
+                    #region ProfileStyles
+                    oid pPipeStyleId = oid.Null;
+                    try
+                    {
+                        pPipeStyleId = civilDoc.Styles.ProfileStyles["PROFIL STYLE MGO"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nPROFIL STYLE MGO style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
+
+                    oid pTerStyleId = oid.Null;
+                    try
+                    {
+                        pTerStyleId = civilDoc.Styles.ProfileStyles["Terræn"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nTerræn style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
+
+                    oid alStyleId = oid.Null;
+                    try
+                    {
+                        alStyleId = civilDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nFJV TRACÈ SHOW style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
+
+                    oid crestCurveLabelId = oid.Null;
+                    try
+                    {
+                        crestCurveLabelId = civilDoc.Styles.LabelStyles.ProfileLabelStyles.CurveLabelStyles["Radius Crest"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nRADIUS CREST style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
+
+                    oid sagCurveLabelId = oid.Null;
+                    try
+                    {
+                        sagCurveLabelId = civilDoc.Styles.LabelStyles.ProfileLabelStyles.CurveLabelStyles["Radius Sag"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nRADIUS SAG style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
+
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                    foreach (Alignment al in als)
+                    {
+                        al.CheckOrOpenForWrite();
+                        al.StyleId = alStyleId;
+
+                        ObjectIdCollection pIds = al.GetProfileIds();
+                        foreach (oid Oid in pIds)
+                        {
+                            Profile p = Oid.Go<Profile>(tx);
+                            if (p.Name == $"{al.Name}_surface_P")
+                            {
+                                p.CheckOrOpenForWrite();
+                                p.StyleId = pTerStyleId;
+                            }
+                            else
+                            {
+                                p.CheckOrOpenForWrite();
+                                p.StyleId = pPipeStyleId;
+
+                                if (p.Name.Contains("TOP"))
+                                {
+                                    foreach (ProfileView pv in pvs)
+                                    {
+                                        pv.CheckOrOpenForWrite();
+                                        ProfileCrestCurveLabelGroup.Create(pv.ObjectId, p.ObjectId, crestCurveLabelId);
+                                        ProfileSagCurveLabelGroup.Create(pv.ObjectId, p.ObjectId, sagCurveLabelId);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    #endregion
+
+                    #region Delete unwanted objects
+                    HashSet<Circle> cs = localDb.HashSetOfType<Circle>(tx);
+                    foreach (Circle c in cs)
+                    {
+                        c.CheckOrOpenForWrite();
+                        c.Erase(true);
+                    }
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    ed.WriteMessage("\n" + ex.Message);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
             }
         }
 
