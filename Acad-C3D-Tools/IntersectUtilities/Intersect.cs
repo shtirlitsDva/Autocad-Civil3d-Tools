@@ -6698,6 +6698,32 @@ namespace IntersectUtilities
                     {
                         pv.CheckOrOpenForWrite();
                         pv.StyleId = pvStyleId;
+
+                        oid alId = pv.AlignmentId;
+                        Alignment al = alId.Go<Alignment>(tx);
+                        ObjectIdCollection psIds = al.GetProfileIds();
+                        HashSet<Profile> ps = new HashSet<Profile>();
+                        foreach (oid Oid in psIds) ps.Add(Oid.Go<Profile>(tx));
+
+                        Profile surfaceProfile = ps.Where(x => x.Name.Contains("surface")).FirstOrDefault();
+                        oid surfaceProfileId = oid.Null;
+                        if (surfaceProfile != null) surfaceProfileId = surfaceProfile.ObjectId;
+                        else ed.WriteMessage("\nSurface profile not found!");
+
+                        Profile topProfile = ps.Where(x => x.Name.Contains("TOP")).FirstOrDefault();
+                        oid topProfileId = oid.Null;
+                        if (topProfile != null) topProfileId = topProfile.ObjectId;
+                        else ed.WriteMessage("\nTop profile not found!");
+
+                        ProfileViewBandSet pvbs = pv.Bands;
+                        ProfileViewBandItemCollection pbic = pvbs.GetBottomBandItems();
+                        for (int i = 0; i < pbic.Count; i++)
+                        {
+                            ProfileViewBandItem pvbi = pbic[i];
+                            if (surfaceProfileId != oid.Null) pvbi.Profile1Id = surfaceProfileId;
+                            if (topProfileId != oid.Null) pvbi.Profile2Id = topProfileId;
+                        }
+                        pvbs.SetBottomBandItems(pbic);
                     }
                     #endregion
 
