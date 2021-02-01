@@ -2566,6 +2566,7 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("copytexttoattribute")]
+        [CommandMethod("ca")]
         public void copytexttoattribute()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -2586,7 +2587,7 @@ namespace IntersectUtilities
                         promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
                         promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
                         PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                        if (((PromptResult)entity1).Status != PromptStatus.OK) { return; }
+                        if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
                         Autodesk.AutoCAD.DatabaseServices.ObjectId pline3dId = entity1.ObjectId;
                         #endregion
 
@@ -2596,7 +2597,7 @@ namespace IntersectUtilities
                         promptEntityOptions2.SetRejectMessage("\n Not a text!");
                         promptEntityOptions2.AddAllowedClass(typeof(DBText), true);
                         PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
-                        if (((PromptResult)entity2).Status != PromptStatus.OK) { return; }
+                        if (((PromptResult)entity2).Status != PromptStatus.OK) { tx.Abort(); return; }
                         Autodesk.AutoCAD.DatabaseServices.ObjectId textId = entity2.ObjectId;
                         #endregion
 
@@ -2707,6 +2708,7 @@ namespace IntersectUtilities
                     }
                     catch (System.Exception ex)
                     {
+                        tx.Abort();
                         editor.WriteMessage("\n" + ex.Message);
                         return;
                     }
@@ -6856,6 +6858,19 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    HashSet<MText> mtexts = localDb.HashSetOfType<MText>(tx);
+
+                    foreach (MText mText in mtexts)
+                    {
+                        string contents = mText.Contents;
+
+                        contents = contents.Replace(@"\H3.17507;", "");
+
+                        mText.CheckOrOpenForWrite();
+
+                        mText.Contents = contents;
+                    }
+
                     #region Test PV start and end station
 
                     //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
@@ -6945,6 +6960,53 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("createobjectdataentryforentity")]
+        public void createobjectdataentryforentity()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Select target pline3d
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                        "\nSelect polyline3d where to create entries:");
+                    promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
+                    promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId targetPline3dId = entity1.ObjectId;
+                    #endregion
+
+                    #region Choose table
+                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                    Autodesk.Gis.Map.ObjectData.Table table = tables["AFL_ledning_faelles"];
+
+                    if (!AddEmptyODRecord(table, targetPline3dId))
+                    {
+                        editor.WriteMessage("Something went wrong!");
+                    }
+
+                    #endregion
+
+
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }

@@ -296,6 +296,22 @@ namespace IntersectUtilities
                 return false;
             }
         }
+        public static bool AddEmptyODRecord(Autodesk.Gis.Map.ObjectData.Table table, oid id)
+        {
+            try
+            {
+                // Create and initialize an record 
+                Record tblRcd = Record.Create();
+                table.InitRecord(tblRcd);
+                table.AddRecord(tblRcd, id);
+
+                return true;
+            }
+            catch (MapException)
+            {
+                return false;
+            }
+        }
 
         public static bool AddODRecord(Tables tables, string tableName, string columnName,
                                           oid id, MapValue originalValue)
