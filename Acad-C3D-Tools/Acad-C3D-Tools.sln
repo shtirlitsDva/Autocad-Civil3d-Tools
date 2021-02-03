@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Net-Reload", "Net-Reload\Ne
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoCadUtils", "AutoCadUtils\AutoCadUtils.csproj", "{88E731A7-B0D5-4922-ACF4-2CF9778F7028}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReverseLayoutProfileLANDXML", "ReverseLayoutProfileLANDXML\ReverseLayoutProfileLANDXML.csproj", "{B1B68118-C536-4692-8CCA-E91FD45F89AA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{88E731A7-B0D5-4922-ACF4-2CF9778F7028}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{88E731A7-B0D5-4922-ACF4-2CF9778F7028}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{88E731A7-B0D5-4922-ACF4-2CF9778F7028}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B1B68118-C536-4692-8CCA-E91FD45F89AA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B1B68118-C536-4692-8CCA-E91FD45F89AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B1B68118-C536-4692-8CCA-E91FD45F89AA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B1B68118-C536-4692-8CCA-E91FD45F89AA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

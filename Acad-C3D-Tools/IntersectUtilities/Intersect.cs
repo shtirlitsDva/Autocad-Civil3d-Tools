@@ -2656,15 +2656,34 @@ namespace IntersectUtilities
                             }
                         }
 
-                        string value = textId.Go<DBText>(tx).TextString;
+                        string value = textId.Go<DBText>(tx).TextString.Trim();
 
-                        //Gas specific handling
-                        string[] output = value.Split((char[])null); //Splits by whitespace
-                        //Diameter
                         int parsedInt = 0;
-                        int.TryParse(output[0], out parsedInt);
-                        //Material
-                        string parsedMat = output[1];
+                        string parsedMat = string.Empty;
+                        if (value.Contains(" "))
+                        {
+                            //Gas specific handling
+                            string[] output = value.Split((char[])null); //Splits by whitespace
+
+                            int.TryParse(output[0], out parsedInt);
+                            //Material
+                            parsedMat = output[1];
+                        }
+                        else
+                        {
+                            string[] output = value.Split('/');
+                            string a = ""; //For number
+                            string b = ""; //For material
+
+                            for (int i = 0; i < output[0].Length; i++)
+                            {
+                                if (Char.IsDigit(output[0][i])) a += output[0][i];
+                                else b += output[0][i];
+                            }
+
+                            int.TryParse(a, out parsedInt);
+                            parsedMat = b;
+                        }
 
                         //Aggregate
                         values[0] = new MapValue(parsedInt);
@@ -2699,7 +2718,7 @@ namespace IntersectUtilities
                                 Entity ent = pline3dId.Go<Entity>(tx, OpenMode.ForWrite);
 
                                 if (ledningIbrug) ent.ColorIndex = 1;
-                                else ent.ColorIndex = 130;
+                                else { ent.Layer = "GAS-ude af drift"; ent.ColorIndex = 130; }
                             }
                             else editor.WriteMessage($"\n{columnNames[i]} record creation failed!");
                         }
