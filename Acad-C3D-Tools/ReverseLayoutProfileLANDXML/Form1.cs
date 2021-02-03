@@ -27,7 +27,7 @@ namespace ReverseLayoutProfileLANDXML
         private void button1_Click(object sender, EventArgs e)
         {
             CommonOpenFileDialog dialog = new CommonOpenFileDialog();
-            dialog.InitialDirectory = "X:";
+            dialog.InitialDirectory = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\10 Actionlist";
             if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
             {
                 fileName = dialog.FileName;

@@ -6721,7 +6721,12 @@ namespace IntersectUtilities
                         pv.StyleId = pvStyleId;
 
                         oid alId = pv.AlignmentId;
-                        Alignment al = alId.Go<Alignment>(tx);
+                        Alignment al = alId.Go<Alignment>(tx, OpenMode.ForWrite);
+
+                        al.ImportLabelSet("STD 20-5");
+
+                        al.DowngradeOpen();
+
                         ObjectIdCollection psIds = al.GetProfileIds();
                         HashSet<Profile> ps = new HashSet<Profile>();
                         foreach (oid Oid in psIds) ps.Add(Oid.Go<Profile>(tx));
