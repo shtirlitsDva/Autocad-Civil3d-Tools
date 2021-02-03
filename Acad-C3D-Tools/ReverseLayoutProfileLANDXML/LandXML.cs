@@ -12,7 +12,7 @@ namespace ReverseLayoutProfileLANDXML
     [System.ComponentModel.DesignerCategoryAttribute("code")]
     [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://www.landxml.org/schema/LandXML-1.2")]
     [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://www.landxml.org/schema/LandXML-1.2", IsNullable = false)]
-    public partial class Civil3DLandXML
+    public partial class LandXML
     {
 
         private LandXMLUnits unitsField;

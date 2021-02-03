@@ -39,12 +39,12 @@ namespace ReverseLayoutProfileLANDXML
             if (string.IsNullOrEmpty(fileName)) return;
             if (!File.Exists(fileName)) return;
 
-            XmlSerializer serializer = new XmlSerializer(typeof(Civil3DLandXML));
-            Civil3DLandXML c3dXML;
+            XmlSerializer serializer = new XmlSerializer(typeof(LandXML));
+            LandXML c3dXML;
 
             using (Stream reader = new FileStream(fileName, FileMode.Open))
             {
-                c3dXML = (Civil3DLandXML)serializer.Deserialize(reader);
+                c3dXML = (LandXML)serializer.Deserialize(reader);
             }
 
             decimal alLength = c3dXML.Alignments.Alignment.length;
@@ -78,7 +78,8 @@ namespace ReverseLayoutProfileLANDXML
 
             string exportFileName = $"{fileName.Substring(0, fileName.Length - 4)}_reversed.xml";
             Stream fs = new FileStream(exportFileName, FileMode.Create);
-            XmlWriter writer = new XmlTextWriter(fs, Encoding.Unicode);
+            XmlWriter writer = new XmlTextWriter(fs, Encoding.Unicode) {Formatting = Formatting.Indented};
+            
             // Serialize using the XmlTextWriter.
             serializer.Serialize(writer, c3dXML);
             writer.Close();
@@ -90,7 +91,7 @@ namespace ReverseLayoutProfileLANDXML
                 if (decimal.TryParse(output[0], NumberStyles.Any, CultureInfo.InvariantCulture, out originalStation))
                 {
                     decimal newStation = length - originalStation;
-                    return $"{newStation} {output[1]}";
+                    return $"{newStation.ToString(CultureInfo.InvariantCulture)} {output[1]}";
                 }
                 else throw new Exception($"TryParse failed for: {str}.");
             }
