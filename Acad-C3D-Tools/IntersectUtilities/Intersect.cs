@@ -6670,8 +6670,10 @@ namespace IntersectUtilities
                         objIds.Add(plss["Radius Crest"]);
                         objIds.Add(plss["Radius Sag"]);
 
-                        //Buffer band style
+                        //Band set style
                         objIds.Add(stylesDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"]);
+                        objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"]);
+                        objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"]);
 
                         Autodesk.Civil.DatabaseServices.Styles.StyleBase.ExportTo(objIds, localDb, Autodesk.Civil.StyleConflictResolverType.Override);
                     }
