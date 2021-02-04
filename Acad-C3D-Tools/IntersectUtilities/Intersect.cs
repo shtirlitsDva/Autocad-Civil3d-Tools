@@ -6637,6 +6637,33 @@ namespace IntersectUtilities
                 Document doc = docCol.MdiActiveDocument;
                 CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+                #region Set C-ANNO-MTCH-HATCH to frozen
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        // Open the Layer table for read
+                        LayerTable acLyrTbl;
+                        acLyrTbl = tx.GetObject(localDb.LayerTableId,
+                                                           OpenMode.ForRead) as LayerTable;
+                        string sLayerName = "C-ANNO-MTCH-HATCH";
+                        LayerTableRecord acLyrTblRec;
+                        acLyrTblRec = tx.GetObject(acLyrTbl[sLayerName],
+                                                            OpenMode.ForWrite) as LayerTableRecord;
+                        // Freeze the layer
+                        acLyrTblRec.IsFrozen = true;
+                        // Save the changes and dispose of the transaction
+                    }
+                    catch (System.Exception ex)
+                    {
+                        editor.WriteMessage("\n" + ex.Message);
+                        tx.Abort();
+                        return;
+                    }
+                    tx.Commit();
+                }
+                #endregion
+
                 #region Setup styles
                 string pathToStyles = @"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg";
 
@@ -6674,6 +6701,9 @@ namespace IntersectUtilities
                         objIds.Add(stylesDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"]);
                         objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"]);
                         objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"]);
+
+                        //Matchline styles
+                        objIds.Add(stylesDoc.Styles.MatchLineStyles["Basic"]);
 
                         Autodesk.Civil.DatabaseServices.Styles.StyleBase.ExportTo(objIds, localDb, Autodesk.Civil.StyleConflictResolverType.Override);
                     }
@@ -6750,6 +6780,7 @@ namespace IntersectUtilities
                             ProfileViewBandItem pvbi = pbic[i];
                             if (surfaceProfileId != oid.Null) pvbi.Profile1Id = surfaceProfileId;
                             if (topProfileId != oid.Null) pvbi.Profile2Id = topProfileId;
+                            pvbi.LabelAtStartStation = true;
                         }
                         pvbs.SetBottomBandItems(pbic);
                     }
