@@ -750,7 +750,7 @@ namespace IntersectUtilities
                                         foreach (Point3d p3dInt in p3dIntCol)
                                         {
                                             //Assume only one intersection
-                                            if (p3dInt.Z == 0)
+                                            if (p3dInt.Z <= 0)
                                             {
                                                 editor.WriteMessage($"\nEntity {ent.Handle} returned {p3dInt.Z}" +
                                                     $" elevation for a 3D layer.");
@@ -6858,6 +6858,58 @@ namespace IntersectUtilities
                         c.Erase(true);
                     }
 
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    ed.WriteMessage("\n" + ex.Message);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("resetprofileviews")]
+        public void resetprofileviews()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor ed = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Delete cogo points
+                    CogoPointCollection cogoPoints = civilDoc.CogoPoints;
+                    ObjectIdCollection cpIds = new ObjectIdCollection();
+                    foreach (oid Oid in cogoPoints) cpIds.Add(Oid);
+                    foreach (oid Oid in cpIds) cogoPoints.Remove(Oid);
+                    #endregion
+
+                    #region Stylize Profile Views
+                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
+
+                    oid pvStyleId = oid.Null;
+                    try
+                    {
+                        pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R NO SCALE"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nProfile view style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
+
+                    foreach (ProfileView pv in pvs)
+                    {
+                        pv.CheckOrOpenForWrite();
+                        pv.StyleId = pvStyleId;
+                    }
                     #endregion
                 }
                 catch (System.Exception ex)
