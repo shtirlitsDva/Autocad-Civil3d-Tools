@@ -2168,7 +2168,7 @@ namespace IntersectUtilities
                     //    editor.WriteMessage($"\n{ls.Name}.");
                     //}
 
-                    oid prStId = stc["PROFILE PROJEKTION MGO"];
+                    //oid prStId = stc["PROFILE PROJEKTION MGO"];
 
                     foreach (Entity ent in allEnts)
                     {
@@ -2211,6 +2211,8 @@ namespace IntersectUtilities
                                     Entity clone = circle.Clone() as Entity;
                                     detailingBlock.AppendEntity(clone);
                                     tx.AddNewlyCreatedDBObject(clone, true);
+                                    circle.CheckOrOpenForWrite();
+                                    circle.Erase(true);
                                 }
                                 else if (bt.Has(blockName))
                                 {
@@ -2224,6 +2226,9 @@ namespace IntersectUtilities
                                         Entity clone = br.Clone() as Entity;
                                         detailingBlock.AppendEntity(clone);
                                         tx.AddNewlyCreatedDBObject(clone, true);
+
+                                        br.CheckOrOpenForWrite();
+                                        br.Erase(true);
                                     }
                                 }
                             }
@@ -5481,6 +5486,7 @@ namespace IntersectUtilities
                             surfaceProfileId = Profile.CreateFromSurface(
                                                 profileName, alignment.ObjectId, surface.ObjectId,
                                                 terrainLayerId, profileStyleId, profileLabelSetStyleId);
+                            editor.WriteMessage($"\nSurface profile created for {alignment.Name}.");
                         }
                     }
                     #endregion
@@ -6637,6 +6643,11 @@ namespace IntersectUtilities
                 Document doc = docCol.MdiActiveDocument;
                 CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+                #region Clone blocks
+                string pathToBlockFile = @"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg";
+
+                #endregion
+
                 #region Set C-ANNO-MTCH-HATCH to frozen
                 using (Transaction tx = localDb.TransactionManager.StartTransaction())
                 {
@@ -6914,12 +6925,12 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Delete cogo points
-                    CogoPointCollection cogoPoints = civilDoc.CogoPoints;
-                    ObjectIdCollection cpIds = new ObjectIdCollection();
-                    foreach (oid Oid in cogoPoints) cpIds.Add(Oid);
-                    foreach (oid Oid in cpIds) cogoPoints.Remove(Oid);
-                    #endregion
+                    //#region Delete cogo points
+                    //CogoPointCollection cogoPoints = civilDoc.CogoPoints;
+                    //ObjectIdCollection cpIds = new ObjectIdCollection();
+                    //foreach (oid Oid in cogoPoints) cpIds.Add(Oid);
+                    //foreach (oid Oid in cpIds) cogoPoints.Remove(Oid);
+                    //#endregion
 
                     #region Stylize Profile Views
                     HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
@@ -7066,6 +7077,72 @@ namespace IntersectUtilities
                     //}
 
                     #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("revealalignments")]
+        [CommandMethod("ral")]
+        public void revealalignments()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    oid alStyle = civilDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+
+                    foreach (Alignment al in als)
+                    {
+                        al.CheckOrOpenForWrite();
+                        al.StyleId = alStyle;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("hidealignments")]
+        [CommandMethod("hal")]
+        public void hidealignments()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    oid alStyle = civilDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+
+                    foreach (Alignment al in als)
+                    {
+                        al.CheckOrOpenForWrite();
+                        al.StyleId = alStyle;
+                    }
                 }
                 catch (System.Exception ex)
                 {
