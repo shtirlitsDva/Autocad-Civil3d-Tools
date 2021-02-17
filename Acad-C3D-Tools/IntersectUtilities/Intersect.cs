@@ -7337,25 +7337,43 @@ namespace IntersectUtilities
 
                         }
                     }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
 
-                    //if (lt.Has(layName))
-                    //{
-                    //    LayerTableRecord ltr = xTx.GetObject(lt[layName], OpenMode.ForWrite)
-                    //        as LayerTableRecord;
-                    //    ltr.Color = Color.FromColorIndex(ColorMethod.ByColor, 0);
-                    //}
+        [CommandMethod("setglobalwidth")]
+        public void setglobalwidth()
+        {
 
-                    #region Test assigning labels and point styles
-                    //oid cogoPointStyle = civilDoc.Styles.PointStyles["LER KRYDS"];
-                    //CogoPointCollection cpc = civilDoc.CogoPoints;
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-                    //foreach (oid cpOid in cpc)
-                    //{
-                    //    CogoPoint cp = cpOid.Go<CogoPoint>(tx, OpenMode.ForWrite);
-                    //    cp.StyleId = cogoPointStyle;
-                    //}
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Read Csv Data for Layers
+                    //Establish the pathnames to files
+                    //Files should be placed in a specific folder on desktop
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
 
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
                     #endregion
+
+                    HashSet<Spline> splines = localDb.HashSetOfType<Spline>(tx);
+                    HashSet<Line> lines = localDb.HashSetOfType<Line>(tx);
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
+                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
                 }
                 catch (System.Exception ex)
                 {
