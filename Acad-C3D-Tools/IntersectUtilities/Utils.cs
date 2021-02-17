@@ -1153,6 +1153,29 @@ namespace IntersectUtilities
             return ReadStringParameterFromDataTable(etapeName, dtStier, pathType, 0);
         }
         public static int GetLineNumber([CallerLineNumber] int lineNumber = 0) => lineNumber;
+        public static bool IsFileLockedOrReadOnly(FileInfo fi)
+        {
+            FileStream fs = null;
+            try
+            {
+                fs = fi.Open(FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            }
+
+            catch (System.Exception ex)
+            {
+                if (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    return true;
+                }
+                throw;
+            }
+            finally
+            {
+                if (fs != null) fs.Close();
+            }
+            // File is accessible
+            return false;
+        }
     }
     public static class Enums
     {

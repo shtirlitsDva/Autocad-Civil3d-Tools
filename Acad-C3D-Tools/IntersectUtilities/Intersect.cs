@@ -12,6 +12,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
+using Autodesk.AutoCAD.Colors;
 using Autodesk.Civil;
 using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
@@ -7152,7 +7153,9 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
+        /// <summary>
+        /// Helper method to create empty OD tables if missing on entity
+        /// </summary>
         [CommandMethod("createobjectdataentryforentity")]
         public void createobjectdataentryforentity()
         {
@@ -7189,6 +7192,170 @@ namespace IntersectUtilities
                     #endregion
 
 
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("colorviewframes")]
+        public void colorviewframes()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region XrefNodeMethod
+                    //XrefGraph graph = localDb.GetHostDwgXrefGraph(false);
+
+                    ////skip node zero, hence i=1
+                    //for (int i = 1; i < graph.NumNodes; i++)
+                    //{
+                    //    XrefGraphNode node = graph.GetXrefNode(i);
+                    //    if (node.Name.Contains("alignment"))
+                    //    {
+                    //        editor.WriteMessage($"\nXref: {node.Name}.");
+                    //        node.
+                    //    }
+                    //} 
+                    #endregion
+
+                    var bt = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForRead);
+                    var ms = (BlockTableRecord)tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+
+                    foreach (oid id in ms)
+                    {
+                        var br = tx.GetObject(id, OpenMode.ForRead) as BlockReference;
+                        if (br != null)
+                        {
+                            var bd = (BlockTableRecord)tx.GetObject(br.BlockTableRecord, OpenMode.ForRead);
+                            if (bd.IsFromExternalReference)
+                            {
+                                var xdb = bd.GetXrefDatabase(false);
+                                if (xdb != null)
+                                {
+                                    string fileName = xdb.Filename;
+                                    if (fileName.Contains("_alignment"))
+                                    {
+                                        editor.WriteMessage($"\n{xdb.Filename}.");
+                                        if (IsFileLockedOrReadOnly(new FileInfo(fileName)))
+                                        {
+                                            editor.WriteMessage("\nUnable to modify the external reference. " +
+                                                                  "It may be open in the editor or read-only.");
+                                        }
+                                        else
+                                        {
+                                            using (var xf = XrefFileLock.LockFile(xdb.XrefBlockId))
+                                            {
+                                                //Make sure the original symbols are loaded
+                                                xdb.RestoreOriginalXrefSymbols();
+                                                // Depending on the operation you're performing,
+                                                // you may need to set the WorkingDatabase to
+                                                // be that of the Xref
+                                                //HostApplicationServices.WorkingDatabase = xdb;
+
+                                                using (Transaction xTx = xdb.TransactionManager.StartTransaction())
+                                                {
+                                                    try
+                                                    {
+                                                        CivilDocument stylesDoc = CivilDocument.GetCivilDocument(xdb);
+
+                                                        //View Frame Styles edit
+                                                        oid vfsId = stylesDoc.Styles.ViewFrameStyles["Basic"];
+                                                        ViewFrameStyle vfs = xTx.GetObject(vfsId, OpenMode.ForWrite) as ViewFrameStyle;
+                                                        DisplayStyle planStyle = vfs.GetViewFrameBoundaryDisplayStylePlan();
+                                                        planStyle.Color = Color.FromColorIndex(ColorMethod.ByLayer, 256);
+
+                                                        string layName = "C-ANNO-VFRM";
+
+                                                        LayerTable lt = xTx.GetObject(xdb.LayerTableId, OpenMode.ForRead)
+                                                            as LayerTable;
+                                                        if (lt.Has(layName))
+                                                        {
+                                                            LayerTableRecord ltr = xTx.GetObject(lt[layName], OpenMode.ForWrite)
+                                                                as LayerTableRecord;
+                                                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 7);
+                                                        }
+                                                    }
+                                                    catch (System.Exception)
+                                                    {
+                                                        xTx.Abort();
+                                                        tx.Abort();
+                                                        return;
+                                                        //throw;
+                                                    }
+
+                                                    xTx.Commit();
+                                                }
+                                                // And then set things back, afterwards
+                                                //HostApplicationServices.WorkingDatabase = db;
+                                                xdb.RestoreForwardingXrefSymbols();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    string viewFrameLayerName = "C-ANNO-VFRM";
+
+                    LayerTable localLt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead)
+                        as LayerTable;
+
+                    short[] sequenceInit = new short[] { 1, 3, 4, 5, 6, 40 };
+                    LinkedList<short> colorSequence = new LinkedList<short>(sequenceInit);
+                    LinkedListNode<short> curNode;
+                    curNode = colorSequence.First;
+
+                    foreach (oid id in localLt)
+                    {
+                        LayerTableRecord ltr = (LayerTableRecord)tx.GetObject(id, OpenMode.ForRead);
+
+                        if (ltr.Name.Contains("_alignment") &&
+                            ltr.Name.Contains(viewFrameLayerName) &&
+                            ! ltr.Name.Contains("TEXT"))
+                        {
+                            editor.WriteMessage($"\n{ltr.Name}");
+                            ltr.UpgradeOpen();
+                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, curNode.Value);
+
+                            if (curNode.Next == null) curNode = colorSequence.First;
+                            else curNode = curNode.Next;
+
+                        }
+                    }
+
+                    //if (lt.Has(layName))
+                    //{
+                    //    LayerTableRecord ltr = xTx.GetObject(lt[layName], OpenMode.ForWrite)
+                    //        as LayerTableRecord;
+                    //    ltr.Color = Color.FromColorIndex(ColorMethod.ByColor, 0);
+                    //}
+
+                    #region Test assigning labels and point styles
+                    //oid cogoPointStyle = civilDoc.Styles.PointStyles["LER KRYDS"];
+                    //CogoPointCollection cpc = civilDoc.CogoPoints;
+
+                    //foreach (oid cpOid in cpc)
+                    //{
+                    //    CogoPoint cp = cpOid.Go<CogoPoint>(tx, OpenMode.ForWrite);
+                    //    cp.StyleId = cogoPointStyle;
+                    //}
+
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
