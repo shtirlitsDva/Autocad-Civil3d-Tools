@@ -273,28 +273,24 @@ namespace IntersectUtilities
                     editor.WriteMessage($"\nNr. of plines3d: {plines3d.Count}");
                     editor.WriteMessage($"\nNr. of arcs: {arcs.Count}");
 
-                    List<string> layNames = new List<string>(plines3d.Count);
+                    HashSet<string> layNames = new HashSet<string>();
 
                     //Local function to avoid duplicate code
-                    List<string> LocalListNames<T>(List<string> list, List<T> ents)
+                    HashSet<string> LocalListNames<T>(HashSet<string> list, HashSet<T> ents)
                     {
                         foreach (Entity ent in ents.Cast<Entity>())
                         {
-                            LayerTableRecord layer = (LayerTableRecord)xrefTx.GetObject(ent.LayerId, OpenMode.ForRead);
-                            if (layer.IsFrozen) continue;
-
-                            list.Add(layer.Name);
+                            list.Add(ent.Layer);
                         }
                         return list;
                     }
 
+                    layNames = LocalListNames(layNames, lines);
+                    layNames = LocalListNames(layNames, splines);
+                    layNames = LocalListNames(layNames, plines);
                     layNames = LocalListNames(layNames, plines3d);
+                    layNames = LocalListNames(layNames, arcs);
 
-                    xrefTx.Dispose();
-
-                    layNames = layNames.Distinct().ToList();
-                    //StringBuilder sb = new StringBuilder();
-                    //foreach (string name in layNames) sb.AppendLine(name); 
                     #endregion
 
                     #region Read Csv Data for Layers and Depth
@@ -344,10 +340,6 @@ namespace IntersectUtilities
 
                     //Utils.ClrFile(path);
                     //Utils.OutputWriter(path, sb.ToString());
-
-                    #region Read Krydsninger data
-
-                    #endregion
                 }
                 catch (System.Exception ex)
                 {
