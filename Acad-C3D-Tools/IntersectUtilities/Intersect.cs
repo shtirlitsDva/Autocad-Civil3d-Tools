@@ -221,50 +221,57 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Select XREF
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
-                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
-                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
-                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
-                    Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef
-                        = tx.GetObject(blkObjId, OpenMode.ForRead, false)
-                        as Autodesk.AutoCAD.DatabaseServices.BlockReference;
+                    #region Select XREF -- OBSOLETE
+                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a LER XREF : ");
+                    //promptEntityOptions1.SetRejectMessage("\n Not a XREF");
+                    //promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
+                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    //Autodesk.AutoCAD.DatabaseServices.ObjectId blkObjId = entity1.ObjectId;
+                    //Autodesk.AutoCAD.DatabaseServices.BlockReference blkRef
+                    //    = tx.GetObject(blkObjId, OpenMode.ForRead, false)
+                    //    as Autodesk.AutoCAD.DatabaseServices.BlockReference;
                     #endregion
 
-                    #region Open XREF and tx
-                    // open the block definition?
-                    BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
-                    // is not from external reference, exit
-                    if (!blockDef.IsFromExternalReference) return;
+                    #region Open XREF and tx -- OBSOLETE
+                    //// open the block definition?
+                    //BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                    //// is not from external reference, exit
+                    //if (!blockDef.IsFromExternalReference) return;
 
-                    // open the xref database
-                    Database xRefDB = new Database(false, true);
-                    editor.WriteMessage($"\nPathName of the blockDef -> {blockDef.PathName}");
+                    //// open the xref database
+                    //Database xRefDB = new Database(false, true);
+                    //editor.WriteMessage($"\nPathName of the blockDef -> {blockDef.PathName}");
 
-                    //Relative path handling
-                    //I
-                    string curPathName = blockDef.PathName;
-                    bool isFullPath = IsFullPath(curPathName);
-                    if (isFullPath == false)
-                    {
-                        string sourcePath = Path.GetDirectoryName(doc.Name);
-                        editor.WriteMessage($"\nSourcePath -> {sourcePath}");
-                        curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
-                        editor.WriteMessage($"\nTargetPath -> {curPathName}");
-                    }
+                    ////Relative path handling
+                    ////I
+                    //string curPathName = blockDef.PathName;
+                    //bool isFullPath = IsFullPath(curPathName);
+                    //if (isFullPath == false)
+                    //{
+                    //    string sourcePath = Path.GetDirectoryName(doc.Name);
+                    //    editor.WriteMessage($"\nSourcePath -> {sourcePath}");
+                    //    curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
+                    //    editor.WriteMessage($"\nTargetPath -> {curPathName}");
+                    //}
 
-                    xRefDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
+                    //xRefDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
 
-                    //Transaction from Database of the Xref
-                    Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
+                    ////Transaction from Database of the Xref
+                    //Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
                     #endregion
 
-                    #region Gather Xref layer names
-                    //editor.WriteMessage($"\nNr. of plines: {plines.Count}");
-                    List<Polyline3d> plines3d = xRefDB.ListOfType<Polyline3d>(xrefTx);
-                    editor.WriteMessage($"\nNr. of 3D polies: {plines3d.Count}");
+                    #region Gather layer names
+                    HashSet<Line> lines = db.HashSetOfType<Line>(tx);
+                    HashSet<Spline> splines = db.HashSetOfType<Spline>(tx);
+                    HashSet<Polyline> plines = db.HashSetOfType<Polyline>(tx);
+                    HashSet<Polyline3d> plines3d = db.HashSetOfType<Polyline3d>(tx);
+                    HashSet<Arc> arcs = db.HashSetOfType<Arc>(tx);
+                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
+                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
+                    editor.WriteMessage($"\nNr. of plines: {plines.Count}");
+                    editor.WriteMessage($"\nNr. of plines3d: {plines3d.Count}");
+                    editor.WriteMessage($"\nNr. of arcs: {arcs.Count}");
 
                     List<string> layNames = new List<string>(plines3d.Count);
 
