@@ -554,6 +554,9 @@ namespace IntersectUtilities
 
                 string etapeName = GetEtapeName(editor);
 
+                HashSet<Entity> allLinework = new HashSet<Entity>();
+                HashSet<Alignment> alignments = new HashSet<Alignment>();
+
                 if (workingDrawing == kwd2)
                 {
                     #region Load linework from LER Xref
@@ -566,17 +569,81 @@ namespace IntersectUtilities
                         System.IO.FileShare.Read, false, string.Empty);
                     Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
 
+                    HashSet<Line> lines = xRefLerDB.HashSetOfType<Line>(xRefLerTx);
+                    HashSet<Spline> splines = xRefLerDB.HashSetOfType<Spline>(xRefLerTx);
+                    HashSet<Polyline> plines = xRefLerDB.HashSetOfType<Polyline>(xRefLerTx);
+                    HashSet<Polyline3d> plines3d = xRefLerDB.HashSetOfType<Polyline3d>(xRefLerTx);
+                    HashSet<Arc> arcs = xRefLerDB.HashSetOfType<Arc>(xRefLerTx);
+                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
+                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
+                    editor.WriteMessage($"\nNr. of plines: {plines.Count}");
+                    editor.WriteMessage($"\nNr. of plines3d: {plines3d.Count}");
+                    editor.WriteMessage($"\nNr. of arcs: {arcs.Count}");
 
-                    !!!!!!HERE
-                    HashSet<Polyline3d> allLinework = xRefLerDB.HashSetOfType<Polyline3d>(xRefLerTx)
+                    allLinework.UnionWith(lines.Cast<Entity>().ToHashSet());
+                    allLinework.UnionWith(splines.Cast<Entity>().ToHashSet());
+                    allLinework.UnionWith(plines.Cast<Entity>().ToHashSet());
+                    allLinework.UnionWith(plines3d.Cast<Entity>().ToHashSet());
+                    allLinework.UnionWith(arcs.Cast<Entity>().ToHashSet());
+
+                    allLinework = allLinework
                         .Where(x => ReadStringParameterFromDataTable(x.Layer, dtKrydsninger, "Type", 0) != "IGNORE")
                         .ToHashSet();
+
+                    alignments = db.HashSetOfType<Alignment>(tx);
+
+                    Analyze();
+
+                    xRefLerTx.Abort();
+                    xRefLerTx.Dispose();
+                    xRefLerDB.Dispose();
+                    #endregion 
+                }
+                else if (workingDrawing == kwd1)
+                {
+                    #region Load alignments from alignments Xref
+                    editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Alignments"));
+
+                    // open the LER dwg database
+                    Database xRefAlsDB = new Database(false, true);
+
+                    xRefAlsDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Alignments"),
+                        System.IO.FileShare.Read, false, string.Empty);
+                    Transaction xRefAlsTx = xRefAlsDB.TransactionManager.StartTransaction();
+
+                    alignments = xRefAlsDB.HashSetOfType<Alignment>(xRefAlsTx);
+
+                    HashSet<Line> lines = db.HashSetOfType<Line>(tx);
+                    HashSet<Spline> splines = db.HashSetOfType<Spline>(tx);
+                    HashSet<Polyline> plines = db.HashSetOfType<Polyline>(tx);
+                    HashSet<Polyline3d> plines3d = db.HashSetOfType<Polyline3d>(tx);
+                    HashSet<Arc> arcs = db.HashSetOfType<Arc>(tx);
+                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
+                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
+                    editor.WriteMessage($"\nNr. of plines: {plines.Count}");
+                    editor.WriteMessage($"\nNr. of plines3d: {plines3d.Count}");
+                    editor.WriteMessage($"\nNr. of arcs: {arcs.Count}");
+
+                    allLinework.UnionWith(lines.Cast<Entity>().ToHashSet());
+                    allLinework.UnionWith(splines.Cast<Entity>().ToHashSet());
+                    allLinework.UnionWith(plines.Cast<Entity>().ToHashSet());
+                    allLinework.UnionWith(plines3d.Cast<Entity>().ToHashSet());
+                    allLinework.UnionWith(arcs.Cast<Entity>().ToHashSet());
+
+                    allLinework = allLinework
+                        .Where(x => ReadStringParameterFromDataTable(x.Layer, dtKrydsninger, "Type", 0) != "IGNORE")
+                        .ToHashSet();
+
+                    Analyze();
+
+                    xRefAlsTx.Abort();
+                    xRefAlsTx.Dispose();
+                    xRefAlsDB.Dispose();
                     #endregion 
                 }
 
-                try
+                void Analyze()
                 {
-                    HashSet<Alignment> alignments = db.HashSetOfType<Alignment>(tx);
 
                     HashSet<string> layNames = new HashSet<string>();
 
@@ -584,12 +651,11 @@ namespace IntersectUtilities
                     {
                         editor.WriteMessage($"\n++++++++ Indlæser alignment {al.Name}. ++++++++");
 
-                        HashSet<Polyline3d> plines3d = FilterForCrossingEntities(allLinework, al);
+                        HashSet<Entity> entities = FilterForCrossingEntities(allLinework, al);
 
-                        if (plines3d.Count == 0)
+                        if (entities.Count == 0)
                         {
-                            editor.WriteMessage("\nNo 3D polylines found in drawing!" +
-                                " Did you remember to run 'convertlinework'?");
+                            editor.WriteMessage("\nNo crossing entities found in drawing!");
                             return;
                         }
 
@@ -598,18 +664,15 @@ namespace IntersectUtilities
                         {
                             foreach (Entity ent in ents.Cast<Entity>())
                             {
-                                LayerTableRecord layer = (LayerTableRecord)xRefLerTx.GetObject(ent.LayerId, OpenMode.ForRead);
-                                list.Add(layer.Name);
+                                list.Add(ent.Layer);
                             }
                             return list;
                         }
 
-                        layNames.UnionWith(LocalListNames(layNames, plines3d));
-                        //Extra .Distinct() because the collection gets too large otherwise
-                        layNames = layNames.Distinct().ToHashSet();
+                        layNames.UnionWith(LocalListNames(layNames, entities));
                     }
 
-                    layNames = layNames.Distinct().OrderBy(x => x).ToHashSet();
+                    layNames = layNames.OrderBy(x => x).ToHashSet();
 
                     editor.WriteMessage($"\n++++++++ KONTROL ++++++++");
 
@@ -655,15 +718,8 @@ namespace IntersectUtilities
                         }
                     }
                 }
-                catch (System.Exception ex)
-                {
-                    xRefLerTx.Abort();
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
-                    return;
-                }
-                xRefLerTx.Commit();
-                tx.Commit();
+
+                tx.Abort();
             }
         }
 
@@ -7344,7 +7400,7 @@ namespace IntersectUtilities
 
                         if (ltr.Name.Contains("_alignment") &&
                             ltr.Name.Contains(viewFrameLayerName) &&
-                            ! ltr.Name.Contains("TEXT"))
+                            !ltr.Name.Contains("TEXT"))
                         {
                             editor.WriteMessage($"\n{ltr.Name}");
                             ltr.UpgradeOpen();
