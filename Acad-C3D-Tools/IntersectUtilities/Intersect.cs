@@ -538,22 +538,41 @@ namespace IntersectUtilities
 
                 #endregion
 
+                #region Choose working drawing
+                const string kwd1 = "Ler";
+                const string kwd2 = "Alignments";
+
+                PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
+                pKeyOpts.Message = "\nChoose elevation input method: ";
+                pKeyOpts.Keywords.Add(kwd1);
+                pKeyOpts.Keywords.Add(kwd2);
+                pKeyOpts.AllowNone = true;
+                pKeyOpts.Keywords.Default = kwd1;
+                PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+                string workingDrawing = pKeyRes.StringResult;
+                #endregion
+
                 string etapeName = GetEtapeName(editor);
 
-                #region Load linework from LER Xref
-                editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Ler"));
+                if (workingDrawing == kwd2)
+                {
+                    #region Load linework from LER Xref
+                    editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Ler"));
 
-                // open the LER dwg database
-                Database xRefLerDB = new Database(false, true);
+                    // open the LER dwg database
+                    Database xRefLerDB = new Database(false, true);
 
-                xRefLerDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Ler"),
-                    System.IO.FileShare.Read, false, string.Empty);
-                Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
+                    xRefLerDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Ler"),
+                        System.IO.FileShare.Read, false, string.Empty);
+                    Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
 
-                HashSet<Polyline3d> allLinework = xRefLerDB.HashSetOfType<Polyline3d>(xRefLerTx)
-                    .Where(x => ReadStringParameterFromDataTable(x.Layer, dtKrydsninger, "Type", 0) != "IGNORE")
-                    .ToHashSet();
-                #endregion
+
+                    !!!!!!HERE
+                    HashSet<Polyline3d> allLinework = xRefLerDB.HashSetOfType<Polyline3d>(xRefLerTx)
+                        .Where(x => ReadStringParameterFromDataTable(x.Layer, dtKrydsninger, "Type", 0) != "IGNORE")
+                        .ToHashSet();
+                    #endregion 
+                }
 
                 try
                 {
