@@ -4069,11 +4069,39 @@ namespace IntersectUtilities
 
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
+                Database xRefFjvDB = null;
+                Transaction xRefFjvTx = null;
                 try
                 {
                     #region Load linework
-                    List<Polyline> plines = db.ListOfType<Polyline>(tx);
+                    string etapeName = GetEtapeName(editor);
+
+                    editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Fremtid"));
+
+                    // open the LER dwg database
+                    xRefFjvDB = new Database(false, true);
+
+                    xRefFjvDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Fremtid"),
+                        System.IO.FileShare.Read, false, string.Empty);
+                    xRefFjvTx = xRefFjvDB.TransactionManager.StartTransaction();
+
+                    HashSet<Line> lines = xRefFjvDB.HashSetOfType<Line>(xRefFjvTx);
+                    //HashSet<Spline> splines = xRefFjvDB.HashSetOfType<Spline>(xRefLerTx);
+                    HashSet<Polyline> plines = xRefFjvDB.HashSetOfType<Polyline>(xRefFjvTx);
+                    //HashSet<Polyline3d> plines3d = xRefFjvDB.HashSetOfType<Polyline3d>(xRefLerTx);
+                    HashSet<Arc> arcs = xRefFjvDB.HashSetOfType<Arc>(xRefFjvTx);
+                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
+                    //editor.WriteMessage($"\nNr. of splines: {splines.Count}");
                     editor.WriteMessage($"\nNr. of plines: {plines.Count}");
+                    //editor.WriteMessage($"\nNr. of plines3d: {plines3d.Count}");
+                    editor.WriteMessage($"\nNr. of arcs: {arcs.Count}");
+
+                    HashSet<Entity> allLinework = new HashSet<Entity>();
+                    allLinework.UnionWith(lines.Cast<Entity>().ToHashSet());
+                    //allLinework.UnionWith(splines.Cast<Entity>().ToHashSet());
+                    allLinework.UnionWith(plines.Cast<Entity>().ToHashSet());
+                    //allLinework.UnionWith(plines3d.Cast<Entity>().ToHashSet());
+                    allLinework.UnionWith(arcs.Cast<Entity>().ToHashSet());
                     #endregion
 
                     #region Layer handling
@@ -4124,12 +4152,12 @@ namespace IntersectUtilities
 
                     List<string> blockNameList = new List<string>() { "VerticeLine", "VerticeArc" };
 
-                    foreach (string blockName in blockNameList)
+                    foreach (string name in blockNameList)
                     {
-                        var existingBlocks = db.GetBlockReferenceByName(blockName)
+                        var existingBlocks = db.GetBlockReferenceByName(name)
                             .Where(x => x.Layer == localLayerName)
                             .ToList();
-                        editor.WriteMessage($"\n{existingBlocks.Count} existing blocks found of name {blockName}.");
+                        editor.WriteMessage($"\n{existingBlocks.Count} existing blocks found of name {name}.");
                         foreach (Autodesk.AutoCAD.DatabaseServices.BlockReference br in existingBlocks)
                         {
                             br.CheckOrOpenForWrite();
@@ -4139,99 +4167,131 @@ namespace IntersectUtilities
 
                     #endregion
 
-                    foreach (Polyline pline in plines)
+                    string blockName = "";
+
+                    foreach (Entity ent in allLinework)
                     {
-                        int numOfVerts = pline.NumberOfVertices - 1;
-                        for (int i = 0; i < numOfVerts; i++)
+                        switch (ent)
                         {
-                            switch (pline.GetSegmentType(i))
-                            {
-                                case SegmentType.Line:
+                            case Polyline pline:
+                                int numOfVerts = pline.NumberOfVertices - 1;
+                                for (int i = 0; i < numOfVerts; i++)
+                                {
+                                    switch (pline.GetSegmentType(i))
                                     {
-                                        string blockName = "VerticeLine";
-                                        if (bt.Has(blockName))
-                                        {
-                                            LineSegment2d lineSegment2dAt = pline.GetLineSegment2dAt(i);
+                                        case SegmentType.Line:
 
-                                            Point2d point2d1 = lineSegment2dAt.StartPoint;
-                                            using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
-                                                new Point3d(point2d1.X, point2d1.Y, 0), bt[blockName]))
+                                            blockName = "VerticeLine";
+                                            if (bt.Has(blockName))
                                             {
-                                                space.AppendEntity(br);
-                                                tx.AddNewlyCreatedDBObject(br, true);
-                                                br.Layer = localLayerName;
+                                                LineSegment2d lineSegment2dAt = pline.GetLineSegment2dAt(i);
+
+                                                Point2d point2d1 = lineSegment2dAt.StartPoint;
+                                                using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                                    new Point3d(point2d1.X, point2d1.Y, 0), bt[blockName]))
+                                                {
+                                                    space.AppendEntity(br);
+                                                    tx.AddNewlyCreatedDBObject(br, true);
+                                                    br.Layer = localLayerName;
+                                                }
+
+                                                Point2d point2d2 = lineSegment2dAt.EndPoint;
+                                                using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                                    new Point3d(point2d2.X, point2d2.Y, 0), bt[blockName]))
+                                                {
+                                                    space.AppendEntity(br);
+                                                    tx.AddNewlyCreatedDBObject(br, true);
+                                                    br.Layer = localLayerName;
+                                                }
                                             }
 
-                                            Point2d point2d2 = lineSegment2dAt.EndPoint;
-                                            using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
-                                                new Point3d(point2d2.X, point2d2.Y, 0), bt[blockName]))
+                                            break;
+                                        case SegmentType.Arc:
+
+                                            blockName = "VerticeArc";
+                                            if (bt.Has(blockName))
                                             {
-                                                space.AppendEntity(br);
-                                                tx.AddNewlyCreatedDBObject(br, true);
-                                                br.Layer = localLayerName;
+                                                CircularArc2d arcSegment2dAt = pline.GetArcSegment2dAt(i);
+
+                                                Point2d point2d1 = arcSegment2dAt.StartPoint;
+                                                using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                                    new Point3d(point2d1.X, point2d1.Y, 0), bt[blockName]))
+                                                {
+                                                    space.AppendEntity(br);
+                                                    tx.AddNewlyCreatedDBObject(br, true);
+                                                    br.Layer = localLayerName;
+                                                }
+
+                                                Point2d point2d2 = arcSegment2dAt.EndPoint;
+                                                using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                                    new Point3d(point2d2.X, point2d2.Y, 0), bt[blockName]))
+                                                {
+                                                    space.AppendEntity(br);
+                                                    tx.AddNewlyCreatedDBObject(br, true);
+                                                    br.Layer = localLayerName;
+                                                }
+                                                Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
+                                                using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                                    new Point3d(samplePoint.X, samplePoint.Y, 0), bt[blockName]))
+                                                {
+                                                    space.AppendEntity(br);
+                                                    tx.AddNewlyCreatedDBObject(br, true);
+                                                    br.Layer = localLayerName;
+                                                }
                                             }
-                                        }
+                                            break;
+                                        case SegmentType.Coincident:
+                                            break;
+                                        case SegmentType.Point:
+                                            break;
+                                        case SegmentType.Empty:
+                                            break;
+                                        default:
+                                            break;
                                     }
-                                    break;
-                                case SegmentType.Arc:
+                                }
+                                break;
+                            case Line line:
+                                blockName = "VerticeLine";
+                                if (bt.Has(blockName))
+                                {
+                                    Point3d point3d1 = line.StartPoint;
+                                    using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                        new Point3d(point3d1.X, point3d1.Y, 0), bt[blockName]))
                                     {
-                                        string blockName = "VerticeArc";
-                                        if (bt.Has(blockName))
-                                        {
-                                            CircularArc2d arcSegment2dAt = pline.GetArcSegment2dAt(i);
-
-                                            Point2d point2d1 = arcSegment2dAt.StartPoint;
-                                            using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
-                                                new Point3d(point2d1.X, point2d1.Y, 0), bt[blockName]))
-                                            {
-                                                space.AppendEntity(br);
-                                                tx.AddNewlyCreatedDBObject(br, true);
-                                                br.Layer = localLayerName;
-                                            }
-
-                                            Point2d point2d2 = arcSegment2dAt.EndPoint;
-                                            using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
-                                                new Point3d(point2d2.X, point2d2.Y, 0), bt[blockName]))
-                                            {
-                                                space.AppendEntity(br);
-                                                tx.AddNewlyCreatedDBObject(br, true);
-                                                br.Layer = localLayerName;
-                                            }
-
-                                            Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
-                                            using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
-                                                new Point3d(samplePoint.X, samplePoint.Y, 0), bt[blockName]))
-                                            {
-                                                space.AppendEntity(br);
-                                                tx.AddNewlyCreatedDBObject(br, true);
-                                                br.Layer = localLayerName;
-                                            }
-                                        }
+                                        space.AppendEntity(br);
+                                        tx.AddNewlyCreatedDBObject(br, true);
+                                        br.Layer = localLayerName;
                                     }
-                                    break;
-                                case SegmentType.Coincident:
-                                    break;
-                                case SegmentType.Point:
-                                    break;
-                                case SegmentType.Empty:
-                                    break;
-                                default:
-                                    break;
-                            }
+
+                                    Point3d point3d2 = line.EndPoint;
+                                    using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                        new Point3d(point3d2.X, point3d2.Y, 0), bt[blockName]))
+                                    {
+                                        space.AppendEntity(br);
+                                        tx.AddNewlyCreatedDBObject(br, true);
+                                        br.Layer = localLayerName;
+                                    }
+                                }
+                                break;
+                            default:
+                                break;
                         }
                     }
-
                     #endregion
-
                 }
                 catch (System.Exception ex)
                 {
+                    xRefFjvTx?.Abort();
+                    xRefFjvDB?.Dispose();
+                    tx.Abort();
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
+                xRefFjvTx?.Abort();
+                xRefFjvDB?.Dispose();
                 tx.Commit();
             }
-
         }
 
         [CommandMethod("createprofileviews")]
