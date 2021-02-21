@@ -4274,6 +4274,37 @@ namespace IntersectUtilities
                                     }
                                 }
                                 break;
+                            case Arc arc:
+                                blockName = "VerticeArc";
+                                if (bt.Has(blockName))
+                                {
+                                    Point3d point3d1 = arc.StartPoint;
+                                    using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                        new Point3d(point3d1.X, point3d1.Y, 0), bt[blockName]))
+                                    {
+                                        space.AppendEntity(br);
+                                        tx.AddNewlyCreatedDBObject(br, true);
+                                        br.Layer = localLayerName;
+                                    }
+
+                                    Point3d point3d2 = arc.EndPoint;
+                                    using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                        new Point3d(point3d2.X, point3d2.Y, 0), bt[blockName]))
+                                    {
+                                        space.AppendEntity(br);
+                                        tx.AddNewlyCreatedDBObject(br, true);
+                                        br.Layer = localLayerName;
+                                    }
+                                    Point3d samplePoint = arc.GetPointAtDist(arc.Length / 2);
+                                    using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                        new Point3d(samplePoint.X, samplePoint.Y, 0), bt[blockName]))
+                                    {
+                                        space.AppendEntity(br);
+                                        tx.AddNewlyCreatedDBObject(br, true);
+                                        br.Layer = localLayerName;
+                                    }
+                                }
+                                break;
                             default:
                                 break;
                         }
