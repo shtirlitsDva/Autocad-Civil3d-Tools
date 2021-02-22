@@ -7549,5 +7549,60 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        [CommandMethod("CONVERTZEROLINESTOPOINTS")]
+        public void convertzerolinestopoints()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    // Open the Block table for read
+                    BlockTable acBlkTbl;
+                    acBlkTbl = tx.GetObject(localDb.BlockTableId,
+                                                 OpenMode.ForRead) as BlockTable;
+
+                    // Open the Block table record Model space for write
+                    BlockTableRecord acBlkTblRec;
+                    acBlkTblRec = tx.GetObject(acBlkTbl[BlockTableRecord.ModelSpace],
+                                                    OpenMode.ForWrite) as BlockTableRecord;
+
+                    HashSet<Line> lines = localDb.HashSetOfType<Line>(tx);
+
+                    foreach (Line line in lines)
+                    {
+                        if (line.Length < 0.000001)
+                        {
+                            Point3d point = line.StartPoint;
+
+                            DBPoint acPoint = new DBPoint(point);
+                            acPoint.SetDatabaseDefaults();
+                            acPoint.Layer = line.Layer;
+
+                            // Add the new object to the block table record and the transaction
+                            acBlkTblRec.AppendEntity(acPoint);
+                            tx.AddNewlyCreatedDBObject(acPoint, true);
+
+                            line.UpgradeOpen();
+                            line.Erase(true);
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
     }
 }
