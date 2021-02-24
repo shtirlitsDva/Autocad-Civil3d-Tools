@@ -3269,7 +3269,8 @@ namespace IntersectUtilities
 
                         for (int i = 0; i < vertices.Length; i++)
                         {
-                            DBPoint match = points.Where(x => x.Position.HorizontalEqualz(vertices[i].Position)).FirstOrDefault();
+                            DBPoint match = points.Where(x => x.Position.HorizontalEqualz(
+                                vertices[i].Position, 0.05)).FirstOrDefault();
                             if (match != null)
                             {
                                 vertices[i].UpgradeOpen();
@@ -3356,7 +3357,7 @@ namespace IntersectUtilities
 
                             if (startElevation != 0 && endElevation != 0)
                             {
-                                //Add to interpolated list
+                                //Add to interpolated listv
                                 interpolatedLines.Add(pline3d);
 
                                 //Start match
@@ -7594,6 +7595,310 @@ namespace IntersectUtilities
                             line.Erase(true);
                         }
                     }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("GASBEHANDLING")]
+        public void gasbehandling()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Lines
+                    //double lineThreshold = 1;
+                    //HashSet<Line> lines = localDb.HashSetOfType<Line>(tx, true);
+                    //foreach (Line line in lines)
+                    //{
+                    //    if (line.StartPoint.Z < lineThreshold)
+                    //    {
+                    //        Point3d point = line.EndPoint;
+
+                    //        line.UpgradeOpen();
+
+                    //        line.StartPoint = point;
+                    //    }
+                    //    else if (line.EndPoint.Z < lineThreshold)
+                    //    {
+                    //        Point3d point = line.StartPoint;
+
+                    //        line.UpgradeOpen();
+
+                    //        line.EndPoint = point;
+                    //    }
+                    //}
+                    #endregion
+
+                    #region Polylines 3d
+                    /////////////////////////////////
+                    //Must not overlap
+                    //correctionThreshold operates on values LESS THAN value
+                    //targetThreshold operates on values GREATER THAN value
+                    double correctionThreshold = 1;
+                    double targetThreshold = 2;
+                    ////////////////////////////////
+                    HashSet<Polyline3d> plines3d = localDb.HashSetOfType<Polyline3d>(tx, true);
+                    foreach (Polyline3d p3d in plines3d)
+                    {
+                        PolylineVertex3d[] vertices = p3d.GetVertices(tx);
+                        int endIdx = vertices.Length - 1;
+
+                        for (int i = 0; i < vertices.Length; i++)
+                        {
+                            if (i == 0)
+                            {
+                                //First vertice case
+                                if (vertices[i].Position.Z < correctionThreshold)
+                                {
+                                    bool elevationUnknown = true;
+                                    Point3d pos = new Point3d();
+                                    int j = 0;
+                                    do
+                                    {
+                                        if (vertices[j].Position.Z > targetThreshold)
+                                        {
+                                            elevationUnknown = false;
+                                            pos = vertices[j].Position;
+                                        }
+                                        j++;
+                                        //Catch out of bounds
+                                        if (j > endIdx) break;
+                                    } while (elevationUnknown);
+
+                                    vertices[i].CheckOrOpenForWrite();
+                                    vertices[i].Position = new Point3d(
+                                        vertices[i].Position.X, vertices[i].Position.Y, pos.Z);
+                                }
+                            }
+                            else if (i == endIdx)
+                            {
+                                //Last vertice case
+                                if (vertices[i].Position.Z < correctionThreshold)
+                                {
+                                    bool elevationUnknown = true;
+                                    Point3d pos = new Point3d();
+                                    int j = endIdx;
+                                    do
+                                    {
+                                        if (vertices[j].Position.Z > targetThreshold)
+                                        {
+                                            elevationUnknown = false;
+                                            pos = vertices[j].Position;
+                                        }
+                                        j--;
+                                        //Catch out of bounds
+                                        if (j < 0) break;
+                                    } while (elevationUnknown);
+
+                                    vertices[i].CheckOrOpenForWrite();
+                                    vertices[i].Position = new Point3d(
+                                        vertices[i].Position.X, vertices[i].Position.Y, pos.Z);
+                                }
+                            }
+                            else
+                            {
+                                //Intermediary vertex case
+                                if (vertices[i].Position.Z < correctionThreshold)
+                                {
+                                    bool forwardElevationUnknown = true;
+                                    bool backwardElevationUnknown = true;
+
+                                    Point3d forwardPos = new Point3d();
+                                    Point3d backwardPos = new Point3d();
+
+                                    int forwardIdx = i;
+                                    int backwardIdx = i;
+
+                                    do //Forward detection
+                                    {
+                                        if (vertices[forwardIdx].Position.Z > targetThreshold)
+                                        {
+                                            forwardElevationUnknown = false;
+                                            forwardPos = vertices[forwardIdx].Position;
+                                        }
+                                        forwardIdx++;
+                                        //Catch out of bounds
+                                        if (forwardIdx > endIdx) break;
+                                    } while (forwardElevationUnknown);
+
+                                    do //Backward detection
+                                    {
+                                        if (vertices[backwardIdx].Position.Z > targetThreshold)
+                                        {
+                                            backwardElevationUnknown = false;
+                                            backwardPos = vertices[backwardIdx].Position;
+                                        }
+                                        backwardIdx--;
+                                        //Catch out of bounds
+                                        if (backwardIdx < 0) break;
+                                    } while (backwardElevationUnknown);
+
+                                    if (!backwardElevationUnknown && !forwardElevationUnknown)
+                                    {
+                                        double calculatedZ = 0;
+                                        double delta = Math.Abs(backwardPos.Z - forwardPos.Z) / 2;
+                                        if (backwardPos.Z < forwardPos.Z) calculatedZ = backwardPos.Z + delta;
+                                        else if (backwardPos.Z > forwardPos.Z) calculatedZ = forwardPos.Z + delta;
+                                        else if (backwardPos.Z == forwardPos.Z) calculatedZ = backwardPos.Z;
+
+                                        vertices[i].CheckOrOpenForWrite();
+                                        vertices[i].Position = new Point3d(
+                                            vertices[i].Position.X, vertices[i].Position.Y,
+                                            calculatedZ);
+                                    }
+                                    else if (!backwardElevationUnknown)
+                                    {
+                                        vertices[i].CheckOrOpenForWrite();
+                                        vertices[i].Position = new Point3d(
+                                            vertices[i].Position.X, vertices[i].Position.Y,
+                                            backwardPos.Z);
+                                    }
+                                    else if (!forwardElevationUnknown)
+                                    {
+                                        vertices[i].CheckOrOpenForWrite();
+                                        vertices[i].Position = new Point3d(
+                                            vertices[i].Position.X, vertices[i].Position.Y,
+                                            forwardPos.Z);
+                                    }
+                                }
+                            }
+                        }
+                    } 
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("GASMOVETOELEVATION")]
+        public void gasmovetoelevation()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Lines
+                    ///////////////////////////
+                    double lineThreshold = -1;
+                    double targetElevation = 0;
+                    ///////////////////////////
+
+                    HashSet<Line> lines = localDb.HashSetOfType<Line>(tx, true);
+                    foreach (Line line in lines)
+                    {
+                        if (line.StartPoint.Z < lineThreshold)
+                        {
+                            line.CheckOrOpenForWrite();
+
+                            line.StartPoint = new Point3d(
+                                line.StartPoint.X, line.StartPoint.Y, targetElevation);
+                        }
+                        if (line.EndPoint.Z < lineThreshold)
+                        {
+                            line.CheckOrOpenForWrite();
+
+                            line.EndPoint = new Point3d(
+                                line.EndPoint.X, line.EndPoint.Y, targetElevation);
+                        }
+                    }
+                    #endregion
+
+                    #region Polylines2d
+                    ////////////////////////
+                    double plineThreshold = -1;
+                    //Reuse target elevation from above
+                    ////////////////////////
+
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
+                    foreach (Polyline pline in plines)
+                    {
+                        if (pline.Elevation < plineThreshold)
+                        {
+                            pline.CheckOrOpenForWrite();
+                            pline.Elevation = targetElevation;
+                        }
+                    }
+
+
+                    #endregion
+
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("GASCHANGELAYERFOR2D")]
+        public void gaschangelayerfor2d()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Change layer
+                    ///////////////////////////
+                    double moveThreshold = 1;
+                    ///////////////////////////
+
+                    HashSet<Polyline3d> lines = localDb.HashSetOfType<Polyline3d>(tx, true);
+                    foreach (Polyline3d line in lines)
+                    {
+                        bool didNotFindAboveThreshold = true;
+                        PolylineVertex3d[] vertices = line.GetVertices(tx);
+                        for (int i = 0; i < vertices.Length; i++)
+                        {
+                            if (vertices[i].Position.Z > 1) didNotFindAboveThreshold = false;
+                        }
+
+                        if (didNotFindAboveThreshold)
+                        {
+                            line.CheckOrOpenForWrite();
+                            if (line.Layer == "Distributionsrør") line.Layer = "Distributionsrør-2D";
+                            else if (line.Layer == "Stikrør") line.Layer = "Stikrør-2D";
+                            else if (line.Layer == "Fordelingsrør") line.Layer = "Fordelingsrør-2D";
+                        }
+                    }
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {

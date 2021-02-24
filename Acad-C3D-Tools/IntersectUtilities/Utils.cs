@@ -1335,7 +1335,7 @@ namespace IntersectUtilities
             //}
         }
 
-        public static List<T> ListOfType<T>(this Database database, Transaction tr) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        public static List<T> ListOfType<T>(this Database database, Transaction tr, bool discardFrozen = false) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
             //using (var tr = database.TransactionManager.StartTransaction())
             //{
@@ -1358,6 +1358,12 @@ namespace IntersectUtilities
                 if (objectId.ObjectClass.IsDerivedFrom(theClass))
                 {
                     var entity = (T)tr.GetObject(objectId, OpenMode.ForRead);
+                    if (discardFrozen)
+                    {
+                        LayerTableRecord layer = (LayerTableRecord)tr.GetObject(entity.LayerId, OpenMode.ForRead);
+                        if (layer.IsFrozen) continue;
+                    }
+
                     objs.Add(entity);
                 }
             }
@@ -1366,10 +1372,10 @@ namespace IntersectUtilities
             //}
         }
 
-        public static HashSet<T> HashSetOfType<T>(this Database db, Transaction tr)
+        public static HashSet<T> HashSetOfType<T>(this Database db, Transaction tr, bool discardFrozen = false)
             where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
-            return new HashSet<T>(db.ListOfType<T>(tr));
+            return new HashSet<T>(db.ListOfType<T>(tr, discardFrozen));
         }
 
         // Searches the drawing for a block with the specified name.
