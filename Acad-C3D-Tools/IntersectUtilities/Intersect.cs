@@ -2269,19 +2269,15 @@ namespace IntersectUtilities
                     LabelStyleCollection stc = civilDoc.Styles.LabelStyles
                                                        .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
 
-                    //for (int i = 0; i < stc.Count; i++)
-                    //{
-                    //    oid id = stc[i];
-                    //    LabelStyle ls = tx.GetObject(id, OpenMode.ForRead) as LabelStyle;
-                    //    editor.WriteMessage($"\n{ls.Name}.");
-                    //}
-
-                    //oid prStId = stc["PROFILE PROJEKTION MGO"];
+                    oid prStId = stc["PROFILE PROJEKTION MGO"];
 
                     foreach (Entity ent in allEnts)
                     {
                         if (ent is Label label)
                         {
+                            label.CheckOrOpenForWrite();
+                            label.StyleId = prStId;
+
                             oid fId = label.FeatureId;
                             Entity fEnt = fId.Go<Entity>(tx);
 
@@ -2809,7 +2805,7 @@ namespace IntersectUtilities
                         for (int i = 0; i < columnNames.Length; i++)
                         {
                             bool success = false;
-                            
+
                             if (DoesRecordExist(tables, pline3dId, columnNames[i]))
                             {
                                 editor.WriteMessage($"\nRecord {columnNames[i]} already exists, updating...");
@@ -3557,34 +3553,57 @@ namespace IntersectUtilities
                                     foreach (Polyline3d poly3dOther in interpolatedLines)
                                     {
                                         #region Detect START elevation
-                                        using (Point3dCollection p3dIntCol = new Point3dCollection())
+                                        double startDistance = startIntersector.GetGeCurve().GetDistanceTo(
+                                            poly3dOther.GetGeCurve());
+                                        if (startDistance < 0.1)
                                         {
-                                            poly3dOther.IntersectWith(startIntersector, 0, p3dIntCol, new IntPtr(0), new IntPtr(0));
+                                            PointOnCurve3d[] intPoints = startIntersector.GetGeCurve().GetClosestPointTo(
+                                                                         poly3dOther.GetGeCurve());
 
-                                            if (p3dIntCol.Count > 0 && p3dIntCol.Count < 2)
-                                            {
-                                                foreach (Point3d p3dInt in p3dIntCol)
-                                                {
-                                                    //Assume only one intersection
-                                                    detectedStartElevation = p3dInt.Z;
-                                                }
-                                            }
+                                            //Assume one intersection
+                                            Point3d result = intPoints.First().Point;
+                                            detectedStartElevation = result.Z;
                                         }
+
+                                        //using (Point3dCollection p3dIntCol = new Point3dCollection())
+                                        //{
+                                        //    poly3dOther.IntersectWith(startIntersector, 0, p3dIntCol, new IntPtr(0), new IntPtr(0));
+
+                                        //    if (p3dIntCol.Count > 0 && p3dIntCol.Count < 2)
+                                        //    {
+                                        //        foreach (Point3d p3dInt in p3dIntCol)
+                                        //        {
+                                        //            //Assume only one intersection
+                                        //            detectedStartElevation = p3dInt.Z;
+                                        //        }
+                                        //    }
+                                        //}
                                         #endregion
                                         #region Detect END elevation
-                                        using (Point3dCollection p3dIntCol = new Point3dCollection())
+                                        double endDistance = endIntersector.GetGeCurve().GetDistanceTo(
+                                            poly3dOther.GetGeCurve());
+                                        if (endDistance < 0.1)
                                         {
-                                            poly3dOther.IntersectWith(endIntersector, 0, p3dIntCol, new IntPtr(0), new IntPtr(0));
+                                            PointOnCurve3d[] intPoints = endIntersector.GetGeCurve().GetClosestPointTo(
+                                                                         poly3dOther.GetGeCurve());
 
-                                            if (p3dIntCol.Count > 0 && p3dIntCol.Count < 2)
-                                            {
-                                                foreach (Point3d p3dInt in p3dIntCol)
-                                                {
-                                                    //Assume only one intersection
-                                                    detectedEndElevation = p3dInt.Z;
-                                                }
-                                            }
+                                            //Assume one intersection
+                                            Point3d result = intPoints.First().Point;
+                                            detectedEndElevation = result.Z;
                                         }
+                                        //using (Point3dCollection p3dIntCol = new Point3dCollection())
+                                        //{
+                                        //    poly3dOther.IntersectWith(endIntersector, 0, p3dIntCol, new IntPtr(0), new IntPtr(0));
+
+                                        //    if (p3dIntCol.Count > 0 && p3dIntCol.Count < 2)
+                                        //    {
+                                        //        foreach (Point3d p3dInt in p3dIntCol)
+                                        //        {
+                                        //            //Assume only one intersection
+                                        //            detectedEndElevation = p3dInt.Z;
+                                        //        }
+                                        //    }
+                                        //}
                                         #endregion
 
                                         if (detectedStartElevation > 0 && detectedEndElevation > 0)
@@ -3940,19 +3959,26 @@ namespace IntersectUtilities
                             {
                                 Polyline3d otherPoly3d = pline3dToGetElevationsId.Go<Polyline3d>(txOther);
                                 Polyline3d newPoly3d = newPolyId.Go<Polyline3d>(txOther);
-                                using (Point3dCollection p3dIntCol = new Point3dCollection())
-                                {
-                                    otherPoly3d.IntersectWith(newPoly3d, 0, p3dIntCol, new IntPtr(0), new IntPtr(0));
+                                PointOnCurve3d[] intPoints = newPoly3d.GetGeCurve().GetClosestPointTo(
+                                    otherPoly3d.GetGeCurve());
 
-                                    if (p3dIntCol.Count > 0 && p3dIntCol.Count < 2)
-                                    {
-                                        foreach (Point3d p3dInt in p3dIntCol)
-                                        {
-                                            //Assume only one intersection
-                                            elevation = p3dInt.Z;
-                                        }
-                                    }
-                                }
+                                //Assume one intersection
+                                Point3d result = intPoints.First().Point;
+                                elevation = result.Z;
+
+                                //using (Point3dCollection p3dIntCol = new Point3dCollection())
+                                //{
+                                //    otherPoly3d.IntersectWith(newPoly3d, 0, p3dIntCol, new IntPtr(0), new IntPtr(0));
+
+                                //    if (p3dIntCol.Count > 0 && p3dIntCol.Count < 2)
+                                //    {
+                                //        foreach (Point3d p3dInt in p3dIntCol)
+                                //        {
+                                //            //Assume only one intersection
+                                //            elevation = p3dInt.Z;
+                                //        }
+                                //    }
+                                //}
                                 newPoly3d.UpgradeOpen();
                                 newPoly3d.Erase(true);
                                 txOther.Commit();
@@ -7833,7 +7859,7 @@ namespace IntersectUtilities
                                 }
                             }
                         }
-                    } 
+                    }
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -7976,6 +8002,70 @@ namespace IntersectUtilities
                         }
                     }
                     #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("DELETEALLALIGNMENTS")]
+        public void deleteallalignments()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                    editor.WriteMessage($"\nNr. of alignments: {als.Count}");
+                    foreach (Alignment al in als)
+                    {
+                        al.CheckOrOpenForWrite();
+                        al.Erase(true);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("LABELALLALIGNMENTS")]
+        public void labelallalignments()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                    editor.WriteMessage($"\nNr. of alignments: {als.Count}");
+                    foreach (Alignment al in als)
+                    {
+                        al.CheckOrOpenForWrite();
+                        al.ImportLabelSet("STD 20-5");
+                    }
                 }
                 catch (System.Exception ex)
                 {
