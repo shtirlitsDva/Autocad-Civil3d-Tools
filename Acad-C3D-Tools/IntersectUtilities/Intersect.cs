@@ -526,197 +526,230 @@ namespace IntersectUtilities
 
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
-                #region Read Csv Data for Layers and Depth
-
-                //Establish the pathnames to files
-                //Files should be placed in a specific folder on desktop
-                string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-                string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
-
-                System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
-                System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
-
-                #endregion
-
-                #region Choose working drawing
-                const string kwd1 = "Ler";
-                const string kwd2 = "Alignments";
-
-                PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
-                pKeyOpts.Message = "\nChoose elevation input method: ";
-                pKeyOpts.Keywords.Add(kwd1);
-                pKeyOpts.Keywords.Add(kwd2);
-                pKeyOpts.AllowNone = true;
-                pKeyOpts.Keywords.Default = kwd1;
-                PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
-                string workingDrawing = pKeyRes.StringResult;
-                #endregion
-
-                string etapeName = GetEtapeName(editor);
-
-                HashSet<Entity> allLinework = new HashSet<Entity>();
-                HashSet<Alignment> alignments = new HashSet<Alignment>();
-
-                if (workingDrawing == kwd2)
+                try
                 {
-                    #region Load linework from LER Xref
-                    editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Ler"));
+                    #region Read Csv Data for Layers and Depth
 
-                    // open the LER dwg database
-                    Database xRefLerDB = new Database(false, true);
+                    //Establish the pathnames to files
+                    //Files should be placed in a specific folder on desktop
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
 
-                    xRefLerDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Ler"),
-                        System.IO.FileShare.Read, false, string.Empty);
-                    Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
 
-                    HashSet<Line> lines = xRefLerDB.HashSetOfType<Line>(xRefLerTx);
-                    HashSet<Spline> splines = xRefLerDB.HashSetOfType<Spline>(xRefLerTx);
-                    HashSet<Polyline> plines = xRefLerDB.HashSetOfType<Polyline>(xRefLerTx);
-                    HashSet<Polyline3d> plines3d = xRefLerDB.HashSetOfType<Polyline3d>(xRefLerTx);
-                    HashSet<Arc> arcs = xRefLerDB.HashSetOfType<Arc>(xRefLerTx);
-                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
-                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
-                    editor.WriteMessage($"\nNr. of plines: {plines.Count}");
-                    editor.WriteMessage($"\nNr. of plines3d: {plines3d.Count}");
-                    editor.WriteMessage($"\nNr. of arcs: {arcs.Count}");
+                    #endregion
 
-                    allLinework.UnionWith(lines.Cast<Entity>().ToHashSet());
-                    allLinework.UnionWith(splines.Cast<Entity>().ToHashSet());
-                    allLinework.UnionWith(plines.Cast<Entity>().ToHashSet());
-                    allLinework.UnionWith(plines3d.Cast<Entity>().ToHashSet());
-                    allLinework.UnionWith(arcs.Cast<Entity>().ToHashSet());
+                    #region Choose working drawing
+                    const string kwd1 = "Ler";
+                    const string kwd2 = "Alignments";
 
-                    allLinework = allLinework
-                        .Where(x => ReadStringParameterFromDataTable(x.Layer, dtKrydsninger, "Type", 0) != "IGNORE")
-                        .ToHashSet();
+                    PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
+                    pKeyOpts.Message = "\nChoose elevation input method: ";
+                    pKeyOpts.Keywords.Add(kwd1);
+                    pKeyOpts.Keywords.Add(kwd2);
+                    pKeyOpts.AllowNone = true;
+                    pKeyOpts.Keywords.Default = kwd1;
+                    PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+                    string workingDrawing = pKeyRes.StringResult;
+                    #endregion
 
-                    alignments = db.HashSetOfType<Alignment>(tx);
+                    string etapeName = GetEtapeName(editor);
 
-                    Analyze();
+                    HashSet<Entity> allLinework = new HashSet<Entity>();
+                    HashSet<Alignment> alignments = new HashSet<Alignment>();
 
-                    xRefLerTx.Abort();
-                    xRefLerTx.Dispose();
-                    xRefLerDB.Dispose();
-                    #endregion 
-                }
-                else if (workingDrawing == kwd1)
-                {
-                    #region Load alignments from alignments Xref
-                    editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Alignments"));
-
-                    // open the LER dwg database
-                    Database xRefAlsDB = new Database(false, true);
-
-                    xRefAlsDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Alignments"),
-                        System.IO.FileShare.Read, false, string.Empty);
-                    Transaction xRefAlsTx = xRefAlsDB.TransactionManager.StartTransaction();
-
-                    alignments = xRefAlsDB.HashSetOfType<Alignment>(xRefAlsTx);
-
-                    HashSet<Line> lines = db.HashSetOfType<Line>(tx);
-                    HashSet<Spline> splines = db.HashSetOfType<Spline>(tx);
-                    HashSet<Polyline> plines = db.HashSetOfType<Polyline>(tx);
-                    HashSet<Polyline3d> plines3d = db.HashSetOfType<Polyline3d>(tx);
-                    HashSet<Arc> arcs = db.HashSetOfType<Arc>(tx);
-                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
-                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
-                    editor.WriteMessage($"\nNr. of plines: {plines.Count}");
-                    editor.WriteMessage($"\nNr. of plines3d: {plines3d.Count}");
-                    editor.WriteMessage($"\nNr. of arcs: {arcs.Count}");
-
-                    allLinework.UnionWith(lines.Cast<Entity>().ToHashSet());
-                    allLinework.UnionWith(splines.Cast<Entity>().ToHashSet());
-                    allLinework.UnionWith(plines.Cast<Entity>().ToHashSet());
-                    allLinework.UnionWith(plines3d.Cast<Entity>().ToHashSet());
-                    allLinework.UnionWith(arcs.Cast<Entity>().ToHashSet());
-
-                    allLinework = allLinework
-                        .Where(x => ReadStringParameterFromDataTable(x.Layer, dtKrydsninger, "Type", 0) != "IGNORE")
-                        .ToHashSet();
-
-                    Analyze();
-
-                    xRefAlsTx.Abort();
-                    xRefAlsTx.Dispose();
-                    xRefAlsDB.Dispose();
-                    #endregion 
-                }
-
-                void Analyze()
-                {
-
-                    HashSet<string> layNames = new HashSet<string>();
-
-                    foreach (Alignment al in alignments)
+                    if (workingDrawing == kwd2)
                     {
-                        editor.WriteMessage($"\n++++++++ Indlæser alignment {al.Name}. ++++++++");
+                        #region Load linework from LER Xref
+                        editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Ler"));
 
-                        HashSet<Entity> entities = FilterForCrossingEntities(allLinework, al);
+                        // open the LER dwg database
+                        Database xRefLerDB = new Database(false, true);
 
-                        if (entities.Count == 0)
+                        xRefLerDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Ler"),
+                            System.IO.FileShare.Read, false, string.Empty);
+                        Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
+
+                        HashSet<Line> lines = xRefLerDB.HashSetOfType<Line>(xRefLerTx);
+                        HashSet<Spline> splines = xRefLerDB.HashSetOfType<Spline>(xRefLerTx);
+                        HashSet<Polyline> plines = xRefLerDB.HashSetOfType<Polyline>(xRefLerTx);
+                        HashSet<Polyline3d> plines3d = xRefLerDB.HashSetOfType<Polyline3d>(xRefLerTx);
+                        HashSet<Arc> arcs = xRefLerDB.HashSetOfType<Arc>(xRefLerTx);
+                        editor.WriteMessage($"\nNr. of lines: {lines.Count}");
+                        editor.WriteMessage($"\nNr. of splines: {splines.Count}");
+                        editor.WriteMessage($"\nNr. of plines: {plines.Count}");
+                        editor.WriteMessage($"\nNr. of plines3d: {plines3d.Count}");
+                        editor.WriteMessage($"\nNr. of arcs: {arcs.Count}");
+
+                        allLinework.UnionWith(lines.Cast<Entity>().ToHashSet());
+                        allLinework.UnionWith(splines.Cast<Entity>().ToHashSet());
+                        allLinework.UnionWith(plines.Cast<Entity>().ToHashSet());
+                        allLinework.UnionWith(plines3d.Cast<Entity>().ToHashSet());
+                        allLinework.UnionWith(arcs.Cast<Entity>().ToHashSet());
+
+                        allLinework = allLinework
+                            .Where(x => ReadStringParameterFromDataTable(x.Layer, dtKrydsninger, "Type", 0) != "IGNORE")
+                            .ToHashSet();
+
+                        alignments = db.HashSetOfType<Alignment>(tx);
+
+                        try
                         {
-                            editor.WriteMessage("\nNo crossing entities found in drawing!");
+                            Analyze();
+                        }
+                        catch (System.Exception e)
+                        {
+                            xRefLerTx.Abort();
+                            xRefLerTx.Dispose();
+                            xRefLerDB.Dispose();
+                            tx.Abort();
+                            editor.WriteMessage($"\n{e.Message}");
                             return;
                         }
 
-                        //Local function to avoid duplicate code
-                        HashSet<string> LocalListNames<T>(HashSet<string> list, HashSet<T> ents)
+                        xRefLerTx.Abort();
+                        xRefLerTx.Dispose();
+                        xRefLerDB.Dispose();
+                        #endregion
+                    }
+                    else if (workingDrawing == kwd1)
+                    {
+                        #region Load alignments from alignments Xref
+                        editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Alignments"));
+
+                        // open the LER dwg database
+                        Database xRefAlsDB = new Database(false, true);
+
+                        xRefAlsDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Alignments"),
+                            System.IO.FileShare.Read, false, string.Empty);
+                        Transaction xRefAlsTx = xRefAlsDB.TransactionManager.StartTransaction();
+
+                        alignments = xRefAlsDB.HashSetOfType<Alignment>(xRefAlsTx);
+
+                        HashSet<Line> lines = db.HashSetOfType<Line>(tx);
+                        HashSet<Spline> splines = db.HashSetOfType<Spline>(tx);
+                        HashSet<Polyline> plines = db.HashSetOfType<Polyline>(tx);
+                        HashSet<Polyline3d> plines3d = db.HashSetOfType<Polyline3d>(tx);
+                        HashSet<Arc> arcs = db.HashSetOfType<Arc>(tx);
+                        editor.WriteMessage($"\nNr. of lines: {lines.Count}");
+                        editor.WriteMessage($"\nNr. of splines: {splines.Count}");
+                        editor.WriteMessage($"\nNr. of plines: {plines.Count}");
+                        editor.WriteMessage($"\nNr. of plines3d: {plines3d.Count}");
+                        editor.WriteMessage($"\nNr. of arcs: {arcs.Count}");
+
+                        allLinework.UnionWith(lines.Cast<Entity>().ToHashSet());
+                        allLinework.UnionWith(splines.Cast<Entity>().ToHashSet());
+                        allLinework.UnionWith(plines.Cast<Entity>().ToHashSet());
+                        allLinework.UnionWith(plines3d.Cast<Entity>().ToHashSet());
+                        allLinework.UnionWith(arcs.Cast<Entity>().ToHashSet());
+
+                        allLinework = allLinework
+                            .Where(x => ReadStringParameterFromDataTable(x.Layer, dtKrydsninger, "Type", 0) != "IGNORE")
+                            .ToHashSet();
+
+                        try
                         {
-                            foreach (Entity ent in ents.Cast<Entity>())
-                            {
-                                list.Add(ent.Layer);
-                            }
-                            return list;
+                            Analyze();
+                        }
+                        catch (System.Exception e)
+                        {
+                            xRefAlsTx.Abort();
+                            xRefAlsTx.Dispose();
+                            xRefAlsDB.Dispose();
+                            tx.Abort();
+                            editor.WriteMessage($"\n{e.Message}");
+                            return;
                         }
 
-                        layNames.UnionWith(LocalListNames(layNames, entities));
+                        xRefAlsTx.Abort();
+                        xRefAlsTx.Dispose();
+                        xRefAlsDB.Dispose();
+                        #endregion
                     }
 
-                    layNames = layNames.OrderBy(x => x).ToHashSet();
-
-                    editor.WriteMessage($"\n++++++++ KONTROL ++++++++");
-
-                    foreach (string name in layNames)
+                    void Analyze()
                     {
-                        string nameInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Navn", 0);
-                        if (nameInFile.IsNoE())
-                        {
-                            editor.WriteMessage($"\nDefinition af ledningslag '{name}' mangler i Krydsninger.csv!");
-                        }
-                        else
-                        {
-                            string typeInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Type", 0);
 
-                            if (typeInFile == "IGNORE")
+                        HashSet<string> layNames = new HashSet<string>();
+
+                        foreach (Alignment al in alignments)
+                        {
+                            editor.WriteMessage($"\n++++++++ Indlæser alignment {al.Name}. ++++++++");
+
+                            HashSet<Entity> entities = FilterForCrossingEntities(allLinework, al);
+
+                            if (entities.Count == 0)
                             {
-                                editor.WriteMessage($"\nAdvarsel: Ledningslag" +
-                                        $" '{name}' er sat til 'IGNORE' og dermed ignoreres.");
+                                editor.WriteMessage("\nNo crossing entities found in drawing!");
+                                return;
+                            }
+
+                            //Local function to avoid duplicate code
+                            HashSet<string> LocalListNames<T>(HashSet<string> list, HashSet<T> ents)
+                            {
+                                foreach (Entity ent in ents.Cast<Entity>())
+                                {
+                                    list.Add(ent.Layer);
+                                }
+                                return list;
+                            }
+
+                            layNames.UnionWith(LocalListNames(layNames, entities));
+                        }
+
+                        layNames = layNames.OrderBy(x => x).ToHashSet();
+
+                        editor.WriteMessage($"\n++++++++ KONTROL ++++++++");
+
+                        foreach (string name in layNames)
+                        {
+                            string nameInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Navn", 0);
+                            if (nameInFile.IsNoE())
+                            {
+                                editor.WriteMessage($"\nDefinition af ledningslag '{name}' mangler i Krydsninger.csv!");
                             }
                             else
                             {
-                                editor.WriteMessage($"\nKontrollerer lag {name}:");
+                                string typeInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Type", 0);
 
-                                string layerInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Layer", 0);
-                                if (layerInFile.IsNoE())
-                                    editor.WriteMessage($"\nFejl: Definition af kolonne \"Layer\" for ledningslag" +
-                                        $" '{name}' mangler i Krydsninger.csv!");
+                                if (typeInFile == "IGNORE")
+                                {
+                                    editor.WriteMessage($"\nAdvarsel: Ledningslag" +
+                                            $" '{name}' er sat til 'IGNORE' og dermed ignoreres.");
+                                }
+                                else
+                                {
+                                    editor.WriteMessage($"\nKontrollerer lag {name}:");
 
-                                if (typeInFile.IsNoE())
-                                    editor.WriteMessage($"\nFejl: Definition af kolonne \"Type\" for ledningslag" +
-                                        $" '{name}' mangler i Krydsninger.csv!");
+                                    string layerInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Layer", 0);
+                                    if (layerInFile.IsNoE())
+                                        editor.WriteMessage($"\nFejl: Definition af kolonne \"Layer\" for ledningslag" +
+                                            $" '{name}' mangler i Krydsninger.csv!");
 
-                                string blockInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Block", 0);
-                                if (blockInFile.IsNoE())
-                                    editor.WriteMessage($"\nAdvarsel: Definition af kolonne \"Block\" for ledningslag" +
-                                        $" '{name}' mangler i Krydsninger.csv! Intet figur vil blive tegnet ved detaljering!");
+                                    if (typeInFile.IsNoE())
+                                        editor.WriteMessage($"\nFejl: Definition af kolonne \"Type\" for ledningslag" +
+                                            $" '{name}' mangler i Krydsninger.csv!");
 
-                                string descrInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Description", 0);
-                                if (descrInFile.IsNoE())
-                                    editor.WriteMessage($"\nAdvarsel: Definition af kolonne \"Description\" for ledningslag" +
-                                        $" '{name}' mangler i Krydsninger.csv! Intet beskrivelse vil blive skrevet i labels!");
+                                    string blockInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Block", 0);
+                                    if (blockInFile.IsNoE())
+                                        editor.WriteMessage($"\nAdvarsel: Definition af kolonne \"Block\" for ledningslag" +
+                                            $" '{name}' mangler i Krydsninger.csv! Intet figur vil blive tegnet ved detaljering!");
+
+                                    string descrInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Description", 0);
+                                    if (descrInFile.IsNoE())
+                                        editor.WriteMessage($"\nAdvarsel: Definition af kolonne \"Description\" for ledningslag" +
+                                            $" '{name}' mangler i Krydsninger.csv! Intet beskrivelse vil blive skrevet i labels!");
+                                }
                             }
                         }
                     }
+                }
+                catch (System.Exception e)
+                {
+                    tx.Abort();
+                    editor.WriteMessage($"\n{e.Message}");
+                    return;
                 }
 
                 tx.Abort();
@@ -2661,6 +2694,8 @@ namespace IntersectUtilities
                 {
                     try
                     {
+                        LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+
                         #region Select pline3d
                         PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
                             "\nSelect polyline3d to modify:");
@@ -2774,7 +2809,7 @@ namespace IntersectUtilities
                         for (int i = 0; i < columnNames.Length; i++)
                         {
                             bool success = false;
-
+                            
                             if (DoesRecordExist(tables, pline3dId, columnNames[i]))
                             {
                                 editor.WriteMessage($"\nRecord {columnNames[i]} already exists, updating...");
@@ -2794,8 +2829,25 @@ namespace IntersectUtilities
 
                             if (success)
                             {
-                                editor.WriteMessage($"\n{columnNames[i]} record created succesfully!");
+                                editor.WriteMessage($"\nUpdating color and layer properties!");
                                 Entity ent = pline3dId.Go<Entity>(tx, OpenMode.ForWrite);
+
+                                //Check layer name
+                                if (!lt.Has("GAS-ude af drift"))
+                                {
+                                    LayerTableRecord ltr = new LayerTableRecord();
+                                    ltr.Name = "GAS-ude af drift";
+                                    ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 221);
+
+                                    //Make layertable writable
+                                    lt.CheckOrOpenForWrite();
+
+                                    //Add the new layer to layer table
+                                    oid ltId = lt.Add(ltr);
+                                    tx.AddNewlyCreatedDBObject(ltr, true);
+
+                                    lt.DowngradeOpen();
+                                }
 
                                 if (ledningIbrug) ent.ColorIndex = 1;
                                 else { ent.Layer = "GAS-ude af drift"; ent.ColorIndex = 130; }
@@ -3321,6 +3373,9 @@ namespace IntersectUtilities
                         .Where(x => x.Layer == "AFL_ledning_faelles" ||
                                     x.Layer == "AFL_ikke_ibrug" ||
                                     x.Layer == "Afløb-kloakledning" ||
+                                    x.Layer == "AFL_ledning_faelles" ||
+                                    x.Layer == "AFL_ledning_draen" ||
+                                    x.Layer == "AFL_ledning_regn" ||
                                     x.Layer == "Regnvand")
                         .ToHashSet();
                     editor.WriteMessage($"\nNr. of local 3D polies: {localPlines3d.Count}");
@@ -7879,6 +7934,28 @@ namespace IntersectUtilities
                     ///////////////////////////
                     double moveThreshold = 1;
                     ///////////////////////////
+
+                    #region Create layers
+                    List<string> layerNames = new List<string>() { "Stikrør-2D", "Fordelingsrør-2D", "Distributionsrør-2D" };
+                    LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    foreach (string name in layerNames)
+                    {
+                        if (!lt.Has(name))
+                        {
+                            LayerTableRecord ltr = new LayerTableRecord();
+                            ltr.Name = name;
+                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 40);
+
+                            //Make layertable writable
+                            lt.CheckOrOpenForWrite();
+
+                            //Add the new layer to layer table
+                            oid ltId = lt.Add(ltr);
+                            tx.AddNewlyCreatedDBObject(ltr, true);
+                        }
+                    }
+
+                    #endregion
 
                     HashSet<Polyline3d> lines = localDb.HashSetOfType<Polyline3d>(tx, true);
                     foreach (Polyline3d line in lines)
