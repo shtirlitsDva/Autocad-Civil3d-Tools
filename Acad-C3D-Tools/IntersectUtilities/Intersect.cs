@@ -809,6 +809,7 @@ namespace IntersectUtilities
                         //We need to limit the processed layers only to the crossed ones.
                         HashSet<Polyline3d> filteredLinework = FilterForCrossingEntities(allLinework, al);
 
+                        int count = 0;
                         foreach (Entity ent in filteredLinework)
                         {
                             #region Create points
@@ -816,7 +817,6 @@ namespace IntersectUtilities
                             {
                                 al.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
 
-                                int count = 1;
                                 foreach (Point3d p3d in p3dcol)
                                 {
                                     //Id of the new Poly3d if type == 3D
@@ -855,7 +855,7 @@ namespace IntersectUtilities
 
                                         foreach (Point3d p3dInt in p3dIntCol)
                                         {
-                                            //Assume only one intersection
+                                            count++;
                                             if (p3dInt.Z <= 0)
                                             {
                                                 editor.WriteMessage($"\nEntity {ent.Handle} returned {p3dInt.Z}" +
@@ -876,6 +876,8 @@ namespace IntersectUtilities
                             ent.Erase(true);
                             #endregion
                         }
+
+                        editor.WriteMessage($"\nTotal intersections detected: {count}.");
                     }
                 }
                 catch (System.Exception e)
