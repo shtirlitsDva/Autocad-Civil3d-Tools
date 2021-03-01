@@ -921,8 +921,6 @@ namespace IntersectUtilities
                 {
                     alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
 
-                    //Create feature line if there's an intersection and
-                    //if the type of the layer is not "IGNORE"
                     if (p3dcol.Count > 0)
                     {
                         returnList.Add(ent);
@@ -930,6 +928,13 @@ namespace IntersectUtilities
                 }
             }
             return returnList.Cast<T>().ToHashSet();
+        }
+
+        public static void prdDbg(string msg)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            editor.WriteMessage("\n" + msg);
         }
 
         /// <summary>
