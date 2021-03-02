@@ -4194,7 +4194,7 @@ namespace IntersectUtilities
                                 if (pPtRes.Status != PromptStatus.OK) return;
                                 #endregion
 
-                                
+
                                 //allAlignments = new List<Alignment>(1) { allAlignments.First() };
 
                                 foreach (Alignment alignment in allAlignments)
@@ -4671,7 +4671,7 @@ namespace IntersectUtilities
                 {
                     oidsToErase.Add(p3d.ObjectId);
                 }
-                
+
                 #endregion
 
                 #region Prepare variables
@@ -6508,6 +6508,38 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("setlabelslength")]
+        public void setlabelslength()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                HashSet<ProfileProjectionLabel> labels = localDb.HashSetOfType<ProfileProjectionLabel>(tx);
+                editor.WriteMessage($"\nNumber of labels: {labels.Count}.");
+
+                #region Get length
+                PromptDoubleResult result = editor.GetDouble("\nEnter length: ");
+                if (((PromptResult)result).Status != PromptStatus.OK) return;
+                double length = result.Value;
+                #endregion
+
+                foreach (ProfileProjectionLabel label in labels)
+                {
+                    label.CheckOrOpenForWrite();
+
+                    label.DimensionAnchorValue = length / 250 / 4;
+                }
+
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("importlabelstyles")]
         public void importlabelstyles()
         {
@@ -7768,7 +7800,7 @@ namespace IntersectUtilities
                         {
                             LayerTableRecord ltr = new LayerTableRecord();
                             ltr.Name = name;
-                            if (name != "GAS-ude af drift-2D") ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 40);
+                            if (name != "GAS-ude af drift-2D") ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 30);
                             else ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 221);
 
                             //Make layertable writable
