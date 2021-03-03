@@ -4195,7 +4195,9 @@ namespace IntersectUtilities
                                 #endregion
 
 
-                                //allAlignments = new List<Alignment>(1) { allAlignments.First() };
+                                //allAlignments = new List<Alignment>(1) { allAlignments.Where(x => x.Name == "01 Bernstorffsvej").FirstOrDefault() };
+                                //allAlignments = allAlignments.GetRange(1, 3);
+                                if (allAlignments.Count == 0) throw new System.Exception();
 
                                 foreach (Alignment alignment in allAlignments)
                                 {
@@ -4545,7 +4547,36 @@ namespace IntersectUtilities
                             TryCopySpecificOD(tables, ent, cogoPoint, odList);
                             #endregion
 
-                            #region Create Diameter OD
+                            #region Check, create or update Crossing Data
+                            //Definition of "CrossingData" table
+                            string[] columnNames = new string[2] { "Diameter", "Alignment" };
+                            string[] columnDescrs = new string[2] { "Diameter of crossing pipe", "Alignment name" };
+                            DataType[] dataTypes = new DataType[2] { DataType.Character, DataType.Character };
+                            //
+
+                            //Check or create table, or check or create all columns
+                            if (DoesTableExist(tables, "CrossingData"))
+                            {//Table exists
+                                if (DoAllColumnsExist(tables, "CrossingData", columnNames))
+                                {
+                                    //The table is in order, continue to data creation
+                                }
+                                //If not create missing columns
+                                else CreateMissingColumns(tables, "CrossingData", columnNames, columnDescrs, dataTypes);
+                            }
+                            else
+                            {
+                                //Table does not exist
+                                if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
+                                    columnNames, columnDescrs, dataTypes))
+                                {
+                                    //Table ready for populating with data
+                                }
+                            }
+
+                            #endregion
+
+                            #region Create Diameter OD in "CrossingData"
                             odList.Clear();
                             odList.Add(("SizeTable", "Size"));
                             //Fetch diameter definitions if any
@@ -4572,29 +4603,50 @@ namespace IntersectUtilities
                                         {
                                             UpdateODRecord(tables, "CrossingData", "Diameter",
                                                 cogoPoint.ObjectId, originalValue);
+                                            UpdateODRecord(tables, "CrossingData", "Alignment",
+                                                cogoPoint.ObjectId, new MapValue(alignment.Name));
                                         }
                                         else
                                         {
                                             AddODRecord(tables, "CrossingData", "Diameter",
                                                 cogoPoint.ObjectId, originalValue);
+                                            AddODRecord(tables, "CrossingData", "Alignment",
+                                                cogoPoint.ObjectId, new MapValue(alignment.Name));
                                         }
                                     }
                                     else
                                     {
-                                        string[] columnNames = new string[1] { "Diameter" };
-                                        string[] columnDescrs = new string[1] { "Diameter of crossing pipe" };
 
-                                        if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
-                                            columnNames, columnDescrs,
-                                            new Autodesk.Gis.Map.Constants.DataType[1]
-                                            {Autodesk.Gis.Map.Constants.DataType.Character }))
-                                        {
-                                            AddODRecord(tables, "CrossingData", "Diameter",
-                                                cogoPoint.ObjectId, originalValue);
-                                        }
+                                        AddODRecord(tables, "CrossingData", "Diameter",
+                                            cogoPoint.ObjectId, originalValue);
+                                        AddODRecord(tables, "CrossingData", "Alignment",
+                                            cogoPoint.ObjectId, new MapValue(alignment.Name));
+
                                     }
                                 }
                             }
+                            #endregion
+
+                            #region Create alignment "CrossingData"
+                            if (DoesTableExist(tables, "CrossingData"))
+                            {
+                                if (DoesRecordExist(tables, cogoPoint.ObjectId, "Diameter"))
+                                {
+                                    UpdateODRecord(tables, "CrossingData", "Alignment",
+                                        cogoPoint.ObjectId, new MapValue(alignment.Name));
+                                }
+                                else
+                                {
+                                    AddODRecord(tables, "CrossingData", "Alignment",
+                                        cogoPoint.ObjectId, new MapValue(alignment.Name));
+                                }
+                            }
+                            else
+                            {
+                                //This should not be possible!!!
+                                //The table is checked or created earlier.
+                            }
+
                             #endregion
 
                             //Reference newly created cogoPoint to gathering collection
@@ -4942,7 +4994,36 @@ namespace IntersectUtilities
                             TryCopySpecificOD(tables, ent, cogoPoint, odList);
                             #endregion
 
-                            #region Create Diameter OD
+                            #region Check, create or update Crossing Data
+                            //Definition of "CrossingData" table
+                            string[] columnNames = new string[2] { "Diameter", "Alignment" };
+                            string[] columnDescrs = new string[2] { "Diameter of crossing pipe", "Alignment name" };
+                            DataType[] dataTypes = new DataType[2] { DataType.Character, DataType.Character };
+                            //
+
+                            //Check or create table, or check or create all columns
+                            if (DoesTableExist(tables, "CrossingData"))
+                            {//Table exists
+                                if (DoAllColumnsExist(tables, "CrossingData", columnNames))
+                                {
+                                    //The table is in order, continue to data creation
+                                }
+                                //If not create missing columns
+                                else CreateMissingColumns(tables, "CrossingData", columnNames, columnDescrs, dataTypes);
+                            }
+                            else
+                            {
+                                //Table does not exist
+                                if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
+                                    columnNames, columnDescrs, dataTypes))
+                                {
+                                    //Table ready for populating with data
+                                }
+                            }
+
+                            #endregion
+
+                            #region Create Diameter OD in "CrossingData"
                             odList.Clear();
                             odList.Add(("SizeTable", "Size"));
                             //Fetch diameter definitions if any
@@ -4969,29 +5050,50 @@ namespace IntersectUtilities
                                         {
                                             UpdateODRecord(tables, "CrossingData", "Diameter",
                                                 cogoPoint.ObjectId, originalValue);
+                                            UpdateODRecord(tables, "CrossingData", "Alignment",
+                                                cogoPoint.ObjectId, new MapValue(alignment.Name));
                                         }
                                         else
                                         {
                                             AddODRecord(tables, "CrossingData", "Diameter",
                                                 cogoPoint.ObjectId, originalValue);
+                                            AddODRecord(tables, "CrossingData", "Alignment",
+                                                cogoPoint.ObjectId, new MapValue(alignment.Name));
                                         }
                                     }
                                     else
                                     {
-                                        string[] columnNames = new string[1] { "Diameter" };
-                                        string[] columnDescrs = new string[1] { "Diameter of crossing pipe" };
 
-                                        if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
-                                            columnNames, columnDescrs,
-                                            new Autodesk.Gis.Map.Constants.DataType[1]
-                                            {Autodesk.Gis.Map.Constants.DataType.Character }))
-                                        {
-                                            AddODRecord(tables, "CrossingData", "Diameter",
-                                                cogoPoint.ObjectId, originalValue);
-                                        }
+                                        AddODRecord(tables, "CrossingData", "Diameter",
+                                            cogoPoint.ObjectId, originalValue);
+                                        AddODRecord(tables, "CrossingData", "Alignment",
+                                            cogoPoint.ObjectId, new MapValue(alignment.Name));
+
                                     }
                                 }
                             }
+                            #endregion
+
+                            #region Create alignment "CrossingData"
+                            if (DoesTableExist(tables, "CrossingData"))
+                            {
+                                if (DoesRecordExist(tables, cogoPoint.ObjectId, "Diameter"))
+                                {
+                                    UpdateODRecord(tables, "CrossingData", "Alignment",
+                                        cogoPoint.ObjectId, new MapValue(alignment.Name));
+                                }
+                                else
+                                {
+                                    AddODRecord(tables, "CrossingData", "Alignment",
+                                        cogoPoint.ObjectId, new MapValue(alignment.Name));
+                                }
+                            }
+                            else
+                            {
+                                //This should not be possible!!!
+                                //The table is checked or created earlier.
+                            }
+
                             #endregion
 
                             //Reference newly created cogoPoint to gathering collection
