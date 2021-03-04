@@ -690,8 +690,13 @@ namespace IntersectUtilities
 
         public static void CopyAllOD(Tables tables, Entity entSource, Entity entTarget)
         {
+            CopyAllOD(tables, entSource.Id, entTarget.Id);
+        }
+
+        public static void CopyAllOD(Tables tables, oid sourceId, oid targetId)
+        {
             using (Records records = tables.GetObjectRecords(
-                   0, entSource.ObjectId, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+                   0, sourceId, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
             {
                 if (records == null || records.Count == 0) return;
 
@@ -734,7 +739,7 @@ namespace IntersectUtilities
                     }
                     try
                     {
-                        table.AddRecord(newRecord, entTarget.ObjectId);
+                        table.AddRecord(newRecord, targetId);
                     }
                     catch (Autodesk.Gis.Map.MapException ex)
                     {

@@ -7401,12 +7401,64 @@ namespace IntersectUtilities
 
                     #region Choose table
                     Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-                    Autodesk.Gis.Map.ObjectData.Table table = tables["AFL_ledning_faelles"];
+                    Autodesk.Gis.Map.ObjectData.Table table = tables["PLAN_A_AV_LEDNING_TRACE_H"];
 
                     if (!AddEmptyODRecord(table, targetPline3dId))
                     {
                         editor.WriteMessage("Something went wrong!");
                     }
+
+                    #endregion
+
+
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("COPYODFROMENTTOENT")]
+        public void copyodfromenttoent()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Select entities
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                        "\nSelect entity FROM where to copy OD:");
+                    promptEntityOptions1.SetRejectMessage("\n Not an entity!");
+                    promptEntityOptions1.AddAllowedClass(typeof(Entity), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId sourceId = entity1.ObjectId;
+
+                    PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
+                        "\nSelect entity where to copy OD TO:");
+                    promptEntityOptions2.SetRejectMessage("\n Not an entity!");
+                    promptEntityOptions2.AddAllowedClass(typeof(Entity), true);
+                    PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                    if (((PromptResult)entity2).Status != PromptStatus.OK) { tx.Abort(); return; }
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId targetId = entity2.ObjectId;
+                    #endregion
+
+
+                    #region Choose table
+
+                    CopyAllOD(HostMapApplicationServices.Application.ActiveProject.ODTables,
+                        sourceId, targetId);
 
                     #endregion
 
