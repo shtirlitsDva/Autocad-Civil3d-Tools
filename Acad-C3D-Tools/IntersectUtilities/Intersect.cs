@@ -1806,7 +1806,8 @@ namespace IntersectUtilities
                             oid fId = label.FeatureId;
                             Entity fEnt = fId.Go<Entity>(tx);
 
-                            int diaOriginal = ReadIntPropertyValue(tables, fId, "CrossingData", "Diameter");
+                            int diaOriginal = ReadIntPropertyValue(tables, fEnt.Id, "CrossingData", "Diameter");
+                            prdDbg(fEnt.Handle.ToString() +": "+ diaOriginal.ToString());
 
                             double dia = Convert.ToDouble(diaOriginal) / 1000;
 
@@ -1881,8 +1882,8 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    throw new System.Exception(ex.Message);
-                    editor.WriteMessage("\n" + ex.Message);
+                    //throw new System.Exception(ex.Message);
+                    editor.WriteMessage("\nMain caught it: " + ex.Message);
                     return;
                 }
                 tx.Commit();
@@ -4195,8 +4196,10 @@ namespace IntersectUtilities
                                 #endregion
 
 
-                                //allAlignments = new List<Alignment>(1) { allAlignments.Where(x => x.Name == "01 Bernstorffsvej").FirstOrDefault() };
+                                allAlignments = new List<Alignment>(1) { allAlignments.Where(x => x.Name == "32 Berlingsbakke").FirstOrDefault() };
                                 //allAlignments = allAlignments.GetRange(1, 3);
+                                //allAlignments = allAlignments.OrderBy(x => x.Name).ToList().GetRange(20, 11);
+                                //allAlignments = allAlignments.OrderBy(x => x.Name).Skip(32).ToList();
                                 if (allAlignments.Count == 0) throw new System.Exception();
 
                                 foreach (Alignment alignment in allAlignments)
@@ -4221,24 +4224,42 @@ namespace IntersectUtilities
                                     #endregion
 
                                     #region Create ler data
-                                    HashSet<oid> oidsToErase = new HashSet<oid>();
-                                    createlerdataloopwithdeepclone(filteredLinework, alignment, surface, pvId.Go<ProfileView>(tx),
-                                                                 dtKrydsninger, dtDybde, xRefLerDB, oidsToErase, ref pNames);
-                                    foreach (oid OID in oidsToErase)
+                                    using (Transaction loopTx = db.TransactionManager.StartTransaction())
                                     {
-                                        Polyline3d p3d = OID.Go<Polyline3d>(tx, OpenMode.ForWrite);
-                                        p3d.Erase(true);
+                                        try
+                                        {
+                                            HashSet<oid> oidsToErase = new HashSet<oid>();
+                                            createlerdataloopwithdeepclone(filteredLinework, alignment, surface, pvId.Go<ProfileView>(loopTx),
+                                                                         dtKrydsninger, dtDybde, xRefLerDB, oidsToErase, loopTx, ref pNames);
+                                            foreach (oid OID in oidsToErase)
+                                            {
+                                                Polyline3d p3d = OID.Go<Polyline3d>(loopTx, OpenMode.ForWrite);
+                                                p3d.Erase(true);
+                                            }
+                                        }
+                                        catch (System.Exception e)
+                                        {
+                                            loopTx.Abort();
+                                            xRefLerTx.Abort();
+                                            xRefLerDB.Dispose();
+                                            xRefSurfaceTx.Abort();
+                                            xRefSurfaceDB.Dispose();
+                                            editor.WriteMessage($"\n{e.Message}");
+                                            return;
+                                        }
+                                        loopTx.Commit();
                                     }
                                     #endregion
                                 }
                             }
-                            catch (System.Exception)
+                            catch (System.Exception e)
                             {
                                 xRefLerTx.Abort();
                                 xRefLerDB.Dispose();
                                 xRefSurfaceTx.Abort();
                                 xRefSurfaceDB.Dispose();
-                                throw;
+                                editor.WriteMessage($"\n{e.Message}");
+                                return;
                             }
                             xRefLerTx.Abort();
                         }
@@ -4249,453 +4270,455 @@ namespace IntersectUtilities
                     xRefSurfaceDB.Dispose();
                 }
 
-                catch (System.Exception ex)
+                catch (System.Exception e)
                 {
-                    throw new System.Exception(ex.Message);
-                    editor.WriteMessage("\n" + ex.Message);
+                    tx.Abort();
+                    editor.WriteMessage($"\n{e.Message}");
                     return;
                 }
 
                 tx.Commit();
             }
         }
-        public void createlerdataloopnodeepclone(HashSet<Polyline3d> allLinework, Alignment alignment,
-                                      CivSurface surface, ProfileView pv,
-                                      System.Data.DataTable dtKrydsninger, System.Data.DataTable dtDybde,
-                                      ref HashSet<string> pNames)
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            Transaction tx = localDb.TransactionManager.TopTransaction;
-
-            try
-            {
-                #region ModelSpaces
-                //oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(xRefDB);
-                oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
-                #endregion
-
-                #region Prepare variables
-                BlockTable acBlkTbl = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                BlockTableRecord acBlkTblRec =
-                    tx.GetObject(acBlkTbl[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
-
-                Plane plane = new Plane();
-
-                editor.WriteMessage($"\nTotal {allLinework.Count} intersections detected.");
-
-                //Load things
-                CogoPointCollection cogoPoints = civilDoc.CogoPoints;
-                HashSet<CogoPoint> allNewlyCreatedPoints = new HashSet<CogoPoint>();
-                #endregion
-
-                #region Handle PointGroups
-                bool pointGroupAlreadyExists = civilDoc.PointGroups.Contains(alignment.Name);
-
-                PointGroup pg = null;
-
-                if (pointGroupAlreadyExists)
-                {
-                    pg = tx.GetObject(civilDoc.PointGroups[alignment.Name], OpenMode.ForWrite) as PointGroup;
-                }
-                else
-                {
-                    oid pgId = civilDoc.PointGroups.Add(alignment.Name);
-
-                    pg = pgId.GetObject(OpenMode.ForWrite) as PointGroup;
-                }
-                #endregion
-
-                foreach (Entity ent in allLinework)
-                {
-                    #region Read data parameters from csvs
-                    //Read 'Type' value
-                    string type = ReadStringParameterFromDataTable(ent.Layer, dtKrydsninger, "Type", 0);
-                    if (type.IsNoE())
-                    {
-                        editor.WriteMessage($"\nFejl: For lag {ent.Layer} mangler der enten " +
-                            $"selve definitionen eller 'Type'!");
-                        return;
-                    }
-
-                    //Read depth value for type
-                    double depth = 0;
-                    if (!type.IsNoE())
-                    {
-                        depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
-                    }
-
-                    //Read layer value for the object
-                    string localLayerName = Utils.ReadStringParameterFromDataTable(
-                                        ent.Layer, dtKrydsninger, "Layer", 0);
-
-                    prdDbg(localLayerName);
-
-                    #region Populate description field
-
-                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-
-                    string description = string.Empty;
-
-                    ////Populate description field
-                    ////1. Read size record if it exists
-                    //MapValue sizeRecord = Utils.ReadRecordData(
-                    //    tables, ent.ObjectId, "SizeTable", "Size");
-                    //int SizeTableSize = 0;
-                    //string sizeDescrPart = "";
-                    //if (sizeRecord != null)
-                    //{
-                    //    SizeTableSize = sizeRecord.Int32Value;
-                    //    sizeDescrPart = $"ø{SizeTableSize}";
-                    //}
-
-                    //2. Read description from Krydsninger
-                    string descrFromKrydsninger = ReadStringParameterFromDataTable(
-                        ent.Layer, dtKrydsninger, "Description", 0);
-
-                    //2.1 Read the formatting in the description field
-                    List<(string ToReplace, string Data)> descrFormatList = null;
-                    if (descrFromKrydsninger.IsNotNoE())
-                        descrFormatList = FindDescriptionParts(descrFromKrydsninger);
-
-                    //Finally: Compose description field
-                    List<string> descrParts = new List<string>();
-                    //1. Add custom size
-                    //if (SizeTableSize != 0) descrParts.Add(sizeDescrPart);
-                    //2. Process and add parts from format bits in OD
-                    if (descrFromKrydsninger.IsNotNoE())
-                    {
-                        //Interpolate description from Krydsninger with format setting, if they exist
-                        if (descrFormatList != null && descrFormatList.Count > 0)
-                        {
-                            for (int i = 0; i < descrFormatList.Count; i++)
-                            {
-                                var tuple = descrFormatList[i];
-                                string result = ReadDescriptionPartsFromOD(tables, ent, tuple.Data, dtKrydsninger);
-                                descrFromKrydsninger = descrFromKrydsninger.Replace(tuple.ToReplace, result);
-                                prdDbg(descrFromKrydsninger);
-                            }
-                        }
-
-                        //Add the description field to parts
-                        descrParts.Add(descrFromKrydsninger);
-                    }
-
-                    description = "";
-                    if (descrParts.Count == 1) description = descrParts[0];
-                    else if (descrParts.Count > 1)
-                        description = string.Join("; ", descrParts);
-
-                    #endregion
-
-                    string handleValue = ent.Handle.ToString();
-                    string pName = "";
-
-                    if (handleValue != null) pName = handleValue;
-                    else
-                    {
-                        pName = "Reading of Handle failed.";
-                        editor.WriteMessage($"\nEntity on layer {ent.Layer} failed to read Handle!");
-                    }
-
-                    #endregion
-
-                    #region Create points
-                    using (Point3dCollection p3dcol = new Point3dCollection())
-                    {
-                        alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
-
-                        foreach (Point3d p3d in p3dcol)
-                        {
-                            oid pointId = cogoPoints.Add(p3d, true);
-                            CogoPoint cogoPoint = pointId.Go<CogoPoint>(tx, OpenMode.ForWrite);
-
-                            //Id of the new Poly3d if type == 3D
-                            oid newPolyId;
-
-                            #region Assign elevation based on 3D conditions
-                            double zElevation = 0;
-                            if (type != "3D")
-                            {
-                                var intPoint = surface.GetIntersectionPoint(p3d, new Vector3d(0, 0, 1));
-                                zElevation = intPoint.Z;
-
-                                //Subtract the depth (if invalid it is zero, so no modification will occur)
-                                zElevation -= depth;
-
-                                cogoPoint.Elevation = zElevation;
-                            }
-                            else if (type == "3D")
-                            {
-                                //Create vertical line to intersect the Ler line
-                                using (Transaction txp3d = localDb.TransactionManager.StartTransaction())
-                                {
-                                    Point3dCollection newP3dCol = new Point3dCollection();
-                                    //Intersection at 0
-                                    newP3dCol.Add(p3d);
-                                    //New point at very far away
-                                    newP3dCol.Add(new Point3d(p3d.X, p3d.Y, 1000));
-
-                                    Polyline3d newPoly = new Polyline3d(Poly3dType.SimplePoly, newP3dCol, false);
-
-                                    //Open modelspace
-                                    acBlkTbl = txp3d.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                                    acBlkTblRec = txp3d.GetObject(acBlkTbl[BlockTableRecord.ModelSpace],
-                                                     OpenMode.ForWrite) as BlockTableRecord;
-
-                                    acBlkTblRec.AppendEntity(newPoly);
-                                    txp3d.AddNewlyCreatedDBObject(newPoly, true);
-                                    newPolyId = newPoly.ObjectId;
-                                    txp3d.Commit();
-                                }
-
-                                Polyline3d newPoly3d = newPolyId.Go<Polyline3d>(tx);
-                                using (Point3dCollection p3dIntCol = new Point3dCollection())
-                                {
-                                    ent.IntersectWith(newPoly3d, 0, p3dIntCol, new IntPtr(0), new IntPtr(0));
-
-                                    foreach (Point3d p3dInt in p3dIntCol)
-                                    {
-                                        //Assume only one intersection
-                                        cogoPoint.Elevation = p3dInt.Z;
-                                    }
-
-                                    if (cogoPoint.Elevation == 0)
-                                    {
-                                        editor.WriteMessage($"\nFor type 3D entity {handleValue}" +
-                                            $" layer {ent.Layer}," +
-                                            $" elevation is 0!");
-                                    }
-                                }
-                                newPoly3d.UpgradeOpen();
-                                newPoly3d.Erase(true);
-                            }
-                            #endregion
-
-                            //Set the layer
-                            #region Layer handling
-                            bool localLayerExists = false;
-
-                            if (!localLayerName.IsNoE() || localLayerName != null)
-                            {
-                                LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
-                                if (lt.Has(localLayerName))
-                                {
-                                    localLayerExists = true;
-                                }
-                                else
-                                {
-                                    //Create layer if it doesn't exist
-                                    try
-                                    {
-                                        //Validate the name of layer
-                                        //It throws an exception if not, so need to catch it
-                                        SymbolUtilityServices.ValidateSymbolName(localLayerName, false);
-
-                                        LayerTableRecord ltr = new LayerTableRecord();
-                                        ltr.Name = localLayerName;
-
-                                        //Make layertable writable
-                                        lt.UpgradeOpen();
-
-                                        //Add the new layer to layer table
-                                        oid ltId = lt.Add(ltr);
-                                        tx.AddNewlyCreatedDBObject(ltr, true);
-
-                                        //Flag that the layer exists now
-                                        localLayerExists = true;
-
-                                    }
-                                    catch (System.Exception)
-                                    {
-                                        //Eat the exception and continue
-                                        //localLayerExists must remain false
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                editor.WriteMessage($"\nLocal layer name for source layer {ent.Layer} does not" +
-                                    $" exist in Krydsninger.csv!");
-                            }
-
-                            cogoPoint.Layer = localLayerName;
-                            #endregion
-
-                            int count = 1;
-                            string pointName = pName + "_" + count;
-
-                            while (pNames.Contains(pointName))
-                            {
-                                count++;
-                                pointName = pName + "_" + count;
-                            }
-                            pNames.Add(pointName);
-                            cogoPoint.PointName = pointName;
-                            cogoPoint.RawDescription = description;
-
-                            #region Copy OD from polies to the new point
-                            //Copy specific OD from cloned 3D polies to the new point
-
-                            List<(string TableName, string RecordName)> odList =
-                                new List<(string TableName, string RecordName)>();
-                            odList.Add(("IdRecord", "Handle"));
-                            TryCopySpecificOD(tables, ent, cogoPoint, odList);
-                            #endregion
-
-                            #region Check, create or update Crossing Data
-                            //Definition of "CrossingData" table
-                            string[] columnNames = new string[2] { "Diameter", "Alignment" };
-                            string[] columnDescrs = new string[2] { "Diameter of crossing pipe", "Alignment name" };
-                            DataType[] dataTypes = new DataType[2] { DataType.Character, DataType.Character };
-                            //
-
-                            //Check or create table, or check or create all columns
-                            if (DoesTableExist(tables, "CrossingData"))
-                            {//Table exists
-                                if (DoAllColumnsExist(tables, "CrossingData", columnNames))
-                                {
-                                    //The table is in order, continue to data creation
-                                }
-                                //If not create missing columns
-                                else CreateMissingColumns(tables, "CrossingData", columnNames, columnDescrs, dataTypes);
-                            }
-                            else
-                            {
-                                //Table does not exist
-                                if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
-                                    columnNames, columnDescrs, dataTypes))
-                                {
-                                    //Table ready for populating with data
-                                }
-                            }
-
-                            #endregion
-
-                            #region Create Diameter OD in "CrossingData"
-                            odList.Clear();
-                            odList.Add(("SizeTable", "Size"));
-                            //Fetch diameter definitions if any
-                            string diaDef = ReadStringParameterFromDataTable(ent.Layer,
-                                dtKrydsninger, "Diameter", 0);
-                            if (diaDef.IsNotNoE())
-                            {
-                                var list = FindDescriptionParts(diaDef);
-                                //Be careful if FindDescriptionParts implementation changes
-                                string[] parts = list[0].Item2.Split(':');
-                                odList.Add((parts[0], parts[1]));
-                            }
-
-                            foreach (var item in odList)
-                            {
-                                MapValue originalValue = ReadRecordData(
-                                    tables, ent.ObjectId, item.TableName, item.RecordName);
-
-                                if (originalValue != null)
-                                {
-                                    if (DoesTableExist(tables, "CrossingData"))
-                                    {
-                                        if (DoesRecordExist(tables, cogoPoint.ObjectId, "Diameter"))
-                                        {
-                                            UpdateODRecord(tables, "CrossingData", "Diameter",
-                                                cogoPoint.ObjectId, originalValue);
-                                            UpdateODRecord(tables, "CrossingData", "Alignment",
-                                                cogoPoint.ObjectId, new MapValue(alignment.Name));
-                                        }
-                                        else
-                                        {
-                                            AddODRecord(tables, "CrossingData", "Diameter",
-                                                cogoPoint.ObjectId, originalValue);
-                                            AddODRecord(tables, "CrossingData", "Alignment",
-                                                cogoPoint.ObjectId, new MapValue(alignment.Name));
-                                        }
-                                    }
-                                    else
-                                    {
-
-                                        AddODRecord(tables, "CrossingData", "Diameter",
-                                            cogoPoint.ObjectId, originalValue);
-                                        AddODRecord(tables, "CrossingData", "Alignment",
-                                            cogoPoint.ObjectId, new MapValue(alignment.Name));
-
-                                    }
-                                }
-                            }
-                            #endregion
-
-                            #region Create alignment "CrossingData"
-                            if (DoesTableExist(tables, "CrossingData"))
-                            {
-                                if (DoesRecordExist(tables, cogoPoint.ObjectId, "Diameter"))
-                                {
-                                    UpdateODRecord(tables, "CrossingData", "Alignment",
-                                        cogoPoint.ObjectId, new MapValue(alignment.Name));
-                                }
-                                else
-                                {
-                                    AddODRecord(tables, "CrossingData", "Alignment",
-                                        cogoPoint.ObjectId, new MapValue(alignment.Name));
-                                }
-                            }
-                            else
-                            {
-                                //This should not be possible!!!
-                                //The table is checked or created earlier.
-                            }
-
-                            #endregion
-
-                            //Reference newly created cogoPoint to gathering collection
-                            allNewlyCreatedPoints.Add(cogoPoint);
-                        }
-                    }
-                    #endregion
-                }
-
-                #region Assign newly created points to projection on a profile view
-                #region Build query for PointGroup
-                //Build query
-                StandardPointGroupQuery spgq = new StandardPointGroupQuery();
-                List<string> newPointNumbers = allNewlyCreatedPoints.Select(x => x.PointNumber.ToString()).ToList();
-                string pointNumbersToInclude = string.Join(",", newPointNumbers.ToArray());
-                spgq.IncludeNumbers = pointNumbersToInclude;
-                pg.SetQuery(spgq);
-                pg.Update();
-                #endregion
-
-                double elMax = pv.ElevationMax;
-                double elMin = pv.ElevationMin;
-
-                double tryGetMin = allNewlyCreatedPoints.Min(x => x.Elevation);
-
-                if (tryGetMin != 0)
-                {
-                    pv.CheckOrOpenForWrite();
-                    elMin = tryGetMin - 1;
-                    pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
-                    pv.ElevationMin = elMin;
-                }
-
-                editor.SetImpliedSelection(allNewlyCreatedPoints.Select(x => x.ObjectId).ToArray());
-                editor.Command("_AeccProjectObjectsToProf", pv.ObjectId);
-
-                #endregion
-            }
-            catch (System.Exception ex)
-            {
-                editor.WriteMessage("\n" + ex.Message);
-                return;
-            }
-        }
+        #region Obsolete code
+        //public void createlerdataloopnodeepclone(HashSet<Polyline3d> allLinework, Alignment alignment,
+        //                              CivSurface surface, ProfileView pv,
+        //                              System.Data.DataTable dtKrydsninger, System.Data.DataTable dtDybde,
+        //                              ref HashSet<string> pNames)
+        //{
+        //    DocumentCollection docCol = Application.DocumentManager;
+        //    Database localDb = docCol.MdiActiveDocument.Database;
+        //    Editor editor = docCol.MdiActiveDocument.Editor;
+        //    Document doc = docCol.MdiActiveDocument;
+        //    CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+        //    Transaction tx = localDb.TransactionManager.TopTransaction;
+
+        //    try
+        //    {
+        //        #region ModelSpaces
+        //        //oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(xRefDB);
+        //        oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+        //        #endregion
+
+        //        #region Prepare variables
+        //        BlockTable acBlkTbl = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+        //        BlockTableRecord acBlkTblRec =
+        //            tx.GetObject(acBlkTbl[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
+
+        //        Plane plane = new Plane();
+
+        //        editor.WriteMessage($"\nTotal {allLinework.Count} intersections detected.");
+
+        //        //Load things
+        //        CogoPointCollection cogoPoints = civilDoc.CogoPoints;
+        //        HashSet<CogoPoint> allNewlyCreatedPoints = new HashSet<CogoPoint>();
+        //        #endregion
+
+        //        #region Handle PointGroups
+        //        bool pointGroupAlreadyExists = civilDoc.PointGroups.Contains(alignment.Name);
+
+        //        PointGroup pg = null;
+
+        //        if (pointGroupAlreadyExists)
+        //        {
+        //            pg = tx.GetObject(civilDoc.PointGroups[alignment.Name], OpenMode.ForWrite) as PointGroup;
+        //        }
+        //        else
+        //        {
+        //            oid pgId = civilDoc.PointGroups.Add(alignment.Name);
+
+        //            pg = pgId.GetObject(OpenMode.ForWrite) as PointGroup;
+        //        }
+        //        #endregion
+
+        //        foreach (Entity ent in allLinework)
+        //        {
+        //            #region Read data parameters from csvs
+        //            //Read 'Type' value
+        //            string type = ReadStringParameterFromDataTable(ent.Layer, dtKrydsninger, "Type", 0);
+        //            if (type.IsNoE())
+        //            {
+        //                editor.WriteMessage($"\nFejl: For lag {ent.Layer} mangler der enten " +
+        //                    $"selve definitionen eller 'Type'!");
+        //                return;
+        //            }
+
+        //            //Read depth value for type
+        //            double depth = 0;
+        //            if (!type.IsNoE())
+        //            {
+        //                depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+        //            }
+
+        //            //Read layer value for the object
+        //            string localLayerName = Utils.ReadStringParameterFromDataTable(
+        //                                ent.Layer, dtKrydsninger, "Layer", 0);
+
+        //            //prdDbg(localLayerName);
+
+        //            #region Populate description field
+
+        //            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+        //            string description = string.Empty;
+
+        //            ////Populate description field
+        //            ////1. Read size record if it exists
+        //            //MapValue sizeRecord = Utils.ReadRecordData(
+        //            //    tables, ent.ObjectId, "SizeTable", "Size");
+        //            //int SizeTableSize = 0;
+        //            //string sizeDescrPart = "";
+        //            //if (sizeRecord != null)
+        //            //{
+        //            //    SizeTableSize = sizeRecord.Int32Value;
+        //            //    sizeDescrPart = $"ø{SizeTableSize}";
+        //            //}
+
+        //            //2. Read description from Krydsninger
+        //            string descrFromKrydsninger = ReadStringParameterFromDataTable(
+        //                ent.Layer, dtKrydsninger, "Description", 0);
+
+        //            //2.1 Read the formatting in the description field
+        //            List<(string ToReplace, string Data)> descrFormatList = null;
+        //            if (descrFromKrydsninger.IsNotNoE())
+        //                descrFormatList = FindDescriptionParts(descrFromKrydsninger);
+
+        //            //Finally: Compose description field
+        //            List<string> descrParts = new List<string>();
+        //            //1. Add custom size
+        //            //if (SizeTableSize != 0) descrParts.Add(sizeDescrPart);
+        //            //2. Process and add parts from format bits in OD
+        //            if (descrFromKrydsninger.IsNotNoE())
+        //            {
+        //                //Interpolate description from Krydsninger with format setting, if they exist
+        //                if (descrFormatList != null && descrFormatList.Count > 0)
+        //                {
+        //                    for (int i = 0; i < descrFormatList.Count; i++)
+        //                    {
+        //                        var tuple = descrFormatList[i];
+        //                        string result = ReadDescriptionPartsFromOD(tables, ent, tuple.Data, dtKrydsninger);
+        //                        descrFromKrydsninger = descrFromKrydsninger.Replace(tuple.ToReplace, result);
+        //                        prdDbg(descrFromKrydsninger);
+        //                    }
+        //                }
+
+        //                //Add the description field to parts
+        //                descrParts.Add(descrFromKrydsninger);
+        //            }
+
+        //            description = "";
+        //            if (descrParts.Count == 1) description = descrParts[0];
+        //            else if (descrParts.Count > 1)
+        //                description = string.Join("; ", descrParts);
+
+        //            #endregion
+
+        //            string handleValue = ent.Handle.ToString();
+        //            string pName = "";
+
+        //            if (handleValue != null) pName = handleValue;
+        //            else
+        //            {
+        //                pName = "Reading of Handle failed.";
+        //                editor.WriteMessage($"\nEntity on layer {ent.Layer} failed to read Handle!");
+        //            }
+
+        //            #endregion
+
+        //            #region Create points
+        //            using (Point3dCollection p3dcol = new Point3dCollection())
+        //            {
+        //                alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+        //                foreach (Point3d p3d in p3dcol)
+        //                {
+        //                    oid pointId = cogoPoints.Add(p3d, true);
+        //                    CogoPoint cogoPoint = pointId.Go<CogoPoint>(tx, OpenMode.ForWrite);
+
+        //                    //Id of the new Poly3d if type == 3D
+        //                    oid newPolyId;
+
+        //                    #region Assign elevation based on 3D conditions
+        //                    double zElevation = 0;
+        //                    if (type != "3D")
+        //                    {
+        //                        var intPoint = surface.GetIntersectionPoint(p3d, new Vector3d(0, 0, 1));
+        //                        zElevation = intPoint.Z;
+
+        //                        //Subtract the depth (if invalid it is zero, so no modification will occur)
+        //                        zElevation -= depth;
+
+        //                        cogoPoint.Elevation = zElevation;
+        //                    }
+        //                    else if (type == "3D")
+        //                    {
+        //                        //Create vertical line to intersect the Ler line
+        //                        using (Transaction txp3d = localDb.TransactionManager.StartTransaction())
+        //                        {
+        //                            Point3dCollection newP3dCol = new Point3dCollection();
+        //                            //Intersection at 0
+        //                            newP3dCol.Add(p3d);
+        //                            //New point at very far away
+        //                            newP3dCol.Add(new Point3d(p3d.X, p3d.Y, 1000));
+
+        //                            Polyline3d newPoly = new Polyline3d(Poly3dType.SimplePoly, newP3dCol, false);
+
+        //                            //Open modelspace
+        //                            acBlkTbl = txp3d.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+        //                            acBlkTblRec = txp3d.GetObject(acBlkTbl[BlockTableRecord.ModelSpace],
+        //                                             OpenMode.ForWrite) as BlockTableRecord;
+
+        //                            acBlkTblRec.AppendEntity(newPoly);
+        //                            txp3d.AddNewlyCreatedDBObject(newPoly, true);
+        //                            newPolyId = newPoly.ObjectId;
+        //                            txp3d.Commit();
+        //                        }
+
+        //                        Polyline3d newPoly3d = newPolyId.Go<Polyline3d>(tx);
+        //                        using (Point3dCollection p3dIntCol = new Point3dCollection())
+        //                        {
+        //                            ent.IntersectWith(newPoly3d, 0, p3dIntCol, new IntPtr(0), new IntPtr(0));
+
+        //                            foreach (Point3d p3dInt in p3dIntCol)
+        //                            {
+        //                                //Assume only one intersection
+        //                                cogoPoint.Elevation = p3dInt.Z;
+        //                            }
+
+        //                            if (cogoPoint.Elevation == 0)
+        //                            {
+        //                                editor.WriteMessage($"\nFor type 3D entity {handleValue}" +
+        //                                    $" layer {ent.Layer}," +
+        //                                    $" elevation is 0!");
+        //                            }
+        //                        }
+        //                        newPoly3d.UpgradeOpen();
+        //                        newPoly3d.Erase(true);
+        //                    }
+        //                    #endregion
+
+        //                    //Set the layer
+        //                    #region Layer handling
+        //                    bool localLayerExists = false;
+
+        //                    if (!localLayerName.IsNoE() || localLayerName != null)
+        //                    {
+        //                        LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+        //                        if (lt.Has(localLayerName))
+        //                        {
+        //                            localLayerExists = true;
+        //                        }
+        //                        else
+        //                        {
+        //                            //Create layer if it doesn't exist
+        //                            try
+        //                            {
+        //                                //Validate the name of layer
+        //                                //It throws an exception if not, so need to catch it
+        //                                SymbolUtilityServices.ValidateSymbolName(localLayerName, false);
+
+        //                                LayerTableRecord ltr = new LayerTableRecord();
+        //                                ltr.Name = localLayerName;
+
+        //                                //Make layertable writable
+        //                                lt.UpgradeOpen();
+
+        //                                //Add the new layer to layer table
+        //                                oid ltId = lt.Add(ltr);
+        //                                tx.AddNewlyCreatedDBObject(ltr, true);
+
+        //                                //Flag that the layer exists now
+        //                                localLayerExists = true;
+
+        //                            }
+        //                            catch (System.Exception)
+        //                            {
+        //                                //Eat the exception and continue
+        //                                //localLayerExists must remain false
+        //                            }
+        //                        }
+        //                    }
+        //                    else
+        //                    {
+        //                        editor.WriteMessage($"\nLocal layer name for source layer {ent.Layer} does not" +
+        //                            $" exist in Krydsninger.csv!");
+        //                    }
+
+        //                    cogoPoint.Layer = localLayerName;
+        //                    #endregion
+
+        //                    int count = 1;
+        //                    string pointName = pName + "_" + count;
+
+        //                    while (pNames.Contains(pointName))
+        //                    {
+        //                        count++;
+        //                        pointName = pName + "_" + count;
+        //                    }
+        //                    pNames.Add(pointName);
+        //                    cogoPoint.PointName = pointName;
+        //                    cogoPoint.RawDescription = description;
+
+        //                    #region Copy OD from polies to the new point
+        //                    //Copy specific OD from cloned 3D polies to the new point
+
+        //                    List<(string TableName, string RecordName)> odList =
+        //                        new List<(string TableName, string RecordName)>();
+        //                    odList.Add(("IdRecord", "Handle"));
+        //                    TryCopySpecificOD(tables, ent, cogoPoint, odList);
+        //                    #endregion
+
+        //                    #region Check, create or update Crossing Data
+        //                    //Definition of "CrossingData" table
+        //                    string[] columnNames = new string[2] { "Diameter", "Alignment" };
+        //                    string[] columnDescrs = new string[2] { "Diameter of crossing pipe", "Alignment name" };
+        //                    DataType[] dataTypes = new DataType[2] { DataType.Character, DataType.Character };
+        //                    //
+
+        //                    //Check or create table, or check or create all columns
+        //                    if (DoesTableExist(tables, "CrossingData"))
+        //                    {//Table exists
+        //                        if (DoAllColumnsExist(tables, "CrossingData", columnNames))
+        //                        {
+        //                            //The table is in order, continue to data creation
+        //                        }
+        //                        //If not create missing columns
+        //                        else CreateMissingColumns(tables, "CrossingData", columnNames, columnDescrs, dataTypes);
+        //                    }
+        //                    else
+        //                    {
+        //                        //Table does not exist
+        //                        if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
+        //                            columnNames, columnDescrs, dataTypes))
+        //                        {
+        //                            //Table ready for populating with data
+        //                        }
+        //                    }
+
+        //                    #endregion
+
+        //                    #region Create Diameter OD in "CrossingData"
+        //                    odList.Clear();
+        //                    odList.Add(("SizeTable", "Size"));
+        //                    //Fetch diameter definitions if any
+        //                    string diaDef = ReadStringParameterFromDataTable(ent.Layer,
+        //                        dtKrydsninger, "Diameter", 0);
+        //                    if (diaDef.IsNotNoE())
+        //                    {
+        //                        var list = FindDescriptionParts(diaDef);
+        //                        //Be careful if FindDescriptionParts implementation changes
+        //                        string[] parts = list[0].Item2.Split(':');
+        //                        odList.Add((parts[0], parts[1]));
+        //                    }
+
+        //                    foreach (var item in odList)
+        //                    {
+        //                        MapValue originalValue = ReadRecordData(
+        //                            tables, ent.ObjectId, item.TableName, item.RecordName);
+
+        //                        if (originalValue != null)
+        //                        {
+        //                            if (DoesTableExist(tables, "CrossingData"))
+        //                            {
+        //                                if (DoesRecordExist(tables, cogoPoint.ObjectId, "Diameter"))
+        //                                {
+        //                                    UpdateODRecord(tables, "CrossingData", "Diameter",
+        //                                        cogoPoint.ObjectId, originalValue);
+        //                                    UpdateODRecord(tables, "CrossingData", "Alignment",
+        //                                        cogoPoint.ObjectId, new MapValue(alignment.Name));
+        //                                }
+        //                                else
+        //                                {
+        //                                    AddODRecord(tables, "CrossingData", "Diameter",
+        //                                        cogoPoint.ObjectId, originalValue);
+        //                                    AddODRecord(tables, "CrossingData", "Alignment",
+        //                                        cogoPoint.ObjectId, new MapValue(alignment.Name));
+        //                                }
+        //                            }
+        //                            else
+        //                            {
+
+        //                                AddODRecord(tables, "CrossingData", "Diameter",
+        //                                    cogoPoint.ObjectId, originalValue);
+        //                                AddODRecord(tables, "CrossingData", "Alignment",
+        //                                    cogoPoint.ObjectId, new MapValue(alignment.Name));
+
+        //                            }
+        //                        }
+        //                    }
+        //                    #endregion
+
+        //                    #region Create alignment "CrossingData"
+        //                    if (DoesTableExist(tables, "CrossingData"))
+        //                    {
+        //                        if (DoesRecordExist(tables, cogoPoint.ObjectId, "Diameter"))
+        //                        {
+        //                            UpdateODRecord(tables, "CrossingData", "Alignment",
+        //                                cogoPoint.ObjectId, new MapValue(alignment.Name));
+        //                        }
+        //                        else
+        //                        {
+        //                            AddODRecord(tables, "CrossingData", "Alignment",
+        //                                cogoPoint.ObjectId, new MapValue(alignment.Name));
+        //                        }
+        //                    }
+        //                    else
+        //                    {
+        //                        //This should not be possible!!!
+        //                        //The table is checked or created earlier.
+        //                    }
+
+        //                    #endregion
+
+        //                    //Reference newly created cogoPoint to gathering collection
+        //                    allNewlyCreatedPoints.Add(cogoPoint);
+        //                }
+        //            }
+        //            #endregion
+        //        }
+
+        //        #region Assign newly created points to projection on a profile view
+        //        #region Build query for PointGroup
+        //        //Build query
+        //        StandardPointGroupQuery spgq = new StandardPointGroupQuery();
+        //        List<string> newPointNumbers = allNewlyCreatedPoints.Select(x => x.PointNumber.ToString()).ToList();
+        //        string pointNumbersToInclude = string.Join(",", newPointNumbers.ToArray());
+        //        spgq.IncludeNumbers = pointNumbersToInclude;
+        //        pg.SetQuery(spgq);
+        //        pg.Update();
+        //        #endregion
+
+        //        double elMax = pv.ElevationMax;
+        //        double elMin = pv.ElevationMin;
+
+        //        double tryGetMin = allNewlyCreatedPoints.Min(x => x.Elevation);
+
+        //        if (tryGetMin != 0)
+        //        {
+        //            pv.CheckOrOpenForWrite();
+        //            elMin = tryGetMin - 1;
+        //            pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+        //            pv.ElevationMin = elMin;
+        //        }
+
+        //        editor.SetImpliedSelection(allNewlyCreatedPoints.Select(x => x.ObjectId).ToArray());
+        //        editor.Command("_AeccProjectObjectsToProf", pv.ObjectId);
+
+        //        #endregion
+        //    }
+        //    catch (System.Exception ex)
+        //    {
+        //        editor.WriteMessage("\n" + ex.Message);
+        //        return;
+        //    }
+        //} 
+        #endregion
 
         public void createlerdataloopwithdeepclone(HashSet<Polyline3d> remoteLinework, Alignment alignment,
                                       CivSurface surface, ProfileView pv,
                                       System.Data.DataTable dtKrydsninger, System.Data.DataTable dtDybde,
-                                      Database xRefLerDb, HashSet<oid> oidsToErase,
+                                      Database xRefLerDb, HashSet<oid> oidsToErase, Transaction tx,
                                       ref HashSet<string> pNames)
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -4703,8 +4726,6 @@ namespace IntersectUtilities
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            Transaction tx = localDb.TransactionManager.TopTransaction;
 
             try
             {
@@ -4780,7 +4801,7 @@ namespace IntersectUtilities
                     string localLayerName = Utils.ReadStringParameterFromDataTable(
                                         ent.Layer, dtKrydsninger, "Layer", 0);
 
-                    prdDbg(localLayerName);
+                    //prdDbg(localLayerName);
 
                     #region Populate description field
 
@@ -4824,7 +4845,7 @@ namespace IntersectUtilities
                                 var tuple = descrFormatList[i];
                                 string result = ReadDescriptionPartsFromOD(tables, ent, tuple.Data, dtKrydsninger);
                                 descrFromKrydsninger = descrFromKrydsninger.Replace(tuple.ToReplace, result);
-                                prdDbg(descrFromKrydsninger);
+                                //prdDbg(descrFromKrydsninger);
                             }
                         }
 
@@ -5037,6 +5058,22 @@ namespace IntersectUtilities
                                 odList.Add((parts[0], parts[1]));
                             }
 
+                            #region Make sure diameter contains at least zero
+                            if (DoesTableExist(tables, "CrossingData"))
+                            {
+                                if (DoesRecordExist(tables, cogoPoint.ObjectId, "Diameter"))
+                                {
+                                    UpdateODRecord(tables, "CrossingData", "Diameter",
+                                        cogoPoint.ObjectId, new MapValue(0));
+                                }
+                                else
+                                {
+                                    AddODRecord(tables, "CrossingData", "Diameter",
+                                        cogoPoint.ObjectId, new MapValue(0));
+                                }
+                            }
+                            #endregion
+
                             foreach (var item in odList)
                             {
                                 MapValue originalValue = ReadRecordData(
@@ -5050,15 +5087,11 @@ namespace IntersectUtilities
                                         {
                                             UpdateODRecord(tables, "CrossingData", "Diameter",
                                                 cogoPoint.ObjectId, originalValue);
-                                            UpdateODRecord(tables, "CrossingData", "Alignment",
-                                                cogoPoint.ObjectId, new MapValue(alignment.Name));
                                         }
                                         else
                                         {
                                             AddODRecord(tables, "CrossingData", "Diameter",
                                                 cogoPoint.ObjectId, originalValue);
-                                            AddODRecord(tables, "CrossingData", "Alignment",
-                                                cogoPoint.ObjectId, new MapValue(alignment.Name));
                                         }
                                     }
                                     else
@@ -5066,8 +5099,6 @@ namespace IntersectUtilities
 
                                         AddODRecord(tables, "CrossingData", "Diameter",
                                             cogoPoint.ObjectId, originalValue);
-                                        AddODRecord(tables, "CrossingData", "Alignment",
-                                            cogoPoint.ObjectId, new MapValue(alignment.Name));
 
                                     }
                                 }
@@ -5134,8 +5165,7 @@ namespace IntersectUtilities
             }
             catch (System.Exception ex)
             {
-                editor.WriteMessage("\n" + ex.Message);
-                return;
+                throw;
             }
         }
 
@@ -7003,42 +7033,52 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Gather alignment names
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+
+                    foreach (Alignment al in als.OrderBy(x => x.Name))
+                    {
+                        editor.WriteMessage($"\n{al.Name}");
+                    }
+
+                    #endregion
+
                     #region Test ODTables from external database
-                    Tables odTables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-                    StringCollection curDbTables = new StringCollection();
-                    Database curDb = HostApplicationServices.WorkingDatabase;
-                    StringCollection allDbTables = odTables.GetTableNames();
-                    Autodesk.Gis.Map.Project.AttachedDrawings attachedDwgs =
-                        HostMapApplicationServices.Application.ActiveProject.DrawingSet.AllAttachedDrawings;
+                    //Tables odTables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                    //StringCollection curDbTables = new StringCollection();
+                    //Database curDb = HostApplicationServices.WorkingDatabase;
+                    //StringCollection allDbTables = odTables.GetTableNames();
+                    //Autodesk.Gis.Map.Project.AttachedDrawings attachedDwgs =
+                    //    HostMapApplicationServices.Application.ActiveProject.DrawingSet.AllAttachedDrawings;
 
-                    int directDWGCount = HostMapApplicationServices.Application.ActiveProject.DrawingSet.DirectDrawingsCount;
+                    //int directDWGCount = HostMapApplicationServices.Application.ActiveProject.DrawingSet.DirectDrawingsCount;
 
-                    foreach (String name in allDbTables)
-                    {
-                        Autodesk.Gis.Map.ObjectData.Table table = odTables[name];
+                    //foreach (String name in allDbTables)
+                    //{
+                    //    Autodesk.Gis.Map.ObjectData.Table table = odTables[name];
 
-                        bool bTableExistsInCurDb = true;
+                    //    bool bTableExistsInCurDb = true;
 
-                        for (int i = 0; i < directDWGCount; ++i)
-                        {
-                            Autodesk.Gis.Map.Project.AttachedDrawing attDwg = attachedDwgs[i];
+                    //    for (int i = 0; i < directDWGCount; ++i)
+                    //    {
+                    //        Autodesk.Gis.Map.Project.AttachedDrawing attDwg = attachedDwgs[i];
 
-                            StringCollection attachedTables = attDwg.GetTableList(Autodesk.Gis.Map.Constants.TableType.ObjectDataTable);
-                        }
-                        if (bTableExistsInCurDb)
+                    //        StringCollection attachedTables = attDwg.GetTableList(Autodesk.Gis.Map.Constants.TableType.ObjectDataTable);
+                    //    }
+                    //    if (bTableExistsInCurDb)
 
-                            curDbTables.Add(name);
+                    //        curDbTables.Add(name);
 
-                    }
+                    //}
 
-                    editor.WriteMessage("Current Drawing Object Data Tables Names :\r\n");
+                    //editor.WriteMessage("Current Drawing Object Data Tables Names :\r\n");
 
-                    foreach (String name in curDbTables)
-                    {
+                    //foreach (String name in curDbTables)
+                    //{
 
-                        editor.WriteMessage(name + "\r\n");
+                    //    editor.WriteMessage(name + "\r\n");
 
-                    }
+                    //}
 
                     #endregion
 
@@ -7259,6 +7299,7 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
+                    tx.Abort();
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }

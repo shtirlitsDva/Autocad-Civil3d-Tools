@@ -509,19 +509,19 @@ namespace IntersectUtilities
                 // Get and Initialize Records
                 using (Records records
                            = tables.GetObjectRecords(0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+
                 {
                     if (records.Count == 0)
                     {
+                        prdDbg("records.Count is 0!");
                         //Editor.WriteMessage($"\nThere is no ObjectData record attached on the entity.");
                         return null;
                     }
-
                     // Iterate through all records
                     foreach (Record record in records)
                     {
                         // Get the table
-                        Autodesk.Gis.Map.ObjectData.Table table = tables[record.TableName];
-
+                        var table = tables[record.TableName];
                         // Get record info
                         for (int i = 0; i < record.Count; i++)
                         {
@@ -541,7 +541,9 @@ namespace IntersectUtilities
             {
                 errCode = (ErrorCode)(e.ErrorCode);
                 // Deal with the exception here as your will
-
+                prdDbg("Exception in ReadIntPropertyValue -> ReadRecordData!");
+                prdDbg(e.Message);
+                prdDbg(((ErrorCode)e.ErrorCode).ToString());
                 return null;
             }
         }
@@ -559,7 +561,16 @@ namespace IntersectUtilities
             {
                 errCode = (ErrorCode)(e.ErrorCode);
                 // Deal with the exception here as your will
+                prdDbg("MapException in ReadIntPropertyValue!");
+                prdDbg(e.Message);
+                prdDbg(((ErrorCode)e.ErrorCode).ToString());
 
+                return 0;
+            }
+            catch (System.Exception e)
+            {
+                prdDbg("System.Exception in ReadIntPropertyValue!");
+                prdDbg(e.Message);
                 return 0;
             }
         }
