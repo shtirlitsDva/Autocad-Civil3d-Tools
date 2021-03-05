@@ -2910,12 +2910,14 @@ namespace IntersectUtilities
                     HashSet<Polyline3d> localPlines3d = localDb
                         .HashSetOfType<Polyline3d>(tx)
                         .Where(x => x.Layer == "AFL_ledning_faelles" ||
+                                    x.Layer == "AFL_ledning_spild" ||
                                     x.Layer == "AFL_ikke_ibrug" ||
                                     x.Layer == "Afløb-kloakledning" ||
-                                    x.Layer == "AFL_ledning_faelles" ||
+                                    x.Layer == "AFL_ledning_fælles" ||
                                     x.Layer == "AFL_ledning_draen" ||
                                     x.Layer == "AFL_ledning_regn" ||
-                                    x.Layer == "Regnvand")
+                                    x.Layer == "Regnvand" ||
+                                    x.Layer == "Drænvand")
                         .ToHashSet();
                     editor.WriteMessage($"\nNr. of local 3D polies: {localPlines3d.Count}");
                     #endregion
