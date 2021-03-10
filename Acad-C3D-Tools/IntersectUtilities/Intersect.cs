@@ -7186,9 +7186,9 @@ namespace IntersectUtilities
                                 {
                                     if (RemoveTable(odTables, name))
                                     {
-                                        editor.WriteMessage($"\nDone!");
+                                        editor.WriteMessage($"Done!");
                                     }
-                                    else editor.WriteMessage($"\nFail!");
+                                    else editor.WriteMessage($"Fail!");
                                 }
                                 else
                                 {
