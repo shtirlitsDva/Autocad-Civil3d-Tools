@@ -1807,7 +1807,7 @@ namespace IntersectUtilities
                             Entity fEnt = fId.Go<Entity>(tx);
 
                             int diaOriginal = ReadIntPropertyValue(tables, fEnt.Id, "CrossingData", "Diameter");
-                            prdDbg(fEnt.Handle.ToString() +": "+ diaOriginal.ToString());
+                            prdDbg(fEnt.Handle.ToString() + ": " + diaOriginal.ToString());
 
                             double dia = Convert.ToDouble(diaOriginal) / 1000;
 
@@ -2377,6 +2377,127 @@ namespace IntersectUtilities
                             else editor.WriteMessage($"\n{columnNames[i]} record creation failed!");
                         }
 
+                        #endregion
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        editor.WriteMessage("\n" + ex.Message);
+                        return;
+                    }
+                    tx.Commit();
+                }
+            }
+        }
+
+        [CommandMethod("gasikkeibrug")]
+        [CommandMethod("cg")]
+        public void gasikkeibrug()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            while (true)
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                        #region Select pline3d
+                        PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                            "\nSelect polyline3d to modify:");
+                        promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
+                        promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                        PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                        if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
+                        Autodesk.AutoCAD.DatabaseServices.ObjectId pline3dId = entity1.ObjectId;
+                        #endregion
+
+                        #region Select text - NOT USED
+                        //PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
+                        //    "\nSelect text to copy:");
+                        //promptEntityOptions2.SetRejectMessage("\n Not a text!");
+                        //promptEntityOptions2.AddAllowedClass(typeof(DBText), true);
+                        //PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                        //if (((PromptResult)entity2).Status != PromptStatus.OK) { tx.Abort(); return; }
+                        //Autodesk.AutoCAD.DatabaseServices.ObjectId textId = entity2.ObjectId;
+                        #endregion
+
+                        #region Er ledningen i brug - NOT USED
+                        //const string kwd1 = "Ja";
+                        //const string kwd2 = "Nej";
+
+                        //PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
+                        //pKeyOpts.Message = "\nEr ledningen i brug? ";
+                        //pKeyOpts.Keywords.Add(kwd1);
+                        //pKeyOpts.Keywords.Add(kwd2);
+                        //pKeyOpts.AllowNone = true;
+                        //pKeyOpts.Keywords.Default = kwd1;
+                        //PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+
+                        //bool ledningIbrug = pKeyRes.StringResult == kwd1;
+
+                        #endregion
+
+                        #region Try creating records
+
+                        string m_tableName = "GasDimOgMat";
+                        string columnName = "Bemærk";
+                        Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                        if (DoesTableExist(tables, m_tableName)) editor.WriteMessage("\nTable exists!");
+                        else throw new System.Exception("Table does not exist!");
+
+                        //Aggregate
+                        MapValue value = new MapValue("Ikke i brug");
+
+                        bool success = false;
+
+                        if (DoesRecordExist(tables, pline3dId, columnName))
+                        {
+                            editor.WriteMessage($"\nRecord {columnName} already exists, updating...");
+
+                            if (UpdateODRecord(tables, m_tableName, columnName, pline3dId, value))
+                            {
+                                editor.WriteMessage($"\nUpdating record {columnName} succeded!");
+                                success = true;
+                            }
+                            else editor.WriteMessage($"\nUpdating record {columnName} failed!");
+                        }
+                        else
+                        {
+                            throw new System.Exception("Record does not exist! Run CA first!");
+                        }
+
+                        if (success)
+                        {
+                            editor.WriteMessage($"\nUpdating color and layer properties!");
+                            Entity ent = pline3dId.Go<Entity>(tx, OpenMode.ForWrite);
+
+                            //Check layer name
+                            if (!lt.Has("GAS-ude af drift"))
+                            {
+                                LayerTableRecord ltr = new LayerTableRecord();
+                                ltr.Name = "GAS-ude af drift";
+                                ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 221);
+
+                                //Make layertable writable
+                                lt.CheckOrOpenForWrite();
+
+                                //Add the new layer to layer table
+                                oid ltId = lt.Add(ltr);
+                                tx.AddNewlyCreatedDBObject(ltr, true);
+
+                                lt.DowngradeOpen();
+                            }
+
+                            ent.Layer = "GAS-ude af drift"; ent.ColorIndex = 130;
+                        }
                         #endregion
                     }
                     catch (System.Exception ex)
@@ -4198,7 +4319,7 @@ namespace IntersectUtilities
                                 #endregion
 
 
-                                allAlignments = new List<Alignment>(1) { allAlignments.Where(x => x.Name == "32 Berlingsbakke").FirstOrDefault() };
+                                //allAlignments = new List<Alignment>(1) { allAlignments.Where(x => x.Name == "32 Berlingsbakke").FirstOrDefault() };
                                 //allAlignments = allAlignments.GetRange(1, 3);
                                 //allAlignments = allAlignments.OrderBy(x => x.Name).ToList().GetRange(20, 11);
                                 //allAlignments = allAlignments.OrderBy(x => x.Name).Skip(32).ToList();
@@ -7021,6 +7142,75 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("destroyalltables")]
+        public void destroyalltables()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Ask if continue with operation
+                    const string kwd1 = "No";
+                    const string kwd2 = "Yes";
+
+                    PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
+                    pKeyOpts.Message = "\nThis will destroy all OD Tables in drawing!!! Do you want to continue? ";
+                    pKeyOpts.Keywords.Add(kwd1);
+                    pKeyOpts.Keywords.Add(kwd2);
+                    pKeyOpts.AllowNone = true;
+                    pKeyOpts.Keywords.Default = kwd1;
+                    PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+                    #endregion
+
+                    #region Try destroying all tables
+                    switch (pKeyRes.StringResult)
+                    {
+                        case kwd1:
+                            tx.Abort();
+                            return;
+                        case kwd2:
+
+                            Tables odTables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                            StringCollection allDbTables = odTables.GetTableNames();
+
+                            foreach (string name in allDbTables)
+                            {
+                                editor.WriteMessage($"\nDestroying table {name} -> ");
+                                if (DoesTableExist(odTables, name))
+                                {
+                                    if (RemoveTable(odTables, name))
+                                    {
+                                        editor.WriteMessage($"\nDone!");
+                                    }
+                                    else editor.WriteMessage($"\nFail!");
+                                }
+                                else
+                                {
+                                    editor.WriteMessage($"\nTable {name} does not exist!");
+                                }
+                            }
+                            break;
+                        default:
+                            tx.Abort();
+                            return;
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("testing")]
         public void testing()
         {
@@ -7036,51 +7226,51 @@ namespace IntersectUtilities
                 try
                 {
                     #region Gather alignment names
-                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                    //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
 
-                    foreach (Alignment al in als.OrderBy(x => x.Name))
-                    {
-                        editor.WriteMessage($"\n{al.Name}");
-                    }
+                    //foreach (Alignment al in als.OrderBy(x => x.Name))
+                    //{
+                    //    editor.WriteMessage($"\n{al.Name}");
+                    //}
 
                     #endregion
 
                     #region Test ODTables from external database
-                    //Tables odTables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-                    //StringCollection curDbTables = new StringCollection();
-                    //Database curDb = HostApplicationServices.WorkingDatabase;
-                    //StringCollection allDbTables = odTables.GetTableNames();
-                    //Autodesk.Gis.Map.Project.AttachedDrawings attachedDwgs =
-                    //    HostMapApplicationServices.Application.ActiveProject.DrawingSet.AllAttachedDrawings;
+                    Tables odTables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                    StringCollection curDbTables = new StringCollection();
+                    Database curDb = HostApplicationServices.WorkingDatabase;
+                    StringCollection allDbTables = odTables.GetTableNames();
+                    Autodesk.Gis.Map.Project.AttachedDrawings attachedDwgs =
+                        HostMapApplicationServices.Application.ActiveProject.DrawingSet.AllAttachedDrawings;
 
-                    //int directDWGCount = HostMapApplicationServices.Application.ActiveProject.DrawingSet.DirectDrawingsCount;
+                    int directDWGCount = HostMapApplicationServices.Application.ActiveProject.DrawingSet.DirectDrawingsCount;
 
-                    //foreach (String name in allDbTables)
-                    //{
-                    //    Autodesk.Gis.Map.ObjectData.Table table = odTables[name];
+                    foreach (String name in allDbTables)
+                    {
+                        Autodesk.Gis.Map.ObjectData.Table table = odTables[name];
 
-                    //    bool bTableExistsInCurDb = true;
+                        bool bTableExistsInCurDb = true;
 
-                    //    for (int i = 0; i < directDWGCount; ++i)
-                    //    {
-                    //        Autodesk.Gis.Map.Project.AttachedDrawing attDwg = attachedDwgs[i];
+                        for (int i = 0; i < directDWGCount; ++i)
+                        {
+                            Autodesk.Gis.Map.Project.AttachedDrawing attDwg = attachedDwgs[i];
 
-                    //        StringCollection attachedTables = attDwg.GetTableList(Autodesk.Gis.Map.Constants.TableType.ObjectDataTable);
-                    //    }
-                    //    if (bTableExistsInCurDb)
+                            StringCollection attachedTables = attDwg.GetTableList(Autodesk.Gis.Map.Constants.TableType.ObjectDataTable);
+                        }
+                        if (bTableExistsInCurDb)
 
-                    //        curDbTables.Add(name);
+                            curDbTables.Add(name);
 
-                    //}
+                    }
 
-                    //editor.WriteMessage("Current Drawing Object Data Tables Names :\r\n");
+                    editor.WriteMessage("Current Drawing Object Data Tables Names :\r\n");
 
-                    //foreach (String name in curDbTables)
-                    //{
+                    foreach (String name in curDbTables)
+                    {
 
-                    //    editor.WriteMessage(name + "\r\n");
+                        editor.WriteMessage(name + "\r\n");
 
-                    //}
+                    }
 
                     #endregion
 
@@ -7756,8 +7946,8 @@ namespace IntersectUtilities
                     //Must not overlap
                     //correctionThreshold operates on values LESS THAN value
                     //targetThreshold operates on values GREATER THAN value
-                    double correctionThreshold = 1;
-                    double targetThreshold = 2;
+                    double correctionThreshold = 5;
+                    double targetThreshold = 6;
                     ////////////////////////////////
                     HashSet<Polyline3d> plines3d = localDb.HashSetOfType<Polyline3d>(tx, true);
                     foreach (Polyline3d p3d in plines3d)
@@ -7989,7 +8179,7 @@ namespace IntersectUtilities
 
                     #region Create layers
                     List<string> layerNames = new List<string>()
-                    { "Stikrør-2D", "Fordelingsrør-2D", "Distributionsrør-2D", "GAS-ude af drift-2D" };
+                    { "GAS-Stikrør-2D", "GAS-Fordelingsrør-2D", "GAS-Distributionsrør-2D", "GAS-ude af drift-2D" };
                     LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
                     foreach (string name in layerNames)
                     {
@@ -8024,9 +8214,12 @@ namespace IntersectUtilities
                         if (didNotFindAboveThreshold)
                         {
                             line.CheckOrOpenForWrite();
-                            if (line.Layer == "Distributionsrør") line.Layer = "Distributionsrør-2D";
-                            else if (line.Layer == "Stikrør") line.Layer = "Stikrør-2D";
-                            else if (line.Layer == "Fordelingsrør") line.Layer = "Fordelingsrør-2D";
+                            if (line.Layer == "Distributionsrør" ||
+                                line.Layer == "GAS-Distributionsrør") line.Layer = "GAS-Distributionsrør-2D";
+                            else if (line.Layer == "Stikrør" ||
+                                     line.Layer == "GAS-Stikrør") line.Layer = "GAS-Stikrør-2D";
+                            else if (line.Layer == "Fordelingsrør" ||
+                                     line.Layer == "GAS-Fordelingsrør") line.Layer = "GAS-Fordelingsrør-2D";
                             else if (line.Layer == "GAS-ude af drift") line.Layer = "GAS-ude af drift-2D";
                         }
                     }
