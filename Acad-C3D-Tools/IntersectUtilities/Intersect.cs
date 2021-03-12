@@ -1,38 +1,33 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Globalization;
-using System.Text.RegularExpressions;
-using Autodesk.Aec.DatabaseServices;
-using Autodesk.AutoCAD.ApplicationServices;
+﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
-using Autodesk.AutoCAD.Colors;
 using Autodesk.Civil;
 using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
 using Autodesk.Gis.Map;
 using Autodesk.Gis.Map.ObjectData;
-using Autodesk.Gis.Map.Constants;
 using Autodesk.Gis.Map.Utilities;
-
-using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Text;
+using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
-using static IntersectUtilities.Enums;
-using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
-using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
-using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
+using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using DataType = Autodesk.Gis.Map.Constants.DataType;
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
+using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 
 namespace IntersectUtilities
 {
@@ -4319,7 +4314,10 @@ namespace IntersectUtilities
                                 #endregion
 
 
-                                //allAlignments = new List<Alignment>(1) { allAlignments.Where(x => x.Name == "32 Berlingsbakke").FirstOrDefault() };
+                                //allAlignments = new List<Alignment>(2) { allAlignments.Where(x => x.Name == "32 Berlingsbakke").FirstOrDefault() };
+                                allAlignments = allAlignments.Where(x => x.Name == "35 Brogårdsvej" ||
+                                                                         x.Name == "36 Søtoften")
+                                                             .ToList();
                                 //allAlignments = allAlignments.GetRange(1, 3);
                                 //allAlignments = allAlignments.OrderBy(x => x.Name).ToList().GetRange(20, 11);
                                 //allAlignments = allAlignments.OrderBy(x => x.Name).Skip(32).ToList();
@@ -5269,14 +5267,19 @@ namespace IntersectUtilities
                 #endregion
 
                 double elMax = pv.ElevationMax;
+                if (elMax == 0) prdDbg("pv.ElevationMax is 0! Is surface profile missing?");
+                //prdDbg(elMax.ToString());
                 double elMin = pv.ElevationMin;
+                //prdDbg(elMin.ToString());
 
                 double tryGetMin = allNewlyCreatedPoints.Min(x => x.Elevation);
+                //prdDbg(tryGetMin.ToString());
 
-                if (tryGetMin != 0)
+                if (tryGetMin != 0 && tryGetMin - 1 > elMax)
                 {
                     pv.CheckOrOpenForWrite();
                     elMin = tryGetMin - 1;
+                    //2prdDbg(elMin.ToString());
                     pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
                     pv.ElevationMin = elMin;
                 }
@@ -7181,6 +7184,12 @@ namespace IntersectUtilities
 
                             foreach (string name in allDbTables)
                             {
+                                if (name == "CrossingData" ||
+                                    name == "IdRecord")
+                                {
+                                    editor.WriteMessage($"\nSkipping table {name}!");
+                                    continue;
+                                }
                                 editor.WriteMessage($"\nDestroying table {name} -> ");
                                 if (DoesTableExist(odTables, name))
                                 {
@@ -7946,8 +7955,8 @@ namespace IntersectUtilities
                     //Must not overlap
                     //correctionThreshold operates on values LESS THAN value
                     //targetThreshold operates on values GREATER THAN value
-                    double correctionThreshold = 5;
-                    double targetThreshold = 6;
+                    double correctionThreshold = 1;
+                    double targetThreshold = 2;
                     ////////////////////////////////
                     HashSet<Polyline3d> plines3d = localDb.HashSetOfType<Polyline3d>(tx, true);
                     foreach (Polyline3d p3d in plines3d)
