@@ -4257,39 +4257,7 @@ namespace IntersectUtilities
                                                         .Where(x => ReadStringParameterFromDataTable(x.Layer, dtKrydsninger, "Type", 0) != "IGNORE")
                                                         .ToHashSet();
 
-                                #region Delete existing points
                                 PointGroupCollection pgs = civilDoc.PointGroups;
-
-                                for (int i = 0; i < pgs.Count; i++)
-                                {
-                                    PointGroup pg = tx.GetObject(pgs[i], OpenMode.ForRead) as PointGroup;
-                                    if (allAlignments.Any(x => x.Name == pg.Name) &&
-                                        !pvSetExisting.Any(x => x.Name == pg.Name + "_PV"))
-                                    {
-                                        pg.CheckOrOpenForWrite();
-                                        pg.Update();
-                                        uint[] numbers = pg.GetPointNumbers();
-
-                                        CogoPointCollection cpc = civilDoc.CogoPoints;
-
-                                        for (int j = 0; j < numbers.Length; j++)
-                                        {
-                                            uint number = numbers[j];
-
-                                            if (cpc.Contains(number))
-                                            {
-                                                cpc.Remove(number);
-                                            }
-                                        }
-
-                                        StandardPointGroupQuery spgqEmpty = new StandardPointGroupQuery();
-                                        spgqEmpty.IncludeNumbers = "";
-                                        pg.SetQuery(spgqEmpty);
-
-                                        pg.Update();
-                                    }
-                                }
-                                #endregion
 
                                 #region Create profile views
 
@@ -4321,15 +4289,48 @@ namespace IntersectUtilities
                                 //allAlignments = allAlignments.GetRange(1, 3);
                                 //allAlignments = allAlignments.OrderBy(x => x.Name).ToList().GetRange(20, 11);
                                 //allAlignments = allAlignments.OrderBy(x => x.Name).Skip(32).ToList();
-                                if (allAlignments.Count == 0) throw new System.Exception();
+                                if (allAlignments.Count == 0) throw new System.Exception("Selection of alignment(s) failed!");
 
                                 foreach (Alignment alignment in allAlignments)
                                 {
-                                    //If ProfileView already exists -> continue
-                                    if (pvSetExisting.Any(x => x.Name == $"{alignment.Name}_PV")) continue;
+                                    //Profile view Id init
+                                    oid pvId = oid.Null;
 
                                     editor.WriteMessage($"\n_-*-_ | Processing alignment {alignment.Name}. | _-*-_");
                                     System.Windows.Forms.Application.DoEvents();
+
+                                    #region Delete existing points
+                                    
+
+                                    for (int i = 0; i < pgs.Count; i++)
+                                    {
+                                        PointGroup pg = tx.GetObject(pgs[i], OpenMode.ForRead) as PointGroup;
+                                        if (alignment.Name == pg.Name)
+                                        {
+                                            pg.CheckOrOpenForWrite();
+                                            pg.Update();
+                                            uint[] numbers = pg.GetPointNumbers();
+
+                                            CogoPointCollection cpc = civilDoc.CogoPoints;
+
+                                            for (int j = 0; j < numbers.Length; j++)
+                                            {
+                                                uint number = numbers[j];
+
+                                                if (cpc.Contains(number))
+                                                {
+                                                    cpc.Remove(number);
+                                                }
+                                            }
+
+                                            StandardPointGroupQuery spgqEmpty = new StandardPointGroupQuery();
+                                            spgqEmpty.IncludeNumbers = "";
+                                            pg.SetQuery(spgqEmpty);
+
+                                            pg.Update();
+                                        }
+                                    }
+                                    #endregion
 
                                     HashSet<Polyline3d> filteredLinework = FilterForCrossingEntities(allLinework, alignment);
 
@@ -4338,9 +4339,18 @@ namespace IntersectUtilities
                                     Point3d insertionPoint = new Point3d(selectedPoint.X, selectedPoint.Y + index * -120, 0);
                                     #endregion
 
-                                    oid pvId = ProfileView.Create(alignment.ObjectId, insertionPoint,
-                                        $"{alignment.Name}_PV", profileViewBandSetStyleId, profileViewStyleId);
-
+                                    //If ProfileView already exists -> continue
+                                    if (pvSetExisting.Any(x => x.Name == $"{alignment.Name}_PV"))
+                                    {
+                                        var existingPv = pvSetExisting.Where(x => x.Name == $"{alignment.Name}_PV").FirstOrDefault();
+                                        if (existingPv == null) throw new System.Exception("Selection of existing PV failed!");
+                                        pvId = existingPv.Id;
+                                    }
+                                    else
+                                    {
+                                        pvId = ProfileView.Create(alignment.ObjectId, insertionPoint,
+                                            $"{alignment.Name}_PV", profileViewBandSetStyleId, profileViewStyleId);
+                                    }
                                     index++;
                                     #endregion
 
@@ -4980,11 +4990,11 @@ namespace IntersectUtilities
                         description = string.Join("; ", descrParts);
 
                     #endregion
-
-                    string handleValue = ent.Handle.ToString();
+                    MapValue handleValue = ReadRecordData(
+                                        tables, ent.ObjectId, "IdRecord", "Handle");
                     string pName = "";
 
-                    if (handleValue != null) pName = handleValue;
+                    if (handleValue != null) pName = handleValue.StrValue;
                     else
                     {
                         pName = "Reading of Handle failed.";
@@ -6310,31 +6320,47 @@ namespace IntersectUtilities
 
                 try
                 {
-                    #region Load blocks from Fremtid
-                    HashSet<string> allExistingNames = File.ReadAllLines(@"X:\AutoCAD DRI - 01 Civil 3D\SymbolNames.txt")
-                                                           .Distinct().ToHashSet();
+                    #region Load blocks from Fremtid -- NOT USED NOW
+                    //HashSet<string> allExistingNames = File.ReadAllLines(@"X:\AutoCAD DRI - 01 Civil 3D\SymbolNames.txt")
+                    //                                       .Distinct().ToHashSet();
 
-                    BlockTable bt = xRefFremtidTx.GetObject(xRefFremtidDB.BlockTableId, OpenMode.ForRead) as BlockTable;
-                    BlockTableRecord btr = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
-                        as BlockTableRecord;
-                    foreach (oid Oid in btr)
-                    {
-                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
-                        {
-                            BlockReference br = Oid.Go<BlockReference>(tx);
-                            if (!allExistingNames.Contains(br.Name))
-                            {
-                                editor.WriteMessage($"\n{br.Name}");
-                            }
-                        }
-                    }
+                    //BlockTable bt = xRefFremtidTx.GetObject(xRefFremtidDB.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    //BlockTableRecord btr = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
+                    //    as BlockTableRecord;
+                    //foreach (oid Oid in btr)
+                    //{
+                    //    if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                    //    {
+                    //        BlockReference br = Oid.Go<BlockReference>(tx);
+                    //        if (!allExistingNames.Contains(br.Name))
+                    //        {
+                    //            editor.WriteMessage($"\n{br.Name}");
+                    //        }
+                    //    }
+                    //}
                     #endregion
+
+                    HashSet<Alignment> allAls = localDb.HashSetOfType<Alignment>(tx);
+
+                    Alignment selectedAl = allAls.Where(x => x.Name == "11 Brogårdsvej - Tjørnestien").FirstOrDefault();
+                    if (selectedAl == null) throw new System.Exception("Selection of alignment failed! -> null");
+
+
                 }
                 catch (System.Exception ex)
                 {
+                    xRefLerTx.Abort();
+                    xRefLerDB.Dispose();
+                    xRefFremtidTx.Abort();
+                    xRefFremtidDB.Dispose();
+                    tx.Abort();
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
+                xRefLerTx.Abort();
+                xRefLerDB.Dispose();
+                xRefFremtidTx.Abort();
+                xRefFremtidDB.Dispose();
                 tx.Commit();
             }
         }
