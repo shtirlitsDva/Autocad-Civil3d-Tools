@@ -17,6 +17,7 @@ using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using MoreLinq;
 using System.Text;
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
@@ -4300,7 +4301,7 @@ namespace IntersectUtilities
                                     System.Windows.Forms.Application.DoEvents();
 
                                     #region Delete existing points
-                                    
+
 
                                     for (int i = 0; i < pgs.Count; i++)
                                     {
@@ -6365,6 +6366,53 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("scaleallblocks")]
+        public void scaleallblocks()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    BlockTableRecord btr = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
+                        as BlockTableRecord;
+
+                    foreach (oid Oid in btr)
+                    {
+                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        {
+                            BlockReference br = Oid.Go<BlockReference>(tx);
+                            //if (!allExistingNames.Contains(br.Name))
+                            //{
+                            //    editor.WriteMessage($"\n{br.Name}");
+                            //}
+                            //editor.WriteMessage($"\n{br.Name}");
+
+                            if (br.Name.StartsWith("r dn", StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                br.CheckOrOpenForWrite();
+                                br.ScaleFactors = new Scale3d(3);
+                                //allNames.Add(br.Name);
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("listallblocknames")]
         public void listallblocknames()
         {
@@ -6379,26 +6427,147 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    HashSet<string> allExistingNames = File.ReadAllLines(@"X:\AutoCAD DRI - 01 Civil 3D\SymbolNames.txt")
-                                               .Distinct().ToHashSet();
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
 
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                     BlockTableRecord btr = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
                         as BlockTableRecord;
+                    HashSet<string> allNamesNotInDb = new HashSet<string>();
+
+                    //int count = fjvKomponenter.Rows.Count;
+                    //HashSet<string> dbNames = new HashSet<string>();
+                    //for (int i = 0; i < count; i++)
+                    //{
+                    //    System.Data.DataRow row = fjvKomponenter.Rows[i];
+                    //    dbNames.Add(row.ItemArray[0].ToString());
+                    //}
+
                     foreach (oid Oid in btr)
                     {
                         if (Oid.ObjectClass.Name == "AcDbBlockReference")
                         {
                             BlockReference br = Oid.Go<BlockReference>(tx);
-                            if (!allExistingNames.Contains(br.Name))
+                            //if (!dbNames.Contains(br.Name))
+                            //{
+                            //    allNamesNotInDb.Add(br.Name);
+                            //}
+                            if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) == null)
                             {
-                                editor.WriteMessage($"\n{br.Name}");
+                                allNamesNotInDb.Add(br.Name);
+                            }
+                        }
+                    }
+
+                    foreach (string name in allNamesNotInDb.OrderBy(x => x))
+                    {
+                        editor.WriteMessage($"\n{name}");
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("assignblockstoalignments")]
+        public void assignblockstoalignments()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
+
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    BlockTableRecord btr = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
+                        as BlockTableRecord;
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+
+                    #region CreateLayers
+                    LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    foreach (Alignment al in als)
+                    {
+                        if (lt.Has(al.Name)) ;
+                        else
+                        {
+                            //Create layer if it doesn't exist
+                            try
+                            {
+                                //Validate the name of layer
+                                //It throws an exception if not, so need to catch it
+                                SymbolUtilityServices.ValidateSymbolName(al.Name, false);
+                                LayerTableRecord ltr = new LayerTableRecord();
+                                ltr.Name = al.Name;
+                                //Make layertable writable
+                                lt.UpgradeOpen();
+                                //Add the new layer to layer table
+                                oid ltId = lt.Add(ltr);
+                                tx.AddNewlyCreatedDBObject(ltr, true);
+                            }
+                            catch (System.Exception)
+                            {
+                                //Eat the exception and continue
+                                //localLayerExists must remain false
+                            }
+                        }
+                    }
+                    #endregion
+
+                    foreach (oid Oid in btr)
+                    {
+                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        {
+                            BlockReference br = Oid.Go<BlockReference>(tx);
+                            if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) != null)
+                            {
+                                HashSet<(BlockReference block, double dist, string layName)> alDistTuples = new HashSet<(BlockReference, double, string)>();
+                                try
+                                {
+                                    foreach (Alignment al in als)
+                                    {
+                                        Point3d closestPoint = al.GetClosestPointTo(br.Position, false);
+                                        if (closestPoint != null)
+                                        {
+                                            alDistTuples.Add((br, br.Position.DistanceHorizontalTo(closestPoint), al.Name));
+                                        }
+                                    }
+                                }
+                                catch (System.Exception) { };
+
+                                var result = alDistTuples.MinBy(x => x.Item2).FirstOrDefault();
+
+                                if (default != result)
+                                {
+                                    br.CheckOrOpenForWrite();
+                                    br.Layer = result.layName;
+                                    AttributeCollection atts = br.AttributeCollection;
+                                    foreach (oid attOid in atts)
+                                    {
+                                        AttributeReference att = attOid.Go<AttributeReference>(tx, OpenMode.ForWrite);
+                                        if (att.Tag == "Delstrækning")
+                                        {
+                                            att.CheckOrOpenForWrite();
+                                            att.TextString = result.layName;
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
                 catch (System.Exception ex)
                 {
+                    tx.Abort();
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
@@ -6420,6 +6589,8 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
+
                     PromptResult pr = editor.GetString("\nEnter name of attribute to create: ");
                     if (pr.Status != PromptStatus.OK) return;
                     string attName = pr.StringResult;
@@ -6428,44 +6599,109 @@ namespace IntersectUtilities
                     if (pr1.Status != PromptStatus.OK) return;
                     string valueToAssign = pr1.StringResult;
 
-                    HashSet<string> allNames = File.ReadAllLines(@"X:\AutoCAD DRI - 01 Civil 3D\SymbolNames.txt")
-                                               .Distinct().ToHashSet();
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+                    BlockTableRecord btrMs = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
+                        as BlockTableRecord;
+
+                    foreach (oid Oid in btrMs)
+                    {
+                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        {
+                            BlockReference br = Oid.Go<BlockReference>(tx, OpenMode.ForRead);
+                            if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) != null)
+                            {
+                                AttributeCollection aCol = br.AttributeCollection;
+                                if (aCol.Count < 1)
+                                {
+                                    AddAttribute(localDb, tx, attName, valueToAssign, bt, br);
+                                }
+                                else
+                                {
+                                    bool attExists = false;
+
+                                    foreach (oid attOid in aCol)
+                                    {
+                                        AttributeReference att = attOid.Go<AttributeReference>(tx, OpenMode.ForWrite);
+                                        if (att.Tag == attName) attExists = true;
+                                    }
+
+                                    if (!attExists)
+                                    {
+                                        AddAttribute(localDb, tx, attName, valueToAssign, bt, br);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    void AddAttribute(Database db, Transaction tr, string nameOfAtt, string assignToValue, BlockTable btLocal, BlockReference brLocal)
+                    {
+                        BlockTableRecord btr = tr.GetObject(btLocal[brLocal.Name], OpenMode.ForWrite) as BlockTableRecord;
+                        ObjectIdCollection brefIds = btr.GetBlockReferenceIds(false, true);
+                        AttributeDefinition attDef = new AttributeDefinition();
+                        attDef.SetDatabaseDefaults(db);
+                        attDef.Tag = nameOfAtt;
+                        attDef.TextString = assignToValue;
+                        attDef.Invisible = true;
+                        attDef.Justify = AttachmentPoint.MiddleCenter;
+                        attDef.Height = 0.1;
+                        btr.AppendEntity(attDef);
+                        tr.AddNewlyCreatedDBObject(attDef, true);
+
+                        foreach (oid brOid in brefIds)
+                        {
+                            AttributeReference attRef = new AttributeReference();
+                            attRef.SetDatabaseDefaults(db);
+                            attRef.Tag = nameOfAtt;
+                            attRef.TextString = assignToValue;
+                            attRef.Invisible = true;
+                            attRef.Justify = AttachmentPoint.MiddleCenter;
+                            attRef.Height = 0.1;
+
+                            BlockReference bref = tr.GetObject(brOid, OpenMode.ForWrite) as BlockReference;
+                            bref.AttributeCollection.AppendAttribute(attRef);
+                            //editor.Command("_.attsync", "_name", blockName);
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("attsyncall")]
+        public void attsyncall()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
 
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+                    BlockTableRecord btrMs = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
+                        as BlockTableRecord;
 
-                    foreach (string blockName in allNames)
+                    foreach (oid Oid in btrMs)
                     {
-                        if (bt.Has(blockName))
+                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
                         {
-                            BlockTableRecord btr = tx.GetObject(bt[blockName], OpenMode.ForWrite)
-                                as BlockTableRecord;
-                            ObjectIdCollection brefIds = btr.GetBlockReferenceIds(false, true);
-                            AttributeDefinition attDef = new AttributeDefinition();
-                            attDef.SetDatabaseDefaults(localDb);
-                            //attDef.Position = new Point3d(0, 0, 0);
-                            //attDef.AlignmentPoint = new Point3d(0, 0, 0);
-                            attDef.Tag = attName;
-                            attDef.TextString = valueToAssign;
-                            attDef.Invisible = true;
-                            attDef.Justify = AttachmentPoint.MiddleCenter;
-                            attDef.Height = 0.1;
-                            btr.AppendEntity(attDef);
-                            tx.AddNewlyCreatedDBObject(attDef, true);
-
-                            foreach (oid Oid in brefIds)
+                            BlockReference br = Oid.Go<BlockReference>(tx, OpenMode.ForRead);
+                            if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) != null)
                             {
-                                AttributeReference attRef = new AttributeReference();
-                                attRef.SetDatabaseDefaults(localDb);
-                                attRef.Tag = attName;
-                                attRef.TextString = valueToAssign;
-                                attRef.Invisible = true;
-                                attRef.Justify = AttachmentPoint.MiddleCenter;
-                                attRef.Height = 0.1;
-
-                                BlockReference bref = tx.GetObject(Oid, OpenMode.ForWrite) as BlockReference;
-                                bref.AttributeCollection.AppendAttribute(attRef);
-                                //editor.SetImpliedSelection(new oid[1] { Oid });
-                                //editor.Command("_.attsync", "_name", blockName);
+                                editor.Command("_.attsync", "n ", br.Name);
                             }
                         }
                     }
@@ -6482,53 +6718,6 @@ namespace IntersectUtilities
 
         [CommandMethod("listblockswithnoattributes")]
         public void listblockswithnoattributes()
-        {
-
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    HashSet<string> list = new HashSet<string>();
-                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
-                    BlockTableRecord btrMs = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
-                        as BlockTableRecord;
-                    foreach (oid Oid in btrMs)
-                    {
-                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
-                        {
-                            BlockReference blkRef = Oid.Go<BlockReference>(tx, OpenMode.ForRead);
-                            AttributeCollection aCol = blkRef.AttributeCollection;
-                            if (aCol.Count < 1)
-                            {
-                                if (blkRef.Name.Contains("Vertice")) continue;
-                                list.Add(blkRef.Name);
-                            }
-                        }
-                    }
-
-                    foreach (string name in list.Distinct().OrderBy(x => x))
-                    {
-                        editor.WriteMessage($"\n{name}");
-                    }
-
-                }
-                catch (System.Exception ex)
-                {
-                    editor.WriteMessage("\n" + ex.Message);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
-
-        [CommandMethod("assigncomponents")]
-        public void assigncomponents()
         {
 
             DocumentCollection docCol = Application.DocumentManager;
@@ -6950,6 +7139,8 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+
                     #region Stylize Profile Views
                     HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
 
@@ -7001,6 +7192,22 @@ namespace IntersectUtilities
                             pvbi.LabelAtStartStation = true;
                         }
                         pvbs.SetBottomBandItems(pbic);
+
+                        #region Scale LER block
+                        if (bt.Has(pv.Name))
+                        {
+                            BlockTableRecord btr = tx.GetObject(bt[pv.Name], OpenMode.ForRead)
+                                as BlockTableRecord;
+                            ObjectIdCollection brefIds = btr.GetBlockReferenceIds(false, true);
+
+                            foreach (oid Oid in brefIds)
+                            {
+                                BlockReference bref = Oid.Go<BlockReference>(tx, OpenMode.ForWrite);
+                                bref.ScaleFactors = new Scale3d(1, 2.5, 1);
+                            }
+
+                        }
+                        #endregion
                     }
                     #endregion
 
@@ -7099,13 +7306,13 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    #region Delete unwanted objects
-                    HashSet<Circle> cs = localDb.HashSetOfType<Circle>(tx);
-                    foreach (Circle c in cs)
-                    {
-                        c.CheckOrOpenForWrite();
-                        c.Erase(true);
-                    }
+                    #region Delete unwanted objects -- NOT NEEDED ANYMORE
+                    //HashSet<Circle> cs = localDb.HashSetOfType<Circle>(tx);
+                    //foreach (Circle c in cs)
+                    //{
+                    //    c.CheckOrOpenForWrite();
+                    //    c.Erase(true);
+                    //}
 
                     #endregion
                 }
@@ -8322,6 +8529,38 @@ namespace IntersectUtilities
                     {
                         al.CheckOrOpenForWrite();
                         al.ImportLabelSet("STD 20-5");
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("LABELALLALIGNMENTSNAME")]
+        public void labelallalignmentsname()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                    editor.WriteMessage($"\nNr. of alignments: {als.Count}");
+                    foreach (Alignment al in als)
+                    {
+                        al.CheckOrOpenForWrite();
+                        al.ImportLabelSet("20-5 - Name");
                     }
                 }
                 catch (System.Exception ex)
