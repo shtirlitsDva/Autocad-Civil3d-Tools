@@ -97,10 +97,10 @@
       <HintPath>..\packages\AutoCAD.NET.24.0.0\lib\net47\AdWindows.dll</HintPath>
     </Reference>
     <Reference Include="AecBaseMgd">
-      <HintPath>..\packages\Civil3D2021.Base.1.0.0\lib\AecBaseMgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2021\AecBaseMgd.dll</HintPath>
     </Reference>
     <Reference Include="AeccDbMgd">
-      <HintPath>..\packages\Civil3D2021.Base.1.0.0\lib\AeccDbMgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2021\C3D\AeccDbMgd.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

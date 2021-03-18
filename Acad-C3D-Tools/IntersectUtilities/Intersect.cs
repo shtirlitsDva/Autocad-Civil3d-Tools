@@ -6484,6 +6484,66 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("listnonstandardblocknames")]
+        public void listnonstandardblocknames()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
+
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    BlockTableRecord btr = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
+                        as BlockTableRecord;
+                    HashSet<string> allNamesNotInDb = new HashSet<string>();
+
+                    //int count = fjvKomponenter.Rows.Count;
+                    //HashSet<string> dbNames = new HashSet<string>();
+                    //for (int i = 0; i < count; i++)
+                    //{
+                    //    System.Data.DataRow row = fjvKomponenter.Rows[i];
+                    //    dbNames.Add(row.ItemArray[0].ToString());
+                    //}
+
+                    foreach (oid Oid in btr)
+                    {
+                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        {
+                            BlockReference br = Oid.Go<BlockReference>(tx);
+                            //if (!dbNames.Contains(br.Name))
+                            //{
+                            //    allNamesNotInDb.Add(br.Name);
+                            //}
+                            if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) == null)
+                            {
+                                allNamesNotInDb.Add(br.Name);
+                            }
+                        }
+                    }
+
+                    foreach (string name in allNamesNotInDb.OrderBy(x => x))
+                    {
+                        editor.WriteMessage($"\n{name}");
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("assignblockstoalignments")]
         public void assignblockstoalignments()
         {
