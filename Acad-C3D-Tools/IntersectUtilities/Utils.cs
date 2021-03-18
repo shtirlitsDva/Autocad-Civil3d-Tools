@@ -1486,6 +1486,4 @@ namespace IntersectUtilities
             return Path.GetFullPath(finalPath);
         }
     }
-
-    
 }

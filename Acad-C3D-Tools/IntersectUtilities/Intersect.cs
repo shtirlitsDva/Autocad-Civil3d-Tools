@@ -6442,6 +6442,10 @@ namespace IntersectUtilities
                     //    dbNames.Add(row.ItemArray[0].ToString());
                     //}
 
+                    StringBuilder sb = new StringBuilder();
+
+                    sb.AppendLine("Navn");
+
                     foreach (oid Oid in btr)
                     {
                         if (Oid.ObjectClass.Name == "AcDbBlockReference")
@@ -6451,12 +6455,19 @@ namespace IntersectUtilities
                             //{
                             //    allNamesNotInDb.Add(br.Name);
                             //}
-                            if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) == null)
+                            if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) != null)
                             {
+                                sb.AppendLine(br.Name);
                                 allNamesNotInDb.Add(br.Name);
                             }
                         }
                     }
+
+                    ClrFile(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\" +
+                            @"01 Autocad\Autocad\01 Views\4.5\Komponenter\Komponenter 4.5.csv");
+
+                    OutputWriter(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\" +
+                                 @"01 Autocad\Autocad\01 Views\4.5\Komponenter\Komponenter 4.5.csv", sb.ToString());
 
                     foreach (string name in allNamesNotInDb.OrderBy(x => x))
                     {
@@ -6465,6 +6476,7 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
+                    tx.Abort();
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
