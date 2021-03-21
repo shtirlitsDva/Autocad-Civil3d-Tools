@@ -52,11 +52,6 @@ namespace IntersectUtilities
         }
         #endregion
 
-        /// <summary>
-        /// Finds all intersections between a selected polyline and all lines.
-        /// Creates a point object at the intersection.
-        /// </summary>
-
         [CommandMethod("chel")]
         public void changeelevationofprojectedcogopoint()
         {
@@ -6413,8 +6408,8 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("listallblocknames")]
-        public void listallblocknames()
+        [CommandMethod("exportallblocknames")]
+        public void exportallblocknames()
         {
 
             DocumentCollection docCol = Application.DocumentManager;
@@ -6444,7 +6439,7 @@ namespace IntersectUtilities
 
                     StringBuilder sb = new StringBuilder();
 
-                    sb.AppendLine("Navn");
+                    sb.AppendLine("Navn;");
 
                     foreach (oid Oid in btr)
                     {
@@ -6457,17 +6452,17 @@ namespace IntersectUtilities
                             //}
                             if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) != null)
                             {
-                                sb.AppendLine(br.Name);
+                                sb.AppendLine(br.Name + ";");
                                 allNamesNotInDb.Add(br.Name);
                             }
                         }
                     }
 
                     ClrFile(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\" +
-                            @"01 Autocad\Autocad\01 Views\4.5\Komponenter\Komponenter 4.5.csv");
+                            @"01 Autocad\Autocad\01 Views\4.1\Komponenter\Komponenter export 4.1.csv");
 
                     OutputWriter(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\" +
-                                 @"01 Autocad\Autocad\01 Views\4.5\Komponenter\Komponenter 4.5.csv", sb.ToString());
+                                 @"01 Autocad\Autocad\01 Views\4.1\Komponenter\Komponenter export 4.1.csv", sb.ToString());
 
                     foreach (string name in allNamesNotInDb.OrderBy(x => x))
                     {
@@ -6522,9 +6517,14 @@ namespace IntersectUtilities
                             //{
                             //    allNamesNotInDb.Add(br.Name);
                             //}
+
+                            string effectiveName = br.IsDynamicBlock ?
+                                                                "*-> " + ((BlockTableRecord)tx.GetObject(
+                                                                    br.DynamicBlockTableRecord, OpenMode.ForRead)).Name : br.Name;
+
                             if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) == null)
                             {
-                                allNamesNotInDb.Add(br.Name);
+                                allNamesNotInDb.Add(effectiveName);
                             }
                         }
                     }
@@ -6532,6 +6532,115 @@ namespace IntersectUtilities
                     foreach (string name in allNamesNotInDb.OrderBy(x => x))
                     {
                         editor.WriteMessage($"\n{name}");
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("listanonblocks")]
+        public void listanonblocks()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
+
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    BlockTableRecord btr = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
+                        as BlockTableRecord;
+                    HashSet<string> allNamesNotInDb = new HashSet<string>();
+
+                    foreach (oid Oid in btr)
+                    {
+                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        {
+                            BlockReference br = Oid.Go<BlockReference>(tx);
+
+                            if (br.Name.StartsWith("*"))
+                            {
+                                using (Transaction tr = Application.DocumentManager.MdiActiveDocument.TransactionManager.StartTransaction())
+                                {
+                                    string effectiveName = br.IsDynamicBlock ?
+                                                                ((BlockTableRecord)tr.GetObject(
+                                                                    br.DynamicBlockTableRecord, OpenMode.ForRead)).Name : br.Name;
+                                    allNamesNotInDb.Add($"{br.Name} -> {effectiveName}");
+                                    tr.Commit();
+                                }
+                            }
+                        }
+                    }
+
+                    foreach (string name in allNamesNotInDb.OrderBy(x => x))
+                    {
+                        editor.WriteMessage($"\n{name}");
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("testanonblocks", CommandFlags.UsePickSet)]
+        public void testanonblocks()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
+
+                    HashSet<string> allNamesNotInDb = new HashSet<string>();
+
+                    // Get the PickFirst selection set
+                    PromptSelectionResult acSSPrompt;
+                    acSSPrompt = editor.SelectImplied();
+                    SelectionSet acSSet;
+                    // If the prompt status is OK, objects were selected before
+                    // the command was started
+
+                    if (acSSPrompt.Status == PromptStatus.OK)
+                    {
+                        acSSet = acSSPrompt.Value;
+                        var Ids = acSSet.GetObjectIds();
+                        foreach (oid Oid in Ids)
+                        {
+                            if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                            {
+                                BlockReference br = Oid.Go<BlockReference>(tx);
+
+                                prdDbg(br.Name);
+
+                                BlockTableRecord btr = tx.GetObject(br.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+
+                            }
+                        }
                     }
                 }
                 catch (System.Exception ex)
@@ -6802,10 +6911,13 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
+
                     HashSet<string> list = new HashSet<string>();
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
                     BlockTableRecord btrMs = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
                         as BlockTableRecord;
+
                     foreach (oid Oid in btrMs)
                     {
                         if (Oid.ObjectClass.Name == "AcDbBlockReference")
@@ -6814,13 +6926,16 @@ namespace IntersectUtilities
                             AttributeCollection aCol = blkRef.AttributeCollection;
                             if (aCol.Count < 1)
                             {
-                                if (blkRef.Name.Contains("Vertice")) continue;
-                                list.Add(blkRef.Name);
+                                if (ReadStringParameterFromDataTable(blkRef.Name, fjvKomponenter, "Navn", 0) != null &&
+                                !blkRef.Name.StartsWith("*"))
+                                {
+                                    list.Add(blkRef.Name);
+                                }
                             }
                         }
                     }
 
-                    foreach (string name in list.Distinct().OrderBy(x => x))
+                    foreach (string name in list.OrderBy(x => x))
                     {
                         editor.WriteMessage($"\n{name}");
                     }
@@ -6828,6 +6943,51 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("ok", CommandFlags.UsePickSet)]
+        public void componentsok()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    // Get the PickFirst selection set
+                    PromptSelectionResult acSSPrompt;
+                    acSSPrompt = editor.SelectImplied();
+                    SelectionSet acSSet;
+                    // If the prompt status is OK, objects were selected before
+                    // the command was started
+                    if (acSSPrompt.Status == PromptStatus.OK)
+                    {
+                        acSSet = acSSPrompt.Value;
+                        var Ids = acSSet.GetObjectIds();
+                        foreach (oid Oid in Ids)
+                        {
+                            Entity ent = Oid.Go<Entity>(tx, OpenMode.ForWrite);
+                            ent.Layer = "0-Komponent";
+                        }
+                    }
+                    else
+                    {
+
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
@@ -8644,5 +8804,330 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        //[CommandMethod("EXPLODENESTEDBLOCKS", CommandFlags.UsePickSet)]
+        public void ExplodeNestedBlock()
+        {
+            var doc = Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
+            var ed = doc.Editor;
+            var db = doc.Database;
+
+            //// Ask the user to select the block
+            //var peo = new PromptEntityOptions("\nSelect block to explode");
+            //peo.SetRejectMessage("Must be a block.");
+            //peo.AddAllowedClass(typeof(BlockReference), false);
+            //var per = ed.GetEntity(peo);
+            //if (per.Status != PromptStatus.OK)
+            //    return;
+
+            // Get the PickFirst selection set
+            PromptSelectionResult acSSPrompt;
+            acSSPrompt = ed.SelectImplied();
+            SelectionSet acSSet;
+            // If the prompt status is OK, objects were selected before
+            // the command was started
+            if (acSSPrompt.Status == PromptStatus.OK)
+            {
+                acSSet = acSSPrompt.Value;
+                var Ids = acSSet.GetObjectIds();
+                foreach (oid Oid in Ids)
+                {
+                    if (Oid.ObjectClass.Name != "AcDbBlockReference") continue;
+
+                    using (var tr = db.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            // Call our explode function recursively, starting
+                            // with the top-level block reference
+                            // (you can pass false as a 4th parameter if you
+                            // don't want originating entities erased)
+                            ExplodeBlock(tr, db, Oid, true);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            tr.Abort();
+                            ed.WriteMessage($"\n{ex.Message}");
+                            continue;
+                        }
+                        tr.Commit();
+                    }
+                }
+            }
+
+            void ExplodeBlock(Transaction tr, Database localDb, ObjectId id, bool topLevelCall = false)
+            {
+                // Open out block reference - only needs to be readable
+                // for the explode operation, as it's non-destructive
+                var br = (BlockReference)tr.GetObject(id, OpenMode.ForRead);
+                if (br.Name == "MuffeIntern" ||
+                    br.Name == "MuffeIntern2" ||
+                    br.Name.StartsWith("*U")) return;
+
+                // We'll collect the BlockReferences created in a collection
+                var toExplode = new ObjectIdCollection();
+
+                // Define our handler to capture the nested block references
+                ObjectEventHandler handler =
+                  (s, e) =>
+                  { //if (e.DBObject is BlockReference)
+                      toExplode.Add(e.DBObject.ObjectId);
+                  };
+
+                // Add our handler around the explode call, removing it
+                // directly afterwards
+                localDb.ObjectAppended += handler;
+                br.ExplodeToOwnerSpace();
+                localDb.ObjectAppended -= handler;
+
+                // Go through the results and recurse, exploding the
+                // contents
+                foreach (ObjectId bid in toExplode)
+                {
+                    if (bid.ObjectClass.Name != "AcDbBlockReference") continue;
+                    ExplodeBlock(tr, localDb, bid, false);
+                }
+
+                //Clean stuff emitted to ModelSpace by Top Level Call
+                if (topLevelCall)
+                {
+                    foreach (oid Oid in toExplode)
+                    {
+                        if (Oid.ObjectClass.Name == "AcDbBlockReference") continue;
+                        Autodesk.AutoCAD.DatabaseServices.DBObject dbObj =
+                            tr.GetObject(Oid, OpenMode.ForRead) as Autodesk.AutoCAD.DatabaseServices.DBObject;
+
+                        dbObj.Erase(true);
+                        dbObj.DowngradeOpen();
+                    }
+                }
+
+                // We might also just let it drop out of scope
+                toExplode.Clear();
+
+                // To replicate the explode command, we're delete the
+                // original entity
+                if (topLevelCall == false)
+                {
+                    ed.WriteMessage($"\nExploding block: {br.Name}");
+                    br.UpgradeOpen();
+                    br.Erase();
+                    br.DowngradeOpen();
+                }
+            }
+        }
+
+        [CommandMethod("EXPLODENESTEDBLOCKS", CommandFlags.UsePickSet)]
+        public static void explodenestedblocks2()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+            try
+            {
+                //PromptEntityOptions prEntOpt = new PromptEntityOptions("\nSelect an INSERT:");
+                //prEntOpt.SetRejectMessage("\nIt is not an INSERT!");
+                //prEntOpt.AddAllowedClass(typeof(BlockReference), true);
+                //PromptEntityResult selRes = ed.GetEntity(prEntOpt);
+
+                // Get the PickFirst selection set
+                PromptSelectionResult acSSPrompt;
+                acSSPrompt = ed.SelectImplied();
+                SelectionSet acSSet;
+                // If the prompt status is OK, objects were selected before
+                // the command was started
+
+                if (acSSPrompt.Status == PromptStatus.OK)
+                {
+                    acSSet = acSSPrompt.Value;
+                    var Ids = acSSet.GetObjectIds();
+                    foreach (oid Oid in Ids)
+                    {
+                        if (Oid.ObjectClass.Name != "AcDbBlockReference") continue;
+                        //prdDbg("1: " + Oid.ObjectClass.Name);
+
+                        using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                        {
+
+                            try
+                            {
+                                BlockReference br = Oid.Go<BlockReference>(tx, OpenMode.ForWrite);
+                                BlockTableRecord btr = tx.GetObject(br.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+
+                                foreach (oid bOid in btr)
+                                {
+                                    if (bOid.ObjectClass.Name != "AcDbBlockReference") continue;
+                                    //prdDbg("2: " + bOid.ObjectClass.Name);
+
+                                    ObjectIdCollection ids = Extensions.ExplodeToOwnerSpace3(bOid);
+                                    if (ids.Count > 0)
+                                        ed.WriteMessage("\n{0} entities were added into database.", ids.Count);
+                                }
+                            }
+                            catch (System.Exception ex)
+                            {
+                                tx.Abort();
+                                prdDbg("3: " + ex.Message);
+                                continue;
+                            }
+                            tx.Commit();
+                        }
+                    }
+                }
+                else
+                {
+                    ed.WriteMessage("\nSelect before running the command!");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage(ex.Message);
+            }
+        }
+
+        [CommandMethod("LISTALLNESTEDBLOCKS", CommandFlags.UsePickSet)]
+        public static void listallnestedblocks()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+            try
+            {
+                //PromptEntityOptions prEntOpt = new PromptEntityOptions("\nSelect an INSERT:");
+                //prEntOpt.SetRejectMessage("\nIt is not an INSERT!");
+                //prEntOpt.AddAllowedClass(typeof(BlockReference), true);
+                //PromptEntityResult selRes = ed.GetEntity(prEntOpt);
+
+                // Get the PickFirst selection set
+                PromptSelectionResult acSSPrompt;
+                acSSPrompt = ed.SelectImplied();
+                SelectionSet acSSet;
+                // If the prompt status is OK, objects were selected before
+                // the command was started
+
+                if (acSSPrompt.Status == PromptStatus.OK)
+                {
+                    acSSet = acSSPrompt.Value;
+                    var Ids = acSSet.GetObjectIds();
+                    foreach (oid Oid in Ids)
+                    {
+                        if (Oid.ObjectClass.Name != "AcDbBlockReference") continue;
+                        using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                        {
+                            try
+                            {
+                                BlockReference br = Oid.Go<BlockReference>(tx, OpenMode.ForWrite);
+                                BlockTableRecord btr = tx.GetObject(br.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                                prdDbg("Top LEVEL: " + br.Name);
+
+                                foreach (oid bOid in btr)
+                                {
+                                    if (bOid.ObjectClass.Name != "AcDbBlockReference") continue;
+                                    WriteNestedBlocksName(bOid.Go<BlockReference>(tx));
+                                }
+                            }
+                            catch (System.Exception ex)
+                            {
+                                tx.Abort();
+                                prdDbg("3: " + ex.Message);
+                                continue;
+                            }
+                            tx.Commit();
+                        }
+                    }
+                }
+                else
+                {
+                    ed.WriteMessage("\nSelect before running command!");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage(ex.Message);
+            }
+
+            void WriteNestedBlocksName(BlockReference brNested)
+            {
+                Transaction txTop = Application.DocumentManager.MdiActiveDocument.TransactionManager.TopTransaction;
+                if (brNested.Name != "MuffeIntern" &&
+                    brNested.Name != "MuffeIntern2" &&
+                    brNested.Name != "MuffeIntern3")
+                {
+                    string effectiveName = brNested.IsDynamicBlock ?
+                            brNested.Name + " *-> " + ((BlockTableRecord)txTop.GetObject(
+                            brNested.DynamicBlockTableRecord, OpenMode.ForRead)).Name : brNested.Name;
+                    Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage($"\n--> {effectiveName}");
+                }
+
+                BlockTableRecord btrNested = txTop.GetObject(brNested.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                foreach (oid OidNested in btrNested)
+                {
+                    if (OidNested.ObjectClass.Name != "AcDbBlockReference") continue;
+                    WriteNestedBlocksName(OidNested.Go<BlockReference>(txTop));
+                }
+            }
+        }
+
+        [CommandMethod("CONVERTTEXTOUTPUT")]
+        public void converttextoutput()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    string[] input = File.ReadAllLines(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger" +
+                                                       @"\01 Autocad\Autocad\01 Views\4.6\Komponenter\Input.txt");
+
+                    List<SizeManager> list = new List<SizeManager>();
+                    foreach (string s in input)
+                    {
+                        list.Add(new SizeManager(s));
+                    }
+
+                    foreach (SizeManager sm in list)
+                    {
+                        prdDbg(sm.FirstPosition);
+                    }
+
+                    prdDbg("---------------------------------------");
+
+                    foreach (SizeManager sm in list)
+                    {
+                        prdDbg(sm.SecondPosition);
+                    }
+
+                    //ClrFile(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\" +
+                    //        @"01 Autocad\Autocad\01 Views\4.5\Komponenter\Komponenter 4.5.csv");
+
+                    //OutputWriter(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\" +
+                    //             @"01 Autocad\Autocad\01 Views\4.5\Komponenter\Komponenter 4.5.csv", sb.ToString());
+
+
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+
     }
 }

@@ -32,6 +32,8 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using ObjectId = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using DataType = Autodesk.Gis.Map.Constants.DataType;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
+using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 
 namespace IntersectUtilities
 {
@@ -1256,6 +1258,24 @@ namespace IntersectUtilities
         }
     }
 
+    public class SizeManager
+    {
+        public string FirstPosition { get; private set; }
+        public string SecondPosition { get; private set; } = "0";
+        public SizeManager(string input)
+        {
+            if (input.Contains("x"))
+            {
+                var output = input.Split('x');
+                int firstNumber = int.Parse(output[0]);
+                int secondNumber = int.Parse(output[1]);
+                FirstPosition = firstNumber >= secondNumber ? firstNumber.ToString() : secondNumber.ToString();
+                SecondPosition = firstNumber >= secondNumber ? secondNumber.ToString() : firstNumber.ToString();
+            }
+            else FirstPosition = input;
+        }
+    }
+
     public static class Extensions
     {
         public static bool IsNoE(this string s) => string.IsNullOrEmpty(s);
@@ -1324,6 +1344,84 @@ namespace IntersectUtilities
         public static bool Contains(this string source, string toCheck, StringComparison comp)
         {
             return source?.IndexOf(toCheck, comp) >= 0;
+        }
+
+        public static void ExplodeToOwnerSpace2(this Autodesk.AutoCAD.DatabaseServices.BlockReference br)
+        {
+            ExplodeToOwnerSpace3(br);
+        }
+
+        static ObjectIdCollection idsAdded = new ObjectIdCollection();
+        public static ObjectIdCollection ExplodeToOwnerSpace3(this BlockReference br)
+        {
+            idsAdded = new ObjectIdCollection();
+            Transaction tr = br.Database.TransactionManager.TopTransaction;
+            BlockTableRecord spaceBtr = (BlockTableRecord)tr.GetObject(br.BlockId, OpenMode.ForWrite);
+            LoopThroughInsertAndAddEntity2n3(br.BlockTransform, br, spaceBtr);
+
+            return idsAdded;
+        }
+
+        public static void LoopThroughInsertAndAddEntity2n3(Matrix3d mat, 
+            Autodesk.AutoCAD.DatabaseServices.BlockReference br, BlockTableRecord space)
+        {
+            Transaction tr = space.Database.TransactionManager.TopTransaction;
+            BlockTableRecord btr = tr.GetObject(br.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+
+            foreach (ObjectId id in btr)
+            {
+                Autodesk.AutoCAD.DatabaseServices.DBObject obj =
+                    tr.GetObject(id, OpenMode.ForRead);
+                Entity ent = obj.Clone() as Entity;
+                if (ent is BlockReference)
+                {
+                    BlockReference br1 = (BlockReference)ent;
+                    LoopThroughInsertAndAddEntity2n3(br1.BlockTransform.PreMultiplyBy(mat), br1, space);
+                }
+                else
+                {
+                    ent.TransformBy(mat);
+                    space.AppendEntity(ent);
+                    tr.AddNewlyCreatedDBObject(ent, true);
+
+                    idsAdded.Add(ent.ObjectId);
+                }
+            }
+        }
+
+        public static void ExplodeToOwnerSpace2(ObjectId id, bool erase = true)
+        {
+            ExplodeToOwnerSpace3(id, erase);
+        }
+
+        public static ObjectIdCollection ExplodeToOwnerSpace3(ObjectId id, bool erase = true)
+        {
+            ObjectIdCollection ids;
+
+            using (Transaction tr = id.Database.TransactionManager.StartTransaction())
+            {
+                BlockReference br = (BlockReference)tr.GetObject(id, OpenMode.ForRead);
+                if (br.Name == "MuffeIntern" ||
+                    br.Name == "MuffeIntern2" ||
+                    br.Name == "MuffeIntern3")
+                {
+                    tr.Abort();
+                    return new ObjectIdCollection();
+                }
+                ids = br.ExplodeToOwnerSpace3();
+
+                if (erase)
+                {
+                    Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage(
+                        $"\n{br.Name}");
+                    br.UpgradeOpen();
+                    br.Erase();
+                }
+
+                tr.Commit();
+            }
+
+            return ids;
         }
     }
 
