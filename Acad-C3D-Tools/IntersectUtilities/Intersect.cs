@@ -6439,7 +6439,7 @@ namespace IntersectUtilities
 
                     StringBuilder sb = new StringBuilder();
 
-                    sb.AppendLine("Navn;");
+                    //sb.AppendLine("Navn;");
 
                     foreach (oid Oid in btr)
                     {
@@ -6459,10 +6459,10 @@ namespace IntersectUtilities
                     }
 
                     ClrFile(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\" +
-                            @"01 Autocad\Autocad\01 Views\4.1\Komponenter\Komponenter export 4.1.csv");
+                            @"01 Autocad\Autocad\01 Views\4.3\Komponenter\Komponenter export 4.3.csv");
 
                     OutputWriter(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\" +
-                                 @"01 Autocad\Autocad\01 Views\4.1\Komponenter\Komponenter export 4.1.csv", sb.ToString());
+                                 @"01 Autocad\Autocad\01 Views\4.3\Komponenter\Komponenter export 4.3.csv", sb.ToString());
 
                     foreach (string name in allNamesNotInDb.OrderBy(x => x))
                     {
