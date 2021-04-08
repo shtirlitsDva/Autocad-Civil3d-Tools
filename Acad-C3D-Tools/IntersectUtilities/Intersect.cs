@@ -6375,6 +6375,9 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
+
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                     BlockTableRecord btr = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
                         as BlockTableRecord;
@@ -6384,17 +6387,14 @@ namespace IntersectUtilities
                         if (Oid.ObjectClass.Name == "AcDbBlockReference")
                         {
                             BlockReference br = Oid.Go<BlockReference>(tx);
-                            //if (!allExistingNames.Contains(br.Name))
-                            //{
-                            //    editor.WriteMessage($"\n{br.Name}");
-                            //}
-                            //editor.WriteMessage($"\n{br.Name}");
 
-                            if (br.Name.StartsWith("r dn", StringComparison.InvariantCultureIgnoreCase))
+                            if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) != null &&
+                                ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Type", 0) == "Reduktion")
                             {
                                 br.CheckOrOpenForWrite();
-                                br.ScaleFactors = new Scale3d(3);
-                                //allNames.Add(br.Name);
+                                //br.ScaleFactors = new Scale3d(2);
+                                prdDbg(br.Name);
+                                prdDbg(br.Rotation.ToString());
                             }
                         }
                     }
@@ -6405,6 +6405,61 @@ namespace IntersectUtilities
                     return;
                 }
                 tx.Commit();
+            }
+        }
+
+        [CommandMethod("FLIPBLOCK", CommandFlags.UsePickSet)]
+        [CommandMethod("FB", CommandFlags.UsePickSet)]
+        public static void flipblock()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+            try
+            {
+                // Get the PickFirst selection set
+                PromptSelectionResult acSSPrompt;
+                acSSPrompt = ed.SelectImplied();
+                SelectionSet acSSet;
+                // If the prompt status is OK, objects were selected before
+                // the command was started
+
+                if (acSSPrompt.Status == PromptStatus.OK)
+                {
+                    acSSet = acSSPrompt.Value;
+                    var Ids = acSSet.GetObjectIds();
+                    foreach (oid Oid in Ids)
+                    {
+                        if (Oid.ObjectClass.Name != "AcDbBlockReference") continue;
+                        using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                        {
+                            try
+                            {
+                                BlockReference br = Oid.Go<BlockReference>(tx, OpenMode.ForWrite);
+                                br.Rotation = br.Rotation + 3.14159;
+
+                            }
+                            catch (System.Exception ex)
+                            {
+                                tx.Abort();
+                                prdDbg("3: " + ex.Message);
+                                continue;
+                            }
+                            tx.Commit();
+                        }
+                    }
+                }
+                else
+                {
+                    ed.WriteMessage("\nSelect before running command!");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage(ex.Message);
             }
         }
 
@@ -6650,6 +6705,68 @@ namespace IntersectUtilities
                     return;
                 }
                 tx.Commit();
+            }
+        }
+
+        [CommandMethod("LISTALLFJVBLOCKS")]
+        public static void listallfjvblocks()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+            try
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                using (Database symbolerDB = new Database(false, true))
+                {
+                    try
+                    {
+                        System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
+
+                        symbolerDB.ReadDwgFile(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\" +
+                                               @"02 Tegninger\01 Autocad\Autocad\01 Views\0.0 Fælles\Symboler.dwg",
+                                               System.IO.FileShare.Read, true, "");
+
+                        ObjectIdCollection ids = new ObjectIdCollection();
+
+                        BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                        using (Transaction symbTx = symbolerDB.TransactionManager.StartTransaction())
+                        {
+                            BlockTable symbBt = symbTx.GetObject(symbolerDB.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                            foreach (oid Oid in bt)
+                            {
+                                BlockTableRecord btr = tx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
+
+                                if (ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Navn", 0) != null &&
+                                    ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Type", 0) == "Reduktion" &&
+                                    bt.Has(btr.Name))
+                                {
+                                    prdDbg(btr.Name);
+                                }
+                            }
+                            symbTx.Commit();
+                        }
+
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        ed.WriteMessage(ex.Message);
+                        throw;
+                    }
+
+                    tx.Commit();
+                };
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage(ex.Message);
             }
         }
 
@@ -9140,54 +9257,79 @@ namespace IntersectUtilities
             Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
             try
             {
-                using (DocumentLock docLock = doc.LockDocument())
                 using (Transaction tx = localDb.TransactionManager.StartTransaction())
                 using (Database symbolerDB = new Database(false, true))
                 {
-                    symbolerDB.ReadDwgFile(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\01 Views\0.0 Fælles\Symboler.dwg",
-                        System.IO.FileShare.Read, true, "");
-                    
-
-                        foreach (oid Oid in Ids)
+                    try
                     {
-                        if (Oid.ObjectClass.Name != "AcDbBlockReference") continue;
-                        //prdDbg("1: " + Oid.ObjectClass.Name);
+                        System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
 
+                        symbolerDB.ReadDwgFile(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\"+
+                                               @"02 Tegninger\01 Autocad\Autocad\01 Views\0.0 Fælles\Symboler.dwg",
+                                               System.IO.FileShare.Read, true, "");
 
+                        ObjectIdCollection ids = new ObjectIdCollection();
 
-                        try
+                        BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                        using (Transaction symbTx = symbolerDB.TransactionManager.StartTransaction())
                         {
-                            BlockReference br = Oid.Go<BlockReference>(tx, OpenMode.ForWrite);
-                            BlockTableRecord btr = tx.GetObject(br.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                            BlockTable symbBt = symbTx.GetObject(symbolerDB.BlockTableId, OpenMode.ForRead) as BlockTable;
 
-                            foreach (oid bOid in btr)
+                            foreach (oid Oid in bt)
                             {
-                                if (bOid.ObjectClass.Name != "AcDbBlockReference") continue;
-                                //prdDbg("2: " + bOid.ObjectClass.Name);
+                                BlockTableRecord btr = tx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
 
-                                ObjectIdCollection ids = Extensions.ExplodeToOwnerSpace3(bOid);
-                                if (ids.Count > 0)
-                                    ed.WriteMessage("\n{0} entities were added into database.", ids.Count);
+                                if (ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Navn", 0) != null &&
+                                    bt.Has(btr.Name))
+                                {
+                                    ids.Add(symbBt[btr.Name]);
+                                }
+                            }
+                            symbTx.Commit();
+                        }
+
+                        if (ids.Count != 0)
+                        {
+                            IdMapping iMap = new IdMapping();
+                            localDb.WblockCloneObjects(ids, localDb.BlockTableId, iMap, DuplicateRecordCloning.Replace, false);
+                        }
+                        
+                        foreach (oid Oid in bt)
+                        {
+                            BlockTableRecord btr = tx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
+                            
+                            if (ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Navn", 0) != null)
+                            {
+                        //        prdDbg("2");
+                        //        localDb.Insert(btr.Name, symbolerDB, true);
+                        //        prdDbg("3");
+                                foreach (oid bRefId in btr.GetBlockReferenceIds(false, true))
+                                {
+                        //            prdDbg("4");
+                                    BlockReference bref = tx.GetObject(bRefId, OpenMode.ForWrite) as BlockReference;
+                                    bref.RecordGraphicsModified(true);
+                                }
                             }
                         }
-                        catch (System.Exception ex)
-                        {
-                            tx.Abort();
-                            prdDbg("3: " + ex.Message);
-                            continue;
-                        }
-                        tx.Commit();
-
                     }
-                }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        ed.WriteMessage(ex.Message);
+                        throw;
+                    }
 
-
-
+                    tx.Commit();
+                };
             }
             catch (System.Exception ex)
             {
                 ed.WriteMessage(ex.Message);
             }
         }
+
+        
     }
 }
