@@ -9128,6 +9128,66 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("UPDATEALLBLOCKS")]
+        //Does not update dynamic blocks
+        public static void updateallblocks()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+            try
+            {
+                using (DocumentLock docLock = doc.LockDocument())
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                using (Database symbolerDB = new Database(false, true))
+                {
+                    symbolerDB.ReadDwgFile(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\01 Views\0.0 Fælles\Symboler.dwg",
+                        System.IO.FileShare.Read, true, "");
+                    
+
+                        foreach (oid Oid in Ids)
+                    {
+                        if (Oid.ObjectClass.Name != "AcDbBlockReference") continue;
+                        //prdDbg("1: " + Oid.ObjectClass.Name);
+
+
+
+                        try
+                        {
+                            BlockReference br = Oid.Go<BlockReference>(tx, OpenMode.ForWrite);
+                            BlockTableRecord btr = tx.GetObject(br.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+
+                            foreach (oid bOid in btr)
+                            {
+                                if (bOid.ObjectClass.Name != "AcDbBlockReference") continue;
+                                //prdDbg("2: " + bOid.ObjectClass.Name);
+
+                                ObjectIdCollection ids = Extensions.ExplodeToOwnerSpace3(bOid);
+                                if (ids.Count > 0)
+                                    ed.WriteMessage("\n{0} entities were added into database.", ids.Count);
+                            }
+                        }
+                        catch (System.Exception ex)
+                        {
+                            tx.Abort();
+                            prdDbg("3: " + ex.Message);
+                            continue;
+                        }
+                        tx.Commit();
+
+                    }
+                }
+
+
+
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage(ex.Message);
+            }
+        }
     }
 }
