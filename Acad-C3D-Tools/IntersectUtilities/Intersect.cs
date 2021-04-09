@@ -6392,9 +6392,9 @@ namespace IntersectUtilities
                                 ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Type", 0) == "Reduktion")
                             {
                                 br.CheckOrOpenForWrite();
-                                //br.ScaleFactors = new Scale3d(2);
-                                prdDbg(br.Name);
-                                prdDbg(br.Rotation.ToString());
+                                br.ScaleFactors = new Scale3d(2);
+                                //prdDbg(br.Name);
+                                //prdDbg(br.Rotation.ToString());
                             }
                         }
                     }
@@ -7539,6 +7539,7 @@ namespace IntersectUtilities
                             if (surfaceProfileId != oid.Null) pvbi.Profile1Id = surfaceProfileId;
                             if (topProfileId != oid.Null) pvbi.Profile2Id = topProfileId;
                             pvbi.LabelAtStartStation = true;
+                            pvbi.LabelAtEndStation = true;
                         }
                         pvbs.SetBottomBandItems(pbic);
 
