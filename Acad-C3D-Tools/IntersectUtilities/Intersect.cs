@@ -4279,9 +4279,9 @@ namespace IntersectUtilities
 
 
                                 //allAlignments = new List<Alignment>(2) { allAlignments.Where(x => x.Name == "32 Berlingsbakke").FirstOrDefault() };
-                                allAlignments = allAlignments.Where(x => x.Name == "35 Brogårdsvej" ||
-                                                                         x.Name == "36 Søtoften")
-                                                             .ToList();
+                                //allAlignments = allAlignments.Where(x => x.Name == "35 Brogårdsvej" ||//)
+                                //                             x.Name == "36 Søtoften")
+                                //                             .ToList();
                                 //allAlignments = allAlignments.GetRange(1, 3);
                                 //allAlignments = allAlignments.OrderBy(x => x.Name).ToList().GetRange(20, 11);
                                 //allAlignments = allAlignments.OrderBy(x => x.Name).Skip(32).ToList();
@@ -4309,15 +4309,15 @@ namespace IntersectUtilities
 
                                             CogoPointCollection cpc = civilDoc.CogoPoints;
 
-                                            for (int j = 0; j < numbers.Length; j++)
-                                            {
-                                                uint number = numbers[j];
+                                            //for (int j = 0; j < numbers.Length; j++)
+                                            //{
+                                            //    uint number = numbers[j];
 
-                                                if (cpc.Contains(number))
-                                                {
-                                                    cpc.Remove(number);
-                                                }
-                                            }
+                                            //    if (cpc.Contains(number))
+                                            //    {
+                                            //        cpc.Remove(number);
+                                            //    }
+                                            //}
 
                                             StandardPointGroupQuery spgqEmpty = new StandardPointGroupQuery();
                                             spgqEmpty.IncludeNumbers = "";
