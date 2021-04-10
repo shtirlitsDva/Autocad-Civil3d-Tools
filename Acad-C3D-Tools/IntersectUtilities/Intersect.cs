@@ -9266,7 +9266,7 @@ namespace IntersectUtilities
                         System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
                                             @"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
 
-                        symbolerDB.ReadDwgFile(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\"+
+                        symbolerDB.ReadDwgFile(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\" +
                                                @"02 Tegninger\01 Autocad\Autocad\01 Views\0.0 Fælles\Symboler.dwg",
                                                System.IO.FileShare.Read, true, "");
 
@@ -9296,19 +9296,19 @@ namespace IntersectUtilities
                             IdMapping iMap = new IdMapping();
                             localDb.WblockCloneObjects(ids, localDb.BlockTableId, iMap, DuplicateRecordCloning.Replace, false);
                         }
-                        
+
                         foreach (oid Oid in bt)
                         {
                             BlockTableRecord btr = tx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
-                            
+
                             if (ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Navn", 0) != null)
                             {
-                        //        prdDbg("2");
-                        //        localDb.Insert(btr.Name, symbolerDB, true);
-                        //        prdDbg("3");
+                                //        prdDbg("2");
+                                //        localDb.Insert(btr.Name, symbolerDB, true);
+                                //        prdDbg("3");
                                 foreach (oid bRefId in btr.GetBlockReferenceIds(false, true))
                                 {
-                        //            prdDbg("4");
+                                    //            prdDbg("4");
                                     BlockReference bref = tx.GetObject(bRefId, OpenMode.ForWrite) as BlockReference;
                                     bref.RecordGraphicsModified(true);
                                 }

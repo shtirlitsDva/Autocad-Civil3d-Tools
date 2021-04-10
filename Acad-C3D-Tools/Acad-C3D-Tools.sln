@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoCadUtils", "AutoCadUtil
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReverseLayoutProfileLANDXML", "ReverseLayoutProfileLANDXML\ReverseLayoutProfileLANDXML.csproj", "{B1B68118-C536-4692-8CCA-E91FD45F89AA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExportBlocksToSvg", "ExportBlocksToSvg\ExportBlocksToSvg.csproj", "{33DBF6F7-DA92-496E-985F-ED3FA39165AE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{B1B68118-C536-4692-8CCA-E91FD45F89AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B1B68118-C536-4692-8CCA-E91FD45F89AA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B1B68118-C536-4692-8CCA-E91FD45F89AA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{33DBF6F7-DA92-496E-985F-ED3FA39165AE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{33DBF6F7-DA92-496E-985F-ED3FA39165AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{33DBF6F7-DA92-496E-985F-ED3FA39165AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{33DBF6F7-DA92-496E-985F-ED3FA39165AE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
