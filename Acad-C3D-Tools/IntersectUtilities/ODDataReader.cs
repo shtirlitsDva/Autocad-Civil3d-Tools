@@ -38,7 +38,7 @@ namespace IntersectUtilities.ODDataReader
         public static MapValue ReadComponentType(BlockReference br, System.Data.DataTable fjvTable) =>
             new MapValue(ReadStringParameterFromDataTable(br.Name, fjvTable, "Type", 0));
         public static MapValue ReadBlockRotation(BlockReference br, System.Data.DataTable fjvTable) =>
-            new MapValue(br.Rotation * (180/Math.PI));
+            new MapValue(br.Rotation * (180 / Math.PI));
         public static MapValue ReadComponentSystem(BlockReference br, System.Data.DataTable fjvTable) =>
             new MapValue(ReadStringParameterFromDataTable(br.Name, fjvTable, "System", 0));
         public static MapValue ReadComponentDN1(BlockReference br, System.Data.DataTable fjvTable) =>
@@ -46,6 +46,16 @@ namespace IntersectUtilities.ODDataReader
         public static MapValue ReadComponentDN2(BlockReference br, System.Data.DataTable fjvTable) =>
             new MapValue(ReadStringParameterFromDataTable(br.Name, fjvTable, "DN2", 0));
         public static MapValue ReadComponentSeries(BlockReference br, System.Data.DataTable fjvTable) => new MapValue("S3");
+        public static MapValue ReadComponentWidth(BlockReference br, System.Data.DataTable fjvTable)
+        {
+            Extents3d bbox = br.Bounds.GetValueOrDefault();
+            return new MapValue(Math.Abs(bbox.MaxPoint.X - bbox.MinPoint.X));
+        }
+        public static MapValue ReadComponentHeight(BlockReference br, System.Data.DataTable fjvTable)
+        {
+            Extents3d bbox = br.Bounds.GetValueOrDefault();
+            return new MapValue(Math.Abs(bbox.MaxPoint.Y - bbox.MinPoint.Y));
+        }
     }
     public static class Pipes
     {

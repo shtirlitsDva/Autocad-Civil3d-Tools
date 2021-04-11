@@ -94,7 +94,7 @@ namespace IntersectUtilities
                                     Width = width,
                                     Height = height,
                                     ViewBox = new Svg.SvgViewBox(ts(bbox.MinPoint.X),
-                                                                 ts(bbox.MinPoint.Y),
+                                                                 ts(-bbox.MaxPoint.Y),
                                                                  width, height)
                                 };
 
@@ -141,9 +141,9 @@ namespace IntersectUtilities
                             group.Children.Add(new Svg.SvgLine
                             {
                                 StartX = ts(newLine.StartPoint.X),
-                                StartY = ts(newLine.StartPoint.Y),
+                                StartY = ts(-newLine.StartPoint.Y),
                                 EndX = ts(newLine.EndPoint.X),
-                                EndY = ts(newLine.EndPoint.Y),
+                                EndY = ts(-newLine.EndPoint.Y),
                                 StrokeWidth = ts(0.1),
                                 Stroke = new Svg.SvgColourServer(System.Drawing.Color.Black)
 
@@ -167,7 +167,7 @@ namespace IntersectUtilities
                             {
                                 Point2d p2d = newPline.GetPoint2dAt(i);
                                 pcol.Add(ts(p2d.X));
-                                pcol.Add(ts(p2d.Y));
+                                pcol.Add(ts(-p2d.Y));
                             }
                             SvgPolyline sPline = new SvgPolyline();
                             sPline.Points = pcol;
@@ -195,7 +195,7 @@ namespace IntersectUtilities
                             group.Children.Add(new Svg.SvgCircle
                             {
                                 CenterX = ts(newCircle.Center.X),
-                                CenterY = ts(newCircle.Center.Y),
+                                CenterY = ts(-newCircle.Center.Y),
                                 Radius = ts(newCircle.Radius),
                                 Fill = new Svg.SvgColourServer(System.Drawing.Color.Black),
                             });
@@ -218,7 +218,7 @@ namespace IntersectUtilities
                             prdDbg(ts(newText.Position.X).ToString());
                             prdDbg(ts(newText.Position.Y).ToString());
                             sText.X.Add(ts(newText.Position.X));
-                            sText.Y.Add(ts(newText.Position.Y));
+                            sText.Y.Add(ts(newText.Position.Y+0.1));
                             sText.FontFamily = "Arial";
                             sText.FontSize = ts(0.50);
                             prdDbg(ts(newText.Rotation * (180 / Math.PI)).ToString());

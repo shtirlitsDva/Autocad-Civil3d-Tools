@@ -9355,16 +9355,18 @@ namespace IntersectUtilities
                         #region OD Table definition
                         string tableNameKomponenter = "Komponenter";
 
-                        string[] columnNames = new string[7]
-                            {"BlockName", "Type", "Rotation", "System", "DN1", "DN2", "Serie" };
-                        string[] columnDescrs = new string[7]
+                        string[] columnNames = new string[9]
+                            {"BlockName", "Type", "Rotation", "System", "DN1", "DN2", "Serie", "Width", "Height" };
+                        string[] columnDescrs = new string[9]
                             {"Name of source block", "Type of the component", "Rotation of the symbol",
-                             "Twin or single", "Main run dimension", "Secondary run dimension", "Insulation series of pipes"};
-                        DataType[] dataTypes = new DataType[7]
+                             "Twin or single", "Main run dimension", "Secondary run dimension", "Insulation series of pipes",
+                             "Width of symbol", "Height of symbol"};
+                        DataType[] dataTypes = new DataType[9]
                             {DataType.Character, DataType.Character, DataType.Real,
-                             DataType.Character, DataType.Integer, DataType.Integer, DataType.Character };
+                             DataType.Character, DataType.Integer, DataType.Integer, DataType.Character,
+                             DataType.Real, DataType.Real};
                         Func<BlockReference, System.Data.DataTable, MapValue>[] populateKomponentData =
-                            new Func<BlockReference, System.Data.DataTable, MapValue>[7]
+                            new Func<BlockReference, System.Data.DataTable, MapValue>[9]
                         {
                             ODDataReader.Komponenter.ReadBlockName,
                             ODDataReader.Komponenter.ReadComponentType,
@@ -9372,7 +9374,9 @@ namespace IntersectUtilities
                             ODDataReader.Komponenter.ReadComponentSystem,
                             ODDataReader.Komponenter.ReadComponentDN1,
                             ODDataReader.Komponenter.ReadComponentDN2,
-                            ODDataReader.Komponenter.ReadComponentSeries
+                            ODDataReader.Komponenter.ReadComponentSeries,
+                            ODDataReader.Komponenter.ReadComponentWidth,
+                            ODDataReader.Komponenter.ReadComponentHeight
                         };
 
                         CheckOrCreateTable(tables, tableNameKomponenter, "Komponentdata", columnNames, columnDescrs, dataTypes);
@@ -9444,10 +9448,10 @@ namespace IntersectUtilities
                             {
                                 if (DoesRecordExist(tables, ent.ObjectId, columnNamesPipes[i]))
                                 {
-                                    UpdateODRecord(tables, tableNameKomponenter, columnNamesPipes[i],
+                                    UpdateODRecord(tables, tableNamePipes, columnNamesPipes[i],
                                         ent.ObjectId, pipeData[i].Invoke(ent));
                                 }
-                                else AddODRecord(tables, tableNameKomponenter, columnNamesPipes[i],
+                                else AddODRecord(tables, tableNamePipes, columnNamesPipes[i],
                                         ent.ObjectId, pipeData[i].Invoke(ent));
                             }
                         }
@@ -9468,7 +9472,5 @@ namespace IntersectUtilities
                 ed.WriteMessage(ex.Message);
             }
         }
-
-
     }
 }
