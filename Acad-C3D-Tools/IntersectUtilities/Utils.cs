@@ -841,6 +841,30 @@ namespace IntersectUtilities
             }
             return true;
         }
+
+        public static void CheckOrCreateTable(Tables tables, string tableName, string tableDescription,
+                                               string[] columnNames, string[] columnDescrs, DataType[] dataTypes)
+        {
+            //Check or create table, or check or create all columns
+            if (DoesTableExist(tables, tableName))
+            {//Table exists
+                if (DoAllColumnsExist(tables, tableName, columnNames))
+                {
+                    //The table is in order, continue to data creation
+                }
+                //If not create missing columns
+                else CreateMissingColumns(tables, tableName, columnNames, columnDescrs, dataTypes);
+            }
+            else
+            {
+                //Table does not exist
+                if (CreateTable(tables, tableName, tableDescription,
+                    columnNames, columnDescrs, dataTypes))
+                {
+                    //Table ready for populating with data
+                }
+            }
+        }
         #endregion
 
         /// <summary>

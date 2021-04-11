@@ -9331,6 +9331,144 @@ namespace IntersectUtilities
             }
         }
 
-        
+        [CommandMethod("CREATEGISDATA")]
+        //Does not update dynamic blocks
+        public static void creategisdata()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+            ed.WriteMessage("\nRemember to freeze unneeded linework!");
+            try
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
+
+                        #region Populate Block GIS data
+                        #region OD Table definition
+                        string tableNameKomponenter = "Komponenter";
+
+                        string[] columnNames = new string[7]
+                            {"BlockName", "Type", "Rotation", "System", "DN1", "DN2", "Serie" };
+                        string[] columnDescrs = new string[7]
+                            {"Name of source block", "Type of the component", "Rotation of the symbol",
+                             "Twin or single", "Main run dimension", "Secondary run dimension", "Insulation series of pipes"};
+                        DataType[] dataTypes = new DataType[7]
+                            {DataType.Character, DataType.Character, DataType.Real,
+                             DataType.Character, DataType.Integer, DataType.Integer, DataType.Character };
+                        Func<BlockReference, System.Data.DataTable, MapValue>[] populateKomponentData =
+                            new Func<BlockReference, System.Data.DataTable, MapValue>[7]
+                        {
+                            ODDataReader.Komponenter.ReadBlockName,
+                            ODDataReader.Komponenter.ReadComponentType,
+                            ODDataReader.Komponenter.ReadBlockRotation,
+                            ODDataReader.Komponenter.ReadComponentSystem,
+                            ODDataReader.Komponenter.ReadComponentDN1,
+                            ODDataReader.Komponenter.ReadComponentDN2,
+                            ODDataReader.Komponenter.ReadComponentSeries
+                        };
+
+                        CheckOrCreateTable(tables, tableNameKomponenter, "Komponentdata", columnNames, columnDescrs, dataTypes);
+
+                        #endregion
+
+                        BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                        foreach (oid Oid in bt)
+                        {
+                            BlockTableRecord btr = tx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
+
+                            if (ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Navn", 0) != null)
+                            {
+                                ObjectIdCollection blkIds = btr.GetBlockReferenceIds(true, true);
+
+                                foreach (oid brOid in blkIds)
+                                {
+                                    BlockReference br = brOid.Go<BlockReference>(tx, OpenMode.ForWrite);
+
+                                    for (int i = 0; i < columnNames.Length; i++)
+                                    {
+                                        if (DoesRecordExist(tables, br.ObjectId, columnNames[i]))
+                                        {
+                                            UpdateODRecord(tables, tableNameKomponenter, columnNames[i],
+                                                br.ObjectId, populateKomponentData[i].Invoke(br, fjvKomponenter));
+                                        }
+                                        else AddODRecord(tables, tableNameKomponenter, columnNames[i],
+                                                br.ObjectId, populateKomponentData[i].Invoke(br, fjvKomponenter));
+                                    }
+                                }
+                            }
+                        }
+                        #endregion
+                        #region Populate (p)lines and arc GIS data
+                        #region OD Table definition
+                        string tableNamePipes = "Pipes";
+
+                        string[] columnNamesPipes = new string[4]
+                            {"DN", "Length", "System", "Serie"};
+                        string[] columnDescrsPipes = new string[4]
+                            {"Dimension of pipe", "Length of pipe","System of pipe", "Series of the pipe" };
+                        DataType[] dataTypesPipes = new DataType[4]
+                            {DataType.Integer, DataType.Real, DataType.Character, DataType.Character };
+                        Func<Entity, MapValue>[] pipeData =
+                            new Func<Entity, MapValue>[4]
+                        {
+                            ODDataReader.Pipes.ReadPipeDimension,
+                            ODDataReader.Pipes.ReadPipeLength,
+                            ODDataReader.Pipes.ReadPipeSystem,
+                            ODDataReader.Pipes.ReadPipeSeries
+                        };
+
+                        CheckOrCreateTable(tables, tableNamePipes, "Rørdata", columnNamesPipes, columnDescrsPipes, dataTypesPipes);
+
+                        #endregion
+
+                        HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
+                        HashSet<Line> lines = localDb.HashSetOfType<Line>(tx, true);
+                        HashSet<Arc> arcs = localDb.HashSetOfType<Arc>(tx, true);
+                        HashSet<Entity> ents = new HashSet<Entity>(plines.Count + lines.Count + arcs.Count);
+                        ents.UnionWith(plines.Cast<Entity>());
+                        ents.UnionWith(lines.Cast<Entity>());
+                        ents.UnionWith(arcs.Cast<Entity>());
+
+                        foreach (Entity ent in ents)
+                        {
+                            for (int i = 0; i < columnNamesPipes.Length; i++)
+                            {
+                                if (DoesRecordExist(tables, ent.ObjectId, columnNamesPipes[i]))
+                                {
+                                    UpdateODRecord(tables, tableNameKomponenter, columnNamesPipes[i],
+                                        ent.ObjectId, pipeData[i].Invoke(ent));
+                                }
+                                else AddODRecord(tables, tableNameKomponenter, columnNamesPipes[i],
+                                        ent.ObjectId, pipeData[i].Invoke(ent));
+                            }
+                        }
+                        #endregion
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        ed.WriteMessage(ex.Message);
+                        throw;
+                    }
+
+                    tx.Commit();
+                };
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage(ex.Message);
+            }
+        }
+
+
     }
 }
