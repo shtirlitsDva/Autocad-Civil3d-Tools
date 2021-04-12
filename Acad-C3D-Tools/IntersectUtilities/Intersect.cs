@@ -7817,6 +7817,14 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region List blocks scale
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
+                    foreach (BlockReference br in brs)
+                    {
+                        prdDbg(br.ScaleFactors.ToString());
+                    }
+                    #endregion
+
                     #region Gather alignment names
                     //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
 
@@ -7828,41 +7836,41 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Test ODTables from external database
-                    Tables odTables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-                    StringCollection curDbTables = new StringCollection();
-                    Database curDb = HostApplicationServices.WorkingDatabase;
-                    StringCollection allDbTables = odTables.GetTableNames();
-                    Autodesk.Gis.Map.Project.AttachedDrawings attachedDwgs =
-                        HostMapApplicationServices.Application.ActiveProject.DrawingSet.AllAttachedDrawings;
+                    //Tables odTables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                    //StringCollection curDbTables = new StringCollection();
+                    //Database curDb = HostApplicationServices.WorkingDatabase;
+                    //StringCollection allDbTables = odTables.GetTableNames();
+                    //Autodesk.Gis.Map.Project.AttachedDrawings attachedDwgs =
+                    //    HostMapApplicationServices.Application.ActiveProject.DrawingSet.AllAttachedDrawings;
 
-                    int directDWGCount = HostMapApplicationServices.Application.ActiveProject.DrawingSet.DirectDrawingsCount;
+                    //int directDWGCount = HostMapApplicationServices.Application.ActiveProject.DrawingSet.DirectDrawingsCount;
 
-                    foreach (String name in allDbTables)
-                    {
-                        Autodesk.Gis.Map.ObjectData.Table table = odTables[name];
+                    //foreach (String name in allDbTables)
+                    //{
+                    //    Autodesk.Gis.Map.ObjectData.Table table = odTables[name];
 
-                        bool bTableExistsInCurDb = true;
+                    //    bool bTableExistsInCurDb = true;
 
-                        for (int i = 0; i < directDWGCount; ++i)
-                        {
-                            Autodesk.Gis.Map.Project.AttachedDrawing attDwg = attachedDwgs[i];
+                    //    for (int i = 0; i < directDWGCount; ++i)
+                    //    {
+                    //        Autodesk.Gis.Map.Project.AttachedDrawing attDwg = attachedDwgs[i];
 
-                            StringCollection attachedTables = attDwg.GetTableList(Autodesk.Gis.Map.Constants.TableType.ObjectDataTable);
-                        }
-                        if (bTableExistsInCurDb)
+                    //        StringCollection attachedTables = attDwg.GetTableList(Autodesk.Gis.Map.Constants.TableType.ObjectDataTable);
+                    //    }
+                    //    if (bTableExistsInCurDb)
 
-                            curDbTables.Add(name);
+                    //        curDbTables.Add(name);
 
-                    }
+                    //}
 
-                    editor.WriteMessage("Current Drawing Object Data Tables Names :\r\n");
+                    //editor.WriteMessage("Current Drawing Object Data Tables Names :\r\n");
 
-                    foreach (String name in curDbTables)
-                    {
+                    //foreach (String name in curDbTables)
+                    //{
 
-                        editor.WriteMessage(name + "\r\n");
+                    //    editor.WriteMessage(name + "\r\n");
 
-                    }
+                    //}
 
                     #endregion
 
@@ -9355,18 +9363,19 @@ namespace IntersectUtilities
                         #region OD Table definition
                         string tableNameKomponenter = "Komponenter";
 
-                        string[] columnNames = new string[9]
-                            {"BlockName", "Type", "Rotation", "System", "DN1", "DN2", "Serie", "Width", "Height" };
-                        string[] columnDescrs = new string[9]
+                        string[] columnNames = new string[11]
+                            {"BlockName", "Type", "Rotation", "System", "DN1", "DN2", "Serie", "Width", "Height",
+                             "OffsetX", "OffsetY"};
+                        string[] columnDescrs = new string[11]
                             {"Name of source block", "Type of the component", "Rotation of the symbol",
                              "Twin or single", "Main run dimension", "Secondary run dimension", "Insulation series of pipes",
-                             "Width of symbol", "Height of symbol"};
-                        DataType[] dataTypes = new DataType[9]
+                             "Width of symbol", "Height of symbol", "X offset from Origo to CL", "Y offset from Origo to CL"};
+                        DataType[] dataTypes = new DataType[11]
                             {DataType.Character, DataType.Character, DataType.Real,
                              DataType.Character, DataType.Integer, DataType.Integer, DataType.Character,
-                             DataType.Real, DataType.Real};
+                             DataType.Real, DataType.Real, DataType.Real, DataType.Real};
                         Func<BlockReference, System.Data.DataTable, MapValue>[] populateKomponentData =
-                            new Func<BlockReference, System.Data.DataTable, MapValue>[9]
+                            new Func<BlockReference, System.Data.DataTable, MapValue>[11]
                         {
                             ODDataReader.Komponenter.ReadBlockName,
                             ODDataReader.Komponenter.ReadComponentType,
@@ -9376,7 +9385,9 @@ namespace IntersectUtilities
                             ODDataReader.Komponenter.ReadComponentDN2,
                             ODDataReader.Komponenter.ReadComponentSeries,
                             ODDataReader.Komponenter.ReadComponentWidth,
-                            ODDataReader.Komponenter.ReadComponentHeight
+                            ODDataReader.Komponenter.ReadComponentHeight,
+                            ODDataReader.Komponenter.ReadComponentOffsetX,
+                            ODDataReader.Komponenter.ReadComponentOffsetY
                         };
 
                         CheckOrCreateTable(tables, tableNameKomponenter, "Komponentdata", columnNames, columnDescrs, dataTypes);

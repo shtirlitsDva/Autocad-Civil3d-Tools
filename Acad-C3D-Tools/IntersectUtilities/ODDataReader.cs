@@ -48,18 +48,44 @@ namespace IntersectUtilities.ODDataReader
         public static MapValue ReadComponentSeries(BlockReference br, System.Data.DataTable fjvTable) => new MapValue("S3");
         public static MapValue ReadComponentWidth(BlockReference br, System.Data.DataTable fjvTable)
         {
+            Matrix3d transform = br.BlockTransform;
+            Matrix3d inverseTransform = transform.Inverse();
+            br.TransformBy(inverseTransform);
             Extents3d bbox = br.Bounds.GetValueOrDefault();
+            br.TransformBy(transform);
             return new MapValue(Math.Abs(bbox.MaxPoint.X - bbox.MinPoint.X));
         }
         public static MapValue ReadComponentHeight(BlockReference br, System.Data.DataTable fjvTable)
         {
+            Matrix3d transform = br.BlockTransform;
+            Matrix3d inverseTransform = transform.Inverse();
+            br.TransformBy(inverseTransform);
             Extents3d bbox = br.Bounds.GetValueOrDefault();
+            br.TransformBy(transform);
             return new MapValue(Math.Abs(bbox.MaxPoint.Y - bbox.MinPoint.Y));
+        }
+        public static MapValue ReadComponentOffsetX(BlockReference br, System.Data.DataTable fjvTable)
+        {
+            Matrix3d transform = br.BlockTransform;
+            Matrix3d inverseTransform = transform.Inverse();
+            br.TransformBy(inverseTransform);
+            Extents3d bbox = br.Bounds.GetValueOrDefault();
+            br.TransformBy(transform);
+            return new MapValue((bbox.MinPoint.X + bbox.MaxPoint.X) / 2);
+        }
+        public static MapValue ReadComponentOffsetY(BlockReference br, System.Data.DataTable fjvTable)
+        {
+            Matrix3d transform = br.BlockTransform;
+            Matrix3d inverseTransform = transform.Inverse();
+            br.TransformBy(inverseTransform);
+            Extents3d bbox = br.Bounds.GetValueOrDefault();
+            br.TransformBy(transform);
+            return new MapValue(-(bbox.MinPoint.Y + bbox.MaxPoint.Y) / 2);
         }
     }
     public static class Pipes
     {
-        public static MapValue ReadPipeDimension(Entity ent) 
+        public static MapValue ReadPipeDimension(Entity ent)
         {
             string layer = ent.Layer;
             switch (layer)
