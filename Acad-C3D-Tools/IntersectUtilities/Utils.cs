@@ -197,6 +197,8 @@ namespace IntersectUtilities
             ErrorCode errODCode = ErrorCode.OK;
             Autodesk.Gis.Map.ObjectData.Table table = null;
 
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+
             try
             {
                 table = tables[tableName];
@@ -217,7 +219,11 @@ namespace IntersectUtilities
                     for (int i = 0; i < columnNames.Length; i++)
                     {
                         FieldDefinition def = FieldDefinition.Create(columnNames[i], columnDescriptions[i], dataTypes[i]);
-                        tabDefs.AddColumn(def, 0);
+                        if (!def.IsValid)
+                        {
+                            ed.WriteMessage($"\nField Definition {def.Name} is not valid!");
+                        }
+                        tabDefs.AddColumn(def, i);
                     }
 
                     tables.Add(tableName, tabDefs, tableDescription, true);
@@ -228,7 +234,8 @@ namespace IntersectUtilities
                 {
                     // Deal with the exception as your will
                     errODCode = (ErrorCode)(e.ErrorCode);
-
+                    
+                    ed.WriteMessage($"\nCreating table failed with error: {errODCode} and stacktrace: {e.StackTrace}.");
                     return false;
                 }
             }
