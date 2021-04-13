@@ -9361,19 +9361,47 @@ namespace IntersectUtilities
 
                         #region Populate Block GIS data
                         #region OD Table definition
-                        string tableNameKomponenter = "Komponenter";
+                        string tableNameKomponenter = "Components";
 
                         string[] columnNames = new string[11]
-                            {"BlockName", "Type", "Rotation", "System", "DN1", "DN2", "Serie", "Width", "Height",
-                             "OffsetX", "OffsetY"};
+                               {"BlockName",
+                                "Type",
+                                "Rotation",
+                                "System",
+                                "DN1",
+                                "DN2",
+                                "Serie",
+                                "Width",
+                                "Height",
+                                "OffsetX",
+                                "OffsetY"
+                               };
                         string[] columnDescrs = new string[11]
-                            {"Name of source block", "Type of the component", "Rotation of the symbol",
-                             "Twin or single", "Main run dimension", "Secondary run dimension", "Insulation series of pipes",
-                             "Width of symbol", "Height of symbol", "X offset from Origo to CL", "Y offset from Origo to CL"};
+                            {"Name of source block",
+                             "Type of the component",
+                             "Rotation of the symbol",
+                             "Twin or single",
+                             "Main run dimension",
+                             "Secondary run dimension",
+                             "Insulation series of pipes",
+                             "Width of symbol",
+                             "Height of symbol",
+                             "X offset from Origo to CL",
+                             "Y offset from Origo to CL"
+                            };
                         DataType[] dataTypes = new DataType[11]
-                            {DataType.Character, DataType.Character, DataType.Real,
-                             DataType.Character, DataType.Integer, DataType.Integer, DataType.Character,
-                             DataType.Real, DataType.Real, DataType.Real, DataType.Real};
+                            {DataType.Character,
+                             DataType.Character,
+                             DataType.Real,
+                             DataType.Character,
+                             DataType.Integer,
+                             DataType.Integer,
+                             DataType.Character,
+                             DataType.Real,
+                             DataType.Real,
+                             DataType.Real,
+                             DataType.Real
+                            };
                         Func<BlockReference, System.Data.DataTable, MapValue>[] populateKomponentData =
                             new Func<BlockReference, System.Data.DataTable, MapValue>[11]
                         {
@@ -9399,6 +9427,7 @@ namespace IntersectUtilities
                         foreach (oid Oid in bt)
                         {
                             BlockTableRecord btr = tx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
+                            if (btr.GetBlockReferenceIds(true, true).Count == 0) continue;
 
                             if (ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Navn", 0) != null)
                             {
@@ -9476,7 +9505,8 @@ namespace IntersectUtilities
                     }
 
                     tx.Commit();
-                };
+                }
+
             }
             catch (System.Exception ex)
             {
