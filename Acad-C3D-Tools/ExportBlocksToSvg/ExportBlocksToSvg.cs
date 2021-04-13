@@ -26,9 +26,11 @@ using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
+using IntersectUtilities;
+using static ExportBlocksToSvg.SvgUtils;
 using static IntersectUtilities.Utils;
 
-namespace IntersectUtilities
+namespace ExportBlocksToSvg
 {
     /// <summary>
     /// Class for intersection tools.
@@ -57,7 +59,7 @@ namespace IntersectUtilities
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
-            
+
             try
             {
                 using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -65,7 +67,7 @@ namespace IntersectUtilities
                 {
                     try
                     {
-                        System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                        System.Data.DataTable fjvKomponenter = IntersectUtilities.CsvReader.ReadCsvToDataTable(
                                             @"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
 
                         //symbolerDB.ReadDwgFile(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\" +
@@ -76,36 +78,44 @@ namespace IntersectUtilities
 
                         foreach (oid Oid in bt)
                         {
-                            prdDbg(Oid.ObjectClass.Name);
                             BlockTableRecord btr = tx.GetObject(Oid, OpenMode.ForRead) as BlockTableRecord;
 
-                            if (ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Navn", 0) != null)
+                            if (ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Navn", 0) != null)// &&
+                                //btr.Name == "DN32 90gr twin")
                             {
                                 Extents3d bbox = new Extents3d();
                                 bbox.AddBlockExtents(btr);
-                                prdDbg(bbox.MaxPoint.ToString());
-                                prdDbg(bbox.MinPoint.ToString());
 
                                 float width = ts(Math.Abs(bbox.MaxPoint.X - bbox.MinPoint.X));
                                 float height = ts(Math.Abs(bbox.MaxPoint.Y - bbox.MinPoint.Y));
 
-                                Svg.SvgDocument svg = new Svg.SvgDocument()
+                                //PP = None, NP = Vertical flip, PN = Horizontal flip, NN = Vertical and Horizontal flip
+                                //NN is the same as rotating 180°
+                                Flip[] flips = new Flip[4] { Flip.PP, Flip.PN, Flip.NN, Flip.NP };
+                                string[] flipNames = new string[] { "_PP", "_PN", "_NN", "_NP" };
+
+                                for (int i = 0; i < flips.Length; i++)
                                 {
-                                    Width = width,
-                                    Height = height,
-                                    ViewBox = new Svg.SvgViewBox(ts(bbox.MinPoint.X),
-                                                                 ts(-bbox.MaxPoint.Y),
-                                                                 width, height)
-                                };
+                                    Svg.SvgDocument svg = new Svg.SvgDocument()
+                                    {
+                                        Width = width,
+                                        Height = height,
+                                        ViewBox = new Svg.SvgViewBox(ts(bbox.MinPoint.X),
+                                                                     ts(-bbox.MaxPoint.Y),
+                                                                     width, height)
+                                    };
 
-                                var group = new Svg.SvgGroup();
-                                svg.Children.Add(group);
-                                //WCS ORIGO transform matrix
-                                double[] dMatrix = new double[16] { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
-                                Matrix3d transform = new Matrix3d(dMatrix);
-                                DrawOrDiscardEntity(btr, tx, transform, group);//, upscale);
+                                    var group = new Svg.SvgGroup();
+                                    svg.Children.Add(group);
+                                    //WCS ORIGO transform matrix
+                                    double[] dMatrix = new double[16] { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
+                                    Matrix3d transform = new Matrix3d(dMatrix);
+                                    DrawOrDiscardEntity(btr, tx, transform, group);//, upscale);
+                                    AddTransforms(group, flips[i]);
 
-                                svg.Write(@"X:\AutoCAD DRI - 01 Civil 3D\Svg\" + btr.Name + ".svg");
+                                    svg.Write(@"X:\AutoCAD DRI - 01 Civil 3D\Svg\"
+                                                + btr.Name + flipNames[i] + ".svg");
+                                }
                             }
                         }
                     }
@@ -138,7 +148,7 @@ namespace IntersectUtilities
                         using (Line newLine = new Line(line.StartPoint, line.EndPoint))
                         {
                             newLine.TransformBy(transform);
-                            group.Children.Add(new Svg.SvgLine
+                            SvgLine sline = new Svg.SvgLine
                             {
                                 StartX = ts(newLine.StartPoint.X),
                                 StartY = ts(-newLine.StartPoint.Y),
@@ -147,7 +157,14 @@ namespace IntersectUtilities
                                 StrokeWidth = ts(0.1),
                                 Stroke = new Svg.SvgColourServer(System.Drawing.Color.Black)
 
-                            });
+                            };
+                            //if (flip != Flip.PP)
+                            //{
+                            //    sline.Transforms = AddTransforms(flip,
+                            //        sline.StartX + sline.EndX,
+                            //        sline.StartY + sline.EndY);
+                            //}
+                            group.Children.Add(sline);
                             //mSpc.AppendEntity(newLine);
                             //tx.AddNewlyCreatedDBObject(newLine, true);
                         }
@@ -162,6 +179,7 @@ namespace IntersectUtilities
                                 newPline.AddVertexAt(i, pline.GetPoint2dAt(i), 0, 0, 0);
                             }
                             newPline.TransformBy(transform);
+                            Extents3d bbox = newPline.GeometricExtents; //Prepare for Svg.Transforms
                             SvgPointCollection pcol = new SvgPointCollection();
                             for (int i = 0; i < newPline.NumberOfVertices; i++)
                             {
@@ -180,6 +198,12 @@ namespace IntersectUtilities
                             {
                                 sPline.Fill = new SvgColourServer(System.Drawing.Color.Black);
                             }
+                            //if (flip != Flip.PP)
+                            //{
+                            //    sPline.Transforms = AddTransforms(flip,
+                            //    ts(bbox.MinPoint.X + bbox.MaxPoint.X),
+                            //    ts(bbox.MinPoint.Y + bbox.MaxPoint.Y));
+                            //}
                             group.Children.Add(sPline);
                         }
                         break;
@@ -192,13 +216,20 @@ namespace IntersectUtilities
                             newCircle.Center = circle.Center;
                             newCircle.Radius = circle.Radius;
                             newCircle.TransformBy(transform);
-                            group.Children.Add(new Svg.SvgCircle
+                            SvgCircle sCircle = new Svg.SvgCircle
                             {
                                 CenterX = ts(newCircle.Center.X),
                                 CenterY = ts(-newCircle.Center.Y),
                                 Radius = ts(newCircle.Radius),
                                 Fill = new Svg.SvgColourServer(System.Drawing.Color.Black),
-                            });
+                            };
+                            //if (flip != Flip.PP)
+                            //{
+                            //    sCircle.Transforms = AddTransforms(flip,
+                            //    2 * sCircle.CenterX,
+                            //    2 * sCircle.CenterY);
+                            //}
+                            group.Children.Add(sCircle);
                             //mSpc.AppendEntity(newCircle);
                             //tx.AddNewlyCreatedDBObject(newCircle, true);
                         }
@@ -218,7 +249,7 @@ namespace IntersectUtilities
                             prdDbg(ts(newText.Position.X).ToString());
                             prdDbg(ts(newText.Position.Y).ToString());
                             sText.X.Add(ts(newText.Position.X));
-                            sText.Y.Add(ts(newText.Position.Y+0.1));
+                            sText.Y.Add(ts(newText.Position.Y + 0.1));
                             sText.FontFamily = "Arial";
                             sText.FontSize = ts(0.50);
                             prdDbg(ts(newText.Rotation * (180 / Math.PI)).ToString());
@@ -236,6 +267,7 @@ namespace IntersectUtilities
                 }
             }
         }
+
         public static void DrawOrDiscardEntity(BlockReference br, Transaction tx, Svg.SvgGroup group)//, int upscale)
         {
             BlockTableRecord btr = tx.GetObject(br.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
@@ -258,7 +290,7 @@ namespace IntersectUtilities
                 {
                     try
                     {
-                        System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                        System.Data.DataTable fjvKomponenter = IntersectUtilities.CsvReader.ReadCsvToDataTable(
                                             @"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
 
                         BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
@@ -322,6 +354,11 @@ namespace IntersectUtilities
         /// </summary>
         /// <param name="d">Input double</param>
         /// <returns>Converted float</returns>
-        public static float ts(double d) => Convert.ToSingle(d);
+        public static float ts(double d, double p = 0.000001)
+        {
+            float D = Convert.ToSingle(d);
+            if (D < p && D > -p) return 0;
+            else return D;
+        }
     }
 }

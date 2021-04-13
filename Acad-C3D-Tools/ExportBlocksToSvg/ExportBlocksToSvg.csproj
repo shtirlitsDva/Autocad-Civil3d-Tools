@@ -99,7 +99,9 @@
     </Compile>
     <Compile Include="CsvReader.cs" />
     <Compile Include="ExportBlocksToSvg.cs" />
+    <Compile Include="Flip.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SvgUtils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
