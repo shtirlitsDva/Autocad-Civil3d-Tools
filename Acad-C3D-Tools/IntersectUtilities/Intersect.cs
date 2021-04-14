@@ -9363,7 +9363,7 @@ namespace IntersectUtilities
                         #region OD Table definition
                         string tableNameKomponenter = "Components";
 
-                        string[] columnNames = new string[11]
+                        string[] columnNames = new string[12]
                                {"BlockName",
                                 "Type",
                                 "Rotation",
@@ -9374,9 +9374,10 @@ namespace IntersectUtilities
                                 "Width",
                                 "Height",
                                 "OffsetX",
-                                "OffsetY"
+                                "OffsetY",
+                                "Flip"
                                };
-                        string[] columnDescrs = new string[11]
+                        string[] columnDescrs = new string[12]
                             {"Name of source block",
                              "Type of the component",
                              "Rotation of the symbol",
@@ -9387,9 +9388,10 @@ namespace IntersectUtilities
                              "Width of symbol",
                              "Height of symbol",
                              "X offset from Origo to CL",
-                             "Y offset from Origo to CL"
+                             "Y offset from Origo to CL",
+                             "Describes block's mirror state"
                             };
-                        DataType[] dataTypes = new DataType[11]
+                        DataType[] dataTypes = new DataType[12]
                             {DataType.Character,
                              DataType.Character,
                              DataType.Real,
@@ -9400,10 +9402,11 @@ namespace IntersectUtilities
                              DataType.Real,
                              DataType.Real,
                              DataType.Real,
-                             DataType.Real
+                             DataType.Real,
+                             DataType.Character
                             };
                         Func<BlockReference, System.Data.DataTable, MapValue>[] populateKomponentData =
-                            new Func<BlockReference, System.Data.DataTable, MapValue>[11]
+                            new Func<BlockReference, System.Data.DataTable, MapValue>[12]
                         {
                             ODDataReader.Komponenter.ReadBlockName,
                             ODDataReader.Komponenter.ReadComponentType,
@@ -9415,7 +9418,8 @@ namespace IntersectUtilities
                             ODDataReader.Komponenter.ReadComponentWidth,
                             ODDataReader.Komponenter.ReadComponentHeight,
                             ODDataReader.Komponenter.ReadComponentOffsetX,
-                            ODDataReader.Komponenter.ReadComponentOffsetY
+                            ODDataReader.Komponenter.ReadComponentOffsetY,
+                            ODDataReader.Komponenter.ReadComponentFlipState
                         };
 
                         CheckOrCreateTable(tables, tableNameKomponenter, "Komponentdata", columnNames, columnDescrs, dataTypes);

@@ -71,7 +71,19 @@ namespace IntersectUtilities.ODDataReader
             br.TransformBy(inverseTransform);
             Extents3d bbox = br.Bounds.GetValueOrDefault();
             br.TransformBy(transform);
-            return new MapValue((bbox.MinPoint.X + bbox.MaxPoint.X) / 2);
+            double value = (bbox.MinPoint.X + bbox.MaxPoint.X) / 2;
+            //Debug
+            if (ReadComponentFlipState(br) != "_PP") prdDbg(br.Handle.ToString() + ": " + ReadComponentFlipState(br));
+            //Debug
+            switch (ReadComponentFlipState(br))
+            {
+                case "_NP":
+                    value = value * -1;
+                    break;
+                default:
+                    break;
+            }
+            return new MapValue(value);
         }
         public static MapValue ReadComponentOffsetY(BlockReference br, System.Data.DataTable fjvTable)
         {
@@ -81,6 +93,26 @@ namespace IntersectUtilities.ODDataReader
             Extents3d bbox = br.Bounds.GetValueOrDefault();
             br.TransformBy(transform);
             return new MapValue(-(bbox.MinPoint.Y + bbox.MaxPoint.Y) / 2);
+        }
+
+        internal static MapValue ReadComponentFlipState(BlockReference br, System.Data.DataTable fjvTable)
+        {
+            Scale3d scale = br.ScaleFactors;
+            if (scale.X < 0 && scale.Y < 0) return new MapValue("_NN");
+            if (scale.X > 0 && scale.Y > 0) return new MapValue("_PP");
+            if (scale.X > 0) return new MapValue("_PN");
+            if (scale.Y > 0) return new MapValue("_NP");
+            return new MapValue("_PP");
+        }
+
+        internal static string ReadComponentFlipState(BlockReference br)
+        {
+            Scale3d scale = br.ScaleFactors;
+            if (scale.X < 0 && scale.Y < 0) return "_NN";
+            if (scale.X > 0 && scale.Y > 0) return "_PP";
+            if (scale.X > 0) return "_PN";
+            if (scale.Y > 0) return "_NP";
+            return "_PP";
         }
     }
     public static class Pipes
