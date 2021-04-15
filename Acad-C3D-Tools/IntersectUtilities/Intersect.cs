@@ -6217,7 +6217,15 @@ namespace IntersectUtilities
                         HashSet<StationPoint> staPoints = new HashSet<StationPoint>(allNewlyCreatedPoints.Count);
                         foreach (CogoPoint cp in allNewlyCreatedPoints)
                         {
-                            StationPoint sp = new StationPoint(cp, alignment);
+                            StationPoint sp;
+                            try
+                            {
+                                sp = new StationPoint(cp, alignment);
+                            }
+                            catch (System.Exception)
+                            {
+                                continue;
+                            }
 
                             int counter = 0;
                             foreach (ProfileView pv in pvs)
