@@ -7121,6 +7121,7 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("staggerlabels")]
+        [CommandMethod("sg")]
         public void staggerlabels()
         {
 
@@ -7446,6 +7447,12 @@ namespace IntersectUtilities
                             objIds.Add(ass["FJV TRACÉ SHOW"]);
                             objIds.Add(ass["FJV TRACE NO SHOW"]);
 
+                            //Alignment label styles
+                            var als = stylesDoc.Styles.LabelStyles.AlignmentLabelStyles;
+                            objIds.Add(als.MajorStationLabelStyles["Perpendicular with Line"]);
+                            objIds.Add(als.MinorStationLabelStyles["Tick"]);
+                            objIds.Add(stylesDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"]);
+
                             //Profile Style
                             var psc = stylesDoc.Styles.ProfileStyles;
                             objIds.Add(psc["PROFIL STYLE MGO"]);
@@ -7456,9 +7463,9 @@ namespace IntersectUtilities
                             objIds.Add(plss["Radius Sag"]);
 
                             //Band set style
-                            objIds.Add(stylesDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"]);
                             objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"]);
                             objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"]);
+                            objIds.Add(stylesDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"]);
 
                             //Matchline styles
                             objIds.Add(stylesDoc.Styles.MatchLineStyles["Basic"]);
@@ -7513,17 +7520,22 @@ namespace IntersectUtilities
                         return;
                     }
 
+                    HashSet<Alignment> alss = localDb.HashSetOfType<Alignment>(tx);
+                    foreach (Alignment al in alss)
+                    {
+                        al.CheckOrOpenForWrite();
+                        al.StyleId = civilDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
+                        al.ImportLabelSet("STD 20-5");
+                        al.DowngradeOpen();
+                    }
+
                     foreach (ProfileView pv in pvs)
                     {
                         pv.CheckOrOpenForWrite();
                         pv.StyleId = pvStyleId;
 
                         oid alId = pv.AlignmentId;
-                        Alignment al = alId.Go<Alignment>(tx, OpenMode.ForWrite);
-
-                        al.ImportLabelSet("STD 20-5");
-
-                        al.DowngradeOpen();
+                        Alignment al = alId.Go<Alignment>(tx);
 
                         ObjectIdCollection psIds = al.GetProfileIds();
                         HashSet<Profile> ps = new HashSet<Profile>();
@@ -7539,11 +7551,25 @@ namespace IntersectUtilities
                         if (topProfile != null) topProfileId = topProfile.ObjectId;
                         else ed.WriteMessage("\nTop profile not found!");
 
+                        //this doesn't quite work
+                        oid pvbsId = civilDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
                         ProfileViewBandSet pvbs = pv.Bands;
+                        pvbs.ImportBandSetStyle(pvbsId);
+
+                        //try this
+                        oid pvBSId1 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"];
+                        oid pvBSId2 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"];
+                        ProfileViewBandItemCollection pvic = new ProfileViewBandItemCollection(pv.Id, BandLocationType.Bottom);
+                        pvic.Add(pvBSId1);
+                        pvic.Add(pvBSId2);
+                        pvbs.SetBottomBandItems(pvic);
+
                         ProfileViewBandItemCollection pbic = pvbs.GetBottomBandItems();
                         for (int i = 0; i < pbic.Count; i++)
                         {
                             ProfileViewBandItem pvbi = pbic[i];
+                            if (i == 0) pvbi.Gap = 0;
+                            else if (i == 1) pvbi.Gap = 0.016;
                             if (surfaceProfileId != oid.Null) pvbi.Profile1Id = surfaceProfileId;
                             if (topProfileId != oid.Null) pvbi.Profile2Id = topProfileId;
                             pvbi.LabelAtStartStation = true;
