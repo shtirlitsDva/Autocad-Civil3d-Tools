@@ -7851,12 +7851,60 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region List blocks scale
-                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
-                    foreach (BlockReference br in brs)
+                    #region ChangeLayerOfXref
+
+                    var fileList = File.ReadAllLines(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\4.3\fileList.txt").ToList();
+
+                    foreach (string name in fileList)
                     {
-                        prdDbg(br.ScaleFactors.ToString());
+                        prdDbg(name);
                     }
+                    
+                    foreach (string name in fileList)
+                    {
+                        prdDbg(name);
+                        string fileName = $"X:\\0371-1158 - Gentofte Fase 4 - Dokumenter\\01 Intern\\02 Tegninger\\01 Autocad\\Autocad\\02 Sheets\\4.3\\{name}";
+                        prdDbg(fileName);
+
+                        using (Database extDb = new Database(false, true))
+                        {
+                            extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
+
+                            using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                            {
+                                BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                                foreach (oid Oid in bt)
+                                {
+                                    BlockTableRecord btr = extTx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
+                                    if (btr.Name.Contains("_alignment"))
+                                    {
+                                        var ids = btr.GetBlockReferenceIds(true, true);
+                                        foreach (oid brId in ids)
+                                        {
+                                            BlockReference br = brId.Go<BlockReference>(extTx, OpenMode.ForWrite);
+                                            prdDbg(br.Name);
+                                            prdDbg(br.Layer);
+                                            br.Layer = "0";
+                                            prdDbg(br.Layer);
+                                            System.Windows.Forms.Application.DoEvents();
+                                        }
+                                    }
+                                }
+                                extTx.Commit();
+                            }
+                            extDb.SaveAs(extDb.Filename, DwgVersion.Current);
+
+                        } 
+                    }
+                    #endregion
+
+                    #region List blocks scale
+                    //HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
+                    //foreach (BlockReference br in brs)
+                    //{
+                    //    prdDbg(br.ScaleFactors.ToString());
+                    //}
                     #endregion
 
                     #region Gather alignment names
