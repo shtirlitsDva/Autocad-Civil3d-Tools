@@ -5184,7 +5184,7 @@ namespace IntersectUtilities
 
                             #region Create Diameter OD in "CrossingData"
                             odList.Clear();
-                            odList.Add(("SizeTable", "Size"));
+                            //odList.Add(("SizeTable", "Size"));
                             //Fetch diameter definitions if any
                             string diaDef = ReadStringParameterFromDataTable(ent.Layer,
                                 dtKrydsninger, "Diameter", 0);
@@ -5202,12 +5202,12 @@ namespace IntersectUtilities
                                 if (DoesRecordExist(tables, cogoPoint.ObjectId, "CrossingData", "Diameter"))
                                 {
                                     UpdateODRecord(tables, "CrossingData", "Diameter",
-                                        cogoPoint.ObjectId, new MapValue(0));
+                                        cogoPoint.ObjectId, new MapValue("0"));
                                 }
                                 else
                                 {
                                     AddODRecord(tables, "CrossingData", "Diameter",
-                                        cogoPoint.ObjectId, new MapValue(0));
+                                        cogoPoint.ObjectId, new MapValue("0"));
                                 }
                             }
                             #endregion
