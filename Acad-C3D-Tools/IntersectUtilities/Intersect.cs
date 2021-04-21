@@ -4332,7 +4332,7 @@ namespace IntersectUtilities
 
                                     #region Create profile view
                                     #region Calculate point
-                                    Point3d insertionPoint = new Point3d(selectedPoint.X, selectedPoint.Y + index * -120, 0);
+                                    Point3d insertionPoint = new Point3d(selectedPoint.X, selectedPoint.Y + (index - 1) * -120, 0);
                                     #endregion
 
                                     //If ProfileView already exists -> continue
@@ -7778,11 +7778,13 @@ namespace IntersectUtilities
                     #region Ask if continue with operation
                     const string kwd1 = "No";
                     const string kwd2 = "Yes";
+                    const string kwd3 = "ALL";
 
                     PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
                     pKeyOpts.Message = "\nThis will destroy all OD Tables in drawing!!! Do you want to continue? ";
                     pKeyOpts.Keywords.Add(kwd1);
                     pKeyOpts.Keywords.Add(kwd2);
+                    pKeyOpts.Keywords.Add(kwd3);
                     pKeyOpts.AllowNone = true;
                     pKeyOpts.Keywords.Default = kwd1;
                     PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
@@ -7795,17 +7797,22 @@ namespace IntersectUtilities
                             tx.Abort();
                             return;
                         case kwd2:
-
+                        case kwd3:
                             Tables odTables = HostMapApplicationServices.Application.ActiveProject.ODTables;
                             StringCollection allDbTables = odTables.GetTableNames();
 
                             foreach (string name in allDbTables)
                             {
-                                if (name == "CrossingData" ||
-                                    name == "IdRecord")
+                                //If kwd is Yes, skip CrossingData and IdRecord
+                                //Else delete them also
+                                if (pKeyRes.StringResult == kwd2)
                                 {
-                                    editor.WriteMessage($"\nSkipping table {name}!");
-                                    continue;
+                                    if (name == "CrossingData" ||
+                                        name == "IdRecord")
+                                    {
+                                        editor.WriteMessage($"\nSkipping table {name}!");
+                                        continue;
+                                    }
                                 }
                                 editor.WriteMessage($"\nDestroying table {name} -> ");
                                 if (DoesTableExist(odTables, name))
@@ -7859,7 +7866,7 @@ namespace IntersectUtilities
                     {
                         prdDbg(name);
                     }
-                    
+
                     foreach (string name in fileList)
                     {
                         prdDbg(name);
@@ -7895,7 +7902,7 @@ namespace IntersectUtilities
                             }
                             extDb.SaveAs(extDb.Filename, DwgVersion.Current);
 
-                        } 
+                        }
                     }
                     #endregion
 
