@@ -655,7 +655,7 @@ namespace IntersectUtilities
             }
         }
 
-        public static bool DoesRecordExist(Tables tables, oid id, string columnName)
+        public static bool DoesRecordExist(Tables tables, oid id, string tableName, string columnName)
         {
             ErrorCode errCode = ErrorCode.OK;
             try
@@ -674,15 +674,18 @@ namespace IntersectUtilities
                     // Iterate through all records
                     foreach (Record record in records)
                     {
-                        // Get the table
-                        Autodesk.Gis.Map.ObjectData.Table table = tables[record.TableName];
-
-                        // Get record info
-                        for (int i = 0; i < record.Count; i++)
+                        if (record.TableName == tableName)
                         {
-                            FieldDefinitions tableDef = table.FieldDefinitions;
-                            FieldDefinition column = tableDef[i];
-                            if (column.Name == columnName) return true;
+                            // Get the table
+                            Autodesk.Gis.Map.ObjectData.Table table = tables[record.TableName];
+
+                            // Get record info
+                            for (int i = 0; i < record.Count; i++)
+                            {
+                                FieldDefinitions tableDef = table.FieldDefinitions;
+                                FieldDefinition column = tableDef[i];
+                                if (column.Name == columnName) return true;
+                            } 
                         }
                     }
                 }
@@ -768,7 +771,7 @@ namespace IntersectUtilities
                 MapValue originalValue = ReadRecordData(tables, entSource.ObjectId, item.tableName, item.columnName);
                 if (originalValue != null)
                 {
-                    if (DoesRecordExist(tables, entTarget.ObjectId, item.columnName))
+                    if (DoesRecordExist(tables, entTarget.ObjectId, item.tableName, item.columnName))
                     {
                         UpdateODRecord(tables, item.tableName, item.columnName, entTarget.ObjectId, originalValue);
                     }

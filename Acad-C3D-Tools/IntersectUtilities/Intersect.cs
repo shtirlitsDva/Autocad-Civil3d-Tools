@@ -2165,7 +2165,7 @@ namespace IntersectUtilities
                     {
                         string value = ent.Handle.ToString().Replace("(", "").Replace(")", "");
 
-                        if (DoesRecordExist(tables, ent.ObjectId, "Id"))
+                        if (DoesRecordExist(tables, ent.ObjectId, m_tableName, "Id"))
                         {
                             UpdateODRecord(tables, m_tableName, columnNames[0], ent.ObjectId, value);
                         }
@@ -2323,7 +2323,7 @@ namespace IntersectUtilities
                         {
                             bool success = false;
 
-                            if (DoesRecordExist(tables, pline3dId, columnNames[i]))
+                            if (DoesRecordExist(tables, pline3dId, m_tableName, columnNames[i]))
                             {
                                 editor.WriteMessage($"\nRecord {columnNames[i]} already exists, updating...");
 
@@ -2449,7 +2449,7 @@ namespace IntersectUtilities
 
                         bool success = false;
 
-                        if (DoesRecordExist(tables, pline3dId, columnName))
+                        if (DoesRecordExist(tables, pline3dId, m_tableName, columnName))
                         {
                             editor.WriteMessage($"\nRecord {columnName} already exists, updating...");
 
@@ -2572,7 +2572,7 @@ namespace IntersectUtilities
                         }
                     }
 
-                    if (DoesRecordExist(tables, Entity.ObjectId, columnNames[0]))
+                    if (DoesRecordExist(tables, Entity.ObjectId, m_tableName, columnNames[0]))
                     {
                         UpdateODRecord(tables, m_tableName, columnNames[0], Entity.ObjectId, size);
                     }
@@ -4187,6 +4187,42 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    //Prepare for saving all the time
+                    HostApplicationServices hs = HostApplicationServices.Current;
+
+                    string path = hs.FindFile(doc.Name, doc.Database, FindFileHint.Default);
+
+                    #region Prepare OD: Check, create or update Crossing Data
+                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                    //Definition of "CrossingData" table
+                    string[] columnNames = new string[2] { "Diameter", "Alignment" };
+                    string[] columnDescrs = new string[2] { "Diameter of crossing pipe", "Alignment name" };
+                    DataType[] dataTypes = new DataType[2] { DataType.Character, DataType.Character };
+                    //
+
+                    //Check or create table, or check or create all columns
+                    if (DoesTableExist(tables, "CrossingData"))
+                    {//Table exists
+                        if (DoAllColumnsExist(tables, "CrossingData", columnNames))
+                        {
+                            //The table is in order, continue to data creation
+                        }
+                        //If not create missing columns
+                        else CreateMissingColumns(tables, "CrossingData", columnNames, columnDescrs, dataTypes);
+                    }
+                    else
+                    {
+                        //Table does not exist
+                        if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
+                            columnNames, columnDescrs, dataTypes))
+                        {
+                            //Table ready for populating with data
+                        }
+                    }
+
+                    #endregion
+
                     #region Read Csv Data for Layers and Depth
 
                     //Establish the pathnames to files
@@ -4202,8 +4238,11 @@ namespace IntersectUtilities
                     BlockTableRecord space = (BlockTableRecord)tx.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
                     BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForWrite) as BlockTable;
 
-                    List<Alignment> allAlignments = db.ListOfType<Alignment>(tx).OrderBy(x => x.Name).ToList();
+                    List<Alignment> allAlignments = db.ListOfType<Alignment>(tx).ToList();
                     HashSet<ProfileView> pvSetExisting = db.HashSetOfType<ProfileView>(tx);
+                    HashSet<string> pvNames = pvSetExisting.Select(x => x.Name).ToHashSet();
+                    //Filter out already created profile views
+                    allAlignments = allAlignments.Where(x => !pvNames.Contains(x.Name + "_PV")).OrderBy(x => x.Name).ToList();
 
                     string etapeName = GetEtapeName(editor);
 
@@ -4375,6 +4414,7 @@ namespace IntersectUtilities
                                             return;
                                         }
                                         loopTx.Commit();
+                                        doc.Database.SaveAs(path, true, DwgVersion.Current, doc.Database.SecurityParameters);
                                     }
                                     #endregion
                                 }
@@ -5142,35 +5182,6 @@ namespace IntersectUtilities
                             TryCopySpecificOD(tables, ent, cogoPoint, odList);
                             #endregion
 
-                            #region Check, create or update Crossing Data
-                            //Definition of "CrossingData" table
-                            string[] columnNames = new string[2] { "Diameter", "Alignment" };
-                            string[] columnDescrs = new string[2] { "Diameter of crossing pipe", "Alignment name" };
-                            DataType[] dataTypes = new DataType[2] { DataType.Character, DataType.Character };
-                            //
-
-                            //Check or create table, or check or create all columns
-                            if (DoesTableExist(tables, "CrossingData"))
-                            {//Table exists
-                                if (DoAllColumnsExist(tables, "CrossingData", columnNames))
-                                {
-                                    //The table is in order, continue to data creation
-                                }
-                                //If not create missing columns
-                                else CreateMissingColumns(tables, "CrossingData", columnNames, columnDescrs, dataTypes);
-                            }
-                            else
-                            {
-                                //Table does not exist
-                                if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
-                                    columnNames, columnDescrs, dataTypes))
-                                {
-                                    //Table ready for populating with data
-                                }
-                            }
-
-                            #endregion
-
                             #region Create Diameter OD in "CrossingData"
                             odList.Clear();
                             odList.Add(("SizeTable", "Size"));
@@ -5188,7 +5199,7 @@ namespace IntersectUtilities
                             #region Make sure diameter contains at least zero
                             if (DoesTableExist(tables, "CrossingData"))
                             {
-                                if (DoesRecordExist(tables, cogoPoint.ObjectId, "Diameter"))
+                                if (DoesRecordExist(tables, cogoPoint.ObjectId, "CrossingData", "Diameter"))
                                 {
                                     UpdateODRecord(tables, "CrossingData", "Diameter",
                                         cogoPoint.ObjectId, new MapValue(0));
@@ -5210,7 +5221,7 @@ namespace IntersectUtilities
                                 {
                                     if (DoesTableExist(tables, "CrossingData"))
                                     {
-                                        if (DoesRecordExist(tables, cogoPoint.ObjectId, "Diameter"))
+                                        if (DoesRecordExist(tables, cogoPoint.ObjectId, "CrossingData", "Diameter"))
                                         {
                                             UpdateODRecord(tables, "CrossingData", "Diameter",
                                                 cogoPoint.ObjectId, originalValue);
@@ -5235,7 +5246,7 @@ namespace IntersectUtilities
                             #region Create alignment "CrossingData"
                             if (DoesTableExist(tables, "CrossingData"))
                             {
-                                if (DoesRecordExist(tables, cogoPoint.ObjectId, "Diameter"))
+                                if (DoesRecordExist(tables, cogoPoint.ObjectId, "CrossingData", "Alignment"))
                                 {
                                     UpdateODRecord(tables, "CrossingData", "Alignment",
                                         cogoPoint.ObjectId, new MapValue(alignment.Name));
@@ -6106,7 +6117,7 @@ namespace IntersectUtilities
                                         {
                                             if (DoesTableExist(tables, "CrossingData"))
                                             {
-                                                if (DoesRecordExist(tables, cogoPoint.ObjectId, "Diameter"))
+                                                if (DoesRecordExist(tables, cogoPoint.ObjectId, "CrossingData", "Diameter"))
                                                 {
                                                     UpdateODRecord(tables, "CrossingData", "Diameter",
                                                         cogoPoint.ObjectId, originalValue);
@@ -7858,52 +7869,101 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region ChangeLayerOfXref
+                    #region ODTables troubles
 
-                    var fileList = File.ReadAllLines(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\4.3\fileList.txt").ToList();
-
-                    foreach (string name in fileList)
+                    try
                     {
-                        prdDbg(name);
-                    }
-
-                    foreach (string name in fileList)
-                    {
-                        prdDbg(name);
-                        string fileName = $"X:\\0371-1158 - Gentofte Fase 4 - Dokumenter\\01 Intern\\02 Tegninger\\01 Autocad\\Autocad\\02 Sheets\\4.3\\{name}";
-                        prdDbg(fileName);
-
-                        using (Database extDb = new Database(false, true))
+                        Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                        StringCollection names = tables.GetTableNames();
+                        foreach (string name in names)
                         {
-                            extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
-
-                            using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                            prdDbg(name);
+                            Autodesk.Gis.Map.ObjectData.Table table = null;
+                            try
                             {
-                                BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-
-                                foreach (oid Oid in bt)
+                                table = tables[name];
+                                FieldDefinitions defs = table.FieldDefinitions;
+                                for (int i = 0; i < defs.Count; i++)
                                 {
-                                    BlockTableRecord btr = extTx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
-                                    if (btr.Name.Contains("_alignment"))
-                                    {
-                                        var ids = btr.GetBlockReferenceIds(true, true);
-                                        foreach (oid brId in ids)
-                                        {
-                                            BlockReference br = brId.Go<BlockReference>(extTx, OpenMode.ForWrite);
-                                            prdDbg(br.Name);
-                                            prdDbg(br.Layer);
-                                            br.Layer = "0";
-                                            prdDbg(br.Layer);
-                                            System.Windows.Forms.Application.DoEvents();
-                                        }
-                                    }
+                                    if (defs[i].Name.Contains("DIA") ||
+                                        defs[i].Name.Contains("Dia") ||
+                                        defs[i].Name.Contains("dia")) prdDbg(defs[i].Name);
                                 }
-                                extTx.Commit();
                             }
-                            extDb.SaveAs(extDb.Filename, DwgVersion.Current);
+                            catch (Autodesk.Gis.Map.MapException e)
+                            {
+                                var errCode = (Autodesk.Gis.Map.Constants.ErrorCode)(e.ErrorCode);
+                                prdDbg(errCode.ToString());
 
+                                MapApplication app = HostMapApplicationServices.Application;
+                                FieldDefinitions tabDefs = app.ActiveProject.MapUtility.NewODFieldDefinitions();
+                                tabDefs.AddColumn(
+                                    FieldDefinition.Create("Diameter", "Diameter of crossing pipe", DataType.Character), 0);
+                                tabDefs.AddColumn(
+                                    FieldDefinition.Create("Alignment", "Alignment name", DataType.Character), 1);
+                                tables.RemoveTable("CrossingData");
+                                tables.Add("CrossingData", tabDefs, "Table holding relevant crossing data", true);
+                                //tables.UpdateTable("CrossingData", tabDefs);
+                            }
                         }
                     }
+                    catch (Autodesk.Gis.Map.MapException e)
+                    {
+                        var errCode = (Autodesk.Gis.Map.Constants.ErrorCode)(e.ErrorCode);
+                        prdDbg(errCode.ToString());
+                    }
+                    
+                    
+
+
+                    #endregion
+
+                    #region ChangeLayerOfXref
+
+                    //var fileList = File.ReadAllLines(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\4.3\fileList.txt").ToList();
+
+                    //foreach (string name in fileList)
+                    //{
+                    //    prdDbg(name);
+                    //}
+
+                    //foreach (string name in fileList)
+                    //{
+                    //    prdDbg(name);
+                    //    string fileName = $"X:\\0371-1158 - Gentofte Fase 4 - Dokumenter\\01 Intern\\02 Tegninger\\01 Autocad\\Autocad\\02 Sheets\\4.3\\{name}";
+                    //    prdDbg(fileName);
+
+                    //    using (Database extDb = new Database(false, true))
+                    //    {
+                    //        extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
+
+                    //        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                    //        {
+                    //            BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                    //            foreach (oid Oid in bt)
+                    //            {
+                    //                BlockTableRecord btr = extTx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
+                    //                if (btr.Name.Contains("_alignment"))
+                    //                {
+                    //                    var ids = btr.GetBlockReferenceIds(true, true);
+                    //                    foreach (oid brId in ids)
+                    //                    {
+                    //                        BlockReference br = brId.Go<BlockReference>(extTx, OpenMode.ForWrite);
+                    //                        prdDbg(br.Name);
+                    //                        prdDbg(br.Layer);
+                    //                        br.Layer = "0";
+                    //                        prdDbg(br.Layer);
+                    //                        System.Windows.Forms.Application.DoEvents();
+                    //                    }
+                    //                }
+                    //            }
+                    //            extTx.Commit();
+                    //        }
+                    //        extDb.SaveAs(extDb.Filename, DwgVersion.Current);
+
+                    //    }
+                    //}
                     #endregion
 
                     #region List blocks scale
@@ -9532,7 +9592,7 @@ namespace IntersectUtilities
 
                                     for (int i = 0; i < columnNames.Length; i++)
                                     {
-                                        if (DoesRecordExist(tables, br.ObjectId, columnNames[i]))
+                                        if (DoesRecordExist(tables, br.ObjectId, tableNameKomponenter, columnNames[i]))
                                         {
                                             UpdateODRecord(tables, tableNameKomponenter, columnNames[i],
                                                 br.ObjectId, populateKomponentData[i].Invoke(br, fjvKomponenter));
@@ -9579,7 +9639,7 @@ namespace IntersectUtilities
                         {
                             for (int i = 0; i < columnNamesPipes.Length; i++)
                             {
-                                if (DoesRecordExist(tables, ent.ObjectId, columnNamesPipes[i]))
+                                if (DoesRecordExist(tables, ent.ObjectId, tableNamePipes, columnNamesPipes[i]))
                                 {
                                     UpdateODRecord(tables, tableNamePipes, columnNamesPipes[i],
                                         ent.ObjectId, pipeData[i].Invoke(ent));
