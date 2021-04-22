@@ -7393,7 +7393,7 @@ namespace IntersectUtilities
                 Document doc = docCol.MdiActiveDocument;
                 CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-                #region Clone blocks
+                #region Path to source file
                 string pathToBlockFile = @"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg";
 
                 #endregion
@@ -7426,13 +7426,14 @@ namespace IntersectUtilities
                 }
                 #endregion
 
-                #region Setup styles
+                #region Setup styles and clone blocks
                 string pathToStyles = @"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg";
 
                 using (Database stylesDB = new Database(false, true))
                 {
                     stylesDB.ReadDwgFile(pathToStyles, FileOpenMode.OpenForReadAndWriteNoShare, false, "");
 
+                    using (Transaction localTx = localDb.TransactionManager.StartTransaction())
                     using (Transaction stylesTx = stylesDB.TransactionManager.StartTransaction())
                     {
                         try
@@ -7488,6 +7489,32 @@ namespace IntersectUtilities
                             stylesTx.Abort();
                             throw;
                         }
+
+                        try
+                        {
+                            oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(stylesDB);
+                            oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+
+                            ObjectIdCollection idsToClone = new ObjectIdCollection();
+
+                            BlockTable sourceBt = stylesTx.GetObject(stylesDB.BlockTableId, OpenMode.ForRead) as BlockTable;
+                            idsToClone.Add(sourceBt["EL 10kV"]);
+                            idsToClone.Add(sourceBt["EL 0.4kV"]);
+                            idsToClone.Add(sourceBt["VerticeArc"]);
+                            idsToClone.Add(sourceBt["VerticeLine"]);
+
+                            IdMapping mapping = new IdMapping();
+                            stylesDB.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                        }
+                        catch (System.Exception e)
+                        {
+                            prdDbg(e.Message);
+                            stylesTx.Abort();
+                            localTx.Abort();
+                            throw;
+                        }
+                        stylesTx.Commit();
+                        localTx.Commit();
                     }
                 }
                 #endregion
