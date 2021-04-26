@@ -7898,99 +7898,100 @@ namespace IntersectUtilities
                 {
                     #region ODTables troubles
 
-                    try
-                    {
-                        Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-                        StringCollection names = tables.GetTableNames();
-                        foreach (string name in names)
-                        {
-                            prdDbg(name);
-                            Autodesk.Gis.Map.ObjectData.Table table = null;
-                            try
-                            {
-                                table = tables[name];
-                                FieldDefinitions defs = table.FieldDefinitions;
-                                for (int i = 0; i < defs.Count; i++)
-                                {
-                                    if (defs[i].Name.Contains("DIA") ||
-                                        defs[i].Name.Contains("Dia") ||
-                                        defs[i].Name.Contains("dia")) prdDbg(defs[i].Name);
-                                }
-                            }
-                            catch (Autodesk.Gis.Map.MapException e)
-                            {
-                                var errCode = (Autodesk.Gis.Map.Constants.ErrorCode)(e.ErrorCode);
-                                prdDbg(errCode.ToString());
+                    //try
+                    //{
+                    //    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                    //    StringCollection names = tables.GetTableNames();
+                    //    foreach (string name in names)
+                    //    {
+                    //        prdDbg(name);
+                    //        Autodesk.Gis.Map.ObjectData.Table table = null;
+                    //        try
+                    //        {
+                    //            table = tables[name];
+                    //            FieldDefinitions defs = table.FieldDefinitions;
+                    //            for (int i = 0; i < defs.Count; i++)
+                    //            {
+                    //                if (defs[i].Name.Contains("DIA") ||
+                    //                    defs[i].Name.Contains("Dia") ||
+                    //                    defs[i].Name.Contains("dia")) prdDbg(defs[i].Name);
+                    //            }
+                    //        }
+                    //        catch (Autodesk.Gis.Map.MapException e)
+                    //        {
+                    //            var errCode = (Autodesk.Gis.Map.Constants.ErrorCode)(e.ErrorCode);
+                    //            prdDbg(errCode.ToString());
 
-                                MapApplication app = HostMapApplicationServices.Application;
-                                FieldDefinitions tabDefs = app.ActiveProject.MapUtility.NewODFieldDefinitions();
-                                tabDefs.AddColumn(
-                                    FieldDefinition.Create("Diameter", "Diameter of crossing pipe", DataType.Character), 0);
-                                tabDefs.AddColumn(
-                                    FieldDefinition.Create("Alignment", "Alignment name", DataType.Character), 1);
-                                tables.RemoveTable("CrossingData");
-                                tables.Add("CrossingData", tabDefs, "Table holding relevant crossing data", true);
-                                //tables.UpdateTable("CrossingData", tabDefs);
-                            }
-                        }
-                    }
-                    catch (Autodesk.Gis.Map.MapException e)
-                    {
-                        var errCode = (Autodesk.Gis.Map.Constants.ErrorCode)(e.ErrorCode);
-                        prdDbg(errCode.ToString());
-                    }
-                    
-                    
+                    //            MapApplication app = HostMapApplicationServices.Application;
+                    //            FieldDefinitions tabDefs = app.ActiveProject.MapUtility.NewODFieldDefinitions();
+                    //            tabDefs.AddColumn(
+                    //                FieldDefinition.Create("Diameter", "Diameter of crossing pipe", DataType.Character), 0);
+                    //            tabDefs.AddColumn(
+                    //                FieldDefinition.Create("Alignment", "Alignment name", DataType.Character), 1);
+                    //            tables.RemoveTable("CrossingData");
+                    //            tables.Add("CrossingData", tabDefs, "Table holding relevant crossing data", true);
+                    //            //tables.UpdateTable("CrossingData", tabDefs);
+                    //        }
+                    //    }
+                    //}
+                    //catch (Autodesk.Gis.Map.MapException e)
+                    //{
+                    //    var errCode = (Autodesk.Gis.Map.Constants.ErrorCode)(e.ErrorCode);
+                    //    prdDbg(errCode.ToString());
+                    //}
+
+
 
 
                     #endregion
 
                     #region ChangeLayerOfXref
 
-                    //var fileList = File.ReadAllLines(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\4.3\fileList.txt").ToList();
+                    var fileList = File.ReadAllLines(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\4.4\fileList.txt").ToList();
 
-                    //foreach (string name in fileList)
-                    //{
-                    //    prdDbg(name);
-                    //}
+                    foreach (string name in fileList)
+                    {
+                        prdDbg(name);
+                    }
 
-                    //foreach (string name in fileList)
-                    //{
-                    //    prdDbg(name);
-                    //    string fileName = $"X:\\0371-1158 - Gentofte Fase 4 - Dokumenter\\01 Intern\\02 Tegninger\\01 Autocad\\Autocad\\02 Sheets\\4.3\\{name}";
-                    //    prdDbg(fileName);
+                    foreach (string name in fileList)
+                    {
+                        prdDbg(name);
+                        string fileName = $"X:\\0371-1158 - Gentofte Fase 4 - Dokumenter\\01 Intern\\02 Tegninger\\01 Autocad\\Autocad\\02 Sheets\\4.4\\{name}";
+                        prdDbg(fileName);
 
-                    //    using (Database extDb = new Database(false, true))
-                    //    {
-                    //        extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
+                        using (Database extDb = new Database(false, true))
+                        {
+                            extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
 
-                    //        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
-                    //        {
-                    //            BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                            using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                            {
+                                BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
 
-                    //            foreach (oid Oid in bt)
-                    //            {
-                    //                BlockTableRecord btr = extTx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
-                    //                if (btr.Name.Contains("_alignment"))
-                    //                {
-                    //                    var ids = btr.GetBlockReferenceIds(true, true);
-                    //                    foreach (oid brId in ids)
-                    //                    {
-                    //                        BlockReference br = brId.Go<BlockReference>(extTx, OpenMode.ForWrite);
-                    //                        prdDbg(br.Name);
-                    //                        prdDbg(br.Layer);
-                    //                        br.Layer = "0";
-                    //                        prdDbg(br.Layer);
-                    //                        System.Windows.Forms.Application.DoEvents();
-                    //                    }
-                    //                }
-                    //            }
-                    //            extTx.Commit();
-                    //        }
-                    //        extDb.SaveAs(extDb.Filename, DwgVersion.Current);
+                                foreach (oid Oid in bt)
+                                {
+                                    BlockTableRecord btr = extTx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
+                                    if (btr.Name.Contains("_alignment"))
+                                    {
+                                        var ids = btr.GetBlockReferenceIds(true, true);
+                                        foreach (oid brId in ids)
+                                        {
+                                            BlockReference br = brId.Go<BlockReference>(extTx, OpenMode.ForWrite);
+                                            prdDbg(br.Name);
+                                            if (br.Layer == "0") { prdDbg("Already in 0! Skipping..."); continue; }
+                                            prdDbg("Was in: :" + br.Layer);
+                                            br.Layer = "0";
+                                            prdDbg("Moved to: " + br.Layer);
+                                            System.Windows.Forms.Application.DoEvents();
+                                        }
+                                    }
+                                }
+                                extTx.Commit();
+                            }
+                            extDb.SaveAs(extDb.Filename, DwgVersion.Current);
 
-                    //    }
-                    //}
+                        }
+                    }
                     #endregion
 
                     #region List blocks scale
@@ -9686,6 +9687,135 @@ namespace IntersectUtilities
 
                     tx.Commit();
                 }
+
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage(ex.Message);
+            }
+        }
+
+        [CommandMethod("ATTACHAREADATA")]
+        //Does not update dynamic blocks
+        public static void attachareadata()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+
+            try
+            {
+                try
+                {
+                    #region Populate area data from string
+                    #region OD Table definition
+                    string tableNameAreas = "Områder";
+
+                    string[] columnNames = new string[4]
+                           {"Vejnavn",
+                                "Ejerskab",
+                                "Vejklasse",
+                                "Belægning"
+                           };
+                    string[] columnDescrs = new string[4]
+                        {"Name of street",
+                             "Owner type of street",
+                             "Street/road class",
+                             "Pavement type"
+                        };
+                    DataType[] dataTypes = new DataType[4]
+                        {DataType.Character,
+                             DataType.Character,
+                             DataType.Character,
+                             DataType.Character
+                        };
+
+                    CheckOrCreateTable(tables, tableNameAreas, "Data for områder", columnNames, columnDescrs, dataTypes);
+                    #endregion
+
+                    System.Data.DataTable areaDescriptions = CsvReader.ReadCsvToDataTable(
+                                        @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\05 Udbudsmateriale\" +
+                                        @"01 Paradigme\04 TBL\Mængder\4.1\FJV - Fremtid 4.1.csv",
+                                        "Areas");
+
+                    //Datatable to list of strings
+                    List<string> areaNames = (from System.Data.DataRow dr in areaDescriptions.Rows select (string)dr[1]).ToList();
+
+                    foreach (string name in areaNames)
+                    {
+                        prdDbg(name);
+                        #region Select pline
+                        PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                            "\nSelect polyline to add data to:");
+                        promptEntityOptions1.SetRejectMessage("\nNot a polyline!");
+                        promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
+                        PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
+                        if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                        oid plineId = entity1.ObjectId;
+                        #endregion
+
+                        string[] split1 = name.Split(new[] { ", " }, StringSplitOptions.None);
+
+                        string ownership = "O";
+                        //Handle the ownership dilemma
+                        if (split1[0].Contains("(P)"))
+                        {
+                            split1[0] = split1[0].Split(' ')[0];
+                            ownership = "P";
+                        }
+
+                        if (DoesRecordExist(tables, plineId, tableNameAreas, columnNames[0]))
+                        {
+                            UpdateODRecord(tables, tableNameAreas, columnNames[0],
+                                plineId, new MapValue(split1[0]));
+                        }
+                        else AddODRecord(tables, tableNameAreas, columnNames[0],
+                                plineId, new MapValue(split1[0]));
+
+                        if (DoesRecordExist(tables, plineId, tableNameAreas, columnNames[1]))
+                        {
+                            UpdateODRecord(tables, tableNameAreas, columnNames[1],
+                                plineId, new MapValue(ownership));
+                        }
+                        else AddODRecord(tables, tableNameAreas, columnNames[1],
+                                plineId, new MapValue(ownership));
+
+                        if (DoesRecordExist(tables, plineId, tableNameAreas, columnNames[2]))
+                        {
+                            UpdateODRecord(tables, tableNameAreas, columnNames[2],
+                                plineId, new MapValue(split1[1]));
+                        }
+                        else AddODRecord(tables, tableNameAreas, columnNames[2],
+                                plineId, new MapValue(split1[1]));
+
+                        if (DoesRecordExist(tables, plineId, tableNameAreas, columnNames[3]))
+                        {
+                            UpdateODRecord(tables, tableNameAreas, columnNames[3],
+                                plineId, new MapValue(split1[2]));
+                        }
+                        else AddODRecord(tables, tableNameAreas, columnNames[3],
+                                plineId, new MapValue(split1[2]));
+
+                        using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                        {
+                            Polyline pline = plineId.Go<Polyline>(tx, OpenMode.ForWrite);
+                            pline.Layer = "Områder";
+                            tx.Commit();
+                        }
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    ed.WriteMessage(ex.Message);
+                    throw;
+                }
+
+
+
 
             }
             catch (System.Exception ex)
