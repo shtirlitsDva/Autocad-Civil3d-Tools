@@ -94,7 +94,6 @@ namespace IntersectUtilities.ODDataReader
             br.TransformBy(transform);
             return new MapValue(-(bbox.MinPoint.Y + bbox.MaxPoint.Y) / 2);
         }
-
         internal static MapValue ReadComponentFlipState(BlockReference br, System.Data.DataTable fjvTable)
         {
             Scale3d scale = br.ScaleFactors;
@@ -104,7 +103,6 @@ namespace IntersectUtilities.ODDataReader
             if (scale.Y > 0) return new MapValue("_NP");
             return new MapValue("_PP");
         }
-
         internal static string ReadComponentFlipState(BlockReference br)
         {
             Scale3d scale = br.ScaleFactors;
@@ -115,6 +113,130 @@ namespace IntersectUtilities.ODDataReader
             return "_PP";
         }
     }
+
+    public static class DynKomponenter
+    {
+        private static DynamicBlockReferenceProperty GetDynamicPropertyByName(this BlockReference br, string name)
+        {
+            DynamicBlockReferencePropertyCollection pc = br.DynamicBlockReferencePropertyCollection;
+            foreach (DynamicBlockReferenceProperty property in pc)
+            {
+                if (property.PropertyName == name) return property;
+            }
+            return null;
+        }
+        private static string RealName(this BlockReference br)
+        {
+            if (br.IsDynamicBlock)
+            {
+                Transaction tx = Application.DocumentManager.MdiActiveDocument.Database.TransactionManager.TopTransaction;
+                return ((BlockTableRecord)tx.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)).Name;
+            }
+            else return br.Name;
+        }
+        public static MapValue ReadBlockName(BlockReference br, System.Data.DataTable fjvTable)
+        {
+            Transaction tx = Application.DocumentManager.MdiActiveDocument.Database.TransactionManager.TopTransaction;
+            string realName = ((BlockTableRecord)tx.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)).Name;
+            return new MapValue(realName);
+        }
+        public static MapValue ReadComponentType(BlockReference br, System.Data.DataTable fjvTable) =>
+            new MapValue(br.GetDynamicPropertyByName("Betegnelse").Value as string ?? "");
+        public static MapValue ReadBlockRotation(BlockReference br, System.Data.DataTable fjvTable) =>
+            new MapValue(br.Rotation * (180 / Math.PI));
+        public static MapValue ReadComponentSystem(BlockReference br, System.Data.DataTable fjvTable) =>
+            new MapValue(br.GetDynamicPropertyByName("System").Value as string ?? "");
+        public static MapValue ReadComponentDN1(BlockReference br, System.Data.DataTable fjvTable)
+        {
+            string value = ReadStringParameterFromDataTable(br.RealName(), fjvTable, "DN1", 0);
+
+            if (value.StartsWith("@"))
+            {
+                value = value.Substring(1);
+                return new MapValue(br.GetDynamicPropertyByName(value).Value as string ?? "");
+            }
+            return new MapValue(value ?? "");
+        }
+        public static MapValue ReadComponentDN2(BlockReference br, System.Data.DataTable fjvTable)
+        {
+            string value = ReadStringParameterFromDataTable(br.RealName(), fjvTable, "DN2", 0);
+
+            if (value.StartsWith("@"))
+            {
+                value = value.Substring(1);
+                return new MapValue(br.GetDynamicPropertyByName(value).Value as string ?? "");
+            }
+            return new MapValue(value ?? "");
+        }
+        public static MapValue ReadComponentSeries(BlockReference br, System.Data.DataTable fjvTable) => new MapValue("S3");
+        public static MapValue ReadComponentWidth(BlockReference br, System.Data.DataTable fjvTable)
+        {
+            Matrix3d transform = br.BlockTransform;
+            Matrix3d inverseTransform = transform.Inverse();
+            br.TransformBy(inverseTransform);
+            Extents3d bbox = br.Bounds.GetValueOrDefault();
+            br.TransformBy(transform);
+            return new MapValue(Math.Abs(bbox.MaxPoint.X - bbox.MinPoint.X));
+        }
+        public static MapValue ReadComponentHeight(BlockReference br, System.Data.DataTable fjvTable)
+        {
+            Matrix3d transform = br.BlockTransform;
+            Matrix3d inverseTransform = transform.Inverse();
+            br.TransformBy(inverseTransform);
+            Extents3d bbox = br.Bounds.GetValueOrDefault();
+            br.TransformBy(transform);
+            return new MapValue(Math.Abs(bbox.MaxPoint.Y - bbox.MinPoint.Y));
+        }
+        public static MapValue ReadComponentOffsetX(BlockReference br, System.Data.DataTable fjvTable)
+        {
+            Matrix3d transform = br.BlockTransform;
+            Matrix3d inverseTransform = transform.Inverse();
+            br.TransformBy(inverseTransform);
+            Extents3d bbox = br.Bounds.GetValueOrDefault();
+            br.TransformBy(transform);
+            double value = (bbox.MinPoint.X + bbox.MaxPoint.X) / 2;
+            //Debug
+            if (ReadComponentFlipState(br) != "_PP") prdDbg(br.Handle.ToString() + ": " + ReadComponentFlipState(br));
+            //Debug
+            switch (ReadComponentFlipState(br))
+            {
+                case "_NP":
+                    value = value * -1;
+                    break;
+                default:
+                    break;
+            }
+            return new MapValue(value);
+        }
+        public static MapValue ReadComponentOffsetY(BlockReference br, System.Data.DataTable fjvTable)
+        {
+            Matrix3d transform = br.BlockTransform;
+            Matrix3d inverseTransform = transform.Inverse();
+            br.TransformBy(inverseTransform);
+            Extents3d bbox = br.Bounds.GetValueOrDefault();
+            br.TransformBy(transform);
+            return new MapValue(-(bbox.MinPoint.Y + bbox.MaxPoint.Y) / 2);
+        }
+        internal static MapValue ReadComponentFlipState(BlockReference br, System.Data.DataTable fjvTable)
+        {
+            Scale3d scale = br.ScaleFactors;
+            if (scale.X < 0 && scale.Y < 0) return new MapValue("_NN");
+            if (scale.X > 0 && scale.Y > 0) return new MapValue("_PP");
+            if (scale.X > 0) return new MapValue("_PN");
+            if (scale.Y > 0) return new MapValue("_NP");
+            return new MapValue("_PP");
+        }
+        internal static string ReadComponentFlipState(BlockReference br)
+        {
+            Scale3d scale = br.ScaleFactors;
+            if (scale.X < 0 && scale.Y < 0) return "_NN";
+            if (scale.X > 0 && scale.Y > 0) return "_PP";
+            if (scale.X > 0) return "_PN";
+            if (scale.Y > 0) return "_NP";
+            return "_PP";
+        }
+    }
+
     public static class Pipes
     {
         public static MapValue ReadPipeDimension(Entity ent)

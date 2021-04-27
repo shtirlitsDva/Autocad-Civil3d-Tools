@@ -1435,9 +1435,9 @@ namespace IntersectUtilities
             using (Transaction tr = id.Database.TransactionManager.StartTransaction())
             {
                 BlockReference br = (BlockReference)tr.GetObject(id, OpenMode.ForRead);
-                if (br.Name == "MuffeIntern" ||
-                    br.Name == "MuffeIntern2" ||
-                    br.Name == "MuffeIntern3")
+                if (br.Name.Contains("MuffeIntern")) //||
+                    //br.Name == "MuffeIntern2" ||
+                    //br.Name == "MuffeIntern3")
                 {
                     tr.Abort();
                     return new ObjectIdCollection();

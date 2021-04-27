@@ -6618,7 +6618,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("listanonblocks")]
+        [CommandMethod("LISTDYNAMICANDANONBLOCKS")]
         public void listanonblocks()
         {
 
@@ -6645,7 +6645,7 @@ namespace IntersectUtilities
                         {
                             BlockReference br = Oid.Go<BlockReference>(tx);
 
-                            if (br.Name.StartsWith("*"))
+                            if (br.Name.StartsWith("*") || br.IsDynamicBlock)
                             {
                                 using (Transaction tr = Application.DocumentManager.MdiActiveDocument.TransactionManager.StartTransaction())
                                 {
@@ -7947,7 +7947,9 @@ namespace IntersectUtilities
 
                     #region ChangeLayerOfXref
 
-                    var fileList = File.ReadAllLines(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\4.4\fileList.txt").ToList();
+                    string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\5.1\";
+
+                    var fileList = File.ReadAllLines(path + "fileList.txt").ToList();
 
                     foreach (string name in fileList)
                     {
@@ -7957,7 +7959,7 @@ namespace IntersectUtilities
                     foreach (string name in fileList)
                     {
                         prdDbg(name);
-                        string fileName = $"X:\\0371-1158 - Gentofte Fase 4 - Dokumenter\\01 Intern\\02 Tegninger\\01 Autocad\\Autocad\\02 Sheets\\4.4\\{name}";
+                        string fileName = path + name;
                         prdDbg(fileName);
 
                         using (Database extDb = new Database(false, true))
@@ -9164,8 +9166,7 @@ namespace IntersectUtilities
                 // Open out block reference - only needs to be readable
                 // for the explode operation, as it's non-destructive
                 var br = (BlockReference)tr.GetObject(id, OpenMode.ForRead);
-                if (br.Name == "MuffeIntern" ||
-                    br.Name == "MuffeIntern2" ||
+                if (br.Name.Contains("MuffeIntern") ||
                     br.Name.StartsWith("*U")) return;
 
                 // We'll collect the BlockReferences created in a collection
@@ -9632,6 +9633,96 @@ namespace IntersectUtilities
                             }
                         }
                         #endregion
+
+                        #region Populate dynamic block data
+
+                        fjvKomponenter = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+                        #region Dynamic OD Reader
+                        Func<BlockReference, System.Data.DataTable, MapValue>[] populateDynamicKomponentData =
+                            new Func<BlockReference, System.Data.DataTable, MapValue>[12]
+                        {
+                            ODDataReader.DynKomponenter.ReadBlockName,
+                            ODDataReader.DynKomponenter.ReadComponentType,
+                            ODDataReader.DynKomponenter.ReadBlockRotation,
+                            ODDataReader.DynKomponenter.ReadComponentSystem,
+                            ODDataReader.DynKomponenter.ReadComponentDN1,
+                            ODDataReader.DynKomponenter.ReadComponentDN2,
+                            ODDataReader.DynKomponenter.ReadComponentSeries,
+                            ODDataReader.DynKomponenter.ReadComponentWidth,
+                            ODDataReader.DynKomponenter.ReadComponentHeight,
+                            ODDataReader.DynKomponenter.ReadComponentOffsetX,
+                            ODDataReader.DynKomponenter.ReadComponentOffsetY,
+                            ODDataReader.DynKomponenter.ReadComponentFlipState
+                        };
+                        #endregion
+
+                        HashSet<BlockReference> brSet = localDb.HashSetOfType<BlockReference>(tx);
+                        foreach (BlockReference br in brSet)
+                        {
+                            if (br.IsDynamicBlock)
+                            {
+                                string realName = ((BlockTableRecord)tx.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)).Name;
+                                if (ReadStringParameterFromDataTable(realName, fjvKomponenter, "Navn", 0) != null)
+                                {
+                                    #region Properties list
+                                    //prdDbg("-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-");
+
+                                    //ed.WriteMessage("\nDynamic properties for \"{0}\"\n", realName);
+
+                                    //DynamicBlockReferencePropertyCollection pc = br.DynamicBlockReferencePropertyCollection;
+
+                                    //foreach (DynamicBlockReferenceProperty prop in pc)
+                                    //{
+                                    //    // Start with the property name, type and description
+                                    //    ed.WriteMessage("\nProperty: \"{0}\" : {1}",
+                                    //      prop.PropertyName,
+                                    //      prop.UnitsType);
+
+                                    //    if (prop.Description != "")
+                                    //        ed.WriteMessage("\n  Description: {0}",
+                                    //          prop.Description);
+
+                                    //    // Is it read-only?
+                                    //    if (prop.ReadOnly)
+                                    //        ed.WriteMessage(" (Read Only)");
+
+                                    //    // Get the allowed values, if it's constrained
+                                    //    bool first = true;
+
+                                    //    foreach (object value in prop.GetAllowedValues())
+                                    //    {
+                                    //        ed.WriteMessage((first ? "\n  Allowed values: [" : ", "));
+                                    //        ed.WriteMessage("\"{0}\"", value);
+                                    //        first = false;
+                                    //    }
+
+                                    //    if (!first) ed.WriteMessage("]");
+
+                                    //    // And finally the current value
+                                    //    ed.WriteMessage("\n  Current value: \"{0}\"\n",
+                                    //      prop.Value);
+                                    //} 
+                                    #endregion
+
+                                    for (int i = 0; i < columnNames.Length; i++)
+                                    {
+                                        if (DoesRecordExist(tables, br.ObjectId, tableNameKomponenter, columnNames[i]))
+                                        {
+                                            UpdateODRecord(tables, tableNameKomponenter, columnNames[i],
+                                                br.ObjectId, populateDynamicKomponentData[i].Invoke(br, fjvKomponenter));
+                                        }
+                                        else AddODRecord(tables, tableNameKomponenter, columnNames[i],
+                                                br.ObjectId, populateDynamicKomponentData[i].Invoke(br, fjvKomponenter));
+                                    }
+                                }
+                                else prdDbg($"Dynamic block {realName} does not exist in FJV Komponenter.csv");
+                            }
+                        }
+
+
+                        #endregion
+
                         #region Populate (p)lines and arc GIS data
                         #region OD Table definition
                         string tableNamePipes = "Pipes";
@@ -9813,10 +9904,6 @@ namespace IntersectUtilities
                     ed.WriteMessage(ex.Message);
                     throw;
                 }
-
-
-
-
             }
             catch (System.Exception ex)
             {
