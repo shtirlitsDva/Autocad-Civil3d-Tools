@@ -9776,41 +9776,25 @@ namespace IntersectUtilities
                         //Handle the ownership dilemma
                         if (split1[0].Contains("(P)"))
                         {
-                            split1[0] = split1[0].Split(' ')[0];
+                            split1[0] = split1[0].Split(new[] { " (" }, StringSplitOptions.None)[0];
                             ownership = "P";
                         }
 
-                        if (DoesRecordExist(tables, plineId, tableNameAreas, columnNames[0]))
-                        {
-                            UpdateODRecord(tables, tableNameAreas, columnNames[0],
-                                plineId, new MapValue(split1[0]));
-                        }
-                        else AddODRecord(tables, tableNameAreas, columnNames[0],
-                                plineId, new MapValue(split1[0]));
+                        string[] data = new string[4] { split1[0], ownership, split1[1], split1[2] };
 
-                        if (DoesRecordExist(tables, plineId, tableNameAreas, columnNames[1]))
-                        {
-                            UpdateODRecord(tables, tableNameAreas, columnNames[1],
-                                plineId, new MapValue(ownership));
-                        }
-                        else AddODRecord(tables, tableNameAreas, columnNames[1],
-                                plineId, new MapValue(ownership));
+                        //Test change
+                        //if (ownership == "P") prdDbg(data[0] + " " + data[1] + " " + data[2] + " " + data[3]);
 
-                        if (DoesRecordExist(tables, plineId, tableNameAreas, columnNames[2]))
+                        for (int i = 0; i < data.Length; i++)
                         {
-                            UpdateODRecord(tables, tableNameAreas, columnNames[2],
-                                plineId, new MapValue(split1[1]));
+                            if (DoesRecordExist(tables, plineId, tableNameAreas, columnNames[i]))
+                            {
+                                UpdateODRecord(tables, tableNameAreas, columnNames[i],
+                                    plineId, new MapValue(data[i]));
+                            }
+                            else AddODRecord(tables, tableNameAreas, columnNames[0],
+                                    plineId, new MapValue(data[i]));
                         }
-                        else AddODRecord(tables, tableNameAreas, columnNames[2],
-                                plineId, new MapValue(split1[1]));
-
-                        if (DoesRecordExist(tables, plineId, tableNameAreas, columnNames[3]))
-                        {
-                            UpdateODRecord(tables, tableNameAreas, columnNames[3],
-                                plineId, new MapValue(split1[2]));
-                        }
-                        else AddODRecord(tables, tableNameAreas, columnNames[3],
-                                plineId, new MapValue(split1[2]));
 
                         using (Transaction tx = localDb.TransactionManager.StartTransaction())
                         {
