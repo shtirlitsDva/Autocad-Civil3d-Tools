@@ -3934,11 +3934,11 @@ namespace IntersectUtilities
                         System.IO.FileShare.Read, false, string.Empty);
                     xRefFjvTx = xRefFjvDB.TransactionManager.StartTransaction();
 
-                    HashSet<Line> lines = xRefFjvDB.HashSetOfType<Line>(xRefFjvTx);
+                    HashSet<Line> lines = xRefFjvDB.HashSetOfType<Line>(xRefFjvTx, true);
                     //HashSet<Spline> splines = xRefFjvDB.HashSetOfType<Spline>(xRefLerTx);
-                    HashSet<Polyline> plines = xRefFjvDB.HashSetOfType<Polyline>(xRefFjvTx);
+                    HashSet<Polyline> plines = xRefFjvDB.HashSetOfType<Polyline>(xRefFjvTx, true);
                     //HashSet<Polyline3d> plines3d = xRefFjvDB.HashSetOfType<Polyline3d>(xRefLerTx);
-                    HashSet<Arc> arcs = xRefFjvDB.HashSetOfType<Arc>(xRefFjvTx);
+                    HashSet<Arc> arcs = xRefFjvDB.HashSetOfType<Arc>(xRefFjvTx, true);
                     editor.WriteMessage($"\nNr. of lines: {lines.Count}");
                     //editor.WriteMessage($"\nNr. of splines: {splines.Count}");
                     editor.WriteMessage($"\nNr. of plines: {plines.Count}");
@@ -7249,95 +7249,6 @@ namespace IntersectUtilities
 
                         //editor.WriteMessage($"\nAnchorDimensionValue: {firstLabel.DimensionAnchorValue}.");
                     }
-
-
-                    #endregion
-
-                    #region Test PV start and end station
-
-                    //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-                    //foreach (Alignment al in als)
-                    //{
-                    //    ObjectIdCollection pIds = al.GetProfileIds();
-                    //    Profile p = null;
-                    //    foreach (oid Oid in pIds)
-                    //    {
-                    //        Profile pt = Oid.Go<Profile>(tx);
-                    //        if (pt.Name == $"{al.Name}_surface_P") p = pt;
-                    //    }
-                    //    if (p == null) return;
-                    //    else editor.WriteMessage($"\nProfile {p.Name} found!");
-
-                    //    ProfileView[] pvs = localDb.ListOfType<ProfileView>(tx).ToArray();
-
-                    //    foreach (ProfileView pv in pvs)
-                    //    {
-                    //        editor.WriteMessage($"\nName of pv: {pv.Name}.");
-
-                    #region Test finding of max elevation
-                    //double pvStStart = pv.StationStart;
-                    //double pvStEnd = pv.StationEnd;
-
-                    //int nrOfIntervals = 100;
-                    //double delta = (pvStEnd - pvStStart) / nrOfIntervals;
-                    //HashSet<double> elevs = new HashSet<double>();
-
-                    //for (int i = 0; i < nrOfIntervals + 1; i++)
-                    //{
-                    //    double testEl = p.ElevationAt(pvStStart + delta * i);
-                    //    elevs.Add(testEl);
-                    //    editor.WriteMessage($"\nElevation at {i} is {testEl}.");
-                    //}
-
-                    //double maxEl = elevs.Max();
-                    //editor.WriteMessage($"\nMax elevation of {pv.Name} is {maxEl}.");
-
-                    //pv.CheckOrOpenForWrite();
-                    //pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
-
-                    //pv.ElevationMax = Math.Ceiling(maxEl); 
-                    #endregion
-                    //}
-                    //}
-
-
-
-                    #endregion
-
-                    #region Test station and offset alignment
-                    //#region Select point
-                    //PromptPointOptions pPtOpts = new PromptPointOptions("");
-                    //// Prompt for the start point
-                    //pPtOpts.Message = "\nEnter location to test the alignment:";
-                    //PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
-                    //Point3d selectedPoint = pPtRes.Value;
-                    //// Exit if the user presses ESC or cancels the command
-                    //if (pPtRes.Status != PromptStatus.OK) return;
-                    //#endregion
-
-                    //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-
-                    //foreach (Alignment al in als)
-                    //{
-                    //    double station = 0;
-                    //    double offset = 0;
-
-                    //    al.StationOffset(selectedPoint.X, selectedPoint.Y, ref station, ref offset);
-
-                    //    editor.WriteMessage($"\nReported: ST: {station}, OS: {offset}.");
-                    //} 
-                    #endregion
-
-                    #region Test assigning labels and point styles
-                    //oid cogoPointStyle = civilDoc.Styles.PointStyles["LER KRYDS"];
-                    //CogoPointCollection cpc = civilDoc.CogoPoints;
-
-                    //foreach (oid cpOid in cpc)
-                    //{
-                    //    CogoPoint cp = cpOid.Go<CogoPoint>(tx, OpenMode.ForWrite);
-                    //    cp.StyleId = cogoPointStyle;
-                    //}
-
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -7787,6 +7698,17 @@ namespace IntersectUtilities
                     {
                         pv.CheckOrOpenForWrite();
                         pv.StyleId = pvStyleId;
+
+                        var brs = localDb.HashSetOfType<BlockReference>(tx);
+                        foreach (BlockReference br in brs)
+                        {
+                            if (br.Name == pv.Name)
+                            {
+                                br.CheckOrOpenForWrite();
+                                br.Erase(true);
+                            }
+                        }
+
                     }
                     #endregion
                 }
@@ -9829,7 +9751,7 @@ namespace IntersectUtilities
 
                     System.Data.DataTable areaDescriptions = CsvReader.ReadCsvToDataTable(
                                         @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\05 Udbudsmateriale\" +
-                                        @"01 Paradigme\04 TBL\Mængder\4.1\FJV - Fremtid 4.1.csv",
+                                        @"01 Paradigme\04 TBL\Mængder\4.2\FJV - Fremtid 4.2.csv",
                                         "Areas");
 
                     //Datatable to list of strings
@@ -9893,7 +9815,7 @@ namespace IntersectUtilities
                         using (Transaction tx = localDb.TransactionManager.StartTransaction())
                         {
                             Polyline pline = plineId.Go<Polyline>(tx, OpenMode.ForWrite);
-                            pline.Layer = "Områder";
+                            pline.Layer = "0-OMRÅDER-OK";
                             tx.Commit();
                         }
                     }
