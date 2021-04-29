@@ -19,6 +19,7 @@ using System.IO;
 using System.Linq;
 using MoreLinq;
 using System.Text;
+using System.Text.RegularExpressions;
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
@@ -134,6 +135,24 @@ namespace IntersectUtilities.ODDataReader
             }
             else return br.Name;
         }
+        private static string GetValueByRegex(BlockReference br, string propertyToExtractName, string valueToProcess)
+        {
+            //Extract property name
+            Regex regex = new Regex(@"(?<Name>^[\w\s]+)");
+            string propName = "";
+            if (!regex.IsMatch(valueToProcess)) throw new System.Exception("Property name not found!");
+            propName = regex.Match(valueToProcess).Groups["Name"].Value;
+            //Read raw data from block
+            string rawContents = br.GetDynamicPropertyByName(propName).Value as string;
+            //Extract regex def from the table
+            Regex regxExtract = new Regex(@"{(?<Regx>[^}]+)}");
+            if (!regxExtract.IsMatch(valueToProcess)) throw new System.Exception("Regex definition is incorrect!");
+            string extractedRegx = regxExtract.Match(valueToProcess).Groups["Regx"].Value;
+            //extract needed value from the rawContents by using the extracted regex
+            Regex finalValueRegex = new Regex(extractedRegx);
+            if (!finalValueRegex.IsMatch(rawContents)) throw new System.Exception("Extracted Regex failed to match Raw Value!");
+            return finalValueRegex.Match(rawContents).Groups[propertyToExtractName].Value;
+        }
         public static MapValue ReadBlockName(BlockReference br, System.Data.DataTable fjvTable)
         {
             Transaction tx = Application.DocumentManager.MdiActiveDocument.Database.TransactionManager.TopTransaction;
@@ -144,29 +163,62 @@ namespace IntersectUtilities.ODDataReader
             new MapValue(br.GetDynamicPropertyByName("Betegnelse").Value as string ?? "");
         public static MapValue ReadBlockRotation(BlockReference br, System.Data.DataTable fjvTable) =>
             new MapValue(br.Rotation * (180 / Math.PI));
-        public static MapValue ReadComponentSystem(BlockReference br, System.Data.DataTable fjvTable) =>
-            new MapValue(br.GetDynamicPropertyByName("System").Value as string ?? "");
+        public static MapValue ReadComponentSystem(BlockReference br, System.Data.DataTable fjvTable)
+        {
+            string propertyToExtractName = "System";
+
+            string valueToReturn = ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0);
+
+            if (valueToReturn.StartsWith("$"))
+            {
+                valueToReturn = valueToReturn.Substring(1);
+                //If the value is a pattern to extract from string
+                if (valueToReturn.Contains("{"))
+                {
+                    valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
+                }
+                //Else the value is parameter literal to read
+                else return new MapValue(br.GetDynamicPropertyByName(valueToReturn).Value as string ?? "");
+            }
+            return new MapValue(valueToReturn ?? "");
+        }
         public static MapValue ReadComponentDN1(BlockReference br, System.Data.DataTable fjvTable)
         {
-            string value = ReadStringParameterFromDataTable(br.RealName(), fjvTable, "DN1", 0);
+            string propertyToExtractName = "DN1";
 
-            if (value.StartsWith("@"))
+            string valueToReturn = ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0);
+
+            if (valueToReturn.StartsWith("$"))
             {
-                value = value.Substring(1);
-                return new MapValue(br.GetDynamicPropertyByName(value).Value as string ?? "");
+                valueToReturn = valueToReturn.Substring(1);
+                //If the value is a pattern to extract from string
+                if (valueToReturn.Contains("{"))
+                {
+                    valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
+                }
+                //Else the value is parameter literal to read
+                else return new MapValue(br.GetDynamicPropertyByName(valueToReturn).Value as string ?? "");
             }
-            return new MapValue(value ?? "");
+            return new MapValue(valueToReturn ?? "");
         }
         public static MapValue ReadComponentDN2(BlockReference br, System.Data.DataTable fjvTable)
         {
-            string value = ReadStringParameterFromDataTable(br.RealName(), fjvTable, "DN2", 0);
+            string propertyToExtractName = "DN2";
 
-            if (value.StartsWith("@"))
+            string valueToReturn = ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0);
+
+            if (valueToReturn.StartsWith("$"))
             {
-                value = value.Substring(1);
-                return new MapValue(br.GetDynamicPropertyByName(value).Value as string ?? "");
+                valueToReturn = valueToReturn.Substring(1);
+                //If the value is a pattern to extract from string
+                if (valueToReturn.Contains("{"))
+                {
+                    valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
+                }
+                //Else the value is parameter literal to read
+                else return new MapValue(br.GetDynamicPropertyByName(valueToReturn).Value as string ?? "");
             }
-            return new MapValue(value ?? "");
+            return new MapValue(valueToReturn ?? "");
         }
         public static MapValue ReadComponentSeries(BlockReference br, System.Data.DataTable fjvTable) => new MapValue("S3");
         public static MapValue ReadComponentWidth(BlockReference br, System.Data.DataTable fjvTable)
