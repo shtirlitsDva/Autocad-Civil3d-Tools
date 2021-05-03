@@ -8494,10 +8494,11 @@ namespace IntersectUtilities
                         {
                             editor.WriteMessage($"\n{ltr.Name}");
                             ltr.UpgradeOpen();
-                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, curNode.Value);
+                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 0);
+                            //ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, curNode.Value);
 
-                            if (curNode.Next == null) curNode = colorSequence.First;
-                            else curNode = curNode.Next;
+                            //if (curNode.Next == null) curNode = colorSequence.First;
+                            //else curNode = curNode.Next;
 
                         }
                     }
@@ -9649,17 +9650,26 @@ namespace IntersectUtilities
                         #region OD Table definition
                         string tableNamePipes = "Pipes";
 
-                        string[] columnNamesPipes = new string[4]
-                            {"DN", "Length", "System", "Serie"};
-                        string[] columnDescrsPipes = new string[4]
-                            {"Dimension of pipe", "Length of pipe","System of pipe", "Series of the pipe" };
-                        DataType[] dataTypesPipes = new DataType[4]
-                            {DataType.Integer, DataType.Real, DataType.Character, DataType.Character };
+                        string[] columnNamesPipes = new string[3]
+                            {"DN",
+                                //"Length",
+                                "System",
+                                "Serie"};
+                        string[] columnDescrsPipes = new string[3]
+                            {"Dimension of pipe",
+                                //"Length of pipe",
+                                "System of pipe",
+                                "Series of the pipe" };
+                        DataType[] dataTypesPipes = new DataType[3]
+                            {DataType.Integer,
+                                //DataType.Real,
+                                DataType.Character,
+                                DataType.Character };
                         Func<Entity, MapValue>[] pipeData =
-                            new Func<Entity, MapValue>[4]
+                            new Func<Entity, MapValue>[3]
                         {
                             ODDataReader.Pipes.ReadPipeDimension,
-                            ODDataReader.Pipes.ReadPipeLength,
+                            //ODDataReader.Pipes.ReadPipeLength,
                             ODDataReader.Pipes.ReadPipeSystem,
                             ODDataReader.Pipes.ReadPipeSeries
                         };
@@ -9751,7 +9761,7 @@ namespace IntersectUtilities
 
                     System.Data.DataTable areaDescriptions = CsvReader.ReadCsvToDataTable(
                                         @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\05 Udbudsmateriale\" +
-                                        @"01 Paradigme\04 TBL\Mængder\4.5\FJV-Fremtid 4.5.csv",
+                                        @"01 Paradigme\04 TBL\Mængder\5.8\FJV - Fremtid 5.8.csv",
                                         "Areas");
 
                     //Datatable to list of strings
