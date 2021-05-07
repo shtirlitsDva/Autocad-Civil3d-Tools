@@ -9761,7 +9761,7 @@ namespace IntersectUtilities
 
                     System.Data.DataTable areaDescriptions = CsvReader.ReadCsvToDataTable(
                                         @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\05 Udbudsmateriale\" +
-                                        @"01 Paradigme\04 TBL\Mængder\5.8\FJV - Fremtid 5.8.csv",
+                                        @"01 Paradigme\04 TBL\Mængder\4.7\FJV-Fremtid 4.7.csv",
                                         "Areas");
 
                     //Datatable to list of strings
@@ -9887,7 +9887,7 @@ namespace IntersectUtilities
                                 //} 
                                 #endregion
                                 CivilDocument extCDoc = CivilDocument.GetCivilDocument(extDb);
-                                
+
                                 HashSet<Alignment> als = extDb.HashSetOfType<Alignment>(extTx);
 
                                 foreach (Alignment al in als)
@@ -9912,6 +9912,59 @@ namespace IntersectUtilities
                     return;
                 }
                 tx.Commit();
+            }
+        }
+
+        [CommandMethod("BRINGALLBLOCKSTOFRONT")]
+        [CommandMethod("BF")]
+        //Does not update dynamic blocks
+        public static void bringallblockstofront()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+            try
+            {
+                SortedList<long, oid> drawOrder = new SortedList<long, oid>();
+
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                        BlockTableRecord btrModelSpace = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead) as BlockTableRecord;
+                        DrawOrderTable dot = tx.GetObject(btrModelSpace.DrawOrderTableId, OpenMode.ForWrite) as DrawOrderTable;
+
+                        ObjectIdCollection ids = new ObjectIdCollection();
+                        foreach (oid Oid in bt)
+                        {
+                            BlockTableRecord btr = tx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
+
+                            foreach (oid bRefId in btr.GetBlockReferenceIds(true, true))
+                            {
+                                BlockReference bref = tx.GetObject(bRefId, OpenMode.ForWrite) as BlockReference;
+                                if (bref.Name.StartsWith("*")) ids.Add(bRefId);
+                            }
+                        }
+                        
+                        dot.MoveToTop(ids);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        ed.WriteMessage(ex.Message);
+                        throw;
+                    }
+
+                    tx.Commit();
+                }
+            }
+            catch (System.Exception ex)
+            {
+                ed.WriteMessage(ex.Message);
             }
         }
     }
