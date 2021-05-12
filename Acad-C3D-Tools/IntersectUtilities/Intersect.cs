@@ -9843,7 +9843,8 @@ namespace IntersectUtilities
                 {
                     #region ChangeLayerOfXref
 
-                    string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\4.4\";
+                    //Remember to convert file to UTF-8
+                    string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\4.8\";
 
                     var fileList = File.ReadAllLines(path + "fileList.txt").ToList();
 
