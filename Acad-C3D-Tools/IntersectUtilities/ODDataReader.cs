@@ -144,13 +144,15 @@ namespace IntersectUtilities.ODDataReader
             propName = regex.Match(valueToProcess).Groups["Name"].Value;
             //Read raw data from block
             string rawContents = br.GetDynamicPropertyByName(propName).Value as string;
+            //Safeguard against value not being set -> CUSTOM
+            if (rawContents == "Custom") throw new System.Exception($"Parameter {propName} is not set for block handle {br.Handle}!");
             //Extract regex def from the table
             Regex regxExtract = new Regex(@"{(?<Regx>[^}]+)}");
             if (!regxExtract.IsMatch(valueToProcess)) throw new System.Exception("Regex definition is incorrect!");
             string extractedRegx = regxExtract.Match(valueToProcess).Groups["Regx"].Value;
             //extract needed value from the rawContents by using the extracted regex
             Regex finalValueRegex = new Regex(extractedRegx);
-            if (!finalValueRegex.IsMatch(rawContents)) throw new System.Exception("Extracted Regex failed to match Raw Value!");
+            if (!finalValueRegex.IsMatch(rawContents)) throw new System.Exception($"Extracted Regex failed to match Raw Value for block {br.Name}, handle {br.Handle.ToString()}!");
             return finalValueRegex.Match(rawContents).Groups[propertyToExtractName].Value;
         }
         public static MapValue ReadBlockName(BlockReference br, System.Data.DataTable fjvTable)
