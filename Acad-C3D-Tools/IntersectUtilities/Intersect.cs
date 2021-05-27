@@ -29,6 +29,9 @@ using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
+using System.Windows.Forms;
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+using Label = Autodesk.Civil.DatabaseServices.Label;
 
 namespace IntersectUtilities
 {
@@ -7708,7 +7711,6 @@ namespace IntersectUtilities
                                 br.Erase(true);
                             }
                         }
-
                     }
                     #endregion
                 }
@@ -9843,8 +9845,8 @@ namespace IntersectUtilities
                 {
                     #region ChangeLayerOfXref
 
-                    string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\4.4\";
-
+                    //string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\4.4\";
+                    string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\01 Views\4.5\Alignment\";
                     var fileList = File.ReadAllLines(path + "fileList.txt").ToList();
 
                     //foreach (string name in fileList)
@@ -9856,7 +9858,7 @@ namespace IntersectUtilities
                     {
                         prdDbg(name);
                         string fileName = path + name;
-                        prdDbg(fileName);
+                        //prdDbg(fileName);
 
                         using (Database extDb = new Database(false, true))
                         {
@@ -9886,23 +9888,251 @@ namespace IntersectUtilities
                                 //    }
                                 //} 
                                 #endregion
-                                CivilDocument extCDoc = CivilDocument.GetCivilDocument(extDb);
+                                #region Change Alignment style
+                                //CivilDocument extCDoc = CivilDocument.GetCivilDocument(extDb);
+
+                                //HashSet<Alignment> als = extDb.HashSetOfType<Alignment>(extTx);
+
+                                //foreach (Alignment al in als)
+                                //{
+                                //    al.CheckOrOpenForWrite();
+                                //    al.StyleId = extCDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
+                                //    oid labelSetOid = extCDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
+                                //    al.ImportLabelSet(labelSetOid);
+                                //} 
+                                #endregion
 
                                 HashSet<Alignment> als = extDb.HashSetOfType<Alignment>(extTx);
-
                                 foreach (Alignment al in als)
                                 {
-                                    al.CheckOrOpenForWrite();
-                                    al.StyleId = extCDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
-                                    oid labelSetOid = extCDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
-                                    al.ImportLabelSet(labelSetOid);
+                                    prdDbg(al.Name);
                                 }
-
+                                prdDbg("--------------------------------");
                                 extTx.Commit();
                             }
-                            extDb.SaveAs(extDb.Filename, DwgVersion.Current);
+                            //extDb.SaveAs(extDb.Filename, DwgVersion.Current);
                         }
+                        System.Windows.Forms.Application.DoEvents();
                     }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("SETMODELSPACESCALEFORALL")]
+        public void setmodelspacescaleforall()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region ChangeLayerOfXref
+
+                    string path = string.Empty;
+                    OpenFileDialog dialog = new OpenFileDialog()
+                    {
+                        Title = "Choose txt file:",
+                        DefaultExt = "txt",
+                        Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
+                        FilterIndex = 0
+                    };
+                    if (dialog.ShowDialog() == DialogResult.OK)
+                    {
+                        path = dialog.FileName;
+                    }
+                    else return;
+
+                    var fileList = File.ReadAllLines(path).ToList();
+                    path = Path.GetDirectoryName(path) + "\\";
+
+                    foreach (string name in fileList)
+                    {
+                        //prdDbg(name);
+                        string fileName = path + name;
+                        //prdDbg(fileName);
+                        bool needsSaving = false;
+
+                        using (Database extDb = new Database(false, true))
+                        {
+                            extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
+
+                            using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                            {
+                                try
+                                {
+                                    
+                                    //prdDbg("Values for db.Cannoscale:");
+                                    if (extDb.Cannoscale.Name == "1:1000")
+                                    {
+                                        prdDbg(name);
+                                        var ocm = extDb.ObjectContextManager;
+                                        var occ = ocm.GetContextCollection("ACDB_ANNOTATIONSCALES");
+                                        AnnotationScale aScale = occ.GetContext("1:250") as AnnotationScale;
+                                        if (aScale == null)
+                                            throw new System.Exception("Annotation scale not found!");
+                                        extDb.Cannoscale = aScale;
+                                        needsSaving = true;
+                                    }
+
+                                    //prdDbg($"Scale: {extDb.Cannoscale.Scale}");
+                                    //prdDbg($"Paper Units: {extDb.Cannoscale.PaperUnits}");
+                                    //prdDbg($"Collection Name: {extDb.Cannoscale.CollectionName}");
+                                    //Gives: "ACDB_ANNOTATIONSCALES"
+                                    
+                                    //prdDbg("--------------------------------");
+                                }
+                                catch (System.Exception)
+                                {
+                                    extTx.Abort();
+                                    throw;
+                                }
+                                extTx.Commit();
+                            }
+                            if (needsSaving)
+                                extDb.SaveAs(extDb.Filename, DwgVersion.Current);
+                        }
+                        System.Windows.Forms.Application.DoEvents();
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("TURNONREVISION")]
+        public void turnonrevision()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Turn on revision layers
+                    string path = string.Empty;
+                    OpenFileDialog dialog = new OpenFileDialog()
+                    {
+                        Title = "Choose a file:",
+                        DefaultExt = "dwg",
+                        Filter = "dwg files (*.dwg)|*.dwg|All files (*.*)|*.*",
+                        FilterIndex = 0
+                    };
+                    if (dialog.ShowDialog() == DialogResult.OK)
+                    {
+                        path = dialog.FileName;
+                    }
+                    else return;
+
+                    //string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\4.4\";
+                    //string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\01 Views\4.5\Alignment\";
+                    //var fileList = File.ReadAllLines(path + "fileList.txt").ToList();
+
+                    prdDbg(path);
+                    //string fileName = path + name;
+
+                    using (Database extDb = new Database(false, true))
+                    {
+                        extDb.ReadDwgFile(path, System.IO.FileShare.ReadWrite, false, "");
+
+                        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                        {
+                            #region Change xref layer
+                            //BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                            //foreach (oid Oid in bt)
+                            //{
+                            //    BlockTableRecord btr = extTx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
+                            //    if (btr.Name.Contains("_alignment"))
+                            //    {
+                            //        var ids = btr.GetBlockReferenceIds(true, true);
+                            //        foreach (oid brId in ids)
+                            //        {
+                            //            BlockReference br = brId.Go<BlockReference>(extTx, OpenMode.ForWrite);
+                            //            prdDbg(br.Name);
+                            //            if (br.Layer == "0") { prdDbg("Already in 0! Skipping..."); continue; }
+                            //            prdDbg("Was in: :" + br.Layer);
+                            //            br.Layer = "0";
+                            //            prdDbg("Moved to: " + br.Layer);
+                            //            System.Windows.Forms.Application.DoEvents();
+                            //        }
+                            //    }
+                            //} 
+                            #endregion
+                            #region Change Alignment style
+                            //CivilDocument extCDoc = CivilDocument.GetCivilDocument(extDb);
+
+                            //HashSet<Alignment> als = extDb.HashSetOfType<Alignment>(extTx);
+
+                            //foreach (Alignment al in als)
+                            //{
+                            //    al.CheckOrOpenForWrite();
+                            //    al.StyleId = extCDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
+                            //    oid labelSetOid = extCDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
+                            //    al.ImportLabelSet(labelSetOid);
+                            //} 
+                            #endregion
+
+                            try
+                            {
+                                string revAlayerName = "REV.A";
+                                oid revAlayerId = oid.Null;
+                                string overskriftLayerName = "Revisionsoverskrifter";
+                                oid overskriftLayerId = oid.Null;
+
+                                LayerTable lt = extTx.GetObject(extDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                                LayerTableRecord revAlayer = lt.GetLayerByName(revAlayerName);
+                                prdDbg($"{revAlayer.Name} is hidden: {revAlayer.IsHidden}");
+                                prdDbg($"{revAlayer.Name} is frozen: {revAlayer.IsFrozen}");
+                                prdDbg($"{revAlayer.Name} is off: {revAlayer.IsOff}");
+                                prdDbg("Turning revision on...\n");
+                                revAlayer.CheckOrOpenForWrite();
+                                revAlayer.IsFrozen = false;
+                                revAlayer.IsHidden = false;
+                                revAlayer.IsOff = false;
+
+                                var overskriftsLayer = lt.GetLayerByName(overskriftLayerName);
+                                overskriftsLayer.CheckOrOpenForWrite();
+                                overskriftsLayer.IsFrozen = false;
+                                overskriftsLayer.IsHidden = false;
+                                overskriftsLayer.IsOff = false;
+                            }
+                            catch (System.Exception)
+                            {
+                                extTx.Abort();
+                                throw;
+                            }
+
+                            extTx.Commit();
+                        }
+                        extDb.SaveAs(extDb.Filename, DwgVersion.Current);
+                    }
+                    System.Windows.Forms.Application.DoEvents();
+
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -9949,7 +10179,7 @@ namespace IntersectUtilities
                                 if (bref.Name.StartsWith("*")) ids.Add(bRefId);
                             }
                         }
-                        
+
                         dot.MoveToTop(ids);
                     }
                     catch (System.Exception ex)

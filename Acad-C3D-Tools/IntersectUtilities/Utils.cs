@@ -1313,14 +1313,10 @@ namespace IntersectUtilities
     public static class Extensions
     {
         public static bool IsNoE(this string s) => string.IsNullOrEmpty(s);
-
         public static bool IsNotNoE(this string s) => !string.IsNullOrEmpty(s);
-
         public static bool Equalz(this double a, double b, double tol) => Math.Abs(a - b) <= tol;
-
         public static bool HorizontalEqualz(this Point3d a, Point3d b, double tol = 0.01) =>
             null != a && null != b && a.X.Equalz(b.X, tol) && a.Y.Equalz(b.Y, tol);
-
         public static void CheckOrOpenForWrite(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject)
         {
             if (dbObject.IsWriteEnabled == false)
@@ -1336,7 +1332,6 @@ namespace IntersectUtilities
                 }
             }
         }
-
         public static void CheckOrOpenForRead(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject,
             bool DowngradeIfWriteEnabled = false)
         {
@@ -1353,7 +1348,6 @@ namespace IntersectUtilities
                 dbObject.UpgradeOpen();
             }
         }
-
         public static double GetHorizontalLength(this Polyline3d poly3d, Transaction tx)
         {
             poly3d.CheckOrOpenForRead();
@@ -1365,7 +1359,6 @@ namespace IntersectUtilities
             }
             return totalLength;
         }
-
         public static double DistanceHorizontalTo(this Point3d sourceP3d, Point3d targetP3d)
         {
             double X1 = sourceP3d.X;
@@ -1374,17 +1367,14 @@ namespace IntersectUtilities
             double Y2 = targetP3d.Y;
             return Math.Sqrt(Math.Pow((X2 - X1), 2) + Math.Pow((Y2 - Y1), 2));
         }
-
         public static bool Contains(this string source, string toCheck, StringComparison comp)
         {
             return source?.IndexOf(toCheck, comp) >= 0;
         }
-
         public static void ExplodeToOwnerSpace2(this Autodesk.AutoCAD.DatabaseServices.BlockReference br)
         {
             ExplodeToOwnerSpace3(br);
         }
-
         static ObjectIdCollection idsAdded = new ObjectIdCollection();
         public static ObjectIdCollection ExplodeToOwnerSpace3(this BlockReference br)
         {
@@ -1395,7 +1385,6 @@ namespace IntersectUtilities
 
             return idsAdded;
         }
-
         public static void LoopThroughInsertAndAddEntity2n3(Matrix3d mat, 
             Autodesk.AutoCAD.DatabaseServices.BlockReference br, BlockTableRecord space)
         {
@@ -1422,12 +1411,10 @@ namespace IntersectUtilities
                 }
             }
         }
-
         public static void ExplodeToOwnerSpace2(ObjectId id, bool erase = true)
         {
             ExplodeToOwnerSpace3(id, erase);
         }
-
         public static ObjectIdCollection ExplodeToOwnerSpace3(ObjectId id, bool erase = true)
         {
             ObjectIdCollection ids;
@@ -1456,6 +1443,15 @@ namespace IntersectUtilities
             }
 
             return ids;
+        }
+        public static LayerTableRecord GetLayerByName(this LayerTable lt, string layerName)
+        {
+            foreach (oid id in lt)
+            {
+                LayerTableRecord ltr = id.GetObject(OpenMode.ForRead) as LayerTableRecord;
+                if (ltr.Name == layerName) return ltr;
+            }
+            return null;
         }
     }
 
