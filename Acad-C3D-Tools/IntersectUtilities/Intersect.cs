@@ -9926,6 +9926,79 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("COUNTVFNUMBERS")]
+        public void countvfnumbers()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region CountVFNumbers
+
+                    string path = string.Empty;
+                    OpenFileDialog dialog = new OpenFileDialog()
+                    {
+                        Title = "Choose txt file:",
+                        DefaultExt = "txt",
+                        Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
+                        FilterIndex = 0
+                    };
+                    if (dialog.ShowDialog() == DialogResult.OK)
+                    {
+                        path = dialog.FileName;
+                    }
+                    else return;
+
+                    List<string> fileList;
+                    fileList = File.ReadAllLines(path).ToList();
+                    path = Path.GetDirectoryName(path) + "\\";
+                    prdDbg(path + "\n");
+
+                    foreach (string name in fileList)
+                    {
+                        prdDbg(name);
+                        string fileName = path + name;
+                        //prdDbg(fileName);
+
+                        using (Database extDb = new Database(false, true))
+                        {
+                            extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
+
+                            using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                            {
+                                #region Change xref layer
+                                var vfSet = extDb.HashSetOfType<ViewFrame>(extTx);
+
+                                foreach (ViewFrame vf in vfSet)
+                                {
+                                    prdDbg(vf.Name);
+                                }
+                                #endregion
+
+                                extTx.Commit();
+                            }
+                            //extDb.SaveAs(extDb.Filename, DwgVersion.Current);
+                        }
+                        System.Windows.Forms.Application.DoEvents();
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("SETMODELSPACESCALEFORALL")]
         public void setmodelspacescaleforall()
         {
@@ -9956,15 +10029,19 @@ namespace IntersectUtilities
                     }
                     else return;
 
-                    var fileList = File.ReadAllLines(path).ToList();
+                    List<string> fileList;
+                    fileList = File.ReadAllLines(path).ToList();
                     path = Path.GetDirectoryName(path) + "\\";
+                    prdDbg(path + "\n");
 
                     foreach (string name in fileList)
                     {
+                        if (name.IsNoE()) continue;
                         //prdDbg(name);
                         string fileName = path + name;
                         //prdDbg(fileName);
                         bool needsSaving = false;
+                        editor.WriteMessage("-");
 
                         using (Database extDb = new Database(false, true))
                         {
@@ -9974,7 +10051,6 @@ namespace IntersectUtilities
                             {
                                 try
                                 {
-                                    
                                     //prdDbg("Values for db.Cannoscale:");
                                     if (extDb.Cannoscale.Name == "1:1000")
                                     {
@@ -9987,13 +10063,6 @@ namespace IntersectUtilities
                                         extDb.Cannoscale = aScale;
                                         needsSaving = true;
                                     }
-
-                                    //prdDbg($"Scale: {extDb.Cannoscale.Scale}");
-                                    //prdDbg($"Paper Units: {extDb.Cannoscale.PaperUnits}");
-                                    //prdDbg($"Collection Name: {extDb.Cannoscale.CollectionName}");
-                                    //Gives: "ACDB_ANNOTATIONSCALES"
-                                    
-                                    //prdDbg("--------------------------------");
                                 }
                                 catch (System.Exception)
                                 {
