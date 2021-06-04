@@ -9843,16 +9843,25 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region ChangeLayerOfXref
+                    #region Operation
 
-                    //string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\4.4\";
-                    string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\01 Views\4.5\Alignment\";
-                    var fileList = File.ReadAllLines(path + "fileList.txt").ToList();
+                    string path = string.Empty;
+                    OpenFileDialog dialog = new OpenFileDialog()
+                    {
+                        Title = "Choose txt file:",
+                        DefaultExt = "txt",
+                        Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
+                        FilterIndex = 0
+                    };
+                    if (dialog.ShowDialog() == DialogResult.OK)
+                    {
+                        path = dialog.FileName;
+                    }
+                    else return;
 
-                    //foreach (string name in fileList)
-                    //{
-                    //    prdDbg(name);
-                    //}
+                    List<string> fileList;
+                    fileList = File.ReadAllLines(path).ToList();
+                    path = Path.GetDirectoryName(path) + "\\";
 
                     foreach (string name in fileList)
                     {
@@ -9905,7 +9914,10 @@ namespace IntersectUtilities
                                 HashSet<Alignment> als = extDb.HashSetOfType<Alignment>(extTx);
                                 foreach (Alignment al in als)
                                 {
-                                    prdDbg(al.Name);
+                                    if (name.Contains(al.Name))
+                                        prdDbg(al.Name);
+                                    else prdDbg(al.Name + " <-- WARNING");
+                                    
                                 }
                                 prdDbg("--------------------------------");
                                 extTx.Commit();
@@ -9972,7 +9984,7 @@ namespace IntersectUtilities
 
                             using (Transaction extTx = extDb.TransactionManager.StartTransaction())
                             {
-                                #region Change xref layer
+                                #region Count viewframes
                                 var vfSet = extDb.HashSetOfType<ViewFrame>(extTx);
 
                                 foreach (ViewFrame vf in vfSet)
