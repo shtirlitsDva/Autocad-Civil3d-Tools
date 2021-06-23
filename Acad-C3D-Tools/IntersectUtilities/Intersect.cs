@@ -10278,5 +10278,83 @@ namespace IntersectUtilities
                 ed.WriteMessage(ex.Message);
             }
         }
+
+        [CommandMethod("LISTPLINESLAYERS")]
+        public void listplineslayers()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<Polyline> pls = localDb.HashSetOfType<Polyline>(tx);
+
+                    foreach (Polyline pl in pls)
+                    {
+                        prdDbg($"{pl.Handle.ToString()} -> {pl.Layer}");
+                    }
+
+                    HashSet<Line> ls = localDb.HashSetOfType<Line>(tx);
+
+                    foreach (Line l in ls)
+                    {
+                        prdDbg($"{l.Handle.ToString()} -> {l.Layer}");
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("EXPORTSHAPEFILES")]
+        public void exportshapefiles()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            MapApplication mapApp = HostMapApplicationServices.Application;
+            Autodesk.Gis.Map.ImportExport.Exporter exporter = mapApp.Exporter;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<Polyline> pls = localDb.HashSetOfType<Polyline>(tx);
+
+                    foreach (Polyline pl in pls)
+                    {
+                        prdDbg($"{pl.Handle.ToString()} -> {pl.Layer}");
+                    }
+
+                    HashSet<Line> ls = localDb.HashSetOfType<Line>(tx);
+
+                    foreach (Line l in ls)
+                    {
+                        prdDbg($"{l.Handle.ToString()} -> {l.Layer}");
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
     }
 }
