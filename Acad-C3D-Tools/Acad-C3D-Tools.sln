@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReverseLayoutProfileLANDXML
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExportBlocksToSvg", "ExportBlocksToSvg\ExportBlocksToSvg.csproj", "{33DBF6F7-DA92-496E-985F-ED3FA39165AE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExportShapeFiles", "ExportShapeFiles\ExportShapeFiles.csproj", "{18969DC7-12E7-48D7-BD42-6FCA06B3B03D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,10 @@ Global
 		{33DBF6F7-DA92-496E-985F-ED3FA39165AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{33DBF6F7-DA92-496E-985F-ED3FA39165AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{33DBF6F7-DA92-496E-985F-ED3FA39165AE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{18969DC7-12E7-48D7-BD42-6FCA06B3B03D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{18969DC7-12E7-48D7-BD42-6FCA06B3B03D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{18969DC7-12E7-48D7-BD42-6FCA06B3B03D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{18969DC7-12E7-48D7-BD42-6FCA06B3B03D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

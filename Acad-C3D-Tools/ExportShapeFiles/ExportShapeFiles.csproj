@@ -1,0 +1,89 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{18969DC7-12E7-48D7-BD42-6FCA06B3B03D}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>ExportShapeFiles</RootNamespace>
+    <AssemblyName>ExportShapeFiles</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="accoremgd, Version=24.1.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <HintPath>..\packages\Speckle.AutoCAD.API.2022.0.0.3\lib\net47\accoremgd.dll</HintPath>
+    </Reference>
+    <Reference Include="AcCui, Version=24.1.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Speckle.AutoCAD.API.2022.0.0.3\lib\net47\AcCui.dll</HintPath>
+    </Reference>
+    <Reference Include="acdbmgd, Version=24.1.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <HintPath>..\packages\Speckle.AutoCAD.API.2022.0.0.3\lib\net47\acdbmgd.dll</HintPath>
+    </Reference>
+    <Reference Include="acdbmgdbrep, Version=24.1.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <HintPath>..\packages\Speckle.AutoCAD.API.2022.0.0.3\lib\net47\acdbmgdbrep.dll</HintPath>
+    </Reference>
+    <Reference Include="acmgd, Version=24.1.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <HintPath>..\packages\Speckle.AutoCAD.API.2022.0.0.3\lib\net47\acmgd.dll</HintPath>
+    </Reference>
+    <Reference Include="AdWindows, Version=3.1.4.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Speckle.AutoCAD.API.2022.0.0.3\lib\net47\AdWindows.dll</HintPath>
+    </Reference>
+    <Reference Include="AecBaseMgd, Version=8.4.49.0, Culture=neutral, processorArchitecture=AMD64">
+      <HintPath>..\packages\Speckle.Civil3D.API.2022.0.0.3\lib\net47\AecBaseMgd.dll</HintPath>
+    </Reference>
+    <Reference Include="AeccDbMgd, Version=13.4.214.0, Culture=neutral, processorArchitecture=AMD64">
+      <HintPath>..\packages\Speckle.Civil3D.API.2022.0.0.3\lib\net47\AeccDbMgd.dll</HintPath>
+    </Reference>
+    <Reference Include="ManagedMapApi">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\Map\ManagedMapApi.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Office.Interop.Excel, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="Microsoft.VisualBasic" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\IntersectUtilities\CsvReader.cs">
+      <Link>CsvReader.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\Utils.cs">
+      <Link>Utils.cs</Link>
+    </Compile>
+    <Compile Include="ExportShapeFiles.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
