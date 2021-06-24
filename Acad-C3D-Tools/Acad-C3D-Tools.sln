@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExportBlocksToSvg", "Export
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExportShapeFiles", "ExportShapeFiles\ExportShapeFiles.csproj", "{18969DC7-12E7-48D7-BD42-6FCA06B3B03D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExportShapeFilesBatch", "ExportShapeFilesBatch\ExportShapeFilesBatch.csproj", "{43B7D13E-A796-42C8-92CC-F2A3144D520F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +47,10 @@ Global
 		{18969DC7-12E7-48D7-BD42-6FCA06B3B03D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{18969DC7-12E7-48D7-BD42-6FCA06B3B03D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{18969DC7-12E7-48D7-BD42-6FCA06B3B03D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{43B7D13E-A796-42C8-92CC-F2A3144D520F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{43B7D13E-A796-42C8-92CC-F2A3144D520F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{43B7D13E-A796-42C8-92CC-F2A3144D520F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{43B7D13E-A796-42C8-92CC-F2A3144D520F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

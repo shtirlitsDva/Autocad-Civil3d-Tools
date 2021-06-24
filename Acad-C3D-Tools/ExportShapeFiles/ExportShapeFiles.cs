@@ -1,36 +1,16 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
-using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
-using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
-using Autodesk.Civil;
 using Autodesk.Civil.ApplicationServices;
-using Autodesk.Civil.DatabaseServices;
-using Autodesk.Civil.DatabaseServices.Styles;
 using Autodesk.Gis.Map;
-using Autodesk.Gis.Map.ObjectData;
-using Autodesk.Gis.Map.Utilities;
-using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Text;
 using IntersectUtilities;
-using static IntersectUtilities.Enums;
-using static IntersectUtilities.HelperMethods;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
 using static IntersectUtilities.Utils;
-using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
-using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
-using DataType = Autodesk.Gis.Map.Constants.DataType;
-using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
-using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using Label = Autodesk.Civil.DatabaseServices.Label;
+using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 
 namespace ExportShapeFiles
 {
@@ -40,7 +20,7 @@ namespace ExportShapeFiles
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
-            //doc.Editor.WriteMessage("\n-> Command: intut");
+            doc.Editor.WriteMessage("\nExport lines to shapefiles: EXPORTSHAPEFILES");
             //doc.Editor.WriteMessage("\n-> Intersect alignment with XREF: INTAL");
             //doc.Editor.WriteMessage("\n-> Write a list of all XREF layers: LISTINTLAY");
             //doc.Editor.WriteMessage("\n-> Change the elevation of CogoPoint by selecting projection label: CHEL");
@@ -66,32 +46,64 @@ namespace ExportShapeFiles
             {
                 try
                 {
-                    PromptResult pr = editor.GetString("\nEnter filename of shapefile: ");
-                    if (pr.Status != PromptStatus.OK)
-                        prdDbg("Input of file name string failed!");
-                    string fileNameToExport = pr.StringResult;
+                    string fileName = localDb.OriginalFileName;
+                    string phaseNumber = "";
+
+                    Regex regex = new Regex(@"(?<number>\d.\d)(?<extension>\.[^.]*$)");
+
+                    if (regex.IsMatch(fileName))
+                    {
+                        Match match = regex.Match(fileName);
+                        phaseNumber = match.Groups["number"].Value;
+                        phaseNumber = phaseNumber.Replace(".", "");
+                    }
+                    else
+                    {
+                        prdDbg("Regex of file name string failed!");
+                        tx.Abort();
+                        return;
+                    }
+
+                    string finalExportFileName = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\02 Ekstern\" +
+                                                 @"01 Gældende tegninger\01 GIS input\02 Trace shape";
+                    finalExportFileName += "\\" + phaseNumber + ".shp";
+
+                    prdDbg(finalExportFileName);
 
                     HashSet<Polyline> pls = localDb.HashSetOfType<Polyline>(tx);
                     HashSet<Line> ls = localDb.HashSetOfType<Line>(tx);
-                    ObjectIdCollection ids = new ObjectIdCollection();
-                    pls.Where(x =>
-                        x.Layer.Contains("FJV-TWIN") ||
-                        x.Layer.Contains("FJV-FREM") ||
-                        x.Layer.Contains("FJV-RETUR"))
-                        .Select(x => ids.Add(x.Id));
-                    ls.Where(x =>
-                        x.Layer.Contains("FJV-TWIN") ||
-                        x.Layer.Contains("FJV-FREM") ||
-                        x.Layer.Contains("FJV-RETUR"))
-                        .Select(x => ids.Add(x.Id));
 
-                    exporter.Init("SHP", fileNameToExport);
+                    ObjectIdCollection ids = new ObjectIdCollection();
+                    foreach (Polyline pl in pls)
+                    {
+                        if (pl.Layer.Contains("FJV-TWIN") ||
+                            pl.Layer.Contains("FJV-FREM") ||
+                            pl.Layer.Contains("FJV-RETUR"))
+                            ids.Add(pl.Id);
+                    }
+                    foreach (Line l in ls)
+                    {
+                        if (l.Layer.Contains("FJV-TWIN") ||
+                            l.Layer.Contains("FJV-FREM") ||
+                            l.Layer.Contains("FJV-RETUR"))
+                            ids.Add(l.Id);
+                    }
+
+                    prdDbg($"Lines selected: {ids.Count}");
+
+                    exporter.Init("SHP", finalExportFileName);
                     exporter.SetStorageOptions(
                         Autodesk.Gis.Map.ImportExport.StorageType.FileOneEntityType,
                         Autodesk.Gis.Map.ImportExport.GeometryType.Line, null);
                     exporter.SetSelectionSet(ids);
+                    Autodesk.Gis.Map.ImportExport.ExpressionTargetCollection mappings =
+                        exporter.GetExportDataMappings();
+                    mappings.Add(":Serie@Pipes", "Serie");
+                    mappings.Add(":System@Pipes", "System");
+                    mappings.Add(":DN@Pipes", "DN");
+                    exporter.SetExportDataMappings(mappings);
 
-                    exporter.Export(false);
+                    exporter.Export(true);
                 }
                 catch (System.Exception ex)
                 {
