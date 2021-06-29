@@ -17,6 +17,28 @@ namespace ExportShapeFilesBatch
             DataTable dt = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\Stier.csv", "Stier");
             List<string> list = dt.AsEnumerable().Select(x => x["Fremtid"].ToString()).ToList();
 
+            List<string> faulty = new List<string>();
+
+            foreach (string s in list)
+                if (!File.Exists(s)) faulty.Add(s);
+
+            //log file name
+            string logFileName = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\02 Ekstern\" +
+                                 @"01 Gældende tegninger\01 GIS input\02 Trace shape\export.log";
+            if (faulty.Count > 0)
+            {
+                list = list.Except(faulty).ToList();
+
+                foreach (string s in faulty)
+                {
+                    File.AppendAllLines(logFileName, new string[] {$"{DateTime.Now}: Failed to find file {s}! Removing from export list..." } );
+                }
+            }
+            else
+            {
+                File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: All files present." });
+            }
+            
             foreach (string fileName in list)
             {
                 Console.WriteLine("Processing " + Path.GetFileName(fileName));
