@@ -4,6 +4,8 @@ using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil.ApplicationServices;
 using Autodesk.Gis.Map;
+using System.IO;
+using System;
 using IntersectUtilities;
 using System.Collections.Generic;
 using System.Linq;
@@ -44,6 +46,9 @@ namespace ExportShapeFiles
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
+                string logFileName = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\02 Ekstern\" +
+                                 @"01 Gældende tegninger\01 GIS input\02 Trace shape\export.log";
+
                 try
                 {
                     string fileName = localDb.OriginalFileName;
@@ -56,10 +61,12 @@ namespace ExportShapeFiles
                         Match match = regex.Match(fileName);
                         phaseNumber = match.Groups["number"].Value;
                         phaseNumber = phaseNumber.Replace(".", "");
+                        File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Phase number detected: <{phaseNumber}>." });
                     }
                     else
                     {
-                        prdDbg("Regex of file name string failed!");
+                        File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: " +
+                            $"Detection of phase from filename failed! Aborting export for current file." });
                         tx.Abort();
                         return;
                     }
@@ -68,8 +75,8 @@ namespace ExportShapeFiles
                                                  @"01 Gældende tegninger\01 GIS input\02 Trace shape";
                     finalExportFileName += "\\" + phaseNumber + ".shp";
 
-                    prdDbg(finalExportFileName);
-
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Exporting to {finalExportFileName}." });
+                    
                     HashSet<Polyline> pls = localDb.HashSetOfType<Polyline>(tx);
                     HashSet<Line> ls = localDb.HashSetOfType<Line>(tx);
 
@@ -89,7 +96,7 @@ namespace ExportShapeFiles
                             ids.Add(l.Id);
                     }
 
-                    prdDbg($"Lines selected: {ids.Count}");
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {ids.Count} object(s) found for export." });
 
                     exporter.Init("SHP", finalExportFileName);
                     exporter.SetStorageOptions(
@@ -103,11 +110,14 @@ namespace ExportShapeFiles
                     mappings.Add(":DN@Pipes", "DN");
                     exporter.SetExportDataMappings(mappings);
 
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Starting export." });
                     exporter.Export(true);
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Export completed!" });
                 }
                 catch (System.Exception ex)
                 {
                     tx.Abort();
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: An exception was caught! Message: {ex.Message}. Aborting export of current file!" });
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }

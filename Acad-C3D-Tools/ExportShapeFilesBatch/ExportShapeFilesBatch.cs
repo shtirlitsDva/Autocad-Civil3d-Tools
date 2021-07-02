@@ -14,7 +14,28 @@ namespace ExportShapeFilesBatch
     {
         static void Main(string[] args)
         {
+            //log file name
+            string logFileName = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\02 Ekstern\" +
+                                 @"01 Gældende tegninger\01 GIS input\02 Trace shape\export.log";
+            File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: -~*~- Starting new export -~*~-" });
+
             DataTable dt = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\Stier.csv", "Stier");
+
+            if (dt == null)
+            {
+                File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Datatable creation failed (null)! Aborting..." });
+                return;
+            }
+            else if (dt.Rows.Count == 0)
+            {
+                File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Datatable creation failed (0 rows)! Aborting..." });
+                return;
+            }
+            else
+            {
+                File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Datatable created with {dt.Rows.Count} record(s)." });
+            }
+
             List<string> list = dt.AsEnumerable().Select(x => x["Fremtid"].ToString()).ToList();
 
             List<string> faulty = new List<string>();
@@ -22,17 +43,16 @@ namespace ExportShapeFilesBatch
             foreach (string s in list)
                 if (!File.Exists(s)) faulty.Add(s);
 
-            //log file name
-            string logFileName = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\02 Ekstern\" +
-                                 @"01 Gældende tegninger\01 GIS input\02 Trace shape\export.log";
             if (faulty.Count > 0)
             {
+                //Remove faulty entries from the list to execute
                 list = list.Except(faulty).ToList();
 
                 foreach (string s in faulty)
                 {
                     File.AppendAllLines(logFileName, new string[] {$"{DateTime.Now}: Failed to find file {s}! Removing from export list..." } );
                 }
+                File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {list.Count} file(s) left in export list." });
             }
             else
             {
