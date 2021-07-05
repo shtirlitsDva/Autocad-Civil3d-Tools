@@ -50,7 +50,7 @@ namespace ExportShapeFilesBatch
 
                 foreach (string s in faulty)
                 {
-                    File.AppendAllLines(logFileName, new string[] {$"{DateTime.Now}: Failed to find file {s}! Removing from export list..." } );
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Failed to find file {s}! Removing from export list..." });
                 }
                 File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {list.Count} file(s) left in export list." });
             }
@@ -58,10 +58,10 @@ namespace ExportShapeFilesBatch
             {
                 File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: All files present." });
             }
-            
+
             foreach (string fileName in list)
             {
-                Console.WriteLine("Processing " + Path.GetFileName(fileName));
+                File.AppendAllLines(logFileName, new string[] { $"Processing " + Path.GetFileName(fileName) });
 
                 Process acad = new Process();
                 acad.StartInfo.FileName = @"C:\Program Files\Autodesk\AutoCAD 2022\acad.exe";
@@ -73,8 +73,8 @@ namespace ExportShapeFilesBatch
                 acad.Start();
                 acad.WaitForExit();
             }
-            Console.WriteLine("Export completed!");
-            Console.ReadKey();
+            File.AppendAllLines(logFileName, new string[] { "Export completed!" });
+            //Console.ReadKey();
         }
     }
 }
