@@ -120,6 +120,7 @@
     <Compile Include="ODDataReader.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Utils.cs" />
+    <Compile Include="XRecordUtils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

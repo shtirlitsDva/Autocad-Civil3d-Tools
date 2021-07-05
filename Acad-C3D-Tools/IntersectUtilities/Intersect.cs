@@ -10316,5 +10316,36 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        [CommandMethod("XRECTEST")]
+        public static void XrecordTest()
+        {
+            var doc = Application.DocumentManager.MdiActiveDocument;
+            var db = doc.Database;
+            var ed = doc.Editor;
+
+            var per = ed.GetEntity("\nSelect object: ");
+            if (per.Status == PromptStatus.OK)
+            {
+                using (var tr = db.TransactionManager.StartTransaction())
+                {
+                    var ent = (Entity)tr.GetObject(per.ObjectId, OpenMode.ForRead);
+                    var data = ent.GetXDictionaryXrecordData("TestXrec");
+                    if (data == null)
+                    {
+                        ed.WriteMessage("\nThe entity does not have a 'TextXrec' Xrecord, it will be added");
+                        ent.SetXDictionaryXrecordData("TestXrec", new TypedValue(1, "foo"), new TypedValue(70, 42));
+                    }
+                    else
+                    {
+                        foreach (var tv in data.AsArray())
+                        {
+                            ed.WriteMessage($"\nTypeCode: {tv.TypeCode}, Value: {tv.Value}");
+                        }
+                    }
+                    tr.Commit();
+                }
+            }
+        }
     }
 }

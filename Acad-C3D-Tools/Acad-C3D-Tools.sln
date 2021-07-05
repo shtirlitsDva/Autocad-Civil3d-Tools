@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExportShapeFiles", "ExportS
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExportShapeFilesBatch", "ExportShapeFilesBatch\ExportShapeFilesBatch.csproj", "{43B7D13E-A796-42C8-92CC-F2A3144D520F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExportShapeFilesEasyGis", "ExportShapeFilesEasyGis\ExportShapeFilesEasyGis.csproj", "{774D8C82-954D-40A1-993A-62C9385FDF12}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,6 +53,10 @@ Global
 		{43B7D13E-A796-42C8-92CC-F2A3144D520F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{43B7D13E-A796-42C8-92CC-F2A3144D520F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{43B7D13E-A796-42C8-92CC-F2A3144D520F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{774D8C82-954D-40A1-993A-62C9385FDF12}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{774D8C82-954D-40A1-993A-62C9385FDF12}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{774D8C82-954D-40A1-993A-62C9385FDF12}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{774D8C82-954D-40A1-993A-62C9385FDF12}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
