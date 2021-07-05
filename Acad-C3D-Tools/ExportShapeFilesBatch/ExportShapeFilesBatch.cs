@@ -15,11 +15,11 @@ namespace ExportShapeFilesBatch
         static void Main(string[] args)
         {
             //log file name
-            string logFileName = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\02 Ekstern\" +
+            string logFileName = @"C:\1\DRI\0371-1158 - Gentofte Fase 4 - Dokumenter\02 Ekstern\" +
                                  @"01 Gældende tegninger\01 GIS input\02 Trace shape\export.log";
             File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: -~*~- Starting new export -~*~-" });
 
-            DataTable dt = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\Stier.csv", "Stier");
+            DataTable dt = CsvReader.ReadCsvToDataTable(@"C:\1\DRI\AutoCAD DRI - 01 Civil 3D\Stier.csv", "Stier");
 
             if (dt == null)
             {

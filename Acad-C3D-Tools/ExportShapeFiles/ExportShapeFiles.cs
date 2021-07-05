@@ -46,7 +46,7 @@ namespace ExportShapeFiles
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                string logFileName = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\02 Ekstern\" +
+                string logFileName = @"C:\1\DRI\0371-1158 - Gentofte Fase 4 - Dokumenter\02 Ekstern\" +
                                  @"01 Gældende tegninger\01 GIS input\02 Trace shape\export.log";
 
                 try
@@ -71,7 +71,7 @@ namespace ExportShapeFiles
                         return;
                     }
 
-                    string finalExportFileName = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\02 Ekstern\" +
+                    string finalExportFileName = @"C:\1\DRI\0371-1158 - Gentofte Fase 4 - Dokumenter\02 Ekstern\" +
                                                  @"01 Gældende tegninger\01 GIS input\02 Trace shape";
                     finalExportFileName += "\\" + phaseNumber + ".shp";
 
