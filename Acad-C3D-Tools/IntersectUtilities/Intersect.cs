@@ -4450,6 +4450,133 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        [CommandMethod("CREATEPROFILES")]
+        public void createprofiles()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                string draftProfileLayerName = "0-FJV-PROFILE-DRAFT";
+
+                #region Create layer for draft profile
+                using (Transaction txLag = localDb.TransactionManager.StartTransaction())
+                {
+
+                    LayerTable lt = txLag.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                    if (!lt.Has(draftProfileLayerName))
+                    {
+                        LayerTableRecord ltr = new LayerTableRecord();
+                        ltr.Name = draftProfileLayerName;
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 40);
+                        ltr.LineWeight = LineWeight.LineWeight030;
+                        ltr.IsPlottable = false;
+
+                        //Make layertable writable
+                        lt.CheckOrOpenForWrite();
+
+                        //Add the new layer to layer table
+                        oid ltId = lt.Add(ltr);
+                        txLag.AddNewlyCreatedDBObject(ltr, true);
+                    }
+                    txLag.Commit();
+                }
+                #endregion
+
+                BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
+
+                HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+
+                foreach (Alignment al in als)
+                {
+                    #region If exist get surface profile and profile view
+                    prdDbg($"\nProcessing: {al.Name}...");
+
+                    ObjectIdCollection profileIds = al.GetProfileIds();
+                    ObjectIdCollection profileViewIds = al.GetProfileViewIds();
+
+                    ProfileView pv = null;
+                    foreach (oid Oid in profileViewIds)
+                    {
+                        ProfileView pTemp = Oid.Go<ProfileView>(tx);
+                        if (pTemp.Name == $"{al.Name}_PV") pv = pTemp;
+                    }
+                    if (pv == null)
+                    {
+                        prdDbg($"No profile view found for alignment: {al.Name}, skip to next.");
+                        continue;
+                    }
+
+                    Profile surfaceProfile = null;
+                    foreach (oid Oid in profileIds)
+                    {
+                        Profile pTemp = Oid.Go<Profile>(tx);
+                        if (pTemp.Name == $"{al.Name}_surface_P") surfaceProfile = pTemp;
+                    }
+                    if (surfaceProfile == null)
+                    {
+                        prdDbg($"No surface profile found for alignment: {al.Name}, skip to next.");
+                        continue;
+                    }
+                    prdDbg(pv.Name);
+                    prdDbg(surfaceProfile.Name);
+                    #endregion
+
+                    #region Draw profile draft
+                    Point3d pvOrigin = pv.Location;
+                    double originX = pvOrigin.X;
+                    double originY = pvOrigin.Y;
+
+                    double pvStStart = pv.StationStart;
+                    double pvStEnd = pv.StationEnd;
+                    double pvElBottom = pv.ElevationMin;
+                    double pvElTop = pv.ElevationMax;
+                    double pvLength = pvStEnd - pvStStart;
+                    double profileOffset = 0.6;
+
+                    double stepLength = 1.0;
+                    int nrOfSteps = (int)(pvLength / stepLength);
+
+                    List<(double stepX, double stepY)> allSteps = new List<(double, double)>();
+
+                    for (int i = 0; i < nrOfSteps + 1; i++) //+1 because first step is an "extra" step
+                    {
+                        double testEl = 0;
+                        double curStation = pvStStart + stepLength * i;
+                        try
+                        {
+                            testEl = surfaceProfile.ElevationAt(curStation);
+                        }
+                        catch (System.Exception)
+                        {
+                            prdDbg($"\nStation {curStation} threw an exception! Skipping...");
+                            continue;
+                        }
+                        allSteps.Add((originX + curStation, originY + (testEl - pvElBottom - profileOffset)));
+                    }
+
+                    Polyline draftProfile = new Polyline();
+                    draftProfile.SetDatabaseDefaults();
+                    draftProfile.Layer = draftProfileLayerName;
+                    for (int i = 0; i < allSteps.Count; i++)
+                    {
+                        var curStep = allSteps[i];
+                        draftProfile.AddVertexAt(i, new Point2d(curStep.stepX, curStep.stepY), 0, 0, 0);
+                    }
+                    modelSpace.AppendEntity(draftProfile);
+                    tx.AddNewlyCreatedDBObject(draftProfile, true);
+                    #endregion
+                }
+                tx.Commit();
+            }
+        }
+
         #region Obsolete code
         //public void createlerdataloopnodeepclone(HashSet<Polyline3d> allLinework, Alignment alignment,
         //                              CivSurface surface, ProfileView pv,
@@ -5871,6 +5998,10 @@ namespace IntersectUtilities
                             {
                                 editor.WriteMessage($"\nFejl: For lag {ent.Layer} mangler der enten " +
                                     $"selve definitionen eller 'Type'!");
+                                xRefLerTx.Abort();
+                                xRefSurfaceTx.Abort();
+                                xRefLerDB.Dispose();
+                                xRefSurfaceDB.Dispose();
                                 return;
                             }
 
@@ -6184,6 +6315,10 @@ namespace IntersectUtilities
                         if (p == null)
                         {
                             editor.WriteMessage($"\nNo profile named {alignment.Name}_surface_P found!");
+                            xRefLerTx.Abort();
+                            xRefSurfaceTx.Abort();
+                            xRefLerDB.Dispose();
+                            xRefSurfaceDB.Dispose();
                             return;
                         }
                         else editor.WriteMessage($"\nProfile {p.Name} found!");
@@ -9917,7 +10052,7 @@ namespace IntersectUtilities
                                     if (name.Contains(al.Name))
                                         prdDbg(al.Name);
                                     else prdDbg(al.Name + " <-- WARNING");
-                                    
+
                                 }
                                 prdDbg("--------------------------------");
                                 extTx.Commit();

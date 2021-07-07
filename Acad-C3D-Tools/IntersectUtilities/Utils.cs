@@ -1472,13 +1472,17 @@ namespace IntersectUtilities
             if (i < CharInfo.lookup.Length) return CharInfo.lookup[i];
             return "Unknown";
         }
+        public static BlockTableRecord GetModelspaceForWrite(this Database db) =>
+            db.BlockTableId.Go<BlockTable>(db.TransactionManager.TopTransaction)[BlockTableRecord.ModelSpace]
+            .Go<BlockTableRecord>(db.TransactionManager.TopTransaction,OpenMode.ForWrite);
+        
     }
 
     public static class ExtensionMethods
     {
         public static T Go<T>(this oid Oid, Transaction tx,
             Autodesk.AutoCAD.DatabaseServices.OpenMode openMode =
-            Autodesk.AutoCAD.DatabaseServices.OpenMode.ForRead) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+            Autodesk.AutoCAD.DatabaseServices.OpenMode.ForRead) where T : Autodesk.AutoCAD.DatabaseServices.DBObject
         {
             return (T)tx.GetObject(Oid, openMode, false);
         }
