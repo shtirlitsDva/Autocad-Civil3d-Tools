@@ -61,16 +61,18 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                LinkedList<PolylineSegmentProps> segmentsLinked = new LinkedList<PolylineSegmentProps>();
                 HashSet<Polyline> polies = localDb.HashSetOfType<Polyline>(tx);
+
+                double bandWidth = 0.25;
 
                 foreach (Polyline pline in polies)
                 {
                     int numOfVert = pline.NumberOfVertices - 1;
+                    LinkedList<SegmentProps> segmentsLinked = new LinkedList<SegmentProps>();
 
                     for (int i = 0; i < numOfVert; i++)
                     {
-                        PolylineSegmentProps psp = new PolylineSegmentProps();
+                        SegmentProps psp = new SegmentProps();
 
                         switch (pline.GetSegmentType(i))
                         {
@@ -80,14 +82,18 @@ namespace IntersectUtilities
                                 Point2d ep = seg.EndPoint;
                                 psp.Slope = (ep.Y - sp.Y) / (ep.X - sp.X);
                                 psp.Index = i;
+                                psp.Type = pline.GetSegmentType(i);
+                                break;
+                            case SegmentType.Arc:
+                                psp.Type = pline.GetSegmentType(i);
                                 break;
                         }
                         segmentsLinked.AddLast(psp);
                     }
 
-                    for (LinkedListNode<PolylineSegmentProps> node = segmentsLinked.First; node != null; node = node.Next)
+                    for (LinkedListNode<SegmentProps> node = segmentsLinked.First; node != null; node = node.Next)
                     {
-                        LinkedListNode<PolylineSegmentProps> previousNode = node.Previous;
+                        LinkedListNode<SegmentProps> previousNode = node.Previous;
                         if (previousNode == null)
                         {
                             node.Value.ChangeInSlopeFromPrevious = 0;
@@ -95,13 +101,28 @@ namespace IntersectUtilities
                         }
 
                         node.Value.ChangeInSlopeFromPrevious = previousNode.Value.Slope - node.Value.Slope;
+                        node.Value.ChangeInChangeFromPrevious = previousNode.Value.ChangeInSlopeFromPrevious -
+                            node.Value.ChangeInSlopeFromPrevious;
                     }
 
-                    StringBuilder sb = new StringBuilder();
-                    sb.AppendLine("Index;Slope;SlopeDelta");
-                    for (LinkedListNode<PolylineSegmentProps> node = segmentsLinked.First; node != null; node = node.Next)
+                    AcceptedSequences acceptedSequences = new AcceptedSequences();
+
+                    for (LinkedListNode<SegmentProps> node = segmentsLinked.First; node != null; node = node.Next)
                     {
-                        sb.AppendLine($"{node.Value.Index};{node.Value.Slope};{node.Value.ChangeInSlopeFromPrevious}");
+                        LinkedListNode<SegmentProps> previousNode = node.Previous;
+                        if (previousNode == null)
+                            continue;
+
+
+                    }
+
+                    #region Output
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine("Index;Slope;SlopeDelta;ChangeDelta;ExcelIndex");
+                    for (LinkedListNode<SegmentProps> node = segmentsLinked.First; node != null; node = node.Next)
+                    {
+                        sb.AppendLine($"{node.Value.Index};{node.Value.Slope};{node.Value.ChangeInSlopeFromPrevious};" +
+                            $"{node.Value.ChangeInChangeFromPrevious};{node.Value.Index + 1}");
                     }
 
                     string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\08 Net udvikling\Polylines\";
@@ -109,18 +130,25 @@ namespace IntersectUtilities
 
                     Utils.ClrFile(path + fileName);
                     Utils.OutputWriter(path + fileName, sb.ToString());
+                    #endregion
                 }
                 tx.Abort();
             }
         }
     }
 
-    internal class PolylineSegmentProps
+    internal class SegmentProps
     {
         internal int Index { get; set; } = 0;
         internal double Slope { get; set; } = 0;
         internal double ChangeInSlopeFromPrevious { get; set; } = 0;
-
-        internal PolylineSegmentProps() { }
+        internal double ChangeInChangeFromPrevious { get; set; } = 0;
+        internal SegmentType Type { get; set; }
     }
+
+    internal class AcceptedSequences
+    {
+        internal List<LinkedList<SegmentProps>> Sequences { get; set; } = new List<LinkedList<SegmentProps>>();
+    }
+
 }
