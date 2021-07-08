@@ -4490,7 +4490,7 @@ namespace IntersectUtilities
                 #endregion
 
                 BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
-
+                Plane plane = new Plane(); //For intersecting
                 HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
 
                 foreach (Alignment al in als)
@@ -4538,39 +4538,141 @@ namespace IntersectUtilities
                     double pvElBottom = pv.ElevationMin;
                     double pvElTop = pv.ElevationMax;
                     double pvLength = pvStEnd - pvStStart;
-                    double profileOffset = 0.6;
+
+                    //Settings
+                    double cover = 0.6;
+                    double weedAngle = 5; //In degrees
+                    double weedAngleRad = weedAngle.ToRadians();
+                    double DouglasPeuckerTolerance = .1;
 
                     double stepLength = 1.0;
                     int nrOfSteps = (int)(pvLength / stepLength);
 
-                    List<(double stepX, double stepY)> allSteps = new List<(double, double)>();
+                    List<Point2d> allSteps = new List<Point2d>();
 
+                    //Sample elevation at each step and create points at current offset from surface
                     for (int i = 0; i < nrOfSteps + 1; i++) //+1 because first step is an "extra" step
                     {
-                        double testEl = 0;
+                        double sampledSurfaceElevation = 0;
                         double curStation = pvStStart + stepLength * i;
                         try
                         {
-                            testEl = surfaceProfile.ElevationAt(curStation);
+                            sampledSurfaceElevation = surfaceProfile.ElevationAt(curStation);
                         }
                         catch (System.Exception)
                         {
                             prdDbg($"\nStation {curStation} threw an exception! Skipping...");
                             continue;
                         }
-                        allSteps.Add((originX + curStation, originY + (testEl - pvElBottom - profileOffset)));
+                        allSteps.Add(new Point2d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom - cover)));
                     }
+
+                    #region Apply Douglas Peucker reduction
+                    List<Point2d> reducedSteps = DouglasPeuckerReduction.DouglasPeuckerReductionMethod(allSteps, DouglasPeuckerTolerance);
+                    #endregion
 
                     Polyline draftProfile = new Polyline();
                     draftProfile.SetDatabaseDefaults();
                     draftProfile.Layer = draftProfileLayerName;
-                    for (int i = 0; i < allSteps.Count; i++)
+                    for (int i = 0; i < reducedSteps.Count; i++)
                     {
-                        var curStep = allSteps[i];
-                        draftProfile.AddVertexAt(i, new Point2d(curStep.stepX, curStep.stepY), 0, 0, 0);
+                        var curStep = reducedSteps[i];
+                        draftProfile.AddVertexAt(i, curStep, 0, 0, 0);
                     }
                     modelSpace.AppendEntity(draftProfile);
                     tx.AddNewlyCreatedDBObject(draftProfile, true);
+
+                    #region Test Douglas Peucker reduction
+                    //Test Douglas Peucker reduction
+                    List<double> coverList = new List<double>();
+                    int factor = 10; //Using factor to get more sampling points
+                    for (int i = 0; i < (nrOfSteps + 1) * factor; i++) //+1 because first step is an "extra" step
+                    {
+                        double sampledSurfaceElevation = 0;
+                        
+                        double curStation = pvStStart + stepLength / factor * i;
+                        try
+                        {
+                            sampledSurfaceElevation = surfaceProfile.ElevationAt(curStation);
+                        }
+                        catch (System.Exception)
+                        {
+                            //prdDbg($"\nStation {curStation} threw an exception! Skipping...");
+                            continue;
+                        }
+
+                        //To find point perpendicularly beneath the surface point
+                        //Use graphical method of intersection with a helper line
+                        //Cannot find or think of a mathematical solution
+                        //Create new line to intersect with the draft profile
+                        Line intersectLine = new Line(
+                            new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0),
+                            new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom) - 10, 0));
+
+                        //Intersect and get the intersection point
+                        Point3dCollection intersectionPoints = new Point3dCollection();
+
+                        intersectLine.IntersectWith(draftProfile, 0, plane, intersectionPoints, new IntPtr(0), new IntPtr(0));
+                        if (intersectionPoints.Count < 1) continue;
+
+                        Point3d intersection = intersectionPoints[0];
+                        coverList.Add(intersection.DistanceTo(
+                            new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0)));
+                    }
+
+                    prdDbg($"Max. cover: {(int)(coverList.Max() * 1000)} mm");
+                    prdDbg($"Min. cover: {(int)(coverList.Min() * 1000)} mm");
+                    prdDbg($"Average cover: {(int)((coverList.Sum() / coverList.Count) * 1000)} mm");
+                    prdDbg($"Percent values below cover req.: " +
+                        $"{((coverList.Count(x => x < cover) / Convert.ToDouble(coverList.Count)) * 100.0).ToString("0.##")} %");
+                    #endregion
+
+                    #region Test Douglas Peucker reduction again
+                    ////Test Douglas Peucker reduction
+                    //coverList = new List<double>();
+                    
+                    //for (int i = 0; i < (nrOfSteps + 1) * factor; i++) //+1 because first step is an "extra" step
+                    //{
+                    //    double sampledSurfaceElevation = 0;
+                        
+                    //    double curStation = pvStStart + stepLength / factor * i;
+                    //    try
+                    //    {
+                    //        sampledSurfaceElevation = surfaceProfile.ElevationAt(curStation);
+                    //    }
+                    //    catch (System.Exception)
+                    //    {
+                    //        //prdDbg($"\nStation {curStation} threw an exception! Skipping...");
+                    //        continue;
+                    //    }
+
+                    //    //To find point perpendicularly beneath the surface point
+                    //    //Use graphical method of intersection with a helper line
+                    //    //Cannot find or think of a mathematical solution
+                    //    //Create new line to intersect with the draft profile
+                    //    Line intersectLine = new Line(
+                    //        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0),
+                    //        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom) - 10, 0));
+
+                    //    //Intersect and get the intersection point
+                    //    Point3dCollection intersectionPoints = new Point3dCollection();
+
+                    //    intersectLine.IntersectWith(draftProfile, 0, plane, intersectionPoints, new IntPtr(0), new IntPtr(0));
+                    //    if (intersectionPoints.Count < 1) continue;
+
+                    //    Point3d intersection = intersectionPoints[0];
+                    //    coverList.Add(intersection.DistanceTo(
+                    //        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0)));
+                    //}
+
+                    //prdDbg("After fitting polyline:");
+                    //prdDbg($"Max. cover: {(int)(coverList.Max() * 1000)} mm");
+                    //prdDbg($"Min. cover: {(int)(coverList.Min() * 1000)} mm");
+                    //prdDbg($"Average cover: {(int)((coverList.Sum() / coverList.Count) * 1000)} mm");
+                    //prdDbg($"Percent values below cover req.: " +
+                    //    $"{((coverList.Count(x => x < cover) / Convert.ToDouble(coverList.Count)) * 100.0).ToString("0.##")} %");
+                    #endregion
+
                     #endregion
                 }
                 tx.Commit();

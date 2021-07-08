@@ -1474,8 +1474,8 @@ namespace IntersectUtilities
         }
         public static BlockTableRecord GetModelspaceForWrite(this Database db) =>
             db.BlockTableId.Go<BlockTable>(db.TransactionManager.TopTransaction)[BlockTableRecord.ModelSpace]
-            .Go<BlockTableRecord>(db.TransactionManager.TopTransaction,OpenMode.ForWrite);
-        
+            .Go<BlockTableRecord>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
     }
 
     public static class ExtensionMethods
@@ -1597,6 +1597,8 @@ namespace IntersectUtilities
             }
             return set;
         }
+        public static double ToDegrees(this double radians) => (180 / Math.PI) * radians;
+        public static double ToRadians(this double degrees) => (Math.PI / 180) * degrees;
     }
 
     public static class HelperMethods
