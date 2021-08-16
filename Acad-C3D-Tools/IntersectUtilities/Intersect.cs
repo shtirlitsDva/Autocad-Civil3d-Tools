@@ -2924,6 +2924,7 @@ namespace IntersectUtilities
             }
         }
 
+        //Used to move 3d polylines of gas to elevation points
         [CommandMethod("movep3dverticestopoints")]
         public void movep3dverticestopoints()
         {
@@ -4589,7 +4590,7 @@ namespace IntersectUtilities
                     for (int i = 0; i < (nrOfSteps + 1) * factor; i++) //+1 because first step is an "extra" step
                     {
                         double sampledSurfaceElevation = 0;
-                        
+
                         double curStation = pvStStart + stepLength / factor * i;
                         try
                         {
@@ -4630,11 +4631,11 @@ namespace IntersectUtilities
                     #region Test Douglas Peucker reduction again
                     ////Test Douglas Peucker reduction
                     //coverList = new List<double>();
-                    
+
                     //for (int i = 0; i < (nrOfSteps + 1) * factor; i++) //+1 because first step is an "extra" step
                     //{
                     //    double sampledSurfaceElevation = 0;
-                        
+
                     //    double curStation = pvStStart + stepLength / factor * i;
                     //    try
                     //    {
@@ -8844,6 +8845,74 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("FIXGASLAYERSLINES")]
+        public void fixgaslayerslines()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    // Open the Block table for read
+                    BlockTable acBlkTbl;
+                    acBlkTbl = tx.GetObject(localDb.BlockTableId,
+                                                 OpenMode.ForRead) as BlockTable;
+
+                    // Open the Block table record Model space for write
+                    BlockTableRecord acBlkTblRec;
+                    acBlkTblRec = tx.GetObject(acBlkTbl[BlockTableRecord.ModelSpace],
+                                                    OpenMode.ForWrite) as BlockTableRecord;
+
+                    HashSet<Line> lines = localDb.HashSetOfType<Line>(tx);
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
+                    HashSet<Polyline3d> plines3d = localDb.HashSetOfType<Polyline3d>(tx);
+                    HashSet<Spline> splines = localDb.HashSetOfType<Spline>(tx);
+
+                    HashSet<Entity> ents = new HashSet<Entity>();
+                    ents.UnionWith(lines);
+                    ents.UnionWith(plines);
+                    ents.UnionWith(plines3d);
+                    ents.UnionWith(splines);
+
+                    foreach (Entity ent in ents)
+                        fix(ent);
+
+                    void fix(Entity ent)
+                    {
+                        ent.CheckOrOpenForWrite();
+                        ent.Color = Color.FromColorIndex(ColorMethod.ByLayer, 0);
+                        ent.DowngradeOpen();
+
+                        if (ent.Layer == "Distributionsrør")
+                        {
+                            ent.CheckOrOpenForWrite();
+                            ent.Layer = "Stikrør";
+                            ent.LineWeight = LineWeight.ByLayer;
+                        }
+                        else if (ent.Layer == "Stikrør")
+                        {
+                            ent.CheckOrOpenForWrite();
+                            ent.Layer = "Distributionsrør";
+                            ent.LineWeight = LineWeight.ByLayer;
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("GASBEHANDLING")]
         public void gasbehandling()
         {
@@ -8888,7 +8957,7 @@ namespace IntersectUtilities
                     //correctionThreshold operates on values LESS THAN value
                     //targetThreshold operates on values GREATER THAN value
                     double correctionThreshold = 1;
-                    double targetThreshold = 2;
+                    double targetThreshold = 10;
                     ////////////////////////////////
                     HashSet<Polyline3d> plines3d = localDb.HashSetOfType<Polyline3d>(tx, true);
                     foreach (Polyline3d p3d in plines3d)
@@ -9120,7 +9189,10 @@ namespace IntersectUtilities
 
                     #region Create layers
                     List<string> layerNames = new List<string>()
-                    { "GAS-Stikrør-2D", "GAS-Fordelingsrør-2D", "GAS-Distributionsrør-2D", "GAS-ude af drift-2D" };
+                    {   "GAS-Stikrør-2D",
+                        "GAS-Fordelingsrør-2D",
+                        "GAS-Distributionsrør-2D",
+                        "GAS-ude af drift-2D" };
                     LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
                     foreach (string name in layerNames)
                     {
@@ -9139,7 +9211,27 @@ namespace IntersectUtilities
                             tx.AddNewlyCreatedDBObject(ltr, true);
                         }
                     }
+                    #endregion
 
+                    #region Rename layers
+                    List<string> layersToRename = new List<string>()
+                    {
+                        "Distributionsrør",
+                        "Fordelingsrør",
+                        "Stikrør"
+                    };
+
+                    foreach (string name in layersToRename)
+                    {
+                        if (lt.Has(name))
+                        {
+                            LayerTableRecord layer = lt.GetLayerByName(name);
+                            layer.CheckOrOpenForWrite();
+                            layer.Name = $"GAS-{name}";
+                            layer.Color = Color.FromColorIndex(ColorMethod.ByAci, 30);
+                            layer.LineWeight = LineWeight.ByLineWeightDefault;
+                        }
+                    }
                     #endregion
 
                     HashSet<Polyline3d> lines = localDb.HashSetOfType<Polyline3d>(tx, true);

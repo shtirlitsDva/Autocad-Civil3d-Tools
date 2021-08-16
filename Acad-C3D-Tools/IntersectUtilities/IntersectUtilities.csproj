@@ -90,8 +90,7 @@
       <HintPath>..\packages\Speckle.Civil3D.API.2022.0.0.3\lib\net47\AeccDbMgd.dll</HintPath>
     </Reference>
     <Reference Include="ManagedMapApi">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2021\Map\ManagedMapApi.dll</HintPath>
-      <Private>False</Private>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\Map\ManagedMapApi.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Office.Interop.Excel, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
       <EmbedInteropTypes>True</EmbedInteropTypes>
