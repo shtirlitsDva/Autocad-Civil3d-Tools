@@ -2980,6 +2980,9 @@ namespace IntersectUtilities
             }
         }
 
+        /// <summary>
+        /// Used to move 3d polylines of Novafos data to elevation points
+        /// </summary>
         [CommandMethod("detectknudepunkterandinterpolate")]
         public void detectknudepunkterandinterpolate()
         {
@@ -8901,6 +8904,92 @@ namespace IntersectUtilities
                             ent.Layer = "Distributionsrør";
                             ent.LineWeight = LineWeight.ByLayer;
                         }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("FIXNOVAFOSLAYERSLINES")]
+        public void fixnovafoslayerslines()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                    if (lt.Has("AFL_ikke_ibrug"))
+                    {
+                        LayerTableRecord ltr = lt.GetLayerByName("AFL_ikke_ibrug");
+                        ltr.CheckOrOpenForWrite();
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 92);
+
+                        LinetypeTable ltt = tx.GetObject(localDb.LinetypeTableId, OpenMode.ForRead)
+                            as LinetypeTable;
+                        oid lineTypeId = oid.Null;
+                        if (ltt.Has("DASHED2"))
+                        {
+                            lineTypeId = ltt["DASHED2"];
+                            ltr.LinetypeObjectId = lineTypeId;
+                        }
+                        else prdDbg("\nLine type \"DASHED2\" is missing!");
+                    }
+
+                    if (lt.Has("AFL_ledning_draen"))
+                    {
+                        LayerTableRecord ltr = lt.GetLayerByName("AFL_ledning_draen");
+                        ltr.CheckOrOpenForWrite();
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 92);
+                    }
+
+                    if (lt.Has("AFL_ledning_faelles"))
+                    {
+                        LayerTableRecord ltr = lt.GetLayerByName("AFL_ledning_faelles");
+                        ltr.CheckOrOpenForWrite();
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 140);
+                    }
+
+                    if (lt.Has("AFL_ledning_regn"))
+                    {
+                        LayerTableRecord ltr = lt.GetLayerByName("AFL_ledning_regn");
+                        ltr.CheckOrOpenForWrite();
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 191);
+                    }
+
+                    if (lt.Has("AFL_ledning_spild"))
+                    {
+                        LayerTableRecord ltr = lt.GetLayerByName("AFL_ledning_spild");
+                        ltr.CheckOrOpenForWrite();
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 140);
+                    }
+
+                    if (lt.Has("VAND_ledning"))
+                    {
+                        LayerTableRecord ltr = lt.GetLayerByName("VAND_ledning");
+                        ltr.CheckOrOpenForWrite();
+                        //ltr.Color = Color.FromRgb(0, 0, 255);
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 5);
+                    }
+
+                    if (lt.Has("VAND_ledning_ikke_i_brug"))
+                    {
+                        LayerTableRecord ltr = lt.GetLayerByName("VAND_ledning_ikke_i_brug");
+                        ltr.CheckOrOpenForWrite();
+                        ltr.Color = Color.FromRgb(0, 115, 230);
                     }
                 }
                 catch (System.Exception ex)
