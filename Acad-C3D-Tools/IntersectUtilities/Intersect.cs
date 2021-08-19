@@ -8756,7 +8756,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("setglobalwidth")]
+        [CommandMethod("SETGLOBALWIDTH")]
         public void setglobalwidth()
         {
 
@@ -8770,6 +8770,15 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region BlockTables
+                    // Open the Block table for read
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId,
+                                                       OpenMode.ForRead) as BlockTable;
+                    // Open the Block table record Model space for write
+                    BlockTableRecord modelSpace = tx.GetObject(bt[BlockTableRecord.ModelSpace],
+                                                          OpenMode.ForWrite) as BlockTableRecord;
+                    #endregion
+
                     #region Read Csv Data for Layers
                     //Establish the pathnames to files
                     //Files should be placed in a specific folder on desktop
@@ -8778,10 +8787,120 @@ namespace IntersectUtilities
                     System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
                     #endregion
 
-                    HashSet<Spline> splines = localDb.HashSetOfType<Spline>(tx);
-                    HashSet<Line> lines = localDb.HashSetOfType<Line>(tx);
+                    //Reference datatables
+                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                    #region Convert splines
+                    //Enclose in a scope to prevent splines collection from being used later on
+                    {
+                        List<Spline> splines = localDb.ListOfType<Spline>(tx);
+                        editor.WriteMessage($"\nNr. of splines: {splines.Count}. Converting to polylines...");
+
+                        foreach (Spline spline in splines)
+                        {
+                            Curve curve = spline.ToPolylineWithPrecision(10);
+                            modelSpace.AppendEntity(curve);
+                            tx.AddNewlyCreatedDBObject(curve, true);
+                            curve.CheckOrOpenForWrite();
+                            curve.Layer = spline.Layer;
+                            CopyAllOD(tables, spline, curve);
+                            curve.DowngradeOpen();
+                            spline.CheckOrOpenForWrite();
+                            spline.Erase(true);
+                        }
+                    }
+                    #endregion
+
+                    #region Convert lines
+                    //Enclose in a scope to prevent lines collection from being used later on
+                    {
+                        List<Line> lines = localDb.ListOfType<Line>(tx);
+                        editor.WriteMessage($"\nNr. of lines: {lines.Count}. Converting to polylines...");
+
+                        foreach (Line line in lines)
+                        {
+                            Polyline pline = new Polyline(2);
+                            pline.CheckOrOpenForWrite();
+                            pline.AddVertexAt(0, new Point2d(line.StartPoint.X, line.StartPoint.Y), 0, 0, 0);
+                            pline.AddVertexAt(1, new Point2d(line.EndPoint.X, line.EndPoint.Y), 0, 0, 0);
+                            modelSpace.AppendEntity(pline);
+                            tx.AddNewlyCreatedDBObject(pline, true);
+                            pline.Layer = line.Layer;
+                            CopyAllOD(tables, line, pline);
+                            pline.DowngradeOpen();
+                            line.CheckOrOpenForWrite();
+                            line.Erase(true);
+                        }
+                    }
+                    #endregion
+
+                    #region Load linework for analysis
+                    prdDbg("\nLoading linework for analyzing...");
+
                     HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
-                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
+                    editor.WriteMessage($"\nNr. of polylines: {plines.Count}");
+                    #endregion
+
+                    #region Read diameter and set width
+                    int layerNameNotDefined = 0;
+                    int layerNameIgnored = 0;
+                    int layerDiameterDefMissing = 0;
+                    int findDescriptionPartsFailed = 0;
+                    foreach (Polyline pline in plines)
+                    {
+                        //Check if pline's layer exists in krydsninger
+                        string nameInFile = ReadStringParameterFromDataTable(pline.Layer, dtKrydsninger, "Navn", 0);
+                        if (nameInFile.IsNoE())
+                        {
+                            layerNameNotDefined++;
+                            continue;
+                        }
+
+                        //Check if pline's layer is IGNOREd
+                        string typeInFile = ReadStringParameterFromDataTable(pline.Layer, dtKrydsninger, "Type", 0);
+                        if (typeInFile == "IGNORE")
+                        {
+                            layerNameIgnored++;
+                            continue;
+                        }
+
+                        //Check if diameter information exists
+                        string diameterDef = ReadStringParameterFromDataTable(pline.Layer,
+                                dtKrydsninger, "Diameter", 0);
+                        if (diameterDef.IsNoE())
+                        {
+                            layerDiameterDefMissing++;
+                            continue;
+                        }
+
+                        var list = FindDescriptionParts(diameterDef);
+                        if (list.Count < 1)
+                        {
+                            findDescriptionPartsFailed++;
+                            continue;
+                        }
+                        string[] parts = list[0].Item2.Split(':');
+
+                        int diaOriginal = ReadIntPropertyValue(tables, pline.Id, parts[0], parts[1]);
+                        prdDbg(pline.Handle.ToString() + ": " + diaOriginal.ToString());
+
+                        double dia = Convert.ToDouble(diaOriginal) / 1000;
+
+                        if (dia == 0) dia = 0.09;
+
+                        pline.CheckOrOpenForWrite();
+                        pline.ConstantWidth = dia;
+                    }
+                    #endregion
+
+                    #region Reporting
+
+                    prdDbg($"\nLayer name not defined in Krydsninger.csv for {layerNameNotDefined} polyline(s).");
+                    prdDbg($"\nLayer name is set to IGNORE in Krydsninger.csv for {layerNameIgnored} polyline(s).");
+                    prdDbg($"\nDiameter definition is not defined in Krydsninger.csv for {layerDiameterDefMissing} polyline(s).");
+                    prdDbg($"\nGetting diameter definition parts failed for {findDescriptionPartsFailed} polyline(s).");
+                    #endregion
+
                 }
                 catch (System.Exception ex)
                 {
