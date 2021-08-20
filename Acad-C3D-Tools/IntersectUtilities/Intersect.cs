@@ -2224,12 +2224,28 @@ namespace IntersectUtilities
 
                         #region Select text
                         PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
-                            "\nSelect text to copy:");
+                            "\nSelect text to copy <Push ENTER to enter text manually>:");
                         promptEntityOptions2.SetRejectMessage("\n Not a text!");
                         promptEntityOptions2.AddAllowedClass(typeof(DBText), true);
+                        promptEntityOptions2.AllowNone = true;
                         PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
-                        if (((PromptResult)entity2).Status != PromptStatus.OK) { tx.Abort(); return; }
-                        Autodesk.AutoCAD.DatabaseServices.ObjectId textId = entity2.ObjectId;
+
+                        string readTextValue = "";
+                        if (((PromptResult)entity2).Status == PromptStatus.None)
+                        {
+                            PromptStringOptions strPromptOptions = new PromptStringOptions(
+                                "\nEnter dimension and material data manually: ");
+                            strPromptOptions.AllowSpaces = true;
+                            PromptResult pr = editor.GetString(strPromptOptions);
+                            if (pr.Status != PromptStatus.OK) { tx.Abort(); return; }
+                            readTextValue = pr.StringResult;
+                        }
+                        else if (((PromptResult)entity2).Status == PromptStatus.OK)
+                        {
+                            Autodesk.AutoCAD.DatabaseServices.ObjectId textId = entity2.ObjectId;
+                            readTextValue = textId.Go<DBText>(tx).TextString.Trim();
+                        }
+                        else { tx.Abort(); return; }
                         #endregion
 
                         #region Er ledningen i brug
@@ -2287,14 +2303,12 @@ namespace IntersectUtilities
                             }
                         }
 
-                        string value = textId.Go<DBText>(tx).TextString.Trim();
-
                         int parsedInt = 0;
                         string parsedMat = string.Empty;
-                        if (value.Contains(" "))
+                        if (readTextValue.Contains(" "))
                         {
                             //Gas specific handling
-                            string[] output = value.Split((char[])null); //Splits by whitespace
+                            string[] output = readTextValue.Split((char[])null); //Splits by whitespace
 
                             int.TryParse(output[0], out parsedInt);
                             //Material
@@ -2302,7 +2316,7 @@ namespace IntersectUtilities
                         }
                         else
                         {
-                            string[] output = value.Split('/');
+                            string[] output = readTextValue.Split('/');
                             string a = ""; //For number
                             string b = ""; //For material
 
@@ -10882,6 +10896,79 @@ namespace IntersectUtilities
                     }
                     tr.Commit();
                 }
+            }
+        }
+
+        [CommandMethod("TESTDATASHORTCUTSAPI")]
+        public void testdatashortcutsapi()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region CountVFNumbers
+
+                    string path = string.Empty;
+                    OpenFileDialog dialog = new OpenFileDialog()
+                    {
+                        Title = "Choose txt file:",
+                        DefaultExt = "txt",
+                        Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
+                        FilterIndex = 0
+                    };
+                    if (dialog.ShowDialog() == DialogResult.OK)
+                    {
+                        path = dialog.FileName;
+                    }
+                    else return;
+
+                    List<string> fileList;
+                    fileList = File.ReadAllLines(path).ToList();
+                    path = Path.GetDirectoryName(path) + "\\";
+                    prdDbg(path + "\n");
+
+                    foreach (string name in fileList)
+                    {
+                        prdDbg(name);
+                        string fileName = path + name;
+                        //prdDbg(fileName);
+
+                        using (Database extDb = new Database(false, true))
+                        {
+                            extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
+
+                            using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                            {
+                                #region Count viewframes
+                                var vfSet = extDb.HashSetOfType<ViewFrame>(extTx);
+
+                                foreach (ViewFrame vf in vfSet)
+                                {
+                                    prdDbg(vf.Name);
+                                }
+                                #endregion
+
+                                extTx.Commit();
+                            }
+                            //extDb.SaveAs(extDb.Filename, DwgVersion.Current);
+                        }
+                        System.Windows.Forms.Application.DoEvents();
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
             }
         }
     }
