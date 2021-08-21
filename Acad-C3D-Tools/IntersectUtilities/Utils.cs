@@ -1209,6 +1209,68 @@ namespace IntersectUtilities
 
             return ReadStringParameterFromDataTable(etapeName, dtStier, pathType, 0);
         }
+        public static string GetProjectName(Editor editor)
+        {
+            #region Read Csv for paths
+            string pathWF = "X:\\AutoCAD DRI - 01 Civil 3D\\WorkingFolders.csv";
+            System.Data.DataTable dtStier = CsvReader.ReadCsvToDataTable(pathWF, "WF");
+            #endregion
+
+            List<string> kwds = new List<string>(dtStier.Rows.Count);
+            foreach (DataRow row in dtStier.Rows)
+                kwds.Add((string)row["PrjId"]);
+
+            string msg = "\nVælg projekt [";
+            string keywordsJoined = string.Join("/", kwds);
+            msg = msg + keywordsJoined + "]: ";
+
+            string displayKewords = string.Join(" ", kwds);
+
+            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions(msg, displayKewords);
+            //pKeyOpts.Message = "\nVælg projekt: ";
+            //foreach (string kwd in kwds)
+            //{
+            //    pKeyOpts.Keywords.Add(kwd, kwd, kwd);
+            //}
+            pKeyOpts.AllowNone = false;
+            pKeyOpts.AllowArbitraryInput = true;
+            //for (int i = 0; i < pKeyOpts.Keywords.Count; i++)
+            //{
+            //    prdDbg("\nLocal name: " + pKeyOpts.Keywords[i].LocalName);
+            //    prdDbg("\nGlobal name: " + pKeyOpts.Keywords[i].GlobalName);
+            //    prdDbg("\nDisplay name: " + pKeyOpts.Keywords[i].DisplayName);
+            //}
+            
+            //pKeyOpts.Keywords.Default = kwds[0];
+            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+            //For some reason keywords returned are only the first part, so this is a workaround
+            //Depends on what input is
+            //The project name must start with the project number
+            //If the code returns wrong values, there must be something wrong with project names
+            //Like same project number and/or occurence of same substring in two or more keywords
+            //This is a mess...
+            string returnedPartOfTheKeyword = pKeyRes.StringResult;
+            foreach (string kwd in kwds)
+            {
+                if (kwd.Contains(returnedPartOfTheKeyword)) return kwd;
+            }
+            return "";
+        }
+        /// <summary>
+        /// Gets the working folder path for selected project
+        /// </summary>
+        /// <param name="projectName">The name of the project</param>
+        /// <param name="workingFolder">The name of the column to read</param>
+        /// <returns>Returns the path to working folder</returns>
+        public static string GetWorkingFolder(string projectName, string workingFolder = "WorkingFolder")
+        {
+            #region Read Csv for paths
+            string pathWF = "X:\\AutoCAD DRI - 01 Civil 3D\\WorkingFolders.csv";
+            System.Data.DataTable dtWF = CsvReader.ReadCsvToDataTable(pathWF, "WF");
+            #endregion
+
+            return ReadStringParameterFromDataTable(projectName, dtWF, workingFolder, 0);
+        }
         public static int GetLineNumber([CallerLineNumber] int lineNumber = 0) => lineNumber;
         public static bool IsFileLockedOrReadOnly(FileInfo fi)
         {

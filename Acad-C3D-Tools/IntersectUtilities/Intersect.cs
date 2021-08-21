@@ -8,6 +8,7 @@ using Autodesk.Civil;
 using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
+using Autodesk.Civil.DataShortcuts;
 using Autodesk.Gis.Map;
 using Autodesk.Gis.Map.ObjectData;
 using Autodesk.Gis.Map.Utilities;
@@ -10910,56 +10911,63 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
+                #region Cache current Working Folder
+                string originalWorkingFolder = DataShortcuts.GetWorkingFolder();
+                prdDbg(originalWorkingFolder);
+                #endregion
+
                 try
                 {
-                    #region CountVFNumbers
+                    #region 
+                    string projectName = GetProjectName(editor);
+                    prdDbg(projectName);
 
-                    string path = string.Empty;
-                    OpenFileDialog dialog = new OpenFileDialog()
+                    if (projectName.IsNoE())
                     {
-                        Title = "Choose txt file:",
-                        DefaultExt = "txt",
-                        Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
-                        FilterIndex = 0
-                    };
-                    if (dialog.ShowDialog() == DialogResult.OK)
-                    {
-                        path = dialog.FileName;
+                        prdDbg("\nGetting project name returned empty string. Please investigate!");
+                        return;
                     }
-                    else return;
 
-                    List<string> fileList;
-                    fileList = File.ReadAllLines(path).ToList();
-                    path = Path.GetDirectoryName(path) + "\\";
-                    prdDbg(path + "\n");
+                    string newWorkingFolder = GetWorkingFolder(projectName);
+                    prdDbg(newWorkingFolder);
 
-                    foreach (string name in fileList)
+                    //Set the new working folder
+                    DataShortcuts.SetWorkingFolder(newWorkingFolder);
+
+                    string currenProject = "";
+                    //List<string> otherProjects = new List<string>();
+                    //DataShortcuts.GetAllProjectFolders(ref currenProject, ref otherProjects );
+                    List<string> otherProjects = DataShortcuts.GetOtherProjectFolders().ToList();
+
+                    prdDbg("Current project: " + currenProject);
+                    prdDbg("All projects: ");
+                    foreach (string name in otherProjects)
                     {
-                        prdDbg(name);
-                        string fileName = path + name;
-                        //prdDbg(fileName);
-
-                        using (Database extDb = new Database(false, true))
-                        {
-                            extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
-
-                            using (Transaction extTx = extDb.TransactionManager.StartTransaction())
-                            {
-                                #region Count viewframes
-                                var vfSet = extDb.HashSetOfType<ViewFrame>(extTx);
-
-                                foreach (ViewFrame vf in vfSet)
-                                {
-                                    prdDbg(vf.Name);
-                                }
-                                #endregion
-
-                                extTx.Commit();
-                            }
-                            //extDb.SaveAs(extDb.Filename, DwgVersion.Current);
-                        }
-                        System.Windows.Forms.Application.DoEvents();
+                        prdDbg($"{name}");
                     }
+
+
+                    //using (Database extDb = new Database(false, true))
+                    //{
+                    //    extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
+
+                    //    using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                    //    {
+                    //        #region Count viewframes
+                    //        var vfSet = extDb.HashSetOfType<ViewFrame>(extTx);
+
+                    //        foreach (ViewFrame vf in vfSet)
+                    //        {
+                    //            prdDbg(vf.Name);
+                    //        }
+                    //        #endregion
+
+                    //        extTx.Commit();
+                    //    }
+                    //    //extDb.SaveAs(extDb.Filename, DwgVersion.Current);
+                    //}
+                    System.Windows.Forms.Application.DoEvents();
+
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -10967,6 +10975,14 @@ namespace IntersectUtilities
                     tx.Abort();
                     editor.WriteMessage("\n" + ex.Message);
                     return;
+                }
+                finally
+                {
+                    //End the routine by setting the working folder to original value
+                    //Unless it's empty... or null...
+                    //It is put in finally so it would execute on normal execution and exception return
+                    if (originalWorkingFolder.IsNotNoE())
+                        DataShortcuts.SetWorkingFolder(originalWorkingFolder);
                 }
                 tx.Commit();
             }

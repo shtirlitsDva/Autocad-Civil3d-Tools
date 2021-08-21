@@ -86,6 +86,10 @@
     <Reference Include="AecBaseMgd, Version=8.4.49.0, Culture=neutral, processorArchitecture=AMD64">
       <HintPath>..\packages\Speckle.Civil3D.API.2022.0.0.3\lib\net47\AecBaseMgd.dll</HintPath>
     </Reference>
+    <Reference Include="AeccDataShortcutMgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\C3D\AeccDataShortcutMgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="AeccDbMgd, Version=13.4.214.0, Culture=neutral, processorArchitecture=AMD64">
       <HintPath>..\packages\Speckle.Civil3D.API.2022.0.0.3\lib\net47\AeccDbMgd.dll</HintPath>
     </Reference>
