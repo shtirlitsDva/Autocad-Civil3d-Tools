@@ -875,6 +875,36 @@ namespace IntersectUtilities
                 }
             }
         }
+
+        public static bool CheckAddUpdateRecordValue(
+            Tables tables,
+            oid entId,
+            string m_tableName,
+            string columnName,
+            MapValue value)
+        {
+            if (DoesRecordExist(tables, entId, m_tableName, columnName))
+            {
+                Editor.WriteMessage($"\nRecord {columnName} already exists, updating...");
+
+                if (UpdateODRecord(tables, m_tableName, columnName, entId, value))
+                {
+                    Editor.WriteMessage($"\nUpdating record {columnName} succeded!");
+                    return true;
+                }
+                else
+                {
+                    Editor.WriteMessage($"\nUpdating record {columnName} failed!");
+                    return false;
+                }
+            }
+            else if (AddODRecord(tables, m_tableName, columnName, entId, value))
+            {
+                Editor.WriteMessage($"\nAdding record {columnName} succeded!");
+                return true;
+            }
+            return false;
+        }
         #endregion
 
         /// <summary>
@@ -1240,7 +1270,7 @@ namespace IntersectUtilities
             //    prdDbg("\nGlobal name: " + pKeyOpts.Keywords[i].GlobalName);
             //    prdDbg("\nDisplay name: " + pKeyOpts.Keywords[i].DisplayName);
             //}
-            
+
             //pKeyOpts.Keywords.Default = kwds[0];
             PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
             //For some reason keywords returned are only the first part, so this is a workaround
@@ -1306,8 +1336,16 @@ namespace IntersectUtilities
             var dstBytes = Encoding.Convert(srcEncoding, dstEncoding, srcBytes);
             return dstEncoding.GetString(dstBytes);
         }
-
-
+    }
+    public static class OdTables
+    {
+        public static string GetGasTableName() => "GasDimOgMat";
+        public static string[] GetGasColumnNames() => new string[3] { "Dimension", "Material", "Bemærk" };
+        public static string[] GetGasColumnDescriptions() =>
+            new string[3] { "Pipe diameter", "Pipe material", "Bemærkning til ledning" };
+        public static DataType[] GetGasDataTypes() =>
+            new DataType[3] { DataType.Integer, DataType.Character, DataType.Character };
+        public static string GetGasTableDescription() => "Gas data";
     }
     public static class Enums
     {
@@ -1537,7 +1575,6 @@ namespace IntersectUtilities
         public static BlockTableRecord GetModelspaceForWrite(this Database db) =>
             db.BlockTableId.Go<BlockTable>(db.TransactionManager.TopTransaction)[BlockTableRecord.ModelSpace]
             .Go<BlockTableRecord>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
-
     }
 
     public static class ExtensionMethods

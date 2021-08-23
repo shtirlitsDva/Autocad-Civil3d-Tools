@@ -2204,6 +2204,7 @@ namespace IntersectUtilities
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
 
             while (true)
             {
@@ -2267,42 +2268,21 @@ namespace IntersectUtilities
 
                         #region Try creating records
 
-                        string m_tableName = "GasDimOgMat";
-
-                        string[] columnNames = new string[3] { "Dimension", "Material", "Bemærk" };
-                        string[] columnDescriptions = new string[3] { "Pipe diameter", "Pipe material", "Bemærkning til ledning" };
-                        Autodesk.Gis.Map.Constants.DataType[] dataTypes = new Autodesk.Gis.Map.Constants.DataType[3]
-                        {
-                            DataType.Integer,
-                            DataType.Character,
-                            DataType.Character
-                        };
+                        string m_tableName = OdTables.GetGasTableName();
+                        string[] columnNames = OdTables.GetGasColumnNames();
+                        string[] columnDescriptions = OdTables.GetGasColumnDescriptions();
+                        Autodesk.Gis.Map.Constants.DataType[] dataTypes = OdTables.GetGasDataTypes();
                         MapValue[] values = new MapValue[3];
 
-                        Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-
-                        if (DoesTableExist(tables, m_tableName))
-                        {
-                            editor.WriteMessage("\nTable already exists!");
-
-                            if (!DoAllColumnsExist(tables, m_tableName, columnNames))
-                            {
-                                CreateMissingColumns(tables, m_tableName, columnNames, columnDescriptions, dataTypes);
-                            }
-                        }
-                        else
-                        {
-                            if (CreateTable(
-                                tables, m_tableName, "Gas data", columnNames, columnDescriptions, dataTypes))
-                            {
-                                editor.WriteMessage($"\nCreated table {m_tableName}.");
-                            }
-                            else
-                            {
-                                editor.WriteMessage("\nFailed to create the ObjectData table.");
-                                return;
-                            }
-                        }
+                        #region Prepare OdTable for gas
+                        CheckOrCreateTable(
+                            tables,
+                            OdTables.GetGasTableName(),
+                            OdTables.GetGasTableDescription(),
+                            OdTables.GetGasColumnNames(),
+                            OdTables.GetGasColumnDescriptions(),
+                            OdTables.GetGasDataTypes());
+                        #endregion
 
                         int parsedInt = 0;
                         string parsedMat = string.Empty;
@@ -2339,24 +2319,12 @@ namespace IntersectUtilities
 
                         for (int i = 0; i < columnNames.Length; i++)
                         {
-                            bool success = false;
-
-                            if (DoesRecordExist(tables, pline3dId, m_tableName, columnNames[i]))
-                            {
-                                editor.WriteMessage($"\nRecord {columnNames[i]} already exists, updating...");
-
-                                if (UpdateODRecord(tables, m_tableName, columnNames[i], pline3dId, values[i]))
-                                {
-                                    editor.WriteMessage($"\nUpdating record {columnNames[i]} succeded!");
-                                    success = true;
-                                }
-                                else editor.WriteMessage($"\nUpdating record {columnNames[i]} failed!");
-                            }
-                            else if (AddODRecord(tables, m_tableName, columnNames[i], pline3dId, values[i]))
-                            {
-                                editor.WriteMessage($"\nAdding record {columnNames[i]} succeded!");
-                                success = true;
-                            }
+                            bool success = CheckAddUpdateRecordValue(
+                                tables,
+                                pline3dId,
+                                m_tableName,
+                                columnNames[i],
+                                values[i]);
 
                             if (success)
                             {
@@ -2397,6 +2365,8 @@ namespace IntersectUtilities
                     tx.Commit();
                 }
             }
+
+
         }
 
         [CommandMethod("gasikkeibrug")]
@@ -9023,7 +8993,7 @@ namespace IntersectUtilities
                     void fix(Entity ent)
                     {
                         ent.CheckOrOpenForWrite();
-                        ent.Color = Color.FromColorIndex(ColorMethod.ByLayer, 0);
+                        ent.ColorIndex = 256;
                         ent.DowngradeOpen();
 
                         if (ent.Layer == "Distributionsrør")
@@ -9039,6 +9009,237 @@ namespace IntersectUtilities
                             ent.LineWeight = LineWeight.ByLayer;
                         }
                     }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("GASFINDLABELS")]
+        public void gasfindlabels()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Create layers
+                    List<string> layerNames = new List<string>()
+                    {   "GAS-Stikrør",
+                        "GAS-Stikrør-2D",
+                        "GAS-Fordelingsrør",
+                        "GAS-Fordelingsrør-2D",
+                        "GAS-Distributionsrør",
+                        "GAS-Distributionsrør-2D",
+                        "GAS-ude af drift",
+                        "GAS-ude af drift-2D" };
+                    LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    foreach (string name in layerNames)
+                    {
+                        if (!lt.Has(name))
+                        {
+                            LayerTableRecord ltr = new LayerTableRecord();
+                            ltr.Name = name;
+                            if (name == "GAS-ude af drift-2D" ||
+                                name == "GAS-ude af drift") ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 221);
+                            else ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 30);
+
+                            //Make layertable writable
+                            lt.CheckOrOpenForWrite();
+
+                            //Add the new layer to layer table
+                            oid ltId = lt.Add(ltr);
+                            tx.AddNewlyCreatedDBObject(ltr, true);
+                        }
+                    }
+                    #endregion
+
+                    #region Prepare OdTable for gas
+                    CheckOrCreateTable(
+                        tables,
+                        OdTables.GetGasTableName(),
+                        OdTables.GetGasTableDescription(),
+                        OdTables.GetGasColumnNames(),
+                        OdTables.GetGasColumnDescriptions(),
+                        OdTables.GetGasDataTypes());
+                    #endregion
+
+                    #region GatherObjects
+                    HashSet<Entity> allEnts = localDb.HashSetOfType<Entity>(tx);
+
+                    HashSet<Entity> entsPIPE = allEnts.Where(x => x.Layer == "PIPE").ToHashSet();
+                    HashSet<Entity> entsLABEL = allEnts.Where(x => x.Layer == "LABEL").ToHashSet();
+
+                    HashSet<Entity> entsGas = allEnts.Where(x => x.Layer == "Distributionsrør" ||
+                                                                 x.Layer == "Stikrør" ||
+                                                                 x.Layer == "Fordelingsrør")
+                                                                  .ToHashSet();
+                    #endregion
+
+                    #region QA data
+                    ////Find how many times multiple groups occur
+                    //var groups = entsLABEL.GroupBy(x => ReadIntPropertyValue(
+                    //    tables, x.Id, "LABEL", "G3EFIDINT"));
+                    //HashSet<int> counts = groups.Select(x => x.Count()).OrderBy(x => x).ToHashSet();
+                    //foreach (int count in counts)
+                    //{
+                    //    prdDbg(count.ToString() + " - " + groups.Where(x => x.Count() == count).Count().ToString());
+                    //}
+
+                    ////List values in multiple match groups
+                    //int[] countsArray = counts.ToArray();
+                    //for (int i = 0; i < countsArray.Length; i++)
+                    //{
+                    //    //Skip groups with one match
+                    //    if (i == 0) continue;
+
+                    //    prdDbg($"\nValues for groups of {i + 1}: ");
+                    //    var isolatedGroups = groups.Where(x => x.Count() == i + 1);
+                    //    foreach (var group in isolatedGroups)
+                    //    {
+                    //        string values = string.Join(" ",
+                    //            group.Select(
+                    //                x => ReadStringPropertyValue(
+                    //                    tables, x.Id, "LABEL", "LABEL")));
+                    //        prdDbg(values);
+                    //    }
+                    //}
+
+                    ////List all unique LABEL values
+                    //HashSet<string> allLabels = new HashSet<string>();
+                    //foreach (Entity ent in entsLABEL)
+                    //{
+                    //    allLabels.Add(ReadStringPropertyValue(tables, ent.Id, "LABEL", "LABEL"));
+                    //}
+                    //var ordered = allLabels.OrderBy(x => x);
+                    //foreach (string value in ordered) prdDbg(value);
+                    #endregion
+
+                    #region Cache labels in memory
+                    //Prepare label objects so we don't access OD all the time
+                    //Accessing OD is very slow
+                    HashSet<(int G3eFid, string Label)> allLabels = new HashSet<(int G3eFid, string Label)>();
+
+                    foreach (Entity ent in entsLABEL)
+                    {
+                        string label = ReadStringPropertyValue(
+                            tables, ent.Id, "LABEL", "LABEL");
+
+                        //Filter out unwanted values
+                        if (label.Equals("Sænket", StringComparison.OrdinalIgnoreCase) ||
+                            label.Equals("Anv. som trækrør", StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        allLabels.Add((
+                            ReadIntPropertyValue(tables, ent.Id, "LABEL", "G3EFIDINT"),
+                            label));
+                    }
+                    #endregion
+
+                    #region Find and write found labels if any
+                    //Iterate pipe objects
+                    foreach (Entity PIPE in entsPIPE)
+                    {
+                        #region Move pipe to correct layer
+                        //Move pipe to correct layer
+                        int FNO = ReadIntPropertyValue(
+                            tables,
+                            PIPE.Id,
+                            "PIPE",
+                            "G3E_FNO");
+
+                        PIPE.CheckOrOpenForWrite();
+                        if (FNO == 113) PIPE.Layer = "GAS-Stikrør";
+                        else if (FNO == 112) PIPE.Layer = "GAS-Distributionsrør";
+                        else if (FNO == 111) PIPE.Layer = "GAS-Fordelingsrør";
+                        #endregion
+
+                        //Try to find corresponding label entity
+                        int G3EFID = ReadIntPropertyValue(
+                            tables,
+                            PIPE.Id,
+                            "PIPE",
+                            "G3EFIDINT");
+
+                        var matches = allLabels.Where(x => x.G3eFid == G3EFID);
+
+                        //If no matches proceed to next element
+                        if (matches.Count() < 1) continue;
+
+                        var match = matches.FirstOrDefault();
+                        if (match == default) continue;
+
+                        int parsedInt = 0;
+                        string parsedMat = string.Empty;
+                        if (match.Label.Contains(" "))
+                        {
+                            //Gas specific handling
+                            string[] output = match.Label.Split((char[])null); //Splits by whitespace
+
+                            int.TryParse(output[0], out parsedInt);
+                            //Material
+                            parsedMat = output[1];
+                        }
+                        else
+                        {
+                            string[] output = match.Label.Split('/');
+                            string a = ""; //For number
+                            string b = ""; //For material
+
+                            for (int i = 0; i < output[0].Length; i++)
+                            {
+                                if (Char.IsDigit(output[0][i])) a += output[0][i];
+                                else b += output[0][i];
+                            }
+
+                            int.TryParse(a, out parsedInt);
+                            parsedMat = b;
+                        }
+
+                        prdDbg(parsedInt.ToString() + " - " + parsedMat);
+
+                        //Aggregate
+                        MapValue[] values = new MapValue[3];
+                        values[0] = new MapValue(parsedInt);
+                        values[1] = new MapValue(parsedMat);
+                        values[2] = new MapValue("");
+                        //if (ledningIbrug) values[2] = new MapValue("");
+                        //else values[2] = new MapValue("Ikke i brug");
+
+                        //Length - 1 because we don't need to update the last record
+                        for (int i = 0; i < OdTables.GetGasColumnNames().Length - 1; i++)
+                        {
+                            bool success = CheckAddUpdateRecordValue(
+                                tables,
+                                PIPE.Id,
+                                OdTables.GetGasTableName(),
+                                OdTables.GetGasColumnNames()[i],
+                                values[i]);
+
+                            if (success)
+                            {
+                                //editor.WriteMessage($"\nUpdating color and layer properties!");
+                                //Entity ent = pline3dId.Go<Entity>(tx, OpenMode.ForWrite);
+
+                                //if (ledningIbrug) ent.ColorIndex = 1;
+                                //else { ent.Layer = "GAS-ude af drift"; ent.ColorIndex = 130; }
+                                PIPE.ColorIndex = 1;
+                            }
+                        }
+                    }
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
