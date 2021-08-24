@@ -2513,15 +2513,15 @@ namespace IntersectUtilities
                     PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
                         "\nSelect entity FROM where to copy OD:");
                     promptEntityOptions1.SetRejectMessage("\n Not an entity!");
-                    promptEntityOptions1.AddAllowedClass(typeof(Entity), true);
+                    promptEntityOptions1.AddAllowedClass(typeof(Entity), false);
                     PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
                     if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
                     Autodesk.AutoCAD.DatabaseServices.ObjectId sourceId = entity1.ObjectId;
 
                     PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
                         "\nSelect entity where to copy OD TO:");
-                    promptEntityOptions2.SetRejectMessage("\n Not an entity!");
-                    promptEntityOptions2.AddAllowedClass(typeof(Entity), true);
+                    promptEntityOptions1.SetRejectMessage("\n Not an entity!");
+                    promptEntityOptions1.AddAllowedClass(typeof(Entity), false);
                     PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
                     if (((PromptResult)entity2).Status != PromptStatus.OK) { tx.Abort(); return; }
                     Autodesk.AutoCAD.DatabaseServices.ObjectId targetId = entity2.ObjectId;
