@@ -9081,11 +9081,6 @@ namespace IntersectUtilities
 
                     HashSet<Entity> entsPIPE = allEnts.Where(x => x.Layer == "PIPE").ToHashSet();
                     HashSet<Entity> entsLABEL = allEnts.Where(x => x.Layer == "LABEL").ToHashSet();
-
-                    HashSet<Entity> entsGas = allEnts.Where(x => x.Layer == "Distributionsrør" ||
-                                                                 x.Layer == "Stikrør" ||
-                                                                 x.Layer == "Fordelingsrør")
-                                                                  .ToHashSet();
                     #endregion
 
                     #region QA data
@@ -9208,7 +9203,7 @@ namespace IntersectUtilities
                             parsedMat = b;
                         }
 
-                        prdDbg(parsedInt.ToString() + " - " + parsedMat);
+                        //prdDbg(parsedInt.ToString() + " - " + parsedMat);
 
                         //Aggregate
                         MapValue[] values = new MapValue[3];

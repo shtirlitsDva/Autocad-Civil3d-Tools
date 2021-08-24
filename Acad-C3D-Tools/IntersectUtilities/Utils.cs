@@ -392,8 +392,6 @@ namespace IntersectUtilities
         {
             try
             {
-                Autodesk.Gis.Map.ObjectData.Table table = tables[tableName];
-
                 ErrorCode errCode = ErrorCode.OK;
 
                 bool success = true;
@@ -414,6 +412,7 @@ namespace IntersectUtilities
                         // Get record info
                         for (int i = 0; i < record.Count; i++)
                         {
+                            Autodesk.Gis.Map.ObjectData.Table table = tables[record.TableName];
                             FieldDefinitions tableDef = table.FieldDefinitions;
                             FieldDefinition column = tableDef[i];
                             if (column.Name == columnName && record.TableName == tableName)
@@ -465,8 +464,6 @@ namespace IntersectUtilities
 
             try
             {
-                Autodesk.Gis.Map.ObjectData.Table table = tables[tableName];
-
                 ErrorCode errCode = ErrorCode.OK;
 
                 bool success = false;
@@ -484,10 +481,11 @@ namespace IntersectUtilities
                     // Iterate through all records
                     foreach (Record record in records)
                     {
+                        Autodesk.Gis.Map.ObjectData.Table table = tables[record.TableName];
+                        FieldDefinitions tableDef = table.FieldDefinitions;
                         // Get record info
                         for (int i = 0; i < record.Count; i++)
                         {
-                            FieldDefinitions tableDef = table.FieldDefinitions;
                             FieldDefinition column = tableDef[i];
                             if (column.Name == columnName && record.TableName == tableName)
                             {
@@ -501,8 +499,9 @@ namespace IntersectUtilities
                 }
                 return false;
             }
-            catch (MapException)
+            catch (MapException ex)
             {
+                prdDbg(((Autodesk.Gis.Map.Constants.ErrorCode)ex.ErrorCode).ToString());
                 return false;
             }
         }
