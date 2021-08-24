@@ -2216,9 +2216,11 @@ namespace IntersectUtilities
 
                         #region Select pline3d
                         PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                            "\nSelect polyline3d to modify:");
+                            "\nSelect (poly)line(3d) to modify:");
                         promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
                         promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                        promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
+                        promptEntityOptions1.AddAllowedClass(typeof(Line), true);
                         PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
                         if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
                         Autodesk.AutoCAD.DatabaseServices.ObjectId pline3dId = entity1.ObjectId;
@@ -2389,8 +2391,10 @@ namespace IntersectUtilities
 
                         #region Select pline3d
                         PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                            "\nSelect polyline3d to modify:");
+                            "\nSelect (poly)line(3d) to modify:");
                         promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
+                        promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
+                        promptEntityOptions1.AddAllowedClass(typeof(Line), true);
                         promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
                         PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
                         if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
@@ -2487,6 +2491,64 @@ namespace IntersectUtilities
                     }
                     tx.Commit();
                 }
+            }
+        }
+
+        [CommandMethod("COPYODGAS")]
+        [CommandMethod("CD")]
+        public void copyodgas()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Select entities
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                        "\nSelect entity FROM where to copy OD:");
+                    promptEntityOptions1.SetRejectMessage("\n Not an entity!");
+                    promptEntityOptions1.AddAllowedClass(typeof(Entity), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId sourceId = entity1.ObjectId;
+
+                    PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
+                        "\nSelect entity where to copy OD TO:");
+                    promptEntityOptions2.SetRejectMessage("\n Not an entity!");
+                    promptEntityOptions2.AddAllowedClass(typeof(Entity), true);
+                    PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                    if (((PromptResult)entity2).Status != PromptStatus.OK) { tx.Abort(); return; }
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId targetId = entity2.ObjectId;
+                    #endregion
+
+                    #region Choose table
+                    CopyAllOD(HostMapApplicationServices.Application.ActiveProject.ODTables,
+                        sourceId, targetId);
+                    #endregion
+
+                    Entity targetEnt = targetId.Go<Entity>(tx, OpenMode.ForWrite);
+                    Entity sourceEnt = sourceId.Go<Entity>(tx);
+
+                    if (sourceEnt.Layer == "GAS-ude af drift")
+                    {
+                        targetEnt.Layer = "GAS-ude af drift";
+                        targetEnt.ColorIndex = 130;
+                    }
+                    else targetEnt.ColorIndex = 1;
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
             }
         }
 
