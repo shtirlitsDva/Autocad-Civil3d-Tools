@@ -8895,6 +8895,10 @@ namespace IntersectUtilities
                     int findDescriptionPartsFailed = 0;
                     foreach (Polyline pline in plines)
                     {
+                        //Set color to by layer
+                        pline.CheckOrOpenForWrite();
+                        pline.ColorIndex = 256;
+
                         //Check if pline's layer exists in krydsninger
                         string nameInFile = ReadStringParameterFromDataTable(pline.Layer, dtKrydsninger, "Navn", 0);
                         if (nameInFile.IsNoE())
@@ -8935,17 +8939,16 @@ namespace IntersectUtilities
 
                         if (dia == 0) dia = 0.09;
 
-                        pline.CheckOrOpenForWrite();
                         pline.ConstantWidth = dia;
                     }
                     #endregion
 
                     #region Reporting
 
-                    prdDbg($"\nLayer name not defined in Krydsninger.csv for {layerNameNotDefined} polyline(s).");
-                    prdDbg($"\nLayer name is set to IGNORE in Krydsninger.csv for {layerNameIgnored} polyline(s).");
-                    prdDbg($"\nDiameter definition is not defined in Krydsninger.csv for {layerDiameterDefMissing} polyline(s).");
-                    prdDbg($"\nGetting diameter definition parts failed for {findDescriptionPartsFailed} polyline(s).");
+                    prdDbg($"Layer name not defined in Krydsninger.csv for {layerNameNotDefined} polyline(s).");
+                    prdDbg($"Layer name is set to IGNORE in Krydsninger.csv for {layerNameIgnored} polyline(s).");
+                    prdDbg($"Diameter definition is not defined in Krydsninger.csv for {layerDiameterDefMissing} polyline(s).");
+                    prdDbg($"Getting diameter definition parts failed for {findDescriptionPartsFailed} polyline(s).");
                     #endregion
 
                 }
