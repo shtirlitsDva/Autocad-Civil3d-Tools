@@ -9441,7 +9441,7 @@ namespace IntersectUtilities
                     //correctionThreshold operates on values LESS THAN value
                     //targetThreshold operates on values GREATER THAN value
                     double correctionThreshold = 1;
-                    double targetThreshold = 10;
+                    double targetThreshold = 2;
                     ////////////////////////////////
                     HashSet<Polyline3d> plines3d = localDb.HashSetOfType<Polyline3d>(tx, true);
                     foreach (Polyline3d p3d in plines3d)
