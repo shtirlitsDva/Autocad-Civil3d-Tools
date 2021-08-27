@@ -9148,45 +9148,6 @@ namespace IntersectUtilities
                     HashSet<Entity> entsLABEL = allEnts.Where(x => x.Layer == "LABEL").ToHashSet();
                     #endregion
 
-                    #region QA data
-                    ////Find how many times multiple groups occur
-                    //var groups = entsLABEL.GroupBy(x => ReadIntPropertyValue(
-                    //    tables, x.Id, "LABEL", "G3EFIDINT"));
-                    //HashSet<int> counts = groups.Select(x => x.Count()).OrderBy(x => x).ToHashSet();
-                    //foreach (int count in counts)
-                    //{
-                    //    prdDbg(count.ToString() + " - " + groups.Where(x => x.Count() == count).Count().ToString());
-                    //}
-
-                    ////List values in multiple match groups
-                    //int[] countsArray = counts.ToArray();
-                    //for (int i = 0; i < countsArray.Length; i++)
-                    //{
-                    //    //Skip groups with one match
-                    //    if (i == 0) continue;
-
-                    //    prdDbg($"\nValues for groups of {i + 1}: ");
-                    //    var isolatedGroups = groups.Where(x => x.Count() == i + 1);
-                    //    foreach (var group in isolatedGroups)
-                    //    {
-                    //        string values = string.Join(" ",
-                    //            group.Select(
-                    //                x => ReadStringPropertyValue(
-                    //                    tables, x.Id, "LABEL", "LABEL")));
-                    //        prdDbg(values);
-                    //    }
-                    //}
-
-                    ////List all unique LABEL values
-                    //HashSet<string> allLabels = new HashSet<string>();
-                    //foreach (Entity ent in entsLABEL)
-                    //{
-                    //    allLabels.Add(ReadStringPropertyValue(tables, ent.Id, "LABEL", "LABEL"));
-                    //}
-                    //var ordered = allLabels.OrderBy(x => x);
-                    //foreach (string value in ordered) prdDbg(value);
-                    #endregion
-
                     #region Cache labels in memory
                     //Prepare label objects so we don't access OD all the time
                     //Accessing OD is very slow
@@ -9199,11 +9160,16 @@ namespace IntersectUtilities
 
                         //Filter out unwanted values
                         if (label.Equals("Sænket", StringComparison.OrdinalIgnoreCase) ||
-                            label.Equals("Anv. som trækrør", StringComparison.OrdinalIgnoreCase))
+                            label.Equals("Anv. som trækrør", StringComparison.OrdinalIgnoreCase) ||
+                            label.Equals("sænket 40 cm", StringComparison.OrdinalIgnoreCase))
                             continue;
 
+                        //Modify labels with excess data
+                        if (label.Equals("b-rør 63 PM", StringComparison.OrdinalIgnoreCase))
+                            label = "63 PM";
+
                         allLabels.Add((
-                            ReadIntPropertyValue(tables, ent.Id, "LABEL", "G3EFIDINT"),
+                            Convert.ToInt32(ReadDoublePropertyValue(tables, ent.Id, "LABEL", "G3E_FID")),
                             label));
                     }
                     #endregion
@@ -9227,11 +9193,12 @@ namespace IntersectUtilities
                         #endregion
 
                         //Try to find corresponding label entity
-                        int G3EFID = ReadIntPropertyValue(
+                        int G3EFID = Convert.ToInt32(
+                            ReadDoublePropertyValue(
                             tables,
                             PIPE.Id,
                             "PIPE",
-                            "G3EFIDINT");
+                            "G3E_FID"));
 
                         var matches = allLabels.Where(x => x.G3eFid == G3EFID);
 
@@ -9299,6 +9266,77 @@ namespace IntersectUtilities
                             }
                         }
                     }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("GASQADATA")]
+        public void gasqadata()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region GatherObjects
+                    HashSet<Entity> allEnts = localDb.HashSetOfType<Entity>(tx);
+
+                    HashSet<Entity> entsPIPE = allEnts.Where(x => x.Layer == "PIPE").ToHashSet();
+                    HashSet<Entity> entsLABEL = allEnts.Where(x => x.Layer == "LABEL").ToHashSet();
+                    #endregion
+
+                    #region QA data
+                    //Find how many times multiple groups occur
+                    var groups = entsLABEL.GroupBy(x => Convert.ToInt32(ReadDoublePropertyValue(
+                        tables, x.Id, "LABEL", "G3E_FID")));
+                    HashSet<int> counts = groups.Select(x => x.Count()).OrderBy(x => x).ToHashSet();
+                    foreach (int count in counts)
+                    {
+                        prdDbg(count.ToString() + " - " + groups.Where(x => x.Count() == count).Count().ToString());
+                    }
+
+                    //List values in multiple match groups
+                    int[] countsArray = counts.ToArray();
+                    for (int i = 0; i < countsArray.Length; i++)
+                    {
+                        //Skip groups with one match
+                        if (i == 0) continue;
+
+                        prdDbg($"\nValues for groups of {countsArray[i]}: ");
+                        var isolatedGroups = groups.Where(x => x.Count() == countsArray[i]);
+                        foreach (var group in isolatedGroups)
+                        {
+                            string values = string.Join(" ",
+                                group.Select(
+                                    x => ReadStringPropertyValue(
+                                        tables, x.Id, "LABEL", "LABEL")));
+                            prdDbg(values);
+                        }
+                    }
+
+                    //List all unique LABEL values
+                    HashSet<string> allLabels = new HashSet<string>();
+                    foreach (Entity ent in entsLABEL)
+                    {
+                        allLabels.Add(ReadStringPropertyValue(tables, ent.Id, "LABEL", "LABEL"));
+                    }
+                    var ordered = allLabels.OrderBy(x => x);
+                    foreach (string value in ordered) prdDbg(value);
                     #endregion
                 }
                 catch (System.Exception ex)
