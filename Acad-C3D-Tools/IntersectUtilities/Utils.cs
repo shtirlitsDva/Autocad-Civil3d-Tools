@@ -1471,6 +1471,18 @@ namespace IntersectUtilities
             }
             return totalLength;
         }
+        public static double GetHorizontalLengthBetweenIdxs(this Polyline3d poly3d, int startIdx, int endIdx)
+        {
+            Transaction tx = poly3d.Database.TransactionManager.TopTransaction;
+            poly3d.CheckOrOpenForRead();
+            var vertices = poly3d.GetVertices(tx);
+            double totalLength = 0;
+            for (int i = startIdx; i < endIdx; i++)
+            {
+                totalLength += vertices[i].Position.DistanceHorizontalTo(vertices[i + 1].Position);
+            }
+            return totalLength;
+        }
         public static double DistanceHorizontalTo(this Point3d sourceP3d, Point3d targetP3d)
         {
             double X1 = sourceP3d.X;

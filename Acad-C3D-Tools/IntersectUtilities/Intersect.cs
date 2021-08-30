@@ -3017,6 +3017,44 @@ namespace IntersectUtilities
                             }
                         }
                     }
+
+                    #region Second pass looking at end points
+                    //But only for vertices still at 0
+
+                    HashSet<Point3d> allEnds = new HashSet<Point3d>(new Point3dHorizontalComparer());
+
+                    foreach (Polyline3d pline3d in localPlines3d)
+                    {
+                        var vertices = pline3d.GetVertices(tx);
+                        int end = vertices.Length - 1;
+                        allEnds.Add(new Point3d(
+                            vertices[0].Position.X, vertices[0].Position.Y, vertices[0].Position.Z));
+                        allEnds.Add(new Point3d(
+                            vertices[end].Position.X, vertices[end].Position.Y, vertices[end].Position.Z));
+                    }
+
+                    foreach (Polyline3d pline3d in localPlines3d)
+                    {
+                        var vertices = pline3d.GetVertices(tx);
+
+                        for (int i = 0; i < vertices.Length; i++)
+                        {
+                            //Only change vertices still at zero
+                            if (vertices[i].Position.Z > 0.1) continue;
+
+                            Point3d match = allEnds.Where(x => x.HorizontalEqualz(
+                                vertices[i].Position, 0.05)).FirstOrDefault();
+                            if (match != null)
+                            {
+                                vertices[i].UpgradeOpen();
+                                vertices[i].Position = new Point3d(
+                                    vertices[i].Position.X, vertices[i].Position.Y, match.Z);
+                                vertices[i].DowngradeOpen();
+                            }
+                        }
+                    }
+
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
@@ -9060,19 +9098,26 @@ namespace IntersectUtilities
                         ent.CheckOrOpenForWrite();
                         ent.ColorIndex = 256;
                         ent.DowngradeOpen();
+                    }
 
-                        if (ent.Layer == "Distributionsrør")
-                        {
-                            ent.CheckOrOpenForWrite();
-                            ent.Layer = "Stikrør";
-                            ent.LineWeight = LineWeight.ByLayer;
-                        }
-                        else if (ent.Layer == "Stikrør")
-                        {
-                            ent.CheckOrOpenForWrite();
-                            ent.Layer = "Distributionsrør";
-                            ent.LineWeight = LineWeight.ByLayer;
-                        }
+                    List<string> layerNames = new List<string>()
+                    {
+                        "GAS-Distributionsrør",
+                        "GAS-Distributionsrør-2D",
+                        "GAS-Fordelingsrør",
+                        "GAS-Fordelingsrør-2D",
+                        "GAS-Stikrør",
+                        "GAS-Stikrør-2D"
+                    };
+
+                    LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                    foreach (string name in layerNames)
+                    {
+                        if (!lt.Has(name)) continue;
+                        LayerTableRecord ltr = lt.GetLayerByName(name);
+                        ltr.CheckOrOpenForWrite();
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 30);
                     }
                 }
                 catch (System.Exception ex)
@@ -9161,12 +9206,21 @@ namespace IntersectUtilities
                         //Filter out unwanted values
                         if (label.Equals("Sænket", StringComparison.OrdinalIgnoreCase) ||
                             label.Equals("Anv. som trækrør", StringComparison.OrdinalIgnoreCase) ||
+                            label.Equals("Anvendt som trækrør", StringComparison.OrdinalIgnoreCase) ||
+                            label.Equals("FRITST.M/R SKAB", StringComparison.OrdinalIgnoreCase) ||
+                            label.Equals("G10", StringComparison.OrdinalIgnoreCase) ||
+                            label.Equals("M/R SKAB", StringComparison.OrdinalIgnoreCase) ||
+                            label.Equals("T=0.2", StringComparison.OrdinalIgnoreCase) ||
+                            label.Equals("T=0.3", StringComparison.OrdinalIgnoreCase) ||
+                            label.Equals("TYPE G65", StringComparison.OrdinalIgnoreCase) ||
                             label.Equals("sænket 40 cm", StringComparison.OrdinalIgnoreCase))
                             continue;
 
                         //Modify labels with excess data
                         if (label.Equals("b-rør 63 PM", StringComparison.OrdinalIgnoreCase))
                             label = "63 PM";
+                        if (label.Equals("75 ST/63 PM 026"))
+                            label = label.Split('/')[0];
 
                         allLabels.Add((
                             Convert.ToInt32(ReadDoublePropertyValue(tables, ent.Id, "LABEL", "G3E_FID")),
@@ -9424,6 +9478,132 @@ namespace IntersectUtilities
                         ltr.CheckOrOpenForWrite();
                         ltr.Color = Color.FromRgb(0, 115, 230);
                     }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("P3DRESETVERTICESEXCEPTENDS")]
+        public void p3dresetverticesexceptends()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Select pline3d
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                        "\nSelect polyline3d to reset: ");
+                    promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
+                    promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId pline3dId = entity1.ObjectId;
+                    #endregion
+
+                    #region Process vertices
+                    Polyline3d p3d = pline3dId.Go<Polyline3d>(tx, OpenMode.ForWrite);
+                    PolylineVertex3d[] vertices = p3d.GetVertices(tx);
+
+                    //i=1 and Length-1 to skip first and last
+                    for (int i = 1; i < vertices.Length - 1; i++)
+                    {
+                        vertices[i].CheckOrOpenForWrite();
+                        vertices[i].Position = new Point3d(
+                            vertices[i].Position.X, vertices[i].Position.Y, 0);
+                    }
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("P3DINTERPOLATEBETWEENISLANDS")]
+        public void p3dinterpolatebetweenislands()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Select pline3d
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                        "\nSelect polyline3d to interpolate: ");
+                    promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
+                    promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId pline3dId = entity1.ObjectId;
+                    #endregion
+
+                    //Currently assumes that start and end vertices are at elevation
+
+                    #region Process vertices
+                    Polyline3d p3d = pline3dId.Go<Polyline3d>(tx, OpenMode.ForWrite);
+                    PolylineVertex3d[] vertices = p3d.GetVertices(tx);
+
+                    List<int> islands = new List<int>();
+                    for (int i = 0; i < vertices.Length; i++)
+                        if (vertices[i].Position.Z > 0.1)
+                            islands.Add(i);
+
+                    //int endIdx = vertices.Length - 1;
+
+                    for (int i = 0; i < islands.Count; i++)
+                    {
+                        //Stop before last idx to avoid out of bounds
+                        if (i == islands.Count - 1) break;
+                        int startIdx = islands[i];
+                        int endIdx = islands[i + 1];
+                        //check if islands are next to each other
+                        if (endIdx - startIdx == 1) continue;
+
+                        //Interpolation
+                        double startElevation = vertices[startIdx].Position.Z;
+                        double endElevation = vertices[endIdx].Position.Z;
+                        double AB = p3d.GetHorizontalLengthBetweenIdxs(startIdx, endIdx);
+                        prdDbg(AB.ToString());
+                        double AAmark = startElevation - endElevation;
+                        double PB = 0;
+                        for (int j = startIdx; j < endIdx + 1; j++)
+                        {
+                            //Skip first and last vertici
+                            if (j == startIdx || j == endIdx) continue;
+
+                            PB += vertices[j - 1].Position.DistanceHorizontalTo(
+                                                 vertices[j].Position);
+
+                            double newElevation = startElevation - PB * (AAmark / AB);
+                            vertices[j].CheckOrOpenForWrite();
+                            vertices[j].Position = new Point3d(
+                                vertices[j].Position.X, vertices[j].Position.Y, newElevation);
+                        }
+                    }
+
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
