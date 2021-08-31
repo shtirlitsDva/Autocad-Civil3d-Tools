@@ -2971,100 +2971,6 @@ namespace IntersectUtilities
             }
         }
 
-        //Used to move 3d polylines of gas to elevation points
-        [CommandMethod("movep3dverticestopoints")]
-        public void movep3dverticestopoints()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    #region Load linework from local db
-                    HashSet<Line> localLines = localDb.HashSetOfType<Line>(tx);
-                    editor.WriteMessage($"\nNr. of local lines: {localLines.Count}");
-                    HashSet<Polyline3d> localPlines3d = localDb.HashSetOfType<Polyline3d>(tx);
-                    editor.WriteMessage($"\nNr. of local 3D polies: {localPlines3d.Count}");
-                    #endregion
-
-                    //Points to intersect
-                    HashSet<DBPoint> points = new HashSet<DBPoint>(localDb.ListOfType<DBPoint>(tx)
-                                                  .Where(x => x.Position.Z > 0.1),
-                                                  new PointDBHorizontalComparer());
-                    editor.WriteMessage($"\nNr. of local points: {points.Count}");
-                    editor.WriteMessage($"\nTotal number of combinations: " +
-                        $"{points.Count * (localLines.Count + localPlines3d.Count)}");
-
-                    foreach (Polyline3d pline3d in localPlines3d)
-                    {
-                        var vertices = pline3d.GetVertices(tx);
-
-                        for (int i = 0; i < vertices.Length; i++)
-                        {
-                            DBPoint match = points.Where(x => x.Position.HorizontalEqualz(
-                                vertices[i].Position, 0.05)).FirstOrDefault();
-                            if (match != null)
-                            {
-                                vertices[i].UpgradeOpen();
-                                vertices[i].Position = new Point3d(
-                                    vertices[i].Position.X, vertices[i].Position.Y, match.Position.Z);
-                                vertices[i].DowngradeOpen();
-                            }
-                        }
-                    }
-
-                    #region Second pass looking at end points
-                    //But only for vertices still at 0
-
-                    HashSet<Point3d> allEnds = new HashSet<Point3d>(new Point3dHorizontalComparer());
-
-                    foreach (Polyline3d pline3d in localPlines3d)
-                    {
-                        var vertices = pline3d.GetVertices(tx);
-                        int end = vertices.Length - 1;
-                        allEnds.Add(new Point3d(
-                            vertices[0].Position.X, vertices[0].Position.Y, vertices[0].Position.Z));
-                        allEnds.Add(new Point3d(
-                            vertices[end].Position.X, vertices[end].Position.Y, vertices[end].Position.Z));
-                    }
-
-                    foreach (Polyline3d pline3d in localPlines3d)
-                    {
-                        var vertices = pline3d.GetVertices(tx);
-
-                        for (int i = 0; i < vertices.Length; i++)
-                        {
-                            //Only change vertices still at zero
-                            if (vertices[i].Position.Z > 0.1) continue;
-
-                            Point3d match = allEnds.Where(x => x.HorizontalEqualz(
-                                vertices[i].Position, 0.05)).FirstOrDefault();
-                            if (match != null)
-                            {
-                                vertices[i].UpgradeOpen();
-                                vertices[i].Position = new Point3d(
-                                    vertices[i].Position.X, vertices[i].Position.Y, match.Z);
-                                vertices[i].DowngradeOpen();
-                            }
-                        }
-                    }
-
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    editor.WriteMessage("\n" + ex.Message);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
-
         /// <summary>
         /// Used to move 3d polylines of Novafos data to elevation points
         /// </summary>
@@ -9203,24 +9109,12 @@ namespace IntersectUtilities
                         string label = ReadStringPropertyValue(
                             tables, ent.Id, "LABEL", "LABEL");
 
-                        //Filter out unwanted values
-                        if (label.Equals("Sænket", StringComparison.OrdinalIgnoreCase) ||
-                            label.Equals("Anv. som trækrør", StringComparison.OrdinalIgnoreCase) ||
-                            label.Equals("Anvendt som trækrør", StringComparison.OrdinalIgnoreCase) ||
-                            label.Equals("FRITST.M/R SKAB", StringComparison.OrdinalIgnoreCase) ||
-                            label.Equals("G10", StringComparison.OrdinalIgnoreCase) ||
-                            label.Equals("M/R SKAB", StringComparison.OrdinalIgnoreCase) ||
-                            label.Equals("T=0.2", StringComparison.OrdinalIgnoreCase) ||
-                            label.Equals("T=0.3", StringComparison.OrdinalIgnoreCase) ||
-                            label.Equals("TYPE G65", StringComparison.OrdinalIgnoreCase) ||
-                            label.Equals("sænket 40 cm", StringComparison.OrdinalIgnoreCase))
-                            continue;
+                        ////Filter out unwanted values
+                        if (DataQa.Gas.GasForbiddenValues.Contains(label.ToUpper())) continue;
 
                         //Modify labels with excess data
-                        if (label.Equals("b-rør 63 PM", StringComparison.OrdinalIgnoreCase))
-                            label = "63 PM";
-                        if (label.Equals("75 ST/63 PM 026"))
-                            label = label.Split('/')[0];
+                        if (DataQa.Gas.GasReplaceLabelParts.ContainsKey(label.ToUpper()))
+                            label = DataQa.Gas.GasReplaceLabelParts[label.ToUpper()];
 
                         allLabels.Add((
                             Convert.ToInt32(ReadDoublePropertyValue(tables, ent.Id, "LABEL", "G3E_FID")),
@@ -9358,7 +9252,8 @@ namespace IntersectUtilities
                     //Find how many times multiple groups occur
                     var groups = entsLABEL.GroupBy(x => Convert.ToInt32(ReadDoublePropertyValue(
                         tables, x.Id, "LABEL", "G3E_FID")));
-                    HashSet<int> counts = groups.Select(x => x.Count()).OrderBy(x => x).ToHashSet();
+                    List<int> counts = groups.Select(x => x.Count()).Distinct().OrderBy(x => x).ToList();
+
                     foreach (int count in counts)
                     {
                         prdDbg(count.ToString() + " - " + groups.Where(x => x.Count() == count).Count().ToString());
@@ -9383,6 +9278,9 @@ namespace IntersectUtilities
                         }
                     }
 
+                    //Insert blank line to separate output
+                    prdDbg("");
+
                     //List all unique LABEL values
                     HashSet<string> allLabels = new HashSet<string>();
                     foreach (Entity ent in entsLABEL)
@@ -9390,12 +9288,115 @@ namespace IntersectUtilities
                         allLabels.Add(ReadStringPropertyValue(tables, ent.Id, "LABEL", "LABEL"));
                     }
                     var ordered = allLabels.OrderBy(x => x);
-                    foreach (string value in ordered) prdDbg(value);
+                    foreach (string value in ordered)
+                    {
+                        string label = value.ToUpper();
+                        //Check if value is handled by filters
+                        if (DataQa.Gas.GasForbiddenValues.Contains(label))
+                            label += " <------*";
+                        if (DataQa.Gas.GasReplaceLabelParts.ContainsKey(label))
+                            label += " <------*";
+                        prdDbg(label);
+                    }
                     #endregion
                 }
                 catch (System.Exception ex)
                 {
                     tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        //Used to move 3d polylines of gas to elevation points
+        [CommandMethod("movep3dverticestopoints")]
+        public void movep3dverticestopoints()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Load linework from local db
+                    HashSet<Line> localLines = localDb.HashSetOfType<Line>(tx);
+                    editor.WriteMessage($"\nNr. of local lines: {localLines.Count}");
+                    HashSet<Polyline3d> localPlines3d = localDb.HashSetOfType<Polyline3d>(tx);
+                    editor.WriteMessage($"\nNr. of local 3D polies: {localPlines3d.Count}");
+                    #endregion
+
+                    //Points to intersect
+                    HashSet<DBPoint> points = new HashSet<DBPoint>(localDb.ListOfType<DBPoint>(tx)
+                                                  .Where(x => x.Position.Z > 0.1),
+                                                  new PointDBHorizontalComparer());
+                    editor.WriteMessage($"\nNr. of local points: {points.Count}");
+                    editor.WriteMessage($"\nTotal number of combinations: " +
+                        $"{points.Count * (localLines.Count + localPlines3d.Count)}");
+
+                    foreach (Polyline3d pline3d in localPlines3d)
+                    {
+                        var vertices = pline3d.GetVertices(tx);
+
+                        for (int i = 0; i < vertices.Length; i++)
+                        {
+                            DBPoint match = points.Where(x => x.Position.HorizontalEqualz(
+                                vertices[i].Position, 0.05)).FirstOrDefault();
+                            if (match != null)
+                            {
+                                vertices[i].UpgradeOpen();
+                                vertices[i].Position = new Point3d(
+                                    vertices[i].Position.X, vertices[i].Position.Y, match.Position.Z);
+                                vertices[i].DowngradeOpen();
+                            }
+                        }
+                    }
+
+                    #region Second pass looking at end points
+                    //But only for vertices still at 0
+
+                    HashSet<Point3d> allEnds = new HashSet<Point3d>(new Point3dHorizontalComparer());
+
+                    foreach (Polyline3d pline3d in localPlines3d)
+                    {
+                        var vertices = pline3d.GetVertices(tx);
+                        int end = vertices.Length - 1;
+                        allEnds.Add(new Point3d(
+                            vertices[0].Position.X, vertices[0].Position.Y, vertices[0].Position.Z));
+                        allEnds.Add(new Point3d(
+                            vertices[end].Position.X, vertices[end].Position.Y, vertices[end].Position.Z));
+                    }
+
+                    foreach (Polyline3d pline3d in localPlines3d)
+                    {
+                        var vertices = pline3d.GetVertices(tx);
+
+                        for (int i = 0; i < vertices.Length; i++)
+                        {
+                            //Only change vertices still at zero
+                            if (vertices[i].Position.Z > 0.1) continue;
+
+                            Point3d match = allEnds.Where(x => x.HorizontalEqualz(
+                                vertices[i].Position, 0.05)).FirstOrDefault();
+                            if (match != null)
+                            {
+                                vertices[i].UpgradeOpen();
+                                vertices[i].Position = new Point3d(
+                                    vertices[i].Position.X, vertices[i].Position.Y, match.Z);
+                                vertices[i].DowngradeOpen();
+                            }
+                        }
+                    }
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
