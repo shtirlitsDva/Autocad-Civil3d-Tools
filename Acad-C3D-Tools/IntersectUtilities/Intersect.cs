@@ -11467,5 +11467,110 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        [CommandMethod("TESTSTIKCOUNTING")]
+        public void teststikcounting()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
+
+                #region Manage layer to contain connection lines
+                LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                string conLayName = "0-CONNECTION_LINE";
+                if (!lt.Has(conLayName))
+                {
+                    LayerTableRecord ltr = new LayerTableRecord();
+                    ltr.Name = conLayName;
+                    ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
+
+                    //Make layertable writable
+                    lt.CheckOrOpenForWrite();
+
+                    //Add the new layer to layer table
+                    oid ltId = lt.Add(ltr);
+                    tx.AddNewlyCreatedDBObject(ltr, true);
+                } 
+                #endregion
+
+                try
+                {
+                    #region 
+                    using (Database extDb = new Database(false, true))
+                    {
+                        extDb.ReadDwgFile(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\" +
+                                          @"01 Autocad\Autocad\01 Views\4.1 og 4.2\FJV-Fremtid 4.2.dwg",
+                                          System.IO.FileShare.ReadWrite, false, "");
+
+                        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                        {
+                            try
+                            {
+                                #region Stik counting
+                                var plines = extDb.HashSetOfType<Polyline>(extTx, false)
+                                    .Where(x => ODDataReader.Pipes.ReadPipeDimension((Entity)x).Int32Value != 999)
+                                    .ToHashSet();
+                                var points = localDb.HashSetOfType<DBPoint>(tx);
+
+                                foreach (DBPoint point in points)
+                                {
+                                    List<(double dist, oid id, Point3d np)> res = new List<(double dist, oid id, Point3d np)>();
+                                    foreach (Polyline pline in plines)
+                                    {
+                                        Point3d closestPoint = pline.GetClosestPointTo(point.Position, false);
+                                        res.Add((point.Position.DistanceHorizontalTo(closestPoint), pline.Id, closestPoint));
+                                    }
+
+                                    var nearest = res.MinBy(x => x.dist).FirstOrDefault();
+                                    if (nearest == default) continue;
+
+                                    #region Create line
+                                    Line connection = new Line();
+                                    connection.SetDatabaseDefaults();
+                                    connection.Layer = conLayName;
+                                    connection.StartPoint = point.Position;
+                                    connection.EndPoint = nearest.np;
+                                    modelSpace.AppendEntity(connection);
+                                    tx.AddNewlyCreatedDBObject(connection, true);
+                                    #endregion
+                                }
+
+                                #endregion
+
+                                extTx.Commit();
+                            }
+                            catch (System.Exception ex)
+                            {
+                                prdDbg(ex.Message);
+                                extTx.Abort();
+                                throw;
+                            }
+                        }
+                        //extDb.SaveAs(extDb.Filename, DwgVersion.Current);
+                    }
+                    System.Windows.Forms.Application.DoEvents();
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+        }
     }
 }
