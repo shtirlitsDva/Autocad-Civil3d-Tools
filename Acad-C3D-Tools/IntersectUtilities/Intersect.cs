@@ -10475,7 +10475,6 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("CREATEGISDATA")]
-        //Does not update dynamic blocks
         public static void creategisdata()
         {
             DocumentCollection docCol = Application.DocumentManager;

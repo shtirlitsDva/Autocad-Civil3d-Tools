@@ -47,7 +47,7 @@ namespace ExportShapeFiles
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 string logFileName = @"C:\1\DRI\0371-1158 - Gentofte Fase 4 - Dokumenter\02 Ekstern\" +
-                                 @"01 Gældende tegninger\01 GIS input\02 Trace shape\export.log";
+                                     @"01 Gældende tegninger\01 GIS input\02 Trace shape\export.log";
 
                 try
                 {
@@ -71,12 +71,14 @@ namespace ExportShapeFiles
                         return;
                     }
 
-                    string finalExportFileName = @"C:\1\DRI\0371-1158 - Gentofte Fase 4 - Dokumenter\02 Ekstern\" +
+                    string finalExportFileNameBase = @"C:\1\DRI\0371-1158 - Gentofte Fase 4 - Dokumenter\02 Ekstern\" +
                                                  @"01 Gældende tegninger\01 GIS input\02 Trace shape";
-                    finalExportFileName += "\\" + phaseNumber + ".shp";
+                    string finalExportFileNamePipes = finalExportFileNameBase + "\\" + phaseNumber + ".shp";
+                    string finalExportFileNameBlocks = finalExportFileNameBase + "\\" + phaseNumber + "-komponenter.shp";
 
-                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Exporting to {finalExportFileName}." });
-                    
+                    #region Export af rør
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Exporting pipes to {finalExportFileNamePipes}." });
+
                     HashSet<Polyline> pls = localDb.HashSetOfType<Polyline>(tx);
                     HashSet<Line> ls = localDb.HashSetOfType<Line>(tx);
 
@@ -96,9 +98,9 @@ namespace ExportShapeFiles
                             ids.Add(l.Id);
                     }
 
-                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {ids.Count} object(s) found for export." });
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {ids.Count} pipe(s) found for export." });
 
-                    exporter.Init("SHP", finalExportFileName);
+                    exporter.Init("SHP", finalExportFileNamePipes);
                     exporter.SetStorageOptions(
                         Autodesk.Gis.Map.ImportExport.StorageType.FileOneEntityType,
                         Autodesk.Gis.Map.ImportExport.GeometryType.Line, null);
@@ -110,9 +112,102 @@ namespace ExportShapeFiles
                     mappings.Add(":DN@Pipes", "DN");
                     exporter.SetExportDataMappings(mappings);
 
-                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Starting export." });
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Starting pipes export." });
                     exporter.Export(true);
-                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Export completed!" });
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Exporting of pipes completed!" });
+                    #endregion
+
+                    #region Export af komponenter
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Exporting components to {finalExportFileNameBlocks}." });
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                        @"C:\1\DRI\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
+                    System.Data.DataTable fjvKompDyn = CsvReader.ReadCsvToDataTable(
+                        @"C:\1\DRI\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    ObjectIdCollection allBlockIds = new ObjectIdCollection();
+
+                    #region Gather ordinary blocks
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    foreach (ObjectId oid in bt)
+                    {
+                        BlockTableRecord btr = tx.GetObject(oid, OpenMode.ForRead) as BlockTableRecord;
+                        if (btr.GetBlockReferenceIds(true, true).Count == 0) continue;
+
+                        if (ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Navn", 0) != null)
+                        {
+                            ObjectIdCollection blkIds = btr.GetBlockReferenceIds(true, true);
+                            foreach (ObjectId blkId in blkIds) allBlockIds.Add(blkId);
+                        }
+                    }
+                    #endregion
+
+                    #region Gather dynamic blocks
+                    HashSet<BlockReference> brSet = localDb.HashSetOfType<BlockReference>(tx);
+                    foreach (BlockReference br in brSet)
+                    {
+                        if (br.IsDynamicBlock)
+                        {
+                            string realName = ((BlockTableRecord)tx.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)).Name;
+                            if (ReadStringParameterFromDataTable(realName, fjvKomponenter, "Navn", 0) != null)
+                            {
+                                allBlockIds.Add(br.ObjectId);
+                            }
+                        }
+                    }
+                    #endregion
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {ids.Count} block(s) found for export." });
+
+                    #region QA block export
+                    HashSet<string> blockNamesInModel = new HashSet<string>();
+                    foreach (BlockReference br in brSet)
+                    {
+                        if (br.IsDynamicBlock)
+                        {
+                            blockNamesInModel.Add(((BlockTableRecord)tx.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)).Name);
+                        }
+                        else blockNamesInModel.Add(br.Name);
+                    }
+
+                    HashSet<string> blockNamesGathered = new HashSet<string>();
+                    foreach (ObjectId oid in allBlockIds)
+                    {
+                        BlockReference br = oid.Go<BlockReference>(tx);
+                        if (br.IsDynamicBlock)
+                        {
+                            blockNamesGathered.Add(((BlockTableRecord)tx.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)).Name);
+                        }
+                        else blockNamesGathered.Add(br.Name);
+                    }
+
+                    var query = blockNamesInModel.Where(x => !blockNamesGathered.Contains(x));
+                    foreach (string name in query)
+                    {
+                        File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: DEBUG: Block named {name} not included in export!" });
+                    }
+                    #endregion
+
+                    #region Export components
+                    exporter.Init("SHP", finalExportFileNameBlocks);
+                    exporter.SetStorageOptions(
+                        Autodesk.Gis.Map.ImportExport.StorageType.FileOneEntityType,
+                        Autodesk.Gis.Map.ImportExport.GeometryType.Point, null);
+                    exporter.SetSelectionSet(allBlockIds);
+                    Autodesk.Gis.Map.ImportExport.ExpressionTargetCollection mappingsForBlocks =
+                        exporter.GetExportDataMappings();
+                    mappings.Add(":BlockName@Components", "BlockName");
+                    mappings.Add(":Type@Components", "Type");
+                    mappings.Add(":Rotation@Components", "Rotation");
+                    mappings.Add(":System@Components", "System");
+                    mappings.Add(":DN1@Components", "DN1");
+                    mappings.Add(":DN2@Components", "DN2");
+                    mappings.Add(":Serie@Components", "Serie");
+                    exporter.SetExportDataMappings(mappings);
+
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Starting blocks export." });
+                    exporter.Export(true);
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Exporting of blocks complete." });
+                    #endregion
+
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
