@@ -72,7 +72,7 @@ namespace ExportShapeFiles
                     }
 
                     string finalExportFileNameBase = @"C:\1\DRI\0371-1158 - Gentofte Fase 4 - Dokumenter\02 Ekstern\" +
-                                                 @"01 Gældende tegninger\01 GIS input\02 Trace shape";
+                                                     @"01 Gældende tegninger\01 GIS input\02 Trace shape";
                     string finalExportFileNamePipes = finalExportFileNameBase + "\\" + phaseNumber + ".shp";
                     string finalExportFileNameBlocks = finalExportFileNameBase + "\\" + phaseNumber + "-komponenter.shp";
 
@@ -147,7 +147,7 @@ namespace ExportShapeFiles
                         if (br.IsDynamicBlock)
                         {
                             string realName = ((BlockTableRecord)tx.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)).Name;
-                            if (ReadStringParameterFromDataTable(realName, fjvKomponenter, "Navn", 0) != null)
+                            if (ReadStringParameterFromDataTable(realName, fjvKompDyn, "Navn", 0) != null)
                             {
                                 allBlockIds.Add(br.ObjectId);
                             }
@@ -186,6 +186,7 @@ namespace ExportShapeFiles
                     #endregion
 
                     #region Export components
+                    int i = 1;
                     exporter.Init("SHP", finalExportFileNameBlocks);
                     exporter.SetStorageOptions(
                         Autodesk.Gis.Map.ImportExport.StorageType.FileOneEntityType,
@@ -196,11 +197,12 @@ namespace ExportShapeFiles
                     mappings.Add(":BlockName@Components", "BlockName");
                     mappings.Add(":Type@Components", "Type");
                     mappings.Add(":Rotation@Components", "Rotation");
-                    mappings.Add(":System@Components", "System");
+                    // mappings.Add(":System@Components", "System");
                     mappings.Add(":DN1@Components", "DN1");
                     mappings.Add(":DN2@Components", "DN2");
-                    mappings.Add(":Serie@Components", "Serie");
+                    //mappings.Add(":Serie@Components", "Serie");
                     exporter.SetExportDataMappings(mappings);
+                    
 
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Starting blocks export." });
                     exporter.Export(true);
@@ -208,6 +210,13 @@ namespace ExportShapeFiles
                     #endregion
 
                     #endregion
+                }
+                catch (MapImportExportException mex)
+                {
+                    tx.Abort();
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: An exception was caught! Message: {mex.Message}. Aborting export of current file!" });
+                    editor.WriteMessage("\n" + mex.Message);
+                    return;
                 }
                 catch (System.Exception ex)
                 {
