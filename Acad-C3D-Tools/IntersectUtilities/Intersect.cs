@@ -23,6 +23,7 @@ using System.Text;
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
+using static IntersectUtilities.PipeSchedule;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using DataType = Autodesk.Gis.Map.Constants.DataType;
@@ -11496,7 +11497,7 @@ namespace IntersectUtilities
                     //Add the new layer to layer table
                     oid ltId = lt.Add(ltr);
                     tx.AddNewlyCreatedDBObject(ltr, true);
-                } 
+                }
                 #endregion
 
                 try
@@ -11567,6 +11568,92 @@ namespace IntersectUtilities
                 finally
                 {
 
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("LABELPIPE")]
+        [CommandMethod("LB")]
+        public void labelpipe()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor ed = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                        "\nSelect pipe (polyline) to label: ");
+                    promptEntityOptions1.SetRejectMessage("\nNot a polyline!");
+                    promptEntityOptions1.AddAllowedClass(typeof(Polyline), false);
+                    PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
+                    oid plineId  = entity1.ObjectId;
+                    Entity pline = plineId.Go<Entity>(tx);
+
+                    //Test to see if the polyline resides in the correct layer
+                    int DN = GetPipeDN(pline);
+                    if (DN == 999)
+                    {
+                        prdDbg("Kunne ikke finde dimension på valgte rør! Kontroller lag!");
+                        tx.Abort();
+                        return;
+                    }
+                    string system = GetPipeSystem(pline);
+                    if (system == null)
+                    {
+                        prdDbg("Kunne ikke finde systemet på valgte rør! Kontroller lag!");
+                        tx.Abort();
+                        return;
+                    }
+                    double od = GetBondedPipeKOd(pline);
+                    if (od < 1.0)
+                    {
+                        prdDbg("Kunne ikke finde rørdimensionen på valgte rør! Kontroller lag!");
+                        tx.Abort();
+                        return;
+                    }
+
+                    //Build label
+                    string label = "";
+                    double kOd = 0;
+                    switch (system)
+                    {
+                        case "Enkelt":
+                            kOd = GetBondedPipeKOd(pline);
+                            if (kOd < 1.0)
+                            {
+                                prdDbg("Kunne ikke finde kappedimensionen på valgte rør! Kontroller lag!");
+                                tx.Abort();
+                                return;
+                            }
+                            label = $"DN{DN}-ø{od.ToString("N1")}/{kOd.ToString("N0")}";
+                            break;
+                        case "Twin":
+                            kOd = GetTwinPipeKOd(pline);
+                            if (kOd < 1.0)
+                            {
+                                prdDbg("Kunne ikke finde kappedimensionen på valgte rør! Kontroller lag!");
+                                tx.Abort();
+                                return;
+                            }
+                            label = $"DN{DN}-ø{od.ToString("N1")}+ø{od.ToString("N1")}/{kOd.ToString("N0")}";
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    ed.WriteMessage("\n" + ex.Message);
+                    return;
                 }
                 tx.Commit();
             }
