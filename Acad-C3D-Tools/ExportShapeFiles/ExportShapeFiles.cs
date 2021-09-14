@@ -154,7 +154,7 @@ namespace ExportShapeFiles
                         }
                     }
                     #endregion
-                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {ids.Count} block(s) found for export." });
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {allBlockIds.Count} block(s) found for export." });
 
                     #region QA block export
                     HashSet<string> blockNamesInModel = new HashSet<string>();
