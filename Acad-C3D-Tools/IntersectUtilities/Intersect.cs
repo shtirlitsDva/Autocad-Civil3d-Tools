@@ -11594,7 +11594,7 @@ namespace IntersectUtilities
                     promptEntityOptions1.AddAllowedClass(typeof(Polyline), false);
                     PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
                     if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
-                    oid plineId  = entity1.ObjectId;
+                    oid plineId = entity1.ObjectId;
                     Entity pline = plineId.Go<Entity>(tx);
 
                     //Test to see if the polyline resides in the correct layer
@@ -11647,6 +11647,72 @@ namespace IntersectUtilities
                             break;
                         default:
                             break;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    ed.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("REDUCETEXT")]
+        public void reducetext()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor ed = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<DBText> dBTexts = localDb.HashSetOfType<DBText>(tx);
+                    ObjectIdCollection toDelete = new ObjectIdCollection();
+
+                    HashSet<(oid id, string text, Point3d position)> allTexts =
+                        new HashSet<(oid id, string text, Point3d position)>();
+
+                    //Cache contents of DBText in memory, i think?
+                    foreach (DBText dBText in dBTexts)
+                        allTexts.Add((dBText.Id, dBText.TextString, dBText.Position));
+
+                    var groupsWithSimilarText = allTexts.GroupBy(x => x.text);
+
+                    foreach (IGrouping<string, (oid id, string text, Point3d position)>
+                        group in groupsWithSimilarText)
+                    {
+                        Queue<(oid id, string text, Point3d position)> qu = new Queue<(oid, string, Point3d)>();
+
+                        //Load the queue
+                        foreach ((oid id, string text, Point3d position) item in group)
+                            qu.Enqueue(item);
+
+                        while (qu.Count > 0)
+                        {
+                            var labelToTest = qu.Dequeue();
+                            if (qu.Count == 0) break;
+
+                            for (int i = 0; i < qu.Count; i++)
+                            {
+                                var curLabel = qu.Dequeue();
+                                if (labelToTest.position.DistanceHorizontalTo(curLabel.position) < 50)
+                                    toDelete.Add(curLabel.id);
+                                else qu.Enqueue(curLabel);
+                            }
+                        }
+                    }
+
+                    //Delete the chosen labels
+                    foreach (oid Oid in toDelete)
+                    {
+                        DBText ent = Oid.Go<DBText>(tx, OpenMode.ForWrite);
+                        ent.Erase(true);
                     }
                 }
                 catch (System.Exception ex)
