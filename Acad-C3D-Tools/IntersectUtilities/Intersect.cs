@@ -11808,43 +11808,92 @@ namespace IntersectUtilities
             Transaction tr = db.TransactionManager.StartTransaction();
             using (tr)
             {
-                // We'll use the textstyle table to access
-                // the "Standard" textstyle for our text segment
-                TextStyleTable tt = (TextStyleTable)tr.GetObject(db.TextStyleTableId, OpenMode.ForRead);
-                // Get the linetype table from the drawing
-                LinetypeTable lt = (LinetypeTable)tr.GetObject(db.LinetypeTableId, OpenMode.ForWrite);
-
-                if (lt.Has("FJV_TWIN"))
+                try
                 {
-                    oid existingId = lt["FJV_TWIN"];
-                    LinetypeTableRecord exLtr = existingId.Go<LinetypeTableRecord>(tr, OpenMode.ForWrite);
-                    exLtr.Erase(true);
-                }
+                    // We'll use the textstyle table to access
+                    // the "Standard" textstyle for our text segment
+                    TextStyleTable tt = (TextStyleTable)tr.GetObject(db.TextStyleTableId, OpenMode.ForRead);
+                    // Get the linetype table from the drawing
+                    LinetypeTable ltt = (LinetypeTable)tr.GetObject(db.LinetypeTableId, OpenMode.ForWrite);
+                    // Get layer table
+                    LayerTable lt = tr.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
 
-                // Create our new linetype table record...
-                LinetypeTableRecord ltr = new LinetypeTableRecord();
-                // ... and set its properties
-                ltr.Name = "FJV_TWIN";
-                ltr.AsciiDescription =
-                  "Cold water supply ---- CW ---- CW ---- CW ----";
-                ltr.PatternLength = 0.9;
-                ltr.NumDashes = 3;
-                // Dash #1
-                ltr.SetDashLengthAt(0, 0.5);
-                // Dash #2
-                ltr.SetDashLengthAt(1, -0.2);
-                ltr.SetShapeStyleAt(1, tt["Standard"]);
-                ltr.SetShapeNumberAt(1, 0);
-                ltr.SetShapeOffsetAt(1, new Vector2d(-0.1, -0.05));
-                ltr.SetShapeScaleAt(1, 0.1);
-                ltr.SetShapeIsUcsOrientedAt(1, false);
-                ltr.SetShapeRotationAt(1, 0);
-                ltr.SetTextAt(1, "CW");
-                // Dash #3
-                ltr.SetDashLengthAt(2, -0.2);
-                // Add the new linetype to the linetype table
-                ObjectId ltId = lt.Add(ltr);
-                tr.AddNewlyCreatedDBObject(ltr, true);
+                    //**************************************
+                    //Change name of line type to create new and text value
+                    //**************************************
+                    string ltName = "FJV_RETUR";
+                    string text = "RETUR";
+
+                    List<string> layersToChange = new List<string>();
+
+                    if (ltt.Has(ltName))
+                    {
+                        oid existingId = ltt[ltName];
+                        oid placeHolderId = ltt["Continuous"];
+
+                        foreach (oid Oid in lt)
+                        {
+                            LayerTableRecord ltr = Oid.Go<LayerTableRecord>(tr);
+                            if (ltr.LinetypeObjectId == existingId)
+                            {
+                                ltr.CheckOrOpenForWrite();
+                                ltr.LinetypeObjectId = placeHolderId;
+                                layersToChange.Add(ltr.Name);
+                            }
+                        }
+                        
+                        LinetypeTableRecord exLtr = existingId.Go<LinetypeTableRecord>(tr, OpenMode.ForWrite);
+                        exLtr.Erase(true);
+                    }
+
+                    // Create our new linetype table record...
+                    LinetypeTableRecord lttr = new LinetypeTableRecord();
+                    // ... and set its properties
+                    lttr.Name = ltName;
+                    lttr.AsciiDescription =
+                      $"{text} ---- {text} ---- {text} ---- {text} ----";
+                    lttr.PatternLength = 0.9;
+                    lttr.NumDashes = 4;
+                    // Dash #1
+                    lttr.SetDashLengthAt(0, 10);
+                    // Dash #2
+                    lttr.SetDashLengthAt(1, -4.3);
+                    lttr.SetShapeStyleAt(1, tt["Standard"]);
+                    lttr.SetShapeNumberAt(1, 0);
+                    lttr.SetShapeOffsetAt(1, new Vector2d(-4.3, -0.45));
+                    lttr.SetShapeScaleAt(1, 0.9);
+                    lttr.SetShapeIsUcsOrientedAt(1, false);
+                    lttr.SetShapeRotationAt(1, 0);
+                    lttr.SetTextAt(1, text);
+                    // Dash #3
+                    lttr.SetDashLengthAt(2, 10);
+                    // Dash #4
+                    lttr.SetDashLengthAt(3, -4.3);
+                    lttr.SetShapeStyleAt(3, tt["Standard"]);
+                    lttr.SetShapeNumberAt(3, 0);
+                    lttr.SetShapeOffsetAt(3, new Vector2d(0, 0.45));
+                    lttr.SetShapeScaleAt(3, 0.9);
+                    lttr.SetShapeIsUcsOrientedAt(3, false);
+                    lttr.SetShapeRotationAt(3, Math.PI);
+                    lttr.SetTextAt(3, text);
+                    // Add the new linetype to the linetype table
+                    ObjectId ltId = ltt.Add(lttr);
+                    tr.AddNewlyCreatedDBObject(lttr, true);
+
+                    foreach (string name in layersToChange)
+                    {
+                        oid ltrId = lt[name];
+                        LayerTableRecord ltr = ltrId.Go<LayerTableRecord>(tr, OpenMode.ForWrite);
+                        ltr.LinetypeObjectId = ltId;
+                    }
+
+                    db.ForEach<Polyline>(x => x.Draw(), tr);
+                }
+                catch (System.Exception ex)
+                {
+                    tr.Abort();
+                    prdDbg(ex.Message);
+                }
                 tr.Commit();
             }
         }
