@@ -2271,20 +2271,20 @@ namespace IntersectUtilities
 
                         #region Try creating records
 
-                        string m_tableName = OdTables.GetGasTableName();
-                        string[] columnNames = OdTables.GetGasColumnNames();
-                        string[] columnDescriptions = OdTables.GetGasColumnDescriptions();
-                        Autodesk.Gis.Map.Constants.DataType[] dataTypes = OdTables.GetGasDataTypes();
+                        string m_tableName = OdTables.Gas.GetTableName();
+                        string[] columnNames = OdTables.Gas.GetColumnNames();
+                        string[] columnDescriptions = OdTables.Gas.GetColumnDescriptions();
+                        Autodesk.Gis.Map.Constants.DataType[] dataTypes = OdTables.Gas.GetDataTypes();
                         MapValue[] values = new MapValue[3];
 
                         #region Prepare OdTable for gas
                         CheckOrCreateTable(
                             tables,
-                            OdTables.GetGasTableName(),
-                            OdTables.GetGasTableDescription(),
-                            OdTables.GetGasColumnNames(),
-                            OdTables.GetGasColumnDescriptions(),
-                            OdTables.GetGasDataTypes());
+                            OdTables.Gas.GetTableName(),
+                            OdTables.Gas.GetTableDescription(),
+                            OdTables.Gas.GetColumnNames(),
+                            OdTables.Gas.GetColumnDescriptions(),
+                            OdTables.Gas.GetDataTypes());
                         #endregion
 
                         int parsedInt = 0;
@@ -9086,11 +9086,11 @@ namespace IntersectUtilities
                     #region Prepare OdTable for gas
                     CheckOrCreateTable(
                         tables,
-                        OdTables.GetGasTableName(),
-                        OdTables.GetGasTableDescription(),
-                        OdTables.GetGasColumnNames(),
-                        OdTables.GetGasColumnDescriptions(),
-                        OdTables.GetGasDataTypes());
+                        OdTables.Gas.GetTableName(),
+                        OdTables.Gas.GetTableDescription(),
+                        OdTables.Gas.GetColumnNames(),
+                        OdTables.Gas.GetColumnDescriptions(),
+                        OdTables.Gas.GetDataTypes());
                     #endregion
 
                     #region GatherObjects
@@ -9195,13 +9195,13 @@ namespace IntersectUtilities
                         //else values[2] = new MapValue("Ikke i brug");
 
                         //Length - 1 because we don't need to update the last record
-                        for (int i = 0; i < OdTables.GetGasColumnNames().Length - 1; i++)
+                        for (int i = 0; i < OdTables.Gas.GetColumnNames().Length - 1; i++)
                         {
                             bool success = CheckAddUpdateRecordValue(
                                 tables,
                                 PIPE.Id,
-                                OdTables.GetGasTableName(),
-                                OdTables.GetGasColumnNames()[i],
+                                OdTables.Gas.GetTableName(),
+                                OdTables.Gas.GetColumnNames()[i],
                                 values[i]);
 
                             if (success)
@@ -11595,24 +11595,24 @@ namespace IntersectUtilities
                     PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
                     if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
                     oid plineId = entity1.ObjectId;
-                    Entity pline = plineId.Go<Entity>(tx);
+                    Entity ent = plineId.Go<Entity>(tx);
 
                     //Test to see if the polyline resides in the correct layer
-                    int DN = GetPipeDN(pline);
+                    int DN = GetPipeDN(ent);
                     if (DN == 999)
                     {
                         prdDbg("Kunne ikke finde dimension på valgte rør! Kontroller lag!");
                         tx.Abort();
                         return;
                     }
-                    string system = GetPipeSystem(pline);
+                    string system = GetPipeSystem(ent);
                     if (system == null)
                     {
                         prdDbg("Kunne ikke finde systemet på valgte rør! Kontroller lag!");
                         tx.Abort();
                         return;
                     }
-                    double od = GetBondedPipeKOd(pline);
+                    double od = GetPipeOd(ent);
                     if (od < 1.0)
                     {
                         prdDbg("Kunne ikke finde rørdimensionen på valgte rør! Kontroller lag!");
@@ -11621,33 +11621,108 @@ namespace IntersectUtilities
                     }
 
                     //Build label
-                    string label = "";
+                    string labelText = "";
                     double kOd = 0;
                     switch (system)
                     {
                         case "Enkelt":
-                            kOd = GetBondedPipeKOd(pline);
+                            kOd = GetBondedPipeKOd(ent);
                             if (kOd < 1.0)
                             {
                                 prdDbg("Kunne ikke finde kappedimensionen på valgte rør! Kontroller lag!");
                                 tx.Abort();
                                 return;
                             }
-                            label = $"DN{DN}-ø{od.ToString("N1")}/{kOd.ToString("N0")}";
+                            labelText = $"DN{DN}-ø{od.ToString("N1")}/{kOd.ToString("N0")}";
                             break;
                         case "Twin":
-                            kOd = GetTwinPipeKOd(pline);
+                            kOd = GetTwinPipeKOd(ent);
                             if (kOd < 1.0)
                             {
                                 prdDbg("Kunne ikke finde kappedimensionen på valgte rør! Kontroller lag!");
                                 tx.Abort();
                                 return;
                             }
-                            label = $"DN{DN}-ø{od.ToString("N1")}+ø{od.ToString("N1")}/{kOd.ToString("N0")}";
+                            labelText = $"DN{DN}-ø{od.ToString("N1")}+ø{od.ToString("N1")}/{kOd.ToString("N0")}";
                             break;
                         default:
                             break;
                     }
+
+                    PromptPointOptions pPtOpts = new PromptPointOptions("\nChoose location of label: ");
+                    PromptPointResult pPtRes = ed.GetPoint(pPtOpts);
+                    Point3d selectedPoint = pPtRes.Value;
+                    if (pPtRes.Status != PromptStatus.OK) { tx.Abort(); return; }
+
+                    //Create new text
+                    string layerName = "FJV-DIM";
+                    LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    if (!lt.Has(layerName))
+                    {
+                        LayerTableRecord ltr = new LayerTableRecord();
+                        ltr.Name = layerName;
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
+
+                        lt.CheckOrOpenForWrite();
+                        lt.Add(ltr);
+                        tx.AddNewlyCreatedDBObject(ltr, true);
+                    }
+
+                    DBText label = new DBText();
+                    label.Layer = layerName;
+                    label.TextString = labelText;
+                    label.Height = 1.2;
+                    label.HorizontalMode = TextHorizontalMode.TextMid;
+                    label.VerticalMode = TextVerticalMode.TextVerticalMid;
+                    label.Position = new Point3d(selectedPoint.X, selectedPoint.Y, 0);
+                    label.AlignmentPoint = selectedPoint;
+
+                    //Find rotation
+                    Polyline pline = (Polyline)ent;
+                    Point3d closestPoint = pline.GetClosestPointTo(selectedPoint, true);
+                    Vector3d derivative = pline.GetFirstDerivative(closestPoint);
+                    double rotation = Math.Atan2(derivative.Y, derivative.X);
+                    label.Rotation = rotation;
+
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    BlockTableRecord modelSpace =
+                        tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
+
+                    oid labelId = modelSpace.AppendEntity(label);
+                    tx.AddNewlyCreatedDBObject(label, true);
+                    label.Draw();
+
+                    System.Windows.Forms.Application.DoEvents();
+
+                    //Enable flipping of label
+                    const string kwd1 = "Yes";
+                    const string kwd2 = "No";
+                    PromptKeywordOptions pkos = new PromptKeywordOptions("\nFlip label? ");
+                    pkos.Keywords.Add(kwd1);
+                    pkos.Keywords.Add(kwd2);
+                    pkos.AllowNone = true;
+                    pkos.Keywords.Default = kwd2;
+                    PromptResult pkwdres = ed.GetKeywords(pkos);
+                    string result = pkwdres.StringResult;
+
+                    if (result == kwd1) label.Rotation += Math.PI;
+
+                    #region Attach id data
+                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                    CheckOrCreateTable(
+                        tables, OdTables.Labels.GetTableName(), OdTables.Labels.GetTableDescription(),
+                        OdTables.Labels.GetColumnNames(), OdTables.Labels.GetColumnDescriptions(),
+                        OdTables.Labels.GetDataTypes());
+
+                    string handle = ent.Handle.ToString();
+                    CheckAddUpdateRecordValue(
+                        tables,
+                        labelId,
+                        OdTables.Labels.GetTableName(),
+                        OdTables.Labels.GetColumnNames()[0],
+                        new MapValue(handle));
+
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
@@ -11722,6 +11797,55 @@ namespace IntersectUtilities
                     return;
                 }
                 tx.Commit();
+            }
+        }
+        [CommandMethod("CCL")]
+        public void CreateComplexLinetype()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+            Transaction tr = db.TransactionManager.StartTransaction();
+            using (tr)
+            {
+                // We'll use the textstyle table to access
+                // the "Standard" textstyle for our text segment
+                TextStyleTable tt = (TextStyleTable)tr.GetObject(db.TextStyleTableId, OpenMode.ForRead);
+                // Get the linetype table from the drawing
+                LinetypeTable lt = (LinetypeTable)tr.GetObject(db.LinetypeTableId, OpenMode.ForWrite);
+
+                if (lt.Has("FJV_TWIN"))
+                {
+                    oid existingId = lt["FJV_TWIN"];
+                    LinetypeTableRecord exLtr = existingId.Go<LinetypeTableRecord>(tr, OpenMode.ForWrite);
+                    exLtr.Erase(true);
+                }
+
+                // Create our new linetype table record...
+                LinetypeTableRecord ltr = new LinetypeTableRecord();
+                // ... and set its properties
+                ltr.Name = "FJV_TWIN";
+                ltr.AsciiDescription =
+                  "Cold water supply ---- CW ---- CW ---- CW ----";
+                ltr.PatternLength = 0.9;
+                ltr.NumDashes = 3;
+                // Dash #1
+                ltr.SetDashLengthAt(0, 0.5);
+                // Dash #2
+                ltr.SetDashLengthAt(1, -0.2);
+                ltr.SetShapeStyleAt(1, tt["Standard"]);
+                ltr.SetShapeNumberAt(1, 0);
+                ltr.SetShapeOffsetAt(1, new Vector2d(-0.1, -0.05));
+                ltr.SetShapeScaleAt(1, 0.1);
+                ltr.SetShapeIsUcsOrientedAt(1, false);
+                ltr.SetShapeRotationAt(1, 0);
+                ltr.SetTextAt(1, "CW");
+                // Dash #3
+                ltr.SetDashLengthAt(2, -0.2);
+                // Add the new linetype to the linetype table
+                ObjectId ltId = lt.Add(ltr);
+                tr.AddNewlyCreatedDBObject(ltr, true);
+                tr.Commit();
             }
         }
     }
