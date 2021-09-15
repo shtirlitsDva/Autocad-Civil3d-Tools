@@ -11851,7 +11851,7 @@ namespace IntersectUtilities
                     // ... and set its properties
                     lttr.Name = ltName;
                     lttr.AsciiDescription =
-                      $"{text} ---- {text} ---- {text} ---- {text} ----";
+                      $"{text} ---- {text} ---- {text} ----";
                     lttr.PatternLength = 0.9;
                     lttr.NumDashes = 4;
                     // Dash #1
