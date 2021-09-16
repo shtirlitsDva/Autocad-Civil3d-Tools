@@ -86,32 +86,22 @@ namespace ExportShapeFiles
                     HashSet<Polyline> pls = localDb.HashSetOfType<Polyline>(tx);
                     HashSet<Line> ls = localDb.HashSetOfType<Line>(tx);
                     HashSet<Arc> arcs = localDb.HashSetOfType<Arc>(tx);
+                    HashSet<Entity> ents = new HashSet<Entity>();
+                    ents.UnionWith(pls);
+                    ents.UnionWith(ls);
+                    ents.UnionWith(arcs);
+                    //Filter ents for forbidden values
+                    ents = ents.Where(x => !DataQa.Gis.ContainsForbiddenValues(x.Layer)).ToHashSet();
 
                     ObjectIdCollection ids = new ObjectIdCollection();
                     ObjectIdCollection rejectedIds = new ObjectIdCollection();
-                    foreach (Polyline pl in pls)
+                    foreach (Entity ent in ents)
                     {
-                        if (pl.Layer.Contains("FJV-TWIN") ||
-                            pl.Layer.Contains("FJV-FREM") ||
-                            pl.Layer.Contains("FJV-RETUR"))
-                            ids.Add(pl.Id);
-                        else rejectedIds.Add(pl.Id);
-                    }
-                    foreach (Line l in ls)
-                    {
-                        if (l.Layer.Contains("FJV-TWIN") ||
-                            l.Layer.Contains("FJV-FREM") ||
-                            l.Layer.Contains("FJV-RETUR"))
-                            ids.Add(l.Id);
-                        else rejectedIds.Add(l.Id);
-                    }
-                    foreach (Arc arc in arcs)
-                    {
-                        if (arc.Layer.Contains("FJV-TWIN") ||
-                            arc.Layer.Contains("FJV-FREM") ||
-                            arc.Layer.Contains("FJV-RETUR"))
-                            ids.Add(arc.Id);
-                        else rejectedIds.Add(arc.Id);
+                        if (ent.Layer.Contains("FJV-TWIN") ||
+                            ent.Layer.Contains("FJV-FREM") ||
+                            ent.Layer.Contains("FJV-RETUR"))
+                            ids.Add(ent.Id);
+                        else rejectedIds.Add(ent.Id);
                     }
 
                     foreach (ObjectId id in rejectedIds)
