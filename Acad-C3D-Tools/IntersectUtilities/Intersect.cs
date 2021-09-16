@@ -590,7 +590,13 @@ namespace IntersectUtilities
                     string workingDrawing = pKeyRes.StringResult;
                     #endregion
 
-                    string etapeName = GetEtapeName(editor);
+                    string projectName = GetProjectName();
+                    prdDbg(projectName);
+                    if (projectName.IsNoE())
+                    { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
+
+                    //TODO: Fix etape choice
+                    string etapeName = GetEtapeName(projectName);
 
                     HashSet<Entity> allLinework = new HashSet<Entity>();
                     HashSet<Alignment> alignments = new HashSet<Alignment>();
@@ -598,12 +604,12 @@ namespace IntersectUtilities
                     if (workingDrawing == kwd2)
                     {
                         #region Load linework from LER Xref
-                        editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Ler"));
+                        editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Ler"));
 
                         // open the LER dwg database
                         Database xRefLerDB = new Database(false, true);
 
-                        xRefLerDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Ler"),
+                        xRefLerDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
                             System.IO.FileShare.Read, false, string.Empty);
                         Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
 
@@ -652,12 +658,12 @@ namespace IntersectUtilities
                     else if (workingDrawing == kwd1)
                     {
                         #region Load alignments from alignments Xref
-                        editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Alignments"));
+                        editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Alignments"));
 
                         // open the LER dwg database
                         Database xRefAlsDB = new Database(false, true);
 
-                        xRefAlsDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Alignments"),
+                        xRefAlsDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
                             System.IO.FileShare.Read, false, string.Empty);
                         Transaction xRefAlsTx = xRefAlsDB.TransactionManager.StartTransaction();
 
@@ -809,9 +815,14 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                string etapeName = GetEtapeName(editor);
+                string projectName = GetProjectName();
+                prdDbg(projectName);
+                if (projectName.IsNoE())
+                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
 
-                editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Alignments"));
+                string etapeName = GetEtapeName(projectName);
+
+                editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Alignments"));
 
                 #region Load alignments from drawing
                 HashSet<Alignment> alignments = null;
@@ -821,7 +832,7 @@ namespace IntersectUtilities
                 // open the LER dwg database
                 Database xRefAlsDB = new Database(false, true);
 
-                xRefAlsDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Alignments"),
+                xRefAlsDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
                     System.IO.FileShare.Read, false, string.Empty);
                 Transaction xRefAlsTx = xRefAlsDB.TransactionManager.StartTransaction();
 
@@ -2850,14 +2861,20 @@ namespace IntersectUtilities
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 #region Get alignments
-                string etapeName = GetEtapeName(editor);
 
-                editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Alignments"));
+                string projectName = GetProjectName();
+                prdDbg(projectName);
+                if (projectName.IsNoE())
+                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
+
+                string etapeName = GetEtapeName(projectName);
+
+                editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Alignments"));
 
                 // open the LER dwg database
                 Database xRefAlDB = new Database(false, true);
 
-                xRefAlDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Alignments"),
+                xRefAlDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
                     System.IO.FileShare.Read, false, string.Empty);
                 Transaction xRefAlTx = xRefAlDB.TransactionManager.StartTransaction();
                 HashSet<Alignment> als = xRefAlDB.HashSetOfType<Alignment>(xRefAlTx);
@@ -3922,14 +3939,18 @@ namespace IntersectUtilities
                 try
                 {
                     #region Load linework
-                    string etapeName = GetEtapeName(editor);
-
-                    editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Fremtid"));
+                    string projectName = GetProjectName();
+                    prdDbg(projectName);
+                    if (projectName.IsNoE())
+                    { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
+                    
+                    string etapeName = GetEtapeName(projectName);
+                    editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Fremtid"));
 
                     // open the LER dwg database
                     xRefFjvDB = new Database(false, true);
 
-                    xRefFjvDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Fremtid"),
+                    xRefFjvDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
                         System.IO.FileShare.Read, false, string.Empty);
                     xRefFjvTx = xRefFjvDB.TransactionManager.StartTransaction();
 
@@ -4243,15 +4264,20 @@ namespace IntersectUtilities
                     //Filter out already created profile views
                     allAlignments = allAlignments.Where(x => !pvNames.Contains(x.Name + "_PV")).OrderBy(x => x.Name).ToList();
 
-                    string etapeName = GetEtapeName(editor);
+                    string projectName = GetProjectName();
+                    prdDbg(projectName);
+                    if (projectName.IsNoE())
+                    { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
 
-                    editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Ler"));
-                    editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Surface"));
+                    string etapeName = GetEtapeName(projectName);
+
+                    editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Ler"));
+                    editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Surface"));
 
                     #region Read surface from file
                     // open the xref database
                     Database xRefSurfaceDB = new Database(false, true);
-                    xRefSurfaceDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Surface"),
+                    xRefSurfaceDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Surface"),
                         System.IO.FileShare.Read, false, string.Empty);
                     Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
 
@@ -4280,7 +4306,7 @@ namespace IntersectUtilities
                     // open the LER dwg database
                     using (Database xRefLerDB = new Database(false, true))
                     {
-                        xRefLerDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Ler"),
+                        xRefLerDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
                                                             System.IO.FileShare.Read, false, string.Empty);
 
                         using (Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction())
@@ -5782,14 +5808,19 @@ namespace IntersectUtilities
 
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
-                string etapeName = GetEtapeName(editor);
+                string projectName = GetProjectName();
+                prdDbg(projectName);
+                if (projectName.IsNoE())
+                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
 
-                editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Surface"));
+                string etapeName = GetEtapeName(projectName);
+
+                editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Surface"));
 
                 #region Read surface from file
                 // open the xref database
                 Database xRefSurfaceDB = new Database(false, true);
-                xRefSurfaceDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Surface"),
+                xRefSurfaceDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Surface"),
                     System.IO.FileShare.Read, false, string.Empty);
                 Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
 
@@ -5893,15 +5924,20 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                string etapeName = GetEtapeName(editor);
+                string projectName = GetProjectName();
+                prdDbg(projectName);
+                if (projectName.IsNoE())
+                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
 
-                editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Ler"));
-                editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Surface"));
+                string etapeName = GetEtapeName(projectName);
+
+                editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Ler"));
+                editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Surface"));
 
                 #region Read surface from file
                 // open the xref database
                 Database xRefSurfaceDB = new Database(false, true);
-                xRefSurfaceDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Surface"),
+                xRefSurfaceDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Surface"),
                     System.IO.FileShare.Read, false, string.Empty);
                 Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
 
@@ -5931,7 +5967,7 @@ namespace IntersectUtilities
                 // open the LER dwg database
                 Database xRefLerDB = new Database(false, true);
 
-                xRefLerDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Ler"),
+                xRefLerDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
                     System.IO.FileShare.Read, false, string.Empty);
                 Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
                 List<Polyline3d> allLinework = xRefLerDB.ListOfType<Polyline3d>(xRefLerTx);
@@ -6546,16 +6582,21 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                string etapeName = GetEtapeName(editor);
+                string projectName = GetProjectName();
+                prdDbg(projectName);
+                if (projectName.IsNoE())
+                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
 
-                editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Ler"));
-                editor.WriteMessage("\n" + GetPathToDataFiles(etapeName, "Fremtid"));
+                string etapeName = GetEtapeName(projectName);
+
+                editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Ler"));
+                editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Fremtid"));
 
                 #region Load linework from LER Xref
                 // open the LER dwg database
                 Database xRefLerDB = new Database(false, true);
 
-                xRefLerDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Ler"),
+                xRefLerDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
                     System.IO.FileShare.Read, false, string.Empty);
                 Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
                 #endregion
@@ -6564,7 +6605,7 @@ namespace IntersectUtilities
                 // open the Fremtid dwg database
                 Database xRefFremtidDB = new Database(false, true);
 
-                xRefFremtidDB.ReadDwgFile(GetPathToDataFiles(etapeName, "Fremtid"),
+                xRefFremtidDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
                     System.IO.FileShare.Read, false, string.Empty);
                 Transaction xRefFremtidTx = xRefFremtidDB.TransactionManager.StartTransaction();
                 #endregion
@@ -9111,11 +9152,11 @@ namespace IntersectUtilities
                             tables, ent.Id, "LABEL", "LABEL");
 
                         ////Filter out unwanted values
-                        if (DataQa.Gas.GasForbiddenValues.Contains(label.ToUpper())) continue;
+                        if (DataQa.Gas.ForbiddenValues.Contains(label.ToUpper())) continue;
 
                         //Modify labels with excess data
-                        if (DataQa.Gas.GasReplaceLabelParts.ContainsKey(label.ToUpper()))
-                            label = DataQa.Gas.GasReplaceLabelParts[label.ToUpper()];
+                        if (DataQa.Gas.ReplaceLabelParts.ContainsKey(label.ToUpper()))
+                            label = DataQa.Gas.ReplaceLabelParts[label.ToUpper()];
 
                         allLabels.Add((
                             Convert.ToInt32(ReadDoublePropertyValue(tables, ent.Id, "LABEL", "G3E_FID")),
@@ -9293,9 +9334,9 @@ namespace IntersectUtilities
                     {
                         string label = value.ToUpper();
                         //Check if value is handled by filters
-                        if (DataQa.Gas.GasForbiddenValues.Contains(label))
+                        if (DataQa.Gas.ForbiddenValues.Contains(label))
                             label += " <------*";
-                        if (DataQa.Gas.GasReplaceLabelParts.ContainsKey(label))
+                        if (DataQa.Gas.ReplaceLabelParts.ContainsKey(label))
                             label += " <------*";
                         prdDbg(label);
                     }
@@ -10478,278 +10519,7 @@ namespace IntersectUtilities
         [CommandMethod("CREATEGISDATA")]
         public static void creategisdata()
         {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
-            ed.WriteMessage("\nRemember to freeze unneeded linework!");
-            try
-            {
-                using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                {
-                    try
-                    {
-                        System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
-                                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
-
-                        #region Populate Block GIS data
-                        #region OD Table definition
-                        string tableNameKomponenter = "Components";
-
-                        string[] columnNames = new string[12]
-                               {"BlockName",
-                                "Type",
-                                "Rotation",
-                                "System",
-                                "DN1",
-                                "DN2",
-                                "Serie",
-                                "Width",
-                                "Height",
-                                "OffsetX",
-                                "OffsetY",
-                                "Flip"
-                               };
-                        string[] columnDescrs = new string[12]
-                            {"Name of source block",
-                             "Type of the component",
-                             "Rotation of the symbol",
-                             "Twin or single",
-                             "Main run dimension",
-                             "Secondary run dimension",
-                             "Insulation series of pipes",
-                             "Width of symbol",
-                             "Height of symbol",
-                             "X offset from Origo to CL",
-                             "Y offset from Origo to CL",
-                             "Describes block's mirror state"
-                            };
-                        DataType[] dataTypes = new DataType[12]
-                            {DataType.Character,
-                             DataType.Character,
-                             DataType.Real,
-                             DataType.Character,
-                             DataType.Integer,
-                             DataType.Integer,
-                             DataType.Character,
-                             DataType.Real,
-                             DataType.Real,
-                             DataType.Real,
-                             DataType.Real,
-                             DataType.Character
-                            };
-                        Func<BlockReference, System.Data.DataTable, MapValue>[] populateKomponentData =
-                            new Func<BlockReference, System.Data.DataTable, MapValue>[12]
-                        {
-                            ODDataReader.Komponenter.ReadBlockName,
-                            ODDataReader.Komponenter.ReadComponentType,
-                            ODDataReader.Komponenter.ReadBlockRotation,
-                            ODDataReader.Komponenter.ReadComponentSystem,
-                            ODDataReader.Komponenter.ReadComponentDN1,
-                            ODDataReader.Komponenter.ReadComponentDN2,
-                            ODDataReader.Komponenter.ReadComponentSeries,
-                            ODDataReader.Komponenter.ReadComponentWidth,
-                            ODDataReader.Komponenter.ReadComponentHeight,
-                            ODDataReader.Komponenter.ReadComponentOffsetX,
-                            ODDataReader.Komponenter.ReadComponentOffsetY,
-                            ODDataReader.Komponenter.ReadComponentFlipState
-                        };
-
-                        CheckOrCreateTable(tables, tableNameKomponenter, "Komponentdata", columnNames, columnDescrs, dataTypes);
-
-                        #endregion
-
-                        BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-
-                        foreach (oid Oid in bt)
-                        {
-                            BlockTableRecord btr = tx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
-                            if (btr.GetBlockReferenceIds(true, true).Count == 0) continue;
-
-                            if (ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Navn", 0) != null)
-                            {
-                                ObjectIdCollection blkIds = btr.GetBlockReferenceIds(true, true);
-
-                                foreach (oid brOid in blkIds)
-                                {
-                                    BlockReference br = brOid.Go<BlockReference>(tx, OpenMode.ForWrite);
-
-                                    for (int i = 0; i < columnNames.Length; i++)
-                                    {
-                                        if (DoesRecordExist(tables, br.ObjectId, tableNameKomponenter, columnNames[i]))
-                                        {
-                                            UpdateODRecord(tables, tableNameKomponenter, columnNames[i],
-                                                br.ObjectId, populateKomponentData[i].Invoke(br, fjvKomponenter));
-                                        }
-                                        else AddODRecord(tables, tableNameKomponenter, columnNames[i],
-                                                br.ObjectId, populateKomponentData[i].Invoke(br, fjvKomponenter));
-                                    }
-                                }
-                            }
-                        }
-                        #endregion
-
-                        #region Populate dynamic block data
-
-                        fjvKomponenter = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-
-                        #region Dynamic OD Reader
-                        Func<BlockReference, System.Data.DataTable, MapValue>[] populateDynamicKomponentData =
-                            new Func<BlockReference, System.Data.DataTable, MapValue>[12]
-                        {
-                            ODDataReader.DynKomponenter.ReadBlockName,
-                            ODDataReader.DynKomponenter.ReadComponentType,
-                            ODDataReader.DynKomponenter.ReadBlockRotation,
-                            ODDataReader.DynKomponenter.ReadComponentSystem,
-                            ODDataReader.DynKomponenter.ReadComponentDN1,
-                            ODDataReader.DynKomponenter.ReadComponentDN2,
-                            ODDataReader.DynKomponenter.ReadComponentSeries,
-                            ODDataReader.DynKomponenter.ReadComponentWidth,
-                            ODDataReader.DynKomponenter.ReadComponentHeight,
-                            ODDataReader.DynKomponenter.ReadComponentOffsetX,
-                            ODDataReader.DynKomponenter.ReadComponentOffsetY,
-                            ODDataReader.DynKomponenter.ReadComponentFlipState
-                        };
-                        #endregion
-
-                        HashSet<BlockReference> brSet = localDb.HashSetOfType<BlockReference>(tx);
-                        foreach (BlockReference br in brSet)
-                        {
-                            if (br.IsDynamicBlock)
-                            {
-                                string realName = ((BlockTableRecord)tx.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)).Name;
-                                if (ReadStringParameterFromDataTable(realName, fjvKomponenter, "Navn", 0) != null)
-                                {
-                                    #region Properties list
-                                    //prdDbg("-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-");
-
-                                    //ed.WriteMessage("\nDynamic properties for \"{0}\"\n", realName);
-
-                                    //DynamicBlockReferencePropertyCollection pc = br.DynamicBlockReferencePropertyCollection;
-
-                                    //foreach (DynamicBlockReferenceProperty prop in pc)
-                                    //{
-                                    //    // Start with the property name, type and description
-                                    //    ed.WriteMessage("\nProperty: \"{0}\" : {1}",
-                                    //      prop.PropertyName,
-                                    //      prop.UnitsType);
-
-                                    //    if (prop.Description != "")
-                                    //        ed.WriteMessage("\n  Description: {0}",
-                                    //          prop.Description);
-
-                                    //    // Is it read-only?
-                                    //    if (prop.ReadOnly)
-                                    //        ed.WriteMessage(" (Read Only)");
-
-                                    //    // Get the allowed values, if it's constrained
-                                    //    bool first = true;
-
-                                    //    foreach (object value in prop.GetAllowedValues())
-                                    //    {
-                                    //        ed.WriteMessage((first ? "\n  Allowed values: [" : ", "));
-                                    //        ed.WriteMessage("\"{0}\"", value);
-                                    //        first = false;
-                                    //    }
-
-                                    //    if (!first) ed.WriteMessage("]");
-
-                                    //    // And finally the current value
-                                    //    ed.WriteMessage("\n  Current value: \"{0}\"\n",
-                                    //      prop.Value);
-                                    //} 
-                                    #endregion
-
-                                    for (int i = 0; i < columnNames.Length; i++)
-                                    {
-                                        if (DoesRecordExist(tables, br.ObjectId, tableNameKomponenter, columnNames[i]))
-                                        {
-                                            UpdateODRecord(tables, tableNameKomponenter, columnNames[i],
-                                                br.ObjectId, populateDynamicKomponentData[i].Invoke(br, fjvKomponenter));
-                                        }
-                                        else AddODRecord(tables, tableNameKomponenter, columnNames[i],
-                                                br.ObjectId, populateDynamicKomponentData[i].Invoke(br, fjvKomponenter));
-                                    }
-                                }
-                                else prdDbg($"Dynamic block {realName} does not exist in FJV Dynamiske Komponenter.csv");
-                            }
-                        }
-
-
-                        #endregion
-
-                        #region Populate (p)lines and arc GIS data
-                        #region OD Table definition
-                        string tableNamePipes = "Pipes";
-
-                        string[] columnNamesPipes = new string[3]
-                            {"DN",
-                                //"Length",
-                                "System",
-                                "Serie"};
-                        string[] columnDescrsPipes = new string[3]
-                            {"Dimension of pipe",
-                                //"Length of pipe",
-                                "System of pipe",
-                                "Series of the pipe" };
-                        DataType[] dataTypesPipes = new DataType[3]
-                            {DataType.Integer,
-                                //DataType.Real,
-                                DataType.Character,
-                                DataType.Character };
-                        Func<Entity, MapValue>[] pipeData =
-                            new Func<Entity, MapValue>[3]
-                        {
-                            ODDataReader.Pipes.ReadPipeDimension,
-                            //ODDataReader.Pipes.ReadPipeLength,
-                            ODDataReader.Pipes.ReadPipeSystem,
-                            ODDataReader.Pipes.ReadPipeSeries
-                        };
-
-                        CheckOrCreateTable(tables, tableNamePipes, "Rørdata", columnNamesPipes, columnDescrsPipes, dataTypesPipes);
-
-                        #endregion
-
-                        HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
-                        HashSet<Line> lines = localDb.HashSetOfType<Line>(tx, true);
-                        HashSet<Arc> arcs = localDb.HashSetOfType<Arc>(tx, true);
-                        HashSet<Entity> ents = new HashSet<Entity>(plines.Count + lines.Count + arcs.Count);
-                        ents.UnionWith(plines.Cast<Entity>());
-                        ents.UnionWith(lines.Cast<Entity>());
-                        ents.UnionWith(arcs.Cast<Entity>());
-
-                        foreach (Entity ent in ents)
-                        {
-                            for (int i = 0; i < columnNamesPipes.Length; i++)
-                            {
-                                if (DoesRecordExist(tables, ent.ObjectId, tableNamePipes, columnNamesPipes[i]))
-                                {
-                                    UpdateODRecord(tables, tableNamePipes, columnNamesPipes[i],
-                                        ent.ObjectId, pipeData[i].Invoke(ent));
-                                }
-                                else AddODRecord(tables, tableNamePipes, columnNamesPipes[i],
-                                        ent.ObjectId, pipeData[i].Invoke(ent));
-                            }
-                        }
-                        #endregion
-                    }
-                    catch (System.Exception ex)
-                    {
-                        tx.Abort();
-                        ed.WriteMessage(ex.Message);
-                        throw;
-                    }
-
-                    tx.Commit();
-                }
-
-            }
-            catch (System.Exception ex)
-            {
-                ed.WriteMessage(ex.Message);
-            }
+            IntersectUtilities.GisData.creategisdata();
         }
 
         [CommandMethod("ATTACHAREADATA")]
@@ -11399,7 +11169,8 @@ namespace IntersectUtilities
                 try
                 {
                     #region 
-                    string projectName = GetProjectName(editor);
+                    //TODO: Fix etape choice
+                    string projectName = GetProjectName();
                     prdDbg(projectName);
 
                     if (projectName.IsNoE())

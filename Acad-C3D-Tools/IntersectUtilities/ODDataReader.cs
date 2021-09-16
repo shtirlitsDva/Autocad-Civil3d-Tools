@@ -17,7 +17,6 @@ using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using MoreLinq;
 using System.Text;
 using System.Text.RegularExpressions;
 using static IntersectUtilities.Enums;
@@ -161,8 +160,26 @@ namespace IntersectUtilities.ODDataReader
             string realName = ((BlockTableRecord)tx.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)).Name;
             return new MapValue(realName);
         }
-        public static MapValue ReadComponentType(BlockReference br, System.Data.DataTable fjvTable) =>
+        public static MapValue ReadComponentType(BlockReference br, System.Data.DataTable fjvTable)=>
             new MapValue(br.GetDynamicPropertyByName("Betegnelse").Value as string ?? "");
+        //{
+        //    string propertyToExtractName = "Type";
+
+        //    string valueToReturn = ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0);
+
+        //    if (valueToReturn.StartsWith("$"))
+        //    {
+        //        valueToReturn = valueToReturn.Substring(1);
+        //        //If the value is a pattern to extract from string
+        //        if (valueToReturn.Contains("{"))
+        //        {
+        //            valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
+        //        }
+        //        //Else the value is parameter literal to read
+        //        else return new MapValue(br.GetDynamicPropertyByName(valueToReturn).Value as string ?? "");
+        //    }
+        //    return new MapValue(valueToReturn ?? "");
+        //}
         public static MapValue ReadBlockRotation(BlockReference br, System.Data.DataTable fjvTable) =>
             new MapValue(br.Rotation * (180 / Math.PI));
         public static MapValue ReadComponentSystem(BlockReference br, System.Data.DataTable fjvTable)

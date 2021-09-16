@@ -112,6 +112,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CreateGisData.cs" />
     <Compile Include="CsvReader.cs" />
     <Compile Include="DouglasPeuckerReduction.cs" />
     <Compile Include="Intersect.cs" />

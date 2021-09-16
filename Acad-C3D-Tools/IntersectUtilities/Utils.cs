@@ -52,14 +52,11 @@ namespace IntersectUtilities
             TValue value;
             return dictionary.TryGetValue(key, out value) ? value : defaultValue;
         }
-
         public static IEnumerable<T> ExceptWhere<T>(
             this IEnumerable<T> source, Predicate<T> predicate) => source.Where(x => !predicate(x));
-
         public static Dictionary<TValue, TKey> ToInvertedDictionary
                 <TKey, TValue>(this IDictionary<TKey, TValue> source) =>
                 source.ToDictionary(x => x.Value, x => x.Key);
-
         public static void ClrFile(string fullPathAndName)
         {
             //Clear the output file
@@ -101,7 +98,6 @@ namespace IntersectUtilities
             }
             else return null;
         }
-
         public static double ReadDoubleParameterFromDataTable(string key, System.Data.DataTable table, string parameter, int keyColumnIdx)
         {
             //Test if value exists
@@ -126,7 +122,6 @@ namespace IntersectUtilities
             }
             else return 0;
         }
-
         public static System.Data.DataTable READExcel(string path)
         {
             Microsoft.Office.Interop.Excel.Application objXL = null;
@@ -162,7 +157,6 @@ namespace IntersectUtilities
             objXL.Quit();
             return dt;
         }
-
         #region "Map 3D Utility Function"
         /// <summary>
         /// Removes the Table named tableName.
@@ -905,7 +899,6 @@ namespace IntersectUtilities
             return false;
         }
         #endregion
-
         /// <summary>
         /// Gets all vertices of a polyline.
         /// </summary>
@@ -921,7 +914,6 @@ namespace IntersectUtilities
                 yield return poly.GetPoint3dAt(i);
             }
         }
-
         /// <summary>
         /// Cleans up a polyline by removing duplicate points.
         /// </summary>
@@ -947,7 +939,6 @@ namespace IntersectUtilities
             }
             return dupIndices.Count;
         }
-
         #region Poly3d modify vertices
         public static PolylineVertex3d[] GetVertices(this Polyline3d poly3d, Transaction tr)
         {
@@ -962,7 +953,6 @@ namespace IntersectUtilities
             return vertices.ToArray();
         }
         #endregion
-
         public static List<T> FilterForCrossingEntities<T>(List<T> entList, Alignment alignment) where T : Entity
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -987,7 +977,6 @@ namespace IntersectUtilities
             }
             return returnList.Cast<T>().ToList();
         }
-
         public static HashSet<T> FilterForCrossingEntities<T>(HashSet<T> entList, Alignment alignment) where T : Entity
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -1010,14 +999,12 @@ namespace IntersectUtilities
             }
             return returnList.Cast<T>().ToHashSet();
         }
-
         public static void prdDbg(string msg)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Editor editor = docCol.MdiActiveDocument.Editor;
             editor.WriteMessage("\n" + msg);
         }
-
         /// <summary>
         /// Returns the matched string and value with curly braces removed.
         /// </summary>
@@ -1042,7 +1029,6 @@ namespace IntersectUtilities
             }
             else return list;
         }
-
         public static string ReadDescriptionPartsFromOD(Tables tables, Entity ent,
                                                         string ColumnName, System.Data.DataTable dataTable)
         {
@@ -1065,7 +1051,6 @@ namespace IntersectUtilities
             }
             return "";
         }
-
         public static ObjectId AddToBlock(Entity entity, ObjectId btrId)
         {
             using (Transaction tr = btrId.Database.TransactionManager.StartTransaction())
@@ -1101,7 +1086,6 @@ namespace IntersectUtilities
                 }
             }
         }
-
         public static bool EraseBlock(Document doc, string blkName)
         {
             Database db = doc.Database;
@@ -1124,7 +1108,6 @@ namespace IntersectUtilities
                 return false;
             }
         }
-
         private static ObjectId GetBlkId(Database db, string blkName)
         {
 
@@ -1200,15 +1183,21 @@ namespace IntersectUtilities
             }
             return blkIsErased;
         }
-        public static string GetEtapeName(Editor editor)
+        public static string GetEtapeName(string projectName)
         {
+            DocumentCollection docCol = Application.DocumentManager;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
             #region Read Csv for paths
             string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
             System.Data.DataTable dtStier = CsvReader.ReadCsvToDataTable(pathStier, "Stier");
             #endregion
 
-            List<string> kwds = new List<string>(dtStier.Rows.Count);
-            foreach (DataRow row in dtStier.Rows)
+            var query = dtStier.AsEnumerable()
+                .Where(row => (string)row["PrjId"] == projectName);
+
+            HashSet<string> kwds = new HashSet<string>();
+            foreach (DataRow row in query)
                 kwds.Add((string)row["Etape"]);
 
             PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
@@ -1218,7 +1207,7 @@ namespace IntersectUtilities
                 pKeyOpts.Keywords.Add(kwd);
             }
             pKeyOpts.AllowNone = true;
-            pKeyOpts.Keywords.Default = kwds[0];
+            pKeyOpts.Keywords.Default = kwds.First();
             PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
 
             return pKeyRes.StringResult;
@@ -1229,23 +1218,39 @@ namespace IntersectUtilities
         /// <param name="etapeName">4.1 .. 4.12</param>
         /// <param name="pathType">Ler, Surface</param>
         /// <returns>Path as string</returns>
-        public static string GetPathToDataFiles(string etapeName, string pathType)
+        public static string GetPathToDataFiles(
+            string projectName, string etapeName, string pathType)
         {
             #region Read Csv Data for paths
             string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
             System.Data.DataTable dtStier = CsvReader.ReadCsvToDataTable(pathStier, "Stier");
             #endregion
 
-            return ReadStringParameterFromDataTable(etapeName, dtStier, pathType, 0);
+            var query = dtStier.AsEnumerable()
+                .Where(row =>
+                (string)row["PrjId"] == projectName &&
+                (string)row["Etape"] == etapeName);
+
+            if (query.Count() != 1)
+            {
+                prdDbg("GetPathToDataFiles could not determine Etape!");
+                return "";
+            }
+
+            return (string)query.First()[pathType];
         }
-        public static string GetProjectName(Editor editor)
+        public static string GetProjectName()
         {
+            DocumentCollection docCol = Application.DocumentManager;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
             #region Read Csv for paths
-            string pathWF = "X:\\AutoCAD DRI - 01 Civil 3D\\WorkingFolders.csv";
-            System.Data.DataTable dtStier = CsvReader.ReadCsvToDataTable(pathWF, "WF");
+            string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
+            System.Data.DataTable dtStier =
+                CsvReader.ReadCsvToDataTable(pathStier, "Stier");
             #endregion
 
-            List<string> kwds = new List<string>(dtStier.Rows.Count);
+            HashSet<string> kwds = new HashSet<string>();
             foreach (DataRow row in dtStier.Rows)
                 kwds.Add((string)row["PrjId"]);
 
@@ -1335,6 +1340,24 @@ namespace IntersectUtilities
             var dstBytes = Encoding.Convert(srcEncoding, dstEncoding, srcBytes);
             return dstEncoding.GetString(dstBytes);
         }
+        private static void GetAllXrefNames(GraphNode i_root, List<string> list, Transaction i_Tx)
+        {
+            for (int o = 0; o < i_root.NumOut; o++)
+            {
+                XrefGraphNode child = i_root.Out(o) as XrefGraphNode;
+                if (child.XrefStatus == XrefStatus.Resolved)
+                {
+                    BlockTableRecord bl = i_Tx.GetObject(child.BlockTableRecordId, OpenMode.ForRead) as BlockTableRecord;
+                    list.Add(child.Database.Filename);
+                    // Name of the Xref (found name)
+                    // You can find the original path too:
+                    //if (bl.IsFromExternalReference == true)
+                    // i_ed.WriteMessage("\n" + i_indent + "Xref path name: "
+                    //                      + bl.PathName);
+                    GetAllXrefNames(child, list, i_Tx);
+                }
+            }
+        }
     }
     public static class OdTables
     {
@@ -1362,7 +1385,7 @@ namespace IntersectUtilities
     {
         public static class Gas
         {
-            public static HashSet<string> GasForbiddenValues = new HashSet<string>()
+            public static HashSet<string> ForbiddenValues = new HashSet<string>()
             {
                 "SÆNKET",
                 "ANV. SOM TRÆKRØR",
@@ -1382,7 +1405,7 @@ namespace IntersectUtilities
                 "TYPE G 16/25"
             };
 
-            public static Dictionary<string, string> GasReplaceLabelParts = new Dictionary<string, string>()
+            public static Dictionary<string, string> ReplaceLabelParts = new Dictionary<string, string>()
             {
                 { "B-RØR 63 PM", "63 PM" },
                 { "40 PC 026", "40 PC" },
@@ -1392,6 +1415,24 @@ namespace IntersectUtilities
                 { "63 PM 50 MB", "63 PM" },
                 { "90 PM 50 MBAR", "63 PM" },
                 { "75 ST/63 PM 026", "75 ST" }
+            };
+        }
+        public static class Gis
+        {
+            public static bool ContainsForbiddenValues(string input)
+            {
+                foreach (string forbiddenValue in ForbiddenValues)
+                {
+                    if (input.Contains(forbiddenValue)) return true;
+                }
+
+                return false;
+            }
+
+            public static HashSet<string> ForbiddenValues = new HashSet<string>()
+            {
+                "GGF_ledninger",
+                "REV",
             };
         }
     }

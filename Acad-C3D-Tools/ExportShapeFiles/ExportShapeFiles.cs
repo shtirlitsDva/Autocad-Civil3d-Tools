@@ -76,19 +76,26 @@ namespace ExportShapeFiles
                     string finalExportFileNamePipes = finalExportFileNameBase + "\\" + phaseNumber + ".shp";
                     string finalExportFileNameBlocks = finalExportFileNameBase + "\\" + phaseNumber + "-komponenter.shp";
 
+                    #region Create GIS Data
+                    GisData.creategisdata(); 
+                    #endregion
+
                     #region Export af rør
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Exporting pipes to {finalExportFileNamePipes}." });
 
                     HashSet<Polyline> pls = localDb.HashSetOfType<Polyline>(tx);
                     HashSet<Line> ls = localDb.HashSetOfType<Line>(tx);
+                    HashSet<Arc> arcs = localDb.HashSetOfType<Arc>(tx);
 
                     ObjectIdCollection ids = new ObjectIdCollection();
+                    ObjectIdCollection rejectedIds = new ObjectIdCollection();
                     foreach (Polyline pl in pls)
                     {
                         if (pl.Layer.Contains("FJV-TWIN") ||
                             pl.Layer.Contains("FJV-FREM") ||
                             pl.Layer.Contains("FJV-RETUR"))
                             ids.Add(pl.Id);
+                        else rejectedIds.Add(pl.Id);
                     }
                     foreach (Line l in ls)
                     {
@@ -96,6 +103,20 @@ namespace ExportShapeFiles
                             l.Layer.Contains("FJV-FREM") ||
                             l.Layer.Contains("FJV-RETUR"))
                             ids.Add(l.Id);
+                        else rejectedIds.Add(l.Id);
+                    }
+                    foreach (Arc arc in arcs)
+                    {
+                        if (arc.Layer.Contains("FJV-TWIN") ||
+                            arc.Layer.Contains("FJV-FREM") ||
+                            arc.Layer.Contains("FJV-RETUR"))
+                            ids.Add(arc.Id);
+                        else rejectedIds.Add(arc.Id);
+                    }
+
+                    foreach (ObjectId id in rejectedIds)
+                    {
+                        File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: ERROR!!! Pipe {id.Handle} has wrong layer!" });
                     }
 
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {ids.Count} pipe(s) found for export." });
@@ -214,14 +235,14 @@ namespace ExportShapeFiles
                 catch (MapImportExportException mex)
                 {
                     tx.Abort();
-                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: An exception was caught! Message: {mex.Message}. Aborting export of current file!" });
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: EXCEPTION!!! Message: {mex.Message}. Aborting export of current file!" });
                     editor.WriteMessage("\n" + mex.Message);
                     return;
                 }
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: An exception was caught! Message: {ex.Message}. Aborting export of current file!" });
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: EXCEPTION!!! Message: {ex.Message}. Aborting export of current file!" });
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }

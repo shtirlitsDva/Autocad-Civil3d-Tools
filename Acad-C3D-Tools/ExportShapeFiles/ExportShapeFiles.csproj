@@ -73,8 +73,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\IntersectUtilities\CreateGisData.cs">
+      <Link>CreateGisData.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\CsvReader.cs">
       <Link>CsvReader.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\ODDataReader.cs">
+      <Link>ODDataReader.cs</Link>
     </Compile>
     <Compile Include="..\IntersectUtilities\Utils.cs">
       <Link>Utils.cs</Link>
