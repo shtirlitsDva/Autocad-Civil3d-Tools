@@ -106,7 +106,7 @@ namespace ExportShapeFiles
 
                     foreach (ObjectId id in rejectedIds)
                     {
-                        File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: ERROR!!! Pipe {id.Handle} has wrong layer!" });
+                        File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: PIPEERROR!!! Pipe {id.Handle} has wrong layer!" });
                     }
 
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {ids.Count} pipe(s) found for export." });
@@ -192,7 +192,7 @@ namespace ExportShapeFiles
                     var query = blockNamesInModel.Where(x => !blockNamesGathered.Contains(x));
                     foreach (string name in query)
                     {
-                        File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: DEBUG: Block named {name} not included in export!" });
+                        File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: BLOCKERROR!!!: Block named {name} not included in export!" });
                     }
                     #endregion
 
