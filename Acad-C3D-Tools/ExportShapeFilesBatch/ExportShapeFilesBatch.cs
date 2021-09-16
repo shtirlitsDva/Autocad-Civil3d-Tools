@@ -36,7 +36,9 @@ namespace ExportShapeFilesBatch
                 File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Datatable created with {dt.Rows.Count} record(s)." });
             }
 
-            List<string> list = dt.AsEnumerable().Select(x => x["Fremtid"].ToString()).ToList();
+            List<string> list = dt.AsEnumerable()
+                .Where(x=>x["PrjId"].ToString() == "Gentofte1158")
+                .Select(x => x["Fremtid"].ToString()).ToList();
 
             List<string> faulty = new List<string>();
 
