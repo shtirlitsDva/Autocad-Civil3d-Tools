@@ -106,7 +106,8 @@ namespace ExportShapeFiles
 
                     foreach (ObjectId id in rejectedIds)
                     {
-                        File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: PIPEERROR!!! Pipe {id.Handle} has wrong layer!" });
+                        File.AppendAllLines(logFileName, new string[] 
+                        { $"{DateTime.Now}: PIPEERROR!!! Pipe {id.Handle} has wrong layer: {id.Layer()}" });
                     }
 
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {ids.Count} pipe(s) found for export." });

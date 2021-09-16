@@ -1686,6 +1686,12 @@ namespace IntersectUtilities
         {
             return (T)tx.GetObject(Oid, openMode, false);
         }
+        public static string Layer(this oid Oid)
+        {
+            Transaction tx = Application.DocumentManager.MdiActiveDocument.Database.TransactionManager.TopTransaction;
+            if (!Oid.ObjectClass.IsDerivedFrom(RXClass.GetClass(typeof(Entity)))) return "";
+            return Oid.Go<Entity>(tx).Layer;
+        }
         public static void ForEach<T>(this Database database, Action<T> action, Transaction tr) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
             //using (var tr = database.TransactionManager.StartTransaction())
