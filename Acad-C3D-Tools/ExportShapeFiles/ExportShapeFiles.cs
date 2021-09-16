@@ -83,9 +83,9 @@ namespace ExportShapeFiles
                     #region Export af rør
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Exporting pipes to {finalExportFileNamePipes}." });
 
-                    HashSet<Polyline> pls = localDb.HashSetOfType<Polyline>(tx);
-                    HashSet<Line> ls = localDb.HashSetOfType<Line>(tx);
-                    HashSet<Arc> arcs = localDb.HashSetOfType<Arc>(tx);
+                    HashSet<Polyline> pls = localDb.HashSetOfType<Polyline>(tx, true);
+                    HashSet<Line> ls = localDb.HashSetOfType<Line>(tx, true);
+                    HashSet<Arc> arcs = localDb.HashSetOfType<Arc>(tx, true);
                     HashSet<Entity> ents = new HashSet<Entity>();
                     ents.UnionWith(pls);
                     ents.UnionWith(ls);
