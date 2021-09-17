@@ -1252,7 +1252,7 @@ namespace IntersectUtilities
 
             HashSet<string> kwds = new HashSet<string>();
             foreach (DataRow row in dtStier.Rows)
-                kwds.Add((string)row["PrjId"]);
+                kwds.Add(((string)row["PrjId"]));
 
             string msg = "\nVælg projekt [";
             string keywordsJoined = string.Join("/", kwds);

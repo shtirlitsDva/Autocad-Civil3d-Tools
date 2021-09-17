@@ -581,7 +581,7 @@ namespace IntersectUtilities
                     const string kwd2 = "Alignments";
 
                     PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
-                    pKeyOpts.Message = "\nChoose elevation input method: ";
+                    pKeyOpts.Message = "\nChoose working drawing: ";
                     pKeyOpts.Keywords.Add(kwd1);
                     pKeyOpts.Keywords.Add(kwd2);
                     pKeyOpts.AllowNone = true;
@@ -595,8 +595,8 @@ namespace IntersectUtilities
                     if (projectName.IsNoE())
                     { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
 
-                    //TODO: Fix etape choice
                     string etapeName = GetEtapeName(projectName);
+                    prdDbg(etapeName);
 
                     HashSet<Entity> allLinework = new HashSet<Entity>();
                     HashSet<Alignment> alignments = new HashSet<Alignment>();
@@ -714,10 +714,12 @@ namespace IntersectUtilities
                     {
 
                         HashSet<string> layNames = new HashSet<string>();
+                        System.Windows.Forms.Application.DoEvents();
 
                         foreach (Alignment al in alignments)
                         {
                             editor.WriteMessage($"\n++++++++ Indlæser alignment {al.Name}. ++++++++");
+                            System.Windows.Forms.Application.DoEvents();
 
                             HashSet<Entity> entities = FilterForCrossingEntities(allLinework, al);
 
@@ -740,7 +742,7 @@ namespace IntersectUtilities
                         layNames = layNames.OrderBy(x => x).ToHashSet();
 
                         editor.WriteMessage($"\n++++++++ KONTROL ++++++++");
-
+                        System.Windows.Forms.Application.DoEvents();
                         foreach (string name in layNames)
                         {
                             string nameInFile = ReadStringParameterFromDataTable(name, dtKrydsninger, "Navn", 0);
