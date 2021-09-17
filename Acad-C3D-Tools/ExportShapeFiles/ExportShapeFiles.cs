@@ -83,40 +83,31 @@ namespace ExportShapeFiles
                     #region Export af rør
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Exporting pipes to {finalExportFileNamePipes}." });
 
-                    HashSet<Polyline> pls = localDb.HashSetOfType<Polyline>(tx);
-                    HashSet<Line> ls = localDb.HashSetOfType<Line>(tx);
-                    HashSet<Arc> arcs = localDb.HashSetOfType<Arc>(tx);
+                    HashSet<Polyline> pls = localDb.HashSetOfType<Polyline>(tx, true);
+                    HashSet<Line> ls = localDb.HashSetOfType<Line>(tx, true);
+                    HashSet<Arc> arcs = localDb.HashSetOfType<Arc>(tx, true);
+                    HashSet<Entity> ents = new HashSet<Entity>();
+                    ents.UnionWith(pls);
+                    ents.UnionWith(ls);
+                    ents.UnionWith(arcs);
+                    //Filter ents for forbidden values
+                    ents = ents.Where(x => !DataQa.Gis.ContainsForbiddenValues(x.Layer)).ToHashSet();
 
                     ObjectIdCollection ids = new ObjectIdCollection();
                     ObjectIdCollection rejectedIds = new ObjectIdCollection();
-                    foreach (Polyline pl in pls)
+                    foreach (Entity ent in ents)
                     {
-                        if (pl.Layer.Contains("FJV-TWIN") ||
-                            pl.Layer.Contains("FJV-FREM") ||
-                            pl.Layer.Contains("FJV-RETUR"))
-                            ids.Add(pl.Id);
-                        else rejectedIds.Add(pl.Id);
-                    }
-                    foreach (Line l in ls)
-                    {
-                        if (l.Layer.Contains("FJV-TWIN") ||
-                            l.Layer.Contains("FJV-FREM") ||
-                            l.Layer.Contains("FJV-RETUR"))
-                            ids.Add(l.Id);
-                        else rejectedIds.Add(l.Id);
-                    }
-                    foreach (Arc arc in arcs)
-                    {
-                        if (arc.Layer.Contains("FJV-TWIN") ||
-                            arc.Layer.Contains("FJV-FREM") ||
-                            arc.Layer.Contains("FJV-RETUR"))
-                            ids.Add(arc.Id);
-                        else rejectedIds.Add(arc.Id);
+                        if (ent.Layer.Contains("FJV-TWIN") ||
+                            ent.Layer.Contains("FJV-FREM") ||
+                            ent.Layer.Contains("FJV-RETUR"))
+                            ids.Add(ent.Id);
+                        else rejectedIds.Add(ent.Id);
                     }
 
                     foreach (ObjectId id in rejectedIds)
                     {
-                        File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: ERROR!!! Pipe {id.Handle} has wrong layer!" });
+                        File.AppendAllLines(logFileName, new string[] 
+                        { $"{DateTime.Now}: PIPEERROR!!! Pipe {id.Handle} has wrong layer: {id.Layer()}" });
                     }
 
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {ids.Count} pipe(s) found for export." });
@@ -202,7 +193,7 @@ namespace ExportShapeFiles
                     var query = blockNamesInModel.Where(x => !blockNamesGathered.Contains(x));
                     foreach (string name in query)
                     {
-                        File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: DEBUG: Block named {name} not included in export!" });
+                        File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: BLOCKERROR!!!: Block named {name} not included in export!" });
                     }
                     #endregion
 
