@@ -5393,7 +5393,7 @@ namespace IntersectUtilities
                                         //Read the layer color value
                                         System.Data.DataTable dtLayers = CsvReader.ReadCsvToDataTable(
                                             "X:\\AutoCAD DRI - 01 Civil 3D\\Lag.csv", "Lag");
-                                        int color = ReadIntParameterFromDataTable(localLayerName, dtLayers, "Layer", 0);
+                                        int color = ReadIntParameterFromDataTable(localLayerName, dtLayers, "Color", 0);
                                         ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, Convert.ToInt16(color));
 
                                         //Make layertable writable
