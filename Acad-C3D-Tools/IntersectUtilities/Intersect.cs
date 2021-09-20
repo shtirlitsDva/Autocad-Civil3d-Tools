@@ -4200,13 +4200,15 @@ namespace IntersectUtilities
         public void createprofileviews()
         {
             DocumentCollection docCol = Application.DocumentManager;
-            Database db = docCol.MdiActiveDocument.Database;
+            Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-            using (Transaction tx = db.TransactionManager.StartTransaction())
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
+                HashSet<Polyline3d> allLinework = new HashSet<Polyline3d>();
+
                 try
                 {
                     //Prepare for saving all the time
@@ -4257,11 +4259,11 @@ namespace IntersectUtilities
 
                     #endregion
 
-                    BlockTableRecord space = (BlockTableRecord)tx.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
-                    BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForWrite) as BlockTable;
+                    BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
 
-                    List<Alignment> allAlignments = db.ListOfType<Alignment>(tx).ToList();
-                    HashSet<ProfileView> pvSetExisting = db.HashSetOfType<ProfileView>(tx);
+                    List<Alignment> allAlignments = localDb.ListOfType<Alignment>(tx).ToList();
+                    HashSet<ProfileView> pvSetExisting = localDb.HashSetOfType<ProfileView>(tx);
                     HashSet<string> pvNames = pvSetExisting.Select(x => x.Name).ToHashSet();
                     //Filter out already created profile views
                     allAlignments = allAlignments.Where(x => !pvNames.Contains(x.Name + "_PV")).OrderBy(x => x.Name).ToList();
@@ -4307,18 +4309,33 @@ namespace IntersectUtilities
                     #endregion
 
                     // open the LER dwg database
-                    using (Database xRefLerDB = new Database(false, true))
+                    using (Database xRefLerDb = new Database(false, true))
                     {
-                        xRefLerDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
+                        xRefLerDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
                                                             System.IO.FileShare.Read, false, string.Empty);
 
-                        using (Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction())
+                        using (Transaction xRefLerTx = xRefLerDb.TransactionManager.StartTransaction())
                         {
                             try
                             {
-                                HashSet<Polyline3d> allLinework = xRefLerDB.HashSetOfType<Polyline3d>(xRefLerTx)
+                                HashSet<Polyline3d> remoteLinework = xRefLerDb.HashSetOfType<Polyline3d>(xRefLerTx)
                                                         .Where(x => ReadStringParameterFromDataTable(x.Layer, dtKrydsninger, "Type", 0) != "IGNORE")
                                                         .ToHashSet();
+
+                                #region ModelSpaces
+                                oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(xRefLerDb);
+                                oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+
+                                ObjectIdCollection remoteP3dIds = new ObjectIdCollection();
+                                foreach (Polyline3d p3d in remoteLinework) remoteP3dIds.Add(p3d.ObjectId);
+
+                                IdMapping mapping = new IdMapping();
+                                xRefLerDb.WblockCloneObjects(remoteP3dIds, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                                //Pick up new objects
+                                foreach (IdPair pair in mapping)
+                                    if (pair.Value.IsDerivedFrom<Polyline3d>()) allLinework.Add(pair.Value.Go<Polyline3d>(tx));
+                                prdDbg($"Number of cloned objects: {allLinework.Count}.");
+                                #endregion
 
                                 PointGroupCollection pgs = civilDoc.PointGroups;
 
@@ -4349,7 +4366,7 @@ namespace IntersectUtilities
                                 //allAlignments = allAlignments.Where(x => x.Name == "35 Brogårdsvej" ||//)
                                 //                             x.Name == "36 Søtoften")
                                 //                             .ToList();
-                                //allAlignments = allAlignments.GetRange(1, 3);
+                                allAlignments = allAlignments.GetRange(1, 3);
                                 //allAlignments = allAlignments.OrderBy(x => x.Name).ToList().GetRange(20, 11);
                                 //allAlignments = allAlignments.OrderBy(x => x.Name).Skip(32).ToList();
                                 if (allAlignments.Count == 0) throw new System.Exception("Selection of alignment(s) failed!");
@@ -4364,33 +4381,33 @@ namespace IntersectUtilities
 
                                     #region Delete existing points
                                     //TODO: what to do about if the group already exists???
-                                    for (int i = 0; i < pgs.Count; i++)
+                                    oid pgId = oid.Null;
+                                    pgId = pgs[alignment.Name];
+
+                                    if (pgId != oid.Null)
                                     {
-                                        PointGroup pg = tx.GetObject(pgs[i], OpenMode.ForRead) as PointGroup;
-                                        if (alignment.Name == pg.Name)
-                                        {
-                                            pg.CheckOrOpenForWrite();
-                                            pg.Update();
-                                            uint[] numbers = pg.GetPointNumbers();
+                                        PointGroup pg = tx.GetObject(pgId, OpenMode.ForRead) as PointGroup;
 
-                                            CogoPointCollection cpc = civilDoc.CogoPoints;
+                                        pg.CheckOrOpenForWrite();
+                                        pg.Update();
+                                        pg.DeletePoints();
+                                        //uint[] numbers = pg.GetPointNumbers();
+                                        //CogoPointCollection cpc = civilDoc.CogoPoints;
+                                        //for (int j = 0; j < numbers.Length; j++)
+                                        //{
+                                        //    uint number = numbers[j];
 
-                                            for (int j = 0; j < numbers.Length; j++)
-                                            {
-                                                uint number = numbers[j];
+                                        //    if (cpc.Contains(number))
+                                        //    {
+                                        //        cpc.Remove(number);
+                                        //    }
+                                        //}
+                                        pg.Update();
+                                        StandardPointGroupQuery spgqEmpty = new StandardPointGroupQuery();
+                                        spgqEmpty.IncludeNumbers = "";
+                                        pg.SetQuery(spgqEmpty);
 
-                                                if (cpc.Contains(number))
-                                                {
-                                                    cpc.Remove(number);
-                                                }
-                                            }
-
-                                            StandardPointGroupQuery spgqEmpty = new StandardPointGroupQuery();
-                                            spgqEmpty.IncludeNumbers = "";
-                                            pg.SetQuery(spgqEmpty);
-
-                                            pg.Update();
-                                        }
+                                        pg.Update();
                                     }
                                     #endregion
 
@@ -4418,24 +4435,18 @@ namespace IntersectUtilities
                                     #endregion
 
                                     #region Create ler data
-                                    using (Transaction loopTx = db.TransactionManager.StartTransaction())
+                                    using (Transaction loopTx = localDb.TransactionManager.StartTransaction())
                                     {
                                         try
                                         {
-                                            HashSet<oid> oidsToErase = new HashSet<oid>();
                                             createlerdataloopwithdeepclone(filteredLinework, alignment, surface, pvId.Go<ProfileView>(loopTx),
-                                                                         dtKrydsninger, dtDybde, xRefLerDB, oidsToErase, loopTx, ref pNames);
-                                            foreach (oid OID in oidsToErase)
-                                            {
-                                                Polyline3d p3d = OID.Go<Polyline3d>(loopTx, OpenMode.ForWrite);
-                                                p3d.Erase(true);
-                                            }
+                                                                         dtKrydsninger, dtDybde, loopTx, ref pNames);
                                         }
                                         catch (System.Exception e)
                                         {
                                             loopTx.Abort();
                                             xRefLerTx.Abort();
-                                            xRefLerDB.Dispose();
+                                            xRefLerDb.Dispose();
                                             xRefSurfaceTx.Abort();
                                             xRefSurfaceDB.Dispose();
                                             editor.WriteMessage($"\n{e.Message}");
@@ -4450,7 +4461,7 @@ namespace IntersectUtilities
                             catch (System.Exception e)
                             {
                                 xRefLerTx.Abort();
-                                xRefLerDB.Dispose();
+                                xRefLerDb.Dispose();
                                 xRefSurfaceTx.Abort();
                                 xRefSurfaceDB.Dispose();
                                 editor.WriteMessage($"\n{e.Message}");
@@ -4463,8 +4474,14 @@ namespace IntersectUtilities
                     #endregion
                     xRefSurfaceTx.Abort();
                     xRefSurfaceDB.Dispose();
-                }
 
+                    //Clean up the cloned linework
+                    foreach (Polyline3d p3d in allLinework)
+                    {
+                        p3d.CheckOrOpenForWrite();
+                        p3d.Erase(true);
+                    }
+                }
                 catch (System.Exception e)
                 {
                     tx.Abort();
@@ -5139,10 +5156,10 @@ namespace IntersectUtilities
         //} 
         #endregion
 
-        public void createlerdataloopwithdeepclone(HashSet<Polyline3d> remoteLinework, Alignment alignment,
+        public void createlerdataloopwithdeepclone(HashSet<Polyline3d> linework, Alignment alignment,
                                       CivSurface surface, ProfileView pv,
                                       System.Data.DataTable dtKrydsninger, System.Data.DataTable dtDybde,
-                                      Database xRefLerDb, HashSet<oid> oidsToErase, Transaction tx,
+                                      Transaction tx,
                                       ref HashSet<string> pNames)
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -5153,24 +5170,6 @@ namespace IntersectUtilities
 
             try
             {
-                #region ModelSpaces
-                oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(xRefLerDb);
-                oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
-
-                ObjectIdCollection p3dIds = new ObjectIdCollection();
-                foreach (Polyline3d p3d in remoteLinework) p3dIds.Add(p3d.ObjectId);
-
-                IdMapping mapping = new IdMapping();
-                xRefLerDb.WblockCloneObjects(p3dIds, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
-
-                HashSet<Polyline3d> allLinework = localDb.HashSetOfType<Polyline3d>(tx);
-                foreach (Polyline3d p3d in allLinework)
-                {
-                    oidsToErase.Add(p3d.ObjectId);
-                }
-
-                #endregion
-
                 #region Prepare variables
                 BlockTable acBlkTbl = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                 BlockTableRecord acBlkTblRec =
@@ -5178,7 +5177,7 @@ namespace IntersectUtilities
 
                 Plane plane = new Plane();
 
-                editor.WriteMessage($"\nTotal {allLinework.Count} intersections detected.");
+                editor.WriteMessage($"\nTotal {linework.Count} intersections detected.");
 
                 //Load things
                 CogoPointCollection cogoPoints = civilDoc.CogoPoints;
@@ -5202,7 +5201,7 @@ namespace IntersectUtilities
                 }
                 #endregion
 
-                foreach (Entity ent in allLinework)
+                foreach (Entity ent in linework)
                 {
                     #region Read data parameters from csvs
                     //Read 'Type' value
@@ -5225,7 +5224,7 @@ namespace IntersectUtilities
                     string localLayerName = Utils.ReadStringParameterFromDataTable(
                                         ent.Layer, dtKrydsninger, "Layer", 0);
 
-                    //prdDbg(localLayerName);
+                    //if (localLayerName.IsNoE()) prdDbg($"Entity didn't have ");
 
                     #region Populate description field
 
@@ -5390,6 +5389,12 @@ namespace IntersectUtilities
 
                                         LayerTableRecord ltr = new LayerTableRecord();
                                         ltr.Name = localLayerName;
+
+                                        //Read the layer color value
+                                        System.Data.DataTable dtLayers = CsvReader.ReadCsvToDataTable(
+                                            "X:\\AutoCAD DRI - 01 Civil 3D\\Lag.csv", "Lag");
+                                        int color = ReadIntParameterFromDataTable(localLayerName, dtLayers, "Layer", 0);
+                                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, Convert.ToInt16(color));
 
                                         //Make layertable writable
                                         lt.UpgradeOpen();

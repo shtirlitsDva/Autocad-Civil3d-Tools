@@ -122,6 +122,30 @@ namespace IntersectUtilities
             }
             else return 0;
         }
+        public static int ReadIntParameterFromDataTable(string key, System.Data.DataTable table, string parameter, int keyColumnIdx)
+        {
+            //Test if value exists
+            if (table.AsEnumerable().Any(row => row.Field<string>(keyColumnIdx) == key))
+            {
+                var query = from row in table.AsEnumerable()
+                            where row.Field<string>(keyColumnIdx) == key
+                            select row.Field<string>(parameter);
+
+                string value = query.FirstOrDefault();
+
+                if (value.IsNoE() || value == null) return 0;
+
+                int result;
+
+                if (int.TryParse(value, NumberStyles.AllowDecimalPoint,
+                                    CultureInfo.InvariantCulture, out result))
+                {
+                    return result;
+                }
+                return 0;
+            }
+            else return 0;
+        }
         public static System.Data.DataTable READExcel(string path)
         {
             Microsoft.Office.Interop.Excel.Application objXL = null;
@@ -1691,6 +1715,10 @@ namespace IntersectUtilities
             Transaction tx = Application.DocumentManager.MdiActiveDocument.Database.TransactionManager.TopTransaction;
             if (!Oid.ObjectClass.IsDerivedFrom(RXClass.GetClass(typeof(Entity)))) return "";
             return Oid.Go<Entity>(tx).Layer;
+        }
+        public static bool IsDerivedFrom<T>(this oid Oid)
+        {
+            return Oid.ObjectClass.IsDerivedFrom(RXObject.GetClass(typeof(T)));
         }
         public static void ForEach<T>(this Database database, Action<T> action, Transaction tr) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
