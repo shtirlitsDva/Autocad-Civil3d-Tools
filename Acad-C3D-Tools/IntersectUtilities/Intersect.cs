@@ -3945,7 +3945,7 @@ namespace IntersectUtilities
                     prdDbg(projectName);
                     if (projectName.IsNoE())
                     { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
-                    
+
                     string etapeName = GetEtapeName(projectName);
                     editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Fremtid"));
 
@@ -4301,6 +4301,7 @@ namespace IntersectUtilities
                     {
                         editor.WriteMessage("\nSurface could not be loaded from the xref!");
                         xRefSurfaceTx.Commit();
+                        xRefSurfaceDB.Dispose();
                         return;
                     }
                     #endregion
@@ -4362,8 +4363,7 @@ namespace IntersectUtilities
                                     System.Windows.Forms.Application.DoEvents();
 
                                     #region Delete existing points
-
-
+                                    //TODO: what to do about if the group already exists???
                                     for (int i = 0; i < pgs.Count; i++)
                                     {
                                         PointGroup pg = tx.GetObject(pgs[i], OpenMode.ForRead) as PointGroup;
@@ -4375,15 +4375,15 @@ namespace IntersectUtilities
 
                                             CogoPointCollection cpc = civilDoc.CogoPoints;
 
-                                            //for (int j = 0; j < numbers.Length; j++)
-                                            //{
-                                            //    uint number = numbers[j];
+                                            for (int j = 0; j < numbers.Length; j++)
+                                            {
+                                                uint number = numbers[j];
 
-                                            //    if (cpc.Contains(number))
-                                            //    {
-                                            //        cpc.Remove(number);
-                                            //    }
-                                            //}
+                                                if (cpc.Contains(number))
+                                                {
+                                                    cpc.Remove(number);
+                                                }
+                                            }
 
                                             StandardPointGroupQuery spgqEmpty = new StandardPointGroupQuery();
                                             spgqEmpty.IncludeNumbers = "";
@@ -4401,18 +4401,19 @@ namespace IntersectUtilities
                                     Point3d insertionPoint = new Point3d(selectedPoint.X, selectedPoint.Y + (index - 1) * -120, 0);
                                     #endregion
 
-                                    //If ProfileView already exists -> continue
-                                    if (pvSetExisting.Any(x => x.Name == $"{alignment.Name}_PV"))
-                                    {
-                                        var existingPv = pvSetExisting.Where(x => x.Name == $"{alignment.Name}_PV").FirstOrDefault();
-                                        if (existingPv == null) throw new System.Exception("Selection of existing PV failed!");
-                                        pvId = existingPv.Id;
-                                    }
-                                    else
-                                    {
-                                        pvId = ProfileView.Create(alignment.ObjectId, insertionPoint,
-                                            $"{alignment.Name}_PV", profileViewBandSetStyleId, profileViewStyleId);
-                                    }
+                                    // ***** Existing PVs are filtered at start, so the if is redudant *****
+                                    ////If ProfileView already exists -> continue
+                                    //if (pvSetExisting.Any(x => x.Name == $"{alignment.Name}_PV"))
+                                    //{
+                                    //    var existingPv = pvSetExisting.Where(x => x.Name == $"{alignment.Name}_PV").FirstOrDefault();
+                                    //    if (existingPv == null) throw new System.Exception("Selection of existing PV failed!");
+                                    //    pvId = existingPv.Id;
+                                    //}
+                                    //else
+                                    //{
+                                    pvId = ProfileView.Create(alignment.ObjectId, insertionPoint,
+                                        $"{alignment.Name}_PV", profileViewBandSetStyleId, profileViewStyleId);
+                                    //}
                                     index++;
                                     #endregion
 
@@ -5859,15 +5860,21 @@ namespace IntersectUtilities
                     LayerTable lt = db.LayerTableId.GetObject(OpenMode.ForRead) as LayerTable;
                     string terrainLayerName = "0_TERRAIN_PROFILE";
                     oid terrainLayerId = oid.Null;
-                    foreach (oid id in lt)
+                    if (!lt.Has(terrainLayerName))
                     {
-                        LayerTableRecord ltr = id.GetObject(OpenMode.ForRead) as LayerTableRecord;
-                        if (ltr.Name == terrainLayerName) terrainLayerId = ltr.Id;
+                        LayerTableRecord ltr = new LayerTableRecord();
+                        ltr.Name = terrainLayerName;
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 34);
+                        lt.CheckOrOpenForWrite();
+                        terrainLayerId = lt.Add(ltr);
+                        tx.AddNewlyCreatedDBObject(ltr, true);
                     }
+                    else terrainLayerId = lt[terrainLayerName];
+                    
                     if (terrainLayerId == oid.Null)
                     {
                         editor.WriteMessage("Terrain layer missing!");
-                        return;
+                        throw new System.Exception("Terrain layer missing!");
                     }
 
                     #endregion
@@ -5897,6 +5904,8 @@ namespace IntersectUtilities
                                                 terrainLayerId, profileStyleId, profileLabelSetStyleId);
                             editor.WriteMessage($"\nSurface profile created for {alignment.Name}.");
                         }
+
+                        System.Windows.Forms.Application.DoEvents();
                     }
                     #endregion
                 }
@@ -11152,95 +11161,6 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("TESTDATASHORTCUTSAPI")]
-        public void testdatashortcutsapi()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                #region Cache current Working Folder
-                string originalWorkingFolder = DataShortcuts.GetWorkingFolder();
-                prdDbg(originalWorkingFolder);
-                #endregion
-
-                try
-                {
-                    #region 
-                    //TODO: Fix etape choice
-                    string projectName = GetProjectName();
-                    prdDbg(projectName);
-
-                    if (projectName.IsNoE())
-                    {
-                        prdDbg("\nGetting project name returned empty string. Please investigate!");
-                        return;
-                    }
-
-                    string newWorkingFolder = GetWorkingFolder(projectName);
-                    prdDbg(newWorkingFolder);
-
-                    //Set the new working folder
-                    DataShortcuts.SetWorkingFolder(newWorkingFolder);
-
-                    string currenProject = "";
-                    //List<string> otherProjects = new List<string>();
-                    //DataShortcuts.GetAllProjectFolders(ref currenProject, ref otherProjects );
-                    List<string> otherProjects = DataShortcuts.GetOtherProjectFolders().ToList();
-
-                    prdDbg("Current project: " + currenProject);
-                    prdDbg("All projects: ");
-                    foreach (string name in otherProjects)
-                    {
-                        prdDbg($"{name}");
-                    }
-
-
-                    //using (Database extDb = new Database(false, true))
-                    //{
-                    //    extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
-
-                    //    using (Transaction extTx = extDb.TransactionManager.StartTransaction())
-                    //    {
-                    //        #region Count viewframes
-                    //        var vfSet = extDb.HashSetOfType<ViewFrame>(extTx);
-
-                    //        foreach (ViewFrame vf in vfSet)
-                    //        {
-                    //            prdDbg(vf.Name);
-                    //        }
-                    //        #endregion
-
-                    //        extTx.Commit();
-                    //    }
-                    //    //extDb.SaveAs(extDb.Filename, DwgVersion.Current);
-                    //}
-                    System.Windows.Forms.Application.DoEvents();
-
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
-                    return;
-                }
-                finally
-                {
-                    //End the routine by setting the working folder to original value
-                    //Unless it's empty... or null...
-                    //It is put in finally so it would execute on normal execution and exception return
-                    if (originalWorkingFolder.IsNotNoE())
-                        DataShortcuts.SetWorkingFolder(originalWorkingFolder);
-                }
-                tx.Commit();
-            }
-        }
-
         [CommandMethod("TESTSTIKCOUNTING")]
         public void teststikcounting()
         {
@@ -11614,7 +11534,7 @@ namespace IntersectUtilities
                                 layersToChange.Add(ltr.Name);
                             }
                         }
-                        
+
                         LinetypeTableRecord exLtr = existingId.Go<LinetypeTableRecord>(tr, OpenMode.ForWrite);
                         exLtr.Erase(true);
                     }

@@ -1299,7 +1299,7 @@ namespace IntersectUtilities
         public static string GetWorkingFolder(string projectName, string workingFolder = "WorkingFolder")
         {
             #region Read Csv for paths
-            string pathWF = "X:\\AutoCAD DRI - 01 Civil 3D\\WorkingFolders.csv";
+            string pathWF = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
             System.Data.DataTable dtWF = CsvReader.ReadCsvToDataTable(pathWF, "WF");
             #endregion
 
