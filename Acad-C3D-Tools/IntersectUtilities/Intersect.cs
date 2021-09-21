@@ -4366,7 +4366,7 @@ namespace IntersectUtilities
                                 //allAlignments = allAlignments.Where(x => x.Name == "35 Brogårdsvej" ||//)
                                 //                             x.Name == "36 Søtoften")
                                 //                             .ToList();
-                                allAlignments = allAlignments.GetRange(1, 3);
+                                //allAlignments = allAlignments.GetRange(1, 3);
                                 //allAlignments = allAlignments.OrderBy(x => x.Name).ToList().GetRange(20, 11);
                                 //allAlignments = allAlignments.OrderBy(x => x.Name).Skip(32).ToList();
                                 if (allAlignments.Count == 0) throw new System.Exception("Selection of alignment(s) failed!");
@@ -4382,10 +4382,10 @@ namespace IntersectUtilities
                                     #region Delete existing points
                                     //TODO: what to do about if the group already exists???
                                     oid pgId = oid.Null;
-                                    pgId = pgs[alignment.Name];
-
-                                    if (pgId != oid.Null)
+                                    if (pgs.Contains(alignment.Name))
                                     {
+                                        pgId = pgs[alignment.Name];
+
                                         PointGroup pg = tx.GetObject(pgId, OpenMode.ForRead) as PointGroup;
 
                                         pg.CheckOrOpenForWrite();
@@ -4453,7 +4453,7 @@ namespace IntersectUtilities
                                             return;
                                         }
                                         loopTx.Commit();
-                                        doc.Database.SaveAs(path, true, DwgVersion.Current, doc.Database.SecurityParameters);
+                                        //doc.Database.SaveAs(path, true, DwgVersion.Current, doc.Database.SecurityParameters);
                                     }
                                     #endregion
                                 }
@@ -5304,6 +5304,8 @@ namespace IntersectUtilities
                         {
                             oid pointId = cogoPoints.Add(p3d, true);
                             CogoPoint cogoPoint = pointId.Go<CogoPoint>(tx, OpenMode.ForWrite);
+                            cogoPoint.StyleId = civilDoc.Styles.PointStyles["PIL"];
+                            cogoPoint.LabelStyleId = civilDoc.Styles.LabelStyles.PointLabelStyles.LabelStyles["_No labels"];
 
                             //Id of the new Poly3d if type == 3D
                             oid newPolyId;
@@ -7724,7 +7726,7 @@ namespace IntersectUtilities
 
                             //Projection Label Styles
                             LabelStyleCollection stc = stylesDoc.Styles.LabelStyles
-                                                                           .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
+                                .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
 
                             objIds.Add(stc["PROFILE PROJECTION RIGHT"]);
                             objIds.Add(stc["PROFILE PROJECTION LEFT"]);
@@ -7748,6 +7750,7 @@ namespace IntersectUtilities
                             //Profile Style
                             var psc = stylesDoc.Styles.ProfileStyles;
                             objIds.Add(psc["PROFIL STYLE MGO"]);
+                            objIds.Add(psc["Terræn"]);
 
                             //Profile label styles
                             var plss = stylesDoc.Styles.LabelStyles.ProfileLabelStyles.CurveLabelStyles;
@@ -7761,6 +7764,16 @@ namespace IntersectUtilities
 
                             //Matchline styles
                             objIds.Add(stylesDoc.Styles.MatchLineStyles["Basic"]);
+
+                            //Point styles
+                            objIds.Add(stylesDoc.Styles.PointStyles["PIL"]);
+
+                            //Point label styles
+                            objIds.Add(stylesDoc.Styles.LabelStyles.PointLabelStyles.LabelStyles["_No labels"]);
+
+                            //Default projection label style
+                            objIds.Add(stylesDoc.Styles.LabelStyles.ProjectionLabelStyles
+                                .ProfileViewProjectionLabelStyles["PROFILE PROJEKTION MGO"]);
 
                             Autodesk.Civil.DatabaseServices.Styles.StyleBase.ExportTo(objIds, localDb, Autodesk.Civil.StyleConflictResolverType.Override);
                         }

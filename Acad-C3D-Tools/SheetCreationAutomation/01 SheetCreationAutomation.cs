@@ -98,7 +98,17 @@ namespace SheetCreationAutomation
                     foreach (Alignment al in als)
                     {
                         al.CheckOrOpenForWrite();
-                        al.ImportLabelSet("STD 20-5");
+
+                        try
+                        {
+                            al.StyleId = civilDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
+                            al.ImportLabelSet("STD 20-5");
+                        }
+                        catch (System.Exception)
+                        {
+                            prdDbg("Styles for alignment or labels are missing!");
+                            throw;
+                        }
                     }
 
                     System.Windows.Forms.Application.DoEvents();
