@@ -34,6 +34,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using System.Windows.Forms;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
+using System.Collections;
 
 namespace IntersectUtilities
 {
@@ -5877,7 +5878,7 @@ namespace IntersectUtilities
                         tx.AddNewlyCreatedDBObject(ltr, true);
                     }
                     else terrainLayerId = lt[terrainLayerName];
-                    
+
                     if (terrainLayerId == oid.Null)
                     {
                         editor.WriteMessage("Terrain layer missing!");
@@ -7196,7 +7197,18 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            string projectName = GetProjectName();
+            prdDbg(projectName);
+            if (projectName.IsNoE())
+            { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
 
+            string etapeName = GetEtapeName(projectName);
+
+            // open the xref database
+            Database alDb = new Database(false, true);
+            alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
+                System.IO.FileShare.Read, false, string.Empty);
+            Transaction alTx = alDb.TransactionManager.StartTransaction();
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -7205,51 +7217,222 @@ namespace IntersectUtilities
                     System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
                         @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
-                    HashSet<BlockReference> als = localDb.HashSetOfType<BlockReference>(tx);
+                    HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
 
-                    #region CreateLayers
-                    
-                    #endregion
-
-                    foreach (oid Oid in btr)
+                    foreach (BlockReference br in brs)
                     {
-                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        if (ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Navn", 0) != null)
                         {
-                            BlockReference br = Oid.Go<BlockReference>(tx);
-                            if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) != null)
+                            HashSet<(BlockReference block, double dist, Alignment al)> alDistTuples =
+                                new HashSet<(BlockReference, double, Alignment)>();
+                            try
                             {
-                                HashSet<(BlockReference block, double dist, string layName)> alDistTuples = new HashSet<(BlockReference, double, string)>();
-                                try
+                                foreach (Alignment al in als)
                                 {
-                                    foreach (Alignment al in als)
+                                    if (al.Length < 1) continue;
+                                    Point3d closestPoint = al.GetClosestPointTo(br.Position, false);
+                                    if (closestPoint != null)
                                     {
-                                        Point3d closestPoint = al.GetClosestPointTo(br.Position, false);
-                                        if (closestPoint != null)
-                                        {
-                                            alDistTuples.Add((br, br.Position.DistanceHorizontalTo(closestPoint), al.Name));
-                                        }
-                                    }
-                                }
-                                catch (System.Exception) { };
-
-                                var result = alDistTuples.MinBy(x => x.Item2).FirstOrDefault();
-
-                                if (default != result)
-                                {
-                                    br.CheckOrOpenForWrite();
-                                    br.Layer = result.layName;
-                                    AttributeCollection atts = br.AttributeCollection;
-                                    foreach (oid attOid in atts)
-                                    {
-                                        AttributeReference att = attOid.Go<AttributeReference>(tx, OpenMode.ForWrite);
-                                        if (att.Tag == "Delstrækning")
-                                        {
-                                            att.CheckOrOpenForWrite();
-                                            att.TextString = result.layName;
-                                        }
+                                        alDistTuples.Add((br, br.Position.DistanceHorizontalTo(closestPoint), al));
                                     }
                                 }
                             }
+                            catch (System.Exception)
+                            {
+                                prdDbg("Error in GetClosestPointTo -> loop incomplete!");
+                            }
+
+                            double distThreshold = 0.15;
+                            var result = alDistTuples.Where(x => x.dist < distThreshold);
+
+                            if (result.Count() == 0)
+                            {
+                                //If the component cannot find an alignment
+                                //Repeat with increasing threshold
+                                for (int i = 0; i < 4; i++)
+                                {
+                                    distThreshold += 0.1;
+                                    if (result.Count() != 0) break;
+                                    if (i == 3)
+                                    {
+                                        //Red line means check result
+                                        //This is caught if no result found at ALL
+                                        Line line = new Line(new Point3d(), br.Position);
+                                        line.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                                        line.AddEntityToDbModelSpace(localDb);
+                                    }
+                                }
+
+                                if (result.Count() > 0)
+                                {
+                                    //This is caught if a result was found after some iterations
+                                    //So the result must be checked to see, if components
+                                    //Not belonging to the alignment got selected
+                                    Line line = new Line(new Point3d(), br.Position);
+                                    line.Color = Color.FromColorIndex(ColorMethod.ByAci, 3);
+                                    line.AddEntityToDbModelSpace(localDb);
+                                }
+                            }
+
+                            if (result.Count() == 0)
+                            {
+                                oid extId = br.ExtensionDictionary;
+                                if (extId == oid.Null)
+                                {
+                                    br.CheckOrOpenForWrite();
+                                    br.CreateExtensionDictionary();
+                                    extId = br.ExtensionDictionary;
+                                }
+                                DBDictionary dbExt = extId.Go<DBDictionary>(tx, OpenMode.ForWrite);
+
+                                string xRecName = "Alignment";
+                                if (dbExt.Contains(xRecName))
+                                {
+                                    oid xRecId = dbExt.GetAt(xRecName);
+                                    Xrecord xRec = xRecId.Go<Xrecord>(tx, OpenMode.ForWrite);
+                                    ResultBuffer rb = new ResultBuffer();
+                                    rb.Add(new TypedValue(
+                                        (int)DxfCode.ExtendedDataAsciiString, "NA"));
+                                    xRec.Data = rb;
+                                }
+                                else
+                                {
+                                    Xrecord xRec = new Xrecord();
+                                    ResultBuffer rb = new ResultBuffer();
+                                    //prdDbg(result.First().al.Name);
+                                    rb.Add(new TypedValue(
+                                        (int)DxfCode.ExtendedDataAsciiString, "NA"));
+                                    xRec.Data = rb;
+
+                                    dbExt.SetAt(xRecName, xRec);
+                                    tx.AddNewlyCreatedDBObject(xRec, true);
+                                }
+                            }
+                            else if (result.Count() == 2)
+                            {//Should be ordinary branch
+                                var first = result.First();
+                                var second = result.Skip(1).First();
+
+                                double rotation = br.Rotation;
+
+                                //First
+                                Point3d firstClosestPoint = first.al.GetClosestPointTo(br.Position, false);
+                                var firstDeriv = first.al.GetFirstDerivative(firstClosestPoint);
+                                prdDbg($"Rotation: {rotation} - {first.al.Name}: {Math.Atan2(firstDeriv.Y, firstDeriv.X)}");
+
+                                //Second
+                                Point3d secondClosestPoint = second.al.GetClosestPointTo(br.Position, false);
+                                var secondDeriv = second.al.GetFirstDerivative(secondClosestPoint);
+                                prdDbg($"Rotation: {rotation} - {second.al.Name}: {Math.Atan2(secondDeriv.Y, secondDeriv.X)}");
+
+                                Line line = new Line(new Point3d(), first.block.Position);
+                                line.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
+                                line.AddEntityToDbModelSpace(localDb);
+                            }
+                            else if (result.Count() > 2)
+                            {//More alignments meeting in one place?
+                                //Possible but not seen yet
+                                var first = result.First();
+                                Line line = new Line(new Point3d(), first.block.Position);
+                                line.Color = Color.FromColorIndex(ColorMethod.ByAci, 4);
+                                line.AddEntityToDbModelSpace(localDb);
+                            }
+                            else if (result.Count() == 1)
+                            {
+                                oid extId = br.ExtensionDictionary;
+                                if (extId == oid.Null)
+                                {
+                                    br.CheckOrOpenForWrite();
+                                    br.CreateExtensionDictionary();
+                                    extId = br.ExtensionDictionary;
+                                }
+                                DBDictionary dbExt = extId.Go<DBDictionary>(tx, OpenMode.ForWrite);
+
+                                string xRecName = "Alignment";
+                                if (dbExt.Contains(xRecName))
+                                {
+                                    oid xRecId = dbExt.GetAt(xRecName);
+                                    Xrecord xRec = xRecId.Go<Xrecord>(tx, OpenMode.ForWrite);
+                                    ResultBuffer rb = new ResultBuffer();
+                                    rb.Add(new TypedValue(
+                                        (int)DxfCode.ExtendedDataAsciiString, result.First().al.Name));
+                                    xRec.Data = rb;
+                                }
+                                else
+                                {
+                                    Xrecord xRec = new Xrecord();
+                                    ResultBuffer rb = new ResultBuffer();
+                                    //prdDbg(result.First().al.Name);
+                                    rb.Add(new TypedValue(
+                                        (int)DxfCode.ExtendedDataAsciiString, result.First().al.Name));
+                                    xRec.Data = rb;
+
+                                    dbExt.SetAt(xRecName, xRec);
+                                    tx.AddNewlyCreatedDBObject(xRec, true);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    alTx.Abort();
+                    alTx.Dispose();
+                    alDb.Dispose();
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                alTx.Abort();
+                alTx.Dispose();
+                alDb.Dispose();
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("LISTXRECS")]
+        public void listxrecs()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                        "\nSelect entity to list XRECs:");
+            promptEntityOptions1.SetRejectMessage("\n Not an entity!");
+            PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+            if (((PromptResult)entity1).Status != PromptStatus.OK) { return; }
+            oid sourceId = entity1.ObjectId;
+            if (!sourceId.IsDerivedFrom<Autodesk.AutoCAD.DatabaseServices.DBObject>())
+            {
+                prdDbg("Selected object is not derived from <DBObject>!");
+                return;
+            }
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Entity ent = sourceId.Go<Entity>(tx);
+                    prdDbg($"Handle: {ent.Handle}");
+                    oid extId = ent.ExtensionDictionary;
+                    if (extId == oid.Null) throw new System.Exception("No extension dictionary found!");
+                    DBDictionary dbExt = extId.Go<DBDictionary>(tx);
+                    string[] keys = new string[dbExt.Count];
+                    ((IDictionary)dbExt).Keys.CopyTo(keys, 0);
+                    for (int i = 0; i < keys.Length; i++)
+                    {
+                        prdDbg($"Key: {keys[i]}");
+                        oid valId = dbExt.GetAt(keys[i]);
+                        if (!valId.IsDerivedFrom<Xrecord>()) continue;
+                        Xrecord xrec = valId.Go<Xrecord>(tx);
+                        TypedValue[] data = xrec.Data.AsArray();
+                        for (int j = 0; j < data.Length; j++)
+                        {
+                            prdDbg($"Value {j + 1}: {data[j].Value.ToString()}");
                         }
                     }
                 }

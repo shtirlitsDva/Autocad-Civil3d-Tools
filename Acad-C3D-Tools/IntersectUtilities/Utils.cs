@@ -1700,6 +1700,14 @@ namespace IntersectUtilities
         public static BlockTableRecord GetModelspaceForWrite(this Database db) =>
             db.BlockTableId.Go<BlockTable>(db.TransactionManager.TopTransaction)[BlockTableRecord.ModelSpace]
             .Go<BlockTableRecord>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
+        public static string RealName(this BlockReference br)
+        {
+            Transaction tx = br.Database.TransactionManager.TopTransaction;
+            string effectiveName = br.IsDynamicBlock
+                ? ((BlockTableRecord)tx.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)).Name
+                : br.Name;
+            return effectiveName;
+        }
     }
 
     public static class ExtensionMethods
@@ -1709,6 +1717,14 @@ namespace IntersectUtilities
             Autodesk.AutoCAD.DatabaseServices.OpenMode.ForRead) where T : Autodesk.AutoCAD.DatabaseServices.DBObject
         {
             return (T)tx.GetObject(Oid, openMode, false);
+        }
+        public static oid AddEntityToDbModelSpace<T>(this T entity, Database db) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        {
+            Transaction tx = db.TransactionManager.TopTransaction;
+            BlockTableRecord modelSpace = db.GetModelspaceForWrite();
+            oid id = modelSpace.AppendEntity(entity);
+            tx.AddNewlyCreatedDBObject(entity, true);
+            return id;
         }
         public static string Layer(this oid Oid)
         {
@@ -1745,7 +1761,6 @@ namespace IntersectUtilities
             //tr.Commit();
             //}
         }
-
         public static List<T> ListOfType<T>(this Database database, Transaction tr, bool discardFrozen = false) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
             //using (var tr = database.TransactionManager.StartTransaction())
@@ -1782,13 +1797,11 @@ namespace IntersectUtilities
             //tr.Commit();
             //}
         }
-
         public static HashSet<T> HashSetOfType<T>(this Database db, Transaction tr, bool discardFrozen = false)
             where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
             return new HashSet<T>(db.ListOfType<T>(tr, discardFrozen));
         }
-
         // Searches the drawing for a block with the specified name.
         // Returns either the block, or null - check accordingly.
         public static HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference> GetBlockReferenceByName(
