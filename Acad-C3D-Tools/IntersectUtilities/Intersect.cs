@@ -7082,8 +7082,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("assignblockstoalignments")]
-        public void assignblockstoalignments()
+        public void assignblockstoalignmentsOLD()
         {
 
             DocumentCollection docCol = Application.DocumentManager;
@@ -7131,6 +7130,83 @@ namespace IntersectUtilities
                             }
                         }
                     }
+                    #endregion
+
+                    foreach (oid Oid in btr)
+                    {
+                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        {
+                            BlockReference br = Oid.Go<BlockReference>(tx);
+                            if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) != null)
+                            {
+                                HashSet<(BlockReference block, double dist, string layName)> alDistTuples = new HashSet<(BlockReference, double, string)>();
+                                try
+                                {
+                                    foreach (Alignment al in als)
+                                    {
+                                        Point3d closestPoint = al.GetClosestPointTo(br.Position, false);
+                                        if (closestPoint != null)
+                                        {
+                                            alDistTuples.Add((br, br.Position.DistanceHorizontalTo(closestPoint), al.Name));
+                                        }
+                                    }
+                                }
+                                catch (System.Exception) { };
+
+                                var result = alDistTuples.MinBy(x => x.Item2).FirstOrDefault();
+
+                                if (default != result)
+                                {
+                                    br.CheckOrOpenForWrite();
+                                    br.Layer = result.layName;
+                                    AttributeCollection atts = br.AttributeCollection;
+                                    foreach (oid attOid in atts)
+                                    {
+                                        AttributeReference att = attOid.Go<AttributeReference>(tx, OpenMode.ForWrite);
+                                        if (att.Tag == "Delstrækning")
+                                        {
+                                            att.CheckOrOpenForWrite();
+                                            att.TextString = result.layName;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("ASSIGNBLOCKSTOALIGNMENTS")]
+        public void assignblockstoalignments()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+                    HashSet<BlockReference> als = localDb.HashSetOfType<BlockReference>(tx);
+
+                    #region CreateLayers
+                    
                     #endregion
 
                     foreach (oid Oid in btr)
