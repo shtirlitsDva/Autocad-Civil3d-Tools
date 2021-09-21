@@ -923,6 +923,46 @@ namespace IntersectUtilities
             return false;
         }
         #endregion
+        #region Xrecord functions
+        public static void XrecordCreateWriteUpdateString(
+            Autodesk.AutoCAD.DatabaseServices.DBObject obj,
+            string xRecName, string[] valuesToWrite)
+        {
+            oid extId = obj.ExtensionDictionary;
+            if (extId == oid.Null)
+            {
+                obj.CheckOrOpenForWrite();
+                obj.CreateExtensionDictionary();
+                extId = obj.ExtensionDictionary;
+            }
+
+            Transaction tx = obj.Database.TransactionManager.TopTransaction;
+
+            DBDictionary dbExt = extId.Go<DBDictionary>(tx, OpenMode.ForWrite);
+            
+            Xrecord xRec;
+            if (dbExt.Contains(xRecName))
+            {
+                oid xRecId = dbExt.GetAt(xRecName);
+                xRec = xRecId.Go<Xrecord>(tx, OpenMode.ForWrite);
+            }
+            else
+            {
+                xRec = new Xrecord();
+                dbExt.SetAt(xRecName, xRec);
+                tx.AddNewlyCreatedDBObject(xRec, true);
+            }
+
+            ResultBuffer rb = new ResultBuffer();
+            for (int i = 0; i < valuesToWrite.Length; i++)
+            {
+                rb.Add(new TypedValue(
+                    (int)DxfCode.ExtendedDataAsciiString, valuesToWrite[i]));
+            }
+
+            xRec.Data = rb;
+        }
+        #endregion
         /// <summary>
         /// Gets all vertices of a polyline.
         /// </summary>
