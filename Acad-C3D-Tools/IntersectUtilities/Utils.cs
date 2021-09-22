@@ -939,7 +939,7 @@ namespace IntersectUtilities
             Transaction tx = obj.Database.TransactionManager.TopTransaction;
 
             DBDictionary dbExt = extId.Go<DBDictionary>(tx, OpenMode.ForWrite);
-            
+
             Xrecord xRec;
             if (dbExt.Contains(xRecName))
             {
@@ -1783,6 +1783,43 @@ namespace IntersectUtilities
                 }
             }
         }
+        /// <summary>
+        /// Remember to check for existence of BlockTableRecord!
+        /// </summary>
+        public static BlockReference CreateBlockWithAttributes(this Database db, string blockName, Point3d position)
+        {
+            Transaction tx = db.TransactionManager.TopTransaction;
+            BlockTableRecord modelSpace = db.GetModelspaceForWrite();
+            BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
+            oid btrId = bt[blockName];
+            BlockTableRecord btr = btrId.Go<BlockTableRecord>(tx);
+
+            var br = new BlockReference(position, btrId);
+            
+            modelSpace.CheckOrOpenForWrite();
+            modelSpace.AppendEntity(br);
+            tx.AddNewlyCreatedDBObject(br, true);
+
+            foreach (oid arOid in btr)
+            {
+                if (arOid.IsDerivedFrom<AttributeDefinition>())
+                {
+                    AttributeDefinition at = arOid.Go<AttributeDefinition>(tx);
+                    if (!at.Constant)
+                    {
+                        using (AttributeReference atRef = new AttributeReference())
+                        {
+                            atRef.SetAttributeFromBlock(at, br.BlockTransform);
+                            atRef.Position = at.Position.TransformBy(br.BlockTransform);
+                            atRef.TextString = at.TextString;
+                            br.AttributeCollection.AppendAttribute(atRef);
+                            tx.AddNewlyCreatedDBObject(atRef, true);
+                        }
+                    }
+                }
+            }
+            return br;
+        }
     }
 
     public static class ExtensionMethods
@@ -2438,6 +2475,8 @@ namespace IntersectUtilities
             if (kOds.ContainsKey(dn)) return kOds[dn];
             return 0;
         }
+        public static double GetPipeKOd(Entity ent) =>
+            GetPipeSystem(ent) == "Twin" ? GetTwinPipeKOd(ent) : GetBondedPipeKOd(ent);
     }
 }
 

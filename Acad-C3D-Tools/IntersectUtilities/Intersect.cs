@@ -4613,34 +4613,34 @@ namespace IntersectUtilities
                         double pvLength = pvStEnd - pvStStart;
 
                         //Settings
-                        double cover = 0.0;
                         double weedAngle = 5; //In degrees
                         double weedAngleRad = weedAngle.ToRadians();
-                        double DouglasPeuckerTolerance = .1;
+                        double DouglasPeuckerTolerance = .05;
 
                         double stepLength = 0.1;
                         int nrOfSteps = (int)(pvLength / stepLength);
 
                         #region Build size array
-                        (int dn, double station)[] sizeArray = new (int dn, double station)[0];
+                        (int dn, double station, double kod)[] sizeArray = new (int dn, double station, double kod)[0];
                         int previousDn = 0;
                         int currentDn = 0;
                         for (int i = 0; i < nrOfSteps + 1; i++)
                         {
-                            double curStation = pvStStart + stepLength * i;
+                            double curStationBA = pvStStart + stepLength * i;
                             Point3d curSamplePoint = default;
-                            try { curSamplePoint = al.GetPointAtDist(curStation); }
+                            try { curSamplePoint = al.GetPointAtDist(curStationBA); }
                             catch (System.Exception) { continue; }
 
-                            HashSet<(Curve curve, double dist)> curveDistTuples =
-                                new HashSet<(Curve curve, double dist)>();
+                            HashSet<(Curve curve, double dist, double kappeOd)> curveDistTuples =
+                                new HashSet<(Curve curve, double dist, double kappeOd)>();
 
                             foreach (Curve curve in curves)
                             {
                                 if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
                                 Point3d closestPoint = curve.GetClosestPointTo(curSamplePoint, false);
                                 if (closestPoint != default)
-                                    curveDistTuples.Add((curve, curSamplePoint.DistanceHorizontalTo(closestPoint)));
+                                    curveDistTuples.Add(
+                                        (curve, curSamplePoint.DistanceHorizontalTo(closestPoint), GetPipeKOd(curve)));
                             }
                             var result = curveDistTuples.MinBy(x => x.dist).FirstOrDefault();
                             //Detect current dn
@@ -4648,19 +4648,21 @@ namespace IntersectUtilities
                             if (currentDn != previousDn)
                             {
                                 //Set the previous segment end station unless there's 0 segments
-                                if (sizeArray.Length != 0) sizeArray[sizeArray.Length - 1].station = curStation;
+                                if (sizeArray.Length != 0) sizeArray[sizeArray.Length - 1].station = curStationBA;
                                 //Add the new segment
-                                sizeArray = sizeArray.Append((currentDn, 0)).ToArray();
+                                sizeArray = sizeArray.Append((currentDn, 0, result.kappeOd)).ToArray();
                             }
                             //Hand over DN to cache in "previous" variable
                             previousDn = currentDn;
                             //TODO: on the last iteration set the last segment distance
-                            if (i == nrOfSteps) sizeArray[sizeArray.Length - 1].station = al.Length + 10.0;
+                            if (i == nrOfSteps) sizeArray[sizeArray.Length - 1].station = al.Length;
                         }
 
                         for (int i = 0; i < sizeArray.Length; i++)
                         {
-                            prdDbg($"{sizeArray[i].dn.ToString("D3")} || {sizeArray[i].station.ToString("0.00")}");
+                            prdDbg($"{sizeArray[i].dn.ToString("D3")} || " +
+                                   $"{sizeArray[i].station.ToString("0.00")} || " +
+                                   $"{sizeArray[i].kod.ToString("0.0")}");
                         }
                         #endregion
 
@@ -4675,70 +4677,122 @@ namespace IntersectUtilities
                             br.Erase(true);
                         }
                         #endregion
+                        if (!bt.Has(blockName))
+                        {
+                            prdDbg("Block for size annotation is missing!");
+                            throw new System.Exception();
+                        }
 
                         //-1 is because of lookahead
-                        for (int i = 0; i < sizeArray.Length - 1; i++)
+                        for (int i = 0; i < sizeArray.Length; i++)
                         {
-                            double curStation = sizeArray[i].station;
-
+                            double curStationBL = 0;
                             double sampledSurfaceElevation = 0;
-                            try { sampledSurfaceElevation = surfaceProfile.ElevationAt(curStation); }
-                            catch (System.Exception)
+                            double curX = 0, curY = 0;
+                            if (i == 0)
                             {
-                                prdDbg($"\nStation {curStation} threw an exception when placing size change blocks! Skipping...");
-                                continue;
+                                sampledSurfaceElevation = SampleProfile(surfaceProfile, curStationBL);
+                                curX = originX + curStationBL;
+                                curY = originY + sampledSurfaceElevation - pvElBottom;
+                                BlockReference brAt0 =
+                                    localDb.CreateBlockWithAttributes(blockName, new Point3d(curX, curY, 0));
+                                brAt0.SetAttributeStringValue("LEFTSIZE", "");
+                                brAt0.SetAttributeStringValue("RIGHTSIZE", $"DN {sizeArray[0].dn}");
                             }
-                            double curX = originX + curStation;
-                            double curY = originY + sampledSurfaceElevation - pvElBottom;
-                            if (!bt.Has(blockName))
+                            if (i == 0 && sizeArray.Length == 1)
                             {
-                                prdDbg("Block for size annotation is missing!");
-                                throw new System.Exception();
+                                curStationBL = al.Length;
+                                sampledSurfaceElevation = SampleProfile(surfaceProfile, curStationBL - .1);
+                                curX = originX + curStationBL;
+                                curY = originY + sampledSurfaceElevation - pvElBottom;
+                                BlockReference brAtEnd =
+                                    localDb.CreateBlockWithAttributes(blockName, new Point3d(curX, curY, 0));
+                                brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {sizeArray[0].dn}");
+                                brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
                             }
-                            using (var br = new BlockReference(new Point3d(curX, curY, 0), bt[blockName]))
+                            if (i == sizeArray.Length - 1) continue;
+                            if (sizeArray.Length != 1)
                             {
-                                modelSpace.CheckOrOpenForWrite();
-                                modelSpace.AppendEntity(br);
-                                tx.AddNewlyCreatedDBObject(br, true);
-                                br.SetAttributeStringValue("LEFTSIZE", $"DN {sizeArray[i].dn}");
-                                br.SetAttributeStringValue("RIGHTSIZE", $"DN {sizeArray[i + 1].dn}");
+                                curStationBL = sizeArray[i].station;
+                                sampledSurfaceElevation = SampleProfile(surfaceProfile, curStationBL);
+                                curX = originX + curStationBL;
+                                curY = originY + sampledSurfaceElevation - pvElBottom;
+                                BlockReference brInt =
+                                    localDb.CreateBlockWithAttributes(blockName, new Point3d(curX, curY, 0));
+                                brInt.SetAttributeStringValue("LEFTSIZE", $"DN {sizeArray[i].dn}");
+                                brInt.SetAttributeStringValue("RIGHTSIZE", $"DN {sizeArray[i + 1].dn}");
+                            }
+                            if (i == sizeArray.Length - 2) //This should give last iteration on arrays larger than 1
+                            {
+                                curStationBL = sizeArray[i + 1].station;
+                                sampledSurfaceElevation = SampleProfile(surfaceProfile, curStationBL - .1);
+                                curX = originX + curStationBL;
+                                curY = originY + sampledSurfaceElevation - pvElBottom;
+                                BlockReference brAtEnd =
+                                    localDb.CreateBlockWithAttributes(blockName, new Point3d(curX, curY, 0));
+                                brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {sizeArray[i + 1].dn}");
+                                brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
                             }
                         }
 
+                        //Local method to sample profiles
+                        double SampleProfile(Profile profile, double station)
+                        {
+                            double sampledElevation = 0;
+                            try { sampledElevation = surfaceProfile.ElevationAt(station); }
+                            catch (System.Exception)
+                            {
+                                prdDbg($"\nStation {station} threw an exception when placing size change blocks! Skipping...");
+                                return 0;
+                            }
+                            return sampledElevation;
+                        }
                         #endregion
-                        //List<Point2d> allSteps = new List<Point2d>();
 
-                        ////Sample elevation at each step and create points at current offset from surface
-                        //for (int i = 0; i < nrOfSteps + 1; i++) //+1 because first step is an "extra" step
-                        //{
-                        //    double sampledSurfaceElevation = 0;
-                        //    double curStation = pvStStart + stepLength * i;
-                        //    try
-                        //    {
-                        //        sampledSurfaceElevation = surfaceProfile.ElevationAt(curStation);
-                        //    }
-                        //    catch (System.Exception)
-                        //    {
-                        //        prdDbg($"\nStation {curStation} threw an exception! Skipping...");
-                        //        continue;
-                        //    }
-                        //    allSteps.Add(new Point2d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom - cover)));
-                        //}
+                        #region Sample profile with cover
+                        double startStation = 0;
+                        double endStation = 0;
+                        double curStation = 0;
+                        for (int i = 0; i < sizeArray.Length; i++)
+                        {
+                            List<Point2d> allSteps = new List<Point2d>();
+                            //Station management
+                            endStation = sizeArray[i].station;
+                            double segmentLength = endStation - startStation;
+                            nrOfSteps = (int)(segmentLength / stepLength);
+                            //Cover depth management
+                            int curDn = sizeArray[i].dn;
+                            double cover = curDn <= 65 ? 0.6 : 1.0; //CWO info
+                            double halfKappeOd = sizeArray[i].kod / 2.0;
+                            //Sample elevation at each step and create points at current offset from surface
+                            for (int j = 0; j < nrOfSteps + 1; j++) //+1 because first step is an "extra" step
+                            {
+                                curStation = curStation + stepLength * i;
+                                double sampledSurfaceElevation = SampleProfile(surfaceProfile, curStation);
+                                allSteps.Add(new Point2d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom - cover - halfKappeOd)));
+                            }
+                            #region Apply Douglas Peucker reduction
+                            List<Point2d> reducedSteps = DouglasPeuckerReduction.DouglasPeuckerReductionMethod(allSteps, DouglasPeuckerTolerance);
+                            #endregion
 
-                        //#region Apply Douglas Peucker reduction
-                        //List<Point2d> reducedSteps = DouglasPeuckerReduction.DouglasPeuckerReductionMethod(allSteps, DouglasPeuckerTolerance);
-                        //#endregion
+                            #region Draw middle profile
+                            Polyline draftProfile = new Polyline();
+                            draftProfile.SetDatabaseDefaults();
+                            draftProfile.Layer = draftProfileLayerName;
+                            for (int j = 0; j < reducedSteps.Count; j++)
+                            {
+                                var curStep = reducedSteps[i];
+                                draftProfile.AddVertexAt(i, curStep, 0, 0, 0);
+                            }
+                            modelSpace.AppendEntity(draftProfile);
+                            tx.AddNewlyCreatedDBObject(draftProfile, true); 
+                            #endregion
 
-                        //Polyline draftProfile = new Polyline();
-                        //draftProfile.SetDatabaseDefaults();
-                        //draftProfile.Layer = draftProfileLayerName;
-                        //for (int i = 0; i < reducedSteps.Count; i++)
-                        //{
-                        //    var curStep = reducedSteps[i];
-                        //    draftProfile.AddVertexAt(i, curStep, 0, 0, 0);
-                        //}
-                        //modelSpace.AppendEntity(draftProfile);
-                        //tx.AddNewlyCreatedDBObject(draftProfile, true);
+                            startStation = sizeArray[i].station;
+                        }
+                        #endregion
+
+                        
 
                         //#region Test Douglas Peucker reduction
                         ////Test Douglas Peucker reduction
