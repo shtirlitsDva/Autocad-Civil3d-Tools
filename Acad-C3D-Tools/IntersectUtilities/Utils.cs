@@ -1748,6 +1748,41 @@ namespace IntersectUtilities
                 : br.Name;
             return effectiveName;
         }
+        public static bool XrecFilter(this Autodesk.AutoCAD.DatabaseServices.DBObject obj,
+            string xRecordName, string[] filterValues)
+        {
+            Transaction tx = obj.Database.TransactionManager.TopTransaction;
+            oid extId = obj.ExtensionDictionary;
+            if (extId == oid.Null) return false;
+            DBDictionary dbExt = extId.Go<DBDictionary>(tx);
+            oid xrecId = dbExt.GetAt(xRecordName);
+            if (xrecId == oid.Null) return false;
+            Xrecord xrec = xrecId.Go<Xrecord>(tx);
+            TypedValue[] data = xrec.Data.AsArray();
+            bool[] resArray = new bool[0];
+            for (int i = 0; i < filterValues.Length; i++)
+            {
+                if (data.Length <= i) break;
+                if (data[i].Value.ToString() == filterValues[i]) resArray = resArray.Append(true).ToArray();
+                else resArray = resArray.Append(false).ToArray();
+            }
+            if (resArray.Length == 0) return false;
+            return resArray.All(x => x);
+        }
+        public static void SetAttributeStringValue(this BlockReference br, string attributeName, string value)
+        {
+            Database db = br.Database;
+            Transaction tx = db.TransactionManager.TopTransaction;
+            foreach (oid Oid in br.AttributeCollection)
+            {
+                AttributeReference ar = Oid.Go<AttributeReference>(tx);
+                if (ar.Tag == attributeName)
+                {
+                    ar.CheckOrOpenForWrite();
+                    ar.TextString = value;
+                }
+            }
+        }
     }
 
     public static class ExtensionMethods

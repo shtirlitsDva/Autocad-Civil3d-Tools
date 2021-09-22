@@ -4506,219 +4506,346 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                string draftProfileLayerName = "0-FJV-PROFILE-DRAFT";
+                #region Open fremtidig db
+                string projectName = GetProjectName();
+                prdDbg(projectName);
+                if (projectName.IsNoE())
+                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
 
-                #region Create layer for draft profile
-                using (Transaction txLag = localDb.TransactionManager.StartTransaction())
-                {
+                string etapeName = GetEtapeName(projectName);
 
-                    LayerTable lt = txLag.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
-
-                    if (!lt.Has(draftProfileLayerName))
-                    {
-                        LayerTableRecord ltr = new LayerTableRecord();
-                        ltr.Name = draftProfileLayerName;
-                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 40);
-                        ltr.LineWeight = LineWeight.LineWeight030;
-                        ltr.IsPlottable = false;
-
-                        //Make layertable writable
-                        lt.CheckOrOpenForWrite();
-
-                        //Add the new layer to layer table
-                        oid ltId = lt.Add(ltr);
-                        txLag.AddNewlyCreatedDBObject(ltr, true);
-                    }
-                    txLag.Commit();
-                }
+                // open the xref database
+                Database fremDb = new Database(false, true);
+                fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
+                    System.IO.FileShare.Read, false, string.Empty);
+                Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
+                HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
                 #endregion
 
-                BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
-                Plane plane = new Plane(); //For intersecting
-                HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-
-                foreach (Alignment al in als)
+                try
                 {
-                    #region If exist get surface profile and profile view
-                    prdDbg($"\nProcessing: {al.Name}...");
+                    string draftProfileLayerName = "0-FJV-PROFILE-DRAFT";
 
-                    ObjectIdCollection profileIds = al.GetProfileIds();
-                    ObjectIdCollection profileViewIds = al.GetProfileViewIds();
+                    #region Create layer for draft profile
+                    using (Transaction txLag = localDb.TransactionManager.StartTransaction())
+                    {
 
-                    ProfileView pv = null;
-                    foreach (oid Oid in profileViewIds)
-                    {
-                        ProfileView pTemp = Oid.Go<ProfileView>(tx);
-                        if (pTemp.Name == $"{al.Name}_PV") pv = pTemp;
-                    }
-                    if (pv == null)
-                    {
-                        prdDbg($"No profile view found for alignment: {al.Name}, skip to next.");
-                        continue;
-                    }
+                        LayerTable lt = txLag.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
 
-                    Profile surfaceProfile = null;
-                    foreach (oid Oid in profileIds)
-                    {
-                        Profile pTemp = Oid.Go<Profile>(tx);
-                        if (pTemp.Name == $"{al.Name}_surface_P") surfaceProfile = pTemp;
+                        if (!lt.Has(draftProfileLayerName))
+                        {
+                            LayerTableRecord ltr = new LayerTableRecord();
+                            ltr.Name = draftProfileLayerName;
+                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 40);
+                            ltr.LineWeight = LineWeight.LineWeight030;
+                            ltr.IsPlottable = false;
+
+                            //Make layertable writable
+                            lt.CheckOrOpenForWrite();
+
+                            //Add the new layer to layer table
+                            oid ltId = lt.Add(ltr);
+                            txLag.AddNewlyCreatedDBObject(ltr, true);
+                        }
+                        txLag.Commit();
                     }
-                    if (surfaceProfile == null)
-                    {
-                        prdDbg($"No surface profile found for alignment: {al.Name}, skip to next.");
-                        continue;
-                    }
-                    prdDbg(pv.Name);
-                    prdDbg(surfaceProfile.Name);
                     #endregion
 
-                    #region Draw profile draft
-                    Point3d pvOrigin = pv.Location;
-                    double originX = pvOrigin.X;
-                    double originY = pvOrigin.Y;
+                    BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    Plane plane = new Plane(); //For intersecting
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
 
-                    double pvStStart = pv.StationStart;
-                    double pvStEnd = pv.StationEnd;
-                    double pvElBottom = pv.ElevationMin;
-                    double pvElTop = pv.ElevationMax;
-                    double pvLength = pvStEnd - pvStStart;
-
-                    //Settings
-                    double cover = 0.6;
-                    double weedAngle = 5; //In degrees
-                    double weedAngleRad = weedAngle.ToRadians();
-                    double DouglasPeuckerTolerance = .1;
-
-                    double stepLength = 1.0;
-                    int nrOfSteps = (int)(pvLength / stepLength);
-
-                    List<Point2d> allSteps = new List<Point2d>();
-
-                    //Sample elevation at each step and create points at current offset from surface
-                    for (int i = 0; i < nrOfSteps + 1; i++) //+1 because first step is an "extra" step
+                    foreach (Alignment al in als)
                     {
-                        double sampledSurfaceElevation = 0;
-                        double curStation = pvStStart + stepLength * i;
-                        try
+                        prdDbg($"\nProcessing: {al.Name}...");
+                        #region If exist get surface profile and profile view
+                        ObjectIdCollection profileIds = al.GetProfileIds();
+                        ObjectIdCollection profileViewIds = al.GetProfileViewIds();
+
+                        ProfileView pv = null;
+                        foreach (oid Oid in profileViewIds)
                         {
-                            sampledSurfaceElevation = surfaceProfile.ElevationAt(curStation);
+                            ProfileView pTemp = Oid.Go<ProfileView>(tx);
+                            if (pTemp.Name == $"{al.Name}_PV") pv = pTemp;
                         }
-                        catch (System.Exception)
+                        if (pv == null)
                         {
-                            prdDbg($"\nStation {curStation} threw an exception! Skipping...");
-                            continue;
-                        }
-                        allSteps.Add(new Point2d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom - cover)));
-                    }
-
-                    #region Apply Douglas Peucker reduction
-                    List<Point2d> reducedSteps = DouglasPeuckerReduction.DouglasPeuckerReductionMethod(allSteps, DouglasPeuckerTolerance);
-                    #endregion
-
-                    Polyline draftProfile = new Polyline();
-                    draftProfile.SetDatabaseDefaults();
-                    draftProfile.Layer = draftProfileLayerName;
-                    for (int i = 0; i < reducedSteps.Count; i++)
-                    {
-                        var curStep = reducedSteps[i];
-                        draftProfile.AddVertexAt(i, curStep, 0, 0, 0);
-                    }
-                    modelSpace.AppendEntity(draftProfile);
-                    tx.AddNewlyCreatedDBObject(draftProfile, true);
-
-                    #region Test Douglas Peucker reduction
-                    //Test Douglas Peucker reduction
-                    List<double> coverList = new List<double>();
-                    int factor = 10; //Using factor to get more sampling points
-                    for (int i = 0; i < (nrOfSteps + 1) * factor; i++) //+1 because first step is an "extra" step
-                    {
-                        double sampledSurfaceElevation = 0;
-
-                        double curStation = pvStStart + stepLength / factor * i;
-                        try
-                        {
-                            sampledSurfaceElevation = surfaceProfile.ElevationAt(curStation);
-                        }
-                        catch (System.Exception)
-                        {
-                            //prdDbg($"\nStation {curStation} threw an exception! Skipping...");
+                            prdDbg($"No profile view found for alignment: {al.Name}, skip to next.");
                             continue;
                         }
 
-                        //To find point perpendicularly beneath the surface point
-                        //Use graphical method of intersection with a helper line
-                        //Cannot find or think of a mathematical solution
-                        //Create new line to intersect with the draft profile
-                        Line intersectLine = new Line(
-                            new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0),
-                            new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom) - 10, 0));
+                        Profile surfaceProfile = null;
+                        foreach (oid Oid in profileIds)
+                        {
+                            Profile pTemp = Oid.Go<Profile>(tx);
+                            if (pTemp.Name == $"{al.Name}_surface_P") surfaceProfile = pTemp;
+                        }
+                        if (surfaceProfile == null)
+                        {
+                            prdDbg($"No surface profile found for alignment: {al.Name}, skip to next.");
+                            continue;
+                        }
+                        prdDbg(pv.Name);
+                        prdDbg(surfaceProfile.Name);
+                        #endregion
 
-                        //Intersect and get the intersection point
-                        Point3dCollection intersectionPoints = new Point3dCollection();
+                        #region Draw profile draft
+                        #region GetCurvesAndBRs from fremtidig
+                        HashSet<Curve> curves = allCurves
+                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .ToHashSet();
+                        HashSet<BlockReference> brs = allBrs
+                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .ToHashSet();
+                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                        #endregion
 
-                        intersectLine.IntersectWith(draftProfile, 0, plane, intersectionPoints, new IntPtr(0), new IntPtr(0));
-                        if (intersectionPoints.Count < 1) continue;
+                        Point3d pvOrigin = pv.Location;
+                        double originX = pvOrigin.X;
+                        double originY = pvOrigin.Y;
 
-                        Point3d intersection = intersectionPoints[0];
-                        coverList.Add(intersection.DistanceTo(
-                            new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0)));
+                        double pvStStart = pv.StationStart;
+                        double pvStEnd = pv.StationEnd;
+                        double pvElBottom = pv.ElevationMin;
+                        double pvElTop = pv.ElevationMax;
+                        double pvLength = pvStEnd - pvStStart;
+
+                        //Settings
+                        double cover = 0.0;
+                        double weedAngle = 5; //In degrees
+                        double weedAngleRad = weedAngle.ToRadians();
+                        double DouglasPeuckerTolerance = .1;
+
+                        double stepLength = 0.1;
+                        int nrOfSteps = (int)(pvLength / stepLength);
+
+                        #region Build size array
+                        (int dn, double station)[] sizeArray = new (int dn, double station)[0];
+                        int previousDn = 0;
+                        int currentDn = 0;
+                        for (int i = 0; i < nrOfSteps + 1; i++)
+                        {
+                            double curStation = pvStStart + stepLength * i;
+                            Point3d curSamplePoint = default;
+                            try { curSamplePoint = al.GetPointAtDist(curStation); }
+                            catch (System.Exception) { continue; }
+
+                            HashSet<(Curve curve, double dist)> curveDistTuples =
+                                new HashSet<(Curve curve, double dist)>();
+
+                            foreach (Curve curve in curves)
+                            {
+                                if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
+                                Point3d closestPoint = curve.GetClosestPointTo(curSamplePoint, false);
+                                if (closestPoint != default)
+                                    curveDistTuples.Add((curve, curSamplePoint.DistanceHorizontalTo(closestPoint)));
+                            }
+                            var result = curveDistTuples.MinBy(x => x.dist).FirstOrDefault();
+                            //Detect current dn
+                            currentDn = GetPipeDN(result.curve);
+                            if (currentDn != previousDn)
+                            {
+                                //Set the previous segment end station unless there's 0 segments
+                                if (sizeArray.Length != 0) sizeArray[sizeArray.Length - 1].station = curStation;
+                                //Add the new segment
+                                sizeArray = sizeArray.Append((currentDn, 0)).ToArray();
+                            }
+                            //Hand over DN to cache in "previous" variable
+                            previousDn = currentDn;
+                            //TODO: on the last iteration set the last segment distance
+                            if (i == nrOfSteps) sizeArray[sizeArray.Length - 1].station = al.Length + 10.0;
+                        }
+
+                        for (int i = 0; i < sizeArray.Length; i++)
+                        {
+                            prdDbg($"{sizeArray[i].dn.ToString("D3")} || {sizeArray[i].station.ToString("0.00")}");
+                        }
+                        #endregion
+
+                        #region Place size change blocks
+                        string blockName = "DRISizeChangeAnno";
+                        #region Delete previous blocks
+                        //Delete previous blocks
+                        var existingBlocks = localDb.GetBlockReferenceByName(blockName);
+                        foreach (BlockReference br in existingBlocks)
+                        {
+                            br.CheckOrOpenForWrite();
+                            br.Erase(true);
+                        }
+                        #endregion
+
+                        //-1 is because of lookahead
+                        for (int i = 0; i < sizeArray.Length - 1; i++)
+                        {
+                            double curStation = sizeArray[i].station;
+
+                            double sampledSurfaceElevation = 0;
+                            try { sampledSurfaceElevation = surfaceProfile.ElevationAt(curStation); }
+                            catch (System.Exception)
+                            {
+                                prdDbg($"\nStation {curStation} threw an exception when placing size change blocks! Skipping...");
+                                continue;
+                            }
+                            double curX = originX + curStation;
+                            double curY = originY + sampledSurfaceElevation - pvElBottom;
+                            if (!bt.Has(blockName))
+                            {
+                                prdDbg("Block for size annotation is missing!");
+                                throw new System.Exception();
+                            }
+                            using (var br = new BlockReference(new Point3d(curX, curY, 0), bt[blockName]))
+                            {
+                                modelSpace.CheckOrOpenForWrite();
+                                modelSpace.AppendEntity(br);
+                                tx.AddNewlyCreatedDBObject(br, true);
+                                br.SetAttributeStringValue("LEFTSIZE", $"DN {sizeArray[i].dn}");
+                                br.SetAttributeStringValue("RIGHTSIZE", $"DN {sizeArray[i + 1].dn}");
+                            }
+                        }
+
+                        #endregion
+                        //List<Point2d> allSteps = new List<Point2d>();
+
+                        ////Sample elevation at each step and create points at current offset from surface
+                        //for (int i = 0; i < nrOfSteps + 1; i++) //+1 because first step is an "extra" step
+                        //{
+                        //    double sampledSurfaceElevation = 0;
+                        //    double curStation = pvStStart + stepLength * i;
+                        //    try
+                        //    {
+                        //        sampledSurfaceElevation = surfaceProfile.ElevationAt(curStation);
+                        //    }
+                        //    catch (System.Exception)
+                        //    {
+                        //        prdDbg($"\nStation {curStation} threw an exception! Skipping...");
+                        //        continue;
+                        //    }
+                        //    allSteps.Add(new Point2d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom - cover)));
+                        //}
+
+                        //#region Apply Douglas Peucker reduction
+                        //List<Point2d> reducedSteps = DouglasPeuckerReduction.DouglasPeuckerReductionMethod(allSteps, DouglasPeuckerTolerance);
+                        //#endregion
+
+                        //Polyline draftProfile = new Polyline();
+                        //draftProfile.SetDatabaseDefaults();
+                        //draftProfile.Layer = draftProfileLayerName;
+                        //for (int i = 0; i < reducedSteps.Count; i++)
+                        //{
+                        //    var curStep = reducedSteps[i];
+                        //    draftProfile.AddVertexAt(i, curStep, 0, 0, 0);
+                        //}
+                        //modelSpace.AppendEntity(draftProfile);
+                        //tx.AddNewlyCreatedDBObject(draftProfile, true);
+
+                        //#region Test Douglas Peucker reduction
+                        ////Test Douglas Peucker reduction
+                        //List<double> coverList = new List<double>();
+                        //int factor = 10; //Using factor to get more sampling points
+                        //for (int i = 0; i < (nrOfSteps + 1) * factor; i++) //+1 because first step is an "extra" step
+                        //{
+                        //    double sampledSurfaceElevation = 0;
+
+                        //    double curStation = pvStStart + stepLength / factor * i;
+                        //    try
+                        //    {
+                        //        sampledSurfaceElevation = surfaceProfile.ElevationAt(curStation);
+                        //    }
+                        //    catch (System.Exception)
+                        //    {
+                        //        //prdDbg($"\nStation {curStation} threw an exception! Skipping...");
+                        //        continue;
+                        //    }
+
+                        //    //To find point perpendicularly beneath the surface point
+                        //    //Use graphical method of intersection with a helper line
+                        //    //Cannot find or think of a mathematical solution
+                        //    //Create new line to intersect with the draft profile
+                        //    Line intersectLine = new Line(
+                        //        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0),
+                        //        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom) - 10, 0));
+
+                        //    //Intersect and get the intersection point
+                        //    Point3dCollection intersectionPoints = new Point3dCollection();
+
+                        //    intersectLine.IntersectWith(draftProfile, 0, plane, intersectionPoints, new IntPtr(0), new IntPtr(0));
+                        //    if (intersectionPoints.Count < 1) continue;
+
+                        //    Point3d intersection = intersectionPoints[0];
+                        //    coverList.Add(intersection.DistanceTo(
+                        //        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0)));
+                        //}
+
+                        //prdDbg($"Max. cover: {(int)(coverList.Max() * 1000)} mm");
+                        //prdDbg($"Min. cover: {(int)(coverList.Min() * 1000)} mm");
+                        //prdDbg($"Average cover: {(int)((coverList.Sum() / coverList.Count) * 1000)} mm");
+                        //prdDbg($"Percent values below cover req.: " +
+                        //    $"{((coverList.Count(x => x < cover) / Convert.ToDouble(coverList.Count)) * 100.0).ToString("0.##")} %");
+                        //#endregion
+
+                        //#region Test Douglas Peucker reduction again
+                        //////Test Douglas Peucker reduction
+                        ////coverList = new List<double>();
+
+                        ////for (int i = 0; i < (nrOfSteps + 1) * factor; i++) //+1 because first step is an "extra" step
+                        ////{
+                        ////    double sampledSurfaceElevation = 0;
+
+                        ////    double curStation = pvStStart + stepLength / factor * i;
+                        ////    try
+                        ////    {
+                        ////        sampledSurfaceElevation = surfaceProfile.ElevationAt(curStation);
+                        ////    }
+                        ////    catch (System.Exception)
+                        ////    {
+                        ////        //prdDbg($"\nStation {curStation} threw an exception! Skipping...");
+                        ////        continue;
+                        ////    }
+
+                        ////    //To find point perpendicularly beneath the surface point
+                        ////    //Use graphical method of intersection with a helper line
+                        ////    //Cannot find or think of a mathematical solution
+                        ////    //Create new line to intersect with the draft profile
+                        ////    Line intersectLine = new Line(
+                        ////        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0),
+                        ////        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom) - 10, 0));
+
+                        ////    //Intersect and get the intersection point
+                        ////    Point3dCollection intersectionPoints = new Point3dCollection();
+
+                        ////    intersectLine.IntersectWith(draftProfile, 0, plane, intersectionPoints, new IntPtr(0), new IntPtr(0));
+                        ////    if (intersectionPoints.Count < 1) continue;
+
+                        ////    Point3d intersection = intersectionPoints[0];
+                        ////    coverList.Add(intersection.DistanceTo(
+                        ////        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0)));
+                        ////}
+
+                        ////prdDbg("After fitting polyline:");
+                        ////prdDbg($"Max. cover: {(int)(coverList.Max() * 1000)} mm");
+                        ////prdDbg($"Min. cover: {(int)(coverList.Min() * 1000)} mm");
+                        ////prdDbg($"Average cover: {(int)((coverList.Sum() / coverList.Count) * 1000)} mm");
+                        ////prdDbg($"Percent values below cover req.: " +
+                        ////    $"{((coverList.Count(x => x < cover) / Convert.ToDouble(coverList.Count)) * 100.0).ToString("0.##")} %");
+                        //#endregion
+
+                        #endregion
                     }
-
-                    prdDbg($"Max. cover: {(int)(coverList.Max() * 1000)} mm");
-                    prdDbg($"Min. cover: {(int)(coverList.Min() * 1000)} mm");
-                    prdDbg($"Average cover: {(int)((coverList.Sum() / coverList.Count) * 1000)} mm");
-                    prdDbg($"Percent values below cover req.: " +
-                        $"{((coverList.Count(x => x < cover) / Convert.ToDouble(coverList.Count)) * 100.0).ToString("0.##")} %");
-                    #endregion
-
-                    #region Test Douglas Peucker reduction again
-                    ////Test Douglas Peucker reduction
-                    //coverList = new List<double>();
-
-                    //for (int i = 0; i < (nrOfSteps + 1) * factor; i++) //+1 because first step is an "extra" step
-                    //{
-                    //    double sampledSurfaceElevation = 0;
-
-                    //    double curStation = pvStStart + stepLength / factor * i;
-                    //    try
-                    //    {
-                    //        sampledSurfaceElevation = surfaceProfile.ElevationAt(curStation);
-                    //    }
-                    //    catch (System.Exception)
-                    //    {
-                    //        //prdDbg($"\nStation {curStation} threw an exception! Skipping...");
-                    //        continue;
-                    //    }
-
-                    //    //To find point perpendicularly beneath the surface point
-                    //    //Use graphical method of intersection with a helper line
-                    //    //Cannot find or think of a mathematical solution
-                    //    //Create new line to intersect with the draft profile
-                    //    Line intersectLine = new Line(
-                    //        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0),
-                    //        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom) - 10, 0));
-
-                    //    //Intersect and get the intersection point
-                    //    Point3dCollection intersectionPoints = new Point3dCollection();
-
-                    //    intersectLine.IntersectWith(draftProfile, 0, plane, intersectionPoints, new IntPtr(0), new IntPtr(0));
-                    //    if (intersectionPoints.Count < 1) continue;
-
-                    //    Point3d intersection = intersectionPoints[0];
-                    //    coverList.Add(intersection.DistanceTo(
-                    //        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0)));
-                    //}
-
-                    //prdDbg("After fitting polyline:");
-                    //prdDbg($"Max. cover: {(int)(coverList.Max() * 1000)} mm");
-                    //prdDbg($"Min. cover: {(int)(coverList.Min() * 1000)} mm");
-                    //prdDbg($"Average cover: {(int)((coverList.Sum() / coverList.Count) * 1000)} mm");
-                    //prdDbg($"Percent values below cover req.: " +
-                    //    $"{((coverList.Count(x => x < cover) / Convert.ToDouble(coverList.Count)) * 100.0).ToString("0.##")} %");
-                    #endregion
-
-                    #endregion
                 }
+                catch (System.Exception ex)
+                {
+                    fremTx.Abort();
+                    fremTx.Dispose();
+                    fremDb.Dispose();
+                    tx.Abort();
+                    prdDbg(ex.Message);
+                    return;
+                }
+                fremTx.Abort();
+                fremTx.Dispose();
+                fremDb.Dispose();
                 tx.Commit();
             }
         }
@@ -7188,8 +7315,8 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("ASSIGNBLOCKSTOALIGNMENTS")]
-        public void assignblockstoalignments()
+        [CommandMethod("ASSIGNBLOCKSANDPLINESTOALIGNMENTS")]
+        public void assignblocksandplinestoalignments()
         {
 
             DocumentCollection docCol = Application.DocumentManager;
@@ -7219,6 +7346,7 @@ namespace IntersectUtilities
                         @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
                     HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
+                    HashSet<Curve> curves = localDb.HashSetOfType<Curve>(tx);
                     HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
 
                     //******************************//
@@ -7353,6 +7481,94 @@ namespace IntersectUtilities
                             }
                         }
                     }
+
+                    foreach (Curve curve in curves)
+                    {
+                        if (!(curve.Layer.Contains("FREM") ||
+                            curve.Layer.Contains("RETUR") ||
+                            curve.Layer.Contains("TWIN"))) continue;
+
+                        HashSet<(Curve curve, double dist, Alignment al)> alDistTuples =
+                            new HashSet<(Curve curve, double dist, Alignment al)>();
+
+                        try
+                        {
+                            foreach (Alignment al in als)
+                            {
+                                if (al.Length < 1) continue;
+                                double midParam = curve.EndParam / 2.0;
+                                Point3d curveMidPoint = curve.GetPointAtParameter(midParam);
+                                Point3d closestPoint = al.GetClosestPointTo(curveMidPoint, false);
+                                if (closestPoint != null)
+                                    alDistTuples.Add((curve, curveMidPoint.DistanceHorizontalTo(closestPoint), al));
+                            }
+                        }
+                        catch (System.Exception)
+                        {
+                            prdDbg("Error in Curves GetClosestPointTo -> loop incomplete!");
+                        }
+
+                        double distThreshold = 1;
+                        var result = alDistTuples.Where(x => x.dist < distThreshold);
+
+                        if (result.Count() == 0)
+                        {
+                            XrecordCreateWriteUpdateString(curve, xRecordName, new[] { "NA" });
+                            //Yellow line means check result
+                            //This is caught if no result found at ALL
+                            Line line = new Line(new Point3d(), curve.GetPointAtParameter(curve.EndParam / 2));
+                            line.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
+                            line.AddEntityToDbModelSpace(localDb);
+                        }
+                        else if (result.Count() == 1)
+                        {
+                            XrecordCreateWriteUpdateString(curve, xRecordName, new[] { result.First().al.Name });
+                        }
+                        else if (result.Count() > 1)
+                        {
+                            //If multiple result
+                            //Means midpoint is close to two alignments
+                            //Sample more points to determine
+
+                            double oneFourthParam = curve.EndParam / 4;
+                            Point3d oneFourthPoint = curve.GetPointAtParameter(oneFourthParam);
+                            double threeFourthParam = curve.EndParam / 4 * 3;
+                            Point3d threeFourthPoint = curve.GetPointAtParameter(threeFourthParam);
+
+                            var resArray = result.ToArray();
+
+                            distThreshold = 0.1;
+                            double distIncrement = 0.1;
+
+                            bool alDetected = false;
+                            Alignment detectedAl = null;
+                            while (!alDetected)
+                            {
+                                for (int i = 0; i < result.Count(); i++)
+                                {
+                                    if (alDetected) break;
+                                    detectedAl = resArray[i].al;
+
+                                    Point3d oneFourthClosestPoint = detectedAl.GetClosestPointTo(oneFourthPoint, false);
+                                    Point3d threeFourthClosestPoint = detectedAl.GetClosestPointTo(threeFourthPoint, false);
+
+                                    if (oneFourthPoint.DistanceHorizontalTo(oneFourthClosestPoint) < distThreshold &&
+                                        threeFourthPoint.DistanceHorizontalTo(threeFourthClosestPoint) < distThreshold)
+                                        alDetected = true;
+                                }
+
+                                distThreshold += distIncrement;
+                            }
+
+                            XrecordCreateWriteUpdateString(curve, xRecordName, new[] { detectedAl?.Name ?? "NA" });
+
+                            //Red line means check result
+                            //This is caught if multiple results
+                            Line line = new Line(new Point3d(), curve.GetPointAtParameter(curve.EndParam / 2));
+                            line.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                            line.AddEntityToDbModelSpace(localDb);
+                        }
+                    }
                 }
                 catch (System.Exception ex)
                 {
@@ -7449,7 +7665,9 @@ namespace IntersectUtilities
             PromptResult sRes = editor.GetString("Enter name of the XREC: ");
             string xRecName = sRes.StringResult;
 
-            PromptResult sRes2 = editor.GetString("Enter string value to write: ");
+            PromptStringOptions pso = new PromptStringOptions("Enter string value to write: ");
+            pso.AllowSpaces = true;
+            PromptResult sRes2 = editor.GetString(pso);
             string xRecValue = sRes2.StringResult;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
