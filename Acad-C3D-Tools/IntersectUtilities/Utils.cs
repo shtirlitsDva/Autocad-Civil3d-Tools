@@ -1769,6 +1769,19 @@ namespace IntersectUtilities
             if (resArray.Length == 0) return false;
             return resArray.All(x => x);
         }
+        public static string XrecReadStringAtIndex(this Autodesk.AutoCAD.DatabaseServices.DBObject obj,
+            string xRecordName, int indexToRead)
+        {
+            Transaction tx = obj.Database.TransactionManager.TopTransaction;
+            oid extId = obj.ExtensionDictionary;
+            if (extId == oid.Null) return "";
+            DBDictionary dbExt = extId.Go<DBDictionary>(tx);
+            oid xrecId = dbExt.GetAt(xRecordName);
+            if (xrecId == oid.Null) return "";
+            Xrecord xrec = xrecId.Go<Xrecord>(tx);
+            TypedValue[] data = xrec.Data.AsArray();
+            return data[indexToRead].Value.ToString();
+        }
         public static void SetAttributeStringValue(this BlockReference br, string attributeName, string value)
         {
             Database db = br.Database;

@@ -4734,6 +4734,7 @@ namespace IntersectUtilities
                                 brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
                             }
                         }
+                        #endregion
 
                         //Local method to sample profiles
                         double SampleProfile(Profile profile, double station)
@@ -4747,9 +4748,38 @@ namespace IntersectUtilities
                             }
                             return sampledElevation;
                         }
+
+                        #region Place component blocks
+                        System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                        foreach (BlockReference br in brs)
+                        {
+                            string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
+                            if (type == "Reduktion") continue;
+                            Point3d brLocation = al.GetClosestPointTo(br.Position, false);
+                            double station = al.GetDistAtPoint(brLocation);
+                            double sampledSurfaceElevation = SampleProfile(surfaceProfile, station);
+                            double X = originX + station;
+                            double Y = originY + sampledSurfaceElevation - pvElBottom;
+                            BlockReference brSign = localDb.CreateBlockWithAttributes(blockName, new Point3d(X, Y, 0));
+                            brSign.SetAttributeStringValue("LEFTSIZE", type);
+                            if ((new[] { "Parallelafgrening", "Lige afgrening", "Afgrening med spring" }).Contains(type))
+                                brSign.SetAttributeStringValue("RIGHTSIZE", br.XrecReadStringAtIndex("Alignment", 1));
+                        }
+
                         #endregion
 
                         #region Sample profile with cover
+                        #region Delete previous lines
+                        //Delete previous blocks
+                        var existingPlines = localDb.HashSetOfType<Polyline>(tx, true).Where(x => x.Layer == draftProfileLayerName).ToHashSet();
+                        foreach (Entity ent in existingPlines)
+                        {
+                            ent.CheckOrOpenForWrite();
+                            ent.Erase(true);
+                        }
+                        #endregion
+
                         double startStation = 0;
                         double endStation = 0;
                         double curStation = 0;
@@ -4763,11 +4793,16 @@ namespace IntersectUtilities
                             //Cover depth management
                             int curDn = sizeArray[i].dn;
                             double cover = curDn <= 65 ? 0.6 : 1.0; //CWO info
-                            double halfKappeOd = sizeArray[i].kod / 2.0;
+                            double halfKappeOd = sizeArray[i].kod / 2.0 / 1000.0;
+                            prdDbg($"S: {startStation.ToString("0.00")}, " +
+                                   $"E: {endStation.ToString("0.00")}, " +
+                                   $"L: {segmentLength.ToString("0.00")}, " +
+                                   $"Steps: {nrOfSteps}");
                             //Sample elevation at each step and create points at current offset from surface
+                            string debugCurstation = "";
                             for (int j = 0; j < nrOfSteps + 1; j++) //+1 because first step is an "extra" step
                             {
-                                curStation = curStation + stepLength * i;
+                                curStation = startStation + stepLength * j;
                                 double sampledSurfaceElevation = SampleProfile(surfaceProfile, curStation);
                                 allSteps.Add(new Point2d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom - cover - halfKappeOd)));
                             }
@@ -4781,20 +4816,46 @@ namespace IntersectUtilities
                             draftProfile.Layer = draftProfileLayerName;
                             for (int j = 0; j < reducedSteps.Count; j++)
                             {
-                                var curStep = reducedSteps[i];
-                                draftProfile.AddVertexAt(i, curStep, 0, 0, 0);
+                                var curStep = reducedSteps[j];
+                                draftProfile.AddVertexAt(j, curStep, 0, 0, 0);
                             }
+                            draftProfile.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
                             modelSpace.AppendEntity(draftProfile);
-                            tx.AddNewlyCreatedDBObject(draftProfile, true); 
+                            tx.AddNewlyCreatedDBObject(draftProfile, true);
+                            #endregion
+
+                            #region Draw offset profiles
+                            using (DBObjectCollection col = draftProfile.GetOffsetCurves(halfKappeOd))
+                            {
+                                foreach (var ent in col)
+                                {
+                                    if (ent is Polyline poly)
+                                    {
+                                        poly.Color = Color.FromColorIndex(ColorMethod.ByLayer, 256);
+                                        modelSpace.AppendEntity(poly);
+                                        tx.AddNewlyCreatedDBObject(poly, true);
+                                    }
+                                }
+                            }
+                            using (DBObjectCollection col = draftProfile.GetOffsetCurves(-halfKappeOd))
+                            {
+                                foreach (var ent in col)
+                                {
+                                    if (ent is Polyline poly)
+                                    {
+                                        poly.Color = Color.FromColorIndex(ColorMethod.ByLayer, 256);
+                                        modelSpace.AppendEntity(poly);
+                                        tx.AddNewlyCreatedDBObject(poly, true);
+                                    }
+                                }
+                            }
                             #endregion
 
                             startStation = sizeArray[i].station;
                         }
                         #endregion
 
-                        
-
-                        //#region Test Douglas Peucker reduction
+                        #region Test Douglas Peucker reduction
                         ////Test Douglas Peucker reduction
                         //List<double> coverList = new List<double>();
                         //int factor = 10; //Using factor to get more sampling points
