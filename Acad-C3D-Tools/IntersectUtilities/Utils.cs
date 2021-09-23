@@ -1780,6 +1780,7 @@ namespace IntersectUtilities
             if (xrecId == oid.Null) return "";
             Xrecord xrec = xrecId.Go<Xrecord>(tx);
             TypedValue[] data = xrec.Data.AsArray();
+            if (data.Length <= indexToRead) return "";
             return data[indexToRead].Value.ToString();
         }
         public static void SetAttributeStringValue(this BlockReference br, string attributeName, string value)

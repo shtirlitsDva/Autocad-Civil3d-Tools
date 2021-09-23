@@ -4513,7 +4513,6 @@ namespace IntersectUtilities
                 { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
 
                 string etapeName = GetEtapeName(projectName);
-
                 // open the xref database
                 Database fremDb = new Database(false, true);
                 fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
@@ -4523,10 +4522,33 @@ namespace IntersectUtilities
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
                 #endregion
 
+                //////////////////////////////////////
+                string draftProfileLayerName = "0-FJV-PROFILE-DRAFT";
+                string blockName = "DRISizeChangeAnno";
+                //////////////////////////////////////
+
+                #region Delete previous lines
+                //Delete previous blocks
+                var existingPlines = localDb.HashSetOfType<Polyline>(tx, true).Where(x => x.Layer == draftProfileLayerName).ToHashSet();
+                foreach (Entity ent in existingPlines)
+                {
+                    ent.CheckOrOpenForWrite();
+                    ent.Erase(true);
+                }
+                #endregion
+
+                #region Delete previous blocks
+                //Delete previous blocks
+                var existingBlocks = localDb.GetBlockReferenceByName(blockName);
+                foreach (BlockReference br in existingBlocks)
+                {
+                    br.CheckOrOpenForWrite();
+                    br.Erase(true);
+                }
+                #endregion
+
                 try
                 {
-                    string draftProfileLayerName = "0-FJV-PROFILE-DRAFT";
-
                     #region Create layer for draft profile
                     using (Transaction txLag = localDb.TransactionManager.StartTransaction())
                     {
@@ -4591,7 +4613,6 @@ namespace IntersectUtilities
                         prdDbg(surfaceProfile.Name);
                         #endregion
 
-                        #region Draw profile draft
                         #region GetCurvesAndBRs from fremtidig
                         HashSet<Curve> curves = allCurves
                             .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
@@ -4667,16 +4688,6 @@ namespace IntersectUtilities
                         #endregion
 
                         #region Place size change blocks
-                        string blockName = "DRISizeChangeAnno";
-                        #region Delete previous blocks
-                        //Delete previous blocks
-                        var existingBlocks = localDb.GetBlockReferenceByName(blockName);
-                        foreach (BlockReference br in existingBlocks)
-                        {
-                            br.CheckOrOpenForWrite();
-                            br.Erase(true);
-                        }
-                        #endregion
                         if (!bt.Has(blockName))
                         {
                             prdDbg("Block for size annotation is missing!");
@@ -4763,22 +4774,15 @@ namespace IntersectUtilities
                             double Y = originY + sampledSurfaceElevation - pvElBottom;
                             BlockReference brSign = localDb.CreateBlockWithAttributes(blockName, new Point3d(X, Y, 0));
                             brSign.SetAttributeStringValue("LEFTSIZE", type);
-                            if ((new[] { "Parallelafgrening", "Lige afgrening", "Afgrening med spring" }).Contains(type))
+                            if ((new[] { "Parallelafgrening", "Lige afgrening", "Afgrening med spring", "Påsvejsning" }).Contains(type))
                                 brSign.SetAttributeStringValue("RIGHTSIZE", br.XrecReadStringAtIndex("Alignment", 1));
+                            else brSign.SetAttributeStringValue("RIGHTSIZE", "");
                         }
 
                         #endregion
 
                         #region Sample profile with cover
-                        #region Delete previous lines
-                        //Delete previous blocks
-                        var existingPlines = localDb.HashSetOfType<Polyline>(tx, true).Where(x => x.Layer == draftProfileLayerName).ToHashSet();
-                        foreach (Entity ent in existingPlines)
-                        {
-                            ent.CheckOrOpenForWrite();
-                            ent.Erase(true);
-                        }
-                        #endregion
+                        
 
                         double startStation = 0;
                         double endStation = 0;
@@ -4799,7 +4803,6 @@ namespace IntersectUtilities
                                    $"L: {segmentLength.ToString("0.00")}, " +
                                    $"Steps: {nrOfSteps}");
                             //Sample elevation at each step and create points at current offset from surface
-                            string debugCurstation = "";
                             for (int j = 0; j < nrOfSteps + 1; j++) //+1 because first step is an "extra" step
                             {
                                 curStation = startStation + stepLength * j;
