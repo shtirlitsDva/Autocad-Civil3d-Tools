@@ -1755,7 +1755,9 @@ namespace IntersectUtilities
             oid extId = obj.ExtensionDictionary;
             if (extId == oid.Null) return false;
             DBDictionary dbExt = extId.Go<DBDictionary>(tx);
-            oid xrecId = dbExt.GetAt(xRecordName);
+            oid xrecId = oid.Null;
+            try { xrecId = dbExt.GetAt(xRecordName); }
+            catch (System.Exception) { return false; }
             if (xrecId == oid.Null) return false;
             Xrecord xrec = xrecId.Go<Xrecord>(tx);
             TypedValue[] data = xrec.Data.AsArray();

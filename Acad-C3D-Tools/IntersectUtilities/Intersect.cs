@@ -1901,6 +1901,298 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("populatedistances")]
+        public void populatedistances()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            #region Open fremtidig db
+            string projectName = GetProjectName();
+            prdDbg(projectName);
+            if (projectName.IsNoE())
+            { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
+
+            string etapeName = GetEtapeName(projectName);
+            // open the xref database
+            Database fremDb = new Database(false, true);
+            fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
+                System.IO.FileShare.Read, false, string.Empty);
+            Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+            HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
+            HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+            #endregion
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Read Csv Data for Layers
+                    //Establish the pathnames to files
+                    //Files should be placed in a specific folder on desktop
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    string pathDistnces = "X:\\AutoCAD DRI - 01 Civil 3D\\Distances.csv";
+
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    System.Data.DataTable dtDistances = CsvReader.ReadCsvToDataTable(pathDistnces, "Distancer");
+                    #endregion
+
+                    BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+
+
+
+                    //#region Get the selection set of all objects and profile view
+                    //PromptSelectionOptions pOptions = new PromptSelectionOptions();
+                    //PromptSelectionResult sSetResult = editor.GetSelection(pOptions);
+                    //if (sSetResult.Status != PromptStatus.OK) return;
+                    //HashSet<Entity> allEnts = sSetResult.Value.GetObjectIds().Select(e => e.Go<Entity>(tx)).ToHashSet();
+                    //#endregion
+
+                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
+                    foreach (ProfileView pv in pvs)
+                    {
+                        Alignment al = pv.AlignmentId.Go<Alignment>(tx);
+                        Point3d pvOrigin = pv.Location;
+                        double originX = pvOrigin.X;
+                        double originY = pvOrigin.Y;
+
+                        double pvStStart = pv.StationStart;
+                        double pvStEnd = pv.StationEnd;
+                        double pvElBottom = pv.ElevationMin;
+                        double pvElTop = pv.ElevationMax;
+                        double pvLength = pvStEnd - pvStStart;
+                        double stepLength = 0.1;
+                        int nrOfSteps = (int)(pvLength / stepLength);
+
+                        #region GetCurvesAndBRs from fremtidig
+                        HashSet<Curve> curves = allCurves
+                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .ToHashSet();
+                        #endregion
+
+                        #region Build size array
+                        (int dn, double station, double kod)[] sizeArray = new (int dn, double station, double kod)[0];
+                        int previousDn = 0;
+                        int currentDn = 0;
+                        for (int i = 0; i < nrOfSteps + 1; i++)
+                        {
+                            double curStationBA = pvStStart + stepLength * i;
+                            Point3d curSamplePoint = default;
+                            try { curSamplePoint = al.GetPointAtDist(curStationBA); }
+                            catch (System.Exception) { continue; }
+
+                            HashSet<(Curve curve, double dist, double kappeOd)> curveDistTuples =
+                                new HashSet<(Curve curve, double dist, double kappeOd)>();
+
+                            foreach (Curve curve in curves)
+                            {
+                                if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
+                                Point3d closestPoint = curve.GetClosestPointTo(curSamplePoint, false);
+                                if (closestPoint != default)
+                                    curveDistTuples.Add(
+                                        (curve, curSamplePoint.DistanceHorizontalTo(closestPoint), GetPipeKOd(curve)));
+                            }
+                            var result = curveDistTuples.MinBy(x => x.dist).FirstOrDefault();
+                            //Detect current dn
+                            currentDn = GetPipeDN(result.curve);
+                            if (currentDn != previousDn)
+                            {
+                                //Set the previous segment end station unless there's 0 segments
+                                if (sizeArray.Length != 0) sizeArray[sizeArray.Length - 1].station = curStationBA;
+                                //Add the new segment
+                                sizeArray = sizeArray.Append((currentDn, 0, result.kappeOd)).ToArray();
+                            }
+                            //Hand over DN to cache in "previous" variable
+                            previousDn = currentDn;
+                            //TODO: on the last iteration set the last segment distance
+                            if (i == nrOfSteps) sizeArray[sizeArray.Length - 1].station = al.Length;
+                        }
+
+                        for (int i = 0; i < sizeArray.Length; i++)
+                        {
+                            prdDbg($"{sizeArray[i].dn.ToString("D3")} || " +
+                                   $"{sizeArray[i].station.ToString("0.00")} || " +
+                                   $"{sizeArray[i].kod.ToString("0.0")}");
+                        }
+                        #endregion
+
+                        ObjectIdCollection allLabels = pv.GetProfileViewLabelIds();
+                        ObjectIdCollection allPPLabels = new ObjectIdCollection();
+                        foreach (oid labelId in allLabels) if (labelId.IsDerivedFrom<ProfileProjectionLabel>()) allPPLabels.Add(labelId);
+
+                        foreach (oid labelId in allPPLabels)
+                        {
+                            ProfileProjectionLabel ppl = labelId.Go<ProfileProjectionLabel>(tx);
+                            oid pId = ppl.FeatureId;
+                            if (!pId.IsDerivedFrom<CogoPoint>()) continue;
+                            CogoPoint cp = pId.Go<CogoPoint>(tx);
+
+                        }
+
+                        BlockTableRecord btr;
+                        if (bt.Has(pv.Name))
+                        {
+                            btr = bt[pv.Name].Go<BlockTableRecord>(tx);
+                        }
+                        else throw new System.Exception($"Block {pv.Name} is missing!");
+
+
+                    }
+
+                    #region Create a block for profile view detailing
+                    //First, get the profile view
+                    //ProfileView pv = (ProfileView)allEnts.Where(p => p is ProfileView).FirstOrDefault();
+
+                    //if (pv == null)
+                    //{
+                    //    editor.WriteMessage($"\nNo profile view found in selection!");
+                    //    tx.Abort();
+                    //    return;
+                    //}
+
+                    //pv.CheckOrOpenForWrite();
+                    //double x = 0.0;
+                    //double y = 0.0;
+                    //if (pv.ElevationRangeMode == ElevationRangeType.Automatic)
+                    //{
+                    //    pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+                    //    pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y);
+                    //}
+                    //else
+                    //    pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y);
+
+                    //#region Erase existing detailing block if it exists
+                    //if (bt.Has(pv.Name))
+                    //{
+                    //    if (!EraseBlock(doc, pv.Name))
+                    //    {
+                    //        tx.Abort();
+                    //        editor.WriteMessage($"\nFailed to erase block: {pv.Name}.");
+                    //        return;
+                    //    }
+                    //}
+                    //#endregion
+
+                    //BlockTableRecord detailingBlock = new BlockTableRecord();
+                    //detailingBlock.Name = pv.Name;
+                    //detailingBlock.Origin = new Point3d(x, y, 0);
+
+                    //bt.Add(detailingBlock);
+                    //tx.AddNewlyCreatedDBObject(detailingBlock, true);
+                    //#endregion
+
+                    //#region Process labels
+                    //Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                    //LabelStyleCollection stc = civilDoc.Styles.LabelStyles
+                    //                                   .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
+
+                    //oid prStId = stc["PROFILE PROJEKTION MGO"];
+
+                    //foreach (Entity ent in allEnts)
+                    //{
+                    //    if (ent is Label label)
+                    //    {
+                    //        label.CheckOrOpenForWrite();
+                    //        label.StyleId = prStId;
+
+                    //        oid fId = label.FeatureId;
+                    //        Entity fEnt = fId.Go<Entity>(tx);
+
+                    //        int diaOriginal = ReadIntPropertyValue(tables, fEnt.Id, "CrossingData", "Diameter");
+                    //        prdDbg(fEnt.Handle.ToString() + ": " + diaOriginal.ToString());
+
+                    //        double dia = Convert.ToDouble(diaOriginal) / 1000;
+
+                    //        if (dia == 0) dia = 0.11;
+
+                    //        string blockName = ReadStringParameterFromDataTable(
+                    //            fEnt.Layer, dtKrydsninger, "Block", 1);
+
+                    //        if (blockName.IsNotNoE())
+                    //        {
+                    //            if (blockName == "Cirkel, Bund" || blockName == "Cirkel, Top")
+                    //            {
+                    //                Circle circle = null;
+                    //                if (blockName.Contains("Bund"))
+                    //                {
+                    //                    circle = new Circle(new Point3d(
+                    //                    label.LabelLocation.X, label.LabelLocation.Y + (dia / 2), 0),
+                    //                    Vector3d.ZAxis, dia / 2);
+                    //                }
+                    //                else if (blockName.Contains("Top"))
+                    //                {
+                    //                    circle = new Circle(new Point3d(
+                    //                    label.LabelLocation.X, label.LabelLocation.Y - (dia / 2), 0),
+                    //                    Vector3d.ZAxis, dia / 2);
+                    //                }
+
+                    //                space.AppendEntity(circle);
+                    //                tx.AddNewlyCreatedDBObject(circle, false);
+                    //                circle.Layer = fEnt.Layer;
+
+                    //                Entity clone = circle.Clone() as Entity;
+                    //                detailingBlock.AppendEntity(clone);
+                    //                tx.AddNewlyCreatedDBObject(clone, true);
+                    //                circle.CheckOrOpenForWrite();
+                    //                circle.Erase(true);
+                    //            }
+                    //            else if (bt.Has(blockName))
+                    //            {
+                    //                using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                    //                    label.LabelLocation, bt[blockName]))
+                    //                {
+                    //                    space.AppendEntity(br);
+                    //                    tx.AddNewlyCreatedDBObject(br, false);
+                    //                    br.Layer = fEnt.Layer;
+
+                    //                    Entity clone = br.Clone() as Entity;
+                    //                    detailingBlock.AppendEntity(clone);
+                    //                    tx.AddNewlyCreatedDBObject(clone, true);
+
+                    //                    br.CheckOrOpenForWrite();
+                    //                    br.Erase(true);
+                    //                }
+                    //            }
+                    //        }
+
+                    //        ent.CheckOrOpenForWrite();
+                    //        ent.Layer = fEnt.Layer;
+                    //        //label.CheckOrOpenForWrite();
+                    //        //label.StyleId = prStId;
+                    //    }
+                    //}
+                    #endregion
+
+                    //using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                    //                new Point3d(x, y, 0), bt[pv.Name]))
+                    //{
+                    //    space.AppendEntity(br);
+                    //    tx.AddNewlyCreatedDBObject(br, true);
+                    //}
+                }
+
+                catch (System.Exception ex)
+                {
+                    fremTx.Abort();
+                    fremTx.Dispose();
+                    fremDb.Dispose();
+                    tx.Abort();
+                    //throw new System.Exception(ex.Message);
+                    editor.WriteMessage("\nMain caught it: " + ex.Message);
+                    return;
+                }
+                fremTx.Abort();
+                fremTx.Dispose();
+                fremDb.Dispose();
+                tx.Commit();
+            }
+        }
+
         //[CommandMethod("populateprofiles")]
         public void populateprofiles()
         {
@@ -4782,7 +5074,7 @@ namespace IntersectUtilities
                         #endregion
 
                         #region Sample profile with cover
-                        
+
 
                         double startStation = 0;
                         double endStation = 0;
@@ -7662,13 +7954,22 @@ namespace IntersectUtilities
                             Alignment detectedAl = null;
                             while (!alDetected)
                             {
-                                for (int i = 0; i < result.Count(); i++)
+                                for (int i = 0; i < resArray.Count(); i++)
                                 {
                                     if (alDetected) break;
                                     detectedAl = resArray[i].al;
 
                                     Point3d oneFourthClosestPoint = detectedAl.GetClosestPointTo(oneFourthPoint, false);
                                     Point3d threeFourthClosestPoint = detectedAl.GetClosestPointTo(threeFourthPoint, false);
+
+                                    //DBPoint p1 = new DBPoint(oneFourthClosestPoint);
+                                    //if (i == 0) p1.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                                    //else p1.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
+                                    //p1.AddEntityToDbModelSpace(localDb);
+                                    //DBPoint p2 = new DBPoint(threeFourthClosestPoint);
+                                    //if (i == 0) p2.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                                    //else p2.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
+                                    //p2.AddEntityToDbModelSpace(localDb);
 
                                     if (oneFourthPoint.DistanceHorizontalTo(oneFourthClosestPoint) < distThreshold &&
                                         threeFourthPoint.DistanceHorizontalTo(threeFourthClosestPoint) < distThreshold)
@@ -8741,6 +9042,23 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region List all gas stik materialer
+                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                    HashSet<Polyline3d> p3ds = localDb.HashSetOfType<Polyline3d>(tx)
+                                                      .Where(x => x.Layer == "GAS-Stikrør" ||
+                                                                  x.Layer == "GAS-Stikrør-2D")
+                                                      .ToHashSet();
+                    HashSet<string> materials = new HashSet<string>();
+                    foreach (Polyline3d p3d in p3ds)
+                    {
+                        materials.Add(ReadPropertyToStringValue(tables, p3d.Id, "GasDimOgMat", "Material"));
+                    }
+
+                    var ordered = materials.OrderBy(x => x);
+                    foreach (string s in ordered) prdDbg(s);
+
+                    #endregion
+
                     #region ODTables troubles
 
                     //try
@@ -8792,53 +9110,53 @@ namespace IntersectUtilities
 
                     #region ChangeLayerOfXref
 
-                    string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\5.5\";
+                    //string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\5.5\";
 
-                    var fileList = File.ReadAllLines(path + "fileList.txt").ToList();
+                    //var fileList = File.ReadAllLines(path + "fileList.txt").ToList();
 
                     //foreach (string name in fileList)
                     //{
                     //    prdDbg(name);
                     //}
 
-                    foreach (string name in fileList)
-                    {
-                        prdDbg(name);
-                        string fileName = path + name;
-                        prdDbg(fileName);
+                    //foreach (string name in fileList)
+                    //{
+                    //    prdDbg(name);
+                    //    string fileName = path + name;
+                    //    prdDbg(fileName);
 
-                        using (Database extDb = new Database(false, true))
-                        {
-                            extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
+                    //    using (Database extDb = new Database(false, true))
+                    //    {
+                    //        extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
 
-                            using (Transaction extTx = extDb.TransactionManager.StartTransaction())
-                            {
-                                BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    //        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                    //        {
+                    //            BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
 
-                                foreach (oid Oid in bt)
-                                {
-                                    BlockTableRecord btr = extTx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
-                                    if (btr.Name.Contains("_alignment"))
-                                    {
-                                        var ids = btr.GetBlockReferenceIds(true, true);
-                                        foreach (oid brId in ids)
-                                        {
-                                            BlockReference br = brId.Go<BlockReference>(extTx, OpenMode.ForWrite);
-                                            prdDbg(br.Name);
-                                            if (br.Layer == "0") { prdDbg("Already in 0! Skipping..."); continue; }
-                                            prdDbg("Was in: :" + br.Layer);
-                                            br.Layer = "0";
-                                            prdDbg("Moved to: " + br.Layer);
-                                            System.Windows.Forms.Application.DoEvents();
-                                        }
-                                    }
-                                }
-                                extTx.Commit();
-                            }
-                            extDb.SaveAs(extDb.Filename, DwgVersion.Current);
+                    //            foreach (oid Oid in bt)
+                    //            {
+                    //                BlockTableRecord btr = extTx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
+                    //                if (btr.Name.Contains("_alignment"))
+                    //                {
+                    //                    var ids = btr.GetBlockReferenceIds(true, true);
+                    //                    foreach (oid brId in ids)
+                    //                    {
+                    //                        BlockReference br = brId.Go<BlockReference>(extTx, OpenMode.ForWrite);
+                    //                        prdDbg(br.Name);
+                    //                        if (br.Layer == "0") { prdDbg("Already in 0! Skipping..."); continue; }
+                    //                        prdDbg("Was in: :" + br.Layer);
+                    //                        br.Layer = "0";
+                    //                        prdDbg("Moved to: " + br.Layer);
+                    //                        System.Windows.Forms.Application.DoEvents();
+                    //                    }
+                    //                }
+                    //            }
+                    //            extTx.Commit();
+                    //        }
+                    //        extDb.SaveAs(extDb.Filename, DwgVersion.Current);
 
-                        }
-                    }
+                    //    }
+                    //}
                     #endregion
 
                     #region List blocks scale
