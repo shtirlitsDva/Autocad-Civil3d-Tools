@@ -1901,7 +1901,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("populatedistances")]
+        [CommandMethod("POPULATEDISTANCES")]
         public void populatedistances()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -1909,6 +1909,7 @@ namespace IntersectUtilities
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
 
             #region Open fremtidig db
             string projectName = GetProjectName();
@@ -1924,6 +1925,11 @@ namespace IntersectUtilities
             Transaction fremTx = fremDb.TransactionManager.StartTransaction();
             HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
             HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+            // open the LER database
+            Database lerDb = new Database(false, true);
+            lerDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
+                FileShare.Read, false, string.Empty);
+            Transaction lerTx = lerDb.TransactionManager.StartTransaction();
             #endregion
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -1943,7 +1949,29 @@ namespace IntersectUtilities
                     BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
 
+                    #region Create layer for draft profile
+                    string afstandsMarkeringLayerName = "0-PROFILE_AFSTANDS_MARKERING";
+                    using (Transaction txLag = localDb.TransactionManager.StartTransaction())
+                    {
+                        LayerTable lt = txLag.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
 
+                        if (!lt.Has(afstandsMarkeringLayerName))
+                        {
+                            LayerTableRecord ltr = new LayerTableRecord();
+                            ltr.Name = afstandsMarkeringLayerName;
+                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 0);
+                            ltr.LineWeight = LineWeight.LineWeight000;
+
+                            //Make layertable writable
+                            lt.CheckOrOpenForWrite();
+
+                            //Add the new layer to layer table
+                            oid ltId = lt.Add(ltr);
+                            txLag.AddNewlyCreatedDBObject(ltr, true);
+                        }
+                        txLag.Commit();
+                    }
+                    #endregion
 
                     //#region Get the selection set of all objects and profile view
                     //PromptSelectionOptions pOptions = new PromptSelectionOptions();
@@ -1955,6 +1983,7 @@ namespace IntersectUtilities
                     HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
                     foreach (ProfileView pv in pvs)
                     {
+                        System.Windows.Forms.Application.DoEvents();
                         Alignment al = pv.AlignmentId.Go<Alignment>(tx);
                         Point3d pvOrigin = pv.Location;
                         double originX = pvOrigin.X;
@@ -2008,10 +2037,12 @@ namespace IntersectUtilities
                             }
                             //Hand over DN to cache in "previous" variable
                             previousDn = currentDn;
-                            //TODO: on the last iteration set the last segment distance
+                            //on the last iteration set the last segment distance
                             if (i == nrOfSteps) sizeArray[sizeArray.Length - 1].station = al.Length;
                         }
 
+                        prdDbg("");
+                        prdDbg($"****{al.Name}****");
                         for (int i = 0; i < sizeArray.Length; i++)
                         {
                             prdDbg($"{sizeArray[i].dn.ToString("D3")} || " +
@@ -2020,27 +2051,155 @@ namespace IntersectUtilities
                         }
                         #endregion
 
-                        ObjectIdCollection allLabels = pv.GetProfileViewLabelIds();
-                        ObjectIdCollection allPPLabels = new ObjectIdCollection();
-                        foreach (oid labelId in allLabels) if (labelId.IsDerivedFrom<ProfileProjectionLabel>()) allPPLabels.Add(labelId);
-
-                        foreach (oid labelId in allPPLabels)
-                        {
-                            ProfileProjectionLabel ppl = labelId.Go<ProfileProjectionLabel>(tx);
-                            oid pId = ppl.FeatureId;
-                            if (!pId.IsDerivedFrom<CogoPoint>()) continue;
-                            CogoPoint cp = pId.Go<CogoPoint>(tx);
-
-                        }
-
                         BlockTableRecord btr;
                         if (bt.Has(pv.Name))
                         {
-                            btr = bt[pv.Name].Go<BlockTableRecord>(tx);
+                            btr = bt[pv.Name].Go<BlockTableRecord>(tx, OpenMode.ForWrite);
                         }
                         else throw new System.Exception($"Block {pv.Name} is missing!");
 
+                        HashSet<ProfileProjectionLabel> ppls = localDb.HashSetOfType<ProfileProjectionLabel>(tx);
 
+                        foreach (ProfileProjectionLabel ppl in ppls)
+                        {
+                            oid pId = ppl.FeatureId;
+                            if (!pId.IsDerivedFrom<CogoPoint>()) continue;
+                            CogoPoint cp = pId.Go<CogoPoint>(tx);
+                            if (ReadStringPropertyValue(tables, pId, "CrossingData", "Alignment") != al.Name) continue;
+
+                            //Get original object from LER dwg
+                            string handle = ReadStringPropertyValue(tables, pId, "IdRecord", "Handle");
+                            //If returned handle string is empty
+                            //For any reason, fx missing OD data
+                            //Fall back to the name of the cogopoint
+                            //else continue
+                            if (handle.IsNoE())
+                            {
+                                string pName = cp.PointName;
+                                string[] res = pName.Split('_');
+                                handle = res[0];
+                            }
+                            if (handle.IsNoE()) continue;
+                            long ln;
+                            Handle hn;
+                            try
+                            {
+                                ln = Convert.ToInt64(handle, 16);
+                                hn = new Handle(ln);
+                            }
+                            catch (System.Exception ex)
+                            {
+                                prdDbg("Creation of handle failed!");
+                                throw;
+                            }
+                            oid originalId = oid.Null;
+                            try
+                            { originalId = lerDb.GetObjectId(false, hn, 0); }
+                            catch (System.Exception ex)
+                            {
+                                prdDbg($"Getting object by handle failed! {ex.Message}");
+                                throw;
+                            }
+                            Entity originalEnt = originalId.Go<Entity>(lerTx);
+
+                            //Determine type and distance
+                            string distanceType = ReadStringParameterFromDataTable(originalEnt.Layer, dtKrydsninger, "Distance", 0);
+                            string blockType = ReadStringParameterFromDataTable(originalEnt.Layer, dtKrydsninger, "Block", 0);
+                            double distance = ReadDoubleParameterFromDataTable(distanceType, dtDistances, "Distance", 0);
+                            int originalDia = ReadIntPropertyValue(tables, pId, "CrossingData", "Diameter");
+                            double dia = Convert.ToDouble(originalDia) / 1000;
+                            if (dia == 0) dia = 0.11;
+
+                            //Determine kOd
+                            double station = 0;
+                            double elevation = 0;
+                            //if (!pv.FindStationAndElevationAtXY(ppl.LabelLocation.X - originX, ppl.LabelLocation.Y - originY, ref station, ref elevation))
+                            if (!pv.FindStationAndElevationAtXY(ppl.LabelLocation.X, ppl.LabelLocation.Y, ref station, ref elevation))
+                                throw new System.Exception($"Point {ppl.Handle} couldn't finde elevation and station!!!");
+
+                            //Determine dn
+                            double kappeOd = 0;
+                            for (int i = 0; i < sizeArray.Length; i++)
+                            {
+                                if (station <= sizeArray[i].station) { kappeOd = sizeArray[i].kod / 1000; break; }
+                            }
+
+                            Circle circle = null;
+                            switch (blockType)
+                            {
+                                case "Cirkel, Bund":
+                                    {
+                                        foreach (oid Oid in btr)
+                                        {
+                                            if (!Oid.IsDerivedFrom<Circle>()) continue;
+                                            Circle tempC = Oid.Go<Circle>(tx);
+                                            prdDbg("C: " + tempC.Center.ToString());
+                                            Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y + (dia / 2), 0);
+                                            prdDbg("T: " + theoreticalLocation.ToString());
+                                            prdDbg($"dX: {tempC.Center.X - theoreticalLocation.X}, dY: {tempC.Center.Y - theoreticalLocation.Y}");
+                                            if (tempC.Center.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
+                                            {
+                                                prdDbg("Found Cirkel, Bund!");
+                                                circle = tempC;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    break;
+                                case "Cirkel, Top":
+                                    {
+                                        foreach (oid Oid in btr)
+                                        {
+                                            if (!Oid.IsDerivedFrom<Circle>()) continue;
+                                            Circle tempC = Oid.Go<Circle>(tx);
+                                            //prdDbg(tempC.Center.ToString());
+                                            Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y - (dia / 2), 0);
+                                            //prdDbg(theoreticalLocation.ToString());
+                                            if (tempC.Center.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
+                                            {
+                                                prdDbg("Found Cirkel, Top!");
+                                                circle = tempC;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    break;
+                                default:
+                                    break;
+                            }
+
+                            if (circle != null)
+                            {
+                                using (DBObjectCollection col = circle.GetOffsetCurves(distance))
+                                {
+                                    foreach (var obj in col)
+                                    {
+                                        Entity ent = (Entity)obj;
+                                        ent.Layer = afstandsMarkeringLayerName;
+                                        btr.AppendEntity(ent);
+                                        tx.AddNewlyCreatedDBObject(ent, true);
+                                    }
+                                }
+                                using (DBObjectCollection col = circle.GetOffsetCurves(distance + kappeOd / 2))
+                                {
+                                    foreach (var obj in col)
+                                    {
+                                        Entity ent = (Entity)obj;
+                                        ent.Layer = afstandsMarkeringLayerName;
+                                        btr.AppendEntity(ent);
+                                        tx.AddNewlyCreatedDBObject(ent, true);
+                                    }
+                                }
+                            }
+                        }
+
+                        //Update block references
+                        ObjectIdCollection brs = btr.GetBlockReferenceIds(true, true);
+                        foreach (oid Oid in brs)
+                        {
+                            BlockReference br = Oid.Go<BlockReference>(tx, OpenMode.ForWrite);
+                            br.RecordGraphicsModified(true);
+                        }
                     }
 
                     #region Create a block for profile view detailing
@@ -2181,6 +2340,9 @@ namespace IntersectUtilities
                     fremTx.Abort();
                     fremTx.Dispose();
                     fremDb.Dispose();
+                    lerTx.Abort();
+                    lerTx.Dispose();
+                    lerDb.Dispose();
                     tx.Abort();
                     //throw new System.Exception(ex.Message);
                     editor.WriteMessage("\nMain caught it: " + ex.Message);
@@ -2189,6 +2351,9 @@ namespace IntersectUtilities
                 fremTx.Abort();
                 fremTx.Dispose();
                 fremDb.Dispose();
+                lerTx.Abort();
+                lerTx.Dispose();
+                lerDb.Dispose();
                 tx.Commit();
             }
         }
@@ -4486,6 +4651,93 @@ namespace IntersectUtilities
                 }
                 xRefFjvTx?.Abort();
                 xRefFjvDB?.Dispose();
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("CREATEPOINTSATVERTICES")]
+        public void createpointsatvertices()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Load linework
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
+                    #endregion
+
+                    #region Layer handling
+                    string localLayerName = "0-PLDECORATOR";
+                    bool localLayerExists = false;
+
+                    LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    if (lt.Has(localLayerName))
+                    {
+                        localLayerExists = true;
+                    }
+                    else
+                    {
+                        //Create layer if it doesn't exist
+                        try
+                        {
+                            //Validate the name of layer
+                            //It throws an exception if not, so need to catch it
+                            SymbolUtilityServices.ValidateSymbolName(localLayerName, false);
+
+                            LayerTableRecord ltr = new LayerTableRecord();
+                            ltr.Name = localLayerName;
+
+                            //Make layertable writable
+                            lt.UpgradeOpen();
+
+                            //Add the new layer to layer table
+                            oid ltId = lt.Add(ltr);
+                            tx.AddNewlyCreatedDBObject(ltr, true);
+
+                            //Flag that the layer exists now
+                            localLayerExists = true;
+
+                        }
+                        catch (System.Exception)
+                        {
+                            //Eat the exception and continue
+                            //localLayerExists must remain false
+                        }
+                    }
+                    #endregion
+
+                    #region Decorate polyline vertices
+                    BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+
+                    foreach (Polyline pline in plines)
+                    {
+                        int numOfVerts = pline.NumberOfVertices - 1;
+                        for (int i = 0; i < numOfVerts; i++)
+                        {
+                            Point3d location = pline.GetPoint3dAt(i);
+                            using (var pt = new DBPoint(new Point3d(location.X, location.Y, 0)))
+                            {
+                                space.AppendEntity(pt);
+                                tx.AddNewlyCreatedDBObject(pt, true);
+                                pt.Layer = localLayerName;
+                            }
+                        }
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
                 tx.Commit();
             }
         }
