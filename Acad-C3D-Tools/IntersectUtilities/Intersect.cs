@@ -1823,6 +1823,7 @@ namespace IntersectUtilities
                             double dia = Convert.ToDouble(diaOriginal) / 1000;
 
                             if (dia == 0) dia = 0.11;
+                            if (diaOriginal == 999) dia = 0.04;
 
                             string blockName = ReadStringParameterFromDataTable(
                                 fEnt.Layer, dtKrydsninger, "Block", 1);
@@ -2206,7 +2207,7 @@ namespace IntersectUtilities
                                                         btr.AppendEntity(ent);
                                                         tx.AddNewlyCreatedDBObject(ent, true);
                                                     }
-                                                } 
+                                                }
                                             }
                                             break;
                                         }
@@ -5411,6 +5412,250 @@ namespace IntersectUtilities
 
                         #endregion
                     }
+                }
+                catch (System.Exception ex)
+                {
+                    fremTx.Abort();
+                    fremTx.Dispose();
+                    fremDb.Dispose();
+                    tx.Abort();
+                    prdDbg(ex.Message);
+                    return;
+                }
+                fremTx.Abort();
+                fremTx.Dispose();
+                fremDb.Dispose();
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("CREATEOFFSETPROFILES")]
+        public void createoffsetprofiles()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                #region Select Profile
+                PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a profile: ");
+                promptEntityOptions1.SetRejectMessage("\n Not a profile!");
+                promptEntityOptions1.AddAllowedClass(typeof(Profile), true);
+                PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                Autodesk.AutoCAD.DatabaseServices.ObjectId profileId = entity1.ObjectId;
+                #endregion
+
+                #region Select Profile View
+                PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select a ProfileView: ");
+                promptEntityOptions2.SetRejectMessage("\n Not a ProfileView");
+                promptEntityOptions2.AddAllowedClass(typeof(ProfileView), true);
+                PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                if (((PromptResult)entity2).Status != PromptStatus.OK) return;
+                #endregion
+
+                #region Open fremtidig db
+                string projectName = GetProjectName();
+                prdDbg(projectName);
+                if (projectName.IsNoE())
+                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
+
+                string etapeName = GetEtapeName(projectName);
+                // open the xref database
+                Database fremDb = new Database(false, true);
+                fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
+                    System.IO.FileShare.Read, false, string.Empty);
+                Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
+                HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                #endregion
+
+                //////////////////////////////////////
+                string profileLayerName = "0-FJV-PROFILE";
+                //////////////////////////////////////
+
+                try
+                {
+                    #region Create layer for profile
+                    using (Transaction txLag = localDb.TransactionManager.StartTransaction())
+                    {
+
+                        LayerTable lt = txLag.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                        if (!lt.Has(profileLayerName))
+                        {
+                            LayerTableRecord ltr = new LayerTableRecord();
+                            ltr.Name = profileLayerName;
+                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
+                            ltr.LineWeight = LineWeight.LineWeight030;
+                            ltr.IsPlottable = false;
+
+                            //Make layertable writable
+                            lt.CheckOrOpenForWrite();
+
+                            //Add the new layer to layer table
+                            oid ltId = lt.Add(ltr);
+                            txLag.AddNewlyCreatedDBObject(ltr, true);
+                        }
+                        txLag.Commit();
+                    }
+                    #endregion
+
+                    #region Initialize variables
+                    Plane plane = new Plane(); //For intersecting
+
+                    Profile profileToOffset = profileId.Go<Profile>(tx);
+                    ProfileView pv = tx.GetObject(entity2.ObjectId, OpenMode.ForWrite) as ProfileView;
+                    Alignment al = pv.AlignmentId.Go<Alignment>(tx);
+
+                    Point3d pvOrigin = pv.Location;
+                    double originX = pvOrigin.X;
+                    double originY = pvOrigin.Y;
+
+                    double pvStStart = pv.StationStart;
+                    double pvStEnd = pv.StationEnd;
+                    double pvElBottom = pv.ElevationMin;
+                    double pvElTop = pv.ElevationMax;
+                    double pvLength = pvStEnd - pvStStart;
+
+                    //Settings
+                    //double weedAngle = 5; //In degrees
+                    //double weedAngleRad = weedAngle.ToRadians();
+                    //double DouglasPeuckerTolerance = .05;
+
+                    double stepLength = 0.1;
+                    int nrOfSteps = (int)(pvLength / stepLength);
+                    #endregion
+
+                    #region GetCurves from fremtidig
+                    HashSet<Curve> curves = allCurves
+                        .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                        .ToHashSet();
+                    #endregion
+
+                    #region Build size array
+                    (int dn, double station, double kod)[] sizeArray = new (int dn, double station, double kod)[0];
+                    int previousDn = 0;
+                    int currentDn = 0;
+                    for (int i = 0; i < nrOfSteps + 1; i++)
+                    {
+                        double curStationBA = pvStStart + stepLength * i;
+                        Point3d curSamplePoint = default;
+                        try { curSamplePoint = al.GetPointAtDist(curStationBA); }
+                        catch (System.Exception) { continue; }
+
+                        HashSet<(Curve curve, double dist, double kappeOd)> curveDistTuples =
+                            new HashSet<(Curve curve, double dist, double kappeOd)>();
+
+                        foreach (Curve curve in curves)
+                        {
+                            if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
+                            Point3d closestPoint = curve.GetClosestPointTo(curSamplePoint, false);
+                            if (closestPoint != default)
+                                curveDistTuples.Add(
+                                    (curve, curSamplePoint.DistanceHorizontalTo(closestPoint), GetPipeKOd(curve)));
+                        }
+                        var result = curveDistTuples.MinBy(x => x.dist).FirstOrDefault();
+                        //Detect current dn
+                        currentDn = GetPipeDN(result.curve);
+                        if (currentDn != previousDn)
+                        {
+                            //Set the previous segment end station unless there's 0 segments
+                            if (sizeArray.Length != 0) sizeArray[sizeArray.Length - 1].station = curStationBA;
+                            //Add the new segment
+                            sizeArray = sizeArray.Append((currentDn, 0, result.kappeOd)).ToArray();
+                        }
+                        //Hand over DN to cache in "previous" variable
+                        previousDn = currentDn;
+                        //TODO: on the last iteration set the last segment distance
+                        if (i == nrOfSteps) sizeArray[sizeArray.Length - 1].station = al.Length;
+                    }
+
+                    for (int i = 0; i < sizeArray.Length; i++)
+                    {
+                        prdDbg($"{sizeArray[i].dn.ToString("D3")} || " +
+                               $"{sizeArray[i].station.ToString("0.00")} || " +
+                               $"{sizeArray[i].kod.ToString("0.0")}");
+                    }
+                    #endregion
+
+                    //for (int i = 0; i < sizeArray.Length; i++)
+                    //{
+                    //    var size = sizeArray[i];
+                    //    double halfKod = size.kod / 2.0 / 1000.0;
+
+                    ProfileEntityCollection entities = profileToOffset.Entities;
+                    prdDbg($"Count of entities: {entities.Count}");
+                    HashSet<string> types = new HashSet<string>();
+
+                    Polyline pline = new Polyline(entities.Count + 1);
+
+                    //Place first point
+                    ProfileEntity pe = entities.EntityAtId(entities.FirstEntity);
+                    double startX = originX, startY = originY;
+                    pv.FindXYAtStationAndElevation(pe.StartStation, pe.StartElevation, ref startX, ref startY);
+                    Point2d startPoint = new Point2d(startX, startY);
+                    Point2d endPoint = new Point2d(originX, originY);
+                    pline.AddVertexAt(0, startPoint, pe.GetBulge(pv), 0, 0);
+                    int vertIdx = 1;
+                    for (int i = 0; i < entities.Count + 1; i++)
+                    {
+                        switch (pe.EntityType)
+                        {
+                            case ProfileEntityType.Tangent:
+                                {
+                                    endPoint = pv.GetPoint2dAtStaAndEl(pe.EndStation, pe.EndElevation);
+                                    double bulge = entities.LookAheadAndGetBulge(pe, pv);
+                                    pline.AddVertexAt(vertIdx, endPoint, bulge, 0, 0);
+                                }
+                                break;
+                            case ProfileEntityType.Circular:
+                                {
+                                    endPoint = pv.GetPoint2dAtStaAndEl(pe.EndStation, pe.EndElevation);
+                                    double bulge = entities.LookAheadAndGetBulge(pe, pv);
+                                    pline.AddVertexAt(vertIdx, endPoint, bulge, 0, 0);
+                                }
+                                break;
+                            default:
+                                throw new System.Exception($"ProfileEntity unknown type encountered!");
+                        }
+                        vertIdx++;
+                        startPoint = endPoint;
+                        try
+                        {
+                            pe = entities.EntityAtId(pe.EntityAfter);
+                        }
+                        catch (System.Exception)
+                        {
+                            //prdDbg("EntityAfter threw an Exception!");
+                            break;
+                        }
+                    }
+
+                    pline.AddEntityToDbModelSpace(localDb);
+
+                    //using (DBObjectCollection col = profileToOffset.GetOffsetCurves(halfKod))
+                    //{
+                    //    foreach (Entity ent in col)
+                    //    {
+                    //        ent.Layer = profileLayerName;
+                    //        ent.Color = Color.FromColorIndex(ColorMethod.ByLayer, 256);
+                    //        ent.AddEntityToDbModelSpace(localDb);
+                    //    }
+                    //}
+                    //using (DBObjectCollection col = profileToOffset.GetOffsetCurves(-halfKod))
+                    //{
+                    //    foreach (Entity ent in col)
+                    //    {
+                    //        ent.Layer = profileLayerName;
+                    //        ent.Color = Color.FromColorIndex(ColorMethod.ByLayer, 256);
+                    //        ent.AddEntityToDbModelSpace(localDb);
+                    //    }
+                    //}
+                    //}
                 }
                 catch (System.Exception ex)
                 {

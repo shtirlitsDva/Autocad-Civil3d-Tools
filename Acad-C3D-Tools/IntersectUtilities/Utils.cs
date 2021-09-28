@@ -1645,6 +1645,55 @@ namespace IntersectUtilities
             double Y2 = targetP3d.Y;
             return Math.Sqrt(Math.Pow((X2 - X1), 2) + Math.Pow((Y2 - Y1), 2));
         }
+        public static double Pow(this double value, double exponent)
+        {
+            return Math.Pow(value, exponent);
+        }
+        public static double GetBulge(this ProfileCircular profileCircular, ProfileView profileView)
+        {
+            Point2d startPoint = profileView.GetPoint2dAtStaAndEl(profileCircular.StartStation, profileCircular.StartElevation);
+            Point2d endPoint = profileView.GetPoint2dAtStaAndEl(profileCircular.EndStation, profileCircular.EndElevation);
+            //Calculate bugle
+            double r = profileCircular.Radius;
+            double u = startPoint.GetDistanceTo(endPoint);
+            double b = (2 * (r - Math.Sqrt(r.Pow(2) - u.Pow(2) / 4))) / u;
+            if (profileCircular.CurveType == VerticalCurveType.Crest) b *= -1;
+            return b;
+        }
+        public static double GetBulge(this ProfileEntity profileEntity, ProfileView profileView)
+        {
+            switch (profileEntity)
+            {
+                case ProfileTangent tan:
+                    return 0;
+                case ProfileCircular circ:
+                    return circ.GetBulge(profileView);
+                default:
+                    throw new System.Exception($"GetBulge: ProfileEntity unknown type encountered!");
+            }
+        }
+        public static double LookAheadAndGetBulge(this ProfileEntityCollection collection, ProfileEntity currentEntity, ProfileView profileView)
+        {
+            ProfileEntity next;
+            try
+            {
+                next = collection.EntityAtId(currentEntity.EntityAfter);
+            }
+            catch (System.Exception)
+            {
+                return 0;
+            }
+
+            switch (next)
+            {
+                case ProfileTangent tan:
+                    return 0;
+                case ProfileCircular circular:
+                    return circular.GetBulge(profileView);
+                default:
+                    throw new System.Exception($"LookAheadAndGetBulge: ProfileEntity unknown type encountered!");
+            }
+        }
         public static bool Contains(this string source, string toCheck, StringComparison comp)
         {
             return source?.IndexOf(toCheck, comp) >= 0;
@@ -1835,6 +1884,12 @@ namespace IntersectUtilities
                 }
             }
             return br;
+        }
+        public static Point2d GetPoint2dAtStaAndEl(this ProfileView pv, double station, double elevation)
+        {
+            double x = 0, y = 0;
+            pv.FindXYAtStationAndElevation(station, elevation, ref x, ref y);
+            return new Point2d(x, y);
         }
     }
 
