@@ -1973,13 +1973,6 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    //#region Get the selection set of all objects and profile view
-                    //PromptSelectionOptions pOptions = new PromptSelectionOptions();
-                    //PromptSelectionResult sSetResult = editor.GetSelection(pOptions);
-                    //if (sSetResult.Status != PromptStatus.OK) return;
-                    //HashSet<Entity> allEnts = sSetResult.Value.GetObjectIds().Select(e => e.Go<Entity>(tx)).ToHashSet();
-                    //#endregion
-
                     HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
                     foreach (ProfileView pv in pvs)
                     {
@@ -2058,6 +2051,11 @@ namespace IntersectUtilities
                         }
                         else throw new System.Exception($"Block {pv.Name} is missing!");
 
+                        ObjectIdCollection brefIds = btr.GetBlockReferenceIds(true, true);
+                        if (brefIds.Count == 0) throw new System.Exception($"Block {pv.Name} does not have any references!");
+                        oid brefId = brefIds[0];
+                        BlockReference bref = brefId.Go<BlockReference>(tx);
+
                         HashSet<ProfileProjectionLabel> ppls = localDb.HashSetOfType<ProfileProjectionLabel>(tx);
 
                         foreach (ProfileProjectionLabel ppl in ppls)
@@ -2113,7 +2111,6 @@ namespace IntersectUtilities
                             //Determine kOd
                             double station = 0;
                             double elevation = 0;
-                            //if (!pv.FindStationAndElevationAtXY(ppl.LabelLocation.X - originX, ppl.LabelLocation.Y - originY, ref station, ref elevation))
                             if (!pv.FindStationAndElevationAtXY(ppl.LabelLocation.X, ppl.LabelLocation.Y, ref station, ref elevation))
                                 throw new System.Exception($"Point {ppl.Handle} couldn't finde elevation and station!!!");
 
@@ -2133,13 +2130,14 @@ namespace IntersectUtilities
                                         {
                                             if (!Oid.IsDerivedFrom<Circle>()) continue;
                                             Circle tempC = Oid.Go<Circle>(tx);
-                                            prdDbg("C: " + tempC.Center.ToString());
+                                            //prdDbg("C: " + tempC.Center.ToString());
                                             Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y + (dia / 2), 0);
-                                            prdDbg("T: " + theoreticalLocation.ToString());
-                                            prdDbg($"dX: {tempC.Center.X - theoreticalLocation.X}, dY: {tempC.Center.Y - theoreticalLocation.Y}");
+                                            theoreticalLocation = theoreticalLocation.TransformBy(bref.BlockTransform.Inverse());
+                                            //prdDbg("T: " + theoreticalLocation.ToString());
+                                            //prdDbg($"dX: {tempC.Center.X - theoreticalLocation.X}, dY: {tempC.Center.Y - theoreticalLocation.Y}");
                                             if (tempC.Center.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
                                             {
-                                                prdDbg("Found Cirkel, Bund!");
+                                                //prdDbg("Found Cirkel, Bund!");
                                                 circle = tempC;
                                                 break;
                                             }
@@ -2152,15 +2150,65 @@ namespace IntersectUtilities
                                         {
                                             if (!Oid.IsDerivedFrom<Circle>()) continue;
                                             Circle tempC = Oid.Go<Circle>(tx);
-                                            //prdDbg(tempC.Center.ToString());
                                             Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y - (dia / 2), 0);
-                                            //prdDbg(theoreticalLocation.ToString());
+                                            theoreticalLocation = theoreticalLocation.TransformBy(bref.BlockTransform.Inverse());
                                             if (tempC.Center.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
                                             {
-                                                prdDbg("Found Cirkel, Top!");
+                                                //prdDbg("Found Cirkel, Top!");
                                                 circle = tempC;
                                                 break;
                                             }
+                                        }
+                                    }
+                                    break;
+                                case "EL 0.4kV":
+                                    foreach (oid Oid in btr)
+                                    {
+                                        if (!Oid.IsDerivedFrom<BlockReference>()) continue;
+                                        BlockReference tempBref = Oid.Go<BlockReference>(tx);
+                                        prdDbg("C: " + tempBref.Position.ToString());
+                                        BlockTableRecord tempBtr = tempBref.BlockTableRecord.Go<BlockTableRecord>(tx);
+                                        Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y, 0);
+                                        theoreticalLocation = theoreticalLocation.TransformBy(bref.BlockTransform.Inverse());
+                                        prdDbg("T: " + theoreticalLocation.ToString());
+                                        prdDbg($"dX: {tempBref.Position.X - theoreticalLocation.X}, dY: {tempBref.Position.Y - theoreticalLocation.Y}");
+                                        if (tempBref.Position.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
+                                        {
+                                            prdDbg("Found block!");
+                                            Extents3d ext = tempBref.GeometricExtents;
+                                            prdDbg(ext.ToString());
+                                            using (Polyline pl = new Polyline(4))
+                                            {
+                                                pl.AddVertexAt(0, new Point2d(ext.MinPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
+                                                pl.AddVertexAt(1, new Point2d(ext.MinPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
+                                                pl.AddVertexAt(2, new Point2d(ext.MaxPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
+                                                pl.AddVertexAt(3, new Point2d(ext.MaxPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
+                                                pl.Closed = true;
+                                                pl.SetDatabaseDefaults();
+                                                pl.ReverseCurve();
+
+                                                using (DBObjectCollection col = pl.GetOffsetCurves(distance))
+                                                {
+                                                    foreach (var obj in col)
+                                                    {
+                                                        Entity ent = (Entity)obj;
+                                                        ent.Layer = afstandsMarkeringLayerName;
+                                                        btr.AppendEntity(ent);
+                                                        tx.AddNewlyCreatedDBObject(ent, true);
+                                                    }
+                                                }
+                                                using (DBObjectCollection col = pl.GetOffsetCurves(distance + kappeOd / 2))
+                                                {
+                                                    foreach (var obj in col)
+                                                    {
+                                                        Entity ent = (Entity)obj;
+                                                        ent.Layer = afstandsMarkeringLayerName;
+                                                        btr.AppendEntity(ent);
+                                                        tx.AddNewlyCreatedDBObject(ent, true);
+                                                    }
+                                                } 
+                                            }
+                                            break;
                                         }
                                     }
                                     break;
@@ -2201,138 +2249,6 @@ namespace IntersectUtilities
                             br.RecordGraphicsModified(true);
                         }
                     }
-
-                    #region Create a block for profile view detailing
-                    //First, get the profile view
-                    //ProfileView pv = (ProfileView)allEnts.Where(p => p is ProfileView).FirstOrDefault();
-
-                    //if (pv == null)
-                    //{
-                    //    editor.WriteMessage($"\nNo profile view found in selection!");
-                    //    tx.Abort();
-                    //    return;
-                    //}
-
-                    //pv.CheckOrOpenForWrite();
-                    //double x = 0.0;
-                    //double y = 0.0;
-                    //if (pv.ElevationRangeMode == ElevationRangeType.Automatic)
-                    //{
-                    //    pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
-                    //    pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y);
-                    //}
-                    //else
-                    //    pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y);
-
-                    //#region Erase existing detailing block if it exists
-                    //if (bt.Has(pv.Name))
-                    //{
-                    //    if (!EraseBlock(doc, pv.Name))
-                    //    {
-                    //        tx.Abort();
-                    //        editor.WriteMessage($"\nFailed to erase block: {pv.Name}.");
-                    //        return;
-                    //    }
-                    //}
-                    //#endregion
-
-                    //BlockTableRecord detailingBlock = new BlockTableRecord();
-                    //detailingBlock.Name = pv.Name;
-                    //detailingBlock.Origin = new Point3d(x, y, 0);
-
-                    //bt.Add(detailingBlock);
-                    //tx.AddNewlyCreatedDBObject(detailingBlock, true);
-                    //#endregion
-
-                    //#region Process labels
-                    //Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-
-                    //LabelStyleCollection stc = civilDoc.Styles.LabelStyles
-                    //                                   .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
-
-                    //oid prStId = stc["PROFILE PROJEKTION MGO"];
-
-                    //foreach (Entity ent in allEnts)
-                    //{
-                    //    if (ent is Label label)
-                    //    {
-                    //        label.CheckOrOpenForWrite();
-                    //        label.StyleId = prStId;
-
-                    //        oid fId = label.FeatureId;
-                    //        Entity fEnt = fId.Go<Entity>(tx);
-
-                    //        int diaOriginal = ReadIntPropertyValue(tables, fEnt.Id, "CrossingData", "Diameter");
-                    //        prdDbg(fEnt.Handle.ToString() + ": " + diaOriginal.ToString());
-
-                    //        double dia = Convert.ToDouble(diaOriginal) / 1000;
-
-                    //        if (dia == 0) dia = 0.11;
-
-                    //        string blockName = ReadStringParameterFromDataTable(
-                    //            fEnt.Layer, dtKrydsninger, "Block", 1);
-
-                    //        if (blockName.IsNotNoE())
-                    //        {
-                    //            if (blockName == "Cirkel, Bund" || blockName == "Cirkel, Top")
-                    //            {
-                    //                Circle circle = null;
-                    //                if (blockName.Contains("Bund"))
-                    //                {
-                    //                    circle = new Circle(new Point3d(
-                    //                    label.LabelLocation.X, label.LabelLocation.Y + (dia / 2), 0),
-                    //                    Vector3d.ZAxis, dia / 2);
-                    //                }
-                    //                else if (blockName.Contains("Top"))
-                    //                {
-                    //                    circle = new Circle(new Point3d(
-                    //                    label.LabelLocation.X, label.LabelLocation.Y - (dia / 2), 0),
-                    //                    Vector3d.ZAxis, dia / 2);
-                    //                }
-
-                    //                space.AppendEntity(circle);
-                    //                tx.AddNewlyCreatedDBObject(circle, false);
-                    //                circle.Layer = fEnt.Layer;
-
-                    //                Entity clone = circle.Clone() as Entity;
-                    //                detailingBlock.AppendEntity(clone);
-                    //                tx.AddNewlyCreatedDBObject(clone, true);
-                    //                circle.CheckOrOpenForWrite();
-                    //                circle.Erase(true);
-                    //            }
-                    //            else if (bt.Has(blockName))
-                    //            {
-                    //                using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
-                    //                    label.LabelLocation, bt[blockName]))
-                    //                {
-                    //                    space.AppendEntity(br);
-                    //                    tx.AddNewlyCreatedDBObject(br, false);
-                    //                    br.Layer = fEnt.Layer;
-
-                    //                    Entity clone = br.Clone() as Entity;
-                    //                    detailingBlock.AppendEntity(clone);
-                    //                    tx.AddNewlyCreatedDBObject(clone, true);
-
-                    //                    br.CheckOrOpenForWrite();
-                    //                    br.Erase(true);
-                    //                }
-                    //            }
-                    //        }
-
-                    //        ent.CheckOrOpenForWrite();
-                    //        ent.Layer = fEnt.Layer;
-                    //        //label.CheckOrOpenForWrite();
-                    //        //label.StyleId = prStId;
-                    //    }
-                    //}
-                    #endregion
-
-                    //using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
-                    //                new Point3d(x, y, 0), bt[pv.Name]))
-                    //{
-                    //    space.AppendEntity(br);
-                    //    tx.AddNewlyCreatedDBObject(br, true);
-                    //}
                 }
 
                 catch (System.Exception ex)
