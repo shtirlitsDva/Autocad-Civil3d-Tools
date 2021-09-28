@@ -5582,11 +5582,7 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    //for (int i = 0; i < sizeArray.Length; i++)
-                    //{
-                    //    var size = sizeArray[i];
-                    //    double halfKod = size.kod / 2.0 / 1000.0;
-
+                    #region Create polyline from centre profile
                     ProfileEntityCollection entities = profileToOffset.Entities;
                     prdDbg($"Count of entities: {entities.Count}");
                     HashSet<string> types = new HashSet<string>();
@@ -5603,59 +5599,134 @@ namespace IntersectUtilities
                     int vertIdx = 1;
                     for (int i = 0; i < entities.Count + 1; i++)
                     {
-                        switch (pe.EntityType)
-                        {
-                            case ProfileEntityType.Tangent:
-                                {
-                                    endPoint = pv.GetPoint2dAtStaAndEl(pe.EndStation, pe.EndElevation);
-                                    double bulge = entities.LookAheadAndGetBulge(pe, pv);
-                                    pline.AddVertexAt(vertIdx, endPoint, bulge, 0, 0);
-                                }
-                                break;
-                            case ProfileEntityType.Circular:
-                                {
-                                    endPoint = pv.GetPoint2dAtStaAndEl(pe.EndStation, pe.EndElevation);
-                                    double bulge = entities.LookAheadAndGetBulge(pe, pv);
-                                    pline.AddVertexAt(vertIdx, endPoint, bulge, 0, 0);
-                                }
-                                break;
-                            default:
-                                throw new System.Exception($"ProfileEntity unknown type encountered!");
-                        }
+                        endPoint = pv.GetPoint2dAtStaAndEl(pe.EndStation, pe.EndElevation);
+                        double bulge = entities.LookAheadAndGetBulge(pe, pv);
+                        pline.AddVertexAt(vertIdx, endPoint, bulge, 0, 0);
                         vertIdx++;
                         startPoint = endPoint;
-                        try
+                        try { pe = entities.EntityAtId(pe.EntityAfter); }
+                        catch (System.Exception) { break; }
+                    }
+                    #endregion
+
+                    #region Create partial curves
+                    HashSet<Polyline> offsetCurvesTop = new HashSet<Polyline>();
+                    HashSet<Polyline> offsetCurvesBund = new HashSet<Polyline>();
+                    //Small offset to avoid vertical segments in profile
+                    double pDelta = 0.025;
+                    //Create lines to split the offset curves
+                    //And it happens for each size segment
+                    for (int i = 0; i < sizeArray.Length; i++)
+                    {
+                        var size = sizeArray[i];
+                        double halfKod = size.kod / 2.0 / 1000.0;
+
+                        HashSet<Line> splitLines = new HashSet<Line>();
+                        if (i != 0)
                         {
-                            pe = entities.EntityAtId(pe.EntityAfter);
+                            Point3d sP = new Point3d(originX + sizeArray[i - 1].station + pDelta, originY, 0);
+                            Point3d eP = new Point3d(originX + sizeArray[i - 1].station + pDelta, originY + 100, 0);
+                            Line splitLineStart = new Line(sP, eP);
+                            splitLines.Add(splitLineStart);
                         }
-                        catch (System.Exception)
+                        if (i != sizeArray.Length - 1)
                         {
-                            //prdDbg("EntityAfter threw an Exception!");
-                            break;
+                            Point3d sP = new Point3d(originX + sizeArray[i].station - pDelta, originY, 0);
+                            Point3d eP = new Point3d(originX + sizeArray[i].station - pDelta, originY + 100, 0);
+                            Line splitLineStart = new Line(sP, eP);
+                            splitLines.Add(splitLineStart);
+                        }
+                        //Top offset
+                        using (DBObjectCollection col = pline.GetOffsetCurves(halfKod))
+                        {
+                            if (col.Count == 0) throw new System.Exception("Offsetting pline failed!");
+                            Polyline offsetPline = col[0] as Polyline;
+                            List<double> splitPts = new List<double>();
+                            foreach (Line line in splitLines)
+                            {
+                                Point3dCollection ipts = new Point3dCollection();
+                                offsetPline.IntersectWith(line,
+                                    Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                                    ipts, new IntPtr(0), new IntPtr(0));
+                                foreach (Point3d p in ipts)
+                                    splitPts.Add(offsetPline.GetParameterAtPoint(offsetPline.GetClosestPointTo(p, false)));
+                            }
+                            if (splitPts.Count == 0) throw new System.Exception("Getting split points failed!");
+                            splitPts.Sort();
+                            try
+                            {
+                                DBObjectCollection objs = offsetPline
+                                    .GetSplitCurves(new DoubleCollection(splitPts.ToArray()));
+                                if (i == 0) offsetCurvesTop.Add(objs[0] as Polyline);
+                                else offsetCurvesTop.Add(objs[1] as Polyline);
+                            }
+                            catch (Autodesk.AutoCAD.Runtime.Exception ex)
+                            {
+                                Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
+                                throw new System.Exception("Splitting of pline failed!");
+                            }
+                        }
+                        //Bund offset
+                        using (DBObjectCollection col = pline.GetOffsetCurves(-halfKod))
+                        {
+                            if (col.Count == 0) throw new System.Exception("Offsetting pline failed!");
+                            Polyline offsetPline = col[0] as Polyline;
+                            List<double> splitPts = new List<double>();
+                            foreach (Line line in splitLines)
+                            {
+                                Point3dCollection ipts = new Point3dCollection();
+                                offsetPline.IntersectWith(line,
+                                    Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                                    ipts, new IntPtr(0), new IntPtr(0));
+                                foreach (Point3d p in ipts)
+                                    splitPts.Add(offsetPline.GetParameterAtPoint(offsetPline.GetClosestPointTo(p, false)));
+                            }
+                            if (splitPts.Count == 0) throw new System.Exception("Getting split points failed!");
+                            splitPts.Sort();
+                            try
+                            {
+                                DBObjectCollection objs = offsetPline
+                                    .GetSplitCurves(new DoubleCollection(splitPts.ToArray()));
+                                if (i == 0) offsetCurvesBund.Add(objs[0] as Polyline);
+                                else offsetCurvesBund.Add(objs[1] as Polyline);
+                            }
+                            catch (Autodesk.AutoCAD.Runtime.Exception ex)
+                            {
+                                Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
+                                throw new System.Exception("Splitting of pline failed!");
+                            }
+                        }
+                    } 
+                    #endregion
+                    
+                    //Combine to polylines
+                    Polyline plineTop = new Polyline();
+                    foreach (Polyline partPline in offsetCurvesTop)
+                    {
+                        for (int i = 0; i < partPline.NumberOfVertices; i++)
+                        {
+                            Point2d cp = new Point2d(partPline.GetPoint3dAt(i).X, partPline.GetPoint3dAt(i).Y);
+                            plineTop.AddVertexAt(
+                                plineTop.NumberOfVertices,
+                                cp, partPline.GetBulgeAt(i), 0, 0);
                         }
                     }
-
-                    pline.AddEntityToDbModelSpace(localDb);
-
-                    //using (DBObjectCollection col = profileToOffset.GetOffsetCurves(halfKod))
-                    //{
-                    //    foreach (Entity ent in col)
-                    //    {
-                    //        ent.Layer = profileLayerName;
-                    //        ent.Color = Color.FromColorIndex(ColorMethod.ByLayer, 256);
-                    //        ent.AddEntityToDbModelSpace(localDb);
-                    //    }
-                    //}
-                    //using (DBObjectCollection col = profileToOffset.GetOffsetCurves(-halfKod))
-                    //{
-                    //    foreach (Entity ent in col)
-                    //    {
-                    //        ent.Layer = profileLayerName;
-                    //        ent.Color = Color.FromColorIndex(ColorMethod.ByLayer, 256);
-                    //        ent.AddEntityToDbModelSpace(localDb);
-                    //    }
-                    //}
-                    //}
+                    plineTop.Layer = profileLayerName;
+                    plineTop.AddEntityToDbModelSpace(localDb);
+                    //Combine to polylines
+                    Polyline plineBund = new Polyline();
+                    foreach (Polyline partPline in offsetCurvesBund)
+                    {
+                        for (int i = 0; i < partPline.NumberOfVertices; i++)
+                        {
+                            Point2d cp = new Point2d(partPline.GetPoint3dAt(i).X, partPline.GetPoint3dAt(i).Y);
+                            plineBund.AddVertexAt(
+                                plineBund.NumberOfVertices,
+                                cp, partPline.GetBulgeAt(i), 0, 0);
+                        }
+                    }
+                    plineBund.Layer = profileLayerName;
+                    plineBund.AddEntityToDbModelSpace(localDb);
                 }
                 catch (System.Exception ex)
                 {
