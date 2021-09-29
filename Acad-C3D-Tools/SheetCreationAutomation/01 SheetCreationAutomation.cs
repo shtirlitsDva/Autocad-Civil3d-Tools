@@ -129,5 +129,139 @@ namespace SheetCreationAutomation
             }
         }
 
+        [CommandMethod("CREATEALIGNMENTDRAWINGS")]
+        public void createalignmentdrawings()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            //Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            bool isValidCreation = false;
+            DataShortcuts.DataShortcutManager sm = DataShortcuts.CreateDataShortcutManager(ref isValidCreation);
+
+            if (isValidCreation != true)
+            {
+                prdDbg("DataShortcutManager failed to be created!");
+                return;
+            }
+
+            try
+            {
+                #region
+                int publishedCount = sm.GetPublishedItemsCount();
+                prdDbg($"publishedCount = {publishedCount}");
+
+                /////////////////////////////////////////////////////////////////////////////////////////////
+                string pathToFolderToSave = @"X:\037-1178 - Gladsaxe udbygning - Dokumenter\" +
+                                            @"01 Intern\02 Tegninger\01 Autocad - xxx\Etape 1.2\ViewFrames\";
+                /////////////////////////////////////////////////////////////////////////////////////////////
+
+                for (int i = 0; i < publishedCount; i++)
+                {
+                    prdDbg("");
+                    DataShortcuts.DataShortcutManager.PublishedItem item =
+                        sm.GetPublishedItemAt(i);
+                    prdDbg($"Name: {item.Name}");
+                    prdDbg($"Description: {item.Description}");
+                    prdDbg($"DSEntityType: {item.DSEntityType.ToString()}");
+
+                    if (item.DSEntityType == DataShortcutEntityType.Alignment)
+                    {
+                        string newFileName = pathToFolderToSave + item.Name + ".dwg";
+                        using (Database alDb = new Database(false, true))
+                        {
+                            alDb.ReadDwgFile(
+                                @"X:\AutoCAD DRI - 01 Civil 3D\Templates\Alignment_til_viewframes.dwt",
+                                System.IO.FileShare.Read, false, string.Empty);
+                            alDb.SaveAs(newFileName, true, DwgVersion.Newest, null);
+                        }
+                        using (Database alDb = new Database(false, true))
+                        {
+                            using (Transaction alTx = alDb.TransactionManager.StartTransaction())
+                            {
+                                try
+                                {
+                                    alDb.ReadDwgFile(newFileName, FileOpenMode.OpenForReadAndWriteNoShare,
+                                        false, string.Empty);
+                                    prdDbg("Alignment detected! Creating reference to shortcut...");
+                                    ObjectIdCollection ids = sm.CreateReference(i, alDb);
+
+                                    //HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
+                                    editor.WriteMessage($"\nNr. of alignments: {ids.Count}");
+                                    CivilDocument civilDoc = CivilDocument.GetCivilDocument(alDb);
+                                    foreach (oid Oid in ids)
+                                    {
+                                        Alignment al = Oid.Go<Alignment>(alTx, OpenMode.ForWrite);
+                                        try
+                                        {
+                                            al.StyleId = civilDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
+                                            oid labelSetId = civilDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
+                                            al.ImportLabelSet(labelSetId);
+                                        }
+                                        catch (System.Exception)
+                                        {
+                                            prdDbg("Styles for alignment or labels are missing!");
+                                            throw;
+                                        }
+                                    }
+                                }
+                                catch (System.Exception ex)
+                                {
+                                    alTx.Abort();
+                                    throw new System.Exception(ex.Message);
+                                }
+                                alTx.Commit();
+                            }
+                            alDb.SaveAs(newFileName, true, DwgVersion.Newest, null);
+                        }
+                    }
+                }
+
+                System.Windows.Forms.Application.DoEvents();
+
+                #endregion
+            }
+            catch (System.Exception ex)
+            {
+                editor.WriteMessage("\n" + ex.Message);
+                return;
+            }
+            finally
+            {
+                sm.Dispose();
+            }
+        }
+
+        [CommandMethod("LISTNUMBEROFVIEWFRAMES")]
+        public void listnumberofviewframes()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region List number of Vframes
+                    HashSet<ViewFrame> vfs = localDb.HashSetOfType<ViewFrame>(tx);
+                    prdDbg($"Number_of_VFs: {{{vfs.Count}}}");
+                    System.Windows.Forms.Application.DoEvents();
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                finally
+                {
+                }
+                tx.Abort();
+            }
+        }
     }
 }

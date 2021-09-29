@@ -32,31 +32,31 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="accoremgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2021\accoremgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\accoremgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="acdbmgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2021\acdbmgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\acdbmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="acmgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2021\acmgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\acmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="AecBaseMgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2021\AecBaseMgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\AecBaseMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="AeccDataShortcutMgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2021\C3D\AeccDataShortcutMgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\C3D\AeccDataShortcutMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="AeccDbMgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2021\C3D\AeccDbMgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\C3D\AeccDbMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="ManagedMapApi">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2021\Map\ManagedMapApi.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\Map\ManagedMapApi.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Microsoft.Office.Interop.Excel, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
