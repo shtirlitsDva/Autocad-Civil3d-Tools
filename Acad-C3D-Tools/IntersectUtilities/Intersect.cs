@@ -5613,7 +5613,9 @@ namespace IntersectUtilities
                     HashSet<Polyline> offsetCurvesTop = new HashSet<Polyline>();
                     HashSet<Polyline> offsetCurvesBund = new HashSet<Polyline>();
                     //Small offset to avoid vertical segments in profile
-                    double pDelta = 0.025;
+                    //************************************************//
+                    double pDelta = 0.125;
+                    //************************************************//
                     //Create lines to split the offset curves
                     //And it happens for each size segment
                     for (int i = 0; i < sizeArray.Length; i++)
@@ -5633,8 +5635,8 @@ namespace IntersectUtilities
                         {
                             Point3d sP = new Point3d(originX + sizeArray[i].station - pDelta, originY, 0);
                             Point3d eP = new Point3d(originX + sizeArray[i].station - pDelta, originY + 100, 0);
-                            Line splitLineStart = new Line(sP, eP);
-                            splitLines.Add(splitLineStart);
+                            Line splitLineEnd = new Line(sP, eP);
+                            splitLines.Add(splitLineEnd);
                         }
                         //Top offset
                         using (DBObjectCollection col = pline.GetOffsetCurves(halfKod))
@@ -5696,9 +5698,10 @@ namespace IntersectUtilities
                                 throw new System.Exception("Splitting of pline failed!");
                             }
                         }
-                    } 
+                    }
                     #endregion
-                    
+
+                    #region Combine partial plines and convert to profile
                     //Combine to polylines
                     Polyline plineTop = new Polyline();
                     foreach (Polyline partPline in offsetCurvesTop)
@@ -5711,8 +5714,16 @@ namespace IntersectUtilities
                                 cp, partPline.GetBulgeAt(i), 0, 0);
                         }
                     }
-                    plineTop.Layer = profileLayerName;
-                    plineTop.AddEntityToDbModelSpace(localDb);
+                    Profile profileTop = CreateProfileFromPolyline(
+                        "TOP",
+                        pv,
+                        al.Name,
+                        profileLayerName,
+                        "PROFIL STYLE MGO",
+                        "_No Labels",
+                        plineTop
+                        );
+
                     //Combine to polylines
                     Polyline plineBund = new Polyline();
                     foreach (Polyline partPline in offsetCurvesBund)
@@ -5725,8 +5736,16 @@ namespace IntersectUtilities
                                 cp, partPline.GetBulgeAt(i), 0, 0);
                         }
                     }
-                    plineBund.Layer = profileLayerName;
-                    plineBund.AddEntityToDbModelSpace(localDb);
+                    Profile profileBund = CreateProfileFromPolyline(
+                        "BUND",
+                        pv,
+                        al.Name,
+                        profileLayerName,
+                        "PROFIL STYLE MGO",
+                        "_No Labels",
+                        plineBund
+                        ); 
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {

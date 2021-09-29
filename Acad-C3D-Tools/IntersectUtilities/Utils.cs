@@ -1422,6 +1422,115 @@ namespace IntersectUtilities
                 }
             }
         }
+
+        public static Profile CreateProfileFromPolyline(
+            string profileName,
+            ProfileView profileView,
+            string alignmentName,
+            string layerName,
+            string styleName,
+            string labelSetName,
+            Polyline sourcePolyline
+            )
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            oid profByLayout = Profile.CreateByLayout(
+                profileName,
+                civilDoc,
+                alignmentName,
+                layerName,
+                styleName,
+                labelSetName
+                );
+
+            Transaction tx = localDb.TransactionManager.TopTransaction;
+
+            Profile profile = tx.GetObject(profByLayout, OpenMode.ForWrite) as Profile;
+
+            if (sourcePolyline != null)
+            {
+                int numOfVert = sourcePolyline.NumberOfVertices - 1;
+                Point2d point2d1;
+                Point2d point2d2;
+                Point2d point2d3;
+                double x = 0.0, y = 0.0;
+
+                if (profileView.ElevationRangeMode == ElevationRangeType.Automatic)
+                {
+                    profileView.ElevationRangeMode = ElevationRangeType.UserSpecified;
+                    profileView.FindXYAtStationAndElevation(profileView.StationStart, profileView.ElevationMin, ref x, ref y);
+                }
+                else
+                    profileView.FindXYAtStationAndElevation(profileView.StationStart, profileView.ElevationMin, ref x, ref y);
+
+                ProfileViewStyle profileViewStyle = tx
+                       .GetObject(profileView.StyleId, OpenMode.ForRead) as ProfileViewStyle;
+
+                for (int i = 0; i < numOfVert; i++)
+                {
+                    switch (sourcePolyline.GetSegmentType(i))
+                    {
+                        case SegmentType.Line:
+                            LineSegment2d lineSegment2dAt = sourcePolyline.GetLineSegment2dAt(i);
+                            point2d1 = lineSegment2dAt.StartPoint;
+                            double x1 = point2d1.X;
+                            double y1 = point2d1.Y;
+                            double num4 = x1 - x;
+                            double num5 = (y1 - y) / profileViewStyle.GraphStyle.VerticalExaggeration + profileView.ElevationMin;
+                            point2d2 = new Point2d(num4, num5);
+
+                            point2d1 = lineSegment2dAt.EndPoint;
+                            double x2 = point2d1.X;
+                            double y2 = point2d1.Y;
+                            double num6 = x2 - x;
+                            double num7 = (y2 - y) / profileViewStyle.GraphStyle.VerticalExaggeration + profileView.ElevationMin;
+                            point2d3 = new Point2d(num6, num7);
+
+                            profile.Entities.AddFixedTangent(point2d2, point2d3);
+                            break;
+                        case SegmentType.Arc:
+                            CircularArc2d arcSegment2dAt = sourcePolyline.GetArcSegment2dAt(i);
+
+                            point2d1 = arcSegment2dAt.StartPoint;
+                            double x3 = point2d1.X;
+                            double y3 = point2d1.Y;
+                            point2d1 = arcSegment2dAt.EndPoint;
+                            double x4 = point2d1.X;
+                            double y4 = point2d1.Y;
+
+                            double num8 = x3 - x;
+                            double num9 = (y3 - y) / profileViewStyle.GraphStyle.VerticalExaggeration + profileView.ElevationMin;
+                            double num10 = x4 - x;
+                            double num11 = (y4 - y) / profileViewStyle.GraphStyle.VerticalExaggeration + profileView.ElevationMin;
+
+                            Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
+                            double num12 = samplePoint.X - x;
+                            double num13 = (samplePoint.Y - y) / profileViewStyle.GraphStyle.VerticalExaggeration + profileView.ElevationMin;
+
+                            Point2d point2d4 = new Point2d(num12, num13);
+                            point2d3 = new Point2d(num10, num11);
+                            point2d2 = new Point2d(num8, num9);
+                            profile.Entities.AddFixedSymmetricParabolaByThreePoints(point2d2, point2d4, point2d3);
+
+                            break;
+                        case SegmentType.Coincident:
+                            break;
+                        case SegmentType.Point:
+                            break;
+                        case SegmentType.Empty:
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+            return profile;
+        }
     }
     public static class OdTables
     {
