@@ -5715,7 +5715,7 @@ namespace IntersectUtilities
                         }
                     }
                     Profile profileTop = CreateProfileFromPolyline(
-                        "TOP",
+                        "BUND",
                         pv,
                         al.Name,
                         profileLayerName,
@@ -5737,14 +5737,14 @@ namespace IntersectUtilities
                         }
                     }
                     Profile profileBund = CreateProfileFromPolyline(
-                        "BUND",
+                        "TOP",
                         pv,
                         al.Name,
                         profileLayerName,
                         "PROFIL STYLE MGO",
                         "_No Labels",
                         plineBund
-                        ); 
+                        );
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -10007,6 +10007,78 @@ namespace IntersectUtilities
                     return;
                 }
                 tx.Commit();
+            }
+        }
+
+        [CommandMethod("FINALIZEVIEWFRAMES")]
+        [CommandMethod("FVF")]
+        public void finalizeviewframes()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            try
+            {
+                #region Operation
+
+                string path = string.Empty;
+                OpenFileDialog dialog = new OpenFileDialog()
+                {
+                    Title = "Choose txt file:",
+                    DefaultExt = "txt",
+                    Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
+                    FilterIndex = 0
+                };
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    path = dialog.FileName;
+                }
+                else return;
+
+                List<string> fileList;
+                fileList = File.ReadAllLines(path).ToList();
+                path = Path.GetDirectoryName(path) + "\\";
+
+                foreach (string name in fileList)
+                {
+                    prdDbg(name);
+                    string fileName = path + name;
+
+                    using (Database extDb = new Database(false, true))
+                    {
+                        extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
+
+                        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                        {
+                            #region Change Alignment style
+                            CivilDocument extCDoc = CivilDocument.GetCivilDocument(extDb);
+
+                            HashSet<Alignment> als = extDb.HashSetOfType<Alignment>(extTx);
+
+                            foreach (Alignment al in als)
+                            {
+                                al.CheckOrOpenForWrite();
+                                al.StyleId = extCDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
+                                oid labelSetOid = extCDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["_No Labels"];
+                                al.ImportLabelSet(labelSetOid);
+                            }
+                            #endregion
+
+                            extTx.Commit();
+                        }
+                        extDb.SaveAs(extDb.Filename, true, DwgVersion.Current, null);
+                    }
+                    System.Windows.Forms.Application.DoEvents();
+                }
+                #endregion
+            }
+            catch (System.Exception ex)
+            {
+                editor.WriteMessage("\n" + ex.Message);
+                return;
             }
         }
         /// <summary>

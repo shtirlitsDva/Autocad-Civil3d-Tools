@@ -20,6 +20,7 @@ using System.IO;
 using System.Linq;
 //using MoreLinq;
 using System.Text;
+using System.Text.RegularExpressions;
 using IntersectUtilities;
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
@@ -168,7 +169,7 @@ namespace SheetCreationAutomation
 
                     if (item.DSEntityType == DataShortcutEntityType.Alignment)
                     {
-                        string newFileName = pathToFolderToSave + item.Name + ".dwg";
+                        string newFileName = pathToFolderToSave + item.Name + "_VF" + ".dwg";
                         using (Database alDb = new Database(false, true))
                         {
                             alDb.ReadDwgFile(
@@ -261,6 +262,90 @@ namespace SheetCreationAutomation
                 {
                 }
                 tx.Abort();
+            }
+        }
+
+        [CommandMethod("CREATEREFERENCETOPROFILES")]
+        public void createreferencetoprofiles()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                //Determine the pipeline number
+                Alignment al = localDb.ListOfType<Alignment>(tx).FirstOrDefault();
+                if (al == null) { prdDbg("No alignment found in drawing!"); tx.Abort(); return; }
+
+                Regex regex = new Regex(@"(?<number>\d\d)");
+
+                string strNumber = "";
+                if (regex.IsMatch(al.Name))
+                {
+                    Match match = regex.Match(al.Name);
+                    strNumber = match.Groups["number"].Value;
+                    prdDbg($"Strækning nr: {strNumber}");
+                }
+                else
+                {
+                    prdDbg("Name of the alignment does not contain pipeline number!");
+                    tx.Abort();
+                    return;
+                }
+
+                if (strNumber.IsNoE()) { tx.Abort(); return; }
+
+                bool isValidCreation = false;
+                DataShortcuts.DataShortcutManager sm = DataShortcuts.CreateDataShortcutManager(ref isValidCreation);
+
+                if (isValidCreation != true)
+                {
+                    prdDbg("DataShortcutManager failed to be created!");
+                    return;
+                }
+
+                try
+                {
+                    #region
+                    int publishedCount = sm.GetPublishedItemsCount();
+                    prdDbg($"publishedCount = {publishedCount}");
+
+                    for (int i = 0; i < publishedCount; i++)
+                    {
+                        prdDbg("");
+                        DataShortcuts.DataShortcutManager.PublishedItem item =
+                            sm.GetPublishedItemAt(i);
+                        //prdDbg($"Name: {item.Name}");
+                        //prdDbg($"Description: {item.Description}");
+                        //prdDbg($"DSEntityType: {item.DSEntityType.ToString()}");
+
+                        if (item.DSEntityType == DataShortcutEntityType.Profile)
+                        {
+                            if (item.Name.StartsWith(strNumber))
+                            {
+                                sm.CreateReference(i, localDb);
+                            }
+                        }
+                    }
+
+                    System.Windows.Forms.Application.DoEvents();
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                finally
+                {
+                    sm.Dispose();
+                }
+                tx.Commit();
             }
         }
     }
