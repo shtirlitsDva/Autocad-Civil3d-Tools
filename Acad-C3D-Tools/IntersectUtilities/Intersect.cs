@@ -5429,6 +5429,187 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("CREATEWELDPOINTS")]
+        [CommandMethod("CWP")]
+        public void createweldpoints()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                #region Open alignment db
+                string projectName = GetProjectName();
+                prdDbg(projectName);
+                if (projectName.IsNoE())
+                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
+
+                string etapeName = GetEtapeName(projectName);
+                // open the xref database
+                Database alDb = new Database(false, true);
+                alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
+                    System.IO.FileShare.Read, false, string.Empty);
+                Transaction alTx = alDb.TransactionManager.StartTransaction();
+                HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
+                #endregion
+
+                //////////////////////////////////////
+                string blockLayerName = "0-SVEJSEPKT";
+                string blockName = "SVEJSEPUNKT";
+                //////////////////////////////////////
+
+                #region Delete previous blocks
+                //Delete previous blocks
+                var existingBlocks = localDb.GetBlockReferenceByName(blockName);
+                foreach (BlockReference br in existingBlocks)
+                {
+                    br.CheckOrOpenForWrite();
+                    br.Erase(true);
+                }
+                #endregion
+
+                try
+                {
+                    #region Create layer for weld blocks
+                    using (Transaction txLag = localDb.TransactionManager.StartTransaction())
+                    {
+
+                        LayerTable lt = txLag.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                        if (!lt.Has(blockLayerName))
+                        {
+                            LayerTableRecord ltr = new LayerTableRecord();
+                            ltr.Name = blockLayerName;
+                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 40);
+                            ltr.LineWeight = LineWeight.ByLineWeightDefault;
+                            ltr.IsPlottable = false;
+
+                            //Make layertable writable
+                            lt.CheckOrOpenForWrite();
+
+                            //Add the new layer to layer table
+                            oid ltId = lt.Add(ltr);
+                            txLag.AddNewlyCreatedDBObject(ltr, true);
+                        }
+                        txLag.Commit();
+                    }
+                    #endregion
+
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                    foreach (Alignment al in als)
+                    {
+                        ////////////////////////////////////////////
+                        if (al.Name != "01 Rybjerg Allé") continue;
+                        ////////////////////////////////////////////
+                        prdDbg($"\nProcessing: {al.Name}...");
+
+                        #region GetCurvesAndBRs from fremtidig
+                        List<Curve> curves = localDb.ListOfType<Curve>(tx, true)
+                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .ToList();
+                        List<BlockReference> brs = localDb.ListOfType<BlockReference>(tx, true)
+                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .ToList();
+                        HashSet<Entity> ents = new HashSet<Entity>();
+                        ents.UnionWith(curves);
+                        ents.UnionWith(brs);
+                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+
+                        HashSet<(Entity ent, double dist)> distTuples = new HashSet<(Entity ent, double dist)>();
+
+                        #endregion
+
+                        double alLength = al.Length;
+                        double stepLength = 0.1;
+                        int nrOfSteps = (int)(alLength / stepLength);
+
+                        //Variables
+                        Entity previousEnt = default;
+
+                        #region Determine the sequence of curves
+                        Queue<Curve> kø = new Queue<Curve>();
+
+                        //Find first curve from each end
+                        Curve firstEnd = GetFirstEntityOfType<Curve>(al, ents, Enums.TypeOfIteration.Forward);
+                        Curve secondEnd = GetFirstEntityOfType<Curve>(al, ents, Enums.TypeOfIteration.Backward);
+
+                        int firstDn = GetPipeDN(firstEnd);
+                        int secondDn = GetPipeDN(secondEnd);
+
+                        TypeOfIteration iterType = firstDn <= secondDn ? TypeOfIteration.Backward : TypeOfIteration.Forward;
+
+                        for (int i = 0; i < nrOfSteps + 1; i++)
+                        {
+                            double station = iterType == TypeOfIteration.Forward ? i * stepLength : alLength - i * stepLength;
+                            distTuples = CreateDistTuples(al.GetPointAtDist(station), ents);
+                            var sortedTuples = distTuples.OrderBy(x => x.dist);
+                            if (previousEnt?.Id == sortedTuples.First().ent.Id) continue;
+                            if (sortedTuples.First().ent is Curve curve)
+                            {
+                                //Determine direction of curve
+                                double curveStartStation = al.GetDistAtPoint(
+                                    al.GetClosestPointTo(curve.GetPointAtParameter(curve.StartParam), false));
+                                double curveEndStation = al.GetDistAtPoint(
+                                    al.GetClosestPointTo(
+                                        curve.GetPointAtParameter(
+                                            curve.GetParameterAtDistance(curve.EndParam)), false));
+                                if ((iterType == TypeOfIteration.Backward && curveStartStation < curveEndStation) ||
+                                    (iterType == TypeOfIteration.Forward && curveStartStation > curveEndStation))
+                                {//Catches if curve is reversed
+                                    curve.ReverseCurve();
+                                    kø.Enqueue(curve);
+                                }
+                                else kø.Enqueue(curve);
+
+                            }
+
+                            //Hand over current entity to cache
+                            previousEnt = sortedTuples.First().ent;
+                        }
+
+
+
+                        #endregion
+
+                        #region Place size change blocks
+                        if (!bt.Has(blockName))
+                        {
+                            prdDbg("Block for weld points is missing!");
+                            throw new System.Exception();
+                        }
+
+
+
+
+
+                        //BlockReference brAt0 =
+                        //    localDb.CreateBlockWithAttributes(blockName, new Point3d(curX, curY, 0));
+                        //brAt0.SetAttributeStringValue("LEFTSIZE", "");
+                        //brAt0.SetAttributeStringValue("RIGHTSIZE", $"DN {sizeArray[0].dn}");
+
+                        #endregion
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    alTx.Abort();
+                    alTx.Dispose();
+                    alDb.Dispose();
+                    tx.Abort();
+                    prdDbg(ex.Message);
+                    return;
+                }
+                alTx.Abort();
+                alTx.Dispose();
+                alDb.Dispose();
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("CREATEOFFSETPROFILES")]
         public void createoffsetprofiles()
         {
