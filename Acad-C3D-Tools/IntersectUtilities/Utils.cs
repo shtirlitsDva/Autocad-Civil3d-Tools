@@ -1,8 +1,8 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using MoreLinq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Data;
@@ -964,6 +964,53 @@ namespace IntersectUtilities
 
             xRec.Data = rb;
         }
+        public static bool XrecCopyTo(DBObject sourceObj, DBObject targetObj, string xRecordName)
+        {
+            Transaction sourceTx = sourceObj.Database.TransactionManager.TopTransaction;
+            oid sourceExtId = sourceObj.ExtensionDictionary;
+            if (sourceExtId == oid.Null)
+            {
+                prdDbg($"DBObject with handle {sourceObj.Handle} does not have extension dictionary!");
+                return false;
+            }
+            DBDictionary sourceDbExt = sourceExtId.Go<DBDictionary>(sourceTx);
+            Xrecord sourceXrec;
+            if (sourceDbExt.Contains(xRecordName))
+            {
+                oid sourceXrecId = sourceDbExt.GetAt(xRecordName);
+                sourceXrec = sourceXrecId.Go<Xrecord>(sourceTx);
+
+                Transaction targetTx = targetObj.Database.TransactionManager.TopTransaction;
+                oid targetExtId = targetObj.ExtensionDictionary;
+                if (targetExtId == oid.Null)
+                {
+                    targetObj.CheckOrOpenForWrite();
+                    targetObj.CreateExtensionDictionary();
+                    targetExtId = targetObj.ExtensionDictionary;
+                }
+                DBDictionary targetDbExt = targetExtId.Go<DBDictionary>(targetTx, OpenMode.ForWrite);
+                Xrecord targetXrec;
+                if (targetDbExt.Contains(xRecordName))
+                {
+                    oid targetXrecId = targetDbExt.GetAt(xRecordName);
+                    targetXrec = targetXrecId.Go<Xrecord>(targetTx, OpenMode.ForWrite);
+                }
+                else
+                {
+                    targetXrec = new Xrecord();
+                    targetDbExt.SetAt(xRecordName, targetXrec);
+                    targetTx.AddNewlyCreatedDBObject(targetXrec, true);
+                }
+
+                targetXrec.Data = sourceXrec.Data;
+                return true;
+            }
+            else
+            {
+                prdDbg($"DBObject with handle {sourceObj.Handle} does not have xrecord {xRecordName}!");
+                return false;
+            }
+        }
         #endregion
         /// <summary>
         /// Gets all vertices of a polyline.
@@ -1567,7 +1614,7 @@ namespace IntersectUtilities
                 else station = length - i * step;
                 Point3d location = al.GetPointAtDist(station);
                 var tuples = CreateDistTuples(location, ents);
-                var min = tuples.MinBy(x => x.dist);
+                var min = tuples.OrderBy(x => x.dist);
                 if (min.First().ent is T) return min.First().ent as T;
             }
             return null;
@@ -2052,6 +2099,14 @@ namespace IntersectUtilities
             double x = 0, y = 0;
             pv.FindXYAtStationAndElevation(station, elevation, ref x, ref y);
             return new Point2d(x, y);
+        }
+        public static string ExceptionInfo(this System.Exception exception)
+        {
+            StackFrame stackFrame = (new StackTrace(exception, true)).GetFrame(0);
+            return string.Format("At line {0} column {1} in {2}: {3} {4}{3}{5}  ",
+               stackFrame.GetFileLineNumber(), stackFrame.GetFileColumnNumber(),
+               stackFrame.GetMethod(), Environment.NewLine, stackFrame.GetFileName(),
+               exception.Message);
         }
     }
 
@@ -2711,6 +2766,29 @@ namespace IntersectUtilities
         public static double GetPipeKOd(Entity ent) =>
             GetPipeSystem(ent) == "Twin" ? GetTwinPipeKOd(ent) : GetBondedPipeKOd(ent);
         public static double GetPipeStdLength(Entity ent) => GetPipeDN(ent) <= 80 ? 12 : 16;
+        public static double GetPipeMinElasticRadius(Entity ent)
+        {
+            Dictionary<int, double> radii = new Dictionary<int, double>
+            {
+                { 20, 13.0 },
+                { 25, 17.0 },
+                { 32, 21.0 },
+                { 40, 24.0 },
+                { 50, 30.0 },
+                { 65, 38.0 },
+                { 80, 44.0 },
+                { 100, 57.0 },
+                { 125, 70.0 },
+                { 150, 84.0 },
+                { 200, 110.0 },
+                { 250, 137.0 },
+                { 300, 162.0 },
+                { 350, 178.0 },
+                { 400, 203.0 },
+                { 999, 0.0 }
+            };
+            return radii[GetPipeDN(ent)];
+        }
     }
 }
 
