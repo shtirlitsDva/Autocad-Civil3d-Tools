@@ -36,6 +36,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
+using Autodesk.AutoCAD.Colors;
 
 namespace IntersectUtilities
 {
@@ -1618,6 +1619,25 @@ namespace IntersectUtilities
                 if (min.First().ent is T) return min.First().ent as T;
             }
             return null;
+        }
+        public static bool CheckOrCreateLayer(this Database db, string layerName)
+        {
+            Transaction txLag = db.TransactionManager.TopTransaction;
+            LayerTable lt = txLag.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
+            if (!lt.Has(layerName))
+            {
+                LayerTableRecord ltr = new LayerTableRecord();
+                ltr.Name = layerName;
+
+                //Make layertable writable
+                lt.CheckOrOpenForWrite();
+
+                //Add the new layer to layer table
+                oid ltId = lt.Add(ltr);
+                txLag.AddNewlyCreatedDBObject(ltr, true);
+                return true;
+            }
+            else return true;
         }
     }
     public static class OdTables

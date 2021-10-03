@@ -20,6 +20,7 @@ using System.IO;
 using System.Linq;
 using MoreLinq;
 using System.Text;
+using System.Text.RegularExpressions;
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
@@ -5459,6 +5460,7 @@ namespace IntersectUtilities
                 //////////////////////////////////////
                 string blockLayerName = "0-SVEJSEPKT";
                 string blockName = "SVEJSEPUNKT";
+                string textLayerName = "0-DEBUG-TXT";
                 //////////////////////////////////////
 
                 #region Delete previous blocks
@@ -5473,29 +5475,9 @@ namespace IntersectUtilities
 
                 try
                 {
-                    #region Create layer for weld blocks
-                    using (Transaction txLag = localDb.TransactionManager.StartTransaction())
-                    {
-
-                        LayerTable lt = txLag.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
-
-                        if (!lt.Has(blockLayerName))
-                        {
-                            LayerTableRecord ltr = new LayerTableRecord();
-                            ltr.Name = blockLayerName;
-                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 40);
-                            ltr.LineWeight = LineWeight.ByLineWeightDefault;
-                            ltr.IsPlottable = false;
-
-                            //Make layertable writable
-                            lt.CheckOrOpenForWrite();
-
-                            //Add the new layer to layer table
-                            oid ltId = lt.Add(ltr);
-                            txLag.AddNewlyCreatedDBObject(ltr, true);
-                        }
-                        txLag.Commit();
-                    }
+                    #region Create layer for weld blocks and
+                    Utils.CheckOrCreateLayer(localDb, blockLayerName);
+                    Utils.CheckOrCreateLayer(localDb, textLayerName);
                     #endregion
 
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
@@ -5507,8 +5489,15 @@ namespace IntersectUtilities
                         ////////////////////////////////////////////
                         prdDbg($"\nProcessing: {al.Name}...");
 
-                        //Debug
-                        int ph1 = 0, ph2 = 0;
+                        Regex regex = new Regex(@"(?<number>^\d\d)");
+                        string currentPipelineNumber = "";
+
+                        if (regex.IsMatch(al.Name))
+                        {
+                            Match match = regex.Match(al.Name);
+                            currentPipelineNumber = match.Groups["number"].Value;
+                            prdDbg($"Strækning nr: {currentPipelineNumber}");
+                        }
 
                         #region GetCurvesAndBRs from fremtidig
                         List<Curve> curves = localDb.ListOfType<Curve>(tx, true)
@@ -5544,7 +5533,7 @@ namespace IntersectUtilities
                         int secondDn = GetPipeDN(secondEnd);
 
                         TypeOfIteration iterType = secondDn <= firstDn ? TypeOfIteration.Forward : TypeOfIteration.Backward;
-                        
+
                         for (int i = 0; i < nrOfSteps + 1; i++)
                         {
                             double station = iterType == TypeOfIteration.Forward ? i * stepLength : alLength - i * stepLength;
@@ -5556,17 +5545,15 @@ namespace IntersectUtilities
                                 //Determine direction of curve
                                 double curveStartStation = al.GetDistAtPoint(
                                     al.GetClosestPointTo(curve.GetPointAtParameter(curve.StartParam), false));
-                                //prdDbg($"Passed here! 1 {ph1++}");
                                 double curveEndStation = al.GetDistAtPoint(
                                     al.GetClosestPointTo(curve.GetPointAtParameter(curve.EndParam), false));
-                                //prdDbg($"Passed here! 2 {ph2++}");
                                 if ((iterType == TypeOfIteration.Backward && curveStartStation < curveEndStation) ||
                                     (iterType == TypeOfIteration.Forward && curveStartStation > curveEndStation))
                                 {//Catches if curve is reversed
                                     curve.CheckOrOpenForWrite();
                                     curve.ReverseCurve();
                                 }
-                                
+
                                 #region Detect buerør, split and erase existing and add to kø
                                 //Detect buerør and split curves there
                                 if (curve is Polyline pline)
@@ -5578,14 +5565,14 @@ namespace IntersectUtilities
                                     for (int j = 0; j < pline.NumberOfVertices - 1; j++)
                                     {
                                         //Guard against already cut out curves
-                                        if (j == 0 && pline.NumberOfVertices == 2) break;
+                                        if (j == 0 && pline.NumberOfVertices == 2) { break; }
                                         double b = pline.GetBulgeAt(j);
                                         Point2d fP = pline.GetPoint2dAt(j);
                                         Point2d sP = pline.GetPoint2dAt(j + 1);
                                         double u = fP.GetDistanceTo(sP);
                                         double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
                                         double minRadius = GetPipeMinElasticRadius(pline);
-                                        
+
                                         //If radius is less than minRadius a buerør is detected
                                         //Split the pline in segments delimiting buerør and append
                                         if (radius < minRadius)
@@ -5594,12 +5581,10 @@ namespace IntersectUtilities
                                             splitPts.Add(pline.GetParameterAtPoint(new Point3d(fP.X, fP.Y, 0)));
                                             splitPts.Add(pline.GetParameterAtPoint(new Point3d(sP.X, sP.Y, 0)));
                                         }
-                                        
                                     }
-                                    
+
                                     if (splitPts.Count != 0)
                                     {
-
                                         DBObjectCollection objs = pline.GetSplitCurves(
                                             new DoubleCollection(splitPts.ToArray()));
                                         foreach (DBObject obj in objs)
@@ -5624,7 +5609,6 @@ namespace IntersectUtilities
                                                 }
                                                 kø.Enqueue(newPline);
                                             }
-                                            
                                         }
 
                                         curve.CheckOrOpenForWrite();
@@ -5637,39 +5621,62 @@ namespace IntersectUtilities
                             //Hand over current entity to cache
                             previousEnt = sortedTuples.First().ent;
                         }
-                        
-                        double pipeLength = 0;
 
-                        for (int i = 0; i < kø.Count; i++)
+                        //prdDbg($"Total curves in kø: {kø.Count}");
+                        //prdDbg($"Total curves in original: {curves.Count}");
+                        double pipeStdLength = 0;
+                        List<(Point3d weldPoint, double alStation)> wps =
+                            new List<(Point3d weldPoint, double alStation)>();
+
+                        int køCount = kø.Count;
+                        for (int i = 0; i < køCount; i++)
                         {
                             Curve curve = kø.Dequeue();
-                            pipeLength = GetPipeStdLength(curve);
-                            if (curve is Polyline pline)
+                            pipeStdLength = GetPipeStdLength(curve);
+                            double pipeLength = curve.GetDistanceAtParameter(curve.EndParam);
+                            double division = pipeLength / pipeStdLength;
+                            int nrOfSections = (int)division;
+                            double remainder = division - nrOfSections;
+
+                            for (int j = 0; j < nrOfSections; j++)
                             {
-                                Point3d midPoint = pline.GetPointAtDist(pline.Length / 2);
-                                DBText text = new DBText();
-                                text.SetDatabaseDefaults();
-                                text.TextString = (i + 1).ToString("D2");
-                                text.Height = 10;
-                                text.Position = midPoint;
-                                text.AddEntityToDbModelSpace(localDb);
+                                Point3d wPt = curve.GetPointAtDist(j * pipeStdLength);
+                                double station = al.GetDistAtPoint(al.GetClosestPointTo(wPt, false));
+                                wps.Add((wPt, station));
                             }
+
+                            #region Debug
+                            //if (curve is Polyline pline)
+                            //{
+                            //    Point3d midPoint = pline.GetPointAtDist(pline.Length / 2);
+                            //    DBText text = new DBText();
+                            //    text.SetDatabaseDefaults();
+                            //    text.TextString = (i + 1).ToString("D2");
+                            //    text.Height = 10;
+                            //    text.Position = midPoint;
+                            //    text.Layer = textLayerName;
+                            //    text.AddEntityToDbModelSpace(localDb);
+                            //} 
+                            #endregion
                         }
 
+                        if (iterType == TypeOfIteration.Forward)
+                            wps = wps.OrderBy(x => x.alStation).ToList();
+                        else wps = wps.OrderByDescending(x => x.alStation).ToList();
 
-                        #endregion
-
-                        #region Place size change blocks
-                        if (!bt.Has(blockName)) throw new System.Exception("Block for weld points is missing!");
-
-
-
-
-
-                        //BlockReference brAt0 =
-                        //    localDb.CreateBlockWithAttributes(blockName, new Point3d(curX, curY, 0));
-                        //brAt0.SetAttributeStringValue("LEFTSIZE", "");
-                        //brAt0.SetAttributeStringValue("RIGHTSIZE", $"DN {sizeArray[0].dn}");
+                        int idx = 1;
+                        foreach (var wp in wps)
+                        {
+                            if (!bt.Has(blockName)) throw new System.Exception("Block for weld points is missing!");
+                            BlockReference wpBr = localDb.CreateBlockWithAttributes(blockName, wp.weldPoint);
+                            Vector3d deriv = al.GetFirstDerivative(al.GetClosestPointTo(wp.weldPoint, false));
+                            double rotation = Math.Atan2(deriv.Y, deriv.X);
+                            prdDbg($"Rotation: {rotation}");
+                            wpBr.Rotation = rotation;
+                            wpBr.Layer = blockLayerName;
+                            wpBr.SetAttributeStringValue("Nummer", currentPipelineNumber + "." + idx.ToString("D3"));
+                            idx++;
+                        }
 
                         #endregion
                     }
