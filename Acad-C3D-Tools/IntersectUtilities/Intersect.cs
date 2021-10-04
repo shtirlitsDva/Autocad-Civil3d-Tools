@@ -5668,11 +5668,9 @@ namespace IntersectUtilities
                         foreach (var wp in wps)
                         {
                             if (!bt.Has(blockName)) throw new System.Exception("Block for weld points is missing!");
-                            BlockReference wpBr = localDb.CreateBlockWithAttributes(blockName, wp.weldPoint);
                             Vector3d deriv = al.GetFirstDerivative(al.GetClosestPointTo(wp.weldPoint, false));
                             double rotation = Math.Atan2(deriv.Y, deriv.X);
-                            prdDbg($"Rotation: {rotation}");
-                            wpBr.Rotation = rotation;
+                            BlockReference wpBr = localDb.CreateBlockWithAttributes(blockName, wp.weldPoint, rotation);
                             wpBr.Layer = blockLayerName;
                             wpBr.SetAttributeStringValue("Nummer", currentPipelineNumber + "." + idx.ToString("D3"));
                             idx++;
@@ -5680,6 +5678,9 @@ namespace IntersectUtilities
 
                         #endregion
                     }
+
+                    BlockTableRecord btr = bt[blockName].Go<BlockTableRecord>(tx);
+                    btr.SynchronizeAttributes();
                 }
                 catch (System.Exception ex)
                 {

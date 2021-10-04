@@ -24,6 +24,7 @@ using Autodesk.Gis.Map;
 using Autodesk.Gis.Map.ObjectData;
 using Autodesk.Gis.Map.Constants;
 using Autodesk.Gis.Map.Utilities;
+using AcRx = Autodesk.AutoCAD.Runtime;
 
 using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using static IntersectUtilities.HelperMethods;
@@ -37,6 +38,7 @@ using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Autodesk.AutoCAD.Colors;
+using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
 
 namespace IntersectUtilities
 {
@@ -2080,7 +2082,7 @@ namespace IntersectUtilities
         /// <summary>
         /// Remember to check for existence of BlockTableRecord!
         /// </summary>
-        public static BlockReference CreateBlockWithAttributes(this Database db, string blockName, Point3d position)
+        public static BlockReference CreateBlockWithAttributes(this Database db, string blockName, Point3d position, double rotation = 0)
         {
             Transaction tx = db.TransactionManager.TopTransaction;
             BlockTableRecord modelSpace = db.GetModelspaceForWrite();
@@ -2093,6 +2095,7 @@ namespace IntersectUtilities
             modelSpace.CheckOrOpenForWrite();
             modelSpace.AppendEntity(br);
             tx.AddNewlyCreatedDBObject(br, true);
+            br.Rotation = rotation;
 
             foreach (oid arOid in btr)
             {
@@ -2105,7 +2108,7 @@ namespace IntersectUtilities
                         {
                             atRef.SetAttributeFromBlock(at, br.BlockTransform);
                             atRef.Position = at.Position.TransformBy(br.BlockTransform);
-                            atRef.TextString = at.TextString;
+                            atRef.TextString = at.getTextWithFieldCodes();
                             br.AttributeCollection.AppendAttribute(atRef);
                             tx.AddNewlyCreatedDBObject(atRef, true);
                         }
@@ -2128,7 +2131,85 @@ namespace IntersectUtilities
                stackFrame.GetMethod(), Environment.NewLine, stackFrame.GetFileName(),
                exception.Message);
         }
+        static RXClass attDefClass = RXClass.GetClass(typeof(AttributeDefinition));
+        public static void SynchronizeAttributes(this BlockTableRecord target)
+        {
+            if (target == null)
+                throw new ArgumentNullException("target");
+
+            Transaction tr = target.Database.TransactionManager.TopTransaction;
+            if (tr == null)
+                throw new AcRx.Exception(ErrorStatus.NoActiveTransactions);
+            List<AttributeDefinition> attDefs = target.GetAttributes(tr);
+            foreach (ObjectId id in target.GetBlockReferenceIds(true, false))
+            {
+                BlockReference br = (BlockReference)tr.GetObject(id, OpenMode.ForWrite);
+                br.ResetAttributes(attDefs, tr);
+            }
+            if (target.IsDynamicBlock)
+            {
+                target.UpdateAnonymousBlocks();
+                foreach (ObjectId id in target.GetAnonymousBlockIds())
+                {
+                    BlockTableRecord btr = (BlockTableRecord)tr.GetObject(id, OpenMode.ForRead);
+                    attDefs = btr.GetAttributes(tr);
+                    foreach (ObjectId brId in btr.GetBlockReferenceIds(true, false))
+                    {
+                        BlockReference br = (BlockReference)tr.GetObject(brId, OpenMode.ForWrite);
+                        br.ResetAttributes(attDefs, tr);
+                    }
+                }
+            }
+        }
+
+        private static List<AttributeDefinition> GetAttributes(this BlockTableRecord target, Transaction tr)
+        {
+            List<AttributeDefinition> attDefs = new List<AttributeDefinition>();
+            foreach (ObjectId id in target)
+            {
+                if (id.ObjectClass == attDefClass)
+                {
+                    AttributeDefinition attDef = (AttributeDefinition)tr.GetObject(id, OpenMode.ForRead);
+                    attDefs.Add(attDef);
+                }
+            }
+            return attDefs;
+        }
+
+        private static void ResetAttributes(this BlockReference br, List<AttributeDefinition> attDefs, Transaction tr)
+        {
+            Dictionary<string, string> attValues = new Dictionary<string, string>();
+            foreach (ObjectId id in br.AttributeCollection)
+            {
+                if (!id.IsErased)
+                {
+                    AttributeReference attRef = (AttributeReference)tr.GetObject(id, OpenMode.ForWrite);
+                    attValues.Add(attRef.Tag,
+                        attRef.IsMTextAttribute ? attRef.MTextAttribute.Contents : attRef.TextString);
+                    attRef.Erase();
+                }
+            }
+            foreach (AttributeDefinition attDef in attDefs)
+            {
+                AttributeReference attRef = new AttributeReference();
+                attRef.SetAttributeFromBlock(attDef, br.BlockTransform);
+                if (attDef.Constant)
+                {
+                    attRef.TextString = attDef.IsMTextAttributeDefinition ?
+                        attDef.MTextAttributeDefinition.Contents :
+                        attDef.TextString;
+                }
+                else if (attValues.ContainsKey(attRef.Tag))
+                {
+                    attRef.TextString = attValues[attRef.Tag];
+                }
+                br.AttributeCollection.AppendAttribute(attRef);
+                tr.AddNewlyCreatedDBObject(attRef, true);
+            }
+        }
     }
+
+
 
     public static class ExtensionMethods
     {
