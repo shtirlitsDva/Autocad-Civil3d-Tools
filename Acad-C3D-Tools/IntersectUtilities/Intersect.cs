@@ -5625,8 +5625,8 @@ namespace IntersectUtilities
                         //prdDbg($"Total curves in kø: {kø.Count}");
                         //prdDbg($"Total curves in original: {curves.Count}");
                         double pipeStdLength = 0;
-                        List<(Point3d weldPoint, double alStation)> wps =
-                            new List<(Point3d weldPoint, double alStation)>();
+                        List<(Point3d weldPoint, double alStation, Curve sourceEnt)> wps =
+                            new List<(Point3d weldPoint, double alStation, Curve sourceEnt)>();
 
                         int køCount = kø.Count;
                         for (int i = 0; i < køCount; i++)
@@ -5642,7 +5642,7 @@ namespace IntersectUtilities
                             {
                                 Point3d wPt = curve.GetPointAtDist(j * pipeStdLength);
                                 double station = al.GetDistAtPoint(al.GetClosestPointTo(wPt, false));
-                                wps.Add((wPt, station));
+                                wps.Add((wPt, station, curve));
                             }
 
                             #region Debug
@@ -5673,14 +5673,17 @@ namespace IntersectUtilities
                             BlockReference wpBr = localDb.CreateBlockWithAttributes(blockName, wp.weldPoint, rotation);
                             wpBr.Layer = blockLayerName;
                             wpBr.SetAttributeStringValue("Nummer", currentPipelineNumber + "." + idx.ToString("D3"));
+                            //if (idx == 1) DisplayDynBlockProperties(editor, wpBr, wpBr.Name);
+                            SetDynBlockProperty(wpBr, "Type", GetPipeDN(wp.sourceEnt).ToString());
+                            SetDynBlockProperty(wpBr, "System", GetPipeSystem(wp.sourceEnt));
                             idx++;
                         }
-
                         #endregion
-                    }
 
-                    BlockTableRecord btr = bt[blockName].Go<BlockTableRecord>(tx);
-                    btr.SynchronizeAttributes();
+                        System.Windows.Forms.Application.DoEvents();
+                    }
+                    //BlockTableRecord btr = bt[blockName].Go<BlockTableRecord>(tx);
+                    //btr.SynchronizeAttributes();
                 }
                 catch (System.Exception ex)
                 {

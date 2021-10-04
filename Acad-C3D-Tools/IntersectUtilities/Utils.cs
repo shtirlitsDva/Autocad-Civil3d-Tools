@@ -1641,6 +1641,62 @@ namespace IntersectUtilities
             }
             else return true;
         }
+        public static void DisplayDynBlockProperties(Editor ed, BlockReference br, string name)
+        {
+            // Only continue is we have a valid dynamic block
+            if (br != null && br.IsDynamicBlock)
+            {
+                ed.WriteMessage("\nDynamic properties for \"{0}\"\n", name);
+                // Get the dynamic block's property collection
+                DynamicBlockReferencePropertyCollection pc = br.DynamicBlockReferencePropertyCollection;
+                // Loop through, getting the info for each property
+                foreach (DynamicBlockReferenceProperty prop in pc)
+                {
+                    // Start with the property name, type and description
+                    ed.WriteMessage("\nProperty: \"{0}\" : {1}", prop.PropertyName, prop.UnitsType);
+                    if (prop.Description != "") ed.WriteMessage("\n  Description: {0}", prop.Description);
+                    // Is it read-only?
+                    if (prop.ReadOnly) ed.WriteMessage(" (Read Only)");
+                    // Get the allowed values, if it's constrained
+                    bool first = true;
+                    foreach (object value in prop.GetAllowedValues())
+                    {
+                        ed.WriteMessage((first ? "\n  Allowed values: [" : ", "));
+                        ed.WriteMessage("\"{0}\"", value);
+                        first = false;
+                    }
+                    if (!first) ed.WriteMessage("]");
+                    // And finally the current value
+                    ed.WriteMessage("\n  Current value: \"{0}\"\n", prop.Value);
+                }
+            }
+        }
+        public static void SetDynBlockProperty(BlockReference br, string propertyName, string propertyValue)
+        {
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+            // Only continue is we have a valid dynamic block
+            if (br != null && br.IsDynamicBlock)
+            {
+                // Get the dynamic block's property collection
+                DynamicBlockReferencePropertyCollection pc = br.DynamicBlockReferencePropertyCollection;
+                // Loop through, getting the info for each property
+                foreach (DynamicBlockReferenceProperty prop in pc)
+                {
+                    if (prop.PropertyName == propertyName)
+                    {
+                        object[] allowedValues = prop.GetAllowedValues();
+                        for (int i = 0; i < allowedValues.Length; i++)
+                        {
+                            if (allowedValues[i].ToString() == propertyValue)
+                            {
+                                prop.Value = allowedValues[i];
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
     public static class OdTables
     {
@@ -2161,7 +2217,6 @@ namespace IntersectUtilities
                 }
             }
         }
-
         private static List<AttributeDefinition> GetAttributes(this BlockTableRecord target, Transaction tr)
         {
             List<AttributeDefinition> attDefs = new List<AttributeDefinition>();
@@ -2175,7 +2230,6 @@ namespace IntersectUtilities
             }
             return attDefs;
         }
-
         private static void ResetAttributes(this BlockReference br, List<AttributeDefinition> attDefs, Transaction tr)
         {
             Dictionary<string, string> attValues = new Dictionary<string, string>();
@@ -2208,8 +2262,6 @@ namespace IntersectUtilities
             }
         }
     }
-
-
 
     public static class ExtensionMethods
     {
