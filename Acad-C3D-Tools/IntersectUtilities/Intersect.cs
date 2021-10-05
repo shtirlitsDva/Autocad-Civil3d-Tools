@@ -13,18 +13,23 @@ using Autodesk.Gis.Map;
 using Autodesk.Gis.Map.ObjectData;
 using Autodesk.Gis.Map.Utilities;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using MoreLinq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Windows.Forms;
+using MoreLinq;
+using GroupByCluster;
+
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
 using static IntersectUtilities.PipeSchedule;
+
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using DataType = Autodesk.Gis.Map.Constants.DataType;
@@ -32,10 +37,8 @@ using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
-using System.Windows.Forms;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
-using System.Collections;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 
 namespace IntersectUtilities
@@ -5482,6 +5485,9 @@ namespace IntersectUtilities
 
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
 
+                    //List to gather ALL weld points
+                    var wps = new List<(Point3d weldPoint, string alName, TypeOfIteration iterType, double alStation, Entity sourceEnt)>();
+
                     foreach (Alignment al in als)
                     {
                         ////////////////////////////////////////////
@@ -5489,32 +5495,19 @@ namespace IntersectUtilities
                         ////////////////////////////////////////////
                         prdDbg($"\nProcessing: {al.Name}...");
 
-                        Regex regex = new Regex(@"(?<number>^\d\d)");
-                        string currentPipelineNumber = "";
-
-                        if (regex.IsMatch(al.Name))
-                        {
-                            Match match = regex.Match(al.Name);
-                            currentPipelineNumber = match.Groups["number"].Value;
-                            prdDbg($"Strækning nr: {currentPipelineNumber}");
-                        }
-
                         #region GetCurvesAndBRs from fremtidig
-                        List<Curve> curves = localDb.ListOfType<Curve>(tx, true)
+                        HashSet<Curve> curves = localDb.ListOfType<Curve>(tx, true)
                             .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
-                            .ToList();
-                        List<BlockReference> brs = localDb.ListOfType<BlockReference>(tx, true)
+                            .ToHashSet();
+                        HashSet<BlockReference> brs = localDb.ListOfType<BlockReference>(tx, true)
                             .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
-                            .ToList();
-                        HashSet<Entity> ents = new HashSet<Entity>();
-                        ents.UnionWith(curves);
-                        ents.UnionWith(brs);
+                            .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
 
                         HashSet<(Entity ent, double dist)> distTuples = new HashSet<(Entity ent, double dist)>();
-
                         #endregion
 
+                        #region Detect curves direction
                         double alLength = al.Length;
                         double stepLength = 0.1;
                         int nrOfSteps = (int)(alLength / stepLength);
@@ -5522,12 +5515,12 @@ namespace IntersectUtilities
                         //Variables
                         Entity previousEnt = default;
 
-                        #region Determine the sequence of curves
+
                         Queue<Curve> kø = new Queue<Curve>();
 
                         //Find first curve from each end
-                        Curve firstEnd = GetFirstEntityOfType<Curve>(al, ents, Enums.TypeOfIteration.Forward);
-                        Curve secondEnd = GetFirstEntityOfType<Curve>(al, ents, Enums.TypeOfIteration.Backward);
+                        Curve firstEnd = GetFirstEntityOfType<Curve>(al, curves, TypeOfIteration.Forward);
+                        Curve secondEnd = GetFirstEntityOfType<Curve>(al, curves, TypeOfIteration.Backward);
 
                         int firstDn = GetPipeDN(firstEnd);
                         int secondDn = GetPipeDN(secondEnd);
@@ -5537,7 +5530,7 @@ namespace IntersectUtilities
                         for (int i = 0; i < nrOfSteps + 1; i++)
                         {
                             double station = iterType == TypeOfIteration.Forward ? i * stepLength : alLength - i * stepLength;
-                            distTuples = CreateDistTuples(al.GetPointAtDist(station), ents);
+                            distTuples = CreateDistTuples(al.GetPointAtDist(station), curves);
                             var sortedTuples = distTuples.OrderBy(x => x.dist);
                             if (previousEnt?.Id == sortedTuples.First().ent.Id) continue;
                             if (sortedTuples.First().ent is Curve curve)
@@ -5621,12 +5614,12 @@ namespace IntersectUtilities
                             //Hand over current entity to cache
                             previousEnt = sortedTuples.First().ent;
                         }
+                        #endregion
 
+                        #region Gather weldpoints for curves
                         //prdDbg($"Total curves in kø: {kø.Count}");
                         //prdDbg($"Total curves in original: {curves.Count}");
                         double pipeStdLength = 0;
-                        List<(Point3d weldPoint, double alStation, Curve sourceEnt)> wps =
-                            new List<(Point3d weldPoint, double alStation, Curve sourceEnt)>();
 
                         int køCount = kø.Count;
                         for (int i = 0; i < køCount; i++)
@@ -5638,12 +5631,26 @@ namespace IntersectUtilities
                             int nrOfSections = (int)division;
                             double remainder = division - nrOfSections;
 
-                            for (int j = 0; j < nrOfSections; j++)
-                            {
+                            for (int j = 1; j < nrOfSections; j++)
+                            {//1 to skip start, which is handled separately
                                 Point3d wPt = curve.GetPointAtDist(j * pipeStdLength);
                                 double station = al.GetDistAtPoint(al.GetClosestPointTo(wPt, false));
-                                wps.Add((wPt, station, curve));
+                                wps.Add((wPt, al.Name, iterType, station, curve));
                             }
+
+                            //Handle start and end points separately
+                            wps.Add((
+                                curve.GetPointAtParameter(curve.StartParam),
+                                al.Name,
+                                iterType,
+                                al.GetDistAtPoint(al.GetClosestPointTo(curve.GetPointAtParameter(curve.StartParam), false)),
+                                curve));
+                            wps.Add((
+                                curve.GetPointAtParameter(curve.EndParam),
+                                al.Name,
+                                iterType,
+                                al.GetDistAtPoint(al.GetClosestPointTo(curve.GetPointAtParameter(curve.EndParam), false)),
+                                curve));
 
                             #region Debug
                             //if (curve is Polyline pline)
@@ -5659,10 +5666,48 @@ namespace IntersectUtilities
                             //} 
                             #endregion
                         }
+                        #endregion
 
-                        if (iterType == TypeOfIteration.Forward)
-                            wps = wps.OrderBy(x => x.alStation).ToList();
-                        else wps = wps.OrderByDescending(x => x.alStation).ToList();
+                        #region Gather weldpoints for blocks
+                        foreach (BlockReference br in brs)
+                        {
+                            BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+                            foreach (oid Oid in btr)
+                            {
+                                if (!Oid.IsDerivedFrom<BlockReference>()) continue;
+                                BlockReference nestedBr = Oid.Go<BlockReference>(tx);
+                                if (!nestedBr.Name.Contains("MuffeIntern")) continue;
+                                Point3d wPt = nestedBr.Position;
+                                wPt = wPt.TransformBy(br.BlockTransform.Inverse());
+                                wps.Add((wPt, al.Name, iterType, al.GetDistAtPoint(al.GetClosestPointTo(wPt, false)), br));
+                            }
+                        }
+                        #endregion
+
+                        System.Windows.Forms.Application.DoEvents();
+                    }
+
+                    #region Place weldpoints
+
+                    var ordered = wps.OrderBy(x => x.weldPoint.X).ThenBy(x => x.weldPoint.Y);
+                    var clusters = ordered.GroupByCluster((x, y) => GetDistance(x, y), 0.05);
+
+                    double GetDistance((Point3d weldPoint, string alName, TypeOfIteration iterType, double alStation, Entity sourceEnt) first,
+                        (Point3d weldPoint, string alName, TypeOfIteration iterType, double alStation, Entity sourceEnt) second)
+                    {
+                        return first.weldPoint.DistanceHorizontalTo(second.weldPoint);
+                    }
+
+                    var distinct = clusters.Select(x => x.First());
+                    var groupedByAlignment = distinct.GroupBy(x => x.alName);
+
+                    foreach (var alGroup in groupedByAlignment)
+                    {
+                        //Okay, here tuples become tedious... considering doin a class instead
+                        IOrderedEnumerable<(Point3d weldPoint, string alName, TypeOfIteration iterType, double alStation, Entity sourceEnt)> orderedByDist;
+                        if (alGroup.First().iterType == TypeOfIteration.Forward)
+                            orderedByDist = alGroup.OrderBy(x => x.alStation);
+                        else orderedByDist = alGroup.OrderByDescending(x => x.alStation);
 
                         int idx = 1;
                         foreach (var wp in wps)
@@ -5672,16 +5717,31 @@ namespace IntersectUtilities
                             double rotation = Math.Atan2(deriv.Y, deriv.X);
                             BlockReference wpBr = localDb.CreateBlockWithAttributes(blockName, wp.weldPoint, rotation);
                             wpBr.Layer = blockLayerName;
+
+                            Regex regex = new Regex(@"(?<number>^\d\d)");
+                            string currentPipelineNumber = "";
+                            if (regex.IsMatch(wp.alName))
+                            {
+                                Match match = regex.Match(wp.alName);
+                                currentPipelineNumber = match.Groups["number"].Value;
+                                prdDbg($"Strækning nr: {currentPipelineNumber}");
+                            }
                             wpBr.SetAttributeStringValue("Nummer", currentPipelineNumber + "." + idx.ToString("D3"));
+
                             //if (idx == 1) DisplayDynBlockProperties(editor, wpBr, wpBr.Name);
                             SetDynBlockProperty(wpBr, "Type", GetPipeDN(wp.sourceEnt).ToString());
                             SetDynBlockProperty(wpBr, "System", GetPipeSystem(wp.sourceEnt));
                             idx++;
                         }
-                        #endregion
 
-                        System.Windows.Forms.Application.DoEvents();
+
+
                     }
+
+
+                    
+                    #endregion
+
                     //BlockTableRecord btr = bt[blockName].Go<BlockTableRecord>(tx);
                     //btr.SynchronizeAttributes();
                 }

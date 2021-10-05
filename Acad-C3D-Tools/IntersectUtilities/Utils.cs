@@ -1582,7 +1582,7 @@ namespace IntersectUtilities
             }
             return profile;
         }
-        public static HashSet<(Entity ent, double dist)> CreateDistTuples(Point3d location, HashSet<Entity> ents)
+        public static HashSet<(Entity ent, double dist)> CreateDistTuples<T>(Point3d location, HashSet<T> ents) where T : Entity
         {
             HashSet<(Entity ent, double dist)> distTuples = new HashSet<(Entity ent, double dist)>();
             foreach (Entity ent in ents)
@@ -1597,13 +1597,14 @@ namespace IntersectUtilities
                         distTuples.Add((ent, br.Position.DistanceHorizontalTo(location)));
                         break;
                     default:
+                        prdDbg($"CreateDistTuples received non-supported type for object {ent.Handle}!");
                         break;
                 }
             }
             return distTuples;
         }
         public static T GetFirstEntityOfType<T>(
-            Alignment al, HashSet<Entity> ents, Enums.TypeOfIteration forwardOrBackward) where T : DBObject
+            Alignment al, HashSet<T> ents, Enums.TypeOfIteration forwardOrBackward) where T : Entity
         {
             double length = al.Length;
             double step = 0.05;
@@ -2238,8 +2239,8 @@ namespace IntersectUtilities
                 if (!id.IsErased)
                 {
                     AttributeReference attRef = (AttributeReference)tr.GetObject(id, OpenMode.ForWrite);
-                    attValues.Add(attRef.Tag,
-                        attRef.IsMTextAttribute ? attRef.MTextAttribute.Contents : attRef.TextString);
+                    if (attRef.IsMTextAttribute) attValues.Add(attRef.Tag, attRef.MTextAttribute.HasFields ? attRef.MTextAttribute.getMTextWithFieldCodes() : attRef.MTextAttribute.Contents);
+                    else attValues.Add(attRef.Tag, attRef.HasFields ? attRef.getTextWithFieldCodes() : attRef.TextString);
                     attRef.Erase();
                 }
             }
@@ -2249,9 +2250,13 @@ namespace IntersectUtilities
                 attRef.SetAttributeFromBlock(attDef, br.BlockTransform);
                 if (attDef.Constant)
                 {
-                    attRef.TextString = attDef.IsMTextAttributeDefinition ?
-                        attDef.MTextAttributeDefinition.Contents :
-                        attDef.TextString;
+                    string textString;
+                    if (attRef.IsMTextAttribute) textString = attRef.MTextAttribute.HasFields ? attRef.MTextAttribute.getMTextWithFieldCodes() : attRef.MTextAttribute.Contents;
+                    else textString = attRef.HasFields ? attRef.getTextWithFieldCodes() : attRef.TextString;
+                    attRef.TextString = textString;
+                    //attRef.TextString = attDef.IsMTextAttributeDefinition ?
+                    //    attDef.MTextAttributeDefinition.Contents :
+                    //    attDef.TextString;
                 }
                 else if (attValues.ContainsKey(attRef.Tag))
                 {
