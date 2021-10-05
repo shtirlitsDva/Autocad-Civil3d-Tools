@@ -5486,7 +5486,7 @@ namespace IntersectUtilities
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
 
                     //List to gather ALL weld points
-                    var wps = new List<(Point3d weldPoint, string alName, TypeOfIteration iterType, double alStation, Entity sourceEnt)>();
+                    var wps = new List<(Point3d weldPoint, Alignment al, TypeOfIteration iterType, double alStation, Entity sourceEnt)>();
 
                     foreach (Alignment al in als)
                     {
@@ -5635,19 +5635,19 @@ namespace IntersectUtilities
                             {//1 to skip start, which is handled separately
                                 Point3d wPt = curve.GetPointAtDist(j * pipeStdLength);
                                 double station = al.GetDistAtPoint(al.GetClosestPointTo(wPt, false));
-                                wps.Add((wPt, al.Name, iterType, station, curve));
+                                wps.Add((wPt, al, iterType, station, curve));
                             }
 
                             //Handle start and end points separately
                             wps.Add((
                                 curve.GetPointAtParameter(curve.StartParam),
-                                al.Name,
+                                al,
                                 iterType,
                                 al.GetDistAtPoint(al.GetClosestPointTo(curve.GetPointAtParameter(curve.StartParam), false)),
                                 curve));
                             wps.Add((
                                 curve.GetPointAtParameter(curve.EndParam),
-                                al.Name,
+                                al,
                                 iterType,
                                 al.GetDistAtPoint(al.GetClosestPointTo(curve.GetPointAtParameter(curve.EndParam), false)),
                                 curve));
@@ -5679,7 +5679,7 @@ namespace IntersectUtilities
                                 if (!nestedBr.Name.Contains("MuffeIntern")) continue;
                                 Point3d wPt = nestedBr.Position;
                                 wPt = wPt.TransformBy(br.BlockTransform.Inverse());
-                                wps.Add((wPt, al.Name, iterType, al.GetDistAtPoint(al.GetClosestPointTo(wPt, false)), br));
+                                wps.Add((wPt, al, iterType, al.GetDistAtPoint(al.GetClosestPointTo(wPt, false)), br));
                             }
                         }
                         #endregion
@@ -5692,39 +5692,38 @@ namespace IntersectUtilities
                     var ordered = wps.OrderBy(x => x.weldPoint.X).ThenBy(x => x.weldPoint.Y);
                     var clusters = ordered.GroupByCluster((x, y) => GetDistance(x, y), 0.05);
 
-                    double GetDistance((Point3d weldPoint, string alName, TypeOfIteration iterType, double alStation, Entity sourceEnt) first,
-                        (Point3d weldPoint, string alName, TypeOfIteration iterType, double alStation, Entity sourceEnt) second)
+                    double GetDistance((Point3d weldPoint, Alignment al, TypeOfIteration iterType, double alStation, Entity sourceEnt) first,
+                        (Point3d weldPoint, Alignment al, TypeOfIteration iterType, double alStation, Entity sourceEnt) second)
                     {
                         return first.weldPoint.DistanceHorizontalTo(second.weldPoint);
                     }
 
                     var distinct = clusters.Select(x => x.First());
-                    var groupedByAlignment = distinct.GroupBy(x => x.alName);
+                    var groupedByAlignment = distinct.GroupBy(x => x.al.Name);
 
                     foreach (var alGroup in groupedByAlignment)
                     {
                         //Okay, here tuples become tedious... considering doin a class instead
-                        IOrderedEnumerable<(Point3d weldPoint, string alName, TypeOfIteration iterType, double alStation, Entity sourceEnt)> orderedByDist;
+                        IOrderedEnumerable<(Point3d weldPoint, Alignment al, TypeOfIteration iterType, double alStation, Entity sourceEnt)> orderedByDist;
                         if (alGroup.First().iterType == TypeOfIteration.Forward)
                             orderedByDist = alGroup.OrderBy(x => x.alStation);
                         else orderedByDist = alGroup.OrderByDescending(x => x.alStation);
 
                         int idx = 1;
-                        foreach (var wp in wps)
+                        foreach (var wp in orderedByDist)
                         {
                             if (!bt.Has(blockName)) throw new System.Exception("Block for weld points is missing!");
-                            Vector3d deriv = al.GetFirstDerivative(al.GetClosestPointTo(wp.weldPoint, false));
+                            Vector3d deriv = wp.al.GetFirstDerivative(wp.al.GetClosestPointTo(wp.weldPoint, false));
                             double rotation = Math.Atan2(deriv.Y, deriv.X);
                             BlockReference wpBr = localDb.CreateBlockWithAttributes(blockName, wp.weldPoint, rotation);
                             wpBr.Layer = blockLayerName;
 
                             Regex regex = new Regex(@"(?<number>^\d\d)");
                             string currentPipelineNumber = "";
-                            if (regex.IsMatch(wp.alName))
+                            if (regex.IsMatch(wp.al.Name))
                             {
-                                Match match = regex.Match(wp.alName);
+                                Match match = regex.Match(wp.al.Name);
                                 currentPipelineNumber = match.Groups["number"].Value;
-                                prdDbg($"Strækning nr: {currentPipelineNumber}");
                             }
                             wpBr.SetAttributeStringValue("Nummer", currentPipelineNumber + "." + idx.ToString("D3"));
 
@@ -5733,13 +5732,7 @@ namespace IntersectUtilities
                             SetDynBlockProperty(wpBr, "System", GetPipeSystem(wp.sourceEnt));
                             idx++;
                         }
-
-
-
                     }
-
-
-                    
                     #endregion
 
                     //BlockTableRecord btr = bt[blockName].Go<BlockTableRecord>(tx);
