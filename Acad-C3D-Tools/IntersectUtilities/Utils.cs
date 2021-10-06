@@ -2368,40 +2368,42 @@ namespace IntersectUtilities
             HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference> set =
                     new HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference>();
 
-            using (Transaction _trans = db.TransactionManager.StartTransaction())
+            Transaction tx = db.TransactionManager.TopTransaction;
+
+            BlockTable blkTable = tx.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
+            BlockTableRecord btr;
+
+            if (blkTable.Has(_BlockName))
             {
+                Utils.prdDbg("Block exists!");
+                ObjectId BlkRecId = blkTable[_BlockName];
 
-                BlockTable blkTable = _trans.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
-                BlockTableRecord blkRecord;
-
-                if (blkTable.Has(_BlockName))
+                if (BlkRecId != null)
                 {
-                    ObjectId BlkRecId = blkTable[_BlockName];
+                    btr = tx.GetObject(BlkRecId, OpenMode.ForRead) as BlockTableRecord;
+                    Utils.prdDbg("Btr opened!");
 
-                    if (BlkRecId != null)
+                    ObjectIdCollection blockRefIds = btr.IsDynamicBlock ? btr.GetAnonymousBlockIds() : btr.GetBlockReferenceIds(true, true);
+
+                    foreach (ObjectId blockRefId in blockRefIds)
                     {
-                        blkRecord = _trans.GetObject(BlkRecId, OpenMode.ForRead) as BlockTableRecord;
-
-                        Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection blockRefIds =
-                            blkRecord.GetBlockReferenceIds(true, true);
-
-                        foreach (ObjectId blockRefId in blockRefIds)
+                        if (btr.IsDynamicBlock)
                         {
-                            if ((_trans.GetObject(blockRefId, OpenMode.ForRead) as
-                                Autodesk.AutoCAD.DatabaseServices.BlockReference).Name ==
-                                _BlockName && (_trans.GetObject(blockRefId, OpenMode.ForRead) != null))
+                            ObjectIdCollection oids2 = blockRefId.Go<BlockTableRecord>(tx).GetBlockReferenceIds(true, true);
+                            foreach (oid Oid in oids2)
                             {
-                                set.Add(_trans.GetObject(blockRefId, OpenMode.ForRead) as
-                                    Autodesk.AutoCAD.DatabaseServices.BlockReference);
+                                set.Add(Oid.Go<BlockReference>(tx));
                             }
                         }
+                        else { set.Add(blockRefId.Go<BlockReference>(tx)); }
                     }
-
+                    Utils.prdDbg($"Number of refs: {blockRefIds.Count}.");
                 }
-                _trans.Commit();
+
             }
             return set;
         }
+
         public static double ToDegrees(this double radians) => (180 / Math.PI) * radians;
         public static double ToRadians(this double degrees) => (Math.PI / 180) * degrees;
     }

@@ -5433,6 +5433,36 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("DELETEWELDPOINTS")]
+        [CommandMethod("DWP")]
+        public void deleteweldpoints()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                string blockLayerName = "0-SVEJSEPKT";
+                string blockName = "SVEJSEPUNKT";
+                string textLayerName = "0-DEBUG-TXT";
+                //////////////////////////////////////
+
+                #region Delete previous blocks
+                //Delete previous blocks
+                var existingBlocks = localDb.GetBlockReferenceByName(blockName);
+                foreach (BlockReference br in existingBlocks)
+                {
+                    br.CheckOrOpenForWrite();
+                    br.Erase(true);
+                }
+                #endregion
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("CREATEWELDPOINTS")]
         [CommandMethod("CWP")]
         public void createweldpoints()
