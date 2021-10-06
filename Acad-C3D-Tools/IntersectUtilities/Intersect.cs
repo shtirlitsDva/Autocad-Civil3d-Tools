@@ -5516,7 +5516,7 @@ namespace IntersectUtilities
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
 
                     //List to gather ALL weld points
-                    var wps = new List<(Point3d weldPoint, Alignment al, TypeOfIteration iterType, double alStation, Entity sourceEnt)>();
+                    var wps = new List<WeldPointData>();
 
                     foreach (Alignment al in als)
                     {
@@ -5665,22 +5665,42 @@ namespace IntersectUtilities
                             {//1 to skip start, which is handled separately
                                 Point3d wPt = curve.GetPointAtDist(j * pipeStdLength);
                                 double station = al.GetDistAtPoint(al.GetClosestPointTo(wPt, false));
-                                wps.Add((wPt, al, iterType, station, curve));
+                                //Create weldpoint
+                                wps.Add(new WeldPointData()
+                                {
+                                    WeldPoint = wPt,
+                                    Alignment = al,
+                                    IterationType = iterType,
+                                    Station = station,
+                                    SourceEntity = curve,
+                                    DN = GetPipeDN(curve),
+                                    System = GetPipeSystem(curve)
+                                });
                             }
 
                             //Handle start and end points separately
-                            wps.Add((
-                                curve.GetPointAtParameter(curve.StartParam),
-                                al,
-                                iterType,
-                                al.GetDistAtPoint(al.GetClosestPointTo(curve.GetPointAtParameter(curve.StartParam), false)),
-                                curve));
-                            wps.Add((
-                                curve.GetPointAtParameter(curve.EndParam),
-                                al,
-                                iterType,
-                                al.GetDistAtPoint(al.GetClosestPointTo(curve.GetPointAtParameter(curve.EndParam), false)),
-                                curve));
+                            wps.Add(new WeldPointData()
+                            {
+                                WeldPoint = curve.GetPointAtParameter(curve.StartParam),
+                                Alignment = al,
+                                IterationType = iterType,
+                                Station = al.GetDistAtPoint(al.GetClosestPointTo(
+                                        curve.GetPointAtParameter(curve.StartParam), false)),
+                                SourceEntity = curve,
+                                DN = GetPipeDN(curve),
+                                System = GetPipeSystem(curve)
+                            });
+                            wps.Add(new WeldPointData()
+                            {
+                                WeldPoint = curve.GetPointAtParameter(curve.EndParam),
+                                Alignment = al,
+                                IterationType = iterType,
+                                Station = al.GetDistAtPoint(al.GetClosestPointTo(
+                                        curve.GetPointAtParameter(curve.EndParam), false)),
+                                SourceEntity = curve,
+                                DN = GetPipeDN(curve),
+                                System = GetPipeSystem(curve)
+                            });
 
                             #region Debug
                             //if (curve is Polyline pline)
