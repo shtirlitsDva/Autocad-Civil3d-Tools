@@ -5526,7 +5526,7 @@ namespace IntersectUtilities
                     foreach (Alignment al in als)
                     {
                         ////////////////////////////////////////////
-                        if (al.Name != "01 Rybjerg Allé") continue;
+                        //if (al.Name != "01 Rybjerg Allé") continue;
                         ////////////////////////////////////////////
                         prdDbg($"\nProcessing: {al.Name}...");
 
@@ -5622,19 +5622,19 @@ namespace IntersectUtilities
                                                 newPline.AddEntityToDbModelSpace(localDb);
                                                 XrecCopyTo(curve, newPline, "Alignment");
 
-                                                //Check direction of curve
-                                                curveStartStation = al.GetDistAtPoint(
-                                                    al.GetClosestPointTo(newPline.GetPointAtParameter(newPline.StartParam), false));
-                                                curveEndStation = al.GetDistAtPoint(
-                                                    al.GetClosestPointTo(
-                                                        newPline.GetPointAtParameter(
-                                                            newPline.GetParameterAtDistance(newPline.EndParam)), false));
-                                                if ((iterType == TypeOfIteration.Backward && curveStartStation < curveEndStation) ||
-                                                    (iterType == TypeOfIteration.Forward && curveStartStation > curveEndStation))
-                                                {//Catches if curve is reversed
-                                                    prdDbg("This is useful actually!!!");
-                                                    newPline.ReverseCurve();
-                                                }
+                                                ////Check direction of curve
+                                                //curveStartStation = al.GetDistAtPoint(
+                                                //    al.GetClosestPointTo(newPline.GetPointAtParameter(newPline.StartParam), false));
+                                                //curveEndStation = al.GetDistAtPoint(
+                                                //    al.GetClosestPointTo(
+                                                //        newPline.GetPointAtParameter(
+                                                //            newPline.GetParameterAtDistance(newPline.EndParam)), false));
+                                                //if ((iterType == TypeOfIteration.Backward && curveStartStation < curveEndStation) ||
+                                                //    (iterType == TypeOfIteration.Forward && curveStartStation > curveEndStation))
+                                                //{//Catches if curve is reversed
+                                                //    prdDbg("This is useful actually!!!");
+                                                //    newPline.ReverseCurve();
+                                                //}
                                                 kø.Enqueue(newPline);
                                             }
                                         }
@@ -5733,7 +5733,7 @@ namespace IntersectUtilities
                                 BlockReference nestedBr = Oid.Go<BlockReference>(tx);
                                 if (!nestedBr.Name.Contains("MuffeIntern")) continue;
                                 Point3d wPt = nestedBr.Position;
-                                wPt = wPt.TransformBy(br.BlockTransform.Inverse());
+                                wPt = wPt.TransformBy(br.BlockTransform);
 
                                 #region Read DN
                                 int DN = 0;
@@ -5822,8 +5822,8 @@ namespace IntersectUtilities
                             wpBr.SetAttributeStringValue("Nummer", currentPipelineNumber + "." + idx.ToString("D3"));
 
                             //if (idx == 1) DisplayDynBlockProperties(editor, wpBr, wpBr.Name);
-                            SetDynBlockProperty(wpBr, "Type", GetPipeDN(wp.SourceEntity).ToString());
-                            SetDynBlockProperty(wpBr, "System", GetPipeSystem(wp.SourceEntity));
+                            SetDynBlockProperty(wpBr, "Type", wp.DN.ToString());
+                            SetDynBlockProperty(wpBr, "System", wp.System);
                             idx++;
                         }
                     }

@@ -2374,13 +2374,13 @@ namespace IntersectUtilities
 
             if (blkTable.Has(_BlockName))
             {
-                Utils.prdDbg("Block exists!");
+                //Utils.prdDbg("Block exists!");
                 ObjectId BlkRecId = blkTable[_BlockName];
 
                 if (BlkRecId != null)
                 {
                     btr = tx.GetObject(BlkRecId, OpenMode.ForRead) as BlockTableRecord;
-                    Utils.prdDbg("Btr opened!");
+                    //Utils.prdDbg("Btr opened!");
 
                     ObjectIdCollection blockRefIds = btr.IsDynamicBlock ? btr.GetAnonymousBlockIds() : btr.GetBlockReferenceIds(true, true);
 
@@ -2396,7 +2396,7 @@ namespace IntersectUtilities
                         }
                         else { set.Add(blockRefId.Go<BlockReference>(tx)); }
                     }
-                    Utils.prdDbg($"Number of refs: {blockRefIds.Count}.");
+                    //Utils.prdDbg($"Number of refs: {blockRefIds.Count}.");
                 }
 
             }
