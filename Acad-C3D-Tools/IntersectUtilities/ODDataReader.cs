@@ -142,6 +142,12 @@ namespace IntersectUtilities.ODDataReader
             if (!regex.IsMatch(valueToProcess)) throw new System.Exception("Property name not found!");
             propName = regex.Match(valueToProcess).Groups["Name"].Value;
             //Read raw data from block
+            //Debug 
+            if (br.RealName() == "BØJN KDLR v2")
+            {
+                prdDbg(br.GetDynamicPropertyByName(propName).UnitsType.ToString());
+            }
+
             string rawContents = br.GetDynamicPropertyByName(propName).Value as string;
             //Safeguard against value not being set -> CUSTOM
             if (rawContents == "Custom") throw new System.Exception($"Parameter {propName} is not set for block handle {br.Handle}!");
@@ -210,13 +216,15 @@ namespace IntersectUtilities.ODDataReader
             if (valueToReturn.StartsWith("$"))
             {
                 valueToReturn = valueToReturn.Substring(1);
+                if (br.RealName() == "BØJN KDLR v2") { prdDbg(br.GetDynamicPropertyByName(valueToReturn).Value.ToString()); }
+                
                 //If the value is a pattern to extract from string
                 if (valueToReturn.Contains("{"))
                 {
                     valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
                 }
                 //Else the value is parameter literal to read
-                else return new MapValue(br.GetDynamicPropertyByName(valueToReturn).Value as string ?? "");
+                else return new MapValue(br.GetDynamicPropertyByName(valueToReturn).Value.ToString() ?? "");
             }
             return new MapValue(valueToReturn ?? "");
         }

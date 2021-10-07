@@ -2091,9 +2091,8 @@ namespace IntersectUtilities
             oid extId = obj.ExtensionDictionary;
             if (extId == oid.Null) return false;
             DBDictionary dbExt = extId.Go<DBDictionary>(tx);
-            oid xrecId = oid.Null;
-            try { xrecId = dbExt.GetAt(xRecordName); }
-            catch (System.Exception) { return false; }
+            if (!dbExt.Contains(xRecordName)) return false;
+            oid xrecId = dbExt.GetAt(xRecordName);
             if (xrecId == oid.Null) return false;
             Xrecord xrec = xrecId.Go<Xrecord>(tx);
             TypedValue[] data = xrec.Data.AsArray();
@@ -2114,8 +2113,9 @@ namespace IntersectUtilities
             oid extId = obj.ExtensionDictionary;
             if (extId == oid.Null) return "";
             DBDictionary dbExt = extId.Go<DBDictionary>(tx);
-            oid xrecId = dbExt.GetAt(xRecordName);
-            if (xrecId == oid.Null) return "";
+            oid xrecId = oid.Null;
+            if (!dbExt.Contains(xRecordName)) return "";
+            xrecId = dbExt.GetAt(xRecordName);
             Xrecord xrec = xrecId.Go<Xrecord>(tx);
             TypedValue[] data = xrec.Data.AsArray();
             if (data.Length <= indexToRead) return "";

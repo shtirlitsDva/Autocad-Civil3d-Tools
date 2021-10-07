@@ -5669,7 +5669,21 @@ namespace IntersectUtilities
                             for (int j = 1; j < nrOfSections; j++)
                             {//1 to skip start, which is handled separately
                                 Point3d wPt = curve.GetPointAtDist(j * pipeStdLength);
-                                double station = al.GetDistAtPoint(al.GetClosestPointTo(wPt, false));
+                                Point3d tempPt = al.GetClosestPointTo(wPt, false);
+                                //double station = al.GetDistAtPoint(tempPt);
+                                double station;
+                                try
+                                {
+                                    station = al.GetDistAtPoint(tempPt);
+                                }
+                                catch (System.Exception)
+                                {
+                                    prdDbg(al.Name);
+                                    prdDbg(wPt.ToString());
+                                    prdDbg(tempPt.ToString());
+                                    prdDbg(curve.Handle.ToString());
+                                    throw;
+                                }
                                 //Create weldpoint
                                 wps.Add(new WeldPointData()
                                 {
@@ -5751,7 +5765,8 @@ namespace IntersectUtilities
 
                                 if (!parseSuccess)
                                 {
-                                    prdDbg($"ERROR: Parsing of DN failed for block handle: {br.Handle}!");
+                                    prdDbg($"ERROR: Parsing of DN failed for block handle: {br.Handle}! " +
+                                        $"Returned value: {ODDataReader.DynKomponenter.ReadComponentDN1(br, komponenter).StrValue}");
                                 }
                                 #endregion
 
@@ -5797,7 +5812,8 @@ namespace IntersectUtilities
 
                     foreach (var alGroup in groupedByAlignment)
                     {
-                        //Okay, here tuples become tedious... considering doin a class instead
+                        prdDbg($"Placing welds for alignment: {alGroup.First().Alignment.Name}...");
+                        System.Windows.Forms.Application.DoEvents();
                         IOrderedEnumerable<WeldPointData> orderedByDist;
                         if (alGroup.First().IterationType == TypeOfIteration.Forward)
                             orderedByDist = alGroup.OrderBy(x => x.Station);
@@ -8663,6 +8679,18 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            const string kwd1 = "Ja";
+            const string kwd2 = "Nej";
+
+            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
+            pKeyOpts.Message = "\nOverskriv? ";
+            pKeyOpts.Keywords.Add(kwd1);
+            pKeyOpts.Keywords.Add(kwd2);
+            pKeyOpts.AllowNone = true;
+            pKeyOpts.Keywords.Default = kwd2;
+            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+            bool overwrite = pKeyRes.StringResult == kwd1;
+
             string projectName = GetProjectName();
             prdDbg(projectName);
             if (projectName.IsNoE())
@@ -8695,6 +8723,13 @@ namespace IntersectUtilities
                     {
                         if (ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Navn", 0) != null)
                         {
+                            //Skip if record already exists
+                            if (!overwrite)
+                            {
+                                if (br.XrecReadStringAtIndex(xRecordName, 0).IsNotNoE()) continue;
+                                prdDbg("Passed into blocks!");
+                            }
+
                             HashSet<(BlockReference block, double dist, Alignment al)> alDistTuples =
                                 new HashSet<(BlockReference, double, Alignment)>();
                             try
@@ -8822,10 +8857,16 @@ namespace IntersectUtilities
 
                     foreach (Curve curve in curves)
                     {
+                        //Skip if record already exists
+                        if (!overwrite)
+                        {
+                            if (curve.XrecReadStringAtIndex(xRecordName, 0).IsNotNoE()) continue;
+                        }
+                        prdDbg(curve.Layer);
                         if (!(curve.Layer.Contains("FREM") ||
                             curve.Layer.Contains("RETUR") ||
                             curve.Layer.Contains("TWIN"))) continue;
-
+                        
                         HashSet<(Curve curve, double dist, Alignment al)> alDistTuples =
                             new HashSet<(Curve curve, double dist, Alignment al)>();
 
@@ -8929,6 +8970,83 @@ namespace IntersectUtilities
                 alTx.Abort();
                 alTx.Dispose();
                 alDb.Dispose();
+                tx.Commit();
+            }
+        }
+        
+        [CommandMethod("CHECKXRECORDS")]
+        public void checkxrecords()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+                    HashSet<Curve> curves = localDb.HashSetOfType<Curve>(tx);
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
+
+                    //******************************//
+                    string xRecordName = "Alignment";
+                    //******************************//
+
+                    foreach (BlockReference br in brs)
+                    {
+                        if (ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Navn", 0) != null)
+                        {
+                            oid extId = br.ExtensionDictionary;
+                            if (extId == oid.Null)
+                            {
+                                ErrorLine(br.Position);
+                                continue;
+                            }
+                            DBDictionary dbExt = extId.Go<DBDictionary>(tx);
+                            oid xrecId = oid.Null;
+                            try { xrecId = dbExt.GetAt(xRecordName); }
+                            catch (Autodesk.AutoCAD.Runtime.Exception) { ErrorLine(br.Position); }
+                        }
+                    }
+
+                    Line ErrorLine(Point3d position)
+                    {
+                        Line line = new Line(new Point3d(), position);
+                        line.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                        line.AddEntityToDbModelSpace(localDb);
+                        return line;
+                    }
+
+                    foreach (Curve curve in curves)
+                    {
+                        if (!(curve.Layer.Contains("FREM") ||
+                            curve.Layer.Contains("RETUR") ||
+                            curve.Layer.Contains("TWIN"))) continue;
+
+                        oid extId = curve.ExtensionDictionary;
+                        if (extId == oid.Null)
+                        {
+                            ErrorLine(curve.GetPointAtParameter(curve.EndParam / 2));
+                            continue;
+                        }
+                        DBDictionary dbExt = extId.Go<DBDictionary>(tx);
+                        oid xrecId = oid.Null;
+                        try { xrecId = dbExt.GetAt(xRecordName); }
+                        catch (Autodesk.AutoCAD.Runtime.Exception) { ErrorLine(curve.GetPointAtParameter(curve.EndParam / 2)); }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
                 tx.Commit();
             }
         }
