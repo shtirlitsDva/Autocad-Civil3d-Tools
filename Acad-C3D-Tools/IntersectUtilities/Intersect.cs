@@ -5513,6 +5513,11 @@ namespace IntersectUtilities
                     Utils.CheckOrCreateLayer(localDb, textLayerName);
                     #endregion
 
+                    #region Read components file
+                    System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
+                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    #endregion
+
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
 
                     //List to gather ALL weld points
@@ -5729,7 +5734,47 @@ namespace IntersectUtilities
                                 if (!nestedBr.Name.Contains("MuffeIntern")) continue;
                                 Point3d wPt = nestedBr.Position;
                                 wPt = wPt.TransformBy(br.BlockTransform.Inverse());
-                                wps.Add((wPt, al, iterType, al.GetDistAtPoint(al.GetClosestPointTo(wPt, false)), br));
+
+                                #region Read DN
+                                int DN = 0;
+                                bool parseSuccess = false;
+                                if (nestedBr.Name.Contains("BRANCH"))
+                                {
+                                    parseSuccess = int.TryParse(
+                                        ODDataReader.DynKomponenter.ReadComponentDN2(br, komponenter).StrValue, out DN);
+                                }
+                                else //Else catches "MAIN" and ordinary case
+                                {
+                                    parseSuccess = int.TryParse(
+                                        ODDataReader.DynKomponenter.ReadComponentDN1(br, komponenter).StrValue, out DN);
+                                }
+
+                                if (!parseSuccess)
+                                {
+                                    prdDbg($"ERROR: Parsing of DN failed for block handle: {br.Handle}!");
+                                }
+                                #endregion
+
+                                #region Read System
+                                string system = ODDataReader.DynKomponenter.ReadComponentSystem(br, komponenter).StrValue;
+
+                                if (system.IsNoE())
+                                {
+                                    prdDbg($"ERROR: Parsing of DN failed for block handle: {br.Handle}!");
+                                    system = "";
+                                }
+                                #endregion
+
+                                wps.Add(new WeldPointData()
+                                {
+                                    WeldPoint = wPt,
+                                    Alignment = al,
+                                    IterationType = iterType,
+                                    Station = al.GetDistAtPoint(al.GetClosestPointTo(wPt, false)),
+                                    SourceEntity = br,
+                                    DN = DN,
+                                    System = system
+                                });
                             }
                         }
                         #endregion
@@ -5739,47 +5784,46 @@ namespace IntersectUtilities
 
                     #region Place weldpoints
 
-                    var ordered = wps.OrderBy(x => x.weldPoint.X).ThenBy(x => x.weldPoint.Y);
+                    var ordered = wps.OrderBy(x => x.WeldPoint.X).ThenBy(x => x.WeldPoint.Y);
                     var clusters = ordered.GroupByCluster((x, y) => GetDistance(x, y), 0.05);
 
-                    double GetDistance((Point3d weldPoint, Alignment al, TypeOfIteration iterType, double alStation, Entity sourceEnt) first,
-                        (Point3d weldPoint, Alignment al, TypeOfIteration iterType, double alStation, Entity sourceEnt) second)
+                    double GetDistance(WeldPointData first, WeldPointData second)
                     {
-                        return first.weldPoint.DistanceHorizontalTo(second.weldPoint);
+                        return first.WeldPoint.DistanceHorizontalTo(second.WeldPoint);
                     }
 
                     var distinct = clusters.Select(x => x.First());
-                    var groupedByAlignment = distinct.GroupBy(x => x.al.Name);
+                    var groupedByAlignment = distinct.GroupBy(x => x.Alignment.Name);
 
                     foreach (var alGroup in groupedByAlignment)
                     {
                         //Okay, here tuples become tedious... considering doin a class instead
-                        IOrderedEnumerable<(Point3d weldPoint, Alignment al, TypeOfIteration iterType, double alStation, Entity sourceEnt)> orderedByDist;
-                        if (alGroup.First().iterType == TypeOfIteration.Forward)
-                            orderedByDist = alGroup.OrderBy(x => x.alStation);
-                        else orderedByDist = alGroup.OrderByDescending(x => x.alStation);
+                        IOrderedEnumerable<WeldPointData> orderedByDist;
+                        if (alGroup.First().IterationType == TypeOfIteration.Forward)
+                            orderedByDist = alGroup.OrderBy(x => x.Station);
+                        else orderedByDist = alGroup.OrderByDescending(x => x.Station);
 
                         int idx = 1;
                         foreach (var wp in orderedByDist)
                         {
                             if (!bt.Has(blockName)) throw new System.Exception("Block for weld points is missing!");
-                            Vector3d deriv = wp.al.GetFirstDerivative(wp.al.GetClosestPointTo(wp.weldPoint, false));
+                            Vector3d deriv = wp.Alignment.GetFirstDerivative(wp.Alignment.GetClosestPointTo(wp.WeldPoint, false));
                             double rotation = Math.Atan2(deriv.Y, deriv.X);
-                            BlockReference wpBr = localDb.CreateBlockWithAttributes(blockName, wp.weldPoint, rotation);
+                            BlockReference wpBr = localDb.CreateBlockWithAttributes(blockName, wp.WeldPoint, rotation);
                             wpBr.Layer = blockLayerName;
 
                             Regex regex = new Regex(@"(?<number>^\d\d)");
                             string currentPipelineNumber = "";
-                            if (regex.IsMatch(wp.al.Name))
+                            if (regex.IsMatch(wp.Alignment.Name))
                             {
-                                Match match = regex.Match(wp.al.Name);
+                                Match match = regex.Match(wp.Alignment.Name);
                                 currentPipelineNumber = match.Groups["number"].Value;
                             }
                             wpBr.SetAttributeStringValue("Nummer", currentPipelineNumber + "." + idx.ToString("D3"));
 
                             //if (idx == 1) DisplayDynBlockProperties(editor, wpBr, wpBr.Name);
-                            SetDynBlockProperty(wpBr, "Type", GetPipeDN(wp.sourceEnt).ToString());
-                            SetDynBlockProperty(wpBr, "System", GetPipeSystem(wp.sourceEnt));
+                            SetDynBlockProperty(wpBr, "Type", GetPipeDN(wp.SourceEntity).ToString());
+                            SetDynBlockProperty(wpBr, "System", GetPipeSystem(wp.SourceEntity));
                             idx++;
                         }
                     }
@@ -8266,7 +8310,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("listnonstandardblocknames")]
+        [CommandMethod("LISTNONSTANDARDBLOCKNAMES")]
         public void listnonstandardblocknames()
         {
 
@@ -8280,7 +8324,8 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
+                    System.Data.DataTable stdBlocks = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
+                    System.Data.DataTable dynBlocks = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                     BlockTableRecord btr = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
@@ -8306,10 +8351,14 @@ namespace IntersectUtilities
                             //}
 
                             string effectiveName = br.IsDynamicBlock ?
-                                                                "*-> " + ((BlockTableRecord)tx.GetObject(
+                                                                ((BlockTableRecord)tx.GetObject(
                                                                     br.DynamicBlockTableRecord, OpenMode.ForRead)).Name : br.Name;
 
-                            if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) == null)
+                            if (ReadStringParameterFromDataTable(br.Name, stdBlocks, "Navn", 0) == null)
+                            {
+                                allNamesNotInDb.Add(effectiveName);
+                            }
+                            if (ReadStringParameterFromDataTable(effectiveName, dynBlocks, "Navn", 0) == null)
                             {
                                 allNamesNotInDb.Add(effectiveName);
                             }
