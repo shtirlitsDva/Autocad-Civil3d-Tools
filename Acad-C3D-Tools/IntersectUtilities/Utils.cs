@@ -1797,6 +1797,13 @@ namespace IntersectUtilities
             Forward,
             Backward
         }
+        public enum TypeOfSegment
+        {
+            None,
+            Straight,
+            ElasticArc,
+            CurvedPipe
+        }
     }
     public class PointDBHorizontalComparer : IEqualityComparer<DBPoint>
     {
