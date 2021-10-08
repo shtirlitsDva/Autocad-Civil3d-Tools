@@ -1382,8 +1382,10 @@ namespace IntersectUtilities
             //{
             //    pKeyOpts.Keywords.Add(kwd, kwd, kwd);
             //}
-            pKeyOpts.AllowNone = false;
-            pKeyOpts.AllowArbitraryInput = true;
+            pKeyOpts.AllowNone = true;
+            pKeyOpts.Keywords.Default = kwds.First();
+            //pKeyOpts.AllowNone = false;
+            //pKeyOpts.AllowArbitraryInput = true;
             //for (int i = 0; i < pKeyOpts.Keywords.Count; i++)
             //{
             //    prdDbg("\nLocal name: " + pKeyOpts.Keywords[i].LocalName);

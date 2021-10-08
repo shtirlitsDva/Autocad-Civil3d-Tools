@@ -2171,17 +2171,17 @@ namespace IntersectUtilities
                                     {
                                         if (!Oid.IsDerivedFrom<BlockReference>()) continue;
                                         BlockReference tempBref = Oid.Go<BlockReference>(tx);
-                                        prdDbg("C: " + tempBref.Position.ToString());
+                                        //prdDbg("C: " + tempBref.Position.ToString());
                                         BlockTableRecord tempBtr = tempBref.BlockTableRecord.Go<BlockTableRecord>(tx);
                                         Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y, 0);
                                         theoreticalLocation = theoreticalLocation.TransformBy(bref.BlockTransform.Inverse());
-                                        prdDbg("T: " + theoreticalLocation.ToString());
-                                        prdDbg($"dX: {tempBref.Position.X - theoreticalLocation.X}, dY: {tempBref.Position.Y - theoreticalLocation.Y}");
+                                        //prdDbg("T: " + theoreticalLocation.ToString());
+                                        //prdDbg($"dX: {tempBref.Position.X - theoreticalLocation.X}, dY: {tempBref.Position.Y - theoreticalLocation.Y}");
                                         if (tempBref.Position.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
                                         {
-                                            prdDbg("Found block!");
+                                            //prdDbg("Found block!");
                                             Extents3d ext = tempBref.GeometricExtents;
-                                            prdDbg(ext.ToString());
+                                            //prdDbg(ext.ToString());
                                             using (Polyline pl = new Polyline(4))
                                             {
                                                 pl.AddVertexAt(0, new Point2d(ext.MinPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
@@ -2265,8 +2265,7 @@ namespace IntersectUtilities
                     lerTx.Dispose();
                     lerDb.Dispose();
                     tx.Abort();
-                    //throw new System.Exception(ex.Message);
-                    editor.WriteMessage("\nMain caught it: " + ex.Message);
+                    editor.WriteMessage(ex.ToString());
                     return;
                 }
                 fremTx.Abort();
@@ -4729,7 +4728,11 @@ namespace IntersectUtilities
                     BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
 
-                    List<Alignment> allAlignments = localDb.ListOfType<Alignment>(tx).ToList();
+                    List<Alignment> allAlignments = localDb.ListOfType<Alignment>(tx)
+                        .OrderBy(x => x.Name)
+                        //.Where(x => x.Name == "20 Rybjerg Allé")
+                        .ToList();
+                    prdDbg(allAlignments.Count.ToString());
                     HashSet<ProfileView> pvSetExisting = localDb.HashSetOfType<ProfileView>(tx);
                     HashSet<string> pvNames = pvSetExisting.Select(x => x.Name).ToHashSet();
                     //Filter out already created profile views
@@ -5251,7 +5254,7 @@ namespace IntersectUtilities
                             try { sampledElevation = surfaceProfile.ElevationAt(station); }
                             catch (System.Exception)
                             {
-                                prdDbg($"\nStation {station} threw an exception when placing size change blocks! Skipping...");
+                                prdDbg($"Station {station} threw an exception when placing size change blocks! Skipping...");
                                 return 0;
                             }
                             return sampledElevation;
@@ -5265,8 +5268,22 @@ namespace IntersectUtilities
                         {
                             string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
                             if (type == "Reduktion") continue;
-                            Point3d brLocation = al.GetClosestPointTo(br.Position, true);
-                            double station = al.GetDistAtPoint(brLocation);
+                            //Point3d firstIteration = al.GetClosestPointTo(br.Position, false);
+                            //Point3d brLocation = al.GetClosestPointTo(firstIteration, false);
+                            Point3d brLocation = al.GetClosestPointTo(br.Position, false);
+
+                            double station;
+                            try
+                            {
+                                station = al.GetDistAtPoint(brLocation);
+                            }
+                            catch (System.Exception)
+                            {
+                                prdDbg(br.Position.ToString());
+                                prdDbg(brLocation.ToString());
+                                throw;
+                            }
+
                             double sampledSurfaceElevation = SampleProfile(surfaceProfile, station);
                             double X = originX + station;
                             double Y = originY + sampledSurfaceElevation - pvElBottom;
@@ -5353,7 +5370,7 @@ namespace IntersectUtilities
                             startStation = sizeArray[i].station;
                         }
                         #endregion
-                        
+
                         #region Test Douglas Peucker reduction
                         ////Test Douglas Peucker reduction
                         //List<double> coverList = new List<double>();
@@ -5464,7 +5481,7 @@ namespace IntersectUtilities
                                         double u = pline.GetPoint2dAt(i).GetDistanceTo(pline.GetPoint2dAt(i + 1));
                                         double radius = u * ((1 + bulge.Pow(2)) / (4 * Math.Abs(bulge)));
                                         double minRadius = GetPipeMinElasticRadius(pline);
-                                        
+
                                         if (radius < minRadius) tos = TypeOfSegment.CurvedPipe;
                                         else tos = TypeOfSegment.ElasticArc;
 
@@ -5476,7 +5493,7 @@ namespace IntersectUtilities
 
                                         double sampledSurfaceElevation = 0;
                                         double curX = 0, curY = 0;
-                                        
+
                                         sampledSurfaceElevation = SampleProfile(surfaceProfile, midStation);
                                         curX = originX + midStation;
                                         curY = originY + sampledSurfaceElevation - pvElBottom;
@@ -5486,13 +5503,13 @@ namespace IntersectUtilities
                                         DynamicBlockReferencePropertyCollection dbrpc = brCurve.DynamicBlockReferencePropertyCollection;
                                         foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
                                         {
-                                            if (dbrp.PropertyName == "Length") 
+                                            if (dbrp.PropertyName == "Length")
                                             {
                                                 prdDbg(length.ToString());
                                                 dbrp.Value = Math.Abs(length);
                                             }
                                         }
-                                        
+
                                         switch (tos)
                                         {
                                             case TypeOfSegment.ElasticArc:
@@ -7156,7 +7173,7 @@ namespace IntersectUtilities
                 if (tryGetMin != 0 && tryGetMin - 1 > elMax)
                 {
                     pv.CheckOrOpenForWrite();
-                    elMin = tryGetMin - 1;
+                    elMin = tryGetMin - 3;
                     //2prdDbg(elMin.ToString());
                     pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
                     pv.ElevationMin = elMin;
@@ -7594,7 +7611,10 @@ namespace IntersectUtilities
                     BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
 
-                    List<Alignment> allAlignments = localDb.ListOfType<Alignment>(tx).OrderBy(x => x.Name).ToList();
+                    List<Alignment> allAlignments = localDb.ListOfType<Alignment>(tx)
+                        .OrderBy(x => x.Name)
+                        //.Where(x => x.Name == "20 Rybjerg Allé")
+                        .ToList();
                     HashSet<ProfileView> pvSetExisting = localDb.HashSetOfType<ProfileView>(tx);
 
                     #region Read Csv Data for Layers and Depth
@@ -7610,36 +7630,36 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Delete existing points
-                    PointGroupCollection pgs = civilDoc.PointGroups;
+                    //PointGroupCollection pgs = civilDoc.PointGroups;
 
-                    for (int i = 0; i < pgs.Count; i++)
-                    {
-                        PointGroup pg = tx.GetObject(pgs[i], OpenMode.ForRead) as PointGroup;
-                        if (allAlignments.Any(x => x.Name == pg.Name))
-                        {
-                            pg.CheckOrOpenForWrite();
-                            pg.Update();
-                            uint[] numbers = pg.GetPointNumbers();
+                    //for (int i = 0; i < pgs.Count; i++)
+                    //{
+                    //    PointGroup pg = tx.GetObject(pgs[i], OpenMode.ForRead) as PointGroup;
+                    //    if (allAlignments.Any(x => x.Name == pg.Name))
+                    //    {
+                    //        pg.CheckOrOpenForWrite();
+                    //        pg.Update();
+                    //        uint[] numbers = pg.GetPointNumbers();
 
-                            CogoPointCollection cpc = civilDoc.CogoPoints;
+                    //        CogoPointCollection cpc = civilDoc.CogoPoints;
 
-                            for (int j = 0; j < numbers.Length; j++)
-                            {
-                                uint number = numbers[j];
+                    //        for (int j = 0; j < numbers.Length; j++)
+                    //        {
+                    //            uint number = numbers[j];
 
-                                if (cpc.Contains(number))
-                                {
-                                    cpc.Remove(number);
-                                }
-                            }
+                    //            if (cpc.Contains(number))
+                    //            {
+                    //                cpc.Remove(number);
+                    //            }
+                    //        }
 
-                            StandardPointGroupQuery spgqEmpty = new StandardPointGroupQuery();
-                            spgqEmpty.IncludeNumbers = "";
-                            pg.SetQuery(spgqEmpty);
+                    //        StandardPointGroupQuery spgqEmpty = new StandardPointGroupQuery();
+                    //        spgqEmpty.IncludeNumbers = "";
+                    //        pg.SetQuery(spgqEmpty);
 
-                            pg.Update();
-                        }
-                    }
+                    //        pg.Update();
+                    //    }
+                    //}
                     #endregion
 
                     #region Name handling of point names
@@ -13779,6 +13799,36 @@ namespace IntersectUtilities
                     prdDbg(ex.Message);
                 }
                 tr.Commit();
+            }
+        }
+        
+        [CommandMethod("TESTGETDISTANCEATPOINT")]
+        public void testgetdistanceatpoint()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+            Transaction tx = db.TransactionManager.StartTransaction();
+            using (tx)
+            {
+                try
+                {
+                    List<BlockReference> blocks = db.ListOfType<BlockReference>(tx);
+                    Alignment al = db.ListOfType<Alignment>(tx).FirstOrDefault();
+
+                    foreach (BlockReference br in blocks)
+                    {
+                        Point3d nearest = al.GetClosestPointTo(br.Position, false);
+                        double station = al.GetDistAtPoint(nearest);
+                        ed.WriteMessage($"\nNearest station: {station}");
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    ed.WriteMessage(ex.ToString());
+                }
+                tx.Commit();
             }
         }
     }
