@@ -2137,7 +2137,7 @@ namespace IntersectUtilities
             foreach (oid Oid in br.AttributeCollection)
             {
                 AttributeReference ar = Oid.Go<AttributeReference>(tx);
-                if (ar.Tag == attributeName)
+                if (string.Equals(ar.Tag, attributeName, StringComparison.OrdinalIgnoreCase))
                 {
                     ar.CheckOrOpenForWrite();
                     ar.TextString = value;

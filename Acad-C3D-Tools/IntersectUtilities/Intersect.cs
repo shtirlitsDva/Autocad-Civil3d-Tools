@@ -5659,7 +5659,7 @@ namespace IntersectUtilities
                     //List to gather ALL weld points
                     var wps = new List<WeldPointData>();
 
-                    foreach (Alignment al in als)
+                    foreach (Alignment al in als.OrderBy(x => x.Name))
                     {
                         ////////////////////////////////////////////
                         //if (al.Name != "01 Rybjerg Allé") continue;
@@ -5685,7 +5685,6 @@ namespace IntersectUtilities
 
                         //Variables
                         Entity previousEnt = default;
-
 
                         Queue<Curve> kø = new Queue<Curve>();
 
@@ -5788,12 +5787,8 @@ namespace IntersectUtilities
                         #endregion
 
                         #region Gather weldpoints for curves
-                        //prdDbg($"Total curves in kø: {kø.Count}");
-                        //prdDbg($"Total curves in original: {curves.Count}");
                         double pipeStdLength = 0;
-
-                        int køCount = kø.Count;
-                        for (int i = 0; i < køCount; i++)
+                        while (kø.Count > 0)
                         {
                             Curve curve = kø.Dequeue();
                             pipeStdLength = GetPipeStdLength(curve);
@@ -5802,7 +5797,17 @@ namespace IntersectUtilities
                             int nrOfSections = (int)division;
                             double remainder = division - nrOfSections;
 
-                            for (int j = 1; j < nrOfSections; j++)
+                            //if (string.Equals(curve.Handle.ToString(), "19caf", StringComparison.OrdinalIgnoreCase))
+                            //{
+                            //    prdDbg($"pipeStdLength: {pipeStdLength}");
+                            //    prdDbg($"pipeLength: {pipeLength}");
+                            //    prdDbg($"Division: {division}");
+                            //    prdDbg($"nrOfSections: {nrOfSections}");
+                            //    prdDbg($"remainder: {remainder}");
+                            //    prdDbg($"QA: {nrOfSections * pipeStdLength + remainder * pipeStdLength} = {pipeLength}");
+                            //}
+
+                            for (int j = 1; j < nrOfSections + 1; j++)
                             {//1 to skip start, which is handled separately
                                 Point3d wPt = curve.GetPointAtDist(j * pipeStdLength);
                                 Point3d tempPt = al.GetClosestPointTo(wPt, false);
@@ -5971,11 +5976,14 @@ namespace IntersectUtilities
                                 Match match = regex.Match(wp.Alignment.Name);
                                 currentPipelineNumber = match.Groups["number"].Value;
                             }
-                            wpBr.SetAttributeStringValue("Nummer", currentPipelineNumber + "." + idx.ToString("D3"));
+                            wpBr.SetAttributeStringValue("NUMMER", currentPipelineNumber + "." + idx.ToString("D3"));
 
                             //if (idx == 1) DisplayDynBlockProperties(editor, wpBr, wpBr.Name);
                             SetDynBlockProperty(wpBr, "Type", wp.DN.ToString());
                             SetDynBlockProperty(wpBr, "System", wp.System);
+
+                            XrecCopyTo(wp.SourceEntity, wpBr, "Alignment");
+
                             idx++;
                         }
                     }
@@ -6249,7 +6257,7 @@ namespace IntersectUtilities
                                     Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
                                     throw new System.Exception("Splitting of pline failed!");
                                 }
-                            } 
+                            }
                         }
                         //Bund offset
                         if (sizeArray.Length == 1)
@@ -8751,8 +8759,7 @@ namespace IntersectUtilities
                     LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
                     foreach (Alignment al in als)
                     {
-                        if (lt.Has(al.Name)) ;
-                        else
+                        if (!lt.Has(al.Name))
                         {
                             //Create layer if it doesn't exist
                             try
@@ -13822,7 +13829,7 @@ namespace IntersectUtilities
                 tr.Commit();
             }
         }
-        
+
         [CommandMethod("TESTGETDISTANCEATPOINT")]
         public void testgetdistanceatpoint()
         {
