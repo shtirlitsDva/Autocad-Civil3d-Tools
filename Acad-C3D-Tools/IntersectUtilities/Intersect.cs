@@ -6211,63 +6211,84 @@ namespace IntersectUtilities
                             splitLines.Add(splitLineEnd);
                         }
                         //Top offset
-                        using (DBObjectCollection col = pline.GetOffsetCurves(halfKod))
+                        //Handle case of only one size pipe
+                        if (sizeArray.Length == 1)
                         {
-                            if (col.Count == 0) throw new System.Exception("Offsetting pline failed!");
-                            Polyline offsetPline = col[0] as Polyline;
-                            List<double> splitPts = new List<double>();
-                            foreach (Line line in splitLines)
+                            using (DBObjectCollection col = pline.GetOffsetCurves(halfKod))
                             {
-                                Point3dCollection ipts = new Point3dCollection();
-                                offsetPline.IntersectWith(line,
-                                    Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
-                                    ipts, new IntPtr(0), new IntPtr(0));
-                                foreach (Point3d p in ipts)
-                                    splitPts.Add(offsetPline.GetParameterAtPoint(offsetPline.GetClosestPointTo(p, false)));
-                            }
-                            if (splitPts.Count == 0) throw new System.Exception("Getting split points failed!");
-                            splitPts.Sort();
-                            try
-                            {
-                                DBObjectCollection objs = offsetPline
-                                    .GetSplitCurves(new DoubleCollection(splitPts.ToArray()));
-                                if (i == 0) offsetCurvesTop.Add(objs[0] as Polyline);
-                                else offsetCurvesTop.Add(objs[1] as Polyline);
-                            }
-                            catch (Autodesk.AutoCAD.Runtime.Exception ex)
-                            {
-                                Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
-                                throw new System.Exception("Splitting of pline failed!");
+                                offsetCurvesTop.Add(col[0] as Polyline);
                             }
                         }
-                        //Bund offset
-                        using (DBObjectCollection col = pline.GetOffsetCurves(-halfKod))
+                        else
                         {
-                            if (col.Count == 0) throw new System.Exception("Offsetting pline failed!");
-                            Polyline offsetPline = col[0] as Polyline;
-                            List<double> splitPts = new List<double>();
-                            foreach (Line line in splitLines)
+                            using (DBObjectCollection col = pline.GetOffsetCurves(halfKod))
                             {
-                                Point3dCollection ipts = new Point3dCollection();
-                                offsetPline.IntersectWith(line,
-                                    Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
-                                    ipts, new IntPtr(0), new IntPtr(0));
-                                foreach (Point3d p in ipts)
-                                    splitPts.Add(offsetPline.GetParameterAtPoint(offsetPline.GetClosestPointTo(p, false)));
+                                if (col.Count == 0) throw new System.Exception("Offsetting pline failed!");
+                                Polyline offsetPline = col[0] as Polyline;
+                                List<double> splitPts = new List<double>();
+                                foreach (Line line in splitLines)
+                                {
+                                    Point3dCollection ipts = new Point3dCollection();
+                                    offsetPline.IntersectWith(line,
+                                        Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                                        ipts, new IntPtr(0), new IntPtr(0));
+                                    foreach (Point3d p in ipts)
+                                        splitPts.Add(offsetPline.GetParameterAtPoint(offsetPline.GetClosestPointTo(p, false)));
+                                }
+                                if (splitPts.Count == 0) throw new System.Exception("Getting split points failed!");
+                                splitPts.Sort();
+                                try
+                                {
+                                    DBObjectCollection objs = offsetPline
+                                        .GetSplitCurves(new DoubleCollection(splitPts.ToArray()));
+                                    if (i == 0) offsetCurvesTop.Add(objs[0] as Polyline);
+                                    else offsetCurvesTop.Add(objs[1] as Polyline);
+                                }
+                                catch (Autodesk.AutoCAD.Runtime.Exception ex)
+                                {
+                                    Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
+                                    throw new System.Exception("Splitting of pline failed!");
+                                }
+                            } 
+                        }
+                        //Bund offset
+                        if (sizeArray.Length == 1)
+                        {
+                            using (DBObjectCollection col = pline.GetOffsetCurves(-halfKod))
+                            {
+                                offsetCurvesBund.Add(col[0] as Polyline);
                             }
-                            if (splitPts.Count == 0) throw new System.Exception("Getting split points failed!");
-                            splitPts.Sort();
-                            try
+                        }
+                        else
+                        {
+                            using (DBObjectCollection col = pline.GetOffsetCurves(-halfKod))
                             {
-                                DBObjectCollection objs = offsetPline
-                                    .GetSplitCurves(new DoubleCollection(splitPts.ToArray()));
-                                if (i == 0) offsetCurvesBund.Add(objs[0] as Polyline);
-                                else offsetCurvesBund.Add(objs[1] as Polyline);
-                            }
-                            catch (Autodesk.AutoCAD.Runtime.Exception ex)
-                            {
-                                Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
-                                throw new System.Exception("Splitting of pline failed!");
+                                if (col.Count == 0) throw new System.Exception("Offsetting pline failed!");
+                                Polyline offsetPline = col[0] as Polyline;
+                                List<double> splitPts = new List<double>();
+                                foreach (Line line in splitLines)
+                                {
+                                    Point3dCollection ipts = new Point3dCollection();
+                                    offsetPline.IntersectWith(line,
+                                        Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                                        ipts, new IntPtr(0), new IntPtr(0));
+                                    foreach (Point3d p in ipts)
+                                        splitPts.Add(offsetPline.GetParameterAtPoint(offsetPline.GetClosestPointTo(p, false)));
+                                }
+                                if (splitPts.Count == 0) throw new System.Exception("Getting split points failed!");
+                                splitPts.Sort();
+                                try
+                                {
+                                    DBObjectCollection objs = offsetPline
+                                        .GetSplitCurves(new DoubleCollection(splitPts.ToArray()));
+                                    if (i == 0) offsetCurvesBund.Add(objs[0] as Polyline);
+                                    else offsetCurvesBund.Add(objs[1] as Polyline);
+                                }
+                                catch (Autodesk.AutoCAD.Runtime.Exception ex)
+                                {
+                                    Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
+                                    throw new System.Exception("Splitting of pline failed!");
+                                }
                             }
                         }
                     }
