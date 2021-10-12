@@ -5939,7 +5939,6 @@ namespace IntersectUtilities
                     }
 
                     #region Place weldpoints
-
                     var ordered = wps.OrderBy(x => x.WeldPoint.X).ThenBy(x => x.WeldPoint.Y);
                     var clusters = ordered.GroupByCluster((x, y) => GetDistance(x, y), 0.05);
 
@@ -5951,7 +5950,22 @@ namespace IntersectUtilities
                     var distinct = clusters.Select(x => x.First());
                     var groupedByAlignment = distinct.GroupBy(x => x.Alignment.Name);
 
-                    foreach (var alGroup in groupedByAlignment)
+                    //Prepare modelspace
+                    BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
+                    modelSpace.CheckOrOpenForWrite();
+                    //Prepare block table record
+                    if (!bt.Has(blockName)) throw new System.Exception("Block for weld points is missing!");
+                    oid btrId = bt[blockName];
+                    BlockTableRecord btrWp = btrId.Go<BlockTableRecord>(tx);
+                    List<AttributeDefinition> attDefs = new List<AttributeDefinition>();
+                    foreach (oid arOid in btrWp)
+                    {
+                        if (!arOid.IsDerivedFrom<AttributeDefinition>()) continue;
+                        AttributeDefinition at = arOid.Go<AttributeDefinition>(tx);
+                        if (!at.Constant) attDefs.Add(at);
+                    }
+
+                    foreach (var alGroup in groupedByAlignment.OrderBy(x => x.Key))
                     {
                         prdDbg($"Placing welds for alignment: {alGroup.First().Alignment.Name}...");
                         System.Windows.Forms.Application.DoEvents();
@@ -5960,22 +5974,36 @@ namespace IntersectUtilities
                             orderedByDist = alGroup.OrderBy(x => x.Station);
                         else orderedByDist = alGroup.OrderByDescending(x => x.Station);
 
+                        Regex regex = new Regex(@"(?<number>^\d\d)");
+                        string currentPipelineNumber = "";
+                        if (regex.IsMatch(alGroup.First().Alignment.Name))
+                        {
+                            Match match = regex.Match(alGroup.First().Alignment.Name);
+                            currentPipelineNumber = match.Groups["number"].Value;
+                        }
+
                         int idx = 1;
                         foreach (var wp in orderedByDist)
                         {
-                            if (!bt.Has(blockName)) throw new System.Exception("Block for weld points is missing!");
                             Vector3d deriv = wp.Alignment.GetFirstDerivative(wp.Alignment.GetClosestPointTo(wp.WeldPoint, false));
                             double rotation = Math.Atan2(deriv.Y, deriv.X);
-                            BlockReference wpBr = localDb.CreateBlockWithAttributes(blockName, wp.WeldPoint, rotation);
+                            //BlockReference wpBr = localDb.CreateBlockWithAttributes(blockName, wp.WeldPoint, rotation);
+                            var wpBr = new BlockReference(wp.WeldPoint, btrId);
+                            modelSpace.AppendEntity(wpBr);
+                            tx.AddNewlyCreatedDBObject(wpBr, true);
+                            wpBr.Rotation = rotation;
                             wpBr.Layer = blockLayerName;
 
-                            Regex regex = new Regex(@"(?<number>^\d\d)");
-                            string currentPipelineNumber = "";
-                            if (regex.IsMatch(wp.Alignment.Name))
+                            foreach (AttributeDefinition attDef in attDefs)
                             {
-                                Match match = regex.Match(wp.Alignment.Name);
-                                currentPipelineNumber = match.Groups["number"].Value;
+                                AttributeReference atRef = new AttributeReference();
+                                atRef.SetAttributeFromBlock(attDef, wpBr.BlockTransform);
+                                atRef.Position = attDef.Position.TransformBy(wpBr.BlockTransform);
+                                atRef.TextString = attDef.getTextWithFieldCodes();
+                                wpBr.AttributeCollection.AppendAttribute(atRef);
+                                tx.AddNewlyCreatedDBObject(atRef, true);
                             }
+
                             wpBr.SetAttributeStringValue("NUMMER", currentPipelineNumber + "." + idx.ToString("D3"));
 
                             //if (idx == 1) DisplayDynBlockProperties(editor, wpBr, wpBr.Name);
