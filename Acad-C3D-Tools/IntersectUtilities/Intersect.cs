@@ -35,7 +35,7 @@ using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using DataType = Autodesk.Gis.Map.Constants.DataType;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
-using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
@@ -88,7 +88,7 @@ namespace IntersectUtilities
                     LabelBase label = tx.GetObject(alObjId, OpenMode.ForRead, false) as LabelBase;
                     #endregion
 
-                    oid fId = label.FeatureId;
+                    Oid fId = label.FeatureId;
 
                     CogoPoint p = tx.GetObject(fId, OpenMode.ForWrite) as CogoPoint;
                     PromptDoubleResult result = editor.GetDouble("\nValue to modify elevation:");
@@ -137,7 +137,7 @@ namespace IntersectUtilities
                     LabelBase label = tx.GetObject(alObjId, OpenMode.ForRead, false) as LabelBase;
                     #endregion
 
-                    oid fId = label.FeatureId;
+                    Oid fId = label.FeatureId;
                     editor.SetImpliedSelection(new[] { fId });
                 }
                 catch (System.Exception ex)
@@ -882,7 +882,7 @@ namespace IntersectUtilities
                                 foreach (Point3d p3d in p3dcol)
                                 {
                                     //Id of the new Poly3d if type == 3D
-                                    oid newPolyId;
+                                    Oid newPolyId;
 
                                     #region Assign elevation based on 3D conditions
                                     double zElevation = 0;
@@ -1153,7 +1153,7 @@ namespace IntersectUtilities
                             lt.UpgradeOpen();
 
                             //Add the new layer to layer table
-                            oid ltId = lt.Add(ltr);
+                            Oid ltId = lt.Add(ltr);
                             tx.AddNewlyCreatedDBObject(ltr, true);
 
                             //Flag that the layer exists now
@@ -1196,7 +1196,7 @@ namespace IntersectUtilities
 
                     foreach (Point3d p3d in p3dcol)
                     {
-                        oid pointId = cogoPoints.Add(p3d, true);
+                        Oid pointId = cogoPoints.Add(p3d, true);
                         CogoPoint cogoPoint = pointId.GetObject(OpenMode.ForWrite) as CogoPoint;
                         //var layer = xrefTx.GetObject(line.LayerId, OpenMode.ForRead) as SymbolTableRecord;
 
@@ -1280,8 +1280,8 @@ namespace IntersectUtilities
                     #endregion
 
                     #region ModelSpaces
-                    oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(xRefDB);
-                    oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                    Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(xRefDB);
+                    Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
                     #endregion
 
                     #region Load linework from Xref
@@ -1437,7 +1437,7 @@ namespace IntersectUtilities
                                 if (handleValue != null) flName = handleValue.StrValue;
                                 else flName = "Reading of Handle failed.";
 
-                                oid flOid = FeatureLine.Create(flName, localEntity.ObjectId);
+                                Oid flOid = FeatureLine.Create(flName, localEntity.ObjectId);
 
                                 editor.WriteMessage($"\nCreate nr. {flCounter} returned {flOid.ToString()}");
                                 doc.TransactionManager.EnableGraphicsFlush(true);
@@ -1577,7 +1577,7 @@ namespace IntersectUtilities
                                     string originalLayer = fl.Layer;
                                     string originalDescription = fl.Description;
 
-                                    oid newPolyId;
+                                    Oid newPolyId;
 
                                     //Create a bogus 3d polyline and offset it
                                     using (Transaction tx4 = localDb.TransactionManager.StartTransaction())
@@ -1608,7 +1608,7 @@ namespace IntersectUtilities
                                     //Erase original FL
                                     fl.Erase(true);
 
-                                    oid flOid = FeatureLine.Create(originalName, newPolyId);
+                                    Oid flOid = FeatureLine.Create(originalName, newPolyId);
                                     Entity ent1 = newPolyId.Go<Entity>(tx3, OpenMode.ForWrite);
                                     ent1.Erase(true);
 
@@ -1809,7 +1809,7 @@ namespace IntersectUtilities
                     LabelStyleCollection stc = civilDoc.Styles.LabelStyles
                                                        .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
 
-                    oid prStId = stc["PROFILE PROJEKTION MGO"];
+                    Oid prStId = stc["PROFILE PROJEKTION MGO"];
 
                     foreach (Entity ent in allEnts)
                     {
@@ -1818,7 +1818,7 @@ namespace IntersectUtilities
                             label.CheckOrOpenForWrite();
                             label.StyleId = prStId;
 
-                            oid fId = label.FeatureId;
+                            Oid fId = label.FeatureId;
                             Entity fEnt = fId.Go<Entity>(tx);
 
                             int diaOriginal = ReadIntPropertyValue(tables, fEnt.Id, "CrossingData", "Diameter");
@@ -1971,7 +1971,7 @@ namespace IntersectUtilities
                             lt.CheckOrOpenForWrite();
 
                             //Add the new layer to layer table
-                            oid ltId = lt.Add(ltr);
+                            Oid ltId = lt.Add(ltr);
                             txLag.AddNewlyCreatedDBObject(ltr, true);
                         }
                         txLag.Commit();
@@ -2058,14 +2058,14 @@ namespace IntersectUtilities
 
                         ObjectIdCollection brefIds = btr.GetBlockReferenceIds(true, true);
                         if (brefIds.Count == 0) throw new System.Exception($"Block {pv.Name} does not have any references!");
-                        oid brefId = brefIds[0];
+                        Oid brefId = brefIds[0];
                         BlockReference bref = brefId.Go<BlockReference>(tx);
 
                         HashSet<ProfileProjectionLabel> ppls = localDb.HashSetOfType<ProfileProjectionLabel>(tx);
 
                         foreach (ProfileProjectionLabel ppl in ppls)
                         {
-                            oid pId = ppl.FeatureId;
+                            Oid pId = ppl.FeatureId;
                             if (!pId.IsDerivedFrom<CogoPoint>()) continue;
                             CogoPoint cp = pId.Go<CogoPoint>(tx);
                             if (ReadStringPropertyValue(tables, pId, "CrossingData", "Alignment") != al.Name) continue;
@@ -2095,7 +2095,7 @@ namespace IntersectUtilities
                                 prdDbg("Creation of handle failed!");
                                 throw;
                             }
-                            oid originalId = oid.Null;
+                            Oid originalId = Oid.Null;
                             try
                             { originalId = lerDb.GetObjectId(false, hn, 0); }
                             catch (System.Exception ex)
@@ -2131,10 +2131,10 @@ namespace IntersectUtilities
                             {
                                 case "Cirkel, Bund":
                                     {
-                                        foreach (oid Oid in btr)
+                                        foreach (Oid oid in btr)
                                         {
-                                            if (!Oid.IsDerivedFrom<Circle>()) continue;
-                                            Circle tempC = Oid.Go<Circle>(tx);
+                                            if (!oid.IsDerivedFrom<Circle>()) continue;
+                                            Circle tempC = oid.Go<Circle>(tx);
                                             //prdDbg("C: " + tempC.Center.ToString());
                                             Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y + (dia / 2), 0);
                                             theoreticalLocation = theoreticalLocation.TransformBy(bref.BlockTransform.Inverse());
@@ -2151,10 +2151,10 @@ namespace IntersectUtilities
                                     break;
                                 case "Cirkel, Top":
                                     {
-                                        foreach (oid Oid in btr)
+                                        foreach (Oid oid in btr)
                                         {
-                                            if (!Oid.IsDerivedFrom<Circle>()) continue;
-                                            Circle tempC = Oid.Go<Circle>(tx);
+                                            if (!oid.IsDerivedFrom<Circle>()) continue;
+                                            Circle tempC = oid.Go<Circle>(tx);
                                             Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y - (dia / 2), 0);
                                             theoreticalLocation = theoreticalLocation.TransformBy(bref.BlockTransform.Inverse());
                                             if (tempC.Center.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
@@ -2167,10 +2167,10 @@ namespace IntersectUtilities
                                     }
                                     break;
                                 case "EL 0.4kV":
-                                    foreach (oid Oid in btr)
+                                    foreach (Oid oid in btr)
                                     {
-                                        if (!Oid.IsDerivedFrom<BlockReference>()) continue;
-                                        BlockReference tempBref = Oid.Go<BlockReference>(tx);
+                                        if (!oid.IsDerivedFrom<BlockReference>()) continue;
+                                        BlockReference tempBref = oid.Go<BlockReference>(tx);
                                         //prdDbg("C: " + tempBref.Position.ToString());
                                         BlockTableRecord tempBtr = tempBref.BlockTableRecord.Go<BlockTableRecord>(tx);
                                         Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y, 0);
@@ -2248,9 +2248,9 @@ namespace IntersectUtilities
 
                         //Update block references
                         ObjectIdCollection brs = btr.GetBlockReferenceIds(true, true);
-                        foreach (oid Oid in brs)
+                        foreach (Oid oid in brs)
                         {
-                            BlockReference br = Oid.Go<BlockReference>(tx, OpenMode.ForWrite);
+                            BlockReference br = oid.Go<BlockReference>(tx, OpenMode.ForWrite);
                             br.RecordGraphicsModified(true);
                         }
                     }
@@ -2357,11 +2357,11 @@ namespace IntersectUtilities
 
                         ObjectIdCollection lIds = pv.GetProfileViewLabelIds();
 
-                        foreach (oid lId in lIds)
+                        foreach (Oid lId in lIds)
                         {
                             Label label = lId.Go<Label>(tx);
 
-                            oid fId = label.FeatureId;
+                            Oid fId = label.FeatureId;
                             Entity fEnt = fId.Go<Entity>(tx);
 
                             int diaOriginal = ReadIntPropertyValue(tables, fId, "CrossingData", "Diameter");
@@ -2737,7 +2737,7 @@ namespace IntersectUtilities
                                     lt.CheckOrOpenForWrite();
 
                                     //Add the new layer to layer table
-                                    oid ltId = lt.Add(ltr);
+                                    Oid ltId = lt.Add(ltr);
                                     tx.AddNewlyCreatedDBObject(ltr, true);
 
                                     lt.DowngradeOpen();
@@ -2866,7 +2866,7 @@ namespace IntersectUtilities
                                 lt.CheckOrOpenForWrite();
 
                                 //Add the new layer to layer table
-                                oid ltId = lt.Add(ltr);
+                                Oid ltId = lt.Add(ltr);
                                 tx.AddNewlyCreatedDBObject(ltr, true);
 
                                 lt.DowngradeOpen();
@@ -3211,7 +3211,7 @@ namespace IntersectUtilities
                         // Now create a Handle from the long integer
                         Handle hn = new Handle(ln);
                         // And attempt to get an ObjectId for the Handle
-                        oid id = localDb.GetObjectId(false, hn, 0);
+                        Oid id = localDb.GetObjectId(false, hn, 0);
                         // Finally let's open the object and erase it
                         editor.SetImpliedSelection(new[] { id });
 
@@ -3308,7 +3308,7 @@ namespace IntersectUtilities
 
                     Plane plane = new Plane();
 
-                    List<oid> sourceIds = new List<oid>();
+                    List<Oid> sourceIds = new List<Oid>();
 
                     foreach (Alignment al in als)
                     {
@@ -3665,8 +3665,8 @@ namespace IntersectUtilities
                             foreach (Polyline3d pline3dWithMissingNodes in linesWithMissingBothNodes)
                             {
                                 //Create 3d polies at both ends to intersect later
-                                oid startPolyId;
-                                oid endPolyId;
+                                Oid startPolyId;
+                                Oid endPolyId;
 
                                 var vertices1 = pline3dWithMissingNodes.GetVertices(tx2);
                                 int endIdx = vertices1.Length - 1;
@@ -4086,7 +4086,7 @@ namespace IntersectUtilities
                             if (pPtRes.Status != PromptStatus.OK) return;
                             #endregion
 
-                            oid newPolyId;
+                            Oid newPolyId;
 
                             using (Transaction txp3d = localDb.TransactionManager.StartTransaction())
                             {
@@ -4116,7 +4116,7 @@ namespace IntersectUtilities
                             promptEntityOptions3.AddAllowedClass(typeof(Polyline3d), true);
                             PromptEntityResult entity3 = editor.GetEntity(promptEntityOptions3);
                             if (((PromptResult)entity3).Status != PromptStatus.OK) return;
-                            oid pline3dToGetElevationsId = entity3.ObjectId;
+                            Oid pline3dToGetElevationsId = entity3.ObjectId;
                             #endregion
 
                             using (Transaction txOther = localDb.TransactionManager.StartTransaction())
@@ -4379,7 +4379,7 @@ namespace IntersectUtilities
                             lt.UpgradeOpen();
 
                             //Add the new layer to layer table
-                            oid ltId = lt.Add(ltr);
+                            Oid ltId = lt.Add(ltr);
                             tx.AddNewlyCreatedDBObject(ltr, true);
 
                             //Flag that the layer exists now
@@ -4617,7 +4617,7 @@ namespace IntersectUtilities
                             lt.UpgradeOpen();
 
                             //Add the new layer to layer table
-                            oid ltId = lt.Add(ltr);
+                            Oid ltId = lt.Add(ltr);
                             tx.AddNewlyCreatedDBObject(ltr, true);
 
                             //Flag that the layer exists now
@@ -4793,8 +4793,8 @@ namespace IntersectUtilities
                                                         .ToHashSet();
 
                                 #region ModelSpaces
-                                oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(xRefLerDb);
-                                oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                                Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(xRefLerDb);
+                                Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
 
                                 ObjectIdCollection remoteP3dIds = new ObjectIdCollection();
                                 foreach (Polyline3d p3d in remoteLinework) remoteP3dIds.Add(p3d.ObjectId);
@@ -4811,9 +4811,9 @@ namespace IntersectUtilities
 
                                 #region Create profile views
 
-                                oid profileViewBandSetStyleId = civilDoc.Styles
+                                Oid profileViewBandSetStyleId = civilDoc.Styles
                                         .ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
-                                oid profileViewStyleId = civilDoc.Styles
+                                Oid profileViewStyleId = civilDoc.Styles
                                     .ProfileViewStyles["PROFILE VIEW L TO R NO SCALE"];
 
                                 //Used to keep track of point names
@@ -4844,14 +4844,14 @@ namespace IntersectUtilities
                                 foreach (Alignment alignment in allAlignments)
                                 {
                                     //Profile view Id init
-                                    oid pvId = oid.Null;
+                                    Oid pvId = Oid.Null;
 
                                     editor.WriteMessage($"\n_-*-_ | Processing alignment {alignment.Name}. | _-*-_");
                                     System.Windows.Forms.Application.DoEvents();
 
                                     #region Delete existing points
                                     //TODO: what to do about if the group already exists???
-                                    oid pgId = oid.Null;
+                                    Oid pgId = Oid.Null;
                                     if (pgs.Contains(alignment.Name))
                                     {
                                         pgId = pgs[alignment.Name];
@@ -5016,7 +5016,7 @@ namespace IntersectUtilities
                             lt.CheckOrOpenForWrite();
 
                             //Add the new layer to layer table
-                            oid ltId = lt.Add(ltr);
+                            Oid ltId = lt.Add(ltr);
                             txLag.AddNewlyCreatedDBObject(ltr, true);
                         }
                         txLag.Commit();
@@ -5039,8 +5039,8 @@ namespace IntersectUtilities
                             System.IO.FileShare.Read, false, string.Empty);
                         Transaction blockTx = blockDb.TransactionManager.StartTransaction();
 
-                        oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
-                        oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
 
                         BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                         ObjectIdCollection idsToClone = new ObjectIdCollection();
@@ -5090,9 +5090,9 @@ namespace IntersectUtilities
                         ObjectIdCollection profileViewIds = al.GetProfileViewIds();
 
                         ProfileView pv = null;
-                        foreach (oid Oid in profileViewIds)
+                        foreach (Oid oid in profileViewIds)
                         {
-                            ProfileView pTemp = Oid.Go<ProfileView>(tx);
+                            ProfileView pTemp = oid.Go<ProfileView>(tx);
                             if (pTemp.Name == $"{al.Name}_PV") pv = pTemp;
                         }
                         if (pv == null)
@@ -5102,9 +5102,9 @@ namespace IntersectUtilities
                         }
 
                         Profile surfaceProfile = null;
-                        foreach (oid Oid in profileIds)
+                        foreach (Oid oid in profileIds)
                         {
-                            Profile pTemp = Oid.Go<Profile>(tx);
+                            Profile pTemp = oid.Go<Profile>(tx);
                             if (pTemp.Name == $"{al.Name}_surface_P") surfaceProfile = pTemp;
                         }
                         if (surfaceProfile == null)
@@ -5641,8 +5641,8 @@ namespace IntersectUtilities
                             System.IO.FileShare.Read, false, string.Empty);
                         Transaction blockTx = blockDb.TransactionManager.StartTransaction();
 
-                        oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
-                        oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
 
                         BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                         ObjectIdCollection idsToClone = new ObjectIdCollection();
@@ -5777,10 +5777,10 @@ namespace IntersectUtilities
                         foreach (BlockReference br in brs)
                         {
                             BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
-                            foreach (oid Oid in btr)
+                            foreach (Oid oid in btr)
                             {
-                                if (!Oid.IsDerivedFrom<BlockReference>()) continue;
-                                BlockReference nestedBr = Oid.Go<BlockReference>(tx);
+                                if (!oid.IsDerivedFrom<BlockReference>()) continue;
+                                BlockReference nestedBr = oid.Go<BlockReference>(tx);
                                 if (!nestedBr.Name.Contains("MuffeIntern")) continue;
                                 Point3d wPt = nestedBr.Position;
                                 wPt = wPt.TransformBy(br.BlockTransform);
@@ -5850,10 +5850,10 @@ namespace IntersectUtilities
                     modelSpace.CheckOrOpenForWrite();
                     //Prepare block table record
                     if (!bt.Has(blockName)) throw new System.Exception("Block for weld points is missing!");
-                    oid btrId = bt[blockName];
+                    Oid btrId = bt[blockName];
                     BlockTableRecord btrWp = btrId.Go<BlockTableRecord>(tx);
                     List<AttributeDefinition> attDefs = new List<AttributeDefinition>();
-                    foreach (oid arOid in btrWp)
+                    foreach (Oid arOid in btrWp)
                     {
                         if (!arOid.IsDerivedFrom<AttributeDefinition>()) continue;
                         AttributeDefinition at = arOid.Go<AttributeDefinition>(tx);
@@ -6001,9 +6001,12 @@ namespace IntersectUtilities
                             //If not --> continue
                             Point3d endPoint = curve.GetPointAtParameter(curve.EndParam);
                             var distsToEndPoint = CreateDistTuples(endPoint, brs).OrderBy(x => x.dist);
-                            var nearestBlock = distsToEndPoint.FirstOrDefault().ent as BlockReference;
+                            var first = distsToEndPoint.First();
+                            var nearestBlock = first.ent as BlockReference;
                             if (nearestBlock.RealName() != "RED KDLR" &&
-                                nearestBlock.RealName() != "RED KDLR x2")
+                                nearestBlock.RealName() != "RED KDLR x2" &&
+                                //Limit the distance or buerør will give false true
+                                first.dist > 2)
                                 continue;
 
                             double pipeStdLegnth = GetPipeStdLength(curve);
@@ -6012,6 +6015,7 @@ namespace IntersectUtilities
                             int nrOfSections = (int)division;
                             double modulo = division - nrOfSections;
                             double remainder = modulo * pipeStdLegnth;
+                            double missingLength = pipeStdLegnth - remainder;
 
                             if (remainder > 1e-3 &&
                                 pipeStdLegnth - remainder > 1e-3)
@@ -6023,6 +6027,13 @@ namespace IntersectUtilities
                                 line.AddEntityToDbModelSpace(localDb);
 
                                 prdDbg($"Remainder: " + $"{remainder}");
+
+                                double transitionLength = 0;
+                                BlockTableRecord btr = nearestBlock.BlockTableRecord.Go<BlockTableRecord>(tx);
+                                foreach (Oid oid in btr)
+                                {
+
+                                }
                             }
                             
                         }
@@ -6114,7 +6125,7 @@ namespace IntersectUtilities
                             lt.CheckOrOpenForWrite();
 
                             //Add the new layer to layer table
-                            oid ltId = lt.Add(ltr);
+                            Oid ltId = lt.Add(ltr);
                             txLag.AddNewlyCreatedDBObject(ltr, true);
                         }
                         txLag.Commit();
@@ -6875,7 +6886,7 @@ namespace IntersectUtilities
                 }
                 else
                 {
-                    oid pgId = civilDoc.PointGroups.Add(alignment.Name);
+                    Oid pgId = civilDoc.PointGroups.Add(alignment.Name);
 
                     pg = pgId.GetObject(OpenMode.ForWrite) as PointGroup;
                 }
@@ -6982,13 +6993,13 @@ namespace IntersectUtilities
 
                         foreach (Point3d p3d in p3dcol)
                         {
-                            oid pointId = cogoPoints.Add(p3d, true);
+                            Oid pointId = cogoPoints.Add(p3d, true);
                             CogoPoint cogoPoint = pointId.Go<CogoPoint>(tx, OpenMode.ForWrite);
                             cogoPoint.StyleId = civilDoc.Styles.PointStyles["PIL"];
                             cogoPoint.LabelStyleId = civilDoc.Styles.LabelStyles.PointLabelStyles.LabelStyles["_No labels"];
 
                             //Id of the new Poly3d if type == 3D
-                            oid newPolyId;
+                            Oid newPolyId;
 
                             #region Assign elevation based on 3D conditions
                             double zElevation = 0;
@@ -7082,7 +7093,7 @@ namespace IntersectUtilities
                                         lt.UpgradeOpen();
 
                                         //Add the new layer to layer table
-                                        oid ltId = lt.Add(ltr);
+                                        Oid ltId = lt.Add(ltr);
                                         tx.AddNewlyCreatedDBObject(ltr, true);
 
                                         //Flag that the layer exists now
@@ -7366,7 +7377,7 @@ namespace IntersectUtilities
                     promptEntityOptions3.AddAllowedClass(typeof(GridSurface), true);
                     PromptEntityResult entity3 = editor.GetEntity(promptEntityOptions3);
                     if (((PromptResult)entity3).Status != PromptStatus.OK) return;
-                    oid surfaceObjId = entity3.ObjectId;
+                    Oid surfaceObjId = entity3.ObjectId;
                     CivSurface surface = surfaceObjId.GetObject(OpenMode.ForRead, false) as CivSurface;
                     #endregion
 
@@ -7374,13 +7385,13 @@ namespace IntersectUtilities
 
                     LayerTable lt = db.LayerTableId.GetObject(OpenMode.ForRead) as LayerTable;
                     string terrainLayerName = "0_TERRAIN_PROFILE";
-                    oid terrainLayerId = oid.Null;
-                    foreach (oid id in lt)
+                    Oid terrainLayerId = Oid.Null;
+                    foreach (Oid id in lt)
                     {
                         LayerTableRecord ltr = id.GetObject(OpenMode.ForRead) as LayerTableRecord;
                         if (ltr.Name == terrainLayerName) terrainLayerId = ltr.Id;
                     }
-                    if (terrainLayerId == oid.Null)
+                    if (terrainLayerId == Oid.Null)
                     {
                         editor.WriteMessage("Terrain layer missing!");
                         return;
@@ -7389,12 +7400,12 @@ namespace IntersectUtilities
                     #endregion
 
                     #region ProfileView styles ids
-                    oid profileStyleId = civilDoc.Styles.ProfileStyles["Terræn"];
-                    oid profileLabelSetStyleId = civilDoc.Styles.LabelSetStyles.ProfileLabelSetStyles["_No Labels"];
+                    Oid profileStyleId = civilDoc.Styles.ProfileStyles["Terræn"];
+                    Oid profileLabelSetStyleId = civilDoc.Styles.LabelSetStyles.ProfileLabelSetStyles["_No Labels"];
 
-                    oid profileViewBandSetStyleId = civilDoc.Styles
+                    Oid profileViewBandSetStyleId = civilDoc.Styles
                             .ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
-                    oid profileViewStyleId = civilDoc.Styles
+                    Oid profileViewStyleId = civilDoc.Styles
                         .ProfileViewStyles["PROFILE VIEW L TO R NO SCALE"];
                     #endregion
 
@@ -7419,11 +7430,11 @@ namespace IntersectUtilities
                         //If ProfileView already exists -> continue
                         if (pvSetExisting.Any(x => x.Name == $"{alignment.Name}_PV")) continue;
 
-                        oid surfaceProfileId = oid.Null;
+                        Oid surfaceProfileId = Oid.Null;
                         string profileName = $"{alignment.Name}_surface_P";
                         bool noProfileExists = true;
                         ObjectIdCollection pIds = alignment.GetProfileIds();
-                        foreach (oid pId in pIds)
+                        foreach (Oid pId in pIds)
                         {
                             Profile p = pId.Go<Profile>(tx);
                             if (p.Name == profileName)
@@ -7546,7 +7557,7 @@ namespace IntersectUtilities
 
                     LayerTable lt = db.LayerTableId.GetObject(OpenMode.ForRead) as LayerTable;
                     string terrainLayerName = "0_TERRAIN_PROFILE";
-                    oid terrainLayerId = oid.Null;
+                    Oid terrainLayerId = Oid.Null;
                     if (!lt.Has(terrainLayerName))
                     {
                         LayerTableRecord ltr = new LayerTableRecord();
@@ -7558,7 +7569,7 @@ namespace IntersectUtilities
                     }
                     else terrainLayerId = lt[terrainLayerName];
 
-                    if (terrainLayerId == oid.Null)
+                    if (terrainLayerId == Oid.Null)
                     {
                         editor.WriteMessage("Terrain layer missing!");
                         throw new System.Exception("Terrain layer missing!");
@@ -7566,16 +7577,16 @@ namespace IntersectUtilities
 
                     #endregion
 
-                    oid profileStyleId = civilDoc.Styles.ProfileStyles["Terræn"];
-                    oid profileLabelSetStyleId = civilDoc.Styles.LabelSetStyles.ProfileLabelSetStyles["_No Labels"];
+                    Oid profileStyleId = civilDoc.Styles.ProfileStyles["Terræn"];
+                    Oid profileLabelSetStyleId = civilDoc.Styles.LabelSetStyles.ProfileLabelSetStyles["_No Labels"];
 
                     foreach (Alignment alignment in allAlignments)
                     {
-                        oid surfaceProfileId = oid.Null;
+                        Oid surfaceProfileId = Oid.Null;
                         string profileName = $"{alignment.Name}_surface_P";
                         bool noProfileExists = true;
                         ObjectIdCollection pIds = alignment.GetProfileIds();
-                        foreach (oid pId in pIds)
+                        foreach (Oid pId in pIds)
                         {
                             Profile p = pId.Go<Profile>(tx);
                             if (p.Name == profileName)
@@ -7737,7 +7748,7 @@ namespace IntersectUtilities
 
                     #region CogoPoint style and label reference
 
-                    oid cogoPointStyle = civilDoc.Styles.PointStyles["LER KRYDS"];
+                    Oid cogoPointStyle = civilDoc.Styles.PointStyles["LER KRYDS"];
 
 
                     #endregion
@@ -7747,7 +7758,7 @@ namespace IntersectUtilities
                         #region Create ler data
                         #region ModelSpaces
                         //oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(xRefDB);
-                        oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
                         #endregion
 
                         #region Clone remote objects to local dwg
@@ -7817,7 +7828,7 @@ namespace IntersectUtilities
                         }
                         else
                         {
-                            oid pgId = civilDoc.PointGroups.Add(alignment.Name);
+                            Oid pgId = civilDoc.PointGroups.Add(alignment.Name);
 
                             pg = pgId.GetObject(OpenMode.ForWrite) as PointGroup;
                         }
@@ -7925,11 +7936,11 @@ namespace IntersectUtilities
                                 int count = 1;
                                 foreach (Point3d p3d in p3dcol)
                                 {
-                                    oid pointId = cogoPoints.Add(p3d, true);
+                                    Oid pointId = cogoPoints.Add(p3d, true);
                                     CogoPoint cogoPoint = pointId.Go<CogoPoint>(tx, OpenMode.ForWrite);
 
                                     //Id of the new Poly3d if type == 3D
-                                    oid newPolyId;
+                                    Oid newPolyId;
 
                                     #region Assign elevation based on 3D conditions
                                     double zElevation = 0;
@@ -8017,7 +8028,7 @@ namespace IntersectUtilities
                                                 lt.UpgradeOpen();
 
                                                 //Add the new layer to layer table
-                                                oid ltId = lt.Add(ltr);
+                                                Oid ltId = lt.Add(ltr);
                                                 tx.AddNewlyCreatedDBObject(ltr, true);
 
                                                 //Flag that the layer exists now
@@ -8142,9 +8153,9 @@ namespace IntersectUtilities
                         #region Manage PVs
                         ObjectIdCollection pIds = alignment.GetProfileIds();
                         Profile p = null;
-                        foreach (oid Oid in pIds)
+                        foreach (Oid oid in pIds)
                         {
-                            Profile pt = Oid.Go<Profile>(tx);
+                            Profile pt = oid.Go<Profile>(tx);
                             if (pt.Name == $"{alignment.Name}_surface_P") p = pt;
                         }
                         if (p == null)
@@ -8320,11 +8331,11 @@ namespace IntersectUtilities
                     //BlockTable bt = xRefFremtidTx.GetObject(xRefFremtidDB.BlockTableId, OpenMode.ForRead) as BlockTable;
                     //BlockTableRecord btr = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
                     //    as BlockTableRecord;
-                    //foreach (oid Oid in btr)
+                    //foreach (oid oid in btr)
                     //{
-                    //    if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                    //    if (oid.ObjectClass.Name == "AcDbBlockReference")
                     //    {
-                    //        BlockReference br = Oid.Go<BlockReference>(tx);
+                    //        BlockReference br = oid.Go<BlockReference>(tx);
                     //        if (!allExistingNames.Contains(br.Name))
                     //        {
                     //            editor.WriteMessage($"\n{br.Name}");
@@ -8379,11 +8390,11 @@ namespace IntersectUtilities
                     BlockTableRecord btr = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
                         as BlockTableRecord;
 
-                    foreach (oid Oid in btr)
+                    foreach (Oid oid in btr)
                     {
-                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        if (oid.ObjectClass.Name == "AcDbBlockReference")
                         {
-                            BlockReference br = Oid.Go<BlockReference>(tx);
+                            BlockReference br = oid.Go<BlockReference>(tx);
 
                             if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) != null &&
                                 ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Type", 0) == "Reduktion")
@@ -8428,14 +8439,14 @@ namespace IntersectUtilities
                 {
                     acSSet = acSSPrompt.Value;
                     var Ids = acSSet.GetObjectIds();
-                    foreach (oid Oid in Ids)
+                    foreach (Oid oid in Ids)
                     {
-                        if (Oid.ObjectClass.Name != "AcDbBlockReference") continue;
+                        if (oid.ObjectClass.Name != "AcDbBlockReference") continue;
                         using (Transaction tx = localDb.TransactionManager.StartTransaction())
                         {
                             try
                             {
-                                BlockReference br = Oid.Go<BlockReference>(tx, OpenMode.ForWrite);
+                                BlockReference br = oid.Go<BlockReference>(tx, OpenMode.ForWrite);
                                 br.Rotation = br.Rotation + 3.14159;
 
                             }
@@ -8493,11 +8504,11 @@ namespace IntersectUtilities
 
                     //sb.AppendLine("Navn;");
 
-                    foreach (oid Oid in btr)
+                    foreach (Oid oid in btr)
                     {
-                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        if (oid.ObjectClass.Name == "AcDbBlockReference")
                         {
-                            BlockReference br = Oid.Go<BlockReference>(tx);
+                            BlockReference br = oid.Go<BlockReference>(tx);
                             //if (!dbNames.Contains(br.Name))
                             //{
                             //    allNamesNotInDb.Add(br.Name);
@@ -8561,11 +8572,11 @@ namespace IntersectUtilities
                     //    dbNames.Add(row.ItemArray[0].ToString());
                     //}
 
-                    foreach (oid Oid in btr)
+                    foreach (Oid oid in btr)
                     {
-                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        if (oid.ObjectClass.Name == "AcDbBlockReference")
                         {
-                            BlockReference br = Oid.Go<BlockReference>(tx);
+                            BlockReference br = oid.Go<BlockReference>(tx);
                             //if (!dbNames.Contains(br.Name))
                             //{
                             //    allNamesNotInDb.Add(br.Name);
@@ -8631,11 +8642,11 @@ namespace IntersectUtilities
                         as BlockTableRecord;
                     HashSet<string> allNamesNotInDb = new HashSet<string>();
 
-                    foreach (oid Oid in btr)
+                    foreach (Oid oid in btr)
                     {
-                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        if (oid.ObjectClass.Name == "AcDbBlockReference")
                         {
-                            BlockReference br = Oid.Go<BlockReference>(tx);
+                            BlockReference br = oid.Go<BlockReference>(tx);
 
                             if (br.Name.StartsWith("*") || br.IsDynamicBlock)
                             {
@@ -8695,11 +8706,11 @@ namespace IntersectUtilities
                     {
                         acSSet = acSSPrompt.Value;
                         var Ids = acSSet.GetObjectIds();
-                        foreach (oid Oid in Ids)
+                        foreach (Oid oid in Ids)
                         {
-                            if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                            if (oid.ObjectClass.Name == "AcDbBlockReference")
                             {
-                                BlockReference br = Oid.Go<BlockReference>(tx);
+                                BlockReference br = oid.Go<BlockReference>(tx);
 
                                 prdDbg(br.Name);
 
@@ -8756,7 +8767,7 @@ namespace IntersectUtilities
                                 //Make layertable writable
                                 lt.UpgradeOpen();
                                 //Add the new layer to layer table
-                                oid ltId = lt.Add(ltr);
+                                Oid ltId = lt.Add(ltr);
                                 tx.AddNewlyCreatedDBObject(ltr, true);
                             }
                             catch (System.Exception)
@@ -8768,11 +8779,11 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    foreach (oid Oid in btr)
+                    foreach (Oid oid in btr)
                     {
-                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        if (oid.ObjectClass.Name == "AcDbBlockReference")
                         {
-                            BlockReference br = Oid.Go<BlockReference>(tx);
+                            BlockReference br = oid.Go<BlockReference>(tx);
                             if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) != null)
                             {
                                 HashSet<(BlockReference block, double dist, string layName)> alDistTuples = new HashSet<(BlockReference, double, string)>();
@@ -8796,7 +8807,7 @@ namespace IntersectUtilities
                                     br.CheckOrOpenForWrite();
                                     br.Layer = result.layName;
                                     AttributeCollection atts = br.AttributeCollection;
-                                    foreach (oid attOid in atts)
+                                    foreach (Oid attOid in atts)
                                     {
                                         AttributeReference att = attOid.Go<AttributeReference>(tx, OpenMode.ForWrite);
                                         if (att.Tag == "Delstrækning")
@@ -9153,14 +9164,14 @@ namespace IntersectUtilities
                     {
                         if (ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Navn", 0) != null)
                         {
-                            oid extId = br.ExtensionDictionary;
-                            if (extId == oid.Null)
+                            Oid extId = br.ExtensionDictionary;
+                            if (extId == Oid.Null)
                             {
                                 ErrorLine(br.Position);
                                 continue;
                             }
                             DBDictionary dbExt = extId.Go<DBDictionary>(tx);
-                            oid xrecId = oid.Null;
+                            Oid xrecId = Oid.Null;
                             try { xrecId = dbExt.GetAt(xRecordName); }
                             catch (Autodesk.AutoCAD.Runtime.Exception) { ErrorLine(br.Position); }
                         }
@@ -9180,14 +9191,14 @@ namespace IntersectUtilities
                             curve.Layer.Contains("RETUR") ||
                             curve.Layer.Contains("TWIN"))) continue;
 
-                        oid extId = curve.ExtensionDictionary;
-                        if (extId == oid.Null)
+                        Oid extId = curve.ExtensionDictionary;
+                        if (extId == Oid.Null)
                         {
                             ErrorLine(curve.GetPointAtParameter(curve.EndParam / 2));
                             continue;
                         }
                         DBDictionary dbExt = extId.Go<DBDictionary>(tx);
-                        oid xrecId = oid.Null;
+                        Oid xrecId = Oid.Null;
                         try { xrecId = dbExt.GetAt(xRecordName); }
                         catch (Autodesk.AutoCAD.Runtime.Exception) { ErrorLine(curve.GetPointAtParameter(curve.EndParam / 2)); }
                     }
@@ -9216,7 +9227,7 @@ namespace IntersectUtilities
             promptEntityOptions1.SetRejectMessage("\n Not an entity!");
             PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
             if (((PromptResult)entity1).Status != PromptStatus.OK) { return; }
-            oid sourceId = entity1.ObjectId;
+            Oid sourceId = entity1.ObjectId;
             if (!sourceId.IsDerivedFrom<Autodesk.AutoCAD.DatabaseServices.DBObject>())
             {
                 prdDbg("Selected object is not derived from <DBObject>!");
@@ -9229,15 +9240,15 @@ namespace IntersectUtilities
                 {
                     Entity ent = sourceId.Go<Entity>(tx);
                     prdDbg($"Handle: {ent.Handle}");
-                    oid extId = ent.ExtensionDictionary;
-                    if (extId == oid.Null) throw new System.Exception("No extension dictionary found!");
+                    Oid extId = ent.ExtensionDictionary;
+                    if (extId == Oid.Null) throw new System.Exception("No extension dictionary found!");
                     DBDictionary dbExt = extId.Go<DBDictionary>(tx);
                     string[] keys = new string[dbExt.Count];
                     ((IDictionary)dbExt).Keys.CopyTo(keys, 0);
                     for (int i = 0; i < keys.Length; i++)
                     {
                         prdDbg($"Key: {keys[i]}");
-                        oid valId = dbExt.GetAt(keys[i]);
+                        Oid valId = dbExt.GetAt(keys[i]);
                         if (!valId.IsDerivedFrom<Xrecord>()) continue;
                         Xrecord xrec = valId.Go<Xrecord>(tx);
                         TypedValue[] data = xrec.Data.AsArray();
@@ -9271,7 +9282,7 @@ namespace IntersectUtilities
             promptEntityOptions1.SetRejectMessage("\n Not an entity!");
             PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
             if (((PromptResult)entity1).Status != PromptStatus.OK) { return; }
-            oid sourceId = entity1.ObjectId;
+            Oid sourceId = entity1.ObjectId;
             if (!sourceId.IsDerivedFrom<Autodesk.AutoCAD.DatabaseServices.DBObject>())
             {
                 prdDbg("Selected object is not derived from <DBObject>!");
@@ -9331,11 +9342,11 @@ namespace IntersectUtilities
                     BlockTableRecord btrMs = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
                         as BlockTableRecord;
 
-                    foreach (oid Oid in btrMs)
+                    foreach (Oid oid in btrMs)
                     {
-                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        if (oid.ObjectClass.Name == "AcDbBlockReference")
                         {
-                            BlockReference br = Oid.Go<BlockReference>(tx, OpenMode.ForRead);
+                            BlockReference br = oid.Go<BlockReference>(tx, OpenMode.ForRead);
                             if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) != null)
                             {
                                 AttributeCollection aCol = br.AttributeCollection;
@@ -9347,7 +9358,7 @@ namespace IntersectUtilities
                                 {
                                     bool attExists = false;
 
-                                    foreach (oid attOid in aCol)
+                                    foreach (Oid attOid in aCol)
                                     {
                                         AttributeReference att = attOid.Go<AttributeReference>(tx, OpenMode.ForWrite);
                                         if (att.Tag == attName) attExists = true;
@@ -9376,7 +9387,7 @@ namespace IntersectUtilities
                         btr.AppendEntity(attDef);
                         tr.AddNewlyCreatedDBObject(attDef, true);
 
-                        foreach (oid brOid in brefIds)
+                        foreach (Oid brOid in brefIds)
                         {
                             AttributeReference attRef = new AttributeReference();
                             attRef.SetDatabaseDefaults(db);
@@ -9422,11 +9433,11 @@ namespace IntersectUtilities
                     BlockTableRecord btrMs = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
                         as BlockTableRecord;
 
-                    foreach (oid Oid in btrMs)
+                    foreach (Oid oid in btrMs)
                     {
-                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        if (oid.ObjectClass.Name == "AcDbBlockReference")
                         {
-                            BlockReference br = Oid.Go<BlockReference>(tx, OpenMode.ForRead);
+                            BlockReference br = oid.Go<BlockReference>(tx, OpenMode.ForRead);
                             if (ReadStringParameterFromDataTable(br.Name, fjvKomponenter, "Navn", 0) != null)
                             {
                                 editor.Command("_.attsync", "n ", br.Name);
@@ -9465,11 +9476,11 @@ namespace IntersectUtilities
                     BlockTableRecord btrMs = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
                         as BlockTableRecord;
 
-                    foreach (oid Oid in btrMs)
+                    foreach (Oid oid in btrMs)
                     {
-                        if (Oid.ObjectClass.Name == "AcDbBlockReference")
+                        if (oid.ObjectClass.Name == "AcDbBlockReference")
                         {
-                            BlockReference blkRef = Oid.Go<BlockReference>(tx, OpenMode.ForRead);
+                            BlockReference blkRef = oid.Go<BlockReference>(tx, OpenMode.ForRead);
                             AttributeCollection aCol = blkRef.AttributeCollection;
                             if (aCol.Count < 1)
                             {
@@ -9521,9 +9532,9 @@ namespace IntersectUtilities
                     {
                         acSSet = acSSPrompt.Value;
                         var Ids = acSSet.GetObjectIds();
-                        foreach (oid Oid in Ids)
+                        foreach (Oid oid in Ids)
                         {
-                            Entity ent = Oid.Go<Entity>(tx, OpenMode.ForWrite);
+                            Entity ent = oid.Go<Entity>(tx, OpenMode.ForWrite);
                             ent.Layer = "0-Komponent";
                         }
                     }
@@ -9568,8 +9579,8 @@ namespace IntersectUtilities
                     LabelStyleCollection stc = civilDoc.Styles.LabelStyles
                                                                    .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
 
-                    oid profileProjection_RIGHT_Style = oid.Null;
-                    oid profileProjection_LEFT_Style = oid.Null;
+                    Oid profileProjection_RIGHT_Style = Oid.Null;
+                    Oid profileProjection_LEFT_Style = Oid.Null;
 
                     try
                     {
@@ -9644,7 +9655,7 @@ namespace IntersectUtilities
 
                         double secondAnchorDimensionInMeters = (locationDelta + firstAnchorDimensionInMeters + 0.75) / 250;
 
-                        oid styleId = dirRight ? profileProjection_RIGHT_Style : profileProjection_LEFT_Style;
+                        Oid styleId = dirRight ? profileProjection_RIGHT_Style : profileProjection_LEFT_Style;
 
                         //Handle first label
                         if (i == 0)
@@ -9825,8 +9836,8 @@ namespace IntersectUtilities
 
                         try
                         {
-                            oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(stylesDB);
-                            oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                            Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(stylesDB);
+                            Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
 
                             ObjectIdCollection idsToClone = new ObjectIdCollection();
 
@@ -9879,7 +9890,7 @@ namespace IntersectUtilities
                     #region Stylize Profile Views
                     HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
 
-                    oid pvStyleId = oid.Null;
+                    Oid pvStyleId = Oid.Null;
                     try
                     {
                         pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R 1:250:100"];
@@ -9905,31 +9916,31 @@ namespace IntersectUtilities
                         pv.CheckOrOpenForWrite();
                         pv.StyleId = pvStyleId;
 
-                        oid alId = pv.AlignmentId;
+                        Oid alId = pv.AlignmentId;
                         Alignment al = alId.Go<Alignment>(tx);
 
                         ObjectIdCollection psIds = al.GetProfileIds();
                         HashSet<Profile> ps = new HashSet<Profile>();
-                        foreach (oid Oid in psIds) ps.Add(Oid.Go<Profile>(tx));
+                        foreach (Oid oid in psIds) ps.Add(oid.Go<Profile>(tx));
 
                         Profile surfaceProfile = ps.Where(x => x.Name.Contains("surface")).FirstOrDefault();
-                        oid surfaceProfileId = oid.Null;
+                        Oid surfaceProfileId = Oid.Null;
                         if (surfaceProfile != null) surfaceProfileId = surfaceProfile.ObjectId;
                         else ed.WriteMessage("\nSurface profile not found!");
 
                         Profile topProfile = ps.Where(x => x.Name.Contains("TOP")).FirstOrDefault();
-                        oid topProfileId = oid.Null;
+                        Oid topProfileId = Oid.Null;
                         if (topProfile != null) topProfileId = topProfile.ObjectId;
                         else ed.WriteMessage("\nTop profile not found!");
 
                         //this doesn't quite work
-                        oid pvbsId = civilDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
+                        Oid pvbsId = civilDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
                         ProfileViewBandSet pvbs = pv.Bands;
                         pvbs.ImportBandSetStyle(pvbsId);
 
                         //try this
-                        oid pvBSId1 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"];
-                        oid pvBSId2 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"];
+                        Oid pvBSId1 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"];
+                        Oid pvBSId2 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"];
                         ProfileViewBandItemCollection pvic = new ProfileViewBandItemCollection(pv.Id, BandLocationType.Bottom);
                         pvic.Add(pvBSId1);
                         pvic.Add(pvBSId2);
@@ -9941,8 +9952,8 @@ namespace IntersectUtilities
                             ProfileViewBandItem pvbi = pbic[i];
                             if (i == 0) pvbi.Gap = 0;
                             else if (i == 1) pvbi.Gap = 0.016;
-                            if (surfaceProfileId != oid.Null) pvbi.Profile1Id = surfaceProfileId;
-                            if (topProfileId != oid.Null) pvbi.Profile2Id = topProfileId;
+                            if (surfaceProfileId != Oid.Null) pvbi.Profile1Id = surfaceProfileId;
+                            if (topProfileId != Oid.Null) pvbi.Profile2Id = topProfileId;
                             pvbi.LabelAtStartStation = true;
                             pvbi.LabelAtEndStation = true;
                         }
@@ -9955,9 +9966,9 @@ namespace IntersectUtilities
                                 as BlockTableRecord;
                             ObjectIdCollection brefIds = btr.GetBlockReferenceIds(false, true);
 
-                            foreach (oid Oid in brefIds)
+                            foreach (Oid oid in brefIds)
                             {
-                                BlockReference bref = Oid.Go<BlockReference>(tx, OpenMode.ForWrite);
+                                BlockReference bref = oid.Go<BlockReference>(tx, OpenMode.ForWrite);
                                 bref.ScaleFactors = new Scale3d(1, 2.5, 1);
                             }
 
@@ -9967,7 +9978,7 @@ namespace IntersectUtilities
                     #endregion
 
                     #region ProfileStyles
-                    oid pPipeStyleId = oid.Null;
+                    Oid pPipeStyleId = Oid.Null;
                     try
                     {
                         pPipeStyleId = civilDoc.Styles.ProfileStyles["PROFIL STYLE MGO"];
@@ -9979,7 +9990,7 @@ namespace IntersectUtilities
                         return;
                     }
 
-                    oid pTerStyleId = oid.Null;
+                    Oid pTerStyleId = Oid.Null;
                     try
                     {
                         pTerStyleId = civilDoc.Styles.ProfileStyles["Terræn"];
@@ -9991,7 +10002,7 @@ namespace IntersectUtilities
                         return;
                     }
 
-                    oid alStyleId = oid.Null;
+                    Oid alStyleId = Oid.Null;
                     try
                     {
                         alStyleId = civilDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
@@ -10003,7 +10014,7 @@ namespace IntersectUtilities
                         return;
                     }
 
-                    oid crestCurveLabelId = oid.Null;
+                    Oid crestCurveLabelId = Oid.Null;
                     try
                     {
                         crestCurveLabelId = civilDoc.Styles.LabelStyles.ProfileLabelStyles.CurveLabelStyles["Radius Crest"];
@@ -10015,7 +10026,7 @@ namespace IntersectUtilities
                         return;
                     }
 
-                    oid sagCurveLabelId = oid.Null;
+                    Oid sagCurveLabelId = Oid.Null;
                     try
                     {
                         sagCurveLabelId = civilDoc.Styles.LabelStyles.ProfileLabelStyles.CurveLabelStyles["Radius Sag"];
@@ -10034,9 +10045,9 @@ namespace IntersectUtilities
                         al.StyleId = alStyleId;
 
                         ObjectIdCollection pIds = al.GetProfileIds();
-                        foreach (oid Oid in pIds)
+                        foreach (Oid oid in pIds)
                         {
-                            Profile p = Oid.Go<Profile>(tx);
+                            Profile p = oid.Go<Profile>(tx);
                             if (p.Name == $"{al.Name}_surface_P")
                             {
                                 p.CheckOrOpenForWrite();
@@ -10097,14 +10108,14 @@ namespace IntersectUtilities
                     //#region Delete cogo points
                     //CogoPointCollection cogoPoints = civilDoc.CogoPoints;
                     //ObjectIdCollection cpIds = new ObjectIdCollection();
-                    //foreach (oid Oid in cogoPoints) cpIds.Add(Oid);
-                    //foreach (oid Oid in cpIds) cogoPoints.Remove(Oid);
+                    //foreach (oid oid in cogoPoints) cpIds.Add(oid);
+                    //foreach (oid oid in cpIds) cogoPoints.Remove(oid);
                     //#endregion
 
                     #region Stylize Profile Views
                     HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
 
-                    oid pvStyleId = oid.Null;
+                    Oid pvStyleId = Oid.Null;
                     try
                     {
                         pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R NO SCALE"];
@@ -10330,9 +10341,9 @@ namespace IntersectUtilities
                     //        {
                     //            BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
 
-                    //            foreach (oid Oid in bt)
+                    //            foreach (oid oid in bt)
                     //            {
-                    //                BlockTableRecord btr = extTx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
+                    //                BlockTableRecord btr = extTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
                     //                if (btr.Name.Contains("_alignment"))
                     //                {
                     //                    var ids = btr.GetBlockReferenceIds(true, true);
@@ -10548,9 +10559,9 @@ namespace IntersectUtilities
                     //{
                     //    ObjectIdCollection pIds = al.GetProfileIds();
                     //    Profile p = null;
-                    //    foreach (oid Oid in pIds)
+                    //    foreach (oid oid in pIds)
                     //    {
-                    //        Profile pt = Oid.Go<Profile>(tx);
+                    //        Profile pt = oid.Go<Profile>(tx);
                     //        if (pt.Name == $"{al.Name}_surface_P") p = pt;
                     //    }
                     //    if (p == null) return;
@@ -10653,7 +10664,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    oid alStyle = civilDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
+                    Oid alStyle = civilDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
                     HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
 
                     foreach (Alignment al in als)
@@ -10686,7 +10697,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    oid alStyle = civilDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
+                    Oid alStyle = civilDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
                     HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
 
                     foreach (Alignment al in als)
@@ -10756,7 +10767,7 @@ namespace IntersectUtilities
                             {
                                 al.CheckOrOpenForWrite();
                                 al.StyleId = extCDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
-                                oid labelSetOid = extCDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["_No Labels"];
+                                Oid labelSetOid = extCDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["_No Labels"];
                                 al.ImportLabelSet(labelSetOid);
                             }
                             #endregion
@@ -10909,7 +10920,7 @@ namespace IntersectUtilities
                     var bt = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForRead);
                     var ms = (BlockTableRecord)tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead);
 
-                    foreach (oid id in ms)
+                    foreach (Oid id in ms)
                     {
                         var br = tx.GetObject(id, OpenMode.ForRead) as BlockReference;
                         if (br != null)
@@ -10947,7 +10958,7 @@ namespace IntersectUtilities
                                                         CivilDocument stylesDoc = CivilDocument.GetCivilDocument(xdb);
 
                                                         //View Frame Styles edit
-                                                        oid vfsId = stylesDoc.Styles.ViewFrameStyles["Basic"];
+                                                        Oid vfsId = stylesDoc.Styles.ViewFrameStyles["Basic"];
                                                         ViewFrameStyle vfs = xTx.GetObject(vfsId, OpenMode.ForWrite) as ViewFrameStyle;
                                                         DisplayStyle planStyle = vfs.GetViewFrameBoundaryDisplayStylePlan();
                                                         planStyle.Color = Color.FromColorIndex(ColorMethod.ByLayer, 256);
@@ -10994,7 +11005,7 @@ namespace IntersectUtilities
                     LinkedListNode<short> curNode;
                     curNode = colorSequence.First;
 
-                    foreach (oid id in localLt)
+                    foreach (Oid id in localLt)
                     {
                         LayerTableRecord ltr = (LayerTableRecord)tx.GetObject(id, OpenMode.ForRead);
 
@@ -11352,7 +11363,7 @@ namespace IntersectUtilities
                             lt.CheckOrOpenForWrite();
 
                             //Add the new layer to layer table
-                            oid ltId = lt.Add(ltr);
+                            Oid ltId = lt.Add(ltr);
                             tx.AddNewlyCreatedDBObject(ltr, true);
                         }
                     }
@@ -11704,7 +11715,7 @@ namespace IntersectUtilities
 
                         LinetypeTable ltt = tx.GetObject(localDb.LinetypeTableId, OpenMode.ForRead)
                             as LinetypeTable;
-                        oid lineTypeId = oid.Null;
+                        Oid lineTypeId = Oid.Null;
                         if (ltt.Has("DASHED2"))
                         {
                             lineTypeId = ltt["DASHED2"];
@@ -12186,7 +12197,7 @@ namespace IntersectUtilities
                             lt.CheckOrOpenForWrite();
 
                             //Add the new layer to layer table
-                            oid ltId = lt.Add(ltr);
+                            Oid ltId = lt.Add(ltr);
                             tx.AddNewlyCreatedDBObject(ltr, true);
                         }
                     }
@@ -12369,9 +12380,9 @@ namespace IntersectUtilities
             {
                 acSSet = acSSPrompt.Value;
                 var Ids = acSSet.GetObjectIds();
-                foreach (oid Oid in Ids)
+                foreach (Oid oid in Ids)
                 {
-                    if (Oid.ObjectClass.Name != "AcDbBlockReference") continue;
+                    if (oid.ObjectClass.Name != "AcDbBlockReference") continue;
 
                     using (var tr = db.TransactionManager.StartTransaction())
                     {
@@ -12381,7 +12392,7 @@ namespace IntersectUtilities
                             // with the top-level block reference
                             // (you can pass false as a 4th parameter if you
                             // don't want originating entities erased)
-                            ExplodeBlock(tr, db, Oid, true);
+                            ExplodeBlock(tr, db, oid, true);
                         }
                         catch (System.Exception ex)
                         {
@@ -12429,11 +12440,11 @@ namespace IntersectUtilities
                 //Clean stuff emitted to ModelSpace by Top Level Call
                 if (topLevelCall)
                 {
-                    foreach (oid Oid in toExplode)
+                    foreach (Oid oid in toExplode)
                     {
-                        if (Oid.ObjectClass.Name == "AcDbBlockReference") continue;
+                        if (oid.ObjectClass.Name == "AcDbBlockReference") continue;
                         Autodesk.AutoCAD.DatabaseServices.DBObject dbObj =
-                            tr.GetObject(Oid, OpenMode.ForRead) as Autodesk.AutoCAD.DatabaseServices.DBObject;
+                            tr.GetObject(oid, OpenMode.ForRead) as Autodesk.AutoCAD.DatabaseServices.DBObject;
 
                         dbObj.Erase(true);
                         dbObj.DowngradeOpen();
@@ -12482,20 +12493,20 @@ namespace IntersectUtilities
                 {
                     acSSet = acSSPrompt.Value;
                     var Ids = acSSet.GetObjectIds();
-                    foreach (oid Oid in Ids)
+                    foreach (Oid oid in Ids)
                     {
-                        if (Oid.ObjectClass.Name != "AcDbBlockReference") continue;
-                        //prdDbg("1: " + Oid.ObjectClass.Name);
+                        if (oid.ObjectClass.Name != "AcDbBlockReference") continue;
+                        //prdDbg("1: " + oid.ObjectClass.Name);
 
                         using (Transaction tx = localDb.TransactionManager.StartTransaction())
                         {
 
                             try
                             {
-                                BlockReference br = Oid.Go<BlockReference>(tx, OpenMode.ForWrite);
+                                BlockReference br = oid.Go<BlockReference>(tx, OpenMode.ForWrite);
                                 BlockTableRecord btr = tx.GetObject(br.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
 
-                                foreach (oid bOid in btr)
+                                foreach (Oid bOid in btr)
                                 {
                                     if (bOid.ObjectClass.Name != "AcDbBlockReference") continue;
                                     //prdDbg("2: " + bOid.ObjectClass.Name);
@@ -12553,18 +12564,18 @@ namespace IntersectUtilities
                 {
                     acSSet = acSSPrompt.Value;
                     var Ids = acSSet.GetObjectIds();
-                    foreach (oid Oid in Ids)
+                    foreach (Oid oid in Ids)
                     {
-                        if (Oid.ObjectClass.Name != "AcDbBlockReference") continue;
+                        if (oid.ObjectClass.Name != "AcDbBlockReference") continue;
                         using (Transaction tx = localDb.TransactionManager.StartTransaction())
                         {
                             try
                             {
-                                BlockReference br = Oid.Go<BlockReference>(tx, OpenMode.ForWrite);
+                                BlockReference br = oid.Go<BlockReference>(tx, OpenMode.ForWrite);
                                 BlockTableRecord btr = tx.GetObject(br.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
                                 prdDbg("Top LEVEL: " + br.Name);
 
-                                foreach (oid bOid in btr)
+                                foreach (Oid bOid in btr)
                                 {
                                     if (bOid.ObjectClass.Name != "AcDbBlockReference") continue;
                                     WriteNestedBlocksName(bOid.Go<BlockReference>(tx));
@@ -12604,7 +12615,7 @@ namespace IntersectUtilities
                 }
 
                 BlockTableRecord btrNested = txTop.GetObject(brNested.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
-                foreach (oid OidNested in btrNested)
+                foreach (Oid OidNested in btrNested)
                 {
                     if (OidNested.ObjectClass.Name != "AcDbBlockReference") continue;
                     WriteNestedBlocksName(OidNested.Go<BlockReference>(txTop));
@@ -12697,9 +12708,9 @@ namespace IntersectUtilities
                         {
                             BlockTable symbBt = symbTx.GetObject(symbolerDB.BlockTableId, OpenMode.ForRead) as BlockTable;
 
-                            foreach (oid Oid in bt)
+                            foreach (Oid oid in bt)
                             {
-                                BlockTableRecord btr = tx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
+                                BlockTableRecord btr = tx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
 
                                 if (ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Navn", 0) != null &&
                                     bt.Has(btr.Name))
@@ -12716,16 +12727,16 @@ namespace IntersectUtilities
                             localDb.WblockCloneObjects(ids, localDb.BlockTableId, iMap, DuplicateRecordCloning.Replace, false);
                         }
 
-                        foreach (oid Oid in bt)
+                        foreach (Oid oid in bt)
                         {
-                            BlockTableRecord btr = tx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
+                            BlockTableRecord btr = tx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
 
                             if (ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Navn", 0) != null)
                             {
                                 //        prdDbg("2");
                                 //        localDb.Insert(btr.Name, symbolerDB, true);
                                 //        prdDbg("3");
-                                foreach (oid bRefId in btr.GetBlockReferenceIds(false, true))
+                                foreach (Oid bRefId in btr.GetBlockReferenceIds(false, true))
                                 {
                                     //            prdDbg("4");
                                     BlockReference bref = tx.GetObject(bRefId, OpenMode.ForWrite) as BlockReference;
@@ -12815,7 +12826,7 @@ namespace IntersectUtilities
                         promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
                         PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
                         if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                        oid plineId = entity1.ObjectId;
+                        Oid plineId = entity1.ObjectId;
                         #endregion
 
                         string[] split1 = name.Split(new[] { ", " }, StringSplitOptions.None);
@@ -12914,9 +12925,9 @@ namespace IntersectUtilities
                                 #region Change xref layer
                                 //BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
 
-                                //foreach (oid Oid in bt)
+                                //foreach (oid oid in bt)
                                 //{
-                                //    BlockTableRecord btr = extTx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
+                                //    BlockTableRecord btr = extTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
                                 //    if (btr.Name.Contains("_alignment"))
                                 //    {
                                 //        var ids = btr.GetBlockReferenceIds(true, true);
@@ -13180,9 +13191,9 @@ namespace IntersectUtilities
                             #region Change xref layer
                             //BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
 
-                            //foreach (oid Oid in bt)
+                            //foreach (oid oid in bt)
                             //{
-                            //    BlockTableRecord btr = extTx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
+                            //    BlockTableRecord btr = extTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
                             //    if (btr.Name.Contains("_alignment"))
                             //    {
                             //        var ids = btr.GetBlockReferenceIds(true, true);
@@ -13216,9 +13227,9 @@ namespace IntersectUtilities
                             try
                             {
                                 string revAlayerName = "REV.A";
-                                oid revAlayerId = oid.Null;
+                                Oid revAlayerId = Oid.Null;
                                 string overskriftLayerName = "Revisionsoverskrifter";
-                                oid overskriftLayerId = oid.Null;
+                                Oid overskriftLayerId = Oid.Null;
 
                                 LayerTable lt = extTx.GetObject(extDb.LayerTableId, OpenMode.ForRead) as LayerTable;
 
@@ -13275,7 +13286,7 @@ namespace IntersectUtilities
             Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
             try
             {
-                SortedList<long, oid> drawOrder = new SortedList<long, oid>();
+                SortedList<long, Oid> drawOrder = new SortedList<long, Oid>();
 
                 using (Transaction tx = localDb.TransactionManager.StartTransaction())
                 {
@@ -13286,11 +13297,11 @@ namespace IntersectUtilities
                         DrawOrderTable dot = tx.GetObject(btrModelSpace.DrawOrderTableId, OpenMode.ForWrite) as DrawOrderTable;
 
                         ObjectIdCollection ids = new ObjectIdCollection();
-                        foreach (oid Oid in bt)
+                        foreach (Oid oid in bt)
                         {
-                            BlockTableRecord btr = tx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
+                            BlockTableRecord btr = tx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
 
-                            foreach (oid bRefId in btr.GetBlockReferenceIds(true, true))
+                            foreach (Oid bRefId in btr.GetBlockReferenceIds(true, true))
                             {
                                 BlockReference bref = tx.GetObject(bRefId, OpenMode.ForWrite) as BlockReference;
                                 if (bref.Name.StartsWith("*")) ids.Add(bRefId);
@@ -13411,7 +13422,7 @@ namespace IntersectUtilities
                     lt.CheckOrOpenForWrite();
 
                     //Add the new layer to layer table
-                    oid ltId = lt.Add(ltr);
+                    Oid ltId = lt.Add(ltr);
                     tx.AddNewlyCreatedDBObject(ltr, true);
                 }
                 #endregion
@@ -13437,7 +13448,7 @@ namespace IntersectUtilities
 
                                 foreach (DBPoint point in points)
                                 {
-                                    List<(double dist, oid id, Point3d np)> res = new List<(double dist, oid id, Point3d np)>();
+                                    List<(double dist, Oid id, Point3d np)> res = new List<(double dist, Oid id, Point3d np)>();
                                     foreach (Polyline pline in plines)
                                     {
                                         Point3d closestPoint = pline.GetClosestPointTo(point.Position, false);
@@ -13510,7 +13521,7 @@ namespace IntersectUtilities
                     promptEntityOptions1.AddAllowedClass(typeof(Polyline), false);
                     PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
                     if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
-                    oid plineId = entity1.ObjectId;
+                    Oid plineId = entity1.ObjectId;
                     Entity ent = plineId.Go<Entity>(tx);
 
                     //Test to see if the polyline resides in the correct layer
@@ -13604,7 +13615,7 @@ namespace IntersectUtilities
                     BlockTableRecord modelSpace =
                         tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
 
-                    oid labelId = modelSpace.AppendEntity(label);
+                    Oid labelId = modelSpace.AppendEntity(label);
                     tx.AddNewlyCreatedDBObject(label, true);
                     label.Draw();
 
@@ -13666,8 +13677,8 @@ namespace IntersectUtilities
                     HashSet<DBText> dBTexts = localDb.HashSetOfType<DBText>(tx);
                     ObjectIdCollection toDelete = new ObjectIdCollection();
 
-                    HashSet<(oid id, string text, Point3d position)> allTexts =
-                        new HashSet<(oid id, string text, Point3d position)>();
+                    HashSet<(Oid id, string text, Point3d position)> allTexts =
+                        new HashSet<(Oid id, string text, Point3d position)>();
 
                     //Cache contents of DBText in memory, i think?
                     foreach (DBText dBText in dBTexts)
@@ -13675,13 +13686,13 @@ namespace IntersectUtilities
 
                     var groupsWithSimilarText = allTexts.GroupBy(x => x.text);
 
-                    foreach (IGrouping<string, (oid id, string text, Point3d position)>
+                    foreach (IGrouping<string, (Oid id, string text, Point3d position)>
                         group in groupsWithSimilarText)
                     {
-                        Queue<(oid id, string text, Point3d position)> qu = new Queue<(oid, string, Point3d)>();
+                        Queue<(Oid id, string text, Point3d position)> qu = new Queue<(Oid, string, Point3d)>();
 
                         //Load the queue
-                        foreach ((oid id, string text, Point3d position) item in group)
+                        foreach ((Oid id, string text, Point3d position) item in group)
                             qu.Enqueue(item);
 
                         while (qu.Count > 0)
@@ -13700,9 +13711,9 @@ namespace IntersectUtilities
                     }
 
                     //Delete the chosen labels
-                    foreach (oid Oid in toDelete)
+                    foreach (Oid oid in toDelete)
                     {
-                        DBText ent = Oid.Go<DBText>(tx, OpenMode.ForWrite);
+                        DBText ent = oid.Go<DBText>(tx, OpenMode.ForWrite);
                         ent.Erase(true);
                     }
                 }
@@ -13744,12 +13755,12 @@ namespace IntersectUtilities
 
                     if (ltt.Has(ltName))
                     {
-                        oid existingId = ltt[ltName];
-                        oid placeHolderId = ltt["Continuous"];
+                        Oid existingId = ltt[ltName];
+                        Oid placeHolderId = ltt["Continuous"];
 
-                        foreach (oid Oid in lt)
+                        foreach (Oid oid in lt)
                         {
-                            LayerTableRecord ltr = Oid.Go<LayerTableRecord>(tr);
+                            LayerTableRecord ltr = oid.Go<LayerTableRecord>(tr);
                             if (ltr.LinetypeObjectId == existingId)
                             {
                                 ltr.CheckOrOpenForWrite();
@@ -13798,7 +13809,7 @@ namespace IntersectUtilities
 
                     foreach (string name in layersToChange)
                     {
-                        oid ltrId = lt[name];
+                        Oid ltrId = lt[name];
                         LayerTableRecord ltr = ltrId.Go<LayerTableRecord>(tr, OpenMode.ForWrite);
                         ltr.LinetypeObjectId = ltId;
                     }
