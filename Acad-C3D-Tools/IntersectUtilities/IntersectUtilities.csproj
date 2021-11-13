@@ -122,6 +122,7 @@
     <Compile Include="CsvReader.cs" />
     <Compile Include="DouglasPeuckerReduction.cs" />
     <Compile Include="GroupByCluster.cs" />
+    <Compile Include="ObsoleteMethods.cs" />
     <Compile Include="Intersect.cs" />
     <Compile Include="MoreLinq.cs" />
     <Compile Include="ODDataReader.cs" />

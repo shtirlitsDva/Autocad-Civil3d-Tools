@@ -5674,117 +5674,12 @@ namespace IntersectUtilities
                             .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
                             .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
-
-                        HashSet<(Entity ent, double dist)> distTuples = new HashSet<(Entity ent, double dist)>();
                         #endregion
 
-                        #region Detect curves direction
-                        double alLength = al.Length;
-                        double stepLength = 0.1;
-                        int nrOfSteps = (int)(alLength / stepLength);
+                        TypeOfIteration iterType = 0;
 
-                        //Variables
-                        Entity previousEnt = default;
-
-                        Queue<Curve> kø = new Queue<Curve>();
-
-                        //Find first curve from each end
-                        Curve firstEnd = GetFirstEntityOfType<Curve>(al, curves, TypeOfIteration.Forward);
-                        Curve secondEnd = GetFirstEntityOfType<Curve>(al, curves, TypeOfIteration.Backward);
-
-                        int firstDn = GetPipeDN(firstEnd);
-                        int secondDn = GetPipeDN(secondEnd);
-
-                        TypeOfIteration iterType = secondDn <= firstDn ? TypeOfIteration.Forward : TypeOfIteration.Backward;
-
-                        for (int i = 0; i < nrOfSteps + 1; i++)
-                        {
-                            double station = iterType == TypeOfIteration.Forward ? i * stepLength : alLength - i * stepLength;
-                            distTuples = CreateDistTuples(al.GetPointAtDist(station), curves);
-                            var sortedTuples = distTuples.OrderBy(x => x.dist);
-                            if (previousEnt?.Id == sortedTuples.First().ent.Id) continue;
-                            if (sortedTuples.First().ent is Curve curve)
-                            {
-                                //Determine direction of curve
-                                double curveStartStation = al.GetDistAtPoint(
-                                    al.GetClosestPointTo(curve.GetPointAtParameter(curve.StartParam), false));
-                                double curveEndStation = al.GetDistAtPoint(
-                                    al.GetClosestPointTo(curve.GetPointAtParameter(curve.EndParam), false));
-                                if ((iterType == TypeOfIteration.Backward && curveStartStation < curveEndStation) ||
-                                    (iterType == TypeOfIteration.Forward && curveStartStation > curveEndStation))
-                                {//Catches if curve is reversed
-                                    curve.CheckOrOpenForWrite();
-                                    curve.ReverseCurve();
-                                }
-
-                                #region Detect buerør, split and erase existing and add to kø
-                                //Detect buerør and split curves there
-                                if (curve is Polyline pline)
-                                {
-                                    List<double> splitPts = new List<double>();
-
-                                    //-1 because we are not interested in the last vertice
-                                    //as it is guaranteed that we don't have a bulge on the last vertice
-                                    for (int j = 0; j < pline.NumberOfVertices - 1; j++)
-                                    {
-                                        //Guard against already cut out curves
-                                        if (j == 0 && pline.NumberOfVertices == 2) { break; }
-                                        double b = pline.GetBulgeAt(j);
-                                        Point2d fP = pline.GetPoint2dAt(j);
-                                        Point2d sP = pline.GetPoint2dAt(j + 1);
-                                        double u = fP.GetDistanceTo(sP);
-                                        double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
-                                        double minRadius = GetPipeMinElasticRadius(pline);
-
-                                        //If radius is less than minRadius a buerør is detected
-                                        //Split the pline in segments delimiting buerør and append
-                                        if (radius < minRadius)
-                                        {
-                                            prdDbg($"Buerør detected {fP.ToString()} and {sP.ToString()}.");
-                                            splitPts.Add(pline.GetParameterAtPoint(new Point3d(fP.X, fP.Y, 0)));
-                                            splitPts.Add(pline.GetParameterAtPoint(new Point3d(sP.X, sP.Y, 0)));
-                                        }
-                                    }
-
-                                    if (splitPts.Count != 0)
-                                    {
-                                        DBObjectCollection objs = pline.GetSplitCurves(
-                                            new DoubleCollection(splitPts.ToArray()));
-                                        foreach (DBObject obj in objs)
-                                        {
-                                            if (obj is Polyline newPline)
-                                            {
-                                                newPline.AddEntityToDbModelSpace(localDb);
-                                                XrecCopyTo(curve, newPline, "Alignment");
-
-                                                ////Check direction of curve
-                                                //curveStartStation = al.GetDistAtPoint(
-                                                //    al.GetClosestPointTo(newPline.GetPointAtParameter(newPline.StartParam), false));
-                                                //curveEndStation = al.GetDistAtPoint(
-                                                //    al.GetClosestPointTo(
-                                                //        newPline.GetPointAtParameter(
-                                                //            newPline.GetParameterAtDistance(newPline.EndParam)), false));
-                                                //if ((iterType == TypeOfIteration.Backward && curveStartStation < curveEndStation) ||
-                                                //    (iterType == TypeOfIteration.Forward && curveStartStation > curveEndStation))
-                                                //{//Catches if curve is reversed
-                                                //    prdDbg("This is useful actually!!!");
-                                                //    newPline.ReverseCurve();
-                                                //}
-                                                kø.Enqueue(newPline);
-                                            }
-                                        }
-
-                                        curve.CheckOrOpenForWrite();
-                                        curve.Erase(true);
-                                    }
-                                    else kø.Enqueue(curve);
-                                }
-                                #endregion
-                            }
-                            //Hand over current entity to cache
-                            previousEnt = sortedTuples.First().ent;
-                        }
-                        #endregion
+                        //Sort curves according to their DN -> bigger DN at start
+                        Queue<Curve> kø = Utils.GetSortedQueue(localDb, al, curves, ref iterType);
 
                         #region Gather weldpoints for curves
                         double pipeStdLength = 0;
@@ -6019,6 +5914,120 @@ namespace IntersectUtilities
 
                     //BlockTableRecord btr = bt[blockName].Go<BlockTableRecord>(tx);
                     //btr.SynchronizeAttributes();
+                }
+                catch (System.Exception ex)
+                {
+                    alTx.Abort();
+                    alTx.Dispose();
+                    alDb.Dispose();
+                    tx.Abort();
+                    prdDbg(ex.ExceptionInfo());
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                alTx.Abort();
+                alTx.Dispose();
+                alDb.Dispose();
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("CORRECTPIPESTOCUTLENGTHS")]
+        [CommandMethod("CPTCL")]
+        public void correctpipestocutlengths()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                #region Open alignment db
+                string projectName = GetProjectName();
+                prdDbg(projectName);
+                if (projectName.IsNoE())
+                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
+
+                string etapeName = GetEtapeName(projectName);
+                // open the xref database
+                Database alDb = new Database(false, true);
+                alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
+                    System.IO.FileShare.Read, false, string.Empty);
+                Transaction alTx = alDb.TransactionManager.StartTransaction();
+                HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
+                #endregion
+
+                try
+                {
+                    #region Read components file
+                    System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
+                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    #endregion
+
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                    foreach (Alignment al in als.OrderBy(x => x.Name))
+                    {
+                        #region GetCurvesAndBRs
+                        prdDbg($"\nProcessing: {al.Name}...");
+                        HashSet<Curve> curves = localDb.ListOfType<Curve>(tx, true)
+                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .ToHashSet();
+                        HashSet<BlockReference> brs = localDb.ListOfType<BlockReference>(tx, true)
+                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .Where(x => x.RealName() != "SVEJSEPUNKT")
+                            .ToHashSet();
+                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+
+                        HashSet<(Entity ent, double dist)> distTuples = new HashSet<(Entity ent, double dist)>();
+                        #endregion
+
+                        //Sort curves according to their DN -> bigger DN at start
+                        TypeOfIteration iterType = 0;
+                        Queue<Curve> kø = Utils.GetSortedQueue(localDb, al, curves, ref iterType);
+
+                        #region Analyze curves and correct lengths
+                        while (kø.Count > 0)
+                        {
+                            Curve curve = kø.Dequeue();
+                            Curve nextCurve = null;
+                            if (kø.Count > 1) nextCurve = kø.Peek();
+                            if (nextCurve == null) continue;
+
+                            //Detect the component at curve end
+                            //If it is a transition --> analyze and correct
+                            //If not --> continue
+                            Point3d endPoint = curve.GetPointAtParameter(curve.EndParam);
+                            var distsToEndPoint = CreateDistTuples(endPoint, brs).OrderBy(x => x.dist);
+                            var nearestBlock = distsToEndPoint.FirstOrDefault().ent as BlockReference;
+                            if (nearestBlock.RealName() != "RED KDLR" &&
+                                nearestBlock.RealName() != "RED KDLR x2")
+                                continue;
+
+                            double pipeStdLegnth = GetPipeStdLength(curve);
+                            double pipeLength = curve.GetDistanceAtParameter(curve.EndParam);
+                            double division = pipeLength / pipeStdLegnth;
+                            int nrOfSections = (int)division;
+                            double modulo = division - nrOfSections;
+                            double remainder = modulo * pipeStdLegnth;
+
+                            if (remainder > 1e-3 &&
+                                pipeStdLegnth - remainder > 1e-3)
+                            {
+                                //Red line means check result
+                                //This is caught if no result found at ALL
+                                Line line = new Line(new Point3d(), endPoint);
+                                line.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                                line.AddEntityToDbModelSpace(localDb);
+
+                                prdDbg($"Remainder: " + $"{remainder}");
+                            }
+                            
+                        }
+                        #endregion
+                    }
                 }
                 catch (System.Exception ex)
                 {
@@ -8566,14 +8575,23 @@ namespace IntersectUtilities
                                                                 ((BlockTableRecord)tx.GetObject(
                                                                     br.DynamicBlockTableRecord, OpenMode.ForRead)).Name : br.Name;
 
-                            if (ReadStringParameterFromDataTable(br.Name, stdBlocks, "Navn", 0) == null)
+                            if (br.IsDynamicBlock)
                             {
-                                allNamesNotInDb.Add(effectiveName);
+                                //Dynamic
+                                if (ReadStringParameterFromDataTable(effectiveName, dynBlocks, "Navn", 0) == null)
+                                {
+                                    allNamesNotInDb.Add(effectiveName);
+                                }
                             }
-                            if (ReadStringParameterFromDataTable(effectiveName, dynBlocks, "Navn", 0) == null)
+                            else
                             {
-                                allNamesNotInDb.Add(effectiveName);
+                                //Ordinary
+                                if (ReadStringParameterFromDataTable(br.Name, stdBlocks, "Navn", 0) == null)
+                                {
+                                    allNamesNotInDb.Add(effectiveName);
+                                }
                             }
+
                         }
                     }
 
@@ -8698,68 +8716,6 @@ namespace IntersectUtilities
                     return;
                 }
                 tx.Commit();
-            }
-        }
-
-        [CommandMethod("LISTALLFJVBLOCKS")]
-        public static void listallfjvblocks()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
-            try
-            {
-                using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                using (Database symbolerDB = new Database(false, true))
-                {
-                    try
-                    {
-                        System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
-                                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
-
-                        symbolerDB.ReadDwgFile(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\" +
-                                               @"02 Tegninger\01 Autocad\Autocad\01 Views\0.0 Fælles\Symboler.dwg",
-                                               System.IO.FileShare.Read, true, "");
-
-                        ObjectIdCollection ids = new ObjectIdCollection();
-
-                        BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-
-                        using (Transaction symbTx = symbolerDB.TransactionManager.StartTransaction())
-                        {
-                            BlockTable symbBt = symbTx.GetObject(symbolerDB.BlockTableId, OpenMode.ForRead) as BlockTable;
-
-                            foreach (oid Oid in bt)
-                            {
-                                BlockTableRecord btr = tx.GetObject(Oid, OpenMode.ForWrite) as BlockTableRecord;
-
-                                if (ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Navn", 0) != null &&
-                                    ReadStringParameterFromDataTable(btr.Name, fjvKomponenter, "Type", 0) == "Reduktion" &&
-                                    bt.Has(btr.Name))
-                                {
-                                    prdDbg(btr.Name);
-                                }
-                            }
-                            symbTx.Commit();
-                        }
-
-                    }
-                    catch (System.Exception ex)
-                    {
-                        tx.Abort();
-                        ed.WriteMessage(ex.Message);
-                        throw;
-                    }
-
-                    tx.Commit();
-                };
-            }
-            catch (System.Exception ex)
-            {
-                ed.WriteMessage(ex.Message);
             }
         }
 

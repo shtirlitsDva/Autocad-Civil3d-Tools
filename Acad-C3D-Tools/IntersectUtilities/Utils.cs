@@ -1700,6 +1700,122 @@ namespace IntersectUtilities
                 }
             }
         }
+        /// <summary>
+        /// Function returns a sorted queue of member Curves starting with largest DN.
+        /// Curves are, if needed, reversed, so the first node is always first in the direction.
+        /// </summary>
+        public static Queue<Curve> GetSortedQueue(Database localDb, Alignment al, HashSet<Curve> curves,
+            ref Enums.TypeOfIteration iterType)
+        {
+            #region Detect curves direction
+            double alLength = al.Length;
+            double stepLength = 0.1;
+            int nrOfSteps = (int)(alLength / stepLength);
+            HashSet<(Entity ent, double dist)> distTuples = new HashSet<(Entity ent, double dist)>();
+            Queue<Curve> kø = new Queue<Curve>();
+
+            //Variables
+            Entity previousEnt = default;
+
+            //Find first curve from each end
+            Curve firstEnd = GetFirstEntityOfType<Curve>(al, curves, Enums.TypeOfIteration.Forward);
+            Curve secondEnd = GetFirstEntityOfType<Curve>(al, curves, Enums.TypeOfIteration.Backward);
+
+            int firstDn = PipeSchedule.GetPipeDN(firstEnd);
+            int secondDn = PipeSchedule.GetPipeDN(secondEnd);
+
+            iterType = secondDn <= firstDn ? Enums.TypeOfIteration.Forward : Enums.TypeOfIteration.Backward;
+
+            for (int i = 0; i < nrOfSteps + 1; i++)
+            {
+                double station = iterType == Enums.TypeOfIteration.Forward ? i * stepLength : alLength - i * stepLength;
+                distTuples = CreateDistTuples(al.GetPointAtDist(station), curves);
+                var sortedTuples = distTuples.OrderBy(x => x.dist);
+                if (previousEnt?.Id == sortedTuples.First().ent.Id) continue;
+                if (sortedTuples.First().ent is Curve curve)
+                {
+                    //Determine direction of curve
+                    double curveStartStation = al.GetDistAtPoint(
+                        al.GetClosestPointTo(curve.GetPointAtParameter(curve.StartParam), false));
+                    double curveEndStation = al.GetDistAtPoint(
+                        al.GetClosestPointTo(curve.GetPointAtParameter(curve.EndParam), false));
+                    if ((iterType == Enums.TypeOfIteration.Backward && curveStartStation < curveEndStation) ||
+                        (iterType == Enums.TypeOfIteration.Forward && curveStartStation > curveEndStation))
+                    {//Catches if curve is reversed
+                        curve.CheckOrOpenForWrite();
+                        curve.ReverseCurve();
+                    }
+
+                    #region Detect buerør, split and erase existing and add to kø
+                    //Detect buerør and split curves there
+                    if (curve is Polyline pline)
+                    {
+                        List<double> splitPts = new List<double>();
+
+                        //-1 because we are not interested in the last vertice
+                        //as it is guaranteed that we don't have a bulge on the last vertice
+                        for (int j = 0; j < pline.NumberOfVertices - 1; j++)
+                        {
+                            //Guard against already cut out curves
+                            if (j == 0 && pline.NumberOfVertices == 2) { break; }
+                            double b = pline.GetBulgeAt(j);
+                            Point2d fP = pline.GetPoint2dAt(j);
+                            Point2d sP = pline.GetPoint2dAt(j + 1);
+                            double u = fP.GetDistanceTo(sP);
+                            double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
+                            double minRadius = PipeSchedule.GetPipeMinElasticRadius(pline);
+
+                            //If radius is less than minRadius a buerør is detected
+                            //Split the pline in segments delimiting buerør and append
+                            if (radius < minRadius)
+                            {
+                                prdDbg($"Buerør detected {fP.ToString()} and {sP.ToString()}.");
+                                splitPts.Add(pline.GetParameterAtPoint(new Point3d(fP.X, fP.Y, 0)));
+                                splitPts.Add(pline.GetParameterAtPoint(new Point3d(sP.X, sP.Y, 0)));
+                            }
+                        }
+
+                        if (splitPts.Count != 0)
+                        {
+                            DBObjectCollection objs = pline.GetSplitCurves(
+                                new DoubleCollection(splitPts.ToArray()));
+                            foreach (DBObject obj in objs)
+                            {
+                                if (obj is Polyline newPline)
+                                {
+                                    newPline.AddEntityToDbModelSpace(localDb);
+                                    XrecCopyTo(curve, newPline, "Alignment");
+
+                                    ////Check direction of curve
+                                    //curveStartStation = al.GetDistAtPoint(
+                                    //    al.GetClosestPointTo(newPline.GetPointAtParameter(newPline.StartParam), false));
+                                    //curveEndStation = al.GetDistAtPoint(
+                                    //    al.GetClosestPointTo(
+                                    //        newPline.GetPointAtParameter(
+                                    //            newPline.GetParameterAtDistance(newPline.EndParam)), false));
+                                    //if ((iterType == TypeOfIteration.Backward && curveStartStation < curveEndStation) ||
+                                    //    (iterType == TypeOfIteration.Forward && curveStartStation > curveEndStation))
+                                    //{//Catches if curve is reversed
+                                    //    prdDbg("This is useful actually!!!");
+                                    //    newPline.ReverseCurve();
+                                    //}
+                                    kø.Enqueue(newPline);
+                                }
+                            }
+
+                            curve.CheckOrOpenForWrite();
+                            curve.Erase(true);
+                        }
+                        else kø.Enqueue(curve);
+                    }
+                    #endregion
+                }
+                //Hand over current entity to cache
+                previousEnt = sortedTuples.First().ent;
+            }
+            #endregion
+            return kø;
+        }
     }
     public static class OdTables
     {
@@ -1774,6 +1890,7 @@ namespace IntersectUtilities
             {
                 "GGF_ledninger",
                 "REV",
+                "0-HJÆLPELINJE"
             };
         }
     }
