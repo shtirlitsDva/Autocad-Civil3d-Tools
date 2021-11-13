@@ -5987,14 +5987,13 @@ namespace IntersectUtilities
                         //Sort curves according to their DN -> bigger DN at start
                         TypeOfIteration iterType = 0;
                         Queue<Curve> kø = Utils.GetSortedQueue(localDb, al, curves, ref iterType);
+                        LinkedList<Curve> ll = new LinkedList<Curve>(kø.ToList());
 
                         #region Analyze curves and correct lengths
-                        while (kø.Count > 0)
+                        while (ll.Count > 0)
                         {
-                            Curve curve = kø.Dequeue();
-                            Curve nextCurve = null;
-                            if (kø.Count > 1) nextCurve = kø.Peek();
-                            if (nextCurve == null) continue;
+                            Curve curve = ll.First.Value;
+                            ll.RemoveFirst();
 
                             //Detect the component at curve end
                             //If it is a transition --> analyze and correct
@@ -6004,9 +6003,10 @@ namespace IntersectUtilities
                             var first = distsToEndPoint.First();
                             var nearestBlock = first.ent as BlockReference;
                             if (nearestBlock.RealName() != "RED KDLR" &&
-                                nearestBlock.RealName() != "RED KDLR x2" &&
-                                //Limit the distance or buerør will give false true
-                                first.dist > 2)
+                                nearestBlock.RealName() != "RED KDLR x2")
+                                continue;
+                            //Limit the distance or buerør will give false true
+                            if (first.dist > 0.5)
                                 continue;
 
                             double pipeStdLegnth = GetPipeStdLength(curve);
@@ -6017,25 +6017,162 @@ namespace IntersectUtilities
                             double remainder = modulo * pipeStdLegnth;
                             double missingLength = pipeStdLegnth - remainder;
 
+                            Polyline pline = curve as Polyline;
+                            pline.CheckOrOpenForWrite();
+                            pline.ConstantWidth = pline.GetStartWidthAt(0);
+                            double globalWidth = pline.ConstantWidth;
+                            prdDbg($"Width: {globalWidth}");
+
                             if (remainder > 1e-3 &&
                                 pipeStdLegnth - remainder > 1e-3)
                             {
-                                //Red line means check result
-                                //This is caught if no result found at ALL
-                                Line line = new Line(new Point3d(), endPoint);
-                                line.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
-                                line.AddEntityToDbModelSpace(localDb);
+                                prdDbg($"Remainder: {remainder}, missing length: {missingLength}");
+                                double transitionLength = GetTransitionLength(tx, nearestBlock);
 
-                                prdDbg($"Remainder: " + $"{remainder}");
+                                Curve nextCurve = null;
+                                nextCurve = ll.First?.Value;
+                                if (nextCurve == null) continue;
+                                ll.RemoveFirst();
 
-                                double transitionLength = 0;
-                                BlockTableRecord btr = nearestBlock.BlockTableRecord.Go<BlockTableRecord>(tx);
-                                foreach (Oid oid in btr)
+                                if (missingLength <= transitionLength)
                                 {
+                                    //Case where the point is in transition
+                                    //Extend the current curve
+                                    curve.CheckOrOpenForWrite();
+                                    Vector3d v = curve.GetFirstDerivative(endPoint);
+                                    Point3d newEndPoint = endPoint + v * missingLength;
+                                    curve.Extend(false, newEndPoint);
 
+                                    //Move block
+                                    nearestBlock.CheckOrOpenForWrite();
+                                    Vector3d moveVector = endPoint.GetVectorTo(newEndPoint);
+                                    nearestBlock.TransformBy(Matrix3d.Displacement(moveVector));
+
+                                    //Split the piece from next curve
+                                    List<double> splitPars = new List<double>();
+                                    splitPars.Add(nextCurve.GetParameterAtDistance(missingLength));
+                                    try
+                                    {
+                                        DBObjectCollection objs = nextCurve
+                                            .GetSplitCurves(new DoubleCollection(splitPars.ToArray()));
+                                        Curve toDelete = objs[0] as Curve;
+                                        toDelete.CheckOrOpenForWrite();
+                                        toDelete.Erase(true);
+                                        Curve toAdd = objs[1] as Curve;
+                                        toAdd.AddEntityToDbModelSpace(localDb);
+                                        //Add the newly created curve to linkedlist
+                                        ll.AddFirst(toAdd);
+                                    }
+                                    catch (Autodesk.AutoCAD.Runtime.Exception ex)
+                                    {
+                                        Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
+                                        throw new System.Exception("Splitting of pline failed!");
+                                    }
+
+                                    //Yellow line
+                                    //When the remainder is shorter than the length of transition
+                                    Line line = new Line(new Point3d(), newEndPoint);
+                                    line.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
+                                    line.AddEntityToDbModelSpace(localDb);
+                                }
+                                //else if (missingLength > transitionLength && missingLength < 10)
+                                //{
+
+                                //}
+                                else
+                                {
+                                    //Case where the point is on the next curve
+                                    //Find the location of new endpoint
+                                    double newEndDist = missingLength - transitionLength;
+                                    //Catch a case where the missing length is longer than the next
+                                    //Curves length
+                                    if (newEndDist > nextCurve.GetDistanceAtParameter(nextCurve.EndParam))
+                                    {
+                                        prdDbg($"L: 6077: {nearestBlock.Handle} - {newEndDist}");
+
+                                        //Red line
+                                        Line line2 = new Line(new Point3d(), endPoint);
+                                        line2.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                                        line2.AddEntityToDbModelSpace(localDb);
+
+                                        //Return the curve to the queue
+                                        ll.AddFirst(nextCurve);
+                                        continue;
+                                    }
+
+                                    Point3d newEndPoint = nextCurve.GetPointAtDist(newEndDist);
+                                    double parameter = Math.Truncate(nextCurve.GetParameterAtPoint(newEndPoint));
+                                    SegmentType st = ((Polyline)nextCurve).GetSegmentType((int)parameter);
+
+                                    if (st == SegmentType.Arc)
+                                    {
+                                        //Red line
+                                        //When segment is an arc -- abort -- must be done manually
+                                        //Generally a transition must not be on a curve
+                                        Line line2 = new Line(new Point3d(), newEndPoint);
+                                        line2.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                                        line2.AddEntityToDbModelSpace(localDb);
+
+                                        //Return the curve to the queue
+                                        ll.AddFirst(nextCurve);
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        //Move block and rotate
+                                        nearestBlock.CheckOrOpenForWrite();
+                                        Vector3d moveVector = endPoint.GetVectorTo(newEndPoint);
+                                        nearestBlock.TransformBy(Matrix3d.Displacement(moveVector));
+
+                                        //prdDbg($"L: 6102: {nearestBlock.Handle} - {newEndDist}");
+                                        //Vector3d deriv = nextCurve.GetFirstDerivative(
+                                        //    nextCurve.GetPointAtDist(newEndDist + transitionLength / 2));
+                                        //double rotation = Math.Atan2(deriv.Y, deriv.X) - Math.PI / 2;
+                                        //nearestBlock.Rotation = rotation;
+
+                                        //Split the piece from next curve
+                                        List<double> splitPars = new List<double>();
+                                        splitPars.Add(nextCurve.GetParameterAtDistance(newEndDist));
+                                        splitPars.Add(nextCurve.GetParameterAtDistance(newEndDist + transitionLength));
+                                        try
+                                        {
+                                            DBObjectCollection objs = nextCurve
+                                                .GetSplitCurves(new DoubleCollection(splitPars.ToArray()));
+                                            Polyline toMerge = objs[0] as Polyline;
+                                            
+                                            for (int i = 0; i < toMerge.NumberOfVertices; i++)
+                                            {
+                                                Point2d cp = new Point2d(toMerge.GetPoint3dAt(i).X, toMerge.GetPoint3dAt(i).Y);
+                                                pline.AddVertexAt(
+                                                    pline.NumberOfVertices,
+                                                    cp, toMerge.GetBulgeAt(i), 0, 0);
+                                            }
+                                            pline.ConstantWidth = globalWidth;
+                                            RemoveColinearVerticesPolyline(pline);
+
+                                            Curve toAdd = objs[2] as Curve;
+                                            //Add the newly created curve to linkedlist
+                                            toAdd.AddEntityToDbModelSpace(localDb);
+                                            XrecCopyTo(nextCurve, toAdd, "Alignment");
+                                            ll.AddFirst(toAdd);
+
+                                            nextCurve.CheckOrOpenForWrite();
+                                            nextCurve.Erase(true);
+                                        }
+                                        catch (Autodesk.AutoCAD.Runtime.Exception ex)
+                                        {
+                                            Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
+                                            throw new System.Exception("Splitting of pline failed!");
+                                        }
+
+                                        //Cyan line
+                                        //When the remainder is longer than the length of transition
+                                        Line line = new Line(new Point3d(), newEndPoint);
+                                        line.Color = Color.FromColorIndex(ColorMethod.ByAci, 4);
+                                        line.AddEntityToDbModelSpace(localDb);
+                                    }
                                 }
                             }
-                            
                         }
                         #endregion
                     }
@@ -10236,419 +10373,6 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("testing")]
-        public void testing()
-        {
-
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    #region List all gas stik materialer
-                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-                    HashSet<Polyline3d> p3ds = localDb.HashSetOfType<Polyline3d>(tx)
-                                                      .Where(x => x.Layer == "GAS-Stikrør" ||
-                                                                  x.Layer == "GAS-Stikrør-2D")
-                                                      .ToHashSet();
-                    HashSet<string> materials = new HashSet<string>();
-                    foreach (Polyline3d p3d in p3ds)
-                    {
-                        materials.Add(ReadPropertyToStringValue(tables, p3d.Id, "GasDimOgMat", "Material"));
-                    }
-
-                    var ordered = materials.OrderBy(x => x);
-                    foreach (string s in ordered) prdDbg(s);
-
-                    #endregion
-
-                    #region ODTables troubles
-
-                    //try
-                    //{
-                    //    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-                    //    StringCollection names = tables.GetTableNames();
-                    //    foreach (string name in names)
-                    //    {
-                    //        prdDbg(name);
-                    //        Autodesk.Gis.Map.ObjectData.Table table = null;
-                    //        try
-                    //        {
-                    //            table = tables[name];
-                    //            FieldDefinitions defs = table.FieldDefinitions;
-                    //            for (int i = 0; i < defs.Count; i++)
-                    //            {
-                    //                if (defs[i].Name.Contains("DIA") ||
-                    //                    defs[i].Name.Contains("Dia") ||
-                    //                    defs[i].Name.Contains("dia")) prdDbg(defs[i].Name);
-                    //            }
-                    //        }
-                    //        catch (Autodesk.Gis.Map.MapException e)
-                    //        {
-                    //            var errCode = (Autodesk.Gis.Map.Constants.ErrorCode)(e.ErrorCode);
-                    //            prdDbg(errCode.ToString());
-
-                    //            MapApplication app = HostMapApplicationServices.Application;
-                    //            FieldDefinitions tabDefs = app.ActiveProject.MapUtility.NewODFieldDefinitions();
-                    //            tabDefs.AddColumn(
-                    //                FieldDefinition.Create("Diameter", "Diameter of crossing pipe", DataType.Character), 0);
-                    //            tabDefs.AddColumn(
-                    //                FieldDefinition.Create("Alignment", "Alignment name", DataType.Character), 1);
-                    //            tables.RemoveTable("CrossingData");
-                    //            tables.Add("CrossingData", tabDefs, "Table holding relevant crossing data", true);
-                    //            //tables.UpdateTable("CrossingData", tabDefs);
-                    //        }
-                    //    }
-                    //}
-                    //catch (Autodesk.Gis.Map.MapException e)
-                    //{
-                    //    var errCode = (Autodesk.Gis.Map.Constants.ErrorCode)(e.ErrorCode);
-                    //    prdDbg(errCode.ToString());
-                    //}
-
-
-
-
-                    #endregion
-
-                    #region ChangeLayerOfXref
-
-                    //string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\5.5\";
-
-                    //var fileList = File.ReadAllLines(path + "fileList.txt").ToList();
-
-                    //foreach (string name in fileList)
-                    //{
-                    //    prdDbg(name);
-                    //}
-
-                    //foreach (string name in fileList)
-                    //{
-                    //    prdDbg(name);
-                    //    string fileName = path + name;
-                    //    prdDbg(fileName);
-
-                    //    using (Database extDb = new Database(false, true))
-                    //    {
-                    //        extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
-
-                    //        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
-                    //        {
-                    //            BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-
-                    //            foreach (oid oid in bt)
-                    //            {
-                    //                BlockTableRecord btr = extTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
-                    //                if (btr.Name.Contains("_alignment"))
-                    //                {
-                    //                    var ids = btr.GetBlockReferenceIds(true, true);
-                    //                    foreach (oid brId in ids)
-                    //                    {
-                    //                        BlockReference br = brId.Go<BlockReference>(extTx, OpenMode.ForWrite);
-                    //                        prdDbg(br.Name);
-                    //                        if (br.Layer == "0") { prdDbg("Already in 0! Skipping..."); continue; }
-                    //                        prdDbg("Was in: :" + br.Layer);
-                    //                        br.Layer = "0";
-                    //                        prdDbg("Moved to: " + br.Layer);
-                    //                        System.Windows.Forms.Application.DoEvents();
-                    //                    }
-                    //                }
-                    //            }
-                    //            extTx.Commit();
-                    //        }
-                    //        extDb.SaveAs(extDb.Filename, DwgVersion.Current);
-
-                    //    }
-                    //}
-                    #endregion
-
-                    #region List blocks scale
-                    //HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
-                    //foreach (BlockReference br in brs)
-                    //{
-                    //    prdDbg(br.ScaleFactors.ToString());
-                    //}
-                    #endregion
-
-                    #region Gather alignment names
-                    //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-
-                    //foreach (Alignment al in als.OrderBy(x => x.Name))
-                    //{
-                    //    editor.WriteMessage($"\n{al.Name}");
-                    //}
-
-                    #endregion
-
-                    #region Test ODTables from external database
-                    //Tables odTables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-                    //StringCollection curDbTables = new StringCollection();
-                    //Database curDb = HostApplicationServices.WorkingDatabase;
-                    //StringCollection allDbTables = odTables.GetTableNames();
-                    //Autodesk.Gis.Map.Project.AttachedDrawings attachedDwgs =
-                    //    HostMapApplicationServices.Application.ActiveProject.DrawingSet.AllAttachedDrawings;
-
-                    //int directDWGCount = HostMapApplicationServices.Application.ActiveProject.DrawingSet.DirectDrawingsCount;
-
-                    //foreach (String name in allDbTables)
-                    //{
-                    //    Autodesk.Gis.Map.ObjectData.Table table = odTables[name];
-
-                    //    bool bTableExistsInCurDb = true;
-
-                    //    for (int i = 0; i < directDWGCount; ++i)
-                    //    {
-                    //        Autodesk.Gis.Map.Project.AttachedDrawing attDwg = attachedDwgs[i];
-
-                    //        StringCollection attachedTables = attDwg.GetTableList(Autodesk.Gis.Map.Constants.TableType.ObjectDataTable);
-                    //    }
-                    //    if (bTableExistsInCurDb)
-
-                    //        curDbTables.Add(name);
-
-                    //}
-
-                    //editor.WriteMessage("Current Drawing Object Data Tables Names :\r\n");
-
-                    //foreach (String name in curDbTables)
-                    //{
-
-                    //    editor.WriteMessage(name + "\r\n");
-
-                    //}
-
-                    #endregion
-
-                    #region Test description field population
-                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                    //"\nSelect test subject:");
-                    //promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
-                    //promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
-                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    //Autodesk.AutoCAD.DatabaseServices.ObjectId lineId = entity1.ObjectId;
-                    //Entity ent = lineId.Go<Entity>(tx);
-
-                    //Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-
-                    //#region Read Csv Data for Layers and Depth
-
-                    ////Establish the pathnames to files
-                    ////Files should be placed in a specific folder on desktop
-                    //string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-                    //string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
-
-                    //System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
-                    //System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
-
-                    //#endregion
-
-                    ////Populate description field
-                    ////1. Read size record if it exists
-                    //MapValue sizeRecord = Utils.ReadRecordData(
-                    //    tables, lineId, "SizeTable", "Size");
-                    //int SizeTableSize = 0;
-                    //string sizeDescrPart = "";
-                    //if (sizeRecord != null)
-                    //{
-                    //    SizeTableSize = sizeRecord.Int32Value;
-                    //    sizeDescrPart = $"ø{SizeTableSize}";
-                    //}
-
-                    ////2. Read description from Krydsninger
-                    //string descrFromKrydsninger = ReadStringParameterFromDataTable(
-                    //    ent.Layer, dtKrydsninger, "Description", 0);
-
-                    ////2.1 Read the formatting in the description field
-                    //List<(string ToReplace, string Data)> descrFormatList = null;
-                    //if (descrFromKrydsninger.IsNotNoE())
-                    //    descrFormatList = FindDescriptionParts(descrFromKrydsninger);
-
-                    ////Finally: Compose description field
-                    //List<string> descrParts = new List<string>();
-                    ////1. Add custom size
-                    //if (SizeTableSize != 0) descrParts.Add(sizeDescrPart);
-                    ////2. Process and add parts from format bits in OD
-                    //if (descrFromKrydsninger.IsNotNoE())
-                    //{
-                    //    //Interpolate description from Krydsninger with format setting, if they exist
-                    //    if (descrFormatList != null && descrFormatList.Count > 0)
-                    //    {
-                    //        for (int i = 0; i < descrFormatList.Count; i++)
-                    //        {
-                    //            var tuple = descrFormatList[i];
-                    //            string result = ReadDescriptionPartsFromOD(tables, ent, tuple.Data, dtKrydsninger);
-                    //            descrFromKrydsninger = descrFromKrydsninger.Replace(tuple.ToReplace, result);
-                    //        }
-                    //    }
-
-                    //    //Add the description field to parts
-                    //    descrParts.Add(descrFromKrydsninger);
-                    //}
-
-                    //string description = "";
-                    //if (descrParts.Count == 1) description = descrParts[0];
-                    //else if (descrParts.Count > 1)
-                    //    description = string.Join("; ", descrParts);
-
-                    //editor.WriteMessage($"\n{description}");
-                    #endregion
-
-                    #region GetDistance
-                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                    //"\nSelect line:");
-                    //promptEntityOptions1.SetRejectMessage("\n Not a line!");
-                    //promptEntityOptions1.AddAllowedClass(typeof(Line), true);
-                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    //Autodesk.AutoCAD.DatabaseServices.ObjectId lineId = entity1.ObjectId;
-
-                    //PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
-                    //"\nSelect p3dpoly:");
-                    //promptEntityOptions2.SetRejectMessage("\n Not a p3dpoly!");
-                    //promptEntityOptions2.AddAllowedClass(typeof(Polyline3d), true);
-                    //PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
-                    //if (((PromptResult)entity2).Status != PromptStatus.OK) return;
-                    //Autodesk.AutoCAD.DatabaseServices.ObjectId poly3dId = entity2.ObjectId;
-
-                    //Line line = lineId.Go<Line>(tx);
-                    //Polyline3d p3d = poly3dId.Go<Polyline3d>(tx);
-
-                    //double distance = line.GetGeCurve().GetDistanceTo(
-                    //    p3d.GetGeCurve());
-
-                    //editor.WriteMessage($"\nDistance: {distance}.");
-                    //editor.WriteMessage($"\nIs less than 0.1: {distance < 0.1}.");
-
-                    //if (distance < 0.1)
-                    //{
-                    //    PointOnCurve3d[] intPoints = line.GetGeCurve().GetClosestPointTo(
-                    //                                 p3d.GetGeCurve());
-
-                    //    //Assume one intersection
-                    //    Point3d result = intPoints.First().Point;
-                    //    editor.WriteMessage($"\nDetected elevation: {result.Z}.");
-                    //}
-
-                    #endregion
-
-                    #region CleanMtexts
-                    //HashSet<MText> mtexts = localDb.HashSetOfType<MText>(tx);
-
-                    //foreach (MText mText in mtexts)
-                    //{
-                    //    string contents = mText.Contents;
-
-                    //    contents = contents.Replace(@"\H3.17507;", "");
-
-                    //    mText.CheckOrOpenForWrite();
-
-                    //    mText.Contents = contents;
-                    //} 
-                    #endregion
-
-                    #region Test PV start and end station
-
-                    //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-                    //foreach (Alignment al in als)
-                    //{
-                    //    ObjectIdCollection pIds = al.GetProfileIds();
-                    //    Profile p = null;
-                    //    foreach (oid oid in pIds)
-                    //    {
-                    //        Profile pt = oid.Go<Profile>(tx);
-                    //        if (pt.Name == $"{al.Name}_surface_P") p = pt;
-                    //    }
-                    //    if (p == null) return;
-                    //    else editor.WriteMessage($"\nProfile {p.Name} found!");
-
-                    //    ProfileView[] pvs = localDb.ListOfType<ProfileView>(tx).ToArray();
-
-                    //    foreach (ProfileView pv in pvs)
-                    //    {
-                    //        editor.WriteMessage($"\nName of pv: {pv.Name}.");
-
-                    #region Test finding of max elevation
-                    //double pvStStart = pv.StationStart;
-                    //double pvStEnd = pv.StationEnd;
-
-                    //int nrOfIntervals = 100;
-                    //double delta = (pvStEnd - pvStStart) / nrOfIntervals;
-                    //HashSet<double> elevs = new HashSet<double>();
-
-                    //for (int i = 0; i < nrOfIntervals + 1; i++)
-                    //{
-                    //    double testEl = p.ElevationAt(pvStStart + delta * i);
-                    //    elevs.Add(testEl);
-                    //    editor.WriteMessage($"\nElevation at {i} is {testEl}.");
-                    //}
-
-                    //double maxEl = elevs.Max();
-                    //editor.WriteMessage($"\nMax elevation of {pv.Name} is {maxEl}.");
-
-                    //pv.CheckOrOpenForWrite();
-                    //pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
-
-                    //pv.ElevationMax = Math.Ceiling(maxEl); 
-                    #endregion
-                    //}
-                    //}
-
-
-
-                    #endregion
-
-                    #region Test station and offset alignment
-                    //#region Select point
-                    //PromptPointOptions pPtOpts = new PromptPointOptions("");
-                    //// Prompt for the start point
-                    //pPtOpts.Message = "\nEnter location to test the alignment:";
-                    //PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
-                    //Point3d selectedPoint = pPtRes.Value;
-                    //// Exit if the user presses ESC or cancels the command
-                    //if (pPtRes.Status != PromptStatus.OK) return;
-                    //#endregion
-
-                    //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-
-                    //foreach (Alignment al in als)
-                    //{
-                    //    double station = 0;
-                    //    double offset = 0;
-
-                    //    al.StationOffset(selectedPoint.X, selectedPoint.Y, ref station, ref offset);
-
-                    //    editor.WriteMessage($"\nReported: ST: {station}, OS: {offset}.");
-                    //} 
-                    #endregion
-
-                    #region Test assigning labels and point styles
-                    //oid cogoPointStyle = civilDoc.Styles.PointStyles["LER KRYDS"];
-                    //CogoPointCollection cpc = civilDoc.CogoPoints;
-
-                    //foreach (oid cpOid in cpc)
-                    //{
-                    //    CogoPoint cp = cpOid.Go<CogoPoint>(tx, OpenMode.ForWrite);
-                    //    cp.StyleId = cogoPointStyle;
-                    //}
-
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
-
         [CommandMethod("revealalignments")]
         [CommandMethod("ral")]
         public void revealalignments()
@@ -13850,6 +13574,450 @@ namespace IntersectUtilities
                 {
                     tx.Abort();
                     ed.WriteMessage(ex.ToString());
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("testing")]
+        public void testing()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Test removing colinear vertices
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                        "\nSelect polyline to list parameters:");
+                    promptEntityOptions1.SetRejectMessage("\n Not a polyline!");
+                    promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId plineId = entity1.ObjectId;
+
+                    Polyline pline = plineId.Go<Polyline>(tx);
+
+                    RemoveColinearVerticesPolyline(pline);
+                    #endregion
+
+                    #region Test polyline parameter and vertices
+                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                    //    "\nSelect polyline to list parameters:");
+                    //promptEntityOptions1.SetRejectMessage("\n Not a polyline!");
+                    //promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
+                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    //Autodesk.AutoCAD.DatabaseServices.ObjectId plineId = entity1.ObjectId;
+
+                    //Polyline pline = plineId.Go<Polyline>(tx);
+
+                    //for (int i = 0; i < pline.NumberOfVertices; i++)
+                    //{
+                    //    Point3d p3d = pline.GetPoint3dAt(i);
+                    //    prdDbg($"Vertex: {i}, Parameter: {pline.GetParameterAtPoint(p3d)}");
+                    //}
+                    #endregion
+
+                    #region List all gas stik materialer
+                    //Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                    //HashSet<Polyline3d> p3ds = localDb.HashSetOfType<Polyline3d>(tx)
+                    //                                  .Where(x => x.Layer == "GAS-Stikrør" ||
+                    //                                              x.Layer == "GAS-Stikrør-2D")
+                    //                                  .ToHashSet();
+                    //HashSet<string> materials = new HashSet<string>();
+                    //foreach (Polyline3d p3d in p3ds)
+                    //{
+                    //    materials.Add(ReadPropertyToStringValue(tables, p3d.Id, "GasDimOgMat", "Material"));
+                    //}
+
+                    //var ordered = materials.OrderBy(x => x);
+                    //foreach (string s in ordered) prdDbg(s);
+                    #endregion
+
+                    #region ODTables troubles
+
+                    //try
+                    //{
+                    //    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                    //    StringCollection names = tables.GetTableNames();
+                    //    foreach (string name in names)
+                    //    {
+                    //        prdDbg(name);
+                    //        Autodesk.Gis.Map.ObjectData.Table table = null;
+                    //        try
+                    //        {
+                    //            table = tables[name];
+                    //            FieldDefinitions defs = table.FieldDefinitions;
+                    //            for (int i = 0; i < defs.Count; i++)
+                    //            {
+                    //                if (defs[i].Name.Contains("DIA") ||
+                    //                    defs[i].Name.Contains("Dia") ||
+                    //                    defs[i].Name.Contains("dia")) prdDbg(defs[i].Name);
+                    //            }
+                    //        }
+                    //        catch (Autodesk.Gis.Map.MapException e)
+                    //        {
+                    //            var errCode = (Autodesk.Gis.Map.Constants.ErrorCode)(e.ErrorCode);
+                    //            prdDbg(errCode.ToString());
+
+                    //            MapApplication app = HostMapApplicationServices.Application;
+                    //            FieldDefinitions tabDefs = app.ActiveProject.MapUtility.NewODFieldDefinitions();
+                    //            tabDefs.AddColumn(
+                    //                FieldDefinition.Create("Diameter", "Diameter of crossing pipe", DataType.Character), 0);
+                    //            tabDefs.AddColumn(
+                    //                FieldDefinition.Create("Alignment", "Alignment name", DataType.Character), 1);
+                    //            tables.RemoveTable("CrossingData");
+                    //            tables.Add("CrossingData", tabDefs, "Table holding relevant crossing data", true);
+                    //            //tables.UpdateTable("CrossingData", tabDefs);
+                    //        }
+                    //    }
+                    //}
+                    //catch (Autodesk.Gis.Map.MapException e)
+                    //{
+                    //    var errCode = (Autodesk.Gis.Map.Constants.ErrorCode)(e.ErrorCode);
+                    //    prdDbg(errCode.ToString());
+                    //}
+
+
+
+
+                    #endregion
+
+                    #region ChangeLayerOfXref
+
+                    //string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\5.5\";
+
+                    //var fileList = File.ReadAllLines(path + "fileList.txt").ToList();
+
+                    //foreach (string name in fileList)
+                    //{
+                    //    prdDbg(name);
+                    //}
+
+                    //foreach (string name in fileList)
+                    //{
+                    //    prdDbg(name);
+                    //    string fileName = path + name;
+                    //    prdDbg(fileName);
+
+                    //    using (Database extDb = new Database(false, true))
+                    //    {
+                    //        extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
+
+                    //        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                    //        {
+                    //            BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                    //            foreach (oid oid in bt)
+                    //            {
+                    //                BlockTableRecord btr = extTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
+                    //                if (btr.Name.Contains("_alignment"))
+                    //                {
+                    //                    var ids = btr.GetBlockReferenceIds(true, true);
+                    //                    foreach (oid brId in ids)
+                    //                    {
+                    //                        BlockReference br = brId.Go<BlockReference>(extTx, OpenMode.ForWrite);
+                    //                        prdDbg(br.Name);
+                    //                        if (br.Layer == "0") { prdDbg("Already in 0! Skipping..."); continue; }
+                    //                        prdDbg("Was in: :" + br.Layer);
+                    //                        br.Layer = "0";
+                    //                        prdDbg("Moved to: " + br.Layer);
+                    //                        System.Windows.Forms.Application.DoEvents();
+                    //                    }
+                    //                }
+                    //            }
+                    //            extTx.Commit();
+                    //        }
+                    //        extDb.SaveAs(extDb.Filename, DwgVersion.Current);
+
+                    //    }
+                    //}
+                    #endregion
+
+                    #region List blocks scale
+                    //HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
+                    //foreach (BlockReference br in brs)
+                    //{
+                    //    prdDbg(br.ScaleFactors.ToString());
+                    //}
+                    #endregion
+
+                    #region Gather alignment names
+                    //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+
+                    //foreach (Alignment al in als.OrderBy(x => x.Name))
+                    //{
+                    //    editor.WriteMessage($"\n{al.Name}");
+                    //}
+
+                    #endregion
+
+                    #region Test ODTables from external database
+                    //Tables odTables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                    //StringCollection curDbTables = new StringCollection();
+                    //Database curDb = HostApplicationServices.WorkingDatabase;
+                    //StringCollection allDbTables = odTables.GetTableNames();
+                    //Autodesk.Gis.Map.Project.AttachedDrawings attachedDwgs =
+                    //    HostMapApplicationServices.Application.ActiveProject.DrawingSet.AllAttachedDrawings;
+
+                    //int directDWGCount = HostMapApplicationServices.Application.ActiveProject.DrawingSet.DirectDrawingsCount;
+
+                    //foreach (String name in allDbTables)
+                    //{
+                    //    Autodesk.Gis.Map.ObjectData.Table table = odTables[name];
+
+                    //    bool bTableExistsInCurDb = true;
+
+                    //    for (int i = 0; i < directDWGCount; ++i)
+                    //    {
+                    //        Autodesk.Gis.Map.Project.AttachedDrawing attDwg = attachedDwgs[i];
+
+                    //        StringCollection attachedTables = attDwg.GetTableList(Autodesk.Gis.Map.Constants.TableType.ObjectDataTable);
+                    //    }
+                    //    if (bTableExistsInCurDb)
+
+                    //        curDbTables.Add(name);
+
+                    //}
+
+                    //editor.WriteMessage("Current Drawing Object Data Tables Names :\r\n");
+
+                    //foreach (String name in curDbTables)
+                    //{
+
+                    //    editor.WriteMessage(name + "\r\n");
+
+                    //}
+
+                    #endregion
+
+                    #region Test description field population
+                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                    //"\nSelect test subject:");
+                    //promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
+                    //promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    //Autodesk.AutoCAD.DatabaseServices.ObjectId lineId = entity1.ObjectId;
+                    //Entity ent = lineId.Go<Entity>(tx);
+
+                    //Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                    //#region Read Csv Data for Layers and Depth
+
+                    ////Establish the pathnames to files
+                    ////Files should be placed in a specific folder on desktop
+                    //string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    //string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
+
+                    //System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    //System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
+
+                    //#endregion
+
+                    ////Populate description field
+                    ////1. Read size record if it exists
+                    //MapValue sizeRecord = Utils.ReadRecordData(
+                    //    tables, lineId, "SizeTable", "Size");
+                    //int SizeTableSize = 0;
+                    //string sizeDescrPart = "";
+                    //if (sizeRecord != null)
+                    //{
+                    //    SizeTableSize = sizeRecord.Int32Value;
+                    //    sizeDescrPart = $"ø{SizeTableSize}";
+                    //}
+
+                    ////2. Read description from Krydsninger
+                    //string descrFromKrydsninger = ReadStringParameterFromDataTable(
+                    //    ent.Layer, dtKrydsninger, "Description", 0);
+
+                    ////2.1 Read the formatting in the description field
+                    //List<(string ToReplace, string Data)> descrFormatList = null;
+                    //if (descrFromKrydsninger.IsNotNoE())
+                    //    descrFormatList = FindDescriptionParts(descrFromKrydsninger);
+
+                    ////Finally: Compose description field
+                    //List<string> descrParts = new List<string>();
+                    ////1. Add custom size
+                    //if (SizeTableSize != 0) descrParts.Add(sizeDescrPart);
+                    ////2. Process and add parts from format bits in OD
+                    //if (descrFromKrydsninger.IsNotNoE())
+                    //{
+                    //    //Interpolate description from Krydsninger with format setting, if they exist
+                    //    if (descrFormatList != null && descrFormatList.Count > 0)
+                    //    {
+                    //        for (int i = 0; i < descrFormatList.Count; i++)
+                    //        {
+                    //            var tuple = descrFormatList[i];
+                    //            string result = ReadDescriptionPartsFromOD(tables, ent, tuple.Data, dtKrydsninger);
+                    //            descrFromKrydsninger = descrFromKrydsninger.Replace(tuple.ToReplace, result);
+                    //        }
+                    //    }
+
+                    //    //Add the description field to parts
+                    //    descrParts.Add(descrFromKrydsninger);
+                    //}
+
+                    //string description = "";
+                    //if (descrParts.Count == 1) description = descrParts[0];
+                    //else if (descrParts.Count > 1)
+                    //    description = string.Join("; ", descrParts);
+
+                    //editor.WriteMessage($"\n{description}");
+                    #endregion
+
+                    #region GetDistance
+                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                    //"\nSelect line:");
+                    //promptEntityOptions1.SetRejectMessage("\n Not a line!");
+                    //promptEntityOptions1.AddAllowedClass(typeof(Line), true);
+                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    //Autodesk.AutoCAD.DatabaseServices.ObjectId lineId = entity1.ObjectId;
+
+                    //PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
+                    //"\nSelect p3dpoly:");
+                    //promptEntityOptions2.SetRejectMessage("\n Not a p3dpoly!");
+                    //promptEntityOptions2.AddAllowedClass(typeof(Polyline3d), true);
+                    //PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                    //if (((PromptResult)entity2).Status != PromptStatus.OK) return;
+                    //Autodesk.AutoCAD.DatabaseServices.ObjectId poly3dId = entity2.ObjectId;
+
+                    //Line line = lineId.Go<Line>(tx);
+                    //Polyline3d p3d = poly3dId.Go<Polyline3d>(tx);
+
+                    //double distance = line.GetGeCurve().GetDistanceTo(
+                    //    p3d.GetGeCurve());
+
+                    //editor.WriteMessage($"\nDistance: {distance}.");
+                    //editor.WriteMessage($"\nIs less than 0.1: {distance < 0.1}.");
+
+                    //if (distance < 0.1)
+                    //{
+                    //    PointOnCurve3d[] intPoints = line.GetGeCurve().GetClosestPointTo(
+                    //                                 p3d.GetGeCurve());
+
+                    //    //Assume one intersection
+                    //    Point3d result = intPoints.First().Point;
+                    //    editor.WriteMessage($"\nDetected elevation: {result.Z}.");
+                    //}
+
+                    #endregion
+
+                    #region CleanMtexts
+                    //HashSet<MText> mtexts = localDb.HashSetOfType<MText>(tx);
+
+                    //foreach (MText mText in mtexts)
+                    //{
+                    //    string contents = mText.Contents;
+
+                    //    contents = contents.Replace(@"\H3.17507;", "");
+
+                    //    mText.CheckOrOpenForWrite();
+
+                    //    mText.Contents = contents;
+                    //} 
+                    #endregion
+
+                    #region Test PV start and end station
+
+                    //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                    //foreach (Alignment al in als)
+                    //{
+                    //    ObjectIdCollection pIds = al.GetProfileIds();
+                    //    Profile p = null;
+                    //    foreach (oid oid in pIds)
+                    //    {
+                    //        Profile pt = oid.Go<Profile>(tx);
+                    //        if (pt.Name == $"{al.Name}_surface_P") p = pt;
+                    //    }
+                    //    if (p == null) return;
+                    //    else editor.WriteMessage($"\nProfile {p.Name} found!");
+
+                    //    ProfileView[] pvs = localDb.ListOfType<ProfileView>(tx).ToArray();
+
+                    //    foreach (ProfileView pv in pvs)
+                    //    {
+                    //        editor.WriteMessage($"\nName of pv: {pv.Name}.");
+
+                    #region Test finding of max elevation
+                    //double pvStStart = pv.StationStart;
+                    //double pvStEnd = pv.StationEnd;
+
+                    //int nrOfIntervals = 100;
+                    //double delta = (pvStEnd - pvStStart) / nrOfIntervals;
+                    //HashSet<double> elevs = new HashSet<double>();
+
+                    //for (int i = 0; i < nrOfIntervals + 1; i++)
+                    //{
+                    //    double testEl = p.ElevationAt(pvStStart + delta * i);
+                    //    elevs.Add(testEl);
+                    //    editor.WriteMessage($"\nElevation at {i} is {testEl}.");
+                    //}
+
+                    //double maxEl = elevs.Max();
+                    //editor.WriteMessage($"\nMax elevation of {pv.Name} is {maxEl}.");
+
+                    //pv.CheckOrOpenForWrite();
+                    //pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+
+                    //pv.ElevationMax = Math.Ceiling(maxEl); 
+                    #endregion
+                    //}
+                    //}
+
+
+
+                    #endregion
+
+                    #region Test station and offset alignment
+                    //#region Select point
+                    //PromptPointOptions pPtOpts = new PromptPointOptions("");
+                    //// Prompt for the start point
+                    //pPtOpts.Message = "\nEnter location to test the alignment:";
+                    //PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
+                    //Point3d selectedPoint = pPtRes.Value;
+                    //// Exit if the user presses ESC or cancels the command
+                    //if (pPtRes.Status != PromptStatus.OK) return;
+                    //#endregion
+
+                    //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+
+                    //foreach (Alignment al in als)
+                    //{
+                    //    double station = 0;
+                    //    double offset = 0;
+
+                    //    al.StationOffset(selectedPoint.X, selectedPoint.Y, ref station, ref offset);
+
+                    //    editor.WriteMessage($"\nReported: ST: {station}, OS: {offset}.");
+                    //} 
+                    #endregion
+
+                    #region Test assigning labels and point styles
+                    //oid cogoPointStyle = civilDoc.Styles.PointStyles["LER KRYDS"];
+                    //CogoPointCollection cpc = civilDoc.CogoPoints;
+
+                    //foreach (oid cpOid in cpc)
+                    //{
+                    //    CogoPoint cp = cpOid.Go<CogoPoint>(tx, OpenMode.ForWrite);
+                    //    cp.StyleId = cogoPointStyle;
+                    //}
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
                 }
                 tx.Commit();
             }

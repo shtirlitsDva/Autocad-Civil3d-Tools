@@ -26,7 +26,7 @@ using Autodesk.Gis.Map.Constants;
 using Autodesk.Gis.Map.Utilities;
 using AcRx = Autodesk.AutoCAD.Runtime;
 
-using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using static IntersectUtilities.HelperMethods;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
@@ -270,7 +270,7 @@ namespace IntersectUtilities
         /// Adds a record to a Table named tableName, the record is generated automatically.
         /// </summary>
         public static bool AddODRecord(Tables tables, string tableName,
-                                          oid id, MapValue[] values)
+                                          Oid id, MapValue[] values)
         {
             try
             {
@@ -328,7 +328,7 @@ namespace IntersectUtilities
                 return false;
             }
         }
-        public static bool AddEmptyODRecord(Autodesk.Gis.Map.ObjectData.Table table, oid id)
+        public static bool AddEmptyODRecord(Autodesk.Gis.Map.ObjectData.Table table, Oid id)
         {
             try
             {
@@ -346,7 +346,7 @@ namespace IntersectUtilities
         }
 
         public static bool AddODRecord(Tables tables, string tableName, string columnName,
-                                          oid id, MapValue originalValue)
+                                          Oid id, MapValue originalValue)
         {
             try
             {
@@ -411,7 +411,7 @@ namespace IntersectUtilities
         /// Updates a record to a Table named tableName, the record is generated automatically.
         /// </summary>
         public static bool UpdateODRecord<T>(Tables tables, string tableName, string columnName,
-                                          oid id, T value)
+                                          Oid id, T value)
         {
             try
             {
@@ -481,7 +481,7 @@ namespace IntersectUtilities
         }
 
         public static bool UpdateODRecord(Tables tables, string tableName, string columnName,
-                                          oid id, MapValue value)
+                                          Oid id, MapValue value)
         {
             Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
 
@@ -532,7 +532,7 @@ namespace IntersectUtilities
         /// <summary>
         /// Prints the records obtained by id.
         /// </summary>
-        public static MapValue ReadRecordData(Tables tables, oid id, string tableName, string columnName)
+        public static MapValue ReadRecordData(Tables tables, Oid id, string tableName, string columnName)
         {
             ErrorCode errCode = ErrorCode.OK;
             try
@@ -579,7 +579,7 @@ namespace IntersectUtilities
             }
         }
 
-        public static int ReadIntPropertyValue(Tables tables, oid id, string tableName, string columnName)
+        public static int ReadIntPropertyValue(Tables tables, Oid id, string tableName, string columnName)
         {
             ErrorCode errCode = ErrorCode.OK;
             try
@@ -606,7 +606,7 @@ namespace IntersectUtilities
             }
         }
 
-        public static double ReadDoublePropertyValue(Tables tables, oid id, string tableName, string columnName)
+        public static double ReadDoublePropertyValue(Tables tables, Oid id, string tableName, string columnName)
         {
             ErrorCode errCode = ErrorCode.OK;
             try
@@ -624,7 +624,7 @@ namespace IntersectUtilities
             }
         }
 
-        public static string ReadStringPropertyValue(Tables tables, oid id, string tableName, string columnName)
+        public static string ReadStringPropertyValue(Tables tables, Oid id, string tableName, string columnName)
         {
             ErrorCode errCode = ErrorCode.OK;
             try
@@ -642,7 +642,7 @@ namespace IntersectUtilities
             }
         }
 
-        public static string ReadPropertyToStringValue(Tables tables, oid id, string tableName, string columnName)
+        public static string ReadPropertyToStringValue(Tables tables, Oid id, string tableName, string columnName)
         {
             ErrorCode errCode = ErrorCode.OK;
             try
@@ -677,7 +677,7 @@ namespace IntersectUtilities
             }
         }
 
-        public static bool DoesRecordExist(Tables tables, oid id, string tableName, string columnName)
+        public static bool DoesRecordExist(Tables tables, Oid id, string tableName, string columnName)
         {
             ErrorCode errCode = ErrorCode.OK;
             try
@@ -727,7 +727,7 @@ namespace IntersectUtilities
             CopyAllOD(tables, entSource.Id, entTarget.Id);
         }
 
-        public static void CopyAllOD(Tables tables, oid sourceId, oid targetId)
+        public static void CopyAllOD(Tables tables, Oid sourceId, Oid targetId)
         {
             using (Records records = tables.GetObjectRecords(
                    0, sourceId, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
@@ -900,7 +900,7 @@ namespace IntersectUtilities
 
         public static bool CheckAddUpdateRecordValue(
             Tables tables,
-            oid entId,
+            Oid entId,
             string m_tableName,
             string columnName,
             MapValue value)
@@ -933,8 +933,8 @@ namespace IntersectUtilities
             Autodesk.AutoCAD.DatabaseServices.DBObject obj,
             string xRecName, string[] valuesToWrite)
         {
-            oid extId = obj.ExtensionDictionary;
-            if (extId == oid.Null)
+            Oid extId = obj.ExtensionDictionary;
+            if (extId == Oid.Null)
             {
                 obj.CheckOrOpenForWrite();
                 obj.CreateExtensionDictionary();
@@ -948,7 +948,7 @@ namespace IntersectUtilities
             Xrecord xRec;
             if (dbExt.Contains(xRecName))
             {
-                oid xRecId = dbExt.GetAt(xRecName);
+                Oid xRecId = dbExt.GetAt(xRecName);
                 xRec = xRecId.Go<Xrecord>(tx, OpenMode.ForWrite);
             }
             else
@@ -970,8 +970,8 @@ namespace IntersectUtilities
         public static bool XrecCopyTo(DBObject sourceObj, DBObject targetObj, string xRecordName)
         {
             Transaction sourceTx = sourceObj.Database.TransactionManager.TopTransaction;
-            oid sourceExtId = sourceObj.ExtensionDictionary;
-            if (sourceExtId == oid.Null)
+            Oid sourceExtId = sourceObj.ExtensionDictionary;
+            if (sourceExtId == Oid.Null)
             {
                 prdDbg($"DBObject with handle {sourceObj.Handle} does not have extension dictionary!");
                 return false;
@@ -980,12 +980,12 @@ namespace IntersectUtilities
             Xrecord sourceXrec;
             if (sourceDbExt.Contains(xRecordName))
             {
-                oid sourceXrecId = sourceDbExt.GetAt(xRecordName);
+                Oid sourceXrecId = sourceDbExt.GetAt(xRecordName);
                 sourceXrec = sourceXrecId.Go<Xrecord>(sourceTx);
 
                 Transaction targetTx = targetObj.Database.TransactionManager.TopTransaction;
-                oid targetExtId = targetObj.ExtensionDictionary;
-                if (targetExtId == oid.Null)
+                Oid targetExtId = targetObj.ExtensionDictionary;
+                if (targetExtId == Oid.Null)
                 {
                     targetObj.CheckOrOpenForWrite();
                     targetObj.CreateExtensionDictionary();
@@ -995,7 +995,7 @@ namespace IntersectUtilities
                 Xrecord targetXrec;
                 if (targetDbExt.Contains(xRecordName))
                 {
-                    oid targetXrecId = targetDbExt.GetAt(xRecordName);
+                    Oid targetXrecId = targetDbExt.GetAt(xRecordName);
                     targetXrec = targetXrecId.Go<Xrecord>(targetTx, OpenMode.ForWrite);
                 }
                 else
@@ -1492,7 +1492,7 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-            oid profByLayout = Profile.CreateByLayout(
+            Oid profByLayout = Profile.CreateByLayout(
                 profileName,
                 civilDoc,
                 alignmentName,
@@ -1638,7 +1638,7 @@ namespace IntersectUtilities
                 lt.CheckOrOpenForWrite();
 
                 //Add the new layer to layer table
-                oid ltId = lt.Add(ltr);
+                Oid ltId = lt.Add(ltr);
                 txLag.AddNewlyCreatedDBObject(ltr, true);
                 return true;
             }
@@ -1815,6 +1815,66 @@ namespace IntersectUtilities
             }
             #endregion
             return kø;
+        }
+        /// <summary>
+        /// Works only on blocks with TWO MuffeIntern such as transitions.
+        /// For less than TWO it will throw an exception.
+        /// For more than TWO it will return distance between two first MuffeIntern.
+        /// </summary>
+        public static double GetTransitionLength(Transaction tx, BlockReference nearestBlock)
+        {
+            if (nearestBlock == null) return 0;
+            if (nearestBlock.RealName() != "RED KDLR" &&
+                nearestBlock.RealName() != "RED KDLR x2")
+            {
+                prdDbg($"GetTransitionLength recieved non-transition block {nearestBlock.RealName()}, {nearestBlock.Handle}!");
+            }
+
+            BlockTableRecord btr = nearestBlock.BlockTableRecord.Go<BlockTableRecord>(tx);
+            int count = 0;
+            Point3d fp = default;
+            Point3d sp = default;
+            foreach (Oid oid in btr)
+            {
+                if (!oid.IsDerivedFrom<BlockReference>()) continue;
+                BlockReference nestedBr = oid.Go<BlockReference>(tx);
+                if (!nestedBr.Name.Contains("MuffeIntern")) continue;
+                count++;
+                switch (count)
+                {
+                    case 1:
+                        fp = nestedBr.Position;
+                        break;
+                    case 2:
+                        sp = nestedBr.Position;
+                        break;
+                    default:
+                        break;
+                }
+            }
+            return fp.DistanceHorizontalTo(sp);
+        }
+        public static void RemoveColinearVerticesPolyline(Polyline pline)
+        {
+            List<int> verticesToRemove = new List<int>();
+
+            for (int i = 0; i < pline.NumberOfVertices - 1; i++)
+            {
+                SegmentType st1 = pline.GetSegmentType(i);
+                SegmentType st2 = pline.GetSegmentType(i + 1);
+                if (st1 == SegmentType.Line && st1 == st2)
+                {
+                    LineSegment2d ls2d1 = pline.GetLineSegment2dAt(i);
+                    LineSegment2d ls2d2 = pline.GetLineSegment2dAt(i + 1);
+
+                    if (ls2d1.IsColinearTo(ls2d2)) verticesToRemove.Add(i + 1);
+                }
+            }
+
+            verticesToRemove.Reverse();
+            pline.CheckOrOpenForWrite();
+            for (int j = 0; j < verticesToRemove.Count; j++)
+                pline.RemoveVertexAt(verticesToRemove[j]);
         }
     }
     public static class OdTables
@@ -2186,7 +2246,7 @@ namespace IntersectUtilities
         }
         public static LayerTableRecord GetLayerByName(this LayerTable lt, string layerName)
         {
-            foreach (oid id in lt)
+            foreach (Oid id in lt)
             {
                 LayerTableRecord ltr = id.GetObject(OpenMode.ForRead) as LayerTableRecord;
                 if (ltr.Name == layerName) return ltr;
@@ -2214,12 +2274,12 @@ namespace IntersectUtilities
             string xRecordName, string[] filterValues)
         {
             Transaction tx = obj.Database.TransactionManager.TopTransaction;
-            oid extId = obj.ExtensionDictionary;
-            if (extId == oid.Null) return false;
+            Oid extId = obj.ExtensionDictionary;
+            if (extId == Oid.Null) return false;
             DBDictionary dbExt = extId.Go<DBDictionary>(tx);
             if (!dbExt.Contains(xRecordName)) return false;
-            oid xrecId = dbExt.GetAt(xRecordName);
-            if (xrecId == oid.Null) return false;
+            Oid xrecId = dbExt.GetAt(xRecordName);
+            if (xrecId == Oid.Null) return false;
             Xrecord xrec = xrecId.Go<Xrecord>(tx);
             TypedValue[] data = xrec.Data.AsArray();
             bool[] resArray = new bool[0];
@@ -2236,10 +2296,10 @@ namespace IntersectUtilities
             string xRecordName, int indexToRead)
         {
             Transaction tx = obj.Database.TransactionManager.TopTransaction;
-            oid extId = obj.ExtensionDictionary;
-            if (extId == oid.Null) return "";
+            Oid extId = obj.ExtensionDictionary;
+            if (extId == Oid.Null) return "";
             DBDictionary dbExt = extId.Go<DBDictionary>(tx);
-            oid xrecId = oid.Null;
+            Oid xrecId = Oid.Null;
             if (!dbExt.Contains(xRecordName)) return "";
             xrecId = dbExt.GetAt(xRecordName);
             Xrecord xrec = xrecId.Go<Xrecord>(tx);
@@ -2251,9 +2311,9 @@ namespace IntersectUtilities
         {
             Database db = br.Database;
             Transaction tx = db.TransactionManager.TopTransaction;
-            foreach (oid Oid in br.AttributeCollection)
+            foreach (Oid oid in br.AttributeCollection)
             {
-                AttributeReference ar = Oid.Go<AttributeReference>(tx);
+                AttributeReference ar = oid.Go<AttributeReference>(tx);
                 if (string.Equals(ar.Tag, attributeName, StringComparison.OrdinalIgnoreCase))
                 {
                     ar.CheckOrOpenForWrite();
@@ -2269,7 +2329,7 @@ namespace IntersectUtilities
             Transaction tx = db.TransactionManager.TopTransaction;
             BlockTableRecord modelSpace = db.GetModelspaceForWrite();
             BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
-            oid btrId = bt[blockName];
+            Oid btrId = bt[blockName];
             BlockTableRecord btr = btrId.Go<BlockTableRecord>(tx);
 
             var br = new BlockReference(position, btrId);
@@ -2279,7 +2339,7 @@ namespace IntersectUtilities
             tx.AddNewlyCreatedDBObject(br, true);
             br.Rotation = rotation;
 
-            foreach (oid arOid in btr)
+            foreach (Oid arOid in btr)
             {
                 if (arOid.IsDerivedFrom<AttributeDefinition>())
                 {
@@ -2395,29 +2455,29 @@ namespace IntersectUtilities
 
     public static class ExtensionMethods
     {
-        public static T Go<T>(this oid Oid, Transaction tx,
+        public static T Go<T>(this Oid oid, Transaction tx,
             Autodesk.AutoCAD.DatabaseServices.OpenMode openMode =
             Autodesk.AutoCAD.DatabaseServices.OpenMode.ForRead) where T : Autodesk.AutoCAD.DatabaseServices.DBObject
         {
-            return (T)tx.GetObject(Oid, openMode, false);
+            return (T)tx.GetObject(oid, openMode, false);
         }
-        public static oid AddEntityToDbModelSpace<T>(this T entity, Database db) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        public static Oid AddEntityToDbModelSpace<T>(this T entity, Database db) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
             Transaction tx = db.TransactionManager.TopTransaction;
             BlockTableRecord modelSpace = db.GetModelspaceForWrite();
-            oid id = modelSpace.AppendEntity(entity);
+            Oid id = modelSpace.AppendEntity(entity);
             tx.AddNewlyCreatedDBObject(entity, true);
             return id;
         }
-        public static string Layer(this oid Oid)
+        public static string Layer(this Oid oid)
         {
             Transaction tx = Application.DocumentManager.MdiActiveDocument.Database.TransactionManager.TopTransaction;
-            if (!Oid.ObjectClass.IsDerivedFrom(RXClass.GetClass(typeof(Entity)))) return "";
-            return Oid.Go<Entity>(tx).Layer;
+            if (!oid.ObjectClass.IsDerivedFrom(RXClass.GetClass(typeof(Entity)))) return "";
+            return oid.Go<Entity>(tx).Layer;
         }
-        public static bool IsDerivedFrom<T>(this oid Oid)
+        public static bool IsDerivedFrom<T>(this Oid oid)
         {
-            return Oid.ObjectClass.IsDerivedFrom(RXObject.GetClass(typeof(T)));
+            return oid.ObjectClass.IsDerivedFrom(RXObject.GetClass(typeof(T)));
         }
         public static void ForEach<T>(this Database database, Action<T> action, Transaction tr) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
@@ -2432,7 +2492,7 @@ namespace IntersectUtilities
             RXClass theClass = RXObject.GetClass(typeof(T));
 
             // Loop through the entities in model space
-            foreach (oid objectId in modelSpace)
+            foreach (Oid objectId in modelSpace)
             {
                 // Look for entities of the correct type
                 if (objectId.ObjectClass.IsDerivedFrom(theClass))
@@ -2461,7 +2521,7 @@ namespace IntersectUtilities
             RXClass theClass = RXObject.GetClass(typeof(T));
 
             // Loop through the entities in model space
-            foreach (oid objectId in modelSpace)
+            foreach (Oid objectId in modelSpace)
             {
                 // Look for entities of the correct type
                 if (objectId.ObjectClass.IsDerivedFrom(theClass))
@@ -2515,9 +2575,9 @@ namespace IntersectUtilities
                         if (btr.IsDynamicBlock)
                         {
                             ObjectIdCollection oids2 = blockRefId.Go<BlockTableRecord>(tx).GetBlockReferenceIds(true, true);
-                            foreach (oid Oid in oids2)
+                            foreach (Oid oid in oids2)
                             {
-                                set.Add(Oid.Go<BlockReference>(tx));
+                                set.Add(oid.Go<BlockReference>(tx));
                             }
                         }
                         else { set.Add(blockRefId.Go<BlockReference>(tx)); }
