@@ -5993,6 +5993,7 @@ namespace IntersectUtilities
                         while (ll.Count > 0)
                         {
                             Curve curve = ll.First.Value;
+                            curve.CheckOrOpenForWrite();
                             ll.RemoveFirst();
 
                             //Detect the component at curve end
@@ -6021,10 +6022,9 @@ namespace IntersectUtilities
                             pline.CheckOrOpenForWrite();
                             pline.ConstantWidth = pline.GetStartWidthAt(0);
                             double globalWidth = pline.ConstantWidth;
-                            prdDbg($"Width: {globalWidth}");
+                            //prdDbg($"Width: {globalWidth}");
 
-                            if (remainder > 1e-3 &&
-                                pipeStdLegnth - remainder > 1e-3)
+                            if (remainder > 1e-3 && pipeStdLegnth - remainder > 1e-3)
                             {
                                 prdDbg($"Remainder: {remainder}, missing length: {missingLength}");
                                 double transitionLength = GetTransitionLength(tx, nearestBlock);
@@ -6032,14 +6032,16 @@ namespace IntersectUtilities
                                 Curve nextCurve = null;
                                 nextCurve = ll.First?.Value;
                                 if (nextCurve == null) continue;
+                                nextCurve.CheckOrOpenForWrite();
                                 ll.RemoveFirst();
 
                                 if (missingLength <= transitionLength)
                                 {
+                                    prdDbg("Case 1");
                                     //Case where the point is in transition
                                     //Extend the current curve
                                     curve.CheckOrOpenForWrite();
-                                    Vector3d v = curve.GetFirstDerivative(endPoint);
+                                    Vector3d v = curve.GetFirstDerivative(endPoint).GetNormal();
                                     Point3d newEndPoint = endPoint + v * missingLength;
                                     curve.Extend(false, newEndPoint);
 
@@ -6055,13 +6057,15 @@ namespace IntersectUtilities
                                     {
                                         DBObjectCollection objs = nextCurve
                                             .GetSplitCurves(new DoubleCollection(splitPars.ToArray()));
-                                        Curve toDelete = objs[0] as Curve;
-                                        toDelete.CheckOrOpenForWrite();
-                                        toDelete.Erase(true);
                                         Curve toAdd = objs[1] as Curve;
                                         toAdd.AddEntityToDbModelSpace(localDb);
                                         //Add the newly created curve to linkedlist
                                         ll.AddFirst(toAdd);
+
+                                        XrecCopyTo(nextCurve, toAdd, "Alignment");
+
+                                        nextCurve.CheckOrOpenForWrite();
+                                        nextCurve.Erase(true);
                                     }
                                     catch (Autodesk.AutoCAD.Runtime.Exception ex)
                                     {
@@ -6075,12 +6079,9 @@ namespace IntersectUtilities
                                     line.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
                                     line.AddEntityToDbModelSpace(localDb);
                                 }
-                                //else if (missingLength > transitionLength && missingLength < 10)
-                                //{
-
-                                //}
-                                else
+                                else if (missingLength > transitionLength && missingLength < pipeStdLegnth - 2)
                                 {
+                                    prdDbg("Case 2");
                                     //Case where the point is on the next curve
                                     //Find the location of new endpoint
                                     double newEndDist = missingLength - transitionLength;
@@ -6088,7 +6089,7 @@ namespace IntersectUtilities
                                     //Curves length
                                     if (newEndDist > nextCurve.GetDistanceAtParameter(nextCurve.EndParam))
                                     {
-                                        prdDbg($"L: 6077: {nearestBlock.Handle} - {newEndDist}");
+                                        prdDbg("Case 2.1 (Next line shorter than needed->Continue)");
 
                                         //Red line
                                         Line line2 = new Line(new Point3d(), endPoint);
@@ -6106,6 +6107,7 @@ namespace IntersectUtilities
 
                                     if (st == SegmentType.Arc)
                                     {
+                                        prdDbg("Case 2.2 (Next line is an arc -> abort)");
                                         //Red line
                                         //When segment is an arc -- abort -- must be done manually
                                         //Generally a transition must not be on a curve
@@ -6139,7 +6141,7 @@ namespace IntersectUtilities
                                             DBObjectCollection objs = nextCurve
                                                 .GetSplitCurves(new DoubleCollection(splitPars.ToArray()));
                                             Polyline toMerge = objs[0] as Polyline;
-                                            
+
                                             for (int i = 0; i < toMerge.NumberOfVertices; i++)
                                             {
                                                 Point2d cp = new Point2d(toMerge.GetPoint3dAt(i).X, toMerge.GetPoint3dAt(i).Y);
@@ -6170,6 +6172,188 @@ namespace IntersectUtilities
                                         Line line = new Line(new Point3d(), newEndPoint);
                                         line.Color = Color.FromColorIndex(ColorMethod.ByAci, 4);
                                         line.AddEntityToDbModelSpace(localDb);
+                                    }
+                                }
+                                else if (missingLength >= pipeStdLegnth - 2)
+                                {
+                                    prdDbg("Case 4 (Missing length is small -> moving backwards).");
+                                    //Take care to reverse them back!!!
+                                    curve.ReverseCurve();
+                                    nextCurve.ReverseCurve();
+                                    //Exchange references to be able to reuse code with minimal changes
+                                    var temp = curve;
+                                    curve = nextCurve;
+                                    nextCurve = temp;
+
+                                    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                    //*******************************************
+                                    //Missing length redefined!!!
+                                    missingLength = pipeStdLegnth - missingLength;
+                                    //End point redefined!!!
+                                    endPoint = curve.GetPointAtParameter(curve.EndParam);
+
+                                    //Case where the transition is moved back instead of forward
+                                    if (missingLength <= transitionLength)
+                                    {
+                                        prdDbg($"Case 4.1 (MissingLength {missingLength} is SHORTER than transition.");
+                                        //Case where the point is in transition
+                                        //Extend the current curve
+                                        curve.CheckOrOpenForWrite();
+                                        Vector3d v = curve.GetFirstDerivative(endPoint).GetNormal();
+                                        Point3d newEndPoint = endPoint + v * missingLength;
+                                        curve.Extend(false, newEndPoint);
+
+                                        //Move block
+                                        nearestBlock.CheckOrOpenForWrite();
+                                        Vector3d moveVector = endPoint.GetVectorTo(newEndPoint);
+                                        nearestBlock.TransformBy(Matrix3d.Displacement(moveVector));
+
+                                        //Split the piece from next curve
+                                        List<double> splitPars = new List<double>();
+                                        splitPars.Add(nextCurve.GetParameterAtDistance(missingLength));
+                                        try
+                                        {
+                                            DBObjectCollection objs = nextCurve
+                                                .GetSplitCurves(new DoubleCollection(splitPars.ToArray()));
+                                            Curve toAdd = objs[1] as Curve;
+                                            toAdd.AddEntityToDbModelSpace(localDb);
+                                            //Add the newly created curve to linkedlist
+                                            //REMEMBER: it is reversed still!
+                                            ll.AddFirst(curve);
+
+                                            XrecCopyTo(nextCurve, toAdd, "Alignment");
+
+                                            nextCurve.CheckOrOpenForWrite();
+                                            nextCurve.Erase(true);
+
+                                            //Reverse curves back again
+                                            toAdd.ReverseCurve();
+                                            curve.ReverseCurve();
+                                        }
+                                        catch (Autodesk.AutoCAD.Runtime.Exception ex)
+                                        {
+                                            Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
+                                            throw new System.Exception("Splitting of pline failed!");
+                                        }
+
+                                        //Magenta line
+                                        //When the remainder is shorter than the length of transition
+                                        //And THE MOVEMENT IS REVERSED!
+                                        Line line = new Line(new Point3d(), newEndPoint);
+                                        line.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
+                                        line.AddEntityToDbModelSpace(localDb);
+                                    }
+                                    else if (missingLength > transitionLength && missingLength <= 2)
+                                    {
+                                        prdDbg("Case 4.2 (MissingLength is LONGER than transition)");
+                                        //Case where the point is on the next curve
+                                        //Find the location of new endpoint
+                                        double newEndDist = missingLength - transitionLength;
+                                        //Catch a case where the missing length is longer than the next
+                                        //Curves length
+                                        if (newEndDist > nextCurve.GetDistanceAtParameter(nextCurve.EndParam))
+                                        {
+                                            prdDbg($"L: 6077: {nearestBlock.Handle} - {newEndDist}");
+                                            prdDbg("Case 4.2.1 (Curve is shorter than required -> abort)");
+
+                                            //Red line
+                                            Line line2 = new Line(new Point3d(), endPoint);
+                                            line2.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                                            line2.AddEntityToDbModelSpace(localDb);
+
+                                            //Return the curve to the queue
+                                            //Remember: REVERSED!!
+                                            ll.AddFirst(curve);
+                                            curve.ReverseCurve();
+                                            nextCurve.ReverseCurve();
+                                            continue;
+                                        }
+
+                                        Point3d newEndPoint = nextCurve.GetPointAtDist(newEndDist);
+                                        double parameter = Math.Truncate(nextCurve.GetParameterAtPoint(newEndPoint));
+                                        SegmentType st = ((Polyline)nextCurve).GetSegmentType((int)parameter);
+
+                                        if (st == SegmentType.Arc)
+                                        {
+                                            prdDbg("Case 4.2.2 (NewEndPoint lands on arc segment -> abort)");
+                                            //Red line
+                                            //When segment is an arc -- abort -- must be done manually
+                                            //Generally a transition must not be on a curve
+                                            Line line2 = new Line(new Point3d(), newEndPoint);
+                                            line2.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                                            line2.AddEntityToDbModelSpace(localDb);
+
+                                            //Return the curve to the queue
+                                            //Remember: REVERSED!!
+                                            ll.AddFirst(curve);
+                                            curve.ReverseCurve();
+                                            nextCurve.ReverseCurve();
+                                            continue;
+                                        }
+                                        else
+                                        {
+                                            //Move block and rotate
+                                            nearestBlock.CheckOrOpenForWrite();
+                                            Vector3d moveVector = endPoint.GetVectorTo(newEndPoint);
+                                            nearestBlock.TransformBy(Matrix3d.Displacement(moveVector));
+
+                                            //prdDbg($"L: 6102: {nearestBlock.Handle} - {newEndDist}");
+                                            //Vector3d deriv = nextCurve.GetFirstDerivative(
+                                            //    nextCurve.GetPointAtDist(newEndDist + transitionLength / 2));
+                                            //double rotation = Math.Atan2(deriv.Y, deriv.X) - Math.PI / 2;
+                                            //nearestBlock.Rotation = rotation;
+
+                                            //Split the piece from next curve
+                                            List<double> splitPars = new List<double>();
+                                            splitPars.Add(nextCurve.GetParameterAtDistance(newEndDist));
+                                            splitPars.Add(nextCurve.GetParameterAtDistance(newEndDist + transitionLength));
+                                            try
+                                            {
+                                                DBObjectCollection objs = nextCurve
+                                                    .GetSplitCurves(new DoubleCollection(splitPars.ToArray()));
+                                                Polyline toMerge = objs[0] as Polyline;
+
+                                                //Remember exchanged references!!!
+                                                pline = curve as Polyline;
+                                                for (int i = 0; i < toMerge.NumberOfVertices; i++)
+                                                {
+                                                    Point2d cp = new Point2d(toMerge.GetPoint3dAt(i).X, toMerge.GetPoint3dAt(i).Y);
+                                                    pline.AddVertexAt(
+                                                        pline.NumberOfVertices,
+                                                        cp, toMerge.GetBulgeAt(i), 0, 0);
+                                                }
+                                                pline.ConstantWidth = globalWidth;
+                                                RemoveColinearVerticesPolyline(pline);
+
+                                                Curve toAdd = objs[2] as Curve;
+                                                //Add the newly created curve to linkedlist
+                                                toAdd.AddEntityToDbModelSpace(localDb);
+                                                XrecCopyTo(nextCurve, toAdd, "Alignment");
+                                                toAdd.ReverseCurve();
+
+                                                //Remember exchanged references!!!
+                                                ll.AddFirst(curve);
+
+                                                nextCurve.CheckOrOpenForWrite();
+                                                nextCurve.Erase(true);
+
+                                                //Remember: REVERSED!!
+                                                curve.ReverseCurve();
+                                            }
+                                            catch (Autodesk.AutoCAD.Runtime.Exception ex)
+                                            {
+                                                Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
+                                                throw new System.Exception("Splitting of pline failed!");
+                                            }
+
+                                            //20 line
+                                            //When the remainder is longer than the length of transition
+                                            Line line = new Line(new Point3d(), newEndPoint);
+                                            line.Color = Color.FromColorIndex(ColorMethod.ByAci, 20);
+                                            line.AddEntityToDbModelSpace(localDb);
+
+                                            
+                                        }
                                     }
                                 }
                             }
