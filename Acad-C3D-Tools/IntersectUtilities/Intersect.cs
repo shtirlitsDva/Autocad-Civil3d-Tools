@@ -6672,6 +6672,14 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Combine partial plines and convert to profile
+                    //Get the number of the alignment
+                    Regex regx = new Regex(@"^(?<number>\d\d\s)");
+                    string number = "";
+                    if (regx.IsMatch(al.Name))
+                    {
+                        number = regx.Match(al.Name).Groups["number"].Value;
+                    }
+                    
                     //Combine to polylines
                     Polyline plineTop = new Polyline();
                     foreach (Polyline partPline in offsetCurvesTop)
@@ -6685,7 +6693,7 @@ namespace IntersectUtilities
                         }
                     }
                     Profile profileTop = CreateProfileFromPolyline(
-                        "BUND",
+                        number + "BUND",
                         pv,
                         al.Name,
                         profileLayerName,
@@ -6707,7 +6715,7 @@ namespace IntersectUtilities
                         }
                     }
                     Profile profileBund = CreateProfileFromPolyline(
-                        "TOP",
+                        number + "TOP",
                         pv,
                         al.Name,
                         profileLayerName,
