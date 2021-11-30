@@ -160,12 +160,8 @@ namespace SheetCreationAutomation
 
                 for (int i = 0; i < publishedCount; i++)
                 {
-                    prdDbg("");
                     DataShortcuts.DataShortcutManager.PublishedItem item =
                         sm.GetPublishedItemAt(i);
-                    prdDbg($"Name: {item.Name}");
-                    prdDbg($"Description: {item.Description}");
-                    prdDbg($"DSEntityType: {item.DSEntityType.ToString()}");
 
                     if (item.DSEntityType == DataShortcutEntityType.Alignment)
                     {
@@ -185,11 +181,9 @@ namespace SheetCreationAutomation
                                 {
                                     alDb.ReadDwgFile(newFileName, FileOpenMode.OpenForReadAndWriteNoShare,
                                         false, string.Empty);
+                                    prdDbg("");
                                     prdDbg("Alignment detected! Creating reference to shortcut...");
                                     ObjectIdCollection ids = sm.CreateReference(i, alDb);
-
-                                    //HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
-                                    editor.WriteMessage($"\nNr. of alignments: {ids.Count}");
                                     CivilDocument civilDoc = CivilDocument.GetCivilDocument(alDb);
                                     foreach (oid Oid in ids)
                                     {
@@ -205,6 +199,35 @@ namespace SheetCreationAutomation
                                             prdDbg("Styles for alignment or labels are missing!");
                                             throw;
                                         }
+                                    }
+
+                                    //Create reference to profiles
+                                    //Determine the pipeline number
+                                    Regex regex = new Regex(@"(?<number>\d\d\s)");
+
+                                    string number = "";
+                                    if (regex.IsMatch(item.Name))
+                                    {
+                                        number = regex.Match(item.Name).Groups["number"].Value;
+                                        prdDbg($"Strækning navn: {item.Name} -> Number: {number}");
+
+                                        for (int j = 0; j < publishedCount; j++)
+                                        {
+                                            DataShortcuts.DataShortcutManager.PublishedItem candidate = sm.GetPublishedItemAt(j);
+                                            if (candidate.DSEntityType == DataShortcutEntityType.Profile)
+                                            {
+                                                if (candidate.Name.StartsWith(number))
+                                                {
+                                                    prdDbg(candidate.Name);
+                                                    sm.CreateReference(j, alDb);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        prdDbg($"Name {item.Name} does not contain pipeline number!");
+                                        continue;
                                     }
                                 }
                                 catch (System.Exception ex)
@@ -327,6 +350,92 @@ namespace SheetCreationAutomation
                             if (item.Name.StartsWith(strNumber))
                             {
                                 sm.CreateReference(i, localDb);
+                            }
+                        }
+                    }
+
+                    System.Windows.Forms.Application.DoEvents();
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                finally
+                {
+                    sm.Dispose();
+                }
+                tx.Commit();
+            }
+        }
+
+        /// <summary>
+        /// Run this command before creating viewframes
+        /// This is to check that all profiles have correct names
+        /// </summary>
+        [CommandMethod("TESTPROFILEREFS")]
+        public void testprofilerefs()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                bool isValidCreation = false;
+                DataShortcuts.DataShortcutManager sm = DataShortcuts.CreateDataShortcutManager(ref isValidCreation);
+
+                if (isValidCreation != true)
+                {
+                    prdDbg("DataShortcutManager failed to be created!");
+                    return;
+                }
+
+                try
+                {
+                    #region
+                    int publishedCount = sm.GetPublishedItemsCount();
+                    prdDbg($"publishedCount = {publishedCount}");
+
+                    for (int i = 0; i < publishedCount; i++)
+                    {
+                        DataShortcuts.DataShortcutManager.PublishedItem item =
+                            sm.GetPublishedItemAt(i);
+
+                        if (item.DSEntityType == DataShortcutEntityType.Alignment)
+                        {
+                            //Determine the pipeline number
+                            Regex regex = new Regex(@"(?<number>\d\d\s)");
+
+                            string number = "";
+                            if (regex.IsMatch(item.Name))
+                            {
+                                number = regex.Match(item.Name).Groups["number"].Value;
+                                prdDbg("");
+                                prdDbg($"Strækning navn: {item.Name} -> Number: {number}");
+
+                                for (int j = 0; j < publishedCount; j++)
+                                {
+                                    DataShortcuts.DataShortcutManager.PublishedItem candidate = sm.GetPublishedItemAt(j);
+                                    if (candidate.DSEntityType == DataShortcutEntityType.Profile)
+                                    {
+                                        if (candidate.Name.StartsWith(number))
+                                        {
+                                            prdDbg(candidate.Name);
+                                            //sm.CreateReference(i, localDb);
+                                        }
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                prdDbg($"Name {item.Name} does not contain pipeline number!");
+                                continue;
                             }
                         }
                     }
