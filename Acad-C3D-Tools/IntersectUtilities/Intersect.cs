@@ -13590,6 +13590,12 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    double tol = 0;
+
+                    PromptDoubleResult result = ed.GetDouble("\nEnter tolerance in meters:");
+                    if (((PromptResult)result).Status != PromptStatus.OK) return;
+                    tol = result.Value;
+
                     HashSet<DBText> dBTexts = localDb.HashSetOfType<DBText>(tx);
                     ObjectIdCollection toDelete = new ObjectIdCollection();
 
@@ -13619,7 +13625,7 @@ namespace IntersectUtilities
                             for (int i = 0; i < qu.Count; i++)
                             {
                                 var curLabel = qu.Dequeue();
-                                if (labelToTest.position.DistanceHorizontalTo(curLabel.position) < 50)
+                                if (labelToTest.position.DistanceHorizontalTo(curLabel.position) < tol)
                                     toDelete.Add(curLabel.id);
                                 else qu.Enqueue(curLabel);
                             }
