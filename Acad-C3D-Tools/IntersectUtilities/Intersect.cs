@@ -10581,12 +10581,14 @@ namespace IntersectUtilities
                 try
                 {
                     Oid alStyle = civilDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
+                    Oid labelSetStyle = civilDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
                     HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
 
                     foreach (Alignment al in als)
                     {
                         al.CheckOrOpenForWrite();
                         al.StyleId = alStyle;
+                        al.ImportLabelSet(labelSetStyle);
                     }
                 }
                 catch (System.Exception ex)
@@ -10614,12 +10616,14 @@ namespace IntersectUtilities
                 try
                 {
                     Oid alStyle = civilDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
+                    Oid labelSetStyle = civilDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["_No Labels"];
                     HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
 
                     foreach (Alignment al in als)
                     {
                         al.CheckOrOpenForWrite();
                         al.StyleId = alStyle;
+                        al.ImportLabelSet(labelSetStyle);
                     }
                 }
                 catch (System.Exception ex)
