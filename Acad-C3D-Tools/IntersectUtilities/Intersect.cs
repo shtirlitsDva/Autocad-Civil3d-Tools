@@ -13795,7 +13795,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region PropertySets testing
+                    #region PropertySets testing 1
                     //IntersectUtilities.ODDataConverter.ODDataConverter.testing();
                     PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
                         "\nSelect entity to list rxobject:");
@@ -14283,6 +14283,12 @@ namespace IntersectUtilities
         public void attachodtablepropertysets()
         {
             IntersectUtilities.ODDataConverter.ODDataConverter.attachpropertysetstoobjects();
+        }
+        
+        [CommandMethod("POPULATEPROPERTYSETSWITHODDATA")]
+        public void populatepropertysetswithoddata()
+        {
+            IntersectUtilities.ODDataConverter.ODDataConverter.populatepropertysetswithoddata();
         }
     }
 }

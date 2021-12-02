@@ -23,6 +23,7 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Table = Autodesk.Gis.Map.ObjectData.Table;
+using System.Collections.ObjectModel;
 
 namespace IntersectUtilities.ODDataConverter
 {
@@ -74,7 +75,7 @@ namespace IntersectUtilities.ODDataConverter
                         string fieldDefName = curFd.Name;
                         string fieldDefDescription = curFd.Description;
                         DataType fieldType = curFd.Type;
-                        
+
 
                         // Definition tab
                         // (2) we can add a set of property definitions. 
@@ -120,7 +121,7 @@ namespace IntersectUtilities.ODDataConverter
 
             ed.WriteMessage("\nFinished!");
         }
-        
+
         public static void attachpropertysetstoobjects()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -165,7 +166,82 @@ namespace IntersectUtilities.ODDataConverter
                             PropertyDataServices.AddPropertySet(p3d, dictId);
                         }
                     }
-                } 
+                }
+                tx.Commit();
+            }
+        }
+
+        public static void populatepropertysetswithoddata()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor ed = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            //Reference ODTables
+            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+            DictionaryPropertySetDefinitions dictPropSetDef = new DictionaryPropertySetDefinitions(localDb);
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    //I need to work with 3d polylines
+                    //Change here to add other types of objects
+                    HashSet<Polyline3d> p3ds = localDb.HashSetOfType<Polyline3d>(tx);
+
+                    foreach (Polyline3d p3d in p3ds)
+                    {
+                        ObjectIdCollection psIds = PropertyDataServices.GetPropertySets(p3d);
+                        List<PropertySet> pss = new List<PropertySet>();
+                        foreach (Oid oid in psIds) pss.Add(oid.Go<PropertySet>(tx, OpenMode.ForWrite));
+
+                        using (Records records =
+                            tables.GetObjectRecords(0, p3d.Id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+                        {
+                            int recordsCount = records.Count;
+                            for (int i = 0; i < recordsCount; i++)
+                            {
+                                Record record = records[i];
+                                string tableName = record.TableName;
+                                //Specific to my implementation
+                                if (tableName == "IdRecord") continue;
+
+                                PropertySet propertySet = pss.Find(x => x.PropertySetDefinitionName == tableName);
+                                if (propertySet == null)
+                                {
+                                    tx.Abort();
+                                    ed.WriteMessage($"\nPropertySet with the name {tableName} could not be found!");
+                                    return;
+                                }
+
+                                Table table = tables[tableName];
+                                FieldDefinitions fDefs = table.FieldDefinitions;
+                                int fieldsCount = fDefs.Count;
+
+                                for (int j = 0; j < fieldsCount; j++)
+                                {
+                                    FieldDefinition fDef = fDefs[j];
+                                    string fieldName = fDef.Name;
+
+                                    int columnIndex = fDefs.GetColumnIndex(fieldName);
+                                    MapValue value = record[columnIndex];
+
+                                    int psIdCurrent = propertySet.PropertyNameToId(fieldName);
+                                    propertySet.SetAt(psIdCurrent, GetMapValueData(value));
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    tx.Abort();
+                    ed.WriteMessage(ex.ToString());
+                    return;
+                }
+                tx.Commit();
             }
         }
 
@@ -182,7 +258,25 @@ namespace IntersectUtilities.ODDataConverter
                 case DataType.Character:
                     return Autodesk.Aec.PropertyData.DataType.Text;
                 case DataType.Point:
-                    throw new Exception("DataType Point not implemented!");
+                    return Autodesk.Aec.PropertyData.DataType.Text;
+                default:
+                    throw new Exception("DataType Default case not implemented!");
+            }
+        }
+        private static object GetMapValueData(MapValue mapValue)
+        {
+            switch (mapValue.Type)
+            {
+                case DataType.UnknownType:
+                    return mapValue.StrValue;
+                case DataType.Integer:
+                    return mapValue.Int32Value;
+                case DataType.Real:
+                    return mapValue.DoubleValue;
+                case DataType.Character:
+                    return mapValue.StrValue;
+                case DataType.Point:
+                    return mapValue.Point.ToString();
                 default:
                     throw new Exception("DataType Default case not implemented!");
             }
@@ -203,7 +297,7 @@ namespace IntersectUtilities.ODDataConverter
                 case DataType.Character:
                     return "";
                 case DataType.Point:
-                    throw new Exception("Default DataType Point not implemented!");
+                    return "";
                 default:
                     throw new Exception($"Default DataType {fieldDefinition.Type.ToString()} not implemented!");
             }
@@ -218,21 +312,49 @@ namespace IntersectUtilities.ODDataConverter
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             DictionaryPropertySetDefinitions dictPropSetDef = new DictionaryPropertySetDefinitions(localDb);
-            StringCollection names = dictPropSetDef.NamesInUse;
+
+            PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                        "\nSelect entity to list propertyset defs names:");
+            promptEntityOptions1.SetRejectMessage("\n Not a p3d!");
+            promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+            PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
+            if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+            Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                foreach (string name in names)
+                Polyline3d p3d = entId.Go<Polyline3d>(tx);
+
+                ObjectIdCollection psIds = PropertyDataServices.GetPropertySets(p3d);
+                List<PropertySet> pss = new List<PropertySet>();
+                foreach (Oid oid in psIds) pss.Add(oid.Go<PropertySet>(tx));
+
+                foreach (PropertySet ps in pss)
                 {
-                    Oid dictId = dictPropSetDef.GetAt(name);
-                    PropertySetDefinition propDef = dictId.Go<PropertySetDefinition>(tx);
-                    foreach (string filter in propDef.AppliesToFilter)
+                    foreach (PropertySetData psd in ps.PropertySetData)
                     {
-                        prdDbg(filter);
+                        
                     }
                 }
-
-                tx.Abort();
             }
+
+            #region ListFilterItems
+            //StringCollection names = dictPropSetDef.NamesInUse;
+            //using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            //{
+            //    foreach (string name in names)
+            //    {
+            //        Oid dictId = dictPropSetDef.GetAt(name);
+            //        PropertySetDefinition propDef = dictId.Go<PropertySetDefinition>(tx);
+            //        foreach (string filter in propDef.AppliesToFilter)
+            //        {
+            //            prdDbg(filter);
+            //        }
+            //    }
+
+            //    tx.Abort();
+            //} 
+            #endregion
         }
     }
 }
