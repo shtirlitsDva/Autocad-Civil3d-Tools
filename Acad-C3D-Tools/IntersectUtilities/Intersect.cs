@@ -13795,40 +13795,52 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region PropertySets testing
+                    //IntersectUtilities.ODDataConverter.ODDataConverter.testing();
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                        "\nSelect entity to list rxobject:");
+                    promptEntityOptions1.SetRejectMessage("\n Not a p3d!");
+                    promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
+                    prdDbg(entId.ObjectClass.Name);
+                    #endregion
+
                     #region Print all values of all ODTable's fields
-                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                    //    "\nSelect entity to list OdTable:");
-                    //promptEntityOptions1.SetRejectMessage("\n Not a p3d!");
-                    //promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
-                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    //Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
+                    ////PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                    ////    "\nSelect entity to list OdTable:");
+                    ////promptEntityOptions1.SetRejectMessage("\n Not a p3d!");
+                    ////promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                    ////PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    ////if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    ////Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
 
-                    HashSet<Polyline3d> p3ds = localDb.HashSetOfType<Polyline3d>(tx, true)
-                        .Where(x => x.Layer == "AFL_ledning_faelles").ToHashSet();
+                    //HashSet<Polyline3d> p3ds = localDb.HashSetOfType<Polyline3d>(tx, true)
+                    //    .Where(x => x.Layer == "AFL_ledning_faelles").ToHashSet();
 
-                    foreach (Polyline3d item in p3ds)
-                    {
-                        Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                    //foreach (Polyline3d item in p3ds)
+                    //{
+                    //    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
 
-                        using (Records records
-                               = tables.GetObjectRecords(0, item.Id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
-                        {
-                            int count = records.Count;
-                            prdDbg($"Tables total: {count.ToString()}");
-                            for (int i = 0; i < count; i++)
-                            {
-                                Record record = records[i];
-                                int recordCount = record.Count;
-                                prdDbg($"Table {record.TableName} has {recordCount} fields.");
-                                for (int j = 0; j < recordCount; j++)
-                                {
-                                    MapValue value = record[j];
-                                    prdDbg($"R:{i + 1};V:{j + 1} : {value.StrValue}");
-                                }
-                            }
-                        } 
-                    }
+                    //    using (Records records
+                    //           = tables.GetObjectRecords(0, item.Id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+                    //    {
+                    //        int count = records.Count;
+                    //        prdDbg($"Tables total: {count.ToString()}");
+                    //        for (int i = 0; i < count; i++)
+                    //        {
+                    //            Record record = records[i];
+                    //            int recordCount = record.Count;
+                    //            prdDbg($"Table {record.TableName} has {recordCount} fields.");
+                    //            for (int j = 0; j < recordCount; j++)
+                    //            {
+                    //                MapValue value = record[j];
+                    //                prdDbg($"R:{i + 1};V:{j + 1} : {value.StrValue}");
+                    //            }
+                    //        }
+                    //    } 
+                    //}
                     #endregion
 
                     #region Test removing colinear vertices
@@ -14259,6 +14271,18 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+        }
+
+        [CommandMethod("CREATEPROPERTYSETSFROMODTABLES")]
+        public void createpropertysetsfromodtables()
+        {
+            IntersectUtilities.ODDataConverter.ODDataConverter.oddatacreatepropertysetsdefs();
+        }
+
+        [CommandMethod("ATTACHODTABLEPROPERTYSETS")]
+        public void attachodtablepropertysets()
+        {
+            IntersectUtilities.ODDataConverter.ODDataConverter.attachpropertysetstoobjects();
         }
     }
 }
