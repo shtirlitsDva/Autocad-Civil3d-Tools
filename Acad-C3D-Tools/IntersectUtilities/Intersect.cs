@@ -6352,7 +6352,7 @@ namespace IntersectUtilities
                                             line.Color = Color.FromColorIndex(ColorMethod.ByAci, 20);
                                             line.AddEntityToDbModelSpace(localDb);
 
-                                            
+
                                         }
                                     }
                                 }
@@ -6679,7 +6679,7 @@ namespace IntersectUtilities
                     {
                         number = regx.Match(al.Name).Groups["number"].Value;
                     }
-                    
+
                     //Combine to polylines
                     Polyline plineTop = new Polyline();
                     foreach (Polyline partPline in offsetCurvesTop)
@@ -13795,18 +13795,54 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Print all values of all ODTable's fields
+                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                    //    "\nSelect entity to list OdTable:");
+                    //promptEntityOptions1.SetRejectMessage("\n Not a p3d!");
+                    //promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    //Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
+
+                    HashSet<Polyline3d> p3ds = localDb.HashSetOfType<Polyline3d>(tx, true)
+                        .Where(x => x.Layer == "AFL_ledning_faelles").ToHashSet();
+
+                    foreach (Polyline3d item in p3ds)
+                    {
+                        Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                        using (Records records
+                               = tables.GetObjectRecords(0, item.Id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+                        {
+                            int count = records.Count;
+                            prdDbg($"Tables total: {count.ToString()}");
+                            for (int i = 0; i < count; i++)
+                            {
+                                Record record = records[i];
+                                int recordCount = record.Count;
+                                prdDbg($"Table {record.TableName} has {recordCount} fields.");
+                                for (int j = 0; j < recordCount; j++)
+                                {
+                                    MapValue value = record[j];
+                                    prdDbg($"R:{i + 1};V:{j + 1} : {value.StrValue}");
+                                }
+                            }
+                        } 
+                    }
+                    #endregion
+
                     #region Test removing colinear vertices
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                        "\nSelect polyline to list parameters:");
-                    promptEntityOptions1.SetRejectMessage("\n Not a polyline!");
-                    promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
-                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId plineId = entity1.ObjectId;
+                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                    //    "\nSelect polyline to list parameters:");
+                    //promptEntityOptions1.SetRejectMessage("\n Not a polyline!");
+                    //promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
+                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    //Autodesk.AutoCAD.DatabaseServices.ObjectId plineId = entity1.ObjectId;
 
-                    Polyline pline = plineId.Go<Polyline>(tx);
+                    //Polyline pline = plineId.Go<Polyline>(tx);
 
-                    RemoveColinearVerticesPolyline(pline);
+                    //RemoveColinearVerticesPolyline(pline);
                     #endregion
 
                     #region Test polyline parameter and vertices
