@@ -304,40 +304,6 @@ namespace IntersectUtilities.ODDataConverter
         }
         public static void testing()
         {
-            //test filterdata
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor ed = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            DictionaryPropertySetDefinitions dictPropSetDef = new DictionaryPropertySetDefinitions(localDb);
-
-            PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                        "\nSelect entity to list propertyset defs names:");
-            promptEntityOptions1.SetRejectMessage("\n Not a p3d!");
-            promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
-            PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
-            if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-            Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                Polyline3d p3d = entId.Go<Polyline3d>(tx);
-
-                ObjectIdCollection psIds = PropertyDataServices.GetPropertySets(p3d);
-                List<PropertySet> pss = new List<PropertySet>();
-                foreach (Oid oid in psIds) pss.Add(oid.Go<PropertySet>(tx));
-
-                foreach (PropertySet ps in pss)
-                {
-                    foreach (PropertySetData psd in ps.PropertySetData)
-                    {
-                        
-                    }
-                }
-            }
-
             #region ListFilterItems
             //StringCollection names = dictPropSetDef.NamesInUse;
             //using (Transaction tx = localDb.TransactionManager.StartTransaction())
