@@ -12,6 +12,8 @@ using Autodesk.Civil.DataShortcuts;
 using Autodesk.Gis.Map;
 using Autodesk.Gis.Map.ObjectData;
 using Autodesk.Gis.Map.Utilities;
+using Autodesk.Aec.PropertyData;
+using Autodesk.Aec.PropertyData.DatabaseServices;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -8835,43 +8837,54 @@ namespace IntersectUtilities
                             //Read layer value for the object
                             string localLayerName = Utils.ReadStringParameterFromDataTable(
                                                 ent.Layer, dtKrydsninger, "Layer", 0);
+                            #endregion
 
                             #region Populate description field
-                            //Populate description field
-                            //1. Read size record if it exists
-                            MapValue sizeRecord = Utils.ReadRecordData(
-                                tables, ent.ObjectId, "SizeTable", "Size");
-                            int SizeTableSize = 0;
-                            string sizeDescrPart = "";
-                            if (sizeRecord != null)
-                            {
-                                SizeTableSize = sizeRecord.Int32Value;
-                                sizeDescrPart = $"ø{SizeTableSize}";
-                            }
+                            //???????????????????????????
+                            ////Populate description field
+                            ////1. Read size record if it exists
+                            //MapValue sizeRecord = Utils.ReadRecordData(
+                            //    tables, ent.ObjectId, "SizeTable", "Size");
+                            //int SizeTableSize = 0;
+                            //string sizeDescrPart = "";
+                            //if (sizeRecord != null)
+                            //{
+                            //    SizeTableSize = sizeRecord.Int32Value;
+                            //    sizeDescrPart = $"ø{SizeTableSize}";
+                            //}
+                            //???????????????????????????
 
                             //2. Read description from Krydsninger
                             string descrFromKrydsninger = ReadStringParameterFromDataTable(
                                 ent.Layer, dtKrydsninger, "Description", 0);
 
                             //2.1 Read the formatting in the description field
-                            List<(string ToReplace, string Data)> descrFormatList = null;
+                            List<(string ToReplace, string ColumnName)> descriptionReplacePartsList = null;
                             if (descrFromKrydsninger.IsNotNoE())
-                                descrFormatList = FindDescriptionParts(descrFromKrydsninger);
+                                descriptionReplacePartsList = FindDescriptionParts(descrFromKrydsninger);
 
                             //Finally: Compose description field
                             List<string> descrParts = new List<string>();
+
+                            //??????????????????????????????????????????
                             //1. Add custom size
-                            if (SizeTableSize != 0) descrParts.Add(sizeDescrPart);
+                            //if (SizeTableSize != 0) descrParts.Add(sizeDescrPart);
+                            //??????????????????????????????????????????
+
+                            ObjectIdCollection psIds = PropertyDataServices.GetPropertySets(ent);
+                            List<PropertySet> pss = new List<PropertySet>();
+                            foreach (Oid oid in psIds) pss.Add(oid.Go<PropertySet>(xRefLerTx));
+
                             //2. Process and add parts from format bits in OD
                             if (descrFromKrydsninger.IsNotNoE())
                             {
                                 //Interpolate description from Krydsninger with format setting, if they exist
-                                if (descrFormatList != null && descrFormatList.Count > 0)
+                                if (descriptionReplacePartsList != null && descriptionReplacePartsList.Count > 0)
                                 {
-                                    for (int i = 0; i < descrFormatList.Count; i++)
+                                    for (int i = 0; i < descriptionReplacePartsList.Count; i++)
                                     {
-                                        var tuple = descrFormatList[i];
-                                        string result = ReadDescriptionPartsFromOD(tables, ent, tuple.Data, dtKrydsninger);
+                                        var tuple = descriptionReplacePartsList[i];
+                                        string result = ReadDescriptionPartsFromPS(pss, ent, tuple.ColumnName, dtKrydsninger);
                                         descrFromKrydsninger = descrFromKrydsninger.Replace(tuple.ToReplace, result);
                                     }
                                 }
@@ -8900,7 +8913,7 @@ namespace IntersectUtilities
                                 editor.WriteMessage($"\nEntity on layer {ent.Layer} failed to read Handle!");
                             }
 
-                            #endregion
+                            
 
                             #region Create points
                             using (Point3dCollection p3dcol = new Point3dCollection())
@@ -9104,11 +9117,6 @@ namespace IntersectUtilities
                                     allNewlyCreatedPoints.Add(cogoPoint);
                                 }
                             }
-                            #endregion
-
-                            #region Erase the cloned 3D polies
-                            ent.UpgradeOpen();
-                            ent.Erase(true);
                             #endregion
                         }
                         #endregion

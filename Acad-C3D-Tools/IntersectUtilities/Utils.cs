@@ -24,6 +24,8 @@ using Autodesk.Gis.Map;
 using Autodesk.Gis.Map.ObjectData;
 using Autodesk.Gis.Map.Constants;
 using Autodesk.Gis.Map.Utilities;
+using Autodesk.Aec.PropertyData;
+using Autodesk.Aec.PropertyData.DatabaseServices;
 using AcRx = Autodesk.AutoCAD.Runtime;
 
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
@@ -1125,7 +1127,13 @@ namespace IntersectUtilities
         /// Returns the matched string and value with curly braces removed.
         /// </summary>
         /// <param name="input">String where to find groups.</param>
-        /// <returns>List of tuples or empty list.</returns>
+        /// <returns>
+        /// List of tuples or empty list. For example for string:
+        /// {Diameter} {Material}, Regnvand
+        /// It returns list:
+        /// ("{Diameter}", "Diameter")
+        /// ("{Material}", "Material")
+        /// </returns>
         public static List<(string, string)> FindDescriptionParts(string input)
         {
             List<(string, string)> list = new List<(string, string)>();
@@ -1157,6 +1165,36 @@ namespace IntersectUtilities
                 {
                     //Assume only one result
                     string[] parts = list[0].Data.Split(':');
+                    string value = ReadPropertyToStringValue(tables, ent.ObjectId, parts[0], parts[1]);
+                    if (value.IsNotNoE())
+                    {
+                        string result = readStructure.Replace(list[0].ToReplace, value);
+                        return result;
+                    }
+                }
+            }
+            return "";
+        }
+        public static string ReadDescriptionPartsFromPS(List<PropertySet> pss, Entity ent,
+                                                        string ColumnName, System.Data.DataTable dataTable)
+        {
+            string readStructure = ReadStringParameterFromDataTable(ent.Layer, dataTable, ColumnName, 0);
+            if (readStructure != null)
+            {
+                List<(string ToReplace, string Data)> list = FindDescriptionParts(readStructure);
+
+                if (list.Count > 0)
+                {
+                    //Assume only one result
+                    string[] parts = list[0].Data.Split(':');
+                    PropertySet ps = pss.Find(x => x.PropertySetDefinitionName == parts[0]);
+                    if (ps == default)
+                    {
+                        prdDbg($"PropertySet {parts[0]} could not be found for entity handle {ent.Handle}.");
+                        return "";
+                    }
+                    ps.PropertyNameToId(ColumnName);
+
                     string value = ReadPropertyToStringValue(tables, ent.ObjectId, parts[0], parts[1]);
                     if (value.IsNotNoE())
                     {
