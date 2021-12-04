@@ -1175,8 +1175,8 @@ namespace IntersectUtilities
             }
             return "";
         }
-        public static string ReadDescriptionPartsFromPS(List<PropertySet> pss, Entity ent,
-                                                        string ColumnName, System.Data.DataTable dataTable)
+        public static string ReadDescriptionPartValueFromPS(List<PropertySet> pss, Entity ent,
+            string ColumnName, System.Data.DataTable dataTable)
         {
             string readStructure = ReadStringParameterFromDataTable(ent.Layer, dataTable, ColumnName, 0);
             if (readStructure != null)
@@ -1187,23 +1187,113 @@ namespace IntersectUtilities
                 {
                     //Assume only one result
                     string[] parts = list[0].Data.Split(':');
-                    PropertySet ps = pss.Find(x => x.PropertySetDefinitionName == parts[0]);
+                    string tableName = parts[0];
+                    string fieldName = parts[1];
+                    PropertySet ps = pss.Find(x => x.PropertySetDefinitionName == tableName);
                     if (ps == default)
                     {
                         prdDbg($"PropertySet {parts[0]} could not be found for entity handle {ent.Handle}.");
                         return "";
                     }
-                    ps.PropertyNameToId(ColumnName);
+                    int propertyId = ps.PropertyNameToId(fieldName);
+                    object value = ps.GetAt(propertyId);
 
-                    string value = ReadPropertyToStringValue(tables, ent.ObjectId, parts[0], parts[1]);
-                    if (value.IsNotNoE())
+                    PropertySetDefinition psDef = ps.PropertySetDefinition.Go<PropertySetDefinition>(
+                        ps.Database.TransactionManager.TopTransaction);
+
+                    PropertyDefinitionCollection defs = psDef.Definitions;
+                    int defIdx = defs.IndexOf(fieldName);
+                    PropertyDefinition def = defs[defIdx];
+                    Autodesk.Aec.PropertyData.DataType t = def.DataType;
+
+                    string valueString = PropertySetPropertyValueToString(value, t);
+                    if (valueString.IsNotNoE())
                     {
-                        string result = readStructure.Replace(list[0].ToReplace, value);
+                        string result = readStructure.Replace(list[0].ToReplace, valueString);
                         return result;
                     }
                 }
             }
             return "";
+        }
+        public static object ReadPropertyValueFromPS(
+            List<PropertySet> pss, Entity ent, string tableName, string fieldName
+            )
+        {
+            //Assume only one result
+            PropertySet ps = pss.Find(x => x.PropertySetDefinitionName == tableName);
+            if (ps == default)
+            {
+                prdDbg($"PropertySet {tableName} could not be found for entity handle {ent.Handle}.");
+                return "";
+            }
+            int propertyId = ps.PropertyNameToId(fieldName);
+            object value = ps.GetAt(propertyId);
+            if (value != null) return value;
+            else return default;
+
+            //PropertySetDefinition psDef = ps.PropertySetDefinition.Go<PropertySetDefinition>(
+            //    ps.Database.TransactionManager.TopTransaction);
+
+            //PropertyDefinitionCollection defs = psDef.Definitions;
+            //int defIdx = defs.IndexOf(fieldName);
+            //PropertyDefinition def = defs[defIdx];
+            //Autodesk.Aec.PropertyData.DataType t = def.DataType;
+
+            //string valueString = PropertySetPropertyValueToString(value, t);
+            //if (valueString.IsNotNoE())
+            //{
+            //    string result = readStructure.Replace(list[0].ToReplace, valueString);
+            //    return result;
+            //}
+            //return "";
+        }
+        public static MapValue MapValueFromObject(object input, Autodesk.Gis.Map.Constants.DataType type)
+        {
+            switch (type)
+            {
+                case DataType.UnknownType:
+                    break;
+                case DataType.Integer:
+                    return new MapValue((int)input);
+                case DataType.Real:
+                    return new MapValue((double)input);
+                case DataType.Character:
+                    return new MapValue((string)input);
+                case DataType.Point:
+                    return default;
+                default:
+                    break;
+            }
+            return default;
+        }
+        public static string PropertySetPropertyValueToString(object value, Autodesk.Aec.PropertyData.DataType type)
+        {
+            switch (type)
+            {
+                case Autodesk.Aec.PropertyData.DataType.Integer:
+                    return ((int)value).ToString();
+                case Autodesk.Aec.PropertyData.DataType.Real:
+                    return ((double)value).ToString();
+                case Autodesk.Aec.PropertyData.DataType.Text:
+                    return ((string)value);
+                case Autodesk.Aec.PropertyData.DataType.TrueFalse:
+                    return ((bool)value).ToString();
+                case Autodesk.Aec.PropertyData.DataType.AutoIncrement:
+                    prdDbg("PropertyValueToString: DataType.AutoIncrement not implemented!");
+                    return "";
+                case Autodesk.Aec.PropertyData.DataType.AlphaIncrement:
+                    prdDbg("PropertyValueToString: DataType.AlphaIncrement not implemented!");
+                    return "";
+                case Autodesk.Aec.PropertyData.DataType.List:
+                    prdDbg("PropertyValueToString: DataType.List not implemented!");
+                    return "";
+                case Autodesk.Aec.PropertyData.DataType.Graphic:
+                    prdDbg("PropertyValueToString: DataType.Graphic not implemented!");
+                    return "";
+                default:
+                    return "";
+            }
         }
         public static ObjectId AddToBlock(Entity entity, ObjectId btrId)
         {

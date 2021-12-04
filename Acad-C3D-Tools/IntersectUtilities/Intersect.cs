@@ -8884,7 +8884,8 @@ namespace IntersectUtilities
                                     for (int i = 0; i < descriptionReplacePartsList.Count; i++)
                                     {
                                         var tuple = descriptionReplacePartsList[i];
-                                        string result = ReadDescriptionPartsFromPS(pss, ent, tuple.ColumnName, dtKrydsninger);
+                                        string result = ReadDescriptionPartValueFromPS(
+                                            pss, ent, tuple.ColumnName, dtKrydsninger);
                                         descrFromKrydsninger = descrFromKrydsninger.Replace(tuple.ToReplace, result);
                                     }
                                 }
@@ -8901,19 +8902,8 @@ namespace IntersectUtilities
                             #endregion
 
                             //Source object (xref) handle
-                            MapValue handleValue = ReadRecordData(
-                                        tables, ent.ObjectId, "IdRecord", "Handle");
-
                             string pName = "";
-
-                            if (handleValue != null) pName = handleValue.StrValue;
-                            else
-                            {
-                                pName = "Reading of Handle failed.";
-                                editor.WriteMessage($"\nEntity on layer {ent.Layer} failed to read Handle!");
-                            }
-
-                            
+                            pName = ent.Handle.ToString();
 
                             #region Create points
                             using (Point3dCollection p3dcol = new Point3dCollection())
@@ -8978,7 +8968,7 @@ namespace IntersectUtilities
 
                                             if (cogoPoint.Elevation == 0)
                                             {
-                                                editor.WriteMessage($"\nFor type 3D entity {handleValue.StrValue}" +
+                                                editor.WriteMessage($"\nFor type 3D entity {ent.Handle.ToString()}" +
                                                     $" layer {ent.Layer}," +
                                                     $" elevation is 0!");
                                             }
@@ -9055,15 +9045,20 @@ namespace IntersectUtilities
                                     #region Copy OD from polies to the new point
                                     //Copy specific OD from cloned 3D polies to the new point
 
-                                    List<(string TableName, string RecordName)> odList =
-                                        new List<(string TableName, string RecordName)>();
-                                    odList.Add(("IdRecord", "Handle"));
-                                    TryCopySpecificOD(tables, ent, cogoPoint, odList);
+                                    //Use PropertySets now!!!
+
+                                    //List<(string TableName, string RecordName)> odList =
+                                    //    new List<(string TableName, string RecordName)>();
+                                    //odList.Add(("IdRecord", "Handle"));
+                                    //TryCopySpecificOD(tables, ent, cogoPoint, odList);
                                     #endregion
 
                                     #region Create Diameter OD
-                                    odList.Clear();
-                                    odList.Add(("SizeTable", "Size"));
+                                    List<(string TableName, string RecordName,
+                                        DataType dataType)> odList =
+                                        new List<(string TableName, string RecordName,
+                                        DataType dataType)>();
+                                    //odList.Add(("SizeTable", "Size"));
                                     //Fetch diameter definitions if any
                                     string diaDef = ReadStringParameterFromDataTable(ent.Layer,
                                         dtKrydsninger, "Diameter", 0);
@@ -9072,27 +9067,29 @@ namespace IntersectUtilities
                                         var list = FindDescriptionParts(diaDef);
                                         //Be careful if FindDescriptionParts implementation changes
                                         string[] parts = list[0].Item2.Split(':');
-                                        odList.Add((parts[0], parts[1]));
+                                        odList.Add((parts[0], parts[1], DataType.Integer));
                                     }
 
                                     foreach (var item in odList)
                                     {
-                                        MapValue originalValue = ReadRecordData(
-                                            tables, ent.ObjectId, item.TableName, item.RecordName);
+                                        //MapValue originalValue = ReadRecordData(
+                                        //    tables, ent.ObjectId, item.TableName, item.RecordName);
+                                        object value = ReadPropertyValueFromPS(
+                                            pss, ent, item.TableName, item.RecordName);
 
-                                        if (originalValue != null)
+                                        if (value != null)
                                         {
                                             if (DoesTableExist(tables, "CrossingData"))
                                             {
                                                 if (DoesRecordExist(tables, cogoPoint.ObjectId, "CrossingData", "Diameter"))
                                                 {
                                                     UpdateODRecord(tables, "CrossingData", "Diameter",
-                                                        cogoPoint.ObjectId, originalValue);
+                                                        cogoPoint.ObjectId, MapValueFromObject(value, item.dataType));
                                                 }
                                                 else
                                                 {
                                                     AddODRecord(tables, "CrossingData", "Diameter",
-                                                        cogoPoint.ObjectId, originalValue);
+                                                        cogoPoint.ObjectId, MapValueFromObject(value, item.dataType));
                                                 }
                                             }
                                             else
@@ -9103,10 +9100,10 @@ namespace IntersectUtilities
                                                 if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
                                                     columnNames, columnDescrs,
                                                     new Autodesk.Gis.Map.Constants.DataType[1]
-                                                    {Autodesk.Gis.Map.Constants.DataType.Character }))
+                                                    {Autodesk.Gis.Map.Constants.DataType.Integer }))
                                                 {
                                                     AddODRecord(tables, "CrossingData", "Diameter",
-                                                        cogoPoint.ObjectId, originalValue);
+                                                        cogoPoint.ObjectId, MapValueFromObject(value, item.dataType));
                                                 }
                                             }
                                         }
@@ -9257,7 +9254,7 @@ namespace IntersectUtilities
                     xRefSurfaceTx.Abort();
                     xRefSurfaceDB.Dispose();
                     throw new System.Exception(ex.Message);
-                    editor.WriteMessage("\n" + ex.Message);
+                    editor.WriteMessage("\n" + ex.ToString());
                     return;
                 }
                 tx.Commit();

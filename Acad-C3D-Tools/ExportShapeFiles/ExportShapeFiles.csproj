@@ -63,6 +63,10 @@
       <HintPath>..\packages\Speckle.Civil3D.API.2022.0.0.3\lib\net47\AeccDbMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="AecPropDataMgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\ACA\AecPropDataMgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="ManagedMapApi">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\Map\ManagedMapApi.dll</HintPath>
       <Private>False</Private>

@@ -51,6 +51,10 @@
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2021\C3D\AeccDbMgd.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="AecPropDataMgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\ACA\AecPropDataMgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Fizzler, Version=1.2.0.0, Culture=neutral, PublicKeyToken=4ebff4844e382110, processorArchitecture=MSIL">
       <HintPath>..\packages\Fizzler.1.2.0\lib\netstandard2.0\Fizzler.dll</HintPath>
     </Reference>
