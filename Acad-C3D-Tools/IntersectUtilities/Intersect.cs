@@ -2280,7 +2280,7 @@ namespace IntersectUtilities
             }
         }
 
-        //[CommandMethod("populateprofiles")]
+        [CommandMethod("populateprofiles")]
         public void populateprofiles()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -2357,11 +2357,19 @@ namespace IntersectUtilities
                         #region Process labels
                         Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
 
-                        ObjectIdCollection lIds = pv.GetProfileViewLabelIds();
+                        LabelStyleCollection stc = civilDoc.Styles.LabelStyles
+                                                       .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
+
+                        Oid prStId = stc["PROFILE PROJEKTION MGO"];
+
+                        ObjectIdCollection lIds = pv.GeometricExtents.
+                        prdDbg($"Number of labels: {lIds.Count}");
 
                         foreach (Oid lId in lIds)
                         {
                             Label label = lId.Go<Label>(tx);
+                            label.CheckOrOpenForWrite();
+                            label.StyleId = prStId;
 
                             Oid fId = label.FeatureId;
                             Entity fEnt = fId.Go<Entity>(tx);
@@ -9148,6 +9156,8 @@ namespace IntersectUtilities
                         }
                         else editor.WriteMessage($"\nProfile {p.Name} found!");
 
+                        //Sorting is not verified!!!
+                        //Must be sorted from start alignment to end
                         ProfileView[] pvs = localDb.ListOfType<ProfileView>(tx).ToArray();
 
                         #region Find and set max elevation for PVs
@@ -9204,6 +9214,7 @@ namespace IntersectUtilities
                             int counter = 0;
                             foreach (ProfileView pv in pvs)
                             {
+                                //Sorting of ProfileViews is not verified!!!
                                 counter++;
                                 if (sp.Station >= pv.StationStart &&
                                     sp.Station <= pv.StationEnd)
