@@ -11243,62 +11243,62 @@ namespace IntersectUtilities
                             #endregion
 
                             #region Determine what sizes appear in current PV
-                            int numberOfSizesAppearing = sizeArray.GetNumberOfSizesAppearing(pvStStart, pvStEnd);
+                            //int numberOfSizesAppearing = sizeArray.GetSizesAppearingInProfileView(pvStStart, pvStEnd);
 
 
                             #endregion
 
                             #region Place size change blocks
-                            for (int i = 0; i < sizeArray.Length; i++)
-                            {
-                                double curStationBL = 0;
-                                double sampledMidtElevation = 0;
-                                double curX = 0, curY = 0;
-                                if (i == 0)
-                                {
-                                    sampledMidtElevation = SampleProfile(midtProfile, pvStStart);
-                                    curX = originX;
-                                    curY = originY + sampledMidtElevation - pvElBottom;
-                                    BlockReference brAt0 =
-                                        localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                    brAt0.SetAttributeStringValue("LEFTSIZE", "");
-                                    brAt0.SetAttributeStringValue("RIGHTSIZE", $"DN {sizeArray[0].DN}");
-                                }
-                                if (i == 0 && sizeArray.SizeArray.Length == 1)
-                                {
-                                    curStationBL = al.Length;
-                                    sampledMidtElevation = SampleProfile(surfaceProfile, curStationBL - .1);
-                                    curX = originX + curStationBL;
-                                    curY = originY + sampledMidtElevation - pvElBottom;
-                                    BlockReference brAtEnd =
-                                        localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                    brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {sizeArray[0].DN}");
-                                    brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
-                                }
-                                if (i == sizeArray.Length - 1) continue;
-                                if (sizeArray.Length != 1)
-                                {
-                                    curStationBL = sizeArray[i].Station;
-                                    sampledMidtElevation = SampleProfile(surfaceProfile, curStationBL);
-                                    curX = originX + curStationBL;
-                                    curY = originY + sampledMidtElevation - pvElBottom;
-                                    BlockReference brInt =
-                                        localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                    brInt.SetAttributeStringValue("LEFTSIZE", $"DN {sizeArray[i].DN}");
-                                    brInt.SetAttributeStringValue("RIGHTSIZE", $"DN {sizeArray[i + 1].DN}");
-                                }
-                                if (i == sizeArray.Length - 2) //This should give last iteration on arrays larger than 1
-                                {
-                                    curStationBL = sizeArray[i + 1].Station;
-                                    sampledMidtElevation = SampleProfile(surfaceProfile, curStationBL - .1);
-                                    curX = originX + curStationBL;
-                                    curY = originY + sampledMidtElevation - pvElBottom;
-                                    BlockReference brAtEnd =
-                                        localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                    brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {sizeArray[i + 1].DN}");
-                                    brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
-                                }
-                            }
+                            //for (int i = 0; i < sizeArray.Length; i++)
+                            //{
+                            //    double curStationBL = 0;
+                            //    double sampledMidtElevation = 0;
+                            //    double curX = 0, curY = 0;
+                            //    if (i == 0)
+                            //    {
+                            //        sampledMidtElevation = SampleProfile(midtProfile, pvStStart);
+                            //        curX = originX;
+                            //        curY = originY + sampledMidtElevation - pvElBottom;
+                            //        BlockReference brAt0 =
+                            //            localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                            //        brAt0.SetAttributeStringValue("LEFTSIZE", "");
+                            //        brAt0.SetAttributeStringValue("RIGHTSIZE", $"DN {sizeArray[0].DN}");
+                            //    }
+                            //    if (i == 0 && sizeArray.SizeArray.Length == 1)
+                            //    {
+                            //        curStationBL = al.Length;
+                            //        sampledMidtElevation = SampleProfile(surfaceProfile, curStationBL - .1);
+                            //        curX = originX + curStationBL;
+                            //        curY = originY + sampledMidtElevation - pvElBottom;
+                            //        BlockReference brAtEnd =
+                            //            localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                            //        brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {sizeArray[0].DN}");
+                            //        brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
+                            //    }
+                            //    if (i == sizeArray.Length - 1) continue;
+                            //    if (sizeArray.Length != 1)
+                            //    {
+                            //        curStationBL = sizeArray[i].Station;
+                            //        sampledMidtElevation = SampleProfile(surfaceProfile, curStationBL);
+                            //        curX = originX + curStationBL;
+                            //        curY = originY + sampledMidtElevation - pvElBottom;
+                            //        BlockReference brInt =
+                            //            localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                            //        brInt.SetAttributeStringValue("LEFTSIZE", $"DN {sizeArray[i].DN}");
+                            //        brInt.SetAttributeStringValue("RIGHTSIZE", $"DN {sizeArray[i + 1].DN}");
+                            //    }
+                            //    if (i == sizeArray.Length - 2) //This should give last iteration on arrays larger than 1
+                            //    {
+                            //        curStationBL = sizeArray[i + 1].Station;
+                            //        sampledMidtElevation = SampleProfile(surfaceProfile, curStationBL - .1);
+                            //        curX = originX + curStationBL;
+                            //        curY = originY + sampledMidtElevation - pvElBottom;
+                            //        BlockReference brAtEnd =
+                            //            localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                            //        brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {sizeArray[i + 1].DN}");
+                            //        brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
+                            //    }
+                            //}
                             #endregion
 
                             #region Local method to sample profiles

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using MoreLinq;
+//using MoreLinq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Data;
@@ -43,6 +43,8 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Autodesk.AutoCAD.Colors;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
+
+using static MoreLinq.Extensions.MinByExtension;
 
 namespace IntersectUtilities
 {
@@ -2272,9 +2274,19 @@ namespace IntersectUtilities
 
             return output;
         }
-        internal int GetNumberOfSizesAppearing(double pvStStart, double pvStEnd)
+        internal List<int> GetIndexesOfSizesAppearingInProfileView(double pvStationStart, double pvStationEnd)
         {
-            throw new NotImplementedException();
+            List<int> indexes = new List<int>();
+            for (int i = 0; i < SizeArray.Length - 1; i++)
+            {//Warning: Look ahead!
+                SizeEntry curEntry = SizeArray[i];
+                SizeEntry nextEntry = SizeArray[i + 1];
+                if (false)
+                {
+
+                }
+            }
+            return indexes;
         }
     }
     public struct SizeEntry
