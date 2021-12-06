@@ -2205,15 +2205,15 @@ namespace IntersectUtilities
         public SizeEntry this[int index] { get => SizeArray[index]; }
         public PipelineSizeArray(Alignment al, HashSet<Curve> curves)
         {
+            List<SizeEntry> sizes = new List<SizeEntry>();
             double stepLength = 0.1;
             double alLength = al.Length;
             int nrOfSteps = (int)(alLength / stepLength);
-            SizeArray = new SizeEntry[0];
             int previousDn = 0;
             int currentDn = 0;
             for (int i = 0; i < nrOfSteps + 1; i++)
             {
-                double curStationBA = 0 + stepLength * i;
+                double curStationBA = stepLength * i;
                 Point3d curSamplePoint = default;
                 try { curSamplePoint = al.GetPointAtDist(curStationBA); }
                 catch (System.Exception) { continue; }
@@ -2223,7 +2223,7 @@ namespace IntersectUtilities
 
                 foreach (Curve curve in curves)
                 {
-                    if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
+                    //if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
                     Point3d closestPoint = curve.GetClosestPointTo(curSamplePoint, false);
                     if (closestPoint != default)
                         curveDistTuples.Add(
@@ -2236,26 +2236,43 @@ namespace IntersectUtilities
                 if (currentDn != previousDn)
                 {
                     //Set the previous segment end station unless there's 0 segments
-                    if (SizeArray.Length != 0) SizeArray[SizeArray.Length - 1].Station = curStationBA;
+                    if (sizes.Count != 0)
+                    {
+                        SizeEntry toUpdate = sizes[sizes.Count - 1];
+                        sizes[sizes.Count - 1] = new SizeEntry(toUpdate.DN, toUpdate.StartStation, curStationBA, toUpdate.Kod);
+                    }
                     //Add the new segment; remember, 0 is because the station will be set next iteration
                     //see previous line
-                    SizeArray.Append(new SizeEntry(currentDn, 0, result.kappeOd));
+                    if (i == 0) sizes.Add(new SizeEntry(currentDn, 0, 0, result.kappeOd));
+                    else sizes.Add(new SizeEntry(currentDn, sizes[sizes.Count - 1].EndStation, 0, result.kappeOd));
                 }
                 //Hand over DN to cache in "previous" variable
                 previousDn = currentDn;
                 //TODO: on the last iteration set the last segment distance
-                if (i == nrOfSteps) SizeArray[SizeArray.Length - 1].Station = al.Length;
+                if (i == nrOfSteps)
+                {
+                    SizeEntry toUpdate = sizes[sizes.Count - 1];
+                    sizes[sizes.Count - 1] = new SizeEntry(toUpdate.DN, toUpdate.StartStation, al.Length, toUpdate.Kod);
+                }
             }
+
+            SizeArray = sizes.ToArray();
+        }
+        private PipelineSizeArray(SizeEntry[] sizeArray) { SizeArray = sizeArray; }
+        public PipelineSizeArray GetPartialSizeArrayForPV(ProfileView pv)
+        {
+            var list = this.GetIndexesOfSizesAppearingInProfileView(pv.StationStart, pv.StationEnd);
+            SizeEntry[] partialAr = new SizeEntry[list.Count];
+            for (int i = 0; i < list.Count; i++) partialAr[i] = this[list[i]];
+            return new PipelineSizeArray(partialAr);
         }
         public SizeEntry GetSizeAtStation(double station)
         {
             for (int i = 0; i < SizeArray.Length; i++)
             {
-                if (i == SizeArray.Length - 1) return SizeArray[i];
                 SizeEntry curEntry = SizeArray[i];
-                SizeEntry nextEntry = SizeArray[i + 1];
-                if (station >= curEntry.Station &&
-                    station <= nextEntry.Station) return curEntry;
+                //(stations are END stations!)
+                if (station < curEntry.EndStation) return curEntry;
             }
             return default;
         }
@@ -2266,36 +2283,34 @@ namespace IntersectUtilities
             {
                 output +=
                     $"{SizeArray[i].DN.ToString("D3")} || " +
-                    $"{SizeArray[i].Station.ToString("0000.00")} || " +
-                    $"{SizeArray[i].Kod.ToString("0.0")}";
+                    $"{SizeArray[i].StartStation.ToString("0000.00")} - {SizeArray[i].EndStation.ToString("0000.00")} || " +
+                    $"{SizeArray[i].Kod.ToString("0.0")}\n";
             }
 
             return output;
         }
-        internal List<int> GetIndexesOfSizesAppearingInProfileView(double pvStationStart, double pvStationEnd)
+        private List<int> GetIndexesOfSizesAppearingInProfileView(double pvStationStart, double pvStationEnd)
         {
             List<int> indexes = new List<int>();
-            for (int i = 0; i < SizeArray.Length - 1; i++)
-            {//Warning: Look ahead!
+            for (int i = 0; i < SizeArray.Length; i++)
+            {
                 SizeEntry curEntry = SizeArray[i];
-                SizeEntry nextEntry = SizeArray[i + 1];
-                if (false)
-                {
-
-                }
+                if (pvStationStart < curEntry.EndStation &&
+                    curEntry.StartStation < pvStationEnd) indexes.Add(i);
             }
             return indexes;
         }
     }
     public struct SizeEntry
     {
-        public int DN;
-        public double Station;
-        public double Kod;
+        public readonly int DN;
+        public readonly double StartStation;
+        public readonly double EndStation;
+        public readonly double Kod;
 
-        public SizeEntry(int dn, double station, double kod)
+        public SizeEntry(int dn, double startStation, double endStation, double kod)
         {
-            DN = dn; Station = station; Kod = kod;
+            DN = dn; StartStation = startStation; EndStation = endStation; Kod = kod;
         }
     }
 
