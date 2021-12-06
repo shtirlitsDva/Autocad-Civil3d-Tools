@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-//using MoreLinq;
+using MoreLinq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Data;
@@ -43,8 +43,6 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Autodesk.AutoCAD.Colors;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
-
-using static MoreLinq.Extensions.MinByExtension;
 
 namespace IntersectUtilities
 {
