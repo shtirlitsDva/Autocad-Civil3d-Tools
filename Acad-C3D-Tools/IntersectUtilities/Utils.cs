@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using MoreLinq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Data;
@@ -2177,6 +2179,116 @@ namespace IntersectUtilities
         }
     }
 
+    public class ProfileViewCollection : Collection<ProfileView>
+    {
+        public ProfileViewCollection(ICollection<ProfileView> sourceCollection)
+        {
+            foreach (ProfileView pv in sourceCollection) this.Add(pv);
+        }
+
+        public ProfileViewCollection(ObjectIdCollection ids)
+        {
+            foreach (Oid id in ids)
+                this.Add(id.Go<ProfileView>(id.Database.TransactionManager.TopTransaction));
+        }
+
+        public ProfileView GetProfileViewAtStation(double station)
+        {
+            return this.Where(x => x.StationStart <= station && x.StationEnd >= station).FirstOrDefault();
+        }
+    }
+
+    public class PipelineSizeArray
+    {
+        public SizeEntry[] SizeArray;
+        public int Length { get => SizeArray.Length; }
+        public SizeEntry this[int index] { get => SizeArray[index]; }
+        public PipelineSizeArray(Alignment al, HashSet<Curve> curves)
+        {
+            double stepLength = 0.1;
+            double alLength = al.Length;
+            int nrOfSteps = (int)(alLength / stepLength);
+            SizeArray = new SizeEntry[0];
+            int previousDn = 0;
+            int currentDn = 0;
+            for (int i = 0; i < nrOfSteps + 1; i++)
+            {
+                double curStationBA = 0 + stepLength * i;
+                Point3d curSamplePoint = default;
+                try { curSamplePoint = al.GetPointAtDist(curStationBA); }
+                catch (System.Exception) { continue; }
+
+                HashSet<(Curve curve, double dist, double kappeOd)> curveDistTuples =
+                    new HashSet<(Curve curve, double dist, double kappeOd)>();
+
+                foreach (Curve curve in curves)
+                {
+                    if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
+                    Point3d closestPoint = curve.GetClosestPointTo(curSamplePoint, false);
+                    if (closestPoint != default)
+                        curveDistTuples.Add(
+                            (curve, curSamplePoint.DistanceHorizontalTo(closestPoint),
+                                PipeSchedule.GetPipeKOd(curve)));
+                }
+                var result = curveDistTuples.MinBy(x => x.dist).FirstOrDefault();
+                //Detect current dn
+                currentDn = PipeSchedule.GetPipeDN(result.curve);
+                if (currentDn != previousDn)
+                {
+                    //Set the previous segment end station unless there's 0 segments
+                    if (SizeArray.Length != 0) SizeArray[SizeArray.Length - 1].Station = curStationBA;
+                    //Add the new segment; remember, 0 is because the station will be set next iteration
+                    //see previous line
+                    SizeArray.Append(new SizeEntry(currentDn, 0, result.kappeOd));
+                }
+                //Hand over DN to cache in "previous" variable
+                previousDn = currentDn;
+                //TODO: on the last iteration set the last segment distance
+                if (i == nrOfSteps) SizeArray[SizeArray.Length - 1].Station = al.Length;
+            }
+        }
+        public SizeEntry GetSizeAtStation(double station)
+        {
+            for (int i = 0; i < SizeArray.Length; i++)
+            {
+                if (i == SizeArray.Length - 1) return SizeArray[i];
+                SizeEntry curEntry = SizeArray[i];
+                SizeEntry nextEntry = SizeArray[i + 1];
+                if (station >= curEntry.Station &&
+                    station <= nextEntry.Station) return curEntry;
+            }
+            return default;
+        }
+        public override string ToString()
+        {
+            string output = "";
+            for (int i = 0; i < SizeArray.Length; i++)
+            {
+                output +=
+                    $"{SizeArray[i].DN.ToString("D3")} || " +
+                    $"{SizeArray[i].Station.ToString("0000.00")} || " +
+                    $"{SizeArray[i].Kod.ToString("0.0")}";
+            }
+
+            return output;
+        }
+        internal int GetNumberOfSizesAppearing(double pvStStart, double pvStEnd)
+        {
+            throw new NotImplementedException();
+        }
+    }
+    public struct SizeEntry
+    {
+        public int DN;
+        public double Station;
+        public double Kod;
+
+        public SizeEntry(int dn, double station, double kod)
+        {
+            DN = dn; Station = station; Kod = kod;
+        }
+    }
+
     public static class Extensions
     {
         public static bool IsNoE(this string s) => string.IsNullOrEmpty(s);
@@ -2579,6 +2691,13 @@ namespace IntersectUtilities
                 tr.AddNewlyCreatedDBObject(attRef, true);
             }
         }
+        public static bool IsPointInsideXY(this Extents3d extents, Point2d pnt)
+        => pnt.X >= extents.MinPoint.X && pnt.X <= extents.MaxPoint.X
+            && pnt.Y >= extents.MinPoint.Y && pnt.Y <= extents.MaxPoint.Y;
+        public static bool IsPointInsideXY(this Extents3d extents, Point3d pnt)
+        => pnt.X >= extents.MinPoint.X && pnt.X <= extents.MaxPoint.X
+            && pnt.Y >= extents.MinPoint.Y && pnt.Y <= extents.MaxPoint.Y;
+
     }
 
     public static class ExtensionMethods
