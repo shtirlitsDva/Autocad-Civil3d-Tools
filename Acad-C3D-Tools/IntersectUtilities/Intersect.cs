@@ -32,6 +32,8 @@ using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
 using static IntersectUtilities.PipeSchedule;
 
+
+
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using DataType = Autodesk.Gis.Map.Constants.DataType;
@@ -10802,6 +10804,8 @@ namespace IntersectUtilities
                     Extents3d extents = default;
                     var labelsInView = labelsSet.Where(x => extents.IsPointInsideXY(x.LabelLocation));
 
+                    Oid styleId = profileProjection_RIGHT_Style;
+
                     foreach (var pv in pvs)
                     {
                         ProfileProjectionLabel[] labels;
@@ -10813,6 +10817,15 @@ namespace IntersectUtilities
                             ProfileProjectionLabel firstLabel = labels[i];
                             ProfileProjectionLabel secondLabel = labels[i + 1];
 
+                            //Handle first label
+                            if (i == 0)
+                            {
+                                double length = 20;
+                                firstLabel.CheckOrOpenForWrite();
+                                firstLabel.DimensionAnchorValue = length / 250 / 4;
+                                firstLabel.StyleId = styleId;
+                            }
+
                             Point3d firstLocationPoint = firstLabel.LabelLocation;
                             Point3d secondLocationPoint = secondLabel.LabelLocation;
 
@@ -10822,15 +10835,6 @@ namespace IntersectUtilities
 
                             double secondAnchorDimensionInMeters = (locationDelta + firstAnchorDimensionInMeters + 0.75) / 250;
 
-                            Oid styleId = profileProjection_RIGHT_Style;
-
-                            //Handle first label
-                            if (i == 0)
-                            {
-                                firstLabel.CheckOrOpenForWrite();
-                                firstLabel.StyleId = styleId;
-                            }
-
                             secondLabel.CheckOrOpenForWrite();
                             secondLabel.DimensionAnchorValue = secondAnchorDimensionInMeters;
                             secondLabel.StyleId = styleId;
@@ -10838,7 +10842,7 @@ namespace IntersectUtilities
 
                             //editor.WriteMessage($"\nAnchorDimensionValue: {firstLabel.DimensionAnchorValue}.");
                         }
-                        
+
                     }
                     #endregion 
                 }
@@ -11282,6 +11286,9 @@ namespace IntersectUtilities
             createdetailing();
             //Auto stagger all labels to right
             staggerlabelsall();
+            //Draw rectangles representing viewports around longitudinal profiles
+            //Can be used to check if labels are inside
+            drawviewportrectangles();
         }
 
         [CommandMethod("CREATEDETAILING")]
@@ -15140,6 +15147,75 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("DRAWVIEWPORTRECTANGLES")]
+        public void drawviewportrectangles()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Paperspace to modelspace test
+                    DBDictionary layoutDict = localDb.LayoutDictionaryId.Go<DBDictionary>(tx);
+                    var enumerator = layoutDict.GetEnumerator();
+                    while (enumerator.MoveNext())
+                    {
+                        DBDictionaryEntry item = enumerator.Current;
+                        prdDbg(item.Key);
+                        if (item.Key == "Model")
+                        {
+                            prdDbg("Skipping model...");
+                            continue;
+                        }
+
+                        Layout layout = item.Value.Go<Layout>(tx);
+                        //ObjectIdCollection vpIds = layout.GetViewports();
+
+                        BlockTableRecord layBlock = layout.BlockTableRecordId.Go<BlockTableRecord>(tx);
+
+                        foreach (Oid id in layBlock)
+                        {
+                            if (id.IsDerivedFrom<Viewport>())
+                            {
+                                Viewport viewport = id.Go<Viewport>(tx);
+                                //Truncate doubles to whole numebers for easier comparison
+                                int centerX = (int)viewport.CenterPoint.X;
+                                int centerY = (int)viewport.CenterPoint.Y;
+                                if (centerX == 422 && centerY == 442)
+                                {
+                                    prdDbg("Found profile viewport!");
+                                    Extents3d ext = viewport.GeometricExtents;
+                                    Polyline pl = new Polyline(4);
+                                    pl.AddVertexAt(0, new Point2d(ext.MinPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
+                                    pl.AddVertexAt(1, new Point2d(ext.MinPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
+                                    pl.AddVertexAt(2, new Point2d(ext.MaxPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
+                                    pl.AddVertexAt(3, new Point2d(ext.MaxPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
+                                    pl.Closed = true;
+                                    pl.SetDatabaseDefaults();
+                                    pl.PaperToModel(viewport);
+                                    pl.Layer = "0-NONPLOT";
+                                    pl.AddEntityToDbModelSpace<Polyline>(localDb);
+                                }
+                            }
+                        }
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg("DrawViewportRectangles failed!\n" + ex.ToString());
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("testing")]
         public void testing()
         {
@@ -15154,13 +15230,63 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region ProfileProjectionLabel testing
-                    HashSet<ProfileProjectionLabel> labels = localDb.HashSetOfType<ProfileProjectionLabel>(tx);
-                    foreach (var label in labels)
+                    #region Paperspace to modelspace test
+                    //BlockTable blockTable = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    //BlockTableRecord paperSpace = tx.GetObject(blockTable[BlockTableRecord.PaperSpace], OpenMode.ForRead)
+                    //    as BlockTableRecord;
+
+                    DBDictionary layoutDict = localDb.LayoutDictionaryId.Go<DBDictionary>(tx);
+                    var enumerator = layoutDict.GetEnumerator();
+                    while (enumerator.MoveNext())
                     {
-                        DBPoint testPoint = new DBPoint(label.LabelLocation);
-                        testPoint.AddEntityToDbModelSpace<DBPoint>(localDb);
+                        DBDictionaryEntry item = enumerator.Current;
+                        prdDbg(item.Key);
+                        if (item.Key == "Model")
+                        {
+                            prdDbg("Skipping model...");
+                            continue;
+                        }
+
+                        Layout layout = item.Value.Go<Layout>(tx);
+                        //ObjectIdCollection vpIds = layout.GetViewports();
+
+                        BlockTableRecord layBlock = layout.BlockTableRecordId.Go<BlockTableRecord>(tx);
+
+                        foreach (Oid id in layBlock)
+                        {
+                            if (id.IsDerivedFrom<Viewport>())
+                            {
+                                Viewport viewport = id.Go<Viewport>(tx);
+                                //Truncate doubles to whole numebers for easier comparison
+                                int centerX = (int)viewport.CenterPoint.X;
+                                int centerY = (int)viewport.CenterPoint.Y;
+                                if (centerX == 422 && centerY == 442)
+                                {
+                                    prdDbg("Found profile viewport!");
+                                    Extents3d ext = viewport.GeometricExtents;
+                                    Polyline pl = new Polyline(4);
+                                    pl.AddVertexAt(0, new Point2d(ext.MinPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
+                                    pl.AddVertexAt(1, new Point2d(ext.MinPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
+                                    pl.AddVertexAt(2, new Point2d(ext.MaxPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
+                                    pl.AddVertexAt(3, new Point2d(ext.MaxPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
+                                    pl.Closed = true;
+                                    pl.SetDatabaseDefaults();
+                                    pl.PaperToModel(viewport);
+                                    pl.Layer = "0-NONPLOT";
+                                    pl.AddEntityToDbModelSpace<Polyline>(localDb);
+                                }
+                            }
+                        }
                     }
+                    #endregion
+
+                    #region ProfileProjectionLabel testing
+                    //HashSet<ProfileProjectionLabel> labels = localDb.HashSetOfType<ProfileProjectionLabel>(tx);
+                    //foreach (var label in labels)
+                    //{
+                    //    DBPoint testPoint = new DBPoint(label.LabelLocation);
+                    //    testPoint.AddEntityToDbModelSpace<DBPoint>(localDb);
+                    //}
 
                     #endregion
 

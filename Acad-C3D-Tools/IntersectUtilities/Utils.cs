@@ -3420,5 +3420,73 @@ namespace IntersectUtilities
             return radii[GetPipeDN(ent)];
         }
     }
+
+    /// <summary>
+    /// From here: https://www.theswamp.org/index.php?topic=42503.msg477118#msg477118
+    /// </summary>
+    public static class ViewportExtensionMethods
+    {
+        public static Matrix3d GetModelToPaperTransform(this Viewport vport)
+        {
+            if (vport.PerspectiveOn)
+                throw new NotSupportedException("Perspective views not supported");
+            Point3d center = new Point3d(vport.ViewCenter.X, vport.ViewCenter.Y, 0.0);
+            return Matrix3d.Displacement(new Vector3d(vport.CenterPoint.X - center.X, vport.CenterPoint.Y - center.Y, 0.0))
+               * Matrix3d.Scaling(vport.CustomScale, center)
+               * Matrix3d.Rotation(vport.TwistAngle, Vector3d.ZAxis, Point3d.Origin)
+               * Matrix3d.WorldToPlane(new Plane(vport.ViewTarget, vport.ViewDirection));
+        }
+
+        public static Matrix3d GetPaperToModelTransform(this Viewport vport)
+        {
+            return GetModelToPaperTransform(vport).Inverse();
+        }
+
+        public static Point3d PaperToModel(this Point3d point, Viewport vport)
+        {
+            return point.TransformBy(GetModelToPaperTransform(vport).Inverse());
+        }
+
+        public static Point3d ModelToPaper(this Point3d point, Viewport viewport)
+        {
+            return point.TransformBy(GetModelToPaperTransform(viewport));
+        }
+
+        public static void PaperToModel(this Entity entity, Viewport vport)
+        {
+            entity.TransformBy(GetModelToPaperTransform(vport).Inverse());
+        }
+
+        public static void ModelToPaper(this Entity entity, Viewport viewport)
+        {
+            entity.TransformBy(GetModelToPaperTransform(viewport));
+        }
+
+        public static IEnumerable<Point3d> PaperToModel(this IEnumerable<Point3d> source, Viewport viewport)
+        {
+            Matrix3d xform = GetModelToPaperTransform(viewport).Inverse();
+            return source.Select(p => p.TransformBy(xform));
+        }
+
+        public static IEnumerable<Point3d> ModelToPaper(this IEnumerable<Point3d> source, Viewport viewport)
+        {
+            Matrix3d xform = GetModelToPaperTransform(viewport);
+            return source.Select(p => p.TransformBy(xform));
+        }
+
+        public static void PaperToModel(this IEnumerable<Entity> src, Viewport viewport)
+        {
+            Matrix3d xform = GetModelToPaperTransform(viewport).Inverse();
+            foreach (Entity ent in src)
+                ent.TransformBy(xform);
+        }
+
+        public static void ModelToPaper(this IEnumerable<Entity> src, Viewport viewport)
+        {
+            Matrix3d xform = GetModelToPaperTransform(viewport);
+            foreach (Entity ent in src)
+                ent.TransformBy(xform);
+        }
+    }
 }
 
