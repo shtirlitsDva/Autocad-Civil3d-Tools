@@ -10750,6 +10750,108 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("staggerlabelsall")]
+        [CommandMethod("sgall")]
+        public void staggerlabelsall()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
+                    HashSet<ProfileProjectionLabel> labelsSet = localDb.HashSetOfType<ProfileProjectionLabel>(tx);
+
+                    #region Setup styles
+                    LabelStyleCollection stc = civilDoc.Styles.LabelStyles
+                                                                   .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
+
+                    Oid profileProjection_RIGHT_Style = Oid.Null;
+                    Oid profileProjection_LEFT_Style = Oid.Null;
+
+                    try
+                    {
+                        profileProjection_RIGHT_Style = stc["PROFILE PROJECTION RIGHT"];
+                    }
+                    catch (System.Exception)
+                    {
+                        editor.WriteMessage($"\nPROFILE PROJECTION RIGHT style missing!");
+                        tx.Abort();
+                        return;
+                    }
+
+                    try
+                    {
+                        profileProjection_LEFT_Style = stc["PROFILE PROJECTION LEFT"];
+                    }
+                    catch (System.Exception)
+                    {
+                        editor.WriteMessage($"\nPROFILE PROJECTION LEFT style missing!");
+                        tx.Abort();
+                        return;
+                    }
+                    #endregion
+
+                    #region Labels
+                    Extents3d extents = default;
+                    var labelsInView = labelsSet.Where(x => extents.IsPointInsideXY(x.LabelLocation));
+
+                    foreach (var pv in pvs)
+                    {
+                        ProfileProjectionLabel[] labels;
+                        extents = pv.GeometricExtents;
+                        labels = labelsInView.OrderByDescending(x => x.LabelLocation.X).ToArray();
+
+                        for (int i = 0; i < labels.Length - 1; i++)
+                        {
+                            ProfileProjectionLabel firstLabel = labels[i];
+                            ProfileProjectionLabel secondLabel = labels[i + 1];
+
+                            Point3d firstLocationPoint = firstLabel.LabelLocation;
+                            Point3d secondLocationPoint = secondLabel.LabelLocation;
+
+                            double firstAnchorDimensionInMeters = firstLabel.DimensionAnchorValue * 250 + 0.0625;
+
+                            double locationDelta = firstLocationPoint.Y - secondLocationPoint.Y;
+
+                            double secondAnchorDimensionInMeters = (locationDelta + firstAnchorDimensionInMeters + 0.75) / 250;
+
+                            Oid styleId = profileProjection_RIGHT_Style;
+
+                            //Handle first label
+                            if (i == 0)
+                            {
+                                firstLabel.CheckOrOpenForWrite();
+                                firstLabel.StyleId = styleId;
+                            }
+
+                            secondLabel.CheckOrOpenForWrite();
+                            secondLabel.DimensionAnchorValue = secondAnchorDimensionInMeters;
+                            secondLabel.StyleId = styleId;
+                            secondLabel.DowngradeOpen();
+
+                            //editor.WriteMessage($"\nAnchorDimensionValue: {firstLabel.DimensionAnchorValue}.");
+                        }
+                        
+                    }
+                    #endregion 
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("setlabelslength")]
         public void setlabelslength()
         {
@@ -10793,37 +10895,32 @@ namespace IntersectUtilities
                 Document doc = docCol.MdiActiveDocument;
                 CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-                #region Path to source file
-                string pathToBlockFile = @"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg";
-
-                #endregion
-
                 #region Set C-ANNO-MTCH-HATCH to frozen
-                using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                {
-                    try
-                    {
-                        // Open the Layer table for read
-                        LayerTable acLyrTbl;
-                        acLyrTbl = tx.GetObject(localDb.LayerTableId,
-                                                           OpenMode.ForRead) as LayerTable;
-                        string sLayerName = "C-ANNO-MTCH-HATCH";
-                        LayerTableRecord acLyrTblRec;
-                        if (acLyrTbl.Has(sLayerName))
-                        {
-                            acLyrTblRec = tx.GetObject(acLyrTbl[sLayerName], OpenMode.ForWrite) as LayerTableRecord;
-                            // Freeze the layer
-                            acLyrTblRec.IsFrozen = true;
-                        }
-                    }
-                    catch (System.Exception ex)
-                    {
-                        editor.WriteMessage("\n" + ex.Message);
-                        tx.Abort();
-                        return;
-                    }
-                    tx.Commit();
-                }
+                //using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                //{
+                //    try
+                //    {
+                //        // Open the Layer table for read
+                //        LayerTable acLyrTbl;
+                //        acLyrTbl = tx.GetObject(localDb.LayerTableId,
+                //                                           OpenMode.ForRead) as LayerTable;
+                //        string sLayerName = "C-ANNO-MTCH-HATCH";
+                //        LayerTableRecord acLyrTblRec;
+                //        if (acLyrTbl.Has(sLayerName))
+                //        {
+                //            acLyrTblRec = tx.GetObject(acLyrTbl[sLayerName], OpenMode.ForWrite) as LayerTableRecord;
+                //            // Freeze the layer
+                //            acLyrTblRec.IsFrozen = true;
+                //        }
+                //    }
+                //    catch (System.Exception ex)
+                //    {
+                //        editor.WriteMessage("\n" + ex.ToString());
+                //        tx.Abort();
+                //        return;
+                //    }
+                //    tx.Commit();
+                //}
                 #endregion
 
                 #region Setup styles and clone blocks
@@ -10948,6 +11045,11 @@ namespace IntersectUtilities
             Editor ed = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            //Create crossing points first
+            createlerdatapss();
+            //Populateprofileviews with crossing data
+            populateprofiles();
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -11094,6 +11196,18 @@ namespace IntersectUtilities
                         return;
                     }
 
+                    Oid alLabelSetStyleId = Oid.Null;
+                    try
+                    {
+                        alLabelSetStyleId = civilDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nSTD 20-5 style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
+
                     Oid crestCurveLabelId = Oid.Null;
                     try
                     {
@@ -11123,6 +11237,7 @@ namespace IntersectUtilities
                     {
                         al.CheckOrOpenForWrite();
                         al.StyleId = alStyleId;
+                        al.ImportLabelSet(alLabelSetStyleId);
 
                         ObjectIdCollection pIds = al.GetProfileIds();
                         foreach (Oid oid in pIds)
@@ -11153,25 +11268,20 @@ namespace IntersectUtilities
                         }
                     }
                     #endregion
-
-                    #region Delete unwanted objects -- NOT NEEDED ANYMORE
-                    //HashSet<Circle> cs = localDb.HashSetOfType<Circle>(tx);
-                    //foreach (Circle c in cs)
-                    //{
-                    //    c.CheckOrOpenForWrite();
-                    //    c.Erase(true);
-                    //}
-
-                    #endregion
                 }
                 catch (System.Exception ex)
                 {
-                    ed.WriteMessage("\n" + ex.Message);
                     tx.Abort();
+                    ed.WriteMessage("\n" + ex.ToString());
                     return;
                 }
                 tx.Commit();
             }
+
+            //Create detailing blocks on top of exaggerated views
+            createdetailing();
+            //Auto stagger all labels to right
+            staggerlabelsall();
         }
 
         [CommandMethod("CREATEDETAILING")]
@@ -11226,7 +11336,8 @@ namespace IntersectUtilities
                         Transaction blockTx = blockDb.TransactionManager.StartTransaction();
 
                         Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
-                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                        //Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                        Oid destDbMsId = localDb.BlockTableId;
 
                         BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                         ObjectIdCollection idsToClone = new ObjectIdCollection();
@@ -11527,80 +11638,128 @@ namespace IntersectUtilities
                                 double Y = originY + (sampledMidtElevation - pvElBottom) *
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
 
+                                Point3d wPt = new Point3d(X, Y, 0);
+
                                 BlockReference brWeld =
-                                    localDb.CreateBlockWithAttributes(weldBlockName, new Point3d(X, Y, 0));
+                                    localDb.CreateBlockWithAttributes(weldBlockName, wPt);
 
-                                //Vector3d deriv = midtProfile.GetFirstDerivative(
-                                //    midtProfile.GetClosestPointTo(new Point3d(X, Y, 0), false));
+                                #region Determine rotation
+                                //Get the nearest exploded profile polyline and sample first derivative
+                                HashSet<(Polyline pline, double dist)> ps = new HashSet<(Polyline pline, double dist)>();
+                                foreach (Polyline pline in polylinesToGetDerivative)
+                                {
+                                    Point3d distPt = pline.GetClosestPointTo(wPt, false);
+                                    ps.Add((pline, distPt.DistanceHorizontalTo(wPt)));
+                                }
+                                Polyline nearest = ps.MinBy(x => x.dist).FirstOrDefault().pline;
 
-                                //double rotation = Math.Atan2(deriv.Y, deriv.X);
-                                //brWeld.Rotation = rotation;
+                                Vector3d deriv = nearest.GetFirstDerivative(
+                                    nearest.GetClosestPointTo(wPt, false));
+
+                                double rotation = Math.Atan2(deriv.Y, deriv.X);
+                                brWeld.Rotation = rotation;
+                                #endregion
+
+                                #region Scale block to fit kappe
+                                SizeEntry curSize = sizeArray.GetSizeAtStation(station);
+                                brWeld.ScaleFactors = new Scale3d(1, curSize.Kod / 1000 *
+                                    profileViewStyle.GraphStyle.VerticalExaggeration, 1);
+                                #endregion
                             }
 
                             #endregion
 
-                            //#region Find curves and annotate
-                            //foreach (Curve curve1 in curves)
-                            //{
-                            //    if (curve1 is Polyline pline)
-                            //    {
-                            //        //Detect arcs and determine if it is a buerør or not
-                            //        for (int i = 0; i < pline.NumberOfVertices; i++)
-                            //        {
-                            //            TypeOfSegment tos;
-                            //            double bulge = pline.GetBulgeAt(i);
-                            //            if (bulge == 0) tos = TypeOfSegment.Straight;
-                            //            else
-                            //            {
-                            //                //Calculate radius
-                            //                double u = pline.GetPoint2dAt(i).GetDistanceTo(pline.GetPoint2dAt(i + 1));
-                            //                double radius = u * ((1 + bulge.Pow(2)) / (4 * Math.Abs(bulge)));
-                            //                double minRadius = GetPipeMinElasticRadius(pline);
+                            #region Find curves and annotate
+                            foreach (Curve curve in curves)
+                            {
+                                if (curve is Polyline pline)
+                                {
+                                    //Detect arcs and determine if it is a buerør or not
+                                    for (int i = 0; i < pline.NumberOfVertices; i++)
+                                    {
+                                        TypeOfSegment tos;
+                                        double bulge = pline.GetBulgeAt(i);
+                                        if (bulge == 0) tos = TypeOfSegment.Straight;
+                                        else
+                                        {
+                                            //Determine if centre of arc is within view
+                                            CircularArc2d arcSegment2dAt = pline.GetArcSegment2dAt(i);
+                                            Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
+                                            double centreStation =
+                                                al.GetDistAtPoint(
+                                                    al.GetClosestPointTo(
+                                                        new Point3d(samplePoint.X, samplePoint.Y, 0), false));
+                                            //If centre of arc is not within PV -> continue
+                                            if (!(centreStation > pvStStart && centreStation < pvStEnd)) continue;
 
-                            //                if (radius < minRadius) tos = TypeOfSegment.CurvedPipe;
-                            //                else tos = TypeOfSegment.ElasticArc;
+                                            //Calculate radius
+                                            double u = pline.GetPoint2dAt(i).GetDistanceTo(pline.GetPoint2dAt(i + 1));
+                                            double radius = u * ((1 + bulge.Pow(2)) / (4 * Math.Abs(bulge)));
+                                            double minRadius = GetPipeMinElasticRadius(pline);
 
-                            //                //Acquire start and end stations
-                            //                double curveStartStation = al.GetDistAtPoint(al.GetClosestPointTo(pline.GetPoint3dAt(i), false));
-                            //                double curveEndStation = al.GetDistAtPoint(al.GetClosestPointTo(pline.GetPoint3dAt(i + 1), false));
-                            //                double length = curveEndStation - curveStartStation;
-                            //                double midStation = curveStartStation + length / 2;
+                                            if (radius < minRadius) tos = TypeOfSegment.CurvedPipe;
+                                            else tos = TypeOfSegment.ElasticArc;
 
-                            //                double sampledSurfaceElevation = 0;
-                            //                double curX = 0, curY = 0;
+                                            //Acquire start and end stations
+                                            double curveStartStation = al.GetDistAtPoint(al.GetClosestPointTo(pline.GetPoint3dAt(i), false));
+                                            double curveEndStation = al.GetDistAtPoint(al.GetClosestPointTo(pline.GetPoint3dAt(i + 1), false));
+                                            double length = curveEndStation - curveStartStation;
+                                            //double midStation = curveStartStation + length / 2;
 
-                            //                sampledSurfaceElevation = SampleProfile(surfaceProfile, midStation);
-                            //                curX = originX + midStation;
-                            //                curY = originY + sampledSurfaceElevation - pvElBottom;
-                            //                BlockReference brCurve =
-                            //                    localDb.CreateBlockWithAttributes(bueBlockName, new Point3d(curX, curY, 0));
+                                            sampledMidtElevation = SampleProfile(midtProfile, centreStation);
+                                            curX = originX + centreStation - pvStStart;
+                                            curY = originY + (sampledMidtElevation - pvElBottom) *
+                                                    profileViewStyle.GraphStyle.VerticalExaggeration;
+                                            Point3d curvePt = new Point3d(curX, curY, 0);
+                                            BlockReference brCurve =
+                                                localDb.CreateBlockWithAttributes(bueBlockName, curvePt);
 
-                            //                DynamicBlockReferencePropertyCollection dbrpc = brCurve.DynamicBlockReferencePropertyCollection;
-                            //                foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
-                            //                {
-                            //                    if (dbrp.PropertyName == "Length")
-                            //                    {
-                            //                        prdDbg(length.ToString());
-                            //                        dbrp.Value = Math.Abs(length);
-                            //                    }
-                            //                }
+                                            #region Determine rotation
+                                            //Get the nearest exploded profile polyline and sample first derivative
+                                            HashSet<(Polyline pline, double dist)> ps = new HashSet<(Polyline pline, double dist)>();
+                                            foreach (Polyline pline2 in polylinesToGetDerivative)
+                                            {
+                                                Point3d distPt = pline2.GetClosestPointTo(curvePt, false);
+                                                ps.Add((pline2, distPt.DistanceHorizontalTo(curvePt)));
+                                            }
+                                            Polyline nearest = ps.MinBy(x => x.dist).FirstOrDefault().pline;
 
-                            //                switch (tos)
-                            //                {
-                            //                    case TypeOfSegment.ElasticArc:
-                            //                        brCurve.SetAttributeStringValue("TEXT", "Elastisk bue");
-                            //                        break;
-                            //                    case TypeOfSegment.CurvedPipe:
-                            //                        brCurve.SetAttributeStringValue("TEXT", "Buerør");
-                            //                        break;
-                            //                    default:
-                            //                        break;
-                            //                }
-                            //            }
-                            //        }
-                            //    }
-                            //}
-                            //#endregion 
+                                            Vector3d deriv = nearest.GetFirstDerivative(
+                                                nearest.GetClosestPointTo(curvePt, false));
+
+                                            double rotation = Math.Atan2(deriv.Y, deriv.X);
+                                            brCurve.Rotation = rotation;
+                                            #endregion
+
+                                            DynamicBlockReferencePropertyCollection dbrpc = brCurve.DynamicBlockReferencePropertyCollection;
+                                            foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
+                                            {
+                                                if (dbrp.PropertyName == "Length")
+                                                {
+                                                    //prdDbg(length.ToString());
+                                                    dbrp.Value = Math.Abs(length);
+                                                }
+                                            }
+
+                                            //Set length text
+                                            brCurve.SetAttributeStringValue("LGD", Math.Abs(length).ToString("0.0") + " m");
+
+                                            switch (tos)
+                                            {
+                                                case TypeOfSegment.ElasticArc:
+                                                    brCurve.SetAttributeStringValue("TEXT", "Elastisk bue");
+                                                    break;
+                                                case TypeOfSegment.CurvedPipe:
+                                                    brCurve.SetAttributeStringValue("TEXT", "Buerør");
+                                                    break;
+                                                default:
+                                                    break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            #endregion 
                         }
                     }
                 }
@@ -14995,16 +15154,26 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region ProfileProjectionLabel testing
+                    HashSet<ProfileProjectionLabel> labels = localDb.HashSetOfType<ProfileProjectionLabel>(tx);
+                    foreach (var label in labels)
+                    {
+                        DBPoint testPoint = new DBPoint(label.LabelLocation);
+                        testPoint.AddEntityToDbModelSpace<DBPoint>(localDb);
+                    }
+
+                    #endregion
+
                     #region PropertySets testing 1
-                    //IntersectUtilities.ODDataConverter.ODDataConverter.testing();
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                        "\nSelect entity to list rxobject:");
-                    promptEntityOptions1.SetRejectMessage("\n Not a p3d!");
-                    promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
-                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
-                    prdDbg(entId.ObjectClass.Name);
+                    ////IntersectUtilities.ODDataConverter.ODDataConverter.testing();
+                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                    //    "\nSelect entity to list rxobject:");
+                    //promptEntityOptions1.SetRejectMessage("\n Not a p3d!");
+                    //promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    //Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
+                    //prdDbg(entId.ObjectClass.Name);
                     #endregion
 
                     #region Print all values of all ODTable's fields
