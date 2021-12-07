@@ -2378,11 +2378,11 @@ namespace IntersectUtilities
                             Oid fId = label.FeatureId;
                             Entity fEnt = fId.Go<Entity>(tx);
 
-                            int diaOriginal = ReadIntPropertyValue(tables, fId, "CrossingData", "Diameter");
+                            var diaOriginal = (int)ReadPropertyValueFromPS(fEnt, "CrossingData", "Diameter");
 
                             double dia = Convert.ToDouble(diaOriginal) / 1000;
 
-                            if (dia == 0) dia = 0.11;
+                            if (dia == 0 || diaOriginal == 999) dia = 0.11;
 
                             string blockName = ReadStringParameterFromDataTable(
                                 fEnt.Layer, dtKrydsninger, "Block", 1);
@@ -8777,6 +8777,45 @@ namespace IntersectUtilities
                         .ToList();
                     HashSet<ProfileView> pvSetExisting = localDb.HashSetOfType<ProfileView>(tx);
 
+                    #region Check or create propertysetdata to store crossing data
+                    //Create property set for CrossingData
+                    string diaPropertySetDefName = "CrossingData";
+                    PropertySetDefinition propSetDef = default;
+                    var dictPropSetDef = new DictionaryPropertySetDefinitions(localDb);
+                    if (!dictPropSetDef.Has(diaPropertySetDefName, tx))
+                    {
+                        //Has not! then create new.
+                        propSetDef = new PropertySetDefinition();
+                        propSetDef.SetToStandard(localDb);
+                        propSetDef.SubSetDatabaseDefaults(localDb);
+
+                        propSetDef.Description = "Table to hold useful crossing data.";
+                        bool isStyle = false;
+                        var appliedTo = new StringCollection();
+                        appliedTo.Add("AeccDbCogoPoint");
+                        propSetDef.SetAppliesToFilter(appliedTo, isStyle);
+
+                        var propDefManual = new PropertyDefinition();
+                        propDefManual.SetToStandard(localDb);
+                        propDefManual.SubSetDatabaseDefaults(localDb);
+                        propDefManual.Name = "Diameter";
+                        propDefManual.Description = "Stores crossing pipe's diameter";
+                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Integer;
+                        propDefManual.DefaultData = 0;
+                        // add to the prop set def
+                        propSetDef.Definitions.Add(propDefManual);
+
+                        using (Transaction propTx = localDb.TransactionManager.StartTransaction())
+                        {
+                            dictPropSetDef.AddNewRecord(diaPropertySetDefName, propSetDef);
+                            propTx.AddNewlyCreatedDBObject(propSetDef, true);
+                            propTx.Commit();
+                        }
+                    }
+
+                    Oid diaPropSetDefId = dictPropSetDef.GetAt(diaPropertySetDefName);
+                    #endregion
+
                     #region Read Csv Data for Layers and Depth
 
                     //Establish the pathnames to files
@@ -9129,7 +9168,7 @@ namespace IntersectUtilities
                                     cogoPoint.StyleId = cogoPointStyle;
                                     #endregion
 
-                                    #region Copy OD from polies to the new point
+                                    #region Copy OD from polies to the new point -> Not any longer
                                     //Copy specific OD from cloned 3D polies to the new point
 
                                     //Use PropertySets now!!!
@@ -9140,59 +9179,56 @@ namespace IntersectUtilities
                                     //TryCopySpecificOD(tables, ent, cogoPoint, odList);
                                     #endregion
 
-                                    #region Create Diameter OD
-                                    List<(string TableName, string RecordName,
-                                        DataType dataType)> odList =
-                                        new List<(string TableName, string RecordName,
-                                        DataType dataType)>();
-                                    //odList.Add(("SizeTable", "Size"));
+                                    #region Attach property set
+                                    //Attach property set to CogoPoint
+                                    //Check or creation of the set happen at the top now
+                                    using (Transaction txAttachPs = localDb.TransactionManager.StartTransaction())
+                                    {
+                                        cogoPoint.CheckOrOpenForWrite();
+                                        PropertyDataServices.AddPropertySet(cogoPoint, diaPropSetDefId);
+                                        txAttachPs.Commit();
+                                    }
+                                    #endregion
+
+                                    #region Get the newly attached property set
+                                    ObjectIdCollection propertySetIds = PropertyDataServices.GetPropertySets(cogoPoint);
+                                    List<PropertySet> propertySets = new List<PropertySet>();
+                                    foreach (Oid oid in propertySetIds) propertySets.Add(oid.Go<PropertySet>(tx, OpenMode.ForWrite));
+                                    PropertySet pSet = propertySets.Find(
+                                        x => x.PropertySetDefinitionName == diaPropertySetDefName); 
+                                    #endregion
+
+                                    #region Populate diameter property
+                                    List<(string TableName,
+                                            string RecordName,
+                                            string PropertyName,
+                                            Autodesk.Aec.PropertyData.DataType dataType)> odList =
+                                        new List<(
+                                            string TableName,
+                                            string RecordName,
+                                            string PropertyName,
+                                            Autodesk.Aec.PropertyData.DataType dataType)>();
                                     //Fetch diameter definitions if any
                                     string diaDef = ReadStringParameterFromDataTable(ent.Layer,
                                         dtKrydsninger, "Diameter", 0);
+
                                     if (diaDef.IsNotNoE())
                                     {
                                         var list = FindDescriptionParts(diaDef);
                                         //Be careful if FindDescriptionParts implementation changes
                                         string[] parts = list[0].Item2.Split(':');
-                                        odList.Add((parts[0], parts[1], DataType.Integer));
+                                        odList.Add((parts[0], parts[1], "Diameter", Autodesk.Aec.PropertyData.DataType.Integer));
                                     }
 
                                     foreach (var item in odList)
                                     {
-                                        //MapValue originalValue = ReadRecordData(
-                                        //    tables, ent.ObjectId, item.TableName, item.RecordName);
                                         object value = ReadPropertyValueFromPS(
                                             pss, ent, item.TableName, item.RecordName);
 
                                         if (value != null)
                                         {
-                                            if (DoesTableExist(tables, "CrossingData"))
-                                            {
-                                                if (DoesRecordExist(tables, cogoPoint.ObjectId, "CrossingData", "Diameter"))
-                                                {
-                                                    UpdateODRecord(tables, "CrossingData", "Diameter",
-                                                        cogoPoint.ObjectId, MapValueFromObject(value, item.dataType));
-                                                }
-                                                else
-                                                {
-                                                    AddODRecord(tables, "CrossingData", "Diameter",
-                                                        cogoPoint.ObjectId, MapValueFromObject(value, item.dataType));
-                                                }
-                                            }
-                                            else
-                                            {
-                                                string[] columnNames = new string[1] { "Diameter" };
-                                                string[] columnDescrs = new string[1] { "Diameter of crossing pipe" };
-
-                                                if (CreateTable(tables, "CrossingData", "Table holding relevant crossing data",
-                                                    columnNames, columnDescrs,
-                                                    new Autodesk.Gis.Map.Constants.DataType[1]
-                                                    {Autodesk.Gis.Map.Constants.DataType.Integer }))
-                                                {
-                                                    AddODRecord(tables, "CrossingData", "Diameter",
-                                                        cogoPoint.ObjectId, MapValueFromObject(value, item.dataType));
-                                                }
-                                            }
+                                            int psIdCurrent = pSet.PropertyNameToId(item.PropertyName);
+                                            pSet.SetAt(psIdCurrent, value);
                                         }
                                     }
                                     #endregion
@@ -15231,53 +15267,53 @@ namespace IntersectUtilities
                 try
                 {
                     #region Paperspace to modelspace test
-                    //BlockTable blockTable = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                    //BlockTableRecord paperSpace = tx.GetObject(blockTable[BlockTableRecord.PaperSpace], OpenMode.ForRead)
-                    //    as BlockTableRecord;
+                    ////BlockTable blockTable = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    ////BlockTableRecord paperSpace = tx.GetObject(blockTable[BlockTableRecord.PaperSpace], OpenMode.ForRead)
+                    ////    as BlockTableRecord;
 
-                    DBDictionary layoutDict = localDb.LayoutDictionaryId.Go<DBDictionary>(tx);
-                    var enumerator = layoutDict.GetEnumerator();
-                    while (enumerator.MoveNext())
-                    {
-                        DBDictionaryEntry item = enumerator.Current;
-                        prdDbg(item.Key);
-                        if (item.Key == "Model")
-                        {
-                            prdDbg("Skipping model...");
-                            continue;
-                        }
+                    //DBDictionary layoutDict = localDb.LayoutDictionaryId.Go<DBDictionary>(tx);
+                    //var enumerator = layoutDict.GetEnumerator();
+                    //while (enumerator.MoveNext())
+                    //{
+                    //    DBDictionaryEntry item = enumerator.Current;
+                    //    prdDbg(item.Key);
+                    //    if (item.Key == "Model")
+                    //    {
+                    //        prdDbg("Skipping model...");
+                    //        continue;
+                    //    }
 
-                        Layout layout = item.Value.Go<Layout>(tx);
-                        //ObjectIdCollection vpIds = layout.GetViewports();
+                    //    Layout layout = item.Value.Go<Layout>(tx);
+                    //    //ObjectIdCollection vpIds = layout.GetViewports();
 
-                        BlockTableRecord layBlock = layout.BlockTableRecordId.Go<BlockTableRecord>(tx);
+                    //    BlockTableRecord layBlock = layout.BlockTableRecordId.Go<BlockTableRecord>(tx);
 
-                        foreach (Oid id in layBlock)
-                        {
-                            if (id.IsDerivedFrom<Viewport>())
-                            {
-                                Viewport viewport = id.Go<Viewport>(tx);
-                                //Truncate doubles to whole numebers for easier comparison
-                                int centerX = (int)viewport.CenterPoint.X;
-                                int centerY = (int)viewport.CenterPoint.Y;
-                                if (centerX == 422 && centerY == 442)
-                                {
-                                    prdDbg("Found profile viewport!");
-                                    Extents3d ext = viewport.GeometricExtents;
-                                    Polyline pl = new Polyline(4);
-                                    pl.AddVertexAt(0, new Point2d(ext.MinPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
-                                    pl.AddVertexAt(1, new Point2d(ext.MinPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
-                                    pl.AddVertexAt(2, new Point2d(ext.MaxPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
-                                    pl.AddVertexAt(3, new Point2d(ext.MaxPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
-                                    pl.Closed = true;
-                                    pl.SetDatabaseDefaults();
-                                    pl.PaperToModel(viewport);
-                                    pl.Layer = "0-NONPLOT";
-                                    pl.AddEntityToDbModelSpace<Polyline>(localDb);
-                                }
-                            }
-                        }
-                    }
+                    //    foreach (Oid id in layBlock)
+                    //    {
+                    //        if (id.IsDerivedFrom<Viewport>())
+                    //        {
+                    //            Viewport viewport = id.Go<Viewport>(tx);
+                    //            //Truncate doubles to whole numebers for easier comparison
+                    //            int centerX = (int)viewport.CenterPoint.X;
+                    //            int centerY = (int)viewport.CenterPoint.Y;
+                    //            if (centerX == 422 && centerY == 442)
+                    //            {
+                    //                prdDbg("Found profile viewport!");
+                    //                Extents3d ext = viewport.GeometricExtents;
+                    //                Polyline pl = new Polyline(4);
+                    //                pl.AddVertexAt(0, new Point2d(ext.MinPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
+                    //                pl.AddVertexAt(1, new Point2d(ext.MinPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
+                    //                pl.AddVertexAt(2, new Point2d(ext.MaxPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
+                    //                pl.AddVertexAt(3, new Point2d(ext.MaxPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
+                    //                pl.Closed = true;
+                    //                pl.SetDatabaseDefaults();
+                    //                pl.PaperToModel(viewport);
+                    //                pl.Layer = "0-NONPLOT";
+                    //                pl.AddEntityToDbModelSpace<Polyline>(localDb);
+                    //            }
+                    //        }
+                    //    }
+                    //}
                     #endregion
 
                     #region ProfileProjectionLabel testing
@@ -15299,7 +15335,7 @@ namespace IntersectUtilities
                     //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
                     //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
                     //Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
-                    //prdDbg(entId.ObjectClass.Name);
+                    //prdDbg(CogoPoint.GetClass(typeof(CogoPoint)).Name);
                     #endregion
 
                     #region Print all values of all ODTable's fields

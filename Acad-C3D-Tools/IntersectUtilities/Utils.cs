@@ -1250,6 +1250,25 @@ namespace IntersectUtilities
             //}
             //return "";
         }
+        public static object ReadPropertyValueFromPS(Entity ent, string tableName, string fieldName)
+        {
+            ObjectIdCollection propertySetIds = PropertyDataServices.GetPropertySets(ent);
+            List<PropertySet> pss = new List<PropertySet>();
+            foreach (Oid oid in propertySetIds) pss.Add(oid.Go<PropertySet>(
+                ent.Database.TransactionManager.TopTransaction));
+
+            //Assume only one result
+            PropertySet ps = pss.Find(x => x.PropertySetDefinitionName == tableName);
+            if (ps == default)
+            {
+                prdDbg($"PropertySet {tableName} could not be found for entity handle {ent.Handle}.");
+                return "";
+            }
+            int propertyId = ps.PropertyNameToId(fieldName);
+            object value = ps.GetAt(propertyId);
+            if (value != null) return value;
+            else return default;
+        }
         public static MapValue MapValueFromObject(object input, Autodesk.Gis.Map.Constants.DataType type)
         {
             switch (type)
