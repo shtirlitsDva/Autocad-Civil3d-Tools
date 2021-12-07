@@ -10856,7 +10856,7 @@ namespace IntersectUtilities
                             //Handle first label
                             if (i == 0)
                             {
-                                double length = 20;
+                                double length = 32;
                                 firstLabel.CheckOrOpenForWrite();
                                 firstLabel.DimensionAnchorValue = length / 250 / 4;
                                 firstLabel.StyleId = styleId;
