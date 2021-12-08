@@ -11029,7 +11029,7 @@ namespace IntersectUtilities
                             objIds.Add(stylesDoc.Styles.LabelStyles.ProjectionLabelStyles
                                 .ProfileViewProjectionLabelStyles["PROFILE PROJEKTION MGO"]);
 
-                            Autodesk.Civil.DatabaseServices.Styles.StyleBase.ExportTo(objIds, localDb, Autodesk.Civil.StyleConflictResolverType.Override);
+                            Autodesk.Civil.DatabaseServices.Styles.StyleBase.ExportTo(objIds, localDb, Autodesk.Civil.StyleConflictResolverType.Ignore);
                         }
                         catch (System.Exception)
                         {
