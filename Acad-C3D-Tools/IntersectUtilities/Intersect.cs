@@ -24,6 +24,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
+using System.Data;
 using MoreLinq;
 using GroupByCluster;
 
@@ -31,8 +32,6 @@ using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
 using static IntersectUtilities.PipeSchedule;
-
-
 
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
@@ -342,7 +341,6 @@ namespace IntersectUtilities
                     #region Read Csv Data for Layers and Depth
 
                     //Establish the pathnames to files
-                    //Files should be placed in a specific folder on desktop
                     string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
                     string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
 
@@ -9195,7 +9193,7 @@ namespace IntersectUtilities
                                     List<PropertySet> propertySets = new List<PropertySet>();
                                     foreach (Oid oid in propertySetIds) propertySets.Add(oid.Go<PropertySet>(tx, OpenMode.ForWrite));
                                     PropertySet pSet = propertySets.Find(
-                                        x => x.PropertySetDefinitionName == diaPropertySetDefName); 
+                                        x => x.PropertySetDefinitionName == diaPropertySetDefName);
                                     #endregion
 
                                     #region Populate diameter property
@@ -11325,6 +11323,8 @@ namespace IntersectUtilities
             //Draw rectangles representing viewports around longitudinal profiles
             //Can be used to check if labels are inside
             drawviewportrectangles();
+            //Colorize layer as per krydsninger tabler
+            colorizealllerlayers();
         }
 
         [CommandMethod("CREATEDETAILING")]
@@ -11486,8 +11486,8 @@ namespace IntersectUtilities
                         {
                             Extents3d te = pv.GeometricExtents;
                             extentsPv = new Extents3d(
-                                new Point3d(te.MinPoint.X - 5, te.MinPoint.Y - 5, 0),
-                                new Point3d(te.MaxPoint.X + 5, te.MaxPoint.Y + 5, 0));
+                                new Point3d(te.MinPoint.X - 1, te.MinPoint.Y - 1, 0),
+                                new Point3d(te.MaxPoint.X + 1, te.MaxPoint.Y + 1, 0));
 
                             var linesInside = isInsideQuery.ToList();
 
@@ -11498,7 +11498,16 @@ namespace IntersectUtilities
                             pline.AddVertexAt(0, new Point2d(seedLine.StartPoint.X, seedLine.StartPoint.Y), 0, 0, 0);
                             pline.AddVertexAt(1, new Point2d(seedLine.EndPoint.X, seedLine.EndPoint.Y), 0, 0, 0);
 
-                            pline.JoinEntities(linesInside.Cast<Entity>().ToArray());
+                            try
+                            {
+                                if (linesInside.Count != 0)
+                                    pline.JoinEntities(linesInside.Cast<Entity>().ToArray());
+                            }
+                            catch (System.Exception)
+                            {
+                                prdDbg($"Midt i {pv.Name} could not be joined!");
+                                throw;
+                            }
                             polylinesToGetDerivative.Add(pline);
 
                             //pline.AddEntityToDbModelSpace(localDb);
@@ -11757,23 +11766,6 @@ namespace IntersectUtilities
                                             BlockReference brCurve =
                                                 localDb.CreateBlockWithAttributes(bueBlockName, curvePt);
 
-                                            #region Determine rotation
-                                            //Get the nearest exploded profile polyline and sample first derivative
-                                            HashSet<(Polyline pline, double dist)> ps = new HashSet<(Polyline pline, double dist)>();
-                                            foreach (Polyline pline2 in polylinesToGetDerivative)
-                                            {
-                                                Point3d distPt = pline2.GetClosestPointTo(curvePt, false);
-                                                ps.Add((pline2, distPt.DistanceHorizontalTo(curvePt)));
-                                            }
-                                            Polyline nearest = ps.MinBy(x => x.dist).FirstOrDefault().pline;
-
-                                            Vector3d deriv = nearest.GetFirstDerivative(
-                                                nearest.GetClosestPointTo(curvePt, false));
-
-                                            double rotation = Math.Atan2(deriv.Y, deriv.X);
-                                            brCurve.Rotation = rotation;
-                                            #endregion
-
                                             DynamicBlockReferencePropertyCollection dbrpc = brCurve.DynamicBlockReferencePropertyCollection;
                                             foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
                                             {
@@ -11790,14 +11782,31 @@ namespace IntersectUtilities
                                             switch (tos)
                                             {
                                                 case TypeOfSegment.ElasticArc:
-                                                    brCurve.SetAttributeStringValue("TEXT", "Elastisk bue");
+                                                    brCurve.SetAttributeStringValue("TEXT", $"Elastisk bue {radius.ToString("0.0")}°");
                                                     break;
                                                 case TypeOfSegment.CurvedPipe:
-                                                    brCurve.SetAttributeStringValue("TEXT", "Buerør");
+                                                    brCurve.SetAttributeStringValue("TEXT", $"Buerør {radius.ToString("0.0")}°");
                                                     break;
                                                 default:
                                                     break;
                                             }
+
+                                            #region Determine rotation
+                                            //Get the nearest exploded profile polyline and sample first derivative
+                                            HashSet<(Polyline pline, double dist)> ps = new HashSet<(Polyline pline, double dist)>();
+                                            foreach (Polyline pline2 in polylinesToGetDerivative)
+                                            {
+                                                Point3d distPt = pline2.GetClosestPointTo(curvePt, false);
+                                                ps.Add((pline2, distPt.DistanceHorizontalTo(curvePt)));
+                                            }
+                                            Polyline nearest = ps.MinBy(x => x.dist).FirstOrDefault().pline;
+
+                                            Vector3d deriv = nearest.GetFirstDerivative(
+                                                nearest.GetClosestPointTo(curvePt, false));
+
+                                            double rotation = Math.Atan2(deriv.Y, deriv.X);
+                                            brCurve.Rotation = rotation;
+                                            #endregion
                                         }
                                     }
                                 }
@@ -13992,6 +14001,58 @@ namespace IntersectUtilities
                 {
                     tx.Abort();
                     editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("COLORIZEALLLERLAYERS")]
+        public void colorizealllerlayers()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+
+                    LayerTable lt = localDb.LayerTableId.Go<LayerTable>(tx);
+
+                    Regex regex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)");
+
+                    HashSet<string> layerNames = dtKrydsninger.AsEnumerable().Select(x => x["Layer"].ToString()).ToHashSet();
+
+                    foreach (string name in layerNames.Where(x => x.IsNotNoE()).OrderBy(x => x))
+                    {
+                        if (lt.Has(name))
+                        {
+                            string colorString = ReadStringParameterFromDataTable(name, dtKrydsninger, "Farve", 1);
+                            if (colorString.IsNotNoE() && regex.IsMatch(colorString))
+                            {
+                                Match match = regex.Match(colorString);
+                                byte R = Convert.ToByte(int.Parse(match.Groups["R"].Value));
+                                byte G = Convert.ToByte(int.Parse(match.Groups["G"].Value));
+                                byte B = Convert.ToByte(int.Parse(match.Groups["B"].Value));
+                                prdDbg($"Set layer {name} to color: R: {R.ToString()}, G: {G.ToString()}, B: {B.ToString()}");
+                                LayerTableRecord ltr = lt[name].Go<LayerTableRecord>(tx, OpenMode.ForWrite);
+                                ltr.Color = Color.FromRgb(R, G, B);
+                            }
+                            else prdDbg("No match!");
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
                     return;
                 }
                 tx.Commit();
