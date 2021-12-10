@@ -1316,6 +1316,56 @@ namespace IntersectUtilities
                     return "";
             }
         }
+        public static void PropertySetCopyFromEntToEnt(Entity source, Entity target)
+        {
+            //Only works within drawing
+            //ToDo: implement copying from drawing to drawing
+            try
+            {
+                List<PropertySet> sourcePss = source.GetPropertySets();
+                DictionaryPropertySetDefinitions sourcePropDefDict 
+                    = new DictionaryPropertySetDefinitions(source.Database);
+                DictionaryPropertySetDefinitions targetPropDefDict
+                    = new DictionaryPropertySetDefinitions(target.Database);
+
+                foreach (PropertySet sourcePs in sourcePss)
+                {
+                    PropertySetDefinition sourcePropSetDef =
+                        sourcePs.PropertySetDefinition.Go<PropertySetDefinition>(source.GetTopTx());
+                    //Check to see if table is already attached
+                    if (!target.GetPropertySets().Contains(sourcePs, new PropertySetNameComparer()))
+                    {
+                        //If target entity does not have property set attached -> attach
+                        //Here can creating the property set definition in the target database be implemented
+                        target.CheckOrOpenForWrite();
+                        PropertyDataServices.AddPropertySet(target, sourcePropSetDef.Id);
+                    }
+
+                    PropertySet targetPs = target.GetPropertySets()
+                        .Find(x => x.PropertySetDefinitionName == sourcePs.PropertySetDefinitionName);
+
+                    if (targetPs == null)
+                    {
+                        prdDbg("PropertySet attachment failed in PropertySetCopyFromEntToEnt!");
+                        throw new System.Exception();
+                    }
+
+                    foreach (PropertyDefinition pd in sourcePropSetDef.Definitions)
+                    {
+                        int sourceId = sourcePs.PropertyNameToId(pd.Name);
+                        object value = sourcePs.GetAt(sourceId);
+
+                        int targetId = targetPs.PropertyNameToId(pd.Name);
+                        targetPs.SetAt(targetId, value);
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex.ToString());
+                throw;
+            }
+        }
         public static ObjectId AddToBlock(Entity entity, ObjectId btrId)
         {
             using (Transaction tr = btrId.Database.TransactionManager.StartTransaction())
@@ -2133,38 +2183,7 @@ namespace IntersectUtilities
             CurvedPipe
         }
     }
-    public class PointDBHorizontalComparer : IEqualityComparer<DBPoint>
-    {
-        double Tol;
-
-        public PointDBHorizontalComparer(double tol = 0.001)
-        {
-            Tol = tol;
-        }
-
-        public bool Equals(DBPoint a, DBPoint b) => null != a && null != b &&
-            a.Position.HorizontalEqualz(b.Position, Tol);
-
-        public int GetHashCode(DBPoint a) => Tuple.Create(
-        Math.Round(a.Position.X, 3), Math.Round(a.Position.Y, 3)).GetHashCode();
-    }
-
-    public class Point3dHorizontalComparer : IEqualityComparer<Point3d>
-    {
-        double Tol;
-
-        public Point3dHorizontalComparer(double tol = 0.001)
-        {
-            Tol = tol;
-        }
-
-        public bool Equals(Point3d a, Point3d b) => null != a && null != b &&
-            a.HorizontalEqualz(b, Tol);
-
-        public int GetHashCode(Point3d a) => Tuple.Create(
-        Math.Round(a.X, 3), Math.Round(a.Y, 3)).GetHashCode();
-    }
-
+    
     public class StationPoint
     {
         public CogoPoint CogoPoint { get; }
@@ -2741,7 +2760,15 @@ namespace IntersectUtilities
         public static bool IsPointInsideXY(this Extents3d extents, Point3d pnt)
         => pnt.X >= extents.MinPoint.X && pnt.X <= extents.MaxPoint.X
             && pnt.Y >= extents.MinPoint.Y && pnt.Y <= extents.MaxPoint.Y;
-
+        public static Transaction GetTopTx(this Entity ent) => ent.Database.TransactionManager.TopTransaction;
+        public static Transaction StartTx(this Entity ent) => ent.Database.TransactionManager.StartTransaction();
+        public static List<PropertySet> GetPropertySets(this Entity ent)
+        {
+            ObjectIdCollection psIds = PropertyDataServices.GetPropertySets(ent);
+            List<PropertySet> pss = new List<PropertySet>();
+            foreach (Oid oid in psIds) pss.Add(oid.Go<PropertySet>(ent.GetTopTx()));
+            return pss;
+        }
     }
 
     public static class ExtensionMethods

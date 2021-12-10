@@ -3204,6 +3204,112 @@ namespace IntersectUtilities
             //Run create ids also
             createids();
         }
+        [CommandMethod("convertlineworkpss")]
+        public void convertlineworkpss()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            prdDbg("Remember that the PropertySets need be defined in advance!!!");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    // Open the Block table for read
+                    BlockTable acBlkTbl = tx.GetObject(localDb.BlockTableId,
+                                                       OpenMode.ForRead) as BlockTable;
+                    // Open the Block table record Model space for write
+                    BlockTableRecord acBlkTblRec = tx.GetObject(acBlkTbl[BlockTableRecord.ModelSpace],
+                                                          OpenMode.ForWrite) as BlockTableRecord;
+
+                    #region Load linework and convert splines
+                    List<Spline> splines = localDb.ListOfType<Spline>(tx);
+                    editor.WriteMessage($"\nNr. of splines: {splines.Count}");
+
+                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                    foreach (Spline spline in splines)
+                    {
+                        Curve curve = spline.ToPolylineWithPrecision(10);
+                        acBlkTblRec.AppendEntity(curve);
+                        tx.AddNewlyCreatedDBObject(curve, true);
+                        curve.CheckOrOpenForWrite();
+                        curve.Layer = spline.Layer;
+                        PropertySetCopyFromEntToEnt(spline, curve);
+                    }
+                    #endregion
+
+                    List<Polyline> polies = localDb.ListOfType<Polyline>(tx);
+                    editor.WriteMessage($"\nNr. of polylines: {polies.Count}");
+
+                    foreach (Polyline pline in polies)
+                    {
+                        pline.PolyClean_RemoveDuplicatedVertex();
+
+                        Point3dCollection p3dcol = new Point3dCollection();
+                        int vn = pline.NumberOfVertices;
+
+                        for (int i = 0; i < vn; i++) p3dcol.Add(pline.GetPoint3dAt(i));
+
+                        Polyline3d polyline3D = new Polyline3d(Poly3dType.SimplePoly, p3dcol, false);
+                        polyline3D.CheckOrOpenForWrite();
+                        polyline3D.Layer = pline.Layer;
+                        acBlkTblRec.AppendEntity(polyline3D);
+                        tx.AddNewlyCreatedDBObject(polyline3D, true);
+                        PropertySetCopyFromEntToEnt(pline, polyline3D);
+                    }
+
+                    List<Line> lines = localDb.ListOfType<Line>(tx);
+                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
+
+                    foreach (Line line in lines)
+                    {
+                        Point3dCollection p3dcol = new Point3dCollection();
+
+                        p3dcol.Add(line.StartPoint);
+                        p3dcol.Add(line.EndPoint);
+
+                        Polyline3d polyline3D = new Polyline3d(Poly3dType.SimplePoly, p3dcol, false);
+                        polyline3D.CheckOrOpenForWrite();
+                        polyline3D.Layer = line.Layer;
+                        acBlkTblRec.AppendEntity(polyline3D);
+                        tx.AddNewlyCreatedDBObject(polyline3D, true);
+                        PropertySetCopyFromEntToEnt(line, polyline3D);
+                    }
+
+                    foreach (Line line in lines)
+                    {
+                        line.CheckOrOpenForWrite();
+                        line.Erase(true);
+                    }
+
+                    foreach (Spline spline in splines)
+                    {
+                        spline.CheckOrOpenForWrite();
+                        spline.Erase(true);
+                    }
+
+                    foreach (Polyline pl in polies)
+                    {
+                        pl.CheckOrOpenForWrite();
+                        pl.Erase(true);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+
+            //Run create ids also
+            createids();
+        }
 
         [CommandMethod("selectbyhandle")]
         public void selectbyhandle()
