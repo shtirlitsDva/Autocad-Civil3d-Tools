@@ -15327,6 +15327,13 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region RXClass to String test
+
+                    prdDbg("Line: " + RXClass.GetClass(typeof(Line)).Name);
+                    prdDbg("Spline: " + RXClass.GetClass(typeof(Spline)).Name);
+                    prdDbg("Polyline: " + RXClass.GetClass(typeof(Polyline)).Name);
+                    #endregion
+
                     #region Paperspace to modelspace test
                     ////BlockTable blockTable = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                     ////BlockTableRecord paperSpace = tx.GetObject(blockTable[BlockTableRecord.PaperSpace], OpenMode.ForRead)

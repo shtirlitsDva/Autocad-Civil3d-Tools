@@ -64,6 +64,9 @@ namespace IntersectUtilities.ODDataConverter
                     // apply to objects or styles. True if style, False if objects
                     bool isStyle = false;
                     var appliedTo = new StringCollection();
+                    appliedTo.Add("AcDbLine");
+                    appliedTo.Add("AcDbSpline");
+                    appliedTo.Add("AcDbPolyline");
                     appliedTo.Add("AcDb3dPolyline");
                     propSetDef.SetAppliesToFilter(appliedTo, isStyle);
 
@@ -138,12 +141,16 @@ namespace IntersectUtilities.ODDataConverter
             {
                 //I need to work with 3d polylines
                 //Change here to add other types of objects
-                HashSet<Polyline3d> p3ds = localDb.HashSetOfType<Polyline3d>(tx);
+                HashSet<Entity> ents = new HashSet<Entity>();
+                ents.UnionWith(localDb.HashSetOfType<Line>(tx));
+                ents.UnionWith(localDb.HashSetOfType<Spline>(tx));
+                ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
+                ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
 
-                foreach (Polyline3d p3d in p3ds)
+                foreach (Entity ent in ents)
                 {
                     using (Records records =
-                        tables.GetObjectRecords(0, p3d.Id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+                        tables.GetObjectRecords(0, ent.Id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
                     {
                         int recordsCount = records.Count;
                         for (int i = 0; i < recordsCount; i++)
@@ -162,12 +169,13 @@ namespace IntersectUtilities.ODDataConverter
                                 return;
                             }
                             //Add property set to the object
-                            p3d.CheckOrOpenForWrite();
-                            PropertyDataServices.AddPropertySet(p3d, dictId);
+                            ent.CheckOrOpenForWrite();
+                            PropertyDataServices.AddPropertySet(ent, dictId);
                         }
                     }
                 }
                 tx.Commit();
+                prdDbg("Finished!");
             }
         }
 
@@ -189,16 +197,20 @@ namespace IntersectUtilities.ODDataConverter
                 {
                     //I need to work with 3d polylines
                     //Change here to add other types of objects
-                    HashSet<Polyline3d> p3ds = localDb.HashSetOfType<Polyline3d>(tx);
+                    HashSet<Entity> ents = new HashSet<Entity>();
+                    ents.UnionWith(localDb.HashSetOfType<Line>(tx));
+                    ents.UnionWith(localDb.HashSetOfType<Spline>(tx));
+                    ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
+                    ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
 
-                    foreach (Polyline3d p3d in p3ds)
+                    foreach (Entity ent in ents)
                     {
-                        ObjectIdCollection psIds = PropertyDataServices.GetPropertySets(p3d);
+                        ObjectIdCollection psIds = PropertyDataServices.GetPropertySets(ent);
                         List<PropertySet> pss = new List<PropertySet>();
                         foreach (Oid oid in psIds) pss.Add(oid.Go<PropertySet>(tx, OpenMode.ForWrite));
 
                         using (Records records =
-                            tables.GetObjectRecords(0, p3d.Id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+                            tables.GetObjectRecords(0, ent.Id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
                         {
                             int recordsCount = records.Count;
                             for (int i = 0; i < recordsCount; i++)
@@ -242,6 +254,7 @@ namespace IntersectUtilities.ODDataConverter
                     return;
                 }
                 tx.Commit();
+                prdDbg("Finishd!");
             }
         }
 
