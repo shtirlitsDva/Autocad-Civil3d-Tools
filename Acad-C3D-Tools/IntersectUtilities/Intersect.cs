@@ -15282,10 +15282,10 @@ namespace IntersectUtilities
                     // Dash #1
                     lttr.SetDashLengthAt(0, 60);
                     // Dash #2
-                    lttr.SetDashLengthAt(1, -8.7);
+                    lttr.SetDashLengthAt(1, -8.9);
                     lttr.SetShapeStyleAt(1, tt[textStyleName]);
                     lttr.SetShapeNumberAt(1, 0);
-                    lttr.SetShapeOffsetAt(1, new Vector2d(-8.7, -1.1));
+                    lttr.SetShapeOffsetAt(1, new Vector2d(-8.9, -1.1));
                     lttr.SetShapeScaleAt(1, 0.9);
                     lttr.SetShapeIsUcsOrientedAt(1, false);
                     lttr.SetShapeRotationAt(1, 0);
@@ -15293,7 +15293,7 @@ namespace IntersectUtilities
                     // Dash #3
                     lttr.SetDashLengthAt(2, 60);
                     // Dash #4
-                    lttr.SetDashLengthAt(3, -8.5);
+                    lttr.SetDashLengthAt(3, -8.9);
                     lttr.SetShapeStyleAt(3, tt[textStyleName]);
                     lttr.SetShapeNumberAt(3, 0);
                     lttr.SetShapeOffsetAt(3, new Vector2d(0, 1.1));
