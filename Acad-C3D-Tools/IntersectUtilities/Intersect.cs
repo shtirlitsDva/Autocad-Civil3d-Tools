@@ -11136,11 +11136,22 @@ namespace IntersectUtilities
                             objIds.Add(stylesDoc.Styles.LabelStyles.ProjectionLabelStyles
                                 .ProfileViewProjectionLabelStyles["PROFILE PROJEKTION MGO"]);
 
-                            Autodesk.Civil.DatabaseServices.Styles.StyleBase.ExportTo(objIds, localDb, Autodesk.Civil.StyleConflictResolverType.Ignore);
+                            int i = 0;
+                            foreach (Oid oid in objIds)
+                            {
+                                prdDbg($"{i}: {oid.ToString()}");
+                                i++;
+
+                            }
+
+                            prdDbg("Stylebase.ExportTo() doesn't work!");
+                            //Autodesk.Civil.DatabaseServices.Styles.StyleBase.ExportTo(objIds, localDb, Autodesk.Civil.StyleConflictResolverType.Override);
                         }
                         catch (System.Exception)
                         {
                             stylesTx.Abort();
+                            stylesDB.Dispose();
+                            localTx.Abort();
                             throw;
                         }
 
@@ -11178,6 +11189,55 @@ namespace IntersectUtilities
                 Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
                 ed.WriteMessage($"\n{ex.Message}");
                 return;
+            }
+        }
+
+        [CommandMethod("FIXMIDTPROFILESTYLE")]
+        public void fixmidtprofilestyle()
+        {
+            try
+            {
+                DocumentCollection docCol = Application.DocumentManager;
+                Database localDb = docCol.MdiActiveDocument.Database;
+                Editor editor = docCol.MdiActiveDocument.Editor;
+                Document doc = docCol.MdiActiveDocument;
+                CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+                #region Setup styles and clone blocks
+
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        //Profile Style
+                        var psc = civilDoc.Styles.ProfileStyles;
+                        ProfileStyle ps = psc["PROFIL STYLE MGO MIDT"].Go<ProfileStyle>(tx);
+                        ps.CheckOrOpenForWrite();
+
+                        DisplayStyle ds;
+                        ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.Line);
+                        ds.LinetypeScale = 10;
+
+                        ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.Curve);
+                        ds.LinetypeScale = 10;
+
+                        ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.SymmetricalParabola);
+                        ds.LinetypeScale = 10;
+
+                    }
+                    catch (System.Exception)
+                    {
+                        tx.Abort();
+                        throw;
+                    }
+                    tx.Commit();
+                }
+
+                #endregion
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex.ToString());
             }
         }
 
@@ -11465,6 +11525,7 @@ namespace IntersectUtilities
                 string komponentBlockName = "DRISizeChangeAnno";
                 string bueBlockName = "DRIPipeArcAnno";
                 string weldBlockName = "DRIWeldAnno";
+                string weldNumberBlockName = "DRIWeldAnnoText";
                 //////////////////////////////////////
 
                 try
@@ -11477,7 +11538,10 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Import blocks if missing
-                    if (!bt.Has(komponentBlockName) || !bt.Has(bueBlockName) || !bt.Has(weldBlockName))
+                    if (!bt.Has(komponentBlockName) ||
+                        !bt.Has(bueBlockName) ||
+                        !bt.Has(weldBlockName) ||
+                        !bt.Has(weldNumberBlockName))
                     {
                         prdDbg("Some of the blocks for detailing are missing! Importing...");
                         Database blockDb = new Database(false, true);
@@ -11494,6 +11558,7 @@ namespace IntersectUtilities
                         if (!bt.Has(komponentBlockName)) idsToClone.Add(sourceBt[komponentBlockName]);
                         if (!bt.Has(bueBlockName)) idsToClone.Add(sourceBt[bueBlockName]);
                         if (!bt.Has(weldBlockName)) idsToClone.Add(sourceBt[weldBlockName]);
+                        if (!bt.Has(weldNumberBlockName)) idsToClone.Add(sourceBt[weldNumberBlockName]);
 
                         IdMapping mapping = new IdMapping();
                         blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
@@ -11508,6 +11573,7 @@ namespace IntersectUtilities
                     var existingBlocks = localDb.GetBlockReferenceByName(komponentBlockName);
                     existingBlocks.UnionWith(localDb.GetBlockReferenceByName(bueBlockName));
                     existingBlocks.UnionWith(localDb.GetBlockReferenceByName(weldBlockName));
+                    existingBlocks.UnionWith(localDb.GetBlockReferenceByName(weldNumberBlockName));
                     foreach (BlockReference br in existingBlocks)
                     {
                         br.CheckOrOpenForWrite();
@@ -11801,6 +11867,13 @@ namespace IntersectUtilities
 
                                 BlockReference brWeld =
                                     localDb.CreateBlockWithAttributes(weldBlockName, wPt);
+
+                                BlockReference brWeldNumebr =
+                                    localDb.CreateBlockWithAttributes(weldNumberBlockName, wPt);
+
+                                string nummer = br.GetAttributeStringValue("NUMMER");
+
+                                brWeldNumebr.SetAttributeStringValue("NUMMER", nummer);
 
                                 #region Determine rotation
                                 //Get the nearest exploded profile polyline and sample first derivative
@@ -12212,6 +12285,134 @@ namespace IntersectUtilities
 
                             extTx.Commit();
                         }
+                        extDb.SaveAs(extDb.Filename, true, DwgVersion.Current, null);
+                    }
+                    System.Windows.Forms.Application.DoEvents();
+                }
+                #endregion
+            }
+            catch (System.Exception ex)
+            {
+                editor.WriteMessage("\n" + ex.Message);
+                return;
+            }
+        }
+
+        [CommandMethod("DETACHATTACHDWG")]
+        public void detachattachdwg()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            try
+            {
+                #region Operation
+
+                //************************************
+                string xrefName = "Fremtidig fjernvarme";
+                string xrefPath = @"X:\037-1178 - Gladsaxe udbygning - Dokumenter\01 Intern\02 Tegninger\" +
+                                  @"01 Autocad - xxx\Etape 1.2\Fremtidig fjernvarme.dwg";
+                //************************************
+
+                string path = string.Empty;
+                OpenFileDialog dialog = new OpenFileDialog()
+                {
+                    Title = "Choose txt file:",
+                    DefaultExt = "txt",
+                    Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
+                    FilterIndex = 0
+                };
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    path = dialog.FileName;
+                }
+                else return;
+
+                List<string> fileList;
+                fileList = File.ReadAllLines(path).ToList();
+                path = Path.GetDirectoryName(path) + "\\";
+
+                foreach (string name in fileList)
+                {
+                    prdDbg(name);
+                    string fileName = path + name;
+
+                    using (Database extDb = new Database(false, true))
+                    {
+                        extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
+
+                        #region Detach Fremtidig fjernvarme
+                        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                        {
+                            try
+                            {
+                                BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                                foreach (Oid oid in bt)
+                                {
+                                    BlockTableRecord btr = extTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
+                                    //if (btr.Name.Contains("_alignment"))
+                                    if (btr.Name == xrefName && btr.IsFromExternalReference)
+                                    {
+                                        extDb.DetachXref(btr.ObjectId);
+                                    }
+                                }
+                            }
+                            catch (System.Exception ex)
+                            {
+                                prdDbg(ex.ToString());
+                                extTx.Abort();
+                                throw;
+                            }
+
+                            extTx.Commit();
+                        }
+                        #endregion
+
+                        #region Attach Fremtidig fjernvarme and change draw order
+                        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                        {
+                            try
+                            {
+                                BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                                Oid xrefId = extDb.AttachXref(xrefPath, xrefName);
+                                if (xrefId == Oid.Null) throw new System.Exception("Creating xref failed!");
+
+                                Point3d insPt = new Point3d(0, 0, 0);
+                                using (BlockReference br = new BlockReference(insPt, xrefId))
+                                {
+                                    BlockTableRecord modelSpace = extDb.GetModelspaceForWrite();
+                                    modelSpace.AppendEntity(br);
+                                    extTx.AddNewlyCreatedDBObject(br, true);
+
+                                    br.Layer = "XREF-FJV_FREMTID";
+
+                                    DrawOrderTable dot = modelSpace.DrawOrderTableId.Go<DrawOrderTable>(extTx);
+                                    dot.CheckOrOpenForWrite();
+
+                                    Alignment al = extDb.ListOfType<Alignment>(extTx).FirstOrDefault();
+                                    if (al == null) throw new System.Exception("No alignments found in drawing!");
+
+                                    ObjectIdCollection idCol = new ObjectIdCollection(new Oid[1] { br.Id });
+
+                                    dot.MoveBelow(idCol, al.Id);
+                                }
+                            }
+                            catch (System.Exception ex)
+                            {
+                                prdDbg(ex.ToString());
+                                extTx.Abort();
+                                throw;
+                            }
+
+                            extTx.Commit();
+                        }
+                        #endregion
+
                         extDb.SaveAs(extDb.Filename, true, DwgVersion.Current, null);
                     }
                     System.Windows.Forms.Application.DoEvents();
@@ -14380,8 +14581,9 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Operation
+                    
 
+                    #region Dialog box for file list selection and path determination
                     string path = string.Empty;
                     OpenFileDialog dialog = new OpenFileDialog()
                     {
@@ -14398,72 +14600,86 @@ namespace IntersectUtilities
 
                     List<string> fileList;
                     fileList = File.ReadAllLines(path).ToList();
-                    path = Path.GetDirectoryName(path) + "\\";
+                    path = Path.GetDirectoryName(path) + "\\"; 
+                    #endregion
 
                     foreach (string name in fileList)
                     {
                         prdDbg(name);
                         string fileName = path + name;
-                        //prdDbg(fileName);
-
                         using (Database extDb = new Database(false, true))
                         {
                             extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
-
                             using (Transaction extTx = extDb.TransactionManager.StartTransaction())
                             {
-                                #region Change xref layer
-                                //BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-
-                                //foreach (oid oid in bt)
-                                //{
-                                //    BlockTableRecord btr = extTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
-                                //    if (btr.Name.Contains("_alignment"))
-                                //    {
-                                //        var ids = btr.GetBlockReferenceIds(true, true);
-                                //        foreach (oid brId in ids)
-                                //        {
-                                //            BlockReference br = brId.Go<BlockReference>(extTx, OpenMode.ForWrite);
-                                //            prdDbg(br.Name);
-                                //            if (br.Layer == "0") { prdDbg("Already in 0! Skipping..."); continue; }
-                                //            prdDbg("Was in: :" + br.Layer);
-                                //            br.Layer = "0";
-                                //            prdDbg("Moved to: " + br.Layer);
-                                //            System.Windows.Forms.Application.DoEvents();
-                                //        }
-                                //    }
-                                //} 
-                                #endregion
-                                #region Change Alignment style
-                                //CivilDocument extCDoc = CivilDocument.GetCivilDocument(extDb);
-
-                                //HashSet<Alignment> als = extDb.HashSetOfType<Alignment>(extTx);
-
-                                //foreach (Alignment al in als)
-                                //{
-                                //    al.CheckOrOpenForWrite();
-                                //    al.StyleId = extCDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
-                                //    oid labelSetOid = extCDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
-                                //    al.ImportLabelSet(labelSetOid);
-                                //} 
-                                #endregion
-
-                                HashSet<Alignment> als = extDb.HashSetOfType<Alignment>(extTx);
-                                foreach (Alignment al in als)
+                                try
                                 {
-                                    if (name.Contains(al.Name))
-                                        prdDbg(al.Name);
-                                    else prdDbg(al.Name + " <-- WARNING");
+                                    #region Change xref layer
+                                    //BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
 
+                                    //foreach (oid oid in bt)
+                                    //{
+                                    //    BlockTableRecord btr = extTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
+                                    //    if (btr.Name.Contains("_alignment"))
+                                    //    {
+                                    //        var ids = btr.GetBlockReferenceIds(true, true);
+                                    //        foreach (oid brId in ids)
+                                    //        {
+                                    //            BlockReference br = brId.Go<BlockReference>(extTx, OpenMode.ForWrite);
+                                    //            prdDbg(br.Name);
+                                    //            if (br.Layer == "0") { prdDbg("Already in 0! Skipping..."); continue; }
+                                    //            prdDbg("Was in: :" + br.Layer);
+                                    //            br.Layer = "0";
+                                    //            prdDbg("Moved to: " + br.Layer);
+                                    //            System.Windows.Forms.Application.DoEvents();
+                                    //        }
+                                    //    }
+                                    //} 
+                                    #endregion
+                                    #region Change Alignment style
+                                    //CivilDocument extCDoc = CivilDocument.GetCivilDocument(extDb);
+
+                                    //HashSet<Alignment> als = extDb.HashSetOfType<Alignment>(extTx);
+
+                                    //foreach (Alignment al in als)
+                                    //{
+                                    //    al.CheckOrOpenForWrite();
+                                    //    al.StyleId = extCDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
+                                    //    oid labelSetOid = extCDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
+                                    //    al.ImportLabelSet(labelSetOid);
+                                    //} 
+                                    #endregion
+                                    #region Fix midt profile style
+                                    CivilDocument extDoc = CivilDocument.GetCivilDocument(extDb);
+                                    var psc = extDoc.Styles.ProfileStyles;
+                                    ProfileStyle ps = psc["PROFIL STYLE MGO MIDT"].Go<ProfileStyle>(extTx);
+                                    ps.CheckOrOpenForWrite();
+
+                                    DisplayStyle ds;
+                                    ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.Line);
+                                    ds.LinetypeScale = 10;
+
+                                    ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.Curve);
+                                    ds.LinetypeScale = 10;
+
+                                    ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.SymmetricalParabola);
+                                    ds.LinetypeScale = 10;
+                                    #endregion
                                 }
-                                prdDbg("--------------------------------");
+                                catch (System.Exception ex)
+                                {
+                                    prdDbg(ex.ToString());
+                                    extTx.Abort();
+                                    extDb.Dispose();
+                                    throw;
+                                }
+
                                 extTx.Commit();
                             }
-                            //extDb.SaveAs(extDb.Filename, DwgVersion.Current);
+                            extDb.SaveAs(extDb.Filename, true, DwgVersion.Newest, extDb.SecurityParameters);
                         }
                         System.Windows.Forms.Application.DoEvents();
                     }
-                    #endregion
                 }
                 catch (System.Exception ex)
                 {
@@ -15222,6 +15438,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
         [CommandMethod("CCL")]
         public void CreateComplexLinetype()
         {
@@ -15244,8 +15461,8 @@ namespace IntersectUtilities
                     //**************************************
                     //Change name of line type to create new and text value
                     //**************************************
-                    string ltName = "FJV_FREM";
-                    string text = "FREM";
+                    string ltName = "FJV_RETUR";
+                    string text = "RETUR";
                     string textStyleName = "FJV_LINE_TXT";
                     prdDbg($"Remember to create text style: {textStyleName}!!!");
 
@@ -15278,14 +15495,16 @@ namespace IntersectUtilities
                     lttr.AsciiDescription =
                       $"{text} ---- {text} ---- {text} ----";
                     lttr.PatternLength = 0.9;
+                    //IsScaledToFit makes so that there are no gaps at ends if text cannot fit
+                    lttr.IsScaledToFit = true;
                     lttr.NumDashes = 4;
                     // Dash #1
                     lttr.SetDashLengthAt(0, 60);
                     // Dash #2
-                    lttr.SetDashLengthAt(1, -8.9);
+                    lttr.SetDashLengthAt(1, -10.9);
                     lttr.SetShapeStyleAt(1, tt[textStyleName]);
                     lttr.SetShapeNumberAt(1, 0);
-                    lttr.SetShapeOffsetAt(1, new Vector2d(-8.9, -1.1));
+                    lttr.SetShapeOffsetAt(1, new Vector2d(-10.9, -1.1));
                     lttr.SetShapeScaleAt(1, 0.9);
                     lttr.SetShapeIsUcsOrientedAt(1, false);
                     lttr.SetShapeRotationAt(1, 0);
@@ -15293,7 +15512,7 @@ namespace IntersectUtilities
                     // Dash #3
                     lttr.SetDashLengthAt(2, 60);
                     // Dash #4
-                    lttr.SetDashLengthAt(3, -8.9);
+                    lttr.SetDashLengthAt(3, -10.9);
                     lttr.SetShapeStyleAt(3, tt[textStyleName]);
                     lttr.SetShapeNumberAt(3, 0);
                     lttr.SetShapeOffsetAt(3, new Vector2d(0, 1.1));
@@ -15313,6 +15532,49 @@ namespace IntersectUtilities
                     }
 
                     db.ForEach<Polyline>(x => x.Draw(), tr);
+                }
+                catch (System.Exception ex)
+                {
+                    tr.Abort();
+                    prdDbg(ex.ToString());
+                }
+                tr.Commit();
+            }
+        }
+
+        [CommandMethod("SETLINETYPESCALEDTOFIT")]
+        public void setlinetypescaledtofit()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+            Transaction tr = db.TransactionManager.StartTransaction();
+            using (tr)
+            {
+                try
+                {
+                    // We'll use the textstyle table to access
+                    // the "Standard" textstyle for our text segment
+                    TextStyleTable tt = (TextStyleTable)tr.GetObject(db.TextStyleTableId, OpenMode.ForRead);
+                    // Get the linetype table from the drawing
+                    LinetypeTable ltt = (LinetypeTable)tr.GetObject(db.LinetypeTableId, OpenMode.ForWrite);
+                    // Get layer table
+                    LayerTable lt = tr.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                    //**************************************
+                    //Change name of line type to create new and text value
+                    //**************************************
+                    string[] ltName = new string[3] { "FJV_RETUR", "FJV_FREM", "FJV_TWIN" };
+
+                    for (int i = 0; i < ltName.Length; i++)
+                    {
+                        if (ltt.Has(ltName[i]))
+                        {
+                            Oid existingId = ltt[ltName[i]];
+                            LinetypeTableRecord exLtr = existingId.Go<LinetypeTableRecord>(tr, OpenMode.ForWrite);
+                            exLtr.IsScaledToFit = true;
+                        }
+                    }
                 }
                 catch (System.Exception ex)
                 {

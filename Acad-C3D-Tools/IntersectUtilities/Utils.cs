@@ -2624,6 +2624,21 @@ namespace IntersectUtilities
                 }
             }
         }
+        public static string GetAttributeStringValue(this BlockReference br, string attributeName)
+        {
+            Database db = br.Database;
+            Transaction tx = db.TransactionManager.TopTransaction;
+            foreach (Oid oid in br.AttributeCollection)
+            {
+                AttributeReference ar = oid.Go<AttributeReference>(tx);
+                if (string.Equals(ar.Tag, attributeName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return ar.TextString;
+                }
+            }
+
+            return "";
+        }
         /// <summary>
         /// Remember to check for existence of BlockTableRecord!
         /// </summary>
