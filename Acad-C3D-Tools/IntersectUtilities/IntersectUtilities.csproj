@@ -130,6 +130,7 @@
     <Compile Include="Intersect.cs" />
     <Compile Include="MoreLinq.cs" />
     <Compile Include="ODDataConverter.cs" />
+    <Compile Include="DynamicBlockPropertyReader.cs" />
     <Compile Include="ODDataReader.cs" />
     <Compile Include="PolylineCurvingDev.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

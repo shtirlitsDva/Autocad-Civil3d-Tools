@@ -28,10 +28,12 @@ using Autodesk.Gis.Map.Constants;
 using Autodesk.Gis.Map.Utilities;
 using Autodesk.Aec.PropertyData;
 using Autodesk.Aec.PropertyData.DatabaseServices;
-using AcRx = Autodesk.AutoCAD.Runtime;
+using Autodesk.AutoCAD.Colors;
 
+using AcRx = Autodesk.AutoCAD.Runtime;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using static IntersectUtilities.HelperMethods;
+using static IntersectUtilities.DynamicBlocks.PropertyReader;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
@@ -41,7 +43,6 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using Autodesk.AutoCAD.Colors;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
 
 namespace IntersectUtilities
@@ -105,7 +106,7 @@ namespace IntersectUtilities
                 //if (value.IsNullOrEmpty()) return null;
                 return value;
             }
-            else return null;
+            else return default;
         }
         public static double ReadDoubleParameterFromDataTable(string key, System.Data.DataTable table, string parameter, int keyColumnIdx)
         {
@@ -1323,7 +1324,7 @@ namespace IntersectUtilities
             try
             {
                 List<PropertySet> sourcePss = source.GetPropertySets();
-                DictionaryPropertySetDefinitions sourcePropDefDict 
+                DictionaryPropertySetDefinitions sourcePropDefDict
                     = new DictionaryPropertySetDefinitions(source.Database);
                 DictionaryPropertySetDefinitions targetPropDefDict
                     = new DictionaryPropertySetDefinitions(target.Database);
@@ -2183,7 +2184,7 @@ namespace IntersectUtilities
             CurvedPipe
         }
     }
-    
+
     public class StationPoint
     {
         public CogoPoint CogoPoint { get; }
@@ -2241,7 +2242,87 @@ namespace IntersectUtilities
         public SizeEntry[] SizeArray;
         public int Length { get => SizeArray.Length; }
         public SizeEntry this[int index] { get => SizeArray[index]; }
-        public PipelineSizeArray(Alignment al, HashSet<Curve> curves)
+        /// <summary>
+        /// SizeArray listing sizes, station ranges and jacket diameters.
+        /// Use empty brs collection or omit it to force size table based on curves.
+        /// </summary>
+        /// <param name="al">Current alignment.</param>
+        /// <param name="brs">All transitions belonging to the current alignment.</param>
+        /// <param name="curves">All pipline curves belonging to the current alignment.</param>
+        public PipelineSizeArray(Alignment al, HashSet<Curve> curves, HashSet<BlockReference> brs = default)
+        {
+            #region Read CSV
+            System.Data.DataTable dynBlocks = default;
+            try
+            {
+                dynBlocks = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+            }
+            catch (System.Exception ex)
+            {
+                Utils.prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                Utils.prdDbg(ex.ToString());
+                throw;
+            }
+            if (dynBlocks == default)
+            {
+                Utils.prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+            }
+            #endregion
+
+            //Filter brs
+            if (brs != default)
+                brs = brs.Where(x => IsTransition(x, dynBlocks)).ToHashSet();
+
+            //Dispatcher constructor
+            if (brs == default || brs.Count == 0)
+                SizeArray = ConstructorMethod(al, curves);
+            else SizeArray = ConstructorMethod(al, brs, dynBlocks);
+        }
+        private PipelineSizeArray(SizeEntry[] sizeArray) { SizeArray = sizeArray; }
+        public PipelineSizeArray GetPartialSizeArrayForPV(ProfileView pv)
+        {
+            var list = this.GetIndexesOfSizesAppearingInProfileView(pv.StationStart, pv.StationEnd);
+            SizeEntry[] partialAr = new SizeEntry[list.Count];
+            for (int i = 0; i < list.Count; i++) partialAr[i] = this[list[i]];
+            return new PipelineSizeArray(partialAr);
+        }
+        public SizeEntry GetSizeAtStation(double station)
+        {
+            for (int i = 0; i < SizeArray.Length; i++)
+            {
+                SizeEntry curEntry = SizeArray[i];
+                //(stations are END stations!)
+                if (station < curEntry.EndStation) return curEntry;
+            }
+            return default;
+        }
+        public override string ToString()
+        {
+            string output = "";
+            for (int i = 0; i < SizeArray.Length; i++)
+            {
+                output +=
+                    $"{SizeArray[i].DN.ToString("D3")} || " +
+                    $"{SizeArray[i].StartStation.ToString("0000.00")} - {SizeArray[i].EndStation.ToString("0000.00")} || " +
+                    $"{SizeArray[i].Kod.ToString("0")}\n";
+            }
+
+            return output;
+        }
+        private List<int> GetIndexesOfSizesAppearingInProfileView(double pvStationStart, double pvStationEnd)
+        {
+            List<int> indexes = new List<int>();
+            for (int i = 0; i < SizeArray.Length; i++)
+            {
+                SizeEntry curEntry = SizeArray[i];
+                if (pvStationStart < curEntry.EndStation &&
+                    curEntry.StartStation < pvStationEnd) indexes.Add(i);
+            }
+            return indexes;
+        }
+        private SizeEntry[] ConstructorMethod(Alignment al, HashSet<Curve> curves)
         {
             List<SizeEntry> sizes = new List<SizeEntry>();
             double stepLength = 0.1;
@@ -2294,49 +2375,87 @@ namespace IntersectUtilities
                 }
             }
 
-            SizeArray = sizes.ToArray();
+            return sizes.ToArray();
         }
-        private PipelineSizeArray(SizeEntry[] sizeArray) { SizeArray = sizeArray; }
-        public PipelineSizeArray GetPartialSizeArrayForPV(ProfileView pv)
+        private SizeEntry[] ConstructorMethod(Alignment al, HashSet<BlockReference> brs, System.Data.DataTable dt)
         {
-            var list = this.GetIndexesOfSizesAppearingInProfileView(pv.StationStart, pv.StationEnd);
-            SizeEntry[] partialAr = new SizeEntry[list.Count];
-            for (int i = 0; i < list.Count; i++) partialAr[i] = this[list[i]];
-            return new PipelineSizeArray(partialAr);
-        }
-        public SizeEntry GetSizeAtStation(double station)
-        {
-            for (int i = 0; i < SizeArray.Length; i++)
+            BlockReference[] brsArray = brs.OrderBy(x => ReadComponentDN2Int(x, dt)).ToArray();
+            List<SizeEntry> sizes = new List<SizeEntry>();
+            double alLength = al.Length;
+            int previousDn = 0;
+            int currentDn = 0;
+
+            int dn = 0;
+            double start = 0;
+            double end = 0;
+            double kod = 0;
+
+            for (int i = 0; i < brsArray.Length; i++)
             {
-                SizeEntry curEntry = SizeArray[i];
-                //(stations are END stations!)
-                if (station < curEntry.EndStation) return curEntry;
-            }
-            return default;
-        }
-        public override string ToString()
-        {
-            string output = "";
-            for (int i = 0; i < SizeArray.Length; i++)
-            {
-                output +=
-                    $"{SizeArray[i].DN.ToString("D3")} || " +
-                    $"{SizeArray[i].StartStation.ToString("0000.00")} - {SizeArray[i].EndStation.ToString("0000.00")} || " +
-                    $"{SizeArray[i].Kod.ToString("0.0")}\n";
+                BlockReference curBr = brsArray[i];
+
+                if (i == 0)
+                {
+                    //First iteration case
+                    dn = ReadComponentDN2Int(curBr, dt);
+                    start = 0;
+                    end = al.GetDistAtPoint(al.GetClosestPointTo(curBr.Position, false));
+                    kod = ReadComponentDN2KodDouble(curBr, dt);
+
+                    sizes.Add(new SizeEntry(dn, start, end, kod));
+
+                    if (brsArray.Length == 1)
+                    {
+                        //Only one member array case
+                        dn = ReadComponentDN1Int(curBr, dt);
+                        start = end;
+                        end = alLength;
+                        kod = ReadComponentDN1KodDouble(curBr, dt);
+
+                        sizes.Add(new SizeEntry(dn, start, end, kod));
+                        //This guards against executing further code
+                        continue;
+                    }
+                }
+
+                if (i != brsArray.Length - 1)
+                {
+                    //General case
+                    BlockReference nextBr = brsArray[i + 1];
+
+                    dn = ReadComponentDN1Int(curBr, dt);
+                    start = al.GetDistAtPoint(al.GetClosestPointTo(curBr.Position, false));
+                    end = al.GetDistAtPoint(al.GetClosestPointTo(nextBr.Position, false)); ;
+                    kod = ReadComponentDN1KodDouble(curBr, dt);
+
+                    sizes.Add(new SizeEntry(dn, start, end, kod));
+                    //This guards against executing further code
+                    continue;
+                }
+
+                //And here ends the last iteration
+                dn = ReadComponentDN1Int(curBr, dt);
+                start = end;
+                end = alLength;
+                kod = ReadComponentDN1KodDouble(curBr, dt);
+
+                sizes.Add(new SizeEntry(dn, start, end, kod));
             }
 
-            return output;
+            return sizes.ToArray();
         }
-        private List<int> GetIndexesOfSizesAppearingInProfileView(double pvStationStart, double pvStationEnd)
+        private bool IsTransition(BlockReference br, System.Data.DataTable dynBlocks)
         {
-            List<int> indexes = new List<int>();
-            for (int i = 0; i < SizeArray.Length; i++)
-            {
-                SizeEntry curEntry = SizeArray[i];
-                if (pvStationStart < curEntry.EndStation &&
-                    curEntry.StartStation < pvStationEnd) indexes.Add(i);
-            }
-            return indexes;
+            string type = Utils.ReadStringParameterFromDataTable(br.RealName(), dynBlocks, "Type", 0);
+
+            if (type == null) throw new System.Exception($"Block with name {br.RealName()} does not exist " +
+                $"in Dynamiske Komponenter!");
+
+            return type == "Reduktion";
+        }
+        internal void Reverse()
+        {
+            Array.Reverse(this.SizeArray);
         }
     }
     public struct SizeEntry
@@ -2568,10 +2687,9 @@ namespace IntersectUtilities
         public static string RealName(this BlockReference br)
         {
             Transaction tx = br.Database.TransactionManager.TopTransaction;
-            string effectiveName = br.IsDynamicBlock
+            return br.IsDynamicBlock
                 ? ((BlockTableRecord)tx.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)).Name
                 : br.Name;
-            return effectiveName;
         }
         public static bool XrecFilter(this Autodesk.AutoCAD.DatabaseServices.DBObject obj,
             string xRecordName, string[] filterValues)
@@ -3246,6 +3364,41 @@ namespace IntersectUtilities
 
     public static class PipeSchedule
     {
+        private static readonly Dictionary<int, double> kOdsTwin = new Dictionary<int, double>
+            {
+                {  20, 160.0 },
+                {  25, 180.0 },
+                {  32, 200.0 },
+                {  40, 200.0 },
+                {  50, 250.0 },
+                {  65, 280.0 },
+                {  80, 315.0 },
+                { 100, 400.0 },
+                { 125, 500.0 },
+                { 150, 560.0 },
+                { 200, 710.0 }
+            };
+        private static readonly Dictionary<int, double> kOdsBonded = new Dictionary<int, double>
+            {
+                { 20, 125.0 },
+                { 25, 125.0 },
+                { 32, 140.0 },
+                { 40, 140.0 },
+                { 50, 160.0 },
+                { 65, 180.0 },
+                { 80, 200.0 },
+                { 100, 250.0 },
+                { 125, 280.0 },
+                { 150, 315.0 },
+                { 200, 400.0 },
+                { 250, 500.0 },
+                { 300, 560.0 },
+                { 350, 630.0 },
+                { 400, 710.0 },
+                { 450, 800.0 },
+                { 500, 900.0 },
+                { 600, 1000.0 }
+            };
         public static int GetPipeDN(Entity ent)
         {
             string layer = ent.Layer;
@@ -3366,7 +3519,6 @@ namespace IntersectUtilities
                     return null;
             }
         }
-
         public static double GetPipeOd(Entity ent)
         {
             Dictionary<int, double> Ods = new Dictionary<int, double>()
@@ -3397,61 +3549,32 @@ namespace IntersectUtilities
             if (Ods.ContainsKey(dn)) return Ods[dn];
             return 0;
         }
-
         /// <summary>
         /// WARNING! Currently Series 3 only.
         /// </summary>
         public static double GetTwinPipeKOd(Entity ent)
         {
-            Dictionary<int, double> kOds = new Dictionary<int, double>
-            {
-                {  20, 160.0 },
-                {  25, 180.0 },
-                {  32, 200.0 },
-                {  40, 200.0 },
-                {  50, 250.0 },
-                {  65, 280.0 },
-                {  80, 315.0 },
-                { 100, 400.0 },
-                { 125, 500.0 },
-                { 150, 560.0 },
-                { 200, 710.0 }
-            };
-
             int dn = GetPipeDN(ent);
-            if (kOds.ContainsKey(dn)) return kOds[dn];
+            if (kOdsTwin.ContainsKey(dn)) return kOdsTwin[dn];
             return 0;
         }
-
+        public static double GetTwinPipeKOd(int DN)
+        {
+            if (kOdsTwin.ContainsKey(DN)) return kOdsTwin[DN];
+            return 0;
+        }
         /// <summary>
         /// WARNING! Currently S3 only.
         /// </summary>
         public static double GetBondedPipeKOd(Entity ent)
         {
-            Dictionary<int, double> kOds = new Dictionary<int, double>
-            {
-                { 20, 125.0 },
-                { 25, 125.0 },
-                { 32, 140.0 },
-                { 40, 140.0 },
-                { 50, 160.0 },
-                { 65, 180.0 },
-                { 80, 200.0 },
-                { 100, 250.0 },
-                { 125, 280.0 },
-                { 150, 315.0 },
-                { 200, 400.0 },
-                { 250, 500.0 },
-                { 300, 560.0 },
-                { 350, 630.0 },
-                { 400, 710.0 },
-                { 450, 800.0 },
-                { 500, 900.0 },
-                { 600, 1000.0 }
-            };
-
             int dn = GetPipeDN(ent);
-            if (kOds.ContainsKey(dn)) return kOds[dn];
+            if (kOdsBonded.ContainsKey(dn)) return kOdsBonded[dn];
+            return 0;
+        }
+        public static double GetBondedPipeKOd(int DN)
+        {
+            if (kOdsBonded.ContainsKey(DN)) return kOdsBonded[DN];
             return 0;
         }
         public static double GetPipeKOd(Entity ent) =>
