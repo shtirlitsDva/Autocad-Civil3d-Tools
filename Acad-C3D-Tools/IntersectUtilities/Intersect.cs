@@ -598,13 +598,9 @@ namespace IntersectUtilities
                     string workingDrawing = pKeyRes.StringResult;
                     #endregion
 
-                    string projectName = GetProjectName();
-                    prdDbg(projectName);
-                    if (projectName.IsNoE())
-                    { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
-
-                    string etapeName = GetEtapeName(projectName);
-                    prdDbg(etapeName);
+                    DataReferencesOptions dro = new DataReferencesOptions();
+                    string projectName = dro.ProjectName;
+                    string etapeName = dro.EtapeName;
 
                     HashSet<Entity> allLinework = new HashSet<Entity>();
                     HashSet<Alignment> alignments = new HashSet<Alignment>();
@@ -825,12 +821,9 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                string projectName = GetProjectName();
-                prdDbg(projectName);
-                if (projectName.IsNoE())
-                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
-
-                string etapeName = GetEtapeName(projectName);
+                DataReferencesOptions dro = new DataReferencesOptions();
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
 
                 editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Alignments"));
 
@@ -1919,12 +1912,10 @@ namespace IntersectUtilities
             Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
 
             #region Open fremtidig db
-            string projectName = GetProjectName();
-            prdDbg(projectName);
-            if (projectName.IsNoE())
-            { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
+            DataReferencesOptions dro = new DataReferencesOptions();
+            string projectName = dro.ProjectName;
+            string etapeName = dro.EtapeName;
 
-            string etapeName = GetEtapeName(projectName);
             // open the xref database
             Database fremDb = new Database(false, true);
             fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
@@ -3365,13 +3356,9 @@ namespace IntersectUtilities
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 #region Get alignments
-
-                string projectName = GetProjectName();
-                prdDbg(projectName);
-                if (projectName.IsNoE())
-                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
-
-                string etapeName = GetEtapeName(projectName);
+                DataReferencesOptions dro = new DataReferencesOptions();
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
 
                 editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Alignments"));
 
@@ -4443,12 +4430,9 @@ namespace IntersectUtilities
                 try
                 {
                     #region Load linework
-                    string projectName = GetProjectName();
-                    prdDbg(projectName);
-                    if (projectName.IsNoE())
-                    { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
-
-                    string etapeName = GetEtapeName(projectName);
+                    DataReferencesOptions dro = new DataReferencesOptions();
+                    string projectName = dro.ProjectName;
+                    string etapeName = dro.EtapeName;
                     editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Fremtid"));
 
                     // open the LER dwg database
@@ -4861,12 +4845,9 @@ namespace IntersectUtilities
                     //Filter out already created profile views
                     allAlignments = allAlignments.Where(x => !pvNames.Contains(x.Name + "_PV")).OrderBy(x => x.Name).ToList();
 
-                    string projectName = GetProjectName();
-                    prdDbg(projectName);
-                    if (projectName.IsNoE())
-                    { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
-
-                    string etapeName = GetEtapeName(projectName);
+                    DataReferencesOptions dro = new DataReferencesOptions();
+                    string projectName = dro.ProjectName;
+                    string etapeName = dro.EtapeName;
 
                     editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Ler"));
                     editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Surface"));
@@ -5098,12 +5079,10 @@ namespace IntersectUtilities
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 #region Open fremtidig db
-                string projectName = GetProjectName();
-                prdDbg(projectName);
-                if (projectName.IsNoE())
-                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
+                DataReferencesOptions dro = new DataReferencesOptions();
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
 
-                string etapeName = GetEtapeName(projectName);
                 // open the xref database
                 Database fremDb = new Database(false, true);
                 fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
@@ -5711,12 +5690,10 @@ namespace IntersectUtilities
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 #region Open alignment db
-                string projectName = GetProjectName();
-                prdDbg(projectName);
-                if (projectName.IsNoE())
-                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
+                DataReferencesOptions dro = new DataReferencesOptions();
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
 
-                string etapeName = GetEtapeName(projectName);
                 // open the xref database
                 Database alDb = new Database(false, true);
                 alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
@@ -5958,7 +5935,7 @@ namespace IntersectUtilities
 
                     #region Place weldpoints
                     var ordered = wps.OrderBy(x => x.WeldPoint.X).ThenBy(x => x.WeldPoint.Y);
-                    var clusters = ordered.GroupByCluster((x, y) => GetDistance(x, y), 0.05);
+                    IEnumerable<IGrouping<WeldPointData, WeldPointData>> clusters = ordered.GroupByCluster((x, y) => GetDistance(x, y), 0.05);
 
                     double GetDistance(WeldPointData first, WeldPointData second)
                     {
@@ -6068,12 +6045,10 @@ namespace IntersectUtilities
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 #region Open alignment db
-                string projectName = GetProjectName();
-                prdDbg(projectName);
-                if (projectName.IsNoE())
-                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
+                DataReferencesOptions dro = new DataReferencesOptions();
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
 
-                string etapeName = GetEtapeName(projectName);
                 // open the xref database
                 Database alDb = new Database(false, true);
                 alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
@@ -6506,7 +6481,8 @@ namespace IntersectUtilities
         {
             createoffsetprofilesmethod();
         }
-        public void createoffsetprofilesmethod(Profile p = null, ProfileView pv = null)
+        public void createoffsetprofilesmethod(Profile p = null, ProfileView pv = null,
+            DataReferencesOptions dataReferencesOptions = null)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -6549,13 +6525,12 @@ namespace IntersectUtilities
                 #endregion
 
                 #region Open fremtidig db
-                string projectName = GetProjectName();
-                prdDbg(projectName);
-                if (projectName.IsNoE())
-                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
+                DataReferencesOptions dro = dataReferencesOptions;
+                if (dro == null) dro = new DataReferencesOptions();
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
 
-                string etapeName = GetEtapeName(projectName);
-                // open the xref database
+                //open the xref database
                 Database fremDb = new Database(false, true);
                 fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
                     System.IO.FileShare.Read, false, string.Empty);
@@ -6637,75 +6612,6 @@ namespace IntersectUtilities
                     PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
                     prdDbg(sizeArray.ToString());
 
-                    //Determine direction
-                    HashSet<(Curve curve, double dist)> curveDistTuples =
-                            new HashSet<(Curve curve, double dist)>();
-                    prdDbg($"{al.Name}");
-                    Point3d samplePoint = al.GetPointAtDist(0);
-
-                    foreach (Curve curve in curves)
-                    {
-                        if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
-                        Point3d closestPoint = curve.GetClosestPointTo(samplePoint, false);
-                        if (closestPoint != default)
-                            curveDistTuples.Add(
-                                (curve, samplePoint.DistanceHorizontalTo(closestPoint)));
-                        prdDbg($"Dist: {samplePoint.DistanceHorizontalTo(closestPoint)}");
-                    }
-
-                    Curve closestCurve = curveDistTuples.MinBy(x => x.dist).FirstOrDefault().curve;
-
-                    int startingDn = PipeSchedule.GetPipeDN(closestCurve);
-                    prdDbg($"startingDn: {startingDn}");
-
-                    //if (sizeArray[0].DN != startingDn) sizeArray.Reverse();
-
-                    #region Build size array
-                    ////(int dn, double station, double kod)[] sizeArray = new (int dn, double station, double kod)[0];
-                    //int previousDn = 0;
-                    //int currentDn = 0;
-                    //for (int i = 0; i < nrOfSteps + 1; i++)
-                    //{
-                    //    double curStationBA = pvStStart + stepLength * i;
-                    //    Point3d curSamplePoint = default;
-                    //    try { curSamplePoint = al.GetPointAtDist(curStationBA); }
-                    //    catch (System.Exception) { continue; }
-
-                    //    HashSet<(Curve curve, double dist, double kappeOd)> curveDistTuples =
-                    //        new HashSet<(Curve curve, double dist, double kappeOd)>();
-
-                    //    foreach (Curve curve in curves)
-                    //    {
-                    //        if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
-                    //        Point3d closestPoint = curve.GetClosestPointTo(curSamplePoint, false);
-                    //        if (closestPoint != default)
-                    //            curveDistTuples.Add(
-                    //                (curve, curSamplePoint.DistanceHorizontalTo(closestPoint), GetPipeKOd(curve)));
-                    //    }
-                    //    var result = curveDistTuples.MinBy(x => x.dist).FirstOrDefault();
-                    //    //Detect current dn
-                    //    currentDn = GetPipeDN(result.curve);
-                    //    if (currentDn != previousDn)
-                    //    {
-                    //        //Set the previous segment end station unless there's 0 segments
-                    //        if (sizeArray.Length != 0) sizeArray[sizeArray.Length - 1].station = curStationBA;
-                    //        //Add the new segment
-                    //        sizeArray = sizeArray.Append((currentDn, 0, result.kappeOd)).ToArray();
-                    //    }
-                    //    //Hand over DN to cache in "previous" variable
-                    //    previousDn = currentDn;
-                    //    //TODO: on the last iteration set the last segment distance
-                    //    if (i == nrOfSteps) sizeArray[sizeArray.Length - 1].station = al.Length;
-                    //}
-
-                    //for (int i = 0; i < sizeArray.Length; i++)
-                    //{
-                    //    prdDbg($"{sizeArray[i].dn.ToString("D3")} || " +
-                    //           $"{sizeArray[i].station.ToString("0.00")} || " +
-                    //           $"{sizeArray[i].kod.ToString("0.0")}");
-                    //}
-                    #endregion
-
                     #region Create polyline from centre profile
                     ProfileEntityCollection entities = profile.Entities;
                     prdDbg($"Count of entities: {entities.Count}");
@@ -6763,14 +6669,6 @@ namespace IntersectUtilities
                             splitLines.Add(splitLineEnd);
                         }
 
-                        #region Debug
-                        prdDbg($"Splitlines.Count {splitLines.Count}");
-                        foreach (Line line1 in splitLines)
-                        {
-                            prdDbg($"Line1: {line1.StartPoint.ToString()} {line1.EndPoint.ToString()}");
-                        }
-                        #endregion
-
                         //Top offset
                         //Handle case of only one size pipe
                         if (sizeArray.Length == 1)
@@ -6802,7 +6700,6 @@ namespace IntersectUtilities
                                 {
                                     DBObjectCollection objs = offsetPline
                                         .GetSplitCurves(new DoubleCollection(splitPts.ToArray()));
-                                    prdDbg($"Objs.Count: {objs.Count}");
                                     if (i == 0) offsetCurvesTop.Add(objs[0] as Polyline);
                                     else offsetCurvesTop.Add(objs[1] as Polyline);
                                 }
@@ -6940,6 +6837,8 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
+                DataReferencesOptions dro = new DataReferencesOptions();
+
                 HashSet<Profile> pvs = localDb.HashSetOfType<Profile>(tx);
                 foreach (Profile profile in pvs)
                 {
@@ -6949,7 +6848,7 @@ namespace IntersectUtilities
                         prdDbg($"Processing: {al.Name}...");
                         ProfileView pv = al.GetProfileViewIds()[0].Go<ProfileView>(tx);
 
-                        createoffsetprofilesmethod(profile, pv);
+                        createoffsetprofilesmethod(profile, pv, dro);
                     }
                     System.Windows.Forms.Application.DoEvents();
                 }
@@ -8079,12 +7978,9 @@ namespace IntersectUtilities
 
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
-                string projectName = GetProjectName();
-                prdDbg(projectName);
-                if (projectName.IsNoE())
-                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
-
-                string etapeName = GetEtapeName(projectName);
+                DataReferencesOptions dro = new DataReferencesOptions();
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
 
                 editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Surface"));
 
@@ -8203,12 +8099,9 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                string projectName = GetProjectName();
-                prdDbg(projectName);
-                if (projectName.IsNoE())
-                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
-
-                string etapeName = GetEtapeName(projectName);
+                DataReferencesOptions dro = new DataReferencesOptions();
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
 
                 editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Ler"));
                 editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Surface"));
@@ -8871,12 +8764,9 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                string projectName = GetProjectName();
-                prdDbg(projectName);
-                if (projectName.IsNoE())
-                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
-
-                string etapeName = GetEtapeName(projectName);
+                DataReferencesOptions dro = new DataReferencesOptions();
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
 
                 editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Ler"));
                 editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Surface"));
@@ -9554,12 +9444,9 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                string projectName = GetProjectName();
-                prdDbg(projectName);
-                if (projectName.IsNoE())
-                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
-
-                string etapeName = GetEtapeName(projectName);
+                DataReferencesOptions dro = new DataReferencesOptions();
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
 
                 editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Ler"));
                 editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Fremtid"));
@@ -10114,12 +10001,9 @@ namespace IntersectUtilities
             PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
             bool overwrite = pKeyRes.StringResult == kwd1;
 
-            string projectName = GetProjectName();
-            prdDbg(projectName);
-            if (projectName.IsNoE())
-            { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
-
-            string etapeName = GetEtapeName(projectName);
+            DataReferencesOptions dro = new DataReferencesOptions();
+            string projectName = dro.ProjectName;
+            string etapeName = dro.EtapeName;
 
             // open the xref database
             Database alDb = new Database(false, true);
@@ -11557,12 +11441,10 @@ namespace IntersectUtilities
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 #region Open fremtidig db
-                string projectName = GetProjectName();
-                prdDbg(projectName);
-                if (projectName.IsNoE())
-                { prdDbg("\nGetting project name returned empty string. Please investigate!"); return; }
+                DataReferencesOptions dro = new DataReferencesOptions();
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
 
-                string etapeName = GetEtapeName(projectName);
                 // open the xref database
                 Database fremDb = new Database(false, true);
                 fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
@@ -11893,6 +11775,8 @@ namespace IntersectUtilities
                             #endregion
 
                             #region Place weld blocks
+                            HashSet<BlockReference> newWeldNumberBlocks = new HashSet<BlockReference>();
+
                             foreach (BlockReference br in brs)
                             {
                                 #region Determine placement
@@ -11927,12 +11811,16 @@ namespace IntersectUtilities
                                 BlockReference brWeld =
                                     localDb.CreateBlockWithAttributes(weldBlockName, wPt);
 
-                                BlockReference brWeldNumebr =
+                                BlockReference brWeldNumber =
                                     localDb.CreateBlockWithAttributes(weldNumberBlockName, wPt);
 
+                                //Gather new weld numebrs in a collection to be able to find overlaps
+                                newWeldNumberBlocks.Add(brWeldNumber);
+
+                                //Set attributes
                                 string nummer = br.GetAttributeStringValue("NUMMER");
 
-                                brWeldNumebr.SetAttributeStringValue("NUMMER", nummer); 
+                                brWeldNumber.SetAttributeStringValue("NUMMER", nummer);
                                 #endregion
 
                                 #region Determine rotation
@@ -11957,7 +11845,63 @@ namespace IntersectUtilities
                                 brWeld.ScaleFactors = new Scale3d(1, curSize.Kod / 1000 *
                                     profileViewStyle.GraphStyle.VerticalExaggeration, 1);
                                 #endregion
-                            } 
+                            }
+
+                            #region Find overlapping weld labels and find a solution
+                            var clusters = newWeldNumberBlocks.GroupByCluster((x, y) => Overlaps(x, y), 0.0001);
+                            double Overlaps(BlockReference i, BlockReference j)
+                            {
+                                Extents3d extI = i.GeometricExtents;
+                                Extents3d extJ = j.GeometricExtents;
+
+                                double wI = extI.MaxPoint.X - extI.MinPoint.X;
+                                double wJ = extJ.MaxPoint.X - extJ.MinPoint.X;
+
+                                double threshold = wI / 2 + wJ / 2;
+
+                                double centreIX = extI.MinPoint.X + wI / 2;
+                                double centreJX = extJ.MinPoint.X + wJ / 2;
+
+                                double dist = Math.Abs(centreIX - centreJX);
+                                double result = dist - threshold;
+
+                                return result < 0 ? 0 : result;
+                            }
+                            foreach (IGrouping<BlockReference, BlockReference> cluster in clusters)
+                            {
+                                if (cluster.Count() < 2) continue;
+
+                                List<string> numbers = new List<string>();
+                                string prefix = "";
+                                foreach (BlockReference item in cluster)
+                                {
+                                    string number = item.GetAttributeStringValue("NUMMER");
+                                    var splits = number.Split('.');
+                                    prefix = splits[0];
+                                    numbers.Add(splits[1]);
+                                }
+
+                                List<int> convertedNumbers = new List<int>();
+                                foreach (string number in numbers)
+                                {
+                                    int result;
+                                    if (int.TryParse(number, out result)) convertedNumbers.Add(result);
+                                }
+
+                                convertedNumbers.Sort();
+
+                                string finalNumber = $"{prefix}.{convertedNumbers.First().ToString("000")}" +
+                                    $" - {convertedNumbers.Last().ToString("000")}";
+
+                                int i = 0;
+                                foreach (BlockReference item in cluster)
+                                {
+                                    if (i == 0) item.SetAttributeStringValue("NUMMER", finalNumber);
+                                    else { item.Erase(true); }
+                                    i++;
+                                }
+                            }
+                            #endregion
                             #endregion
 
                             #region Find curves and annotate
@@ -14640,7 +14584,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    
+
 
                     #region Dialog box for file list selection and path determination
                     string path = string.Empty;
@@ -14659,7 +14603,7 @@ namespace IntersectUtilities
 
                     List<string> fileList;
                     fileList = File.ReadAllLines(path).ToList();
-                    path = Path.GetDirectoryName(path) + "\\"; 
+                    path = Path.GetDirectoryName(path) + "\\";
                     #endregion
 
                     foreach (string name in fileList)
@@ -15757,11 +15701,94 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region RXClass to String test
 
-                    prdDbg("Line: " + RXClass.GetClass(typeof(Line)).Name);
-                    prdDbg("Spline: " + RXClass.GetClass(typeof(Spline)).Name);
-                    prdDbg("Polyline: " + RXClass.GetClass(typeof(Polyline)).Name);
+                    #region Test size arrays
+                    Alignment al;
+
+                    #region Select alignment
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select an alignment: ");
+                    promptEntityOptions1.SetRejectMessage("\n Not an alignment!");
+                    promptEntityOptions1.AddAllowedClass(typeof(Alignment), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId profileId = entity1.ObjectId;
+                    al = profileId.Go<Alignment>(tx);
+                    #endregion
+
+                    #region Open fremtidig db
+                    DataReferencesOptions dro = new DataReferencesOptions();
+                    string projectName = dro.ProjectName;
+                    string etapeName = dro.EtapeName;
+
+                    // open the xref database
+                    Database fremDb = new Database(false, true);
+                    fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
+                        System.IO.FileShare.Read, false, string.Empty);
+                    Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                    HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
+                    HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                    #endregion
+
+                    try
+                    {
+                        #region GetCurvesAndBRs from fremtidig
+                        HashSet<Curve> curves = allCurves
+                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .ToHashSet();
+                        HashSet<BlockReference> brs = allBrs
+                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .ToHashSet();
+                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                        #endregion
+
+                        //PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves);
+                        //prdDbg("Curves:");
+                        //prdDbg(sizeArray.ToString());
+
+                        prdDbg("Blocks:");
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        prdDbg(sizeArray.ToString());
+
+                        //Determine direction
+                        HashSet<(Curve curve, double dist)> curveDistTuples =
+                                new HashSet<(Curve curve, double dist)>();
+                        prdDbg($"{al.Name}");
+                        Point3d samplePoint = al.GetPointAtDist(0);
+
+                        foreach (Curve curve in curves)
+                        {
+                            if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
+                            Point3d closestPoint = curve.GetClosestPointTo(samplePoint, false);
+                            if (closestPoint != default)
+                                curveDistTuples.Add(
+                                    (curve, samplePoint.DistanceHorizontalTo(closestPoint)));
+                            prdDbg($"Dist: {samplePoint.DistanceHorizontalTo(closestPoint)}");
+                        }
+
+                        Curve closestCurve = curveDistTuples.MinBy(x => x.dist).FirstOrDefault().curve;
+
+                        int startingDn = PipeSchedule.GetPipeDN(closestCurve);
+                        prdDbg($"startingDn: {startingDn}");
+
+                        //if (sizeArray[0].DN != startingDn) sizeArray.Reverse();
+                    }
+                    catch (System.Exception ex)
+                    {
+                        fremTx.Abort();
+                        fremTx.Dispose();
+                        fremDb.Dispose();
+                        prdDbg(ex.ToString());
+                        throw;
+                    }
+                    fremTx.Abort();
+                    fremTx.Dispose();
+                    fremDb.Dispose();
+                    #endregion
+
+                    #region RXClass to String test
+                    //prdDbg("Line: " + RXClass.GetClass(typeof(Line)).Name);
+                    //prdDbg("Spline: " + RXClass.GetClass(typeof(Spline)).Name);
+                    //prdDbg("Polyline: " + RXClass.GetClass(typeof(Polyline)).Name);
                     #endregion
 
                     #region Paperspace to modelspace test
