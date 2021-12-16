@@ -14792,11 +14792,8 @@ namespace IntersectUtilities
                             {
                                 try
                                 {
-                                    #region Open drawings in editor
-
-                                    #endregion
                                     #region CreateDetailing
-                                    //createdetailingmethod(dro, extDb);
+                                    createdetailingmethod(dro, extDb);
                                     #endregion
                                     #region Change xref layer
                                     //BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
