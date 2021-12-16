@@ -12117,6 +12117,65 @@ namespace IntersectUtilities
                 return;
             }
         }
+        
+        [CommandMethod("APPLYCOLORSTODWGS")]
+        public void applycolorstodwgs()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            try
+            {
+                #region Operation
+
+                string path = string.Empty;
+                OpenFileDialog dialog = new OpenFileDialog()
+                {
+                    Title = "Choose txt file:",
+                    DefaultExt = "txt",
+                    Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
+                    FilterIndex = 0
+                };
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    path = dialog.FileName;
+                }
+                else return;
+
+                List<string> fileList;
+                fileList = File.ReadAllLines(path).ToList();
+                path = Path.GetDirectoryName(path) + "\\";
+
+                foreach (string name in fileList)
+                {
+                    prdDbg(name);
+                    string fileName = path + name;
+
+                    using (Database extDb = new Database(false, true))
+                    {
+                        extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
+
+                        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                        {
+                            colorizealllerlayers(extDb);
+
+                            extTx.Commit();
+                        }
+                        extDb.SaveAs(extDb.Filename, true, DwgVersion.Current, null);
+                    }
+                    System.Windows.Forms.Application.DoEvents();
+                }
+                #endregion
+            }
+            catch (System.Exception ex)
+            {
+                editor.WriteMessage("\n" + ex.ToString());
+                return;
+            }
+        }
         /// <summary>
         /// Helper method to create empty OD tables if missing on entity
         /// </summary>
@@ -14008,7 +14067,7 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("COLORIZEALLLERLAYERS")]
-        public void colorizealllerlayers()
+        public void colorizealllerlayers(Database extDb = null)
         {
 
             DocumentCollection docCol = Application.DocumentManager;
@@ -14017,6 +14076,8 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            Database selectedDB = extDb ?? localDb;
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -14024,7 +14085,7 @@ namespace IntersectUtilities
                     string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
                     System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
 
-                    LayerTable lt = localDb.LayerTableId.Go<LayerTable>(tx);
+                    LayerTable lt = selectedDB.LayerTableId.Go<LayerTable>(selectedDB.TransactionManager.TopTransaction);
 
                     Regex regex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)");
 
@@ -14042,7 +14103,7 @@ namespace IntersectUtilities
                                 byte G = Convert.ToByte(int.Parse(match.Groups["G"].Value));
                                 byte B = Convert.ToByte(int.Parse(match.Groups["B"].Value));
                                 prdDbg($"Set layer {name} to color: R: {R.ToString()}, G: {G.ToString()}, B: {B.ToString()}");
-                                LayerTableRecord ltr = lt[name].Go<LayerTableRecord>(tx, OpenMode.ForWrite);
+                                LayerTableRecord ltr = lt[name].Go<LayerTableRecord>(selectedDB.TransactionManager.TopTransaction, OpenMode.ForWrite);
                                 ltr.Color = Color.FromRgb(R, G, B);
                             }
                             else prdDbg("No match!");
