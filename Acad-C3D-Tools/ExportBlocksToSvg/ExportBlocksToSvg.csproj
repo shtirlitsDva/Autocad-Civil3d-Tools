@@ -98,6 +98,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\IntersectUtilities\EqualityComparers.cs">
+      <Link>EqualityComparers.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\MoreLinq.cs">
       <Link>MoreLinq.cs</Link>
     </Compile>

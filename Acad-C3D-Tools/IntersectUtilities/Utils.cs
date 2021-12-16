@@ -28,10 +28,12 @@ using Autodesk.Gis.Map.Constants;
 using Autodesk.Gis.Map.Utilities;
 using Autodesk.Aec.PropertyData;
 using Autodesk.Aec.PropertyData.DatabaseServices;
-using AcRx = Autodesk.AutoCAD.Runtime;
+using Autodesk.AutoCAD.Colors;
 
+using AcRx = Autodesk.AutoCAD.Runtime;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using static IntersectUtilities.HelperMethods;
+using static IntersectUtilities.DynamicBlocks.PropertyReader;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
@@ -41,7 +43,6 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using Autodesk.AutoCAD.Colors;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
 
 namespace IntersectUtilities
@@ -105,7 +106,7 @@ namespace IntersectUtilities
                 //if (value.IsNullOrEmpty()) return null;
                 return value;
             }
-            else return null;
+            else return default;
         }
         public static double ReadDoubleParameterFromDataTable(string key, System.Data.DataTable table, string parameter, int keyColumnIdx)
         {
@@ -1316,6 +1317,56 @@ namespace IntersectUtilities
                     return "";
             }
         }
+        public static void PropertySetCopyFromEntToEnt(Entity source, Entity target)
+        {
+            //Only works within drawing
+            //ToDo: implement copying from drawing to drawing
+            try
+            {
+                List<PropertySet> sourcePss = source.GetPropertySets();
+                DictionaryPropertySetDefinitions sourcePropDefDict
+                    = new DictionaryPropertySetDefinitions(source.Database);
+                DictionaryPropertySetDefinitions targetPropDefDict
+                    = new DictionaryPropertySetDefinitions(target.Database);
+
+                foreach (PropertySet sourcePs in sourcePss)
+                {
+                    PropertySetDefinition sourcePropSetDef =
+                        sourcePs.PropertySetDefinition.Go<PropertySetDefinition>(source.GetTopTx());
+                    //Check to see if table is already attached
+                    if (!target.GetPropertySets().Contains(sourcePs, new PropertySetNameComparer()))
+                    {
+                        //If target entity does not have property set attached -> attach
+                        //Here can creating the property set definition in the target database be implemented
+                        target.CheckOrOpenForWrite();
+                        PropertyDataServices.AddPropertySet(target, sourcePropSetDef.Id);
+                    }
+
+                    PropertySet targetPs = target.GetPropertySets()
+                        .Find(x => x.PropertySetDefinitionName == sourcePs.PropertySetDefinitionName);
+
+                    if (targetPs == null)
+                    {
+                        prdDbg("PropertySet attachment failed in PropertySetCopyFromEntToEnt!");
+                        throw new System.Exception();
+                    }
+
+                    foreach (PropertyDefinition pd in sourcePropSetDef.Definitions)
+                    {
+                        int sourceId = sourcePs.PropertyNameToId(pd.Name);
+                        object value = sourcePs.GetAt(sourceId);
+
+                        int targetId = targetPs.PropertyNameToId(pd.Name);
+                        targetPs.SetAt(targetId, value);
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex.ToString());
+                throw;
+            }
+        }
         public static ObjectId AddToBlock(Entity entity, ObjectId btrId)
         {
             using (Transaction tr = btrId.Database.TransactionManager.StartTransaction())
@@ -1448,35 +1499,6 @@ namespace IntersectUtilities
             }
             return blkIsErased;
         }
-        public static string GetEtapeName(string projectName)
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-
-            #region Read Csv for paths
-            string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
-            System.Data.DataTable dtStier = CsvReader.ReadCsvToDataTable(pathStier, "Stier");
-            #endregion
-
-            var query = dtStier.AsEnumerable()
-                .Where(row => (string)row["PrjId"] == projectName);
-
-            HashSet<string> kwds = new HashSet<string>();
-            foreach (DataRow row in query)
-                kwds.Add((string)row["Etape"]);
-
-            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
-            pKeyOpts.Message = "\nVælg etape: ";
-            foreach (string kwd in kwds)
-            {
-                pKeyOpts.Keywords.Add(kwd);
-            }
-            pKeyOpts.AllowNone = true;
-            pKeyOpts.Keywords.Default = kwds.First();
-            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
-
-            return pKeyRes.StringResult;
-        }
         /// <summary>
         /// Returns path to dwg file.
         /// </summary>
@@ -1504,59 +1526,7 @@ namespace IntersectUtilities
 
             return (string)query.First()[pathType];
         }
-        public static string GetProjectName()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Editor editor = docCol.MdiActiveDocument.Editor;
 
-            #region Read Csv for paths
-            string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
-            System.Data.DataTable dtStier =
-                CsvReader.ReadCsvToDataTable(pathStier, "Stier");
-            #endregion
-
-            HashSet<string> kwds = new HashSet<string>();
-            foreach (DataRow row in dtStier.Rows)
-                kwds.Add(((string)row["PrjId"]));
-
-            string msg = "\nVælg projekt [";
-            string keywordsJoined = string.Join("/", kwds);
-            msg = msg + keywordsJoined + "]: ";
-
-            string displayKewords = string.Join(" ", kwds);
-
-            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions(msg, displayKewords);
-            //pKeyOpts.Message = "\nVælg projekt: ";
-            //foreach (string kwd in kwds)
-            //{
-            //    pKeyOpts.Keywords.Add(kwd, kwd, kwd);
-            //}
-            pKeyOpts.AllowNone = true;
-            pKeyOpts.Keywords.Default = kwds.First();
-            //pKeyOpts.AllowNone = false;
-            //pKeyOpts.AllowArbitraryInput = true;
-            //for (int i = 0; i < pKeyOpts.Keywords.Count; i++)
-            //{
-            //    prdDbg("\nLocal name: " + pKeyOpts.Keywords[i].LocalName);
-            //    prdDbg("\nGlobal name: " + pKeyOpts.Keywords[i].GlobalName);
-            //    prdDbg("\nDisplay name: " + pKeyOpts.Keywords[i].DisplayName);
-            //}
-
-            //pKeyOpts.Keywords.Default = kwds[0];
-            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
-            //For some reason keywords returned are only the first part, so this is a workaround
-            //Depends on what input is
-            //The project name must start with the project number
-            //If the code returns wrong values, there must be something wrong with project names
-            //Like same project number and/or occurence of same substring in two or more keywords
-            //This is a mess...
-            string returnedPartOfTheKeyword = pKeyRes.StringResult;
-            foreach (string kwd in kwds)
-            {
-                if (kwd.Contains(returnedPartOfTheKeyword)) return kwd;
-            }
-            return "";
-        }
         /// <summary>
         /// Gets the working folder path for selected project
         /// </summary>
@@ -2133,37 +2103,6 @@ namespace IntersectUtilities
             CurvedPipe
         }
     }
-    public class PointDBHorizontalComparer : IEqualityComparer<DBPoint>
-    {
-        double Tol;
-
-        public PointDBHorizontalComparer(double tol = 0.001)
-        {
-            Tol = tol;
-        }
-
-        public bool Equals(DBPoint a, DBPoint b) => null != a && null != b &&
-            a.Position.HorizontalEqualz(b.Position, Tol);
-
-        public int GetHashCode(DBPoint a) => Tuple.Create(
-        Math.Round(a.Position.X, 3), Math.Round(a.Position.Y, 3)).GetHashCode();
-    }
-
-    public class Point3dHorizontalComparer : IEqualityComparer<Point3d>
-    {
-        double Tol;
-
-        public Point3dHorizontalComparer(double tol = 0.001)
-        {
-            Tol = tol;
-        }
-
-        public bool Equals(Point3d a, Point3d b) => null != a && null != b &&
-            a.HorizontalEqualz(b, Tol);
-
-        public int GetHashCode(Point3d a) => Tuple.Create(
-        Math.Round(a.X, 3), Math.Round(a.Y, 3)).GetHashCode();
-    }
 
     public class StationPoint
     {
@@ -2216,13 +2155,219 @@ namespace IntersectUtilities
             return this.Where(x => x.StationStart <= station && x.StationEnd >= station).FirstOrDefault();
         }
     }
+    public class DataReferencesOptions
+    {
+        public const string PathToStierCsv = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
+        public string ProjectName;
+        public string EtapeName;
+        public static string GetProjectName()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Editor editor = docCol.MdiActiveDocument.Editor;
 
+            #region Read Csv for paths
+            string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
+            System.Data.DataTable dtStier =
+                CsvReader.ReadCsvToDataTable(pathStier, "Stier");
+            #endregion
+
+            HashSet<string> kwds = new HashSet<string>();
+            foreach (DataRow row in dtStier.Rows)
+                kwds.Add(((string)row["PrjId"]));
+
+            string msg = "\nVælg projekt [";
+            string keywordsJoined = string.Join("/", kwds);
+            msg = msg + keywordsJoined + "]: ";
+
+            string displayKewords = string.Join(" ", kwds);
+
+            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions(msg, displayKewords);
+            //pKeyOpts.Message = "\nVælg projekt: ";
+            //foreach (string kwd in kwds)
+            //{
+            //    pKeyOpts.Keywords.Add(kwd, kwd, kwd);
+            //}
+            pKeyOpts.AllowNone = true;
+            pKeyOpts.Keywords.Default = kwds.First();
+            //pKeyOpts.AllowNone = false;
+            //pKeyOpts.AllowArbitraryInput = true;
+            //for (int i = 0; i < pKeyOpts.Keywords.Count; i++)
+            //{
+            //    prdDbg("\nLocal name: " + pKeyOpts.Keywords[i].LocalName);
+            //    prdDbg("\nGlobal name: " + pKeyOpts.Keywords[i].GlobalName);
+            //    prdDbg("\nDisplay name: " + pKeyOpts.Keywords[i].DisplayName);
+            //}
+
+            //pKeyOpts.Keywords.Default = kwds[0];
+            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+            //For some reason keywords returned are only the first part, so this is a workaround
+            //Depends on what input is
+            //The project name must start with the project number
+            //If the code returns wrong values, there must be something wrong with project names
+            //Like same project number and/or occurence of same substring in two or more keywords
+            //This is a mess...
+            string returnedPartOfTheKeyword = pKeyRes.StringResult;
+            foreach (string kwd in kwds)
+            {
+                if (kwd.Contains(returnedPartOfTheKeyword)) return kwd;
+            }
+            return "";
+        }
+        public static string GetEtapeName(string projectName)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            #region Read Csv for paths
+            string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
+            System.Data.DataTable dtStier = CsvReader.ReadCsvToDataTable(pathStier, "Stier");
+            #endregion
+
+            var query = dtStier.AsEnumerable()
+                .Where(row => (string)row["PrjId"] == projectName);
+
+            HashSet<string> kwds = new HashSet<string>();
+            foreach (DataRow row in query)
+                kwds.Add((string)row["Etape"]);
+
+            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
+            pKeyOpts.Message = "\nVælg etape: ";
+            foreach (string kwd in kwds)
+            {
+                pKeyOpts.Keywords.Add(kwd);
+            }
+            pKeyOpts.AllowNone = true;
+            pKeyOpts.Keywords.Default = kwds.First();
+            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+
+            return pKeyRes.StringResult;
+        }
+        public DataReferencesOptions()
+        {
+            ProjectName = GetProjectName();
+            EtapeName = GetEtapeName(ProjectName);
+        }
+    }
     public class PipelineSizeArray
     {
         public SizeEntry[] SizeArray;
         public int Length { get => SizeArray.Length; }
+        public PipelineSizesDirection Direction { get; }
+        public int StartingDn { get; }
         public SizeEntry this[int index] { get => SizeArray[index]; }
-        public PipelineSizeArray(Alignment al, HashSet<Curve> curves)
+        /// <summary>
+        /// SizeArray listing sizes, station ranges and jacket diameters.
+        /// Use empty brs collection or omit it to force size table based on curves.
+        /// </summary>
+        /// <param name="al">Current alignment.</param>
+        /// <param name="brs">All transitions belonging to the current alignment.</param>
+        /// <param name="curves">All pipline curves belonging to the current alignment.</param>
+        public PipelineSizeArray(Alignment al, HashSet<Curve> curves, HashSet<BlockReference> brs = default)
+        {
+            #region Read CSV
+            System.Data.DataTable dynBlocks = default;
+            try
+            {
+                dynBlocks = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+            }
+            catch (System.Exception ex)
+            {
+                Utils.prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                Utils.prdDbg(ex.ToString());
+                throw;
+            }
+            if (dynBlocks == default)
+            {
+                Utils.prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+            }
+            #endregion
+
+            #region Direction
+            //Determine pipe size direction
+            int maxDn = PipeSchedule.GetPipeDN(curves.MaxBy(x => PipeSchedule.GetPipeDN(x)).FirstOrDefault());
+            int minDn = PipeSchedule.GetPipeDN(curves.MinBy(x => PipeSchedule.GetPipeDN(x)).FirstOrDefault());
+
+            HashSet<(Curve curve, double dist)> curveDistTuples =
+                            new HashSet<(Curve curve, double dist)>();
+
+            Point3d samplePoint = al.GetPointAtDist(0);
+
+            foreach (Curve curve in curves)
+            {
+                if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
+                Point3d closestPoint = curve.GetClosestPointTo(samplePoint, false);
+                if (closestPoint != default)
+                    curveDistTuples.Add(
+                        (curve, samplePoint.DistanceHorizontalTo(closestPoint)));
+            }
+
+            Curve closestCurve = curveDistTuples.MinBy(x => x.dist).FirstOrDefault().curve;
+
+            StartingDn = PipeSchedule.GetPipeDN(closestCurve);
+
+            if (maxDn == minDn) Direction = PipelineSizesDirection.OneSize;
+            else if (StartingDn == minDn) Direction = PipelineSizesDirection.SmallToLargeAscending;
+            else if (StartingDn == maxDn) Direction = PipelineSizesDirection.LargeToSmallDescending;
+            else Direction = PipelineSizesDirection.Unknown;
+
+            if (Direction == PipelineSizesDirection.Unknown)
+                throw new System.Exception($"Alignment {al.Name} could not determine pipeline sizes direction!");
+            #endregion
+
+            //Filter brs
+            if (brs != default)
+                brs = brs.Where(x => IsTransition(x, dynBlocks)).ToHashSet();
+
+            //Dispatcher constructor
+            if (brs == default || brs.Count == 0 || Direction == PipelineSizesDirection.OneSize)
+                SizeArray = ConstructWithCurves(al, curves);
+            else SizeArray = ConstructWithBlocks(al, brs, dynBlocks);
+        }
+        private PipelineSizeArray(SizeEntry[] sizeArray) { SizeArray = sizeArray; }
+        public PipelineSizeArray GetPartialSizeArrayForPV(ProfileView pv)
+        {
+            var list = this.GetIndexesOfSizesAppearingInProfileView(pv.StationStart, pv.StationEnd);
+            SizeEntry[] partialAr = new SizeEntry[list.Count];
+            for (int i = 0; i < list.Count; i++) partialAr[i] = this[list[i]];
+            return new PipelineSizeArray(partialAr);
+        }
+        public SizeEntry GetSizeAtStation(double station)
+        {
+            for (int i = 0; i < SizeArray.Length; i++)
+            {
+                SizeEntry curEntry = SizeArray[i];
+                //(stations are END stations!)
+                if (station < curEntry.EndStation) return curEntry;
+            }
+            return default;
+        }
+        public override string ToString()
+        {
+            string output = "";
+            for (int i = 0; i < SizeArray.Length; i++)
+            {
+                output +=
+                    $"{SizeArray[i].DN.ToString("D3")} || " +
+                    $"{SizeArray[i].StartStation.ToString("0000.00")} - {SizeArray[i].EndStation.ToString("0000.00")} || " +
+                    $"{SizeArray[i].Kod.ToString("0")}\n";
+            }
+
+            return output;
+        }
+        private List<int> GetIndexesOfSizesAppearingInProfileView(double pvStationStart, double pvStationEnd)
+        {
+            List<int> indexes = new List<int>();
+            for (int i = 0; i < SizeArray.Length; i++)
+            {
+                SizeEntry curEntry = SizeArray[i];
+                if (pvStationStart < curEntry.EndStation &&
+                    curEntry.StartStation < pvStationEnd) indexes.Add(i);
+            }
+            return indexes;
+        }
+        private SizeEntry[] ConstructWithCurves(Alignment al, HashSet<Curve> curves)
         {
             List<SizeEntry> sizes = new List<SizeEntry>();
             double stepLength = 0.1;
@@ -2275,49 +2420,161 @@ namespace IntersectUtilities
                 }
             }
 
-            SizeArray = sizes.ToArray();
+            return sizes.ToArray();
         }
-        private PipelineSizeArray(SizeEntry[] sizeArray) { SizeArray = sizeArray; }
-        public PipelineSizeArray GetPartialSizeArrayForPV(ProfileView pv)
+        private SizeEntry[] ConstructWithBlocks(Alignment al, HashSet<BlockReference> brs, System.Data.DataTable dt)
         {
-            var list = this.GetIndexesOfSizesAppearingInProfileView(pv.StationStart, pv.StationEnd);
-            SizeEntry[] partialAr = new SizeEntry[list.Count];
-            for (int i = 0; i < list.Count; i++) partialAr[i] = this[list[i]];
-            return new PipelineSizeArray(partialAr);
-        }
-        public SizeEntry GetSizeAtStation(double station)
-        {
-            for (int i = 0; i < SizeArray.Length; i++)
+            BlockReference[] brsArray = default;
+            if (Direction == PipelineSizesDirection.SmallToLargeAscending)
+                brsArray = brs.OrderBy(x => ReadComponentDN2Int(x, dt)).ToArray();
+            else if (Direction == PipelineSizesDirection.LargeToSmallDescending)
+                brsArray = brs.OrderByDescending(x => ReadComponentDN2Int(x, dt)).ToArray();
+            else brs.ToArray();
+
+            List<SizeEntry> sizes = new List<SizeEntry>();
+            double alLength = al.Length;
+
+            int dn = 0;
+            double start = 0;
+            double end = 0;
+            double kod = 0;
+
+            for (int i = 0; i < brsArray.Length; i++)
             {
-                SizeEntry curEntry = SizeArray[i];
-                //(stations are END stations!)
-                if (station < curEntry.EndStation) return curEntry;
-            }
-            return default;
-        }
-        public override string ToString()
-        {
-            string output = "";
-            for (int i = 0; i < SizeArray.Length; i++)
-            {
-                output +=
-                    $"{SizeArray[i].DN.ToString("D3")} || " +
-                    $"{SizeArray[i].StartStation.ToString("0000.00")} - {SizeArray[i].EndStation.ToString("0000.00")} || " +
-                    $"{SizeArray[i].Kod.ToString("0.0")}\n";
+                BlockReference curBr = brsArray[i];
+
+                if (i == 0)
+                {
+                    //First iteration case
+                    dn = GetDirectionallyCorrectDn(curBr, Side.Left, dt);
+                    start = 0;
+                    end = al.GetDistAtPoint(al.GetClosestPointTo(curBr.Position, false));
+                    kod = GetDirectionallyCorrectKod(curBr, Side.Left, dt);
+
+                    sizes.Add(new SizeEntry(dn, start, end, kod));
+
+                    if (brsArray.Length == 1)
+                    {
+                        //Only one member array case
+                        dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
+                        start = end;
+                        end = alLength;
+                        kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
+
+                        sizes.Add(new SizeEntry(dn, start, end, kod));
+                        //This guards against executing further code
+                        continue;
+                    }
+                }
+
+                if (i != brsArray.Length - 1)
+                {
+                    //General case
+                    BlockReference nextBr = brsArray[i + 1];
+
+                    dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
+                    start = end;
+                    end = al.GetDistAtPoint(al.GetClosestPointTo(nextBr.Position, false));
+                    kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
+
+                    sizes.Add(new SizeEntry(dn, start, end, kod));
+                    //This guards against executing further code
+                    continue;
+                }
+
+                //And here ends the last iteration
+                dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
+                start = end;
+                end = alLength;
+                kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
+
+                sizes.Add(new SizeEntry(dn, start, end, kod));
             }
 
-            return output;
+            return sizes.ToArray();
         }
-        private List<int> GetIndexesOfSizesAppearingInProfileView(double pvStationStart, double pvStationEnd)
+        private int GetDirectionallyCorrectDn(BlockReference br, Side side, System.Data.DataTable dt)
         {
-            List<int> indexes = new List<int>();
-            for (int i = 0; i < SizeArray.Length; i++)
+            switch (Direction)
             {
-                SizeEntry curEntry = SizeArray[i];
-                if (pvStationStart < curEntry.EndStation &&
-                    curEntry.StartStation < pvStationEnd) indexes.Add(i);
+                case PipelineSizesDirection.SmallToLargeAscending:
+                    switch (side)
+                    {
+                        case Side.Left:
+                            return ReadComponentDN2Int(br, dt);
+                        case Side.Right:
+                            return ReadComponentDN1Int(br, dt);
+                    }
+                    break;
+                case PipelineSizesDirection.LargeToSmallDescending:
+                    switch (side)
+                    {
+                        case Side.Left:
+                            return ReadComponentDN1Int(br, dt);
+                        case Side.Right:
+                            return ReadComponentDN2Int(br, dt);
+                    }
+                    break;
             }
-            return indexes;
+            return 0;
+        }
+        private double GetDirectionallyCorrectKod(BlockReference br, Side side, System.Data.DataTable dt)
+        {
+            switch (Direction)
+            {
+                case PipelineSizesDirection.SmallToLargeAscending:
+                    switch (side)
+                    {
+                        case Side.Left:
+                            return ReadComponentDN2KodDouble(br, dt);
+                        case Side.Right:
+                            return ReadComponentDN1KodDouble(br, dt);
+                    }
+                    break;
+                case PipelineSizesDirection.LargeToSmallDescending:
+                    switch (side)
+                    {
+                        case Side.Left:
+                            return ReadComponentDN1KodDouble(br, dt);
+                        case Side.Right:
+                            return ReadComponentDN2KodDouble(br, dt);
+                    }
+                    break;
+            }
+            return 0;
+        }
+        private bool IsTransition(BlockReference br, System.Data.DataTable dynBlocks)
+        {
+            string type = Utils.ReadStringParameterFromDataTable(br.RealName(), dynBlocks, "Type", 0);
+
+            if (type == null) throw new System.Exception($"Block with name {br.RealName()} does not exist " +
+                $"in Dynamiske Komponenter!");
+
+            return type == "Reduktion";
+        }
+        internal void Reverse()
+        {
+            Array.Reverse(this.SizeArray);
+        }
+        /// <summary>
+        /// Unknown - Should throw an exception
+        /// OneSize - Cannot be constructed with blocks
+        /// SmallToLargeAscending - Small sizes first, blocks preferred
+        /// LargeToSmallAscending - Large sizes first, blocks preferred
+        /// </summary>
+        public enum PipelineSizesDirection
+        {
+            Unknown, //Should throw an exception
+            OneSize, //Cannot be constructed with blocks
+            SmallToLargeAscending, //Blocks preferred
+            LargeToSmallDescending //Blocks preferred
+        }
+        private enum Side
+        {
+            //Left means towards the start of alignment
+            Left,
+            //Right means towards the end of alignment
+            Right
         }
     }
     public struct SizeEntry
@@ -2549,10 +2806,9 @@ namespace IntersectUtilities
         public static string RealName(this BlockReference br)
         {
             Transaction tx = br.Database.TransactionManager.TopTransaction;
-            string effectiveName = br.IsDynamicBlock
+            return br.IsDynamicBlock
                 ? ((BlockTableRecord)tx.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)).Name
                 : br.Name;
-            return effectiveName;
         }
         public static bool XrecFilter(this Autodesk.AutoCAD.DatabaseServices.DBObject obj,
             string xRecordName, string[] filterValues)
@@ -2604,6 +2860,21 @@ namespace IntersectUtilities
                     ar.TextString = value;
                 }
             }
+        }
+        public static string GetAttributeStringValue(this BlockReference br, string attributeName)
+        {
+            Database db = br.Database;
+            Transaction tx = db.TransactionManager.TopTransaction;
+            foreach (Oid oid in br.AttributeCollection)
+            {
+                AttributeReference ar = oid.Go<AttributeReference>(tx);
+                if (string.Equals(ar.Tag, attributeName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return ar.TextString;
+                }
+            }
+
+            return "";
         }
         /// <summary>
         /// Remember to check for existence of BlockTableRecord!
@@ -2741,7 +3012,15 @@ namespace IntersectUtilities
         public static bool IsPointInsideXY(this Extents3d extents, Point3d pnt)
         => pnt.X >= extents.MinPoint.X && pnt.X <= extents.MaxPoint.X
             && pnt.Y >= extents.MinPoint.Y && pnt.Y <= extents.MaxPoint.Y;
-
+        public static Transaction GetTopTx(this Entity ent) => ent.Database.TransactionManager.TopTransaction;
+        public static Transaction StartTx(this Entity ent) => ent.Database.TransactionManager.StartTransaction();
+        public static List<PropertySet> GetPropertySets(this Entity ent)
+        {
+            ObjectIdCollection psIds = PropertyDataServices.GetPropertySets(ent);
+            List<PropertySet> pss = new List<PropertySet>();
+            foreach (Oid oid in psIds) pss.Add(oid.Go<PropertySet>(ent.GetTopTx()));
+            return pss;
+        }
     }
 
     public static class ExtensionMethods
@@ -3204,6 +3483,41 @@ namespace IntersectUtilities
 
     public static class PipeSchedule
     {
+        private static readonly Dictionary<int, double> kOdsTwin = new Dictionary<int, double>
+            {
+                {  20, 160.0 },
+                {  25, 180.0 },
+                {  32, 200.0 },
+                {  40, 200.0 },
+                {  50, 250.0 },
+                {  65, 280.0 },
+                {  80, 315.0 },
+                { 100, 400.0 },
+                { 125, 500.0 },
+                { 150, 560.0 },
+                { 200, 710.0 }
+            };
+        private static readonly Dictionary<int, double> kOdsBonded = new Dictionary<int, double>
+            {
+                { 20, 125.0 },
+                { 25, 125.0 },
+                { 32, 140.0 },
+                { 40, 140.0 },
+                { 50, 160.0 },
+                { 65, 180.0 },
+                { 80, 200.0 },
+                { 100, 250.0 },
+                { 125, 280.0 },
+                { 150, 315.0 },
+                { 200, 400.0 },
+                { 250, 500.0 },
+                { 300, 560.0 },
+                { 350, 630.0 },
+                { 400, 710.0 },
+                { 450, 800.0 },
+                { 500, 900.0 },
+                { 600, 1000.0 }
+            };
         public static int GetPipeDN(Entity ent)
         {
             string layer = ent.Layer;
@@ -3324,7 +3638,6 @@ namespace IntersectUtilities
                     return null;
             }
         }
-
         public static double GetPipeOd(Entity ent)
         {
             Dictionary<int, double> Ods = new Dictionary<int, double>()
@@ -3355,61 +3668,32 @@ namespace IntersectUtilities
             if (Ods.ContainsKey(dn)) return Ods[dn];
             return 0;
         }
-
         /// <summary>
         /// WARNING! Currently Series 3 only.
         /// </summary>
         public static double GetTwinPipeKOd(Entity ent)
         {
-            Dictionary<int, double> kOds = new Dictionary<int, double>
-            {
-                {  20, 160.0 },
-                {  25, 180.0 },
-                {  32, 200.0 },
-                {  40, 200.0 },
-                {  50, 250.0 },
-                {  65, 280.0 },
-                {  80, 315.0 },
-                { 100, 400.0 },
-                { 125, 500.0 },
-                { 150, 560.0 },
-                { 200, 710.0 }
-            };
-
             int dn = GetPipeDN(ent);
-            if (kOds.ContainsKey(dn)) return kOds[dn];
+            if (kOdsTwin.ContainsKey(dn)) return kOdsTwin[dn];
             return 0;
         }
-
+        public static double GetTwinPipeKOd(int DN)
+        {
+            if (kOdsTwin.ContainsKey(DN)) return kOdsTwin[DN];
+            return 0;
+        }
         /// <summary>
         /// WARNING! Currently S3 only.
         /// </summary>
         public static double GetBondedPipeKOd(Entity ent)
         {
-            Dictionary<int, double> kOds = new Dictionary<int, double>
-            {
-                { 20, 125.0 },
-                { 25, 125.0 },
-                { 32, 140.0 },
-                { 40, 140.0 },
-                { 50, 160.0 },
-                { 65, 180.0 },
-                { 80, 200.0 },
-                { 100, 250.0 },
-                { 125, 280.0 },
-                { 150, 315.0 },
-                { 200, 400.0 },
-                { 250, 500.0 },
-                { 300, 560.0 },
-                { 350, 630.0 },
-                { 400, 710.0 },
-                { 450, 800.0 },
-                { 500, 900.0 },
-                { 600, 1000.0 }
-            };
-
             int dn = GetPipeDN(ent);
-            if (kOds.ContainsKey(dn)) return kOds[dn];
+            if (kOdsBonded.ContainsKey(dn)) return kOdsBonded[dn];
+            return 0;
+        }
+        public static double GetBondedPipeKOd(int DN)
+        {
+            if (kOdsBonded.ContainsKey(DN)) return kOdsBonded[DN];
             return 0;
         }
         public static double GetPipeKOd(Entity ent) =>
