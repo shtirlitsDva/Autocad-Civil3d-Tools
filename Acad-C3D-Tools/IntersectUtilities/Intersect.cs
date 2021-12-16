@@ -27,11 +27,15 @@ using System.Windows.Forms;
 using System.Data;
 using MoreLinq;
 using GroupByCluster;
+using IntersectUtilities.UtilsCommon;
 
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
 using static IntersectUtilities.PipeSchedule;
+
+using static IntersectUtilities.UtilsCommon.UtilsDataTables;
+using static IntersectUtilities.UtilsCommon.UtilsODData;
 
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
@@ -1120,7 +1124,7 @@ namespace IntersectUtilities
                 if (xrefLayer.IsFrozen) continue;
 
                 #region Layer name
-                string localLayerName = Utils.ReadStringParameterFromDataTable(
+                string localLayerName = ReadStringParameterFromDataTable(
                             xrefLayer.Name, krydsninger, "Layer", 0);
 
                 bool localLayerExists = false;
@@ -1171,7 +1175,7 @@ namespace IntersectUtilities
 
                 #region Type and depth
 
-                string type = Utils.ReadStringParameterFromDataTable(
+                string type = ReadStringParameterFromDataTable(
                             xrefLayer.Name, krydsninger, "Type", 0);
 
                 bool typeExists = false;
@@ -1180,7 +1184,7 @@ namespace IntersectUtilities
                 if (!type.IsNoE() || type != null)
                 {
                     typeExists = true;
-                    depth = Utils.ReadDoubleParameterFromDataTable(type, dybde, "Dybde", 0);
+                    depth = ReadDoubleParameterFromDataTable(type, dybde, "Dybde", 0);
                 }
 
                 #endregion
@@ -1447,7 +1451,7 @@ namespace IntersectUtilities
                                 #region Populate description field
                                 //Populate description field
                                 //1. Read size record
-                                MapValue sizeRecord = Utils.ReadRecordData(
+                                MapValue sizeRecord = ReadRecordData(
                                     tables, localEntity.ObjectId, "SizeTable", "Size");
                                 int size = 0;
                                 string sizeDescrPart = "";
@@ -1490,7 +1494,7 @@ namespace IntersectUtilities
                                 double depth = 0;
                                 if (!type.IsNoE())
                                 {
-                                    depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                                    depth = ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
                                 }
                                 //If the geometry is not 3D, offset elevation values
                                 if (flOid.ToString() != "(0)" && type != "3D")
@@ -1560,7 +1564,7 @@ namespace IntersectUtilities
                                 double depth = 0;
                                 if (!type.IsNoE())
                                 {
-                                    depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                                    depth = ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
                                 }
 
                                 //Bogus 3D poly
@@ -7377,11 +7381,11 @@ namespace IntersectUtilities
                     double depth = 0;
                     if (!type.IsNoE())
                     {
-                        depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                        depth = ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
                     }
 
                     //Read layer value for the object
-                    string localLayerName = Utils.ReadStringParameterFromDataTable(
+                    string localLayerName = ReadStringParameterFromDataTable(
                                         ent.Layer, dtKrydsninger, "Layer", 0);
 
                     //if (localLayerName.IsNoE()) prdDbg($"Entity didn't have ");
@@ -8318,17 +8322,17 @@ namespace IntersectUtilities
                             double depth = 0;
                             if (!type.IsNoE())
                             {
-                                depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                                depth = ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
                             }
 
                             //Read layer value for the object
-                            string localLayerName = Utils.ReadStringParameterFromDataTable(
+                            string localLayerName = ReadStringParameterFromDataTable(
                                                 ent.Layer, dtKrydsninger, "Layer", 0);
 
                             #region Populate description field
                             //Populate description field
                             //1. Read size record if it exists
-                            MapValue sizeRecord = Utils.ReadRecordData(
+                            MapValue sizeRecord = ReadRecordData(
                                 tables, ent.ObjectId, "SizeTable", "Size");
                             int SizeTableSize = 0;
                             string sizeDescrPart = "";
@@ -9002,11 +9006,11 @@ namespace IntersectUtilities
                             double depth = 0;
                             if (!type.IsNoE())
                             {
-                                depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                                depth = ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
                             }
 
                             //Read layer value for the object
-                            string localLayerName = Utils.ReadStringParameterFromDataTable(
+                            string localLayerName = ReadStringParameterFromDataTable(
                                                 ent.Layer, dtKrydsninger, "Layer", 0);
                             #endregion
 
@@ -12428,7 +12432,7 @@ namespace IntersectUtilities
                 return;
             }
         }
-        
+
         [CommandMethod("APPLYCOLORSTODWGS")]
         public void applycolorstodwgs()
         {

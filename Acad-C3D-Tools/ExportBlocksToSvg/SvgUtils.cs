@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Svg;
 using Svg.Transforms;
-using static IntersectUtilities.Utils;
 
 namespace ExportBlocksToSvg
 {

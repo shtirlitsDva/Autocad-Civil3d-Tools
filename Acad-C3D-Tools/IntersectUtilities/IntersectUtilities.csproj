@@ -124,18 +124,20 @@
   <ItemGroup>
     <Compile Include="CreateGisData.cs" />
     <Compile Include="CsvReader.cs" />
+    <Compile Include="DataQAClass.cs" />
     <Compile Include="DouglasPeuckerReduction.cs" />
+    <Compile Include="DynamicBlockPropertyReader.cs" />
     <Compile Include="GroupByCluster.cs" />
     <Compile Include="ObsoleteMethods.cs" />
     <Compile Include="Intersect.cs" />
     <Compile Include="MoreLinq.cs" />
     <Compile Include="ODDataConverter.cs" />
-    <Compile Include="DynamicBlockPropertyReader.cs" />
     <Compile Include="ODDataReader.cs" />
     <Compile Include="PolylineCurvingDev.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="EqualityComparers.cs" />
     <Compile Include="Utils.cs" />
+    <Compile Include="UtilsCommon.cs" />
     <Compile Include="XRecordUtils.cs" />
   </ItemGroup>
   <ItemGroup>

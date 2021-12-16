@@ -32,6 +32,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using System.Windows.Forms;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
+using IntersectUtilities.UtilsCommon;
 
 namespace IntersectUtilities
 {

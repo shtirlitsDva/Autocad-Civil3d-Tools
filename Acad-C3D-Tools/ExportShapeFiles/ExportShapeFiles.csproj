@@ -95,8 +95,8 @@
     <Compile Include="..\IntersectUtilities\CsvReader.cs">
       <Link>CsvReader.cs</Link>
     </Compile>
-    <Compile Include="..\IntersectUtilities\EqualityComparers.cs">
-      <Link>EqualityComparers.cs</Link>
+    <Compile Include="..\IntersectUtilities\DataQAClass.cs">
+      <Link>DataQAClass.cs</Link>
     </Compile>
     <Compile Include="..\IntersectUtilities\MoreLinq.cs">
       <Link>MoreLinq.cs</Link>
@@ -104,8 +104,8 @@
     <Compile Include="..\IntersectUtilities\ODDataReader.cs">
       <Link>ODDataReader.cs</Link>
     </Compile>
-    <Compile Include="..\IntersectUtilities\Utils.cs">
-      <Link>Utils.cs</Link>
+    <Compile Include="..\IntersectUtilities\UtilsCommon.cs">
+      <Link>UtilsCommon.cs</Link>
     </Compile>
     <Compile Include="ExportShapeFiles.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
