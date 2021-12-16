@@ -7,10 +7,11 @@ using Autodesk.Gis.Map;
 using System.IO;
 using System;
 using IntersectUtilities;
+using IntersectUtilities.UtilsCommon;
+using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using static IntersectUtilities.Utils;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 

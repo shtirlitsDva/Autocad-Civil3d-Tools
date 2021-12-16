@@ -30,6 +30,8 @@ using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
 using static IntersectUtilities.PipeSchedule;
 
+using static IntersectUtilities.UtilsCommon.UtilsDataTables;
+
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
 using DataType = Autodesk.Gis.Map.Constants.DataType;

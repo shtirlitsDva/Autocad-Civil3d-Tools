@@ -29,6 +29,7 @@ using Autodesk.Gis.Map.Utilities;
 using Autodesk.Aec.PropertyData;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using AcRx = Autodesk.AutoCAD.Runtime;
+using IntersectUtilities.UtilsCommon;
 
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using static IntersectUtilities.HelperMethods;

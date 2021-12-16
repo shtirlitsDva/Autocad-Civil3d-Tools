@@ -26,9 +26,10 @@ using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
-using IntersectUtilities;
+using IntersectUtilities.UtilsCommon;
 using static ExportBlocksToSvg.SvgUtils;
-using static IntersectUtilities.Utils;
+using static IntersectUtilities.UtilsCommon.Utils;
+using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 
 namespace ExportBlocksToSvg
 {

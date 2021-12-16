@@ -27,11 +27,15 @@ using System.Windows.Forms;
 using System.Data;
 using MoreLinq;
 using GroupByCluster;
+using IntersectUtilities.UtilsCommon;
 
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
 using static IntersectUtilities.PipeSchedule;
+
+using static IntersectUtilities.UtilsCommon.UtilsDataTables;
+using static IntersectUtilities.UtilsCommon.UtilsODData;
 
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
@@ -1120,7 +1124,7 @@ namespace IntersectUtilities
                 if (xrefLayer.IsFrozen) continue;
 
                 #region Layer name
-                string localLayerName = Utils.ReadStringParameterFromDataTable(
+                string localLayerName = ReadStringParameterFromDataTable(
                             xrefLayer.Name, krydsninger, "Layer", 0);
 
                 bool localLayerExists = false;
@@ -1171,7 +1175,7 @@ namespace IntersectUtilities
 
                 #region Type and depth
 
-                string type = Utils.ReadStringParameterFromDataTable(
+                string type = ReadStringParameterFromDataTable(
                             xrefLayer.Name, krydsninger, "Type", 0);
 
                 bool typeExists = false;
@@ -1180,7 +1184,7 @@ namespace IntersectUtilities
                 if (!type.IsNoE() || type != null)
                 {
                     typeExists = true;
-                    depth = Utils.ReadDoubleParameterFromDataTable(type, dybde, "Dybde", 0);
+                    depth = ReadDoubleParameterFromDataTable(type, dybde, "Dybde", 0);
                 }
 
                 #endregion
@@ -1447,7 +1451,7 @@ namespace IntersectUtilities
                                 #region Populate description field
                                 //Populate description field
                                 //1. Read size record
-                                MapValue sizeRecord = Utils.ReadRecordData(
+                                MapValue sizeRecord = ReadRecordData(
                                     tables, localEntity.ObjectId, "SizeTable", "Size");
                                 int size = 0;
                                 string sizeDescrPart = "";
@@ -1490,7 +1494,7 @@ namespace IntersectUtilities
                                 double depth = 0;
                                 if (!type.IsNoE())
                                 {
-                                    depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                                    depth = ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
                                 }
                                 //If the geometry is not 3D, offset elevation values
                                 if (flOid.ToString() != "(0)" && type != "3D")
@@ -1560,7 +1564,7 @@ namespace IntersectUtilities
                                 double depth = 0;
                                 if (!type.IsNoE())
                                 {
-                                    depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                                    depth = ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
                                 }
 
                                 //Bogus 3D poly
@@ -5353,7 +5357,7 @@ namespace IntersectUtilities
                         double SampleProfile(Profile profile, double station)
                         {
                             double sampledElevation = 0;
-                            try { sampledElevation = surfaceProfile.ElevationAt(station); }
+                            try { sampledElevation = profile.ElevationAt(station); }
                             catch (System.Exception)
                             {
                                 prdDbg($"Station {station} threw an exception when placing size change blocks! Skipping...");
@@ -6881,6 +6885,112 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("LISTMIDTPROFILESSTARTENDSTATIONS")]
+        public void listmidtprofilesstartendstations()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                HashSet<Profile> pvs = localDb.HashSetOfType<Profile>(tx);
+                foreach (Profile profile in pvs)
+                {
+                    if (profile.Name.Contains("MIDT"))
+                    {
+                        Alignment al = profile.AlignmentId.Go<Alignment>(tx);
+
+
+                        bool success = true;
+                        double startElevation = SampleProfile(profile, 0, ref success);
+                        double endElevation = SampleProfile(profile, al.EndingStation, ref success);
+                        if (!success)
+                        {
+                            prdDbg($"Processing: {al.Name}...");
+                            prdDbg($"S: 0 -> {startElevation.ToString("0.0")}, E: {al.EndingStation.ToString("0.0")} -> {endElevation.ToString("0.0")}");
+                        }
+                    }
+                    System.Windows.Forms.Application.DoEvents();
+                }
+                tx.Commit();
+            }
+
+            //Local method to sample profiles
+            double SampleProfile(Profile profile, double station, ref bool success)
+            {
+                double sampledElevation = 0;
+                try { sampledElevation = profile.ElevationAt(station); }
+                catch (System.Exception)
+                {
+                    //prdDbg($"Station {station} threw an exception when sampling!");
+                    success = false;
+                    return 0;
+                }
+                return sampledElevation;
+            }
+        }
+
+        //[CommandMethod("FIXMIDTPROFILESSTARTENDSTATIONS")]
+        public void fixmidtprofilesstartendstations()
+        {
+            //Not finished!!!
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                HashSet<Profile> pvs = localDb.HashSetOfType<Profile>(tx);
+                foreach (Profile profile in pvs)
+                {
+                    if (profile.Name.Contains("MIDT"))
+                    {
+                        Alignment al = profile.AlignmentId.Go<Alignment>(tx);
+
+                        bool success = true;
+                        double startElevation = SampleProfile(profile, 0, ref success);
+                        if (!success)
+                        {
+                            //Start needs fixing
+                            prdDbg($"Processing: {al.Name}...");
+                            ProfileEntityCollection entities = profile.Entities;
+                            ProfileEntity entity = profile.Entities[0];
+                            prdDbg(entity.EntityType.ToString());
+                        }
+
+                        success = true;
+                        //double endElevation = SampleProfile(profile, al.EndingStation, ref success);
+                        //if (!success)
+                        //{
+                        //    prdDbg($"Processing: {al.Name}...");
+                        //    prdDbg($"S: 0 -> {startElevation.ToString("0.0")}, E: {al.EndingStation.ToString("0.0")} -> {endElevation.ToString("0.0")}");
+                        //}
+                    }
+                    System.Windows.Forms.Application.DoEvents();
+                }
+                tx.Commit();
+            }
+
+            //Local method to sample profiles
+            double SampleProfile(Profile profile, double station, ref bool success)
+            {
+                double sampledElevation = 0;
+                try { sampledElevation = profile.ElevationAt(station); }
+                catch (System.Exception)
+                {
+                    //prdDbg($"Station {station} threw an exception when sampling!");
+                    success = false;
+                    return 0;
+                }
+                return sampledElevation;
+            }
+        }
+
         #region Obsolete code
         //public void createlerdataloopnodeepclone(HashSet<Polyline3d> allLinework, Alignment alignment,
         //                              CivSurface surface, ProfileView pv,
@@ -7377,11 +7487,11 @@ namespace IntersectUtilities
                     double depth = 0;
                     if (!type.IsNoE())
                     {
-                        depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                        depth = ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
                     }
 
                     //Read layer value for the object
-                    string localLayerName = Utils.ReadStringParameterFromDataTable(
+                    string localLayerName = ReadStringParameterFromDataTable(
                                         ent.Layer, dtKrydsninger, "Layer", 0);
 
                     //if (localLayerName.IsNoE()) prdDbg($"Entity didn't have ");
@@ -8318,17 +8428,17 @@ namespace IntersectUtilities
                             double depth = 0;
                             if (!type.IsNoE())
                             {
-                                depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                                depth = ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
                             }
 
                             //Read layer value for the object
-                            string localLayerName = Utils.ReadStringParameterFromDataTable(
+                            string localLayerName = ReadStringParameterFromDataTable(
                                                 ent.Layer, dtKrydsninger, "Layer", 0);
 
                             #region Populate description field
                             //Populate description field
                             //1. Read size record if it exists
-                            MapValue sizeRecord = Utils.ReadRecordData(
+                            MapValue sizeRecord = ReadRecordData(
                                 tables, ent.ObjectId, "SizeTable", "Size");
                             int SizeTableSize = 0;
                             string sizeDescrPart = "";
@@ -9002,11 +9112,11 @@ namespace IntersectUtilities
                             double depth = 0;
                             if (!type.IsNoE())
                             {
-                                depth = Utils.ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                                depth = ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
                             }
 
                             //Read layer value for the object
-                            string localLayerName = Utils.ReadStringParameterFromDataTable(
+                            string localLayerName = ReadStringParameterFromDataTable(
                                                 ent.Layer, dtKrydsninger, "Layer", 0);
                             #endregion
 
@@ -11419,7 +11529,7 @@ namespace IntersectUtilities
             }
 
             //Create detailing blocks on top of exaggerated views
-            createdetailing();
+            createdetailingmethod();
             //Auto stagger all labels to right
             staggerlabelsall();
             //Draw rectangles representing viewports around longitudinal profiles
@@ -11793,16 +11903,17 @@ namespace IntersectUtilities
         [CommandMethod("CREATEDETAILING")]
         public void createdetailing()
         {
+            createdetailingmethod();
+        }
+        public void createdetailingmethod(DataReferencesOptions dataReferencesOptions = default, Database database = default)
+        {
             DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            Database dB = database ?? docCol.MdiActiveDocument.Database;
 
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            using (Transaction tx = dB.TransactionManager.StartTransaction())
             {
                 #region Open fremtidig db
-                DataReferencesOptions dro = new DataReferencesOptions();
+                DataReferencesOptions dro = dataReferencesOptions ?? new DataReferencesOptions();
                 string projectName = dro.ProjectName;
                 string etapeName = dro.EtapeName;
 
@@ -11825,10 +11936,10 @@ namespace IntersectUtilities
                 try
                 {
                     #region Common variables
-                    BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
-                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    BlockTableRecord modelSpace = dB.GetModelspaceForWrite();
+                    BlockTable bt = tx.GetObject(dB.BlockTableId, OpenMode.ForRead) as BlockTable;
                     Plane plane = new Plane(); //For intersecting
-                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                    HashSet<Alignment> als = dB.HashSetOfType<Alignment>(tx);
                     #endregion
 
                     #region Import blocks if missing
@@ -11845,7 +11956,7 @@ namespace IntersectUtilities
 
                         Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
                         //Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
-                        Oid destDbMsId = localDb.BlockTableId;
+                        Oid destDbMsId = dB.BlockTableId;
 
                         BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                         ObjectIdCollection idsToClone = new ObjectIdCollection();
@@ -11864,10 +11975,10 @@ namespace IntersectUtilities
 
                     #region Delete previous blocks
                     //Delete previous blocks
-                    var existingBlocks = localDb.GetBlockReferenceByName(komponentBlockName);
-                    existingBlocks.UnionWith(localDb.GetBlockReferenceByName(bueBlockName));
-                    existingBlocks.UnionWith(localDb.GetBlockReferenceByName(weldBlockName));
-                    existingBlocks.UnionWith(localDb.GetBlockReferenceByName(weldNumberBlockName));
+                    var existingBlocks = dB.GetBlockReferenceByName(komponentBlockName);
+                    existingBlocks.UnionWith(dB.GetBlockReferenceByName(bueBlockName));
+                    existingBlocks.UnionWith(dB.GetBlockReferenceByName(weldBlockName));
+                    existingBlocks.UnionWith(dB.GetBlockReferenceByName(weldNumberBlockName));
                     foreach (BlockReference br in existingBlocks)
                     {
                         br.CheckOrOpenForWrite();
@@ -12036,7 +12147,7 @@ namespace IntersectUtilities
                                     //prdDbg($"{originY} + ({sampledMidtElevation} - {pvElBottom}) * " +
                                     //    $"{profileViewStyle.GraphStyle.VerticalExaggeration} = {deltaY}");
                                     BlockReference brInt =
-                                        localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                                        dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                     brInt.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i].DN}");
                                     brInt.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[i + 1].DN}");
                                 }
@@ -12049,7 +12160,7 @@ namespace IntersectUtilities
                                     curY = originY + (sampledMidtElevation - pvElBottom) *
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
                                     BlockReference brAt0 =
-                                        localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                                        dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                     brAt0.SetAttributeStringValue("LEFTSIZE", "");
                                     brAt0.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[0].DN}");
 
@@ -12061,7 +12172,7 @@ namespace IntersectUtilities
                                         curY = originY + (sampledMidtElevation - pvElBottom) *
                                             profileViewStyle.GraphStyle.VerticalExaggeration;
                                         BlockReference brAtEnd =
-                                            localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                                            dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                         brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[0].DN}");
                                         brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
                                     }
@@ -12074,7 +12185,7 @@ namespace IntersectUtilities
                                     curY = originY + (sampledMidtElevation - pvElBottom) *
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
                                     BlockReference brAtEnd =
-                                        localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                                        dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                     brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i + 1].DN}");
                                     brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
                                 }
@@ -12127,7 +12238,7 @@ namespace IntersectUtilities
                                 double X = originX + station - pvStStart;
                                 double Y = originY + (sampledMidtElevation - pvElBottom) *
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
-                                BlockReference brSign = localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
+                                BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
                                 brSign.SetAttributeStringValue("LEFTSIZE", type);
                                 if ((new[] { "Parallelafgrening", "Lige afgrening", "Afgrening med spring", "Påsvejsning" }).Contains(type))
                                     brSign.SetAttributeStringValue("RIGHTSIZE", br.XrecReadStringAtIndex("Alignment", 1));
@@ -12170,10 +12281,10 @@ namespace IntersectUtilities
                                 Point3d wPt = new Point3d(X, Y, 0);
 
                                 BlockReference brWeld =
-                                    localDb.CreateBlockWithAttributes(weldBlockName, wPt);
+                                    dB.CreateBlockWithAttributes(weldBlockName, wPt);
 
                                 BlockReference brWeldNumber =
-                                    localDb.CreateBlockWithAttributes(weldNumberBlockName, wPt);
+                                    dB.CreateBlockWithAttributes(weldNumberBlockName, wPt);
 
                                 //Gather new weld numebrs in a collection to be able to find overlaps
                                 newWeldNumberBlocks.Add(brWeldNumber);
@@ -12308,7 +12419,7 @@ namespace IntersectUtilities
                                                     profileViewStyle.GraphStyle.VerticalExaggeration;
                                             Point3d curvePt = new Point3d(curX, curY, 0);
                                             BlockReference brCurve =
-                                                localDb.CreateBlockWithAttributes(bueBlockName, curvePt);
+                                                dB.CreateBlockWithAttributes(bueBlockName, curvePt);
 
                                             DynamicBlockReferencePropertyCollection dbrpc = brCurve.DynamicBlockReferencePropertyCollection;
                                             foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
@@ -12786,6 +12897,65 @@ namespace IntersectUtilities
             catch (System.Exception ex)
             {
                 editor.WriteMessage("\n" + ex.Message);
+                return;
+            }
+        }
+
+        [CommandMethod("APPLYCOLORSTODWGS")]
+        public void applycolorstodwgs()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            try
+            {
+                #region Operation
+
+                string path = string.Empty;
+                OpenFileDialog dialog = new OpenFileDialog()
+                {
+                    Title = "Choose txt file:",
+                    DefaultExt = "txt",
+                    Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
+                    FilterIndex = 0
+                };
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    path = dialog.FileName;
+                }
+                else return;
+
+                List<string> fileList;
+                fileList = File.ReadAllLines(path).ToList();
+                path = Path.GetDirectoryName(path) + "\\";
+
+                foreach (string name in fileList)
+                {
+                    prdDbg(name);
+                    string fileName = path + name;
+
+                    using (Database extDb = new Database(false, true))
+                    {
+                        extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
+
+                        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                        {
+                            colorizealllerlayers(extDb);
+
+                            extTx.Commit();
+                        }
+                        extDb.SaveAs(extDb.Filename, true, DwgVersion.Current, null);
+                    }
+                    System.Windows.Forms.Application.DoEvents();
+                }
+                #endregion
+            }
+            catch (System.Exception ex)
+            {
+                editor.WriteMessage("\n" + ex.ToString());
                 return;
             }
         }
@@ -14680,7 +14850,7 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("COLORIZEALLLERLAYERS")]
-        public void colorizealllerlayers()
+        public void colorizealllerlayers(Database extDb = null)
         {
 
             DocumentCollection docCol = Application.DocumentManager;
@@ -14689,6 +14859,8 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            Database selectedDB = extDb ?? localDb;
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -14696,7 +14868,7 @@ namespace IntersectUtilities
                     string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
                     System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
 
-                    LayerTable lt = localDb.LayerTableId.Go<LayerTable>(tx);
+                    LayerTable lt = selectedDB.LayerTableId.Go<LayerTable>(selectedDB.TransactionManager.TopTransaction);
 
                     Regex regex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)");
 
@@ -14714,7 +14886,7 @@ namespace IntersectUtilities
                                 byte G = Convert.ToByte(int.Parse(match.Groups["G"].Value));
                                 byte B = Convert.ToByte(int.Parse(match.Groups["B"].Value));
                                 prdDbg($"Set layer {name} to color: R: {R.ToString()}, G: {G.ToString()}, B: {B.ToString()}");
-                                LayerTableRecord ltr = lt[name].Go<LayerTableRecord>(tx, OpenMode.ForWrite);
+                                LayerTableRecord ltr = lt[name].Go<LayerTableRecord>(selectedDB.TransactionManager.TopTransaction, OpenMode.ForWrite);
                                 ltr.Color = Color.FromRgb(R, G, B);
                             }
                             else prdDbg("No match!");
@@ -14945,8 +15117,6 @@ namespace IntersectUtilities
             {
                 try
                 {
-
-
                     #region Dialog box for file list selection and path determination
                     string path = string.Empty;
                     OpenFileDialog dialog = new OpenFileDialog()
@@ -14967,6 +15137,11 @@ namespace IntersectUtilities
                     path = Path.GetDirectoryName(path) + "\\";
                     #endregion
 
+                    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    //Project and etape selection object
+                    //Comment out if not needed
+                    DataReferencesOptions dro = new DataReferencesOptions();
+
                     foreach (string name in fileList)
                     {
                         prdDbg(name);
@@ -14978,6 +15153,9 @@ namespace IntersectUtilities
                             {
                                 try
                                 {
+                                    #region CreateDetailing
+                                    createdetailingmethod(dro, extDb);
+                                    #endregion
                                     #region Change xref layer
                                     //BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
 
@@ -15014,20 +15192,20 @@ namespace IntersectUtilities
                                     //} 
                                     #endregion
                                     #region Fix midt profile style
-                                    CivilDocument extDoc = CivilDocument.GetCivilDocument(extDb);
-                                    var psc = extDoc.Styles.ProfileStyles;
-                                    ProfileStyle ps = psc["PROFIL STYLE MGO MIDT"].Go<ProfileStyle>(extTx);
-                                    ps.CheckOrOpenForWrite();
+                                    //CivilDocument extDoc = CivilDocument.GetCivilDocument(extDb);
+                                    //var psc = extDoc.Styles.ProfileStyles;
+                                    //ProfileStyle ps = psc["PROFIL STYLE MGO MIDT"].Go<ProfileStyle>(extTx);
+                                    //ps.CheckOrOpenForWrite();
 
-                                    DisplayStyle ds;
-                                    ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.Line);
-                                    ds.LinetypeScale = 10;
+                                    //DisplayStyle ds;
+                                    //ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.Line);
+                                    //ds.LinetypeScale = 10;
 
-                                    ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.Curve);
-                                    ds.LinetypeScale = 10;
+                                    //ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.Curve);
+                                    //ds.LinetypeScale = 10;
 
-                                    ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.SymmetricalParabola);
-                                    ds.LinetypeScale = 10;
+                                    //ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.SymmetricalParabola);
+                                    //ds.LinetypeScale = 10;
                                     #endregion
                                 }
                                 catch (System.Exception ex)
@@ -15053,6 +15231,58 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+        }
+
+        [CommandMethod("PROCESSALLSHEETSINEDITOR", CommandFlags.Session)]
+        public void processallsheetsineditor()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            //Application.DocumentManager.DocumentActivationEnabled = true;
+
+            try
+            {
+                #region Dialog box for file list selection and path determination
+                string path = string.Empty;
+                OpenFileDialog dialog = new OpenFileDialog()
+                {
+                    Title = "Choose txt file:",
+                    DefaultExt = "txt",
+                    Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
+                    FilterIndex = 0
+                };
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    path = dialog.FileName;
+                }
+                else return;
+
+                List<string> fileList;
+                fileList = File.ReadAllLines(path).ToList();
+                path = Path.GetDirectoryName(path) + "\\";
+                #endregion
+
+                foreach (string name in fileList)
+                {
+                    prdDbg(name);
+                    string fileName = path + name;
+
+                    #region Open drawings in editor
+                    Document doc = DocumentCollectionExtension.Open(docCol, fileName, false);
+                    docCol.MdiActiveDocument = doc;
+                    docCol.MdiActiveDocument.Editor.Command("_SYNCHRONIZEREFERENCES");
+                    docCol.MdiActiveDocument.Editor.Command("_qsave");
+                    docCol.MdiActiveDocument.Editor.Command("_close");
+                    #endregion
+
+                    System.Windows.Forms.Application.DoEvents();
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n" + ex.ToString());
+                return;
+            }
+
         }
 
         [CommandMethod("COUNTVFNUMBERS")]
@@ -16062,88 +16292,87 @@ namespace IntersectUtilities
             {
                 try
                 {
-
                     #region Test size arrays
-                    Alignment al;
+                    //Alignment al;
 
-                    #region Select alignment
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select an alignment: ");
-                    promptEntityOptions1.SetRejectMessage("\n Not an alignment!");
-                    promptEntityOptions1.AddAllowedClass(typeof(Alignment), true);
-                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId profileId = entity1.ObjectId;
-                    al = profileId.Go<Alignment>(tx);
-                    #endregion
+                    //#region Select alignment
+                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select an alignment: ");
+                    //promptEntityOptions1.SetRejectMessage("\n Not an alignment!");
+                    //promptEntityOptions1.AddAllowedClass(typeof(Alignment), true);
+                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    //Autodesk.AutoCAD.DatabaseServices.ObjectId profileId = entity1.ObjectId;
+                    //al = profileId.Go<Alignment>(tx);
+                    //#endregion
 
-                    #region Open fremtidig db
-                    DataReferencesOptions dro = new DataReferencesOptions();
-                    string projectName = dro.ProjectName;
-                    string etapeName = dro.EtapeName;
+                    //#region Open fremtidig db
+                    //DataReferencesOptions dro = new DataReferencesOptions();
+                    //string projectName = dro.ProjectName;
+                    //string etapeName = dro.EtapeName;
 
-                    // open the xref database
-                    Database fremDb = new Database(false, true);
-                    fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                        System.IO.FileShare.Read, false, string.Empty);
-                    Transaction fremTx = fremDb.TransactionManager.StartTransaction();
-                    HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
-                    HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
-                    #endregion
+                    //// open the xref database
+                    //Database fremDb = new Database(false, true);
+                    //fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
+                    //    System.IO.FileShare.Read, false, string.Empty);
+                    //Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                    //HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
+                    //HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                    //#endregion
 
-                    try
-                    {
-                        #region GetCurvesAndBRs from fremtidig
-                        HashSet<Curve> curves = allCurves
-                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
-                            .ToHashSet();
-                        HashSet<BlockReference> brs = allBrs
-                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
-                            .ToHashSet();
-                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
-                        #endregion
+                    //try
+                    //{
+                    //    #region GetCurvesAndBRs from fremtidig
+                    //    HashSet<Curve> curves = allCurves
+                    //        .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                    //        .ToHashSet();
+                    //    HashSet<BlockReference> brs = allBrs
+                    //        .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                    //        .ToHashSet();
+                    //    prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                    //    #endregion
 
-                        //PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves);
-                        //prdDbg("Curves:");
-                        //prdDbg(sizeArray.ToString());
+                    //    //PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves);
+                    //    //prdDbg("Curves:");
+                    //    //prdDbg(sizeArray.ToString());
 
-                        prdDbg("Blocks:");
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
-                        prdDbg(sizeArray.ToString());
+                    //    prdDbg("Blocks:");
+                    //    PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                    //    prdDbg(sizeArray.ToString());
 
-                        //Determine direction
-                        HashSet<(Curve curve, double dist)> curveDistTuples =
-                                new HashSet<(Curve curve, double dist)>();
-                        prdDbg($"{al.Name}");
-                        Point3d samplePoint = al.GetPointAtDist(0);
+                    //    //Determine direction
+                    //    HashSet<(Curve curve, double dist)> curveDistTuples =
+                    //            new HashSet<(Curve curve, double dist)>();
+                    //    prdDbg($"{al.Name}");
+                    //    Point3d samplePoint = al.GetPointAtDist(0);
 
-                        foreach (Curve curve in curves)
-                        {
-                            if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
-                            Point3d closestPoint = curve.GetClosestPointTo(samplePoint, false);
-                            if (closestPoint != default)
-                                curveDistTuples.Add(
-                                    (curve, samplePoint.DistanceHorizontalTo(closestPoint)));
-                            prdDbg($"Dist: {samplePoint.DistanceHorizontalTo(closestPoint)}");
-                        }
+                    //    foreach (Curve curve in curves)
+                    //    {
+                    //        if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
+                    //        Point3d closestPoint = curve.GetClosestPointTo(samplePoint, false);
+                    //        if (closestPoint != default)
+                    //            curveDistTuples.Add(
+                    //                (curve, samplePoint.DistanceHorizontalTo(closestPoint)));
+                    //        prdDbg($"Dist: {samplePoint.DistanceHorizontalTo(closestPoint)}");
+                    //    }
 
-                        Curve closestCurve = curveDistTuples.MinBy(x => x.dist).FirstOrDefault().curve;
+                    //    Curve closestCurve = curveDistTuples.MinBy(x => x.dist).FirstOrDefault().curve;
 
-                        int startingDn = PipeSchedule.GetPipeDN(closestCurve);
-                        prdDbg($"startingDn: {startingDn}");
+                    //    int startingDn = PipeSchedule.GetPipeDN(closestCurve);
+                    //    prdDbg($"startingDn: {startingDn}");
 
-                        //if (sizeArray[0].DN != startingDn) sizeArray.Reverse();
-                    }
-                    catch (System.Exception ex)
-                    {
-                        fremTx.Abort();
-                        fremTx.Dispose();
-                        fremDb.Dispose();
-                        prdDbg(ex.ToString());
-                        throw;
-                    }
-                    fremTx.Abort();
-                    fremTx.Dispose();
-                    fremDb.Dispose();
+                    //    //if (sizeArray[0].DN != startingDn) sizeArray.Reverse();
+                    //}
+                    //catch (System.Exception ex)
+                    //{
+                    //    fremTx.Abort();
+                    //    fremTx.Dispose();
+                    //    fremDb.Dispose();
+                    //    prdDbg(ex.ToString());
+                    //    throw;
+                    //}
+                    //fremTx.Abort();
+                    //fremTx.Dispose();
+                    //fremDb.Dispose();
                     #endregion
 
                     #region RXClass to String test
