@@ -10438,8 +10438,8 @@ namespace IntersectUtilities
                     //******************************//
                     PropertySetManager.DefinedSets propertySetName = 
                         PropertySetManager.DefinedSets.DriPipelineData;
-                    string propertyName1 = "BelongsToAlignment";
-                    string propertyName2 = "BranchesOffToAlignment";
+                    string belongsToAlignmentProperty = "BelongsToAlignment";
+                    string branchesOffToAlignmentProperty = "BranchesOffToAlignment";
                     //******************************//
 
                     #region Initialize property set
@@ -10463,8 +10463,8 @@ namespace IntersectUtilities
                         //Skip if record already exists
                         if (!overwrite)
                         {
-                            if (psm.ReadPropertyString(propertyName1).IsNotNoE() ||
-                                psm.ReadPropertyString(propertyName2).IsNotNoE()) continue;
+                            if (psm.ReadPropertyString(belongsToAlignmentProperty).IsNotNoE() ||
+                                psm.ReadPropertyString(branchesOffToAlignmentProperty).IsNotNoE()) continue;
                         }
 
                         HashSet<(BlockReference block, double dist, Alignment al)> alDistTuples =
@@ -10521,7 +10521,7 @@ namespace IntersectUtilities
 
                         if (result.Count() == 0)
                         {
-                            psm.WritePropertyString(propertyName1, "NA");
+                            psm.WritePropertyString(belongsToAlignmentProperty, "NA");
                         }
                         else if (result.Count() == 2)
                         {//Should be ordinary branch
@@ -10572,8 +10572,8 @@ namespace IntersectUtilities
                                 continue;
                             }
 
-                            XrecordCreateWriteUpdateString(br, xRecordName,
-                                new[] { mainAl.Name, branchAl.Name });
+                            psm.WritePropertyString(belongsToAlignmentProperty, mainAl.Name);
+                            psm.WritePropertyString(branchesOffToAlignmentProperty, branchAl.Name);
                         }
                         else if (result.Count() > 2)
                         {//More alignments meeting in one place?
@@ -10586,7 +10586,7 @@ namespace IntersectUtilities
                         }
                         else if (result.Count() == 1)
                         {
-                            psm.WritePropertyString(propertyName1, result.First().al.Name);
+                            psm.WritePropertyString(belongsToAlignmentProperty, result.First().al.Name);
                         }
                     }
                     #endregion
@@ -16355,7 +16355,7 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("CCL")]
-        public void CreateComplexLinetype()
+        public void createcomplexlinetype()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             Database db = doc.Database;
