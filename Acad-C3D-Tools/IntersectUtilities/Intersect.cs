@@ -5939,7 +5939,8 @@ namespace IntersectUtilities
 
                     #region Place weldpoints
                     var ordered = wps.OrderBy(x => x.WeldPoint.X).ThenBy(x => x.WeldPoint.Y);
-                    IEnumerable<IGrouping<WeldPointData, WeldPointData>> clusters = ordered.GroupByCluster((x, y) => GetDistance(x, y), 0.05);
+                    IEnumerable<IGrouping<WeldPointData, WeldPointData>> clusters 
+                        = ordered.GroupByCluster((x, y) => GetDistance(x, y), 0.02);
 
                     double GetDistance(WeldPointData first, WeldPointData second)
                     {
@@ -5984,7 +5985,8 @@ namespace IntersectUtilities
                         int idx = 1;
                         foreach (var wp in orderedByDist)
                         {
-                            Vector3d deriv = wp.Alignment.GetFirstDerivative(wp.Alignment.GetClosestPointTo(wp.WeldPoint, false));
+                            Vector3d deriv = wp.Alignment.GetFirstDerivative(
+                                wp.Alignment.GetClosestPointTo(wp.WeldPoint, false));
                             double rotation = Math.Atan2(deriv.Y, deriv.X);
                             //BlockReference wpBr = localDb.CreateBlockWithAttributes(blockName, wp.WeldPoint, rotation);
                             var wpBr = new BlockReference(wp.WeldPoint, btrId);
