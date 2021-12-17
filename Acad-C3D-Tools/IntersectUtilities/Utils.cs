@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using MoreLinq;
@@ -31,6 +32,7 @@ using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.Colors;
 using IntersectUtilities.UtilsCommon;
 
+using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.UtilsODData;
 
@@ -1265,6 +1267,147 @@ namespace IntersectUtilities
                 SecondPosition = firstNumber >= secondNumber ? secondNumber.ToString() : firstNumber.ToString();
             }
             else FirstPosition = input;
+        }
+    }
+
+    public class PropertySetManager
+    {
+        private Database Db { get; }
+        private DictionaryPropertySetDefinitions DictionaryPropertySetDefinitions { get; }
+        private PropertySetDefinition PropertySetDefinition { get; }
+        private PropertySet CurrentPropertySet { get; set; }
+        public PropertySetManager(Database database, DefinedSets propertySetName)
+        {
+            //1
+            Db = database;
+            //2.1
+            DictionaryPropertySetDefinitions = new DictionaryPropertySetDefinitions(Db);
+            //2.2
+            if (Db.TransactionManager.TopTransaction == null)
+                throw new System.Exception("PropertySetManager: Must operate within a Transaction!");
+            //3
+            PropertySetDefinition = GetOrCreatePropertySetDefinition(propertySetName);
+        }
+        private PropertySetDefinition GetOrCreatePropertySetDefinition(DefinedSets propertySetName)
+        {
+            if (PropertySetDefinitionExists(propertySetName))
+            {
+                return GetPropertySetDefinition(propertySetName);
+            }
+            else return CreatePropertySetDefinition(propertySetName);
+        }
+        public enum DefinedSets
+        {
+            None,
+            DriPipelineData
+        }
+        private PropertySetDefinition CreatePropertySetDefinition(DefinedSets propertySetName)
+        {
+            string setName = propertySetName.ToString();
+            prdDbg($"Defining PropertySet {propertySetName}.");
+
+            //General properties
+            PropertySetDefinition propSetDef = new PropertySetDefinition();
+            propSetDef.SetToStandard(Db);
+            propSetDef.SubSetDatabaseDefaults(Db);
+            propSetDef.Description = setName;
+            var appliedTo = new StringCollection();
+            bool isStyle = false;
+
+            //Spcific properties
+            switch (propertySetName)
+            {
+                case DefinedSets.None:
+                    break;
+                case DefinedSets.DriPipelineData:
+
+                    appliedTo.Add(RXClass.GetClass(typeof(Polyline)).Name);
+                    appliedTo.Add(RXClass.GetClass(typeof(BlockReference)).Name);
+
+                    var propDefManual = new PropertyDefinition();
+                    propDefManual.SetToStandard(Db);
+                    propDefManual.SubSetDatabaseDefaults(Db);
+                    propDefManual.Name = "BelongsToAlignment";
+                    propDefManual.Description = "Name of the alignment the component belongs to.";
+                    propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+                    propDefManual.DefaultData = "";
+                    propSetDef.Definitions.Add(propDefManual);
+
+                    propDefManual = new PropertyDefinition();
+                    propDefManual.SetToStandard(Db);
+                    propDefManual.SubSetDatabaseDefaults(Db);
+                    propDefManual.Name = "BranchesOffToAlignment";
+                    propDefManual.Description = "Name of the alignment the component branches off to.";
+                    propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+                    propDefManual.DefaultData = "";
+                    propSetDef.Definitions.Add(propDefManual);
+
+                    break;
+                default:
+                    break;
+            }
+
+            //More general properties
+            propSetDef.SetAppliesToFilter(appliedTo, isStyle);
+
+            using (Transaction defTx = Db.TransactionManager.StartTransaction())
+            {
+                DictionaryPropertySetDefinitions.AddNewRecord(setName, propSetDef);
+                defTx.AddNewlyCreatedDBObject(propSetDef, true);
+                defTx.Commit();
+            }
+
+            return propSetDef;
+        }
+        private bool PropertySetDefinitionExists(DefinedSets propertySetName)
+        {
+            string setName = propertySetName.ToString();
+            if (DictionaryPropertySetDefinitions.Has(setName, Db.TransactionManager.TopTransaction))
+            {
+                prdDbg($"Property Set {setName} already defined.");
+                return true;
+            }
+            else
+            {
+                prdDbg($"Property Set {setName} is not defined.");
+                return false;
+            }
+        }
+        private PropertySetDefinition GetPropertySetDefinition(DefinedSets propertySetName)
+        {
+            return DictionaryPropertySetDefinitions
+                .GetAt(propertySetName.ToString())
+                .Go<PropertySetDefinition>(Db.TransactionManager.TopTransaction);
+        }
+        public void GetOrAttachPropertySet(Entity ent)
+        {
+            Oid propertySetId = PropertyDataServices.GetPropertySet(ent, this.PropertySetDefinition.Id);
+
+            if (propertySetId == Oid.Null)
+            {
+                CurrentPropertySet = AttachPropertySet(ent);
+            }
+            else CurrentPropertySet = propertySetId.Go<PropertySet>(Db.TransactionManager.TopTransaction);
+        }
+        private PropertySet AttachPropertySet(Entity ent)
+        {
+            ent.CheckOrOpenForWrite();
+            PropertyDataServices.AddPropertySet(ent, PropertySetDefinition.Id);
+
+            return PropertyDataServices.GetPropertySet(ent, this.PropertySetDefinition.Id)
+                .Go<PropertySet>(Db.TransactionManager.TopTransaction);
+        }
+        public string ReadPropertyString(string propertyName)
+        {
+            int propertyId = this.CurrentPropertySet.PropertyNameToId(propertyName);
+            object value = this.CurrentPropertySet.GetAt(propertyId);
+            if (value == null) return "";
+            else return value.ToString();
+        }
+        public void WritePropertyString(string propertyName, string value)
+        {
+            int propertyId = this.CurrentPropertySet.PropertyNameToId(propertyName);
+            this.CurrentPropertySet.SetAt(propertyId, value);
         }
     }
 
