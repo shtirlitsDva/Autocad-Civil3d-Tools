@@ -22,13 +22,17 @@ namespace AcCoreConsoleAutomation
             {
                 string fullPath = path + name;
 
-                Process acad = new Process();
-                acad.StartInfo.FileName = @"C:\Program Files\Autodesk\AutoCAD 2022\AcCoreConsole.exe";
-                acad.StartInfo.Arguments = "/ld \"C:\\Program Files\\Autodesk\\AutoCAD 2022\\AecBase.dbx\" " +
-                                           "/p \"<<C3D_Metric>>\" /product C3D /language en-US " +
-                                          $"\"{fullPath}\" " +
-                                           "/b \"X:\\AutoCAD DRI - 01 Civil 3D\\Dev\\saveexit.scr\"";
-                acad.Start();
+                //Process acad = new Process();
+                //acad.StartInfo.FileName = @"C:\Program Files\Autodesk\AutoCAD 2022\AcCoreConsole.exe";
+                string fileName = @"C:\Program Files\Autodesk\AutoCAD 2022\AcCoreConsole.exe";
+                //acad.StartInfo.Arguments = "/ld \"C:\\Program Files\\Autodesk\\AutoCAD 2022\\AecBase.dbx\" " +
+                string arguments = $"/i \"{fullPath}\" " +
+                                    "/s \"X:\\AutoCAD DRI - 01 Civil 3D\\Dev\\saveexit.scr\" " +
+                                    "/product C3D " +
+                                    "/language en - US " +
+                                    "/p \"<<C3D_Metric>>\" " +
+                                    "/loadmodule \"C:\\Program Files\\Autodesk\\AutoCAD 2022\\AecBase.dbx\"";
+                Process acad = Process.Start(fileName, arguments);
                 acad.WaitForExit();
             }
         }
