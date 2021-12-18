@@ -52,7 +52,7 @@ namespace IntersectUtilities.UtilsCommon
         {
             DocumentCollection docCol = Application.DocumentManager;
             Editor editor = docCol.MdiActiveDocument.Editor;
-            prdDbg("\n" + msg);
+            editor.WriteMessage("\n" + msg);
         }
     }
     public static class UtilsDataTables
