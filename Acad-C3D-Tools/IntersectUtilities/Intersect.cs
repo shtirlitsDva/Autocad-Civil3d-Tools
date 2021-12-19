@@ -5785,10 +5785,10 @@ namespace IntersectUtilities
 
                         #region GetCurvesAndBRs from fremtidig
                         HashSet<Curve> curves = localDb.ListOfType<Curve>(tx, true)
-                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .Where(x => psm.FilterPropetyString(x, belongsToAlignmentProperty, al.Name))
                             .ToHashSet();
                         HashSet<BlockReference> brs = localDb.ListOfType<BlockReference>(tx, true)
-                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .Where(x => psm.FilterPropetyString(x, belongsToAlignmentProperty, al.Name ))
                             .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                         #endregion
@@ -5933,10 +5933,41 @@ namespace IntersectUtilities
                                 }
                                 #endregion
 
+                                #region Determine correct alignment name
+                                //This is to mitigate parallelafgreninger which place
+                                //Branch weld on the wrong alignment
+                                Alignment alignment = al;
+                                if (br.RealName() == "PA TWIN S3" ||
+                                    br.RealName() == "T ENKELT S3" ||
+                                    br.RealName() == "T TWIN S3")
+                                {
+                                    HashSet<(double dist, Alignment al)> alDistTuples =
+                                        new HashSet<(double, Alignment)>();
+                                    try
+                                    {
+                                        foreach (Alignment newAl in als)
+                                        {
+                                            if (newAl.Length < 1) continue;
+                                            Point3d closestPoint = newAl.GetClosestPointTo(wPt, false);
+                                            if (closestPoint != null)
+                                            {
+                                                alDistTuples.Add((wPt.DistanceHorizontalTo(closestPoint), newAl));
+                                            }
+                                        }
+                                    }
+                                    catch (System.Exception)
+                                    {
+                                        prdDbg("Error in GetClosestPointTo -> loop incomplete!");
+                                    }
+
+                                    alignment = alDistTuples.MinBy(x => x.dist).FirstOrDefault().al;
+                                }
+                                #endregion
+
                                 wps.Add(new WeldPointData()
                                 {
                                     WeldPoint = wPt,
-                                    Alignment = al,
+                                    Alignment = alignment,
                                     IterationType = iterType,
                                     Station = al.GetDistAtPoint(al.GetClosestPointTo(wPt, false)),
                                     SourceEntity = br,
@@ -6024,8 +6055,8 @@ namespace IntersectUtilities
                             SetDynBlockProperty(wpBr, "Type", wp.DN.ToString());
                             SetDynBlockProperty(wpBr, "System", wp.System);
 
-                            
-                            XrecCopyTo(wp.SourceEntity, wpBr, "Alignment");
+                            psm.GetOrAttachPropertySet(wpBr);
+                            psm.WritePropertyString(belongsToAlignmentProperty, wp.Alignment.Name);
 
                             idx++;
                         }
