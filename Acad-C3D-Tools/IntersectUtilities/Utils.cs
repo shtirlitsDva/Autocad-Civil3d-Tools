@@ -545,7 +545,9 @@ namespace IntersectUtilities
                         object value = sourcePs.GetAt(sourceId);
 
                         int targetId = targetPs.PropertyNameToId(pd.Name);
+                        targetPs.CheckOrOpenForWrite();
                         targetPs.SetAt(targetId, value);
+                        targetPs.DowngradeOpen();
                     }
                 }
             }
@@ -1381,13 +1383,23 @@ namespace IntersectUtilities
         }
         public void GetOrAttachPropertySet(Entity ent)
         {
-            Oid propertySetId = PropertyDataServices.GetPropertySet(ent, this.PropertySetDefinition.Id);
+            ObjectIdCollection propertySetIds = PropertyDataServices.GetPropertySets(ent);
 
-            if (propertySetId == Oid.Null)
+            if (propertySetIds.Count == 0)
             {
                 CurrentPropertySet = AttachPropertySet(ent);
             }
-            else CurrentPropertySet = propertySetId.Go<PropertySet>(Db.TransactionManager.TopTransaction);
+            else
+            {
+                foreach (Oid oid in propertySetIds)
+                {
+                    PropertySet ps = oid.Go<PropertySet>(Db.TransactionManager.TopTransaction);
+                    if (ps.PropertySetDefinitionName == this.PropertySetDefinition.Name)
+                    { this.CurrentPropertySet = ps; return; }
+                }
+                //Property set not attached
+                CurrentPropertySet = AttachPropertySet(ent);
+            } 
         }
         private PropertySet AttachPropertySet(Entity ent)
         {
@@ -1407,7 +1419,86 @@ namespace IntersectUtilities
         public void WritePropertyString(string propertyName, string value)
         {
             int propertyId = this.CurrentPropertySet.PropertyNameToId(propertyName);
+            this.CurrentPropertySet.CheckOrOpenForWrite();
             this.CurrentPropertySet.SetAt(propertyId, value);
+            this.CurrentPropertySet.DowngradeOpen();
+        }
+        public bool FilterPropetyString(Entity ent, string propertyName, string value)
+        {
+            ObjectIdCollection propertySetIds = PropertyDataServices.GetPropertySets(ent);
+            PropertySet set = default;
+
+            if (propertySetIds.Count == 0)
+            {
+                set = AttachPropertySet(ent);
+            }
+            else
+            {
+                foreach (Oid oid in propertySetIds)
+                {
+                    PropertySet ps = oid.Go<PropertySet>(Db.TransactionManager.TopTransaction);
+                    if (ps.PropertySetDefinitionName == this.PropertySetDefinition.Name)
+                    { set = ps; }
+                }
+                //Property set not attached
+                set = AttachPropertySet(ent);
+            }
+
+            int propertyId = set.PropertyNameToId(propertyName);
+            object storedValue = set.GetAt(propertyId);
+            return value == storedValue.ToString();
+        }
+        public void CopyAllProperties(Entity source, Entity target)
+        {
+            //Only works within drawing
+            //ToDo: implement copying from drawing to drawing
+            try
+            {
+                List<PropertySet> sourcePss = source.GetPropertySets();
+                DictionaryPropertySetDefinitions sourcePropDefDict
+                    = new DictionaryPropertySetDefinitions(source.Database);
+                DictionaryPropertySetDefinitions targetPropDefDict
+                    = new DictionaryPropertySetDefinitions(target.Database);
+
+                foreach (PropertySet sourcePs in sourcePss)
+                {
+                    PropertySetDefinition sourcePropSetDef =
+                        sourcePs.PropertySetDefinition.Go<PropertySetDefinition>(source.GetTopTx());
+                    //Check to see if table is already attached
+                    if (!target.GetPropertySets().Contains(sourcePs, new PropertySetNameComparer()))
+                    {
+                        //If target entity does not have property set attached -> attach
+                        //Here can creating the property set definition in the target database be implemented
+                        target.CheckOrOpenForWrite();
+                        PropertyDataServices.AddPropertySet(target, sourcePropSetDef.Id);
+                    }
+
+                    PropertySet targetPs = target.GetPropertySets()
+                        .Find(x => x.PropertySetDefinitionName == sourcePs.PropertySetDefinitionName);
+
+                    if (targetPs == null)
+                    {
+                        prdDbg("PropertySet attachment failed in PropertySetCopyFromEntToEnt!");
+                        throw new System.Exception();
+                    }
+
+                    foreach (PropertyDefinition pd in sourcePropSetDef.Definitions)
+                    {
+                        int sourceId = sourcePs.PropertyNameToId(pd.Name);
+                        object value = sourcePs.GetAt(sourceId);
+
+                        int targetId = targetPs.PropertyNameToId(pd.Name);
+                        targetPs.CheckOrOpenForWrite();
+                        targetPs.SetAt(targetId, value);
+                        targetPs.DowngradeOpen();
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex.ToString());
+                throw;
+            }
         }
     }
 

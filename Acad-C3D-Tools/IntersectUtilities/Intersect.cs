@@ -5712,6 +5712,19 @@ namespace IntersectUtilities
                 string textLayerName = "0-DEBUG-TXT";
                 //////////////////////////////////////
 
+                //******************************//
+                PropertySetManager.DefinedSets propertySetName =
+                    PropertySetManager.DefinedSets.DriPipelineData;
+                string belongsToAlignmentProperty = "BelongsToAlignment";
+                string branchesOffToAlignmentProperty = "BranchesOffToAlignment";
+                //******************************//
+
+                #region Initialize property set
+                PropertySetManager psm = new PropertySetManager(
+                    localDb,
+                    propertySetName);
+                #endregion
+
                 #region Delete previous blocks
                 //Delete previous blocks
                 var existingBlocks = localDb.GetBlockReferenceByName(blockName);
@@ -6011,6 +6024,7 @@ namespace IntersectUtilities
                             SetDynBlockProperty(wpBr, "Type", wp.DN.ToString());
                             SetDynBlockProperty(wpBr, "System", wp.System);
 
+                            
                             XrecCopyTo(wp.SourceEntity, wpBr, "Alignment");
 
                             idx++;
@@ -6072,15 +6086,27 @@ namespace IntersectUtilities
 
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
 
+                    #region Propertyset init
+                    //******************************//
+                    PropertySetManager.DefinedSets propertySetName =
+                        PropertySetManager.DefinedSets.DriPipelineData;
+                    string belongsToAlignmentProperty = "BelongsToAlignment";
+                    //******************************//
+
+                    PropertySetManager psm = new PropertySetManager(
+                        localDb,
+                        propertySetName);
+                    #endregion
+
                     foreach (Alignment al in als.OrderBy(x => x.Name))
                     {
                         #region GetCurvesAndBRs
                         prdDbg($"\nProcessing: {al.Name}...");
                         HashSet<Curve> curves = localDb.ListOfType<Curve>(tx, true)
-                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .Where(x => psm.FilterPropetyString(x, belongsToAlignmentProperty, al.Name))
                             .ToHashSet();
                         HashSet<BlockReference> brs = localDb.ListOfType<BlockReference>(tx, true)
-                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .Where(x => psm.FilterPropetyString(x, belongsToAlignmentProperty, al.Name ))
                             .Where(x => x.RealName() != "SVEJSEPUNKT")
                             .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
@@ -6166,7 +6192,7 @@ namespace IntersectUtilities
                                         //Add the newly created curve to linkedlist
                                         ll.AddFirst(toAdd);
 
-                                        XrecCopyTo(nextCurve, toAdd, "Alignment");
+                                        psm.CopyAllProperties(nextCurve, toAdd);
 
                                         nextCurve.CheckOrOpenForWrite();
                                         nextCurve.Erase(true);
@@ -6259,7 +6285,9 @@ namespace IntersectUtilities
                                             Curve toAdd = objs[2] as Curve;
                                             //Add the newly created curve to linkedlist
                                             toAdd.AddEntityToDbModelSpace(localDb);
-                                            XrecCopyTo(nextCurve, toAdd, "Alignment");
+
+                                            psm.CopyAllProperties(nextCurve, toAdd);
+                                            
                                             ll.AddFirst(toAdd);
 
                                             nextCurve.CheckOrOpenForWrite();
@@ -6325,7 +6353,7 @@ namespace IntersectUtilities
                                             //REMEMBER: it is reversed still!
                                             ll.AddFirst(curve);
 
-                                            XrecCopyTo(nextCurve, toAdd, "Alignment");
+                                            psm.CopyAllProperties(nextCurve, toAdd);
 
                                             nextCurve.CheckOrOpenForWrite();
                                             nextCurve.Erase(true);
@@ -6432,7 +6460,8 @@ namespace IntersectUtilities
                                                 Curve toAdd = objs[2] as Curve;
                                                 //Add the newly created curve to linkedlist
                                                 toAdd.AddEntityToDbModelSpace(localDb);
-                                                XrecCopyTo(nextCurve, toAdd, "Alignment");
+
+                                                psm.CopyAllProperties(nextCurve, toAdd);
                                                 toAdd.ReverseCurve();
 
                                                 //Remember exchanged references!!!
@@ -6455,8 +6484,6 @@ namespace IntersectUtilities
                                             Line line = new Line(new Point3d(), newEndPoint);
                                             line.Color = Color.FromColorIndex(ColorMethod.ByAci, 20);
                                             line.AddEntityToDbModelSpace(localDb);
-
-
                                         }
                                     }
                                 }
@@ -10436,7 +10463,7 @@ namespace IntersectUtilities
                     HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
 
                     //******************************//
-                    PropertySetManager.DefinedSets propertySetName = 
+                    PropertySetManager.DefinedSets propertySetName =
                         PropertySetManager.DefinedSets.DriPipelineData;
                     string belongsToAlignmentProperty = "BelongsToAlignment";
                     string branchesOffToAlignmentProperty = "BranchesOffToAlignment";
@@ -10454,7 +10481,7 @@ namespace IntersectUtilities
                         //Guard against unknown blocks
                         if (ReadStringParameterFromDataTable(
                             br.RealName(), fjvKomponenter, "Navn", 0) == null)
-                                continue;
+                            continue;
 
                         //Check if a property set is attached
                         //Attach if not
@@ -10592,108 +10619,113 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Curves
-                    //foreach (Curve curve in curves)
-                    //{
-                    //    //Skip if record already exists
-                    //    if (!overwrite)
-                    //    {
-                    //        if (curve.XrecReadStringAtIndex(xRecordName, 0).IsNotNoE()) continue;
-                    //    }
-                    //    prdDbg(curve.Layer);
-                    //    if (!(curve.Layer.Contains("FREM") ||
-                    //        curve.Layer.Contains("RETUR") ||
-                    //        curve.Layer.Contains("TWIN"))) continue;
+                    foreach (Curve curve in curves)
+                    {
+                        if (!(curve.Layer.Contains("FREM") ||
+                            curve.Layer.Contains("RETUR") ||
+                            curve.Layer.Contains("TWIN"))) continue;
 
-                    //    HashSet<(Curve curve, double dist, Alignment al)> alDistTuples =
-                    //        new HashSet<(Curve curve, double dist, Alignment al)>();
+                        //Check if a property set is attached
+                        //Attach if not
+                        psm.GetOrAttachPropertySet(curve);
 
-                    //    try
-                    //    {
-                    //        foreach (Alignment al in als)
-                    //        {
-                    //            if (al.Length < 1) continue;
-                    //            double midParam = curve.EndParam / 2.0;
-                    //            Point3d curveMidPoint = curve.GetPointAtParameter(midParam);
-                    //            Point3d closestPoint = al.GetClosestPointTo(curveMidPoint, false);
-                    //            if (closestPoint != null)
-                    //                alDistTuples.Add((curve, curveMidPoint.DistanceHorizontalTo(closestPoint), al));
-                    //        }
-                    //    }
-                    //    catch (System.Exception)
-                    //    {
-                    //        prdDbg("Error in Curves GetClosestPointTo -> loop incomplete!");
-                    //    }
+                        //Skip if record already exists
+                        if (!overwrite)
+                        {
+                            if (psm.ReadPropertyString(belongsToAlignmentProperty).IsNotNoE() ||
+                                psm.ReadPropertyString(branchesOffToAlignmentProperty).IsNotNoE()) continue;
+                        }
 
-                    //    double distThreshold = 1;
-                    //    var result = alDistTuples.Where(x => x.dist < distThreshold);
+                        HashSet<(Curve curve, double dist, Alignment al)> alDistTuples =
+                            new HashSet<(Curve curve, double dist, Alignment al)>();
 
-                    //    if (result.Count() == 0)
-                    //    {
-                    //        XrecordCreateWriteUpdateString(curve, xRecordName, new[] { "NA" });
-                    //        //Yellow line means check result
-                    //        //This is caught if no result found at ALL
-                    //        Line line = new Line(new Point3d(), curve.GetPointAtParameter(curve.EndParam / 2));
-                    //        line.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
-                    //        line.AddEntityToDbModelSpace(localDb);
-                    //    }
-                    //    else if (result.Count() == 1)
-                    //    {
-                    //        XrecordCreateWriteUpdateString(curve, xRecordName, new[] { result.First().al.Name });
-                    //    }
-                    //    else if (result.Count() > 1)
-                    //    {
-                    //        //If multiple result
-                    //        //Means midpoint is close to two alignments
-                    //        //Sample more points to determine
+                        try
+                        {
+                            foreach (Alignment al in als)
+                            {
+                                if (al.Length < 1) continue;
+                                double midParam = curve.EndParam / 2.0;
+                                Point3d curveMidPoint = curve.GetPointAtParameter(midParam);
+                                Point3d closestPoint = al.GetClosestPointTo(curveMidPoint, false);
+                                if (closestPoint != null)
+                                    alDistTuples.Add((curve, curveMidPoint.DistanceHorizontalTo(closestPoint), al));
+                            }
+                        }
+                        catch (System.Exception)
+                        {
+                            prdDbg("Error in Curves GetClosestPointTo -> loop incomplete!");
+                        }
 
-                    //        double oneFourthParam = curve.EndParam / 4;
-                    //        Point3d oneFourthPoint = curve.GetPointAtParameter(oneFourthParam);
-                    //        double threeFourthParam = curve.EndParam / 4 * 3;
-                    //        Point3d threeFourthPoint = curve.GetPointAtParameter(threeFourthParam);
+                        double distThreshold = 1;
+                        var result = alDistTuples.Where(x => x.dist < distThreshold);
 
-                    //        var resArray = result.ToArray();
+                        if (result.Count() == 0)
+                        {
+                            psm.WritePropertyString(belongsToAlignmentProperty, "NA");
+                            //Yellow line means check result
+                            //This is caught if no result found at ALL
+                            Line line = new Line(new Point3d(), curve.GetPointAtParameter(curve.EndParam / 2));
+                            line.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
+                            line.AddEntityToDbModelSpace(localDb);
+                        }
+                        else if (result.Count() == 1)
+                        {
+                            psm.WritePropertyString(belongsToAlignmentProperty, result.First().al.Name);
+                        }
+                        else if (result.Count() > 1)
+                        {
+                            //If multiple result
+                            //Means midpoint is close to two alignments
+                            //Sample more points to determine
 
-                    //        distThreshold = 0.1;
-                    //        double distIncrement = 0.1;
+                            double oneFourthParam = curve.EndParam / 4;
+                            Point3d oneFourthPoint = curve.GetPointAtParameter(oneFourthParam);
+                            double threeFourthParam = curve.EndParam / 4 * 3;
+                            Point3d threeFourthPoint = curve.GetPointAtParameter(threeFourthParam);
 
-                    //        bool alDetected = false;
-                    //        Alignment detectedAl = null;
-                    //        while (!alDetected)
-                    //        {
-                    //            for (int i = 0; i < resArray.Count(); i++)
-                    //            {
-                    //                if (alDetected) break;
-                    //                detectedAl = resArray[i].al;
+                            var resArray = result.ToArray();
 
-                    //                Point3d oneFourthClosestPoint = detectedAl.GetClosestPointTo(oneFourthPoint, false);
-                    //                Point3d threeFourthClosestPoint = detectedAl.GetClosestPointTo(threeFourthPoint, false);
+                            distThreshold = 0.1;
+                            double distIncrement = 0.1;
 
-                    //                //DBPoint p1 = new DBPoint(oneFourthClosestPoint);
-                    //                //if (i == 0) p1.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
-                    //                //else p1.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
-                    //                //p1.AddEntityToDbModelSpace(localDb);
-                    //                //DBPoint p2 = new DBPoint(threeFourthClosestPoint);
-                    //                //if (i == 0) p2.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
-                    //                //else p2.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
-                    //                //p2.AddEntityToDbModelSpace(localDb);
+                            bool alDetected = false;
+                            Alignment detectedAl = null;
+                            while (!alDetected)
+                            {
+                                for (int i = 0; i < resArray.Count(); i++)
+                                {
+                                    if (alDetected) break;
+                                    detectedAl = resArray[i].al;
 
-                    //                if (oneFourthPoint.DistanceHorizontalTo(oneFourthClosestPoint) < distThreshold &&
-                    //                    threeFourthPoint.DistanceHorizontalTo(threeFourthClosestPoint) < distThreshold)
-                    //                    alDetected = true;
-                    //            }
+                                    Point3d oneFourthClosestPoint = detectedAl.GetClosestPointTo(oneFourthPoint, false);
+                                    Point3d threeFourthClosestPoint = detectedAl.GetClosestPointTo(threeFourthPoint, false);
 
-                    //            distThreshold += distIncrement;
-                    //        }
+                                    //DBPoint p1 = new DBPoint(oneFourthClosestPoint);
+                                    //if (i == 0) p1.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                                    //else p1.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
+                                    //p1.AddEntityToDbModelSpace(localDb);
+                                    //DBPoint p2 = new DBPoint(threeFourthClosestPoint);
+                                    //if (i == 0) p2.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                                    //else p2.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
+                                    //p2.AddEntityToDbModelSpace(localDb);
 
-                    //        XrecordCreateWriteUpdateString(curve, xRecordName, new[] { detectedAl?.Name ?? "NA" });
+                                    if (oneFourthPoint.DistanceHorizontalTo(oneFourthClosestPoint) < distThreshold &&
+                                        threeFourthPoint.DistanceHorizontalTo(threeFourthClosestPoint) < distThreshold)
+                                        alDetected = true;
+                                }
 
-                    //        //Red line means check result
-                    //        //This is caught if multiple results
-                    //        Line line = new Line(new Point3d(), curve.GetPointAtParameter(curve.EndParam / 2));
-                    //        line.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
-                    //        line.AddEntityToDbModelSpace(localDb);
-                    //    }
-                    //} 
+                                distThreshold += distIncrement;
+                            }
+
+                            psm.WritePropertyString(belongsToAlignmentProperty, detectedAl?.Name ?? "NA");
+
+                            //Red line means check result
+                            //This is caught if multiple results
+                            Line line = new Line(new Point3d(), curve.GetPointAtParameter(curve.EndParam / 2));
+                            line.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                            line.AddEntityToDbModelSpace(localDb);
+                        }
+                    }
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -10702,7 +10734,7 @@ namespace IntersectUtilities
                     alTx.Dispose();
                     alDb.Dispose();
                     tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
+                    editor.WriteMessage("\n" + ex.ToString());
                     return;
                 }
                 alTx.Abort();
