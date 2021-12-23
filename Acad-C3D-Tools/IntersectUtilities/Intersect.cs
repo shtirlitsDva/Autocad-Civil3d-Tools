@@ -5788,7 +5788,7 @@ namespace IntersectUtilities
                             .Where(x => psm.FilterPropetyString(x, belongsToAlignmentProperty, al.Name))
                             .ToHashSet();
                         HashSet<BlockReference> brs = localDb.ListOfType<BlockReference>(tx, true)
-                            .Where(x => psm.FilterPropetyString(x, belongsToAlignmentProperty, al.Name ))
+                            .Where(x => psm.FilterPropetyString(x, belongsToAlignmentProperty, al.Name))
                             .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                         #endregion
@@ -6137,7 +6137,7 @@ namespace IntersectUtilities
                             .Where(x => psm.FilterPropetyString(x, belongsToAlignmentProperty, al.Name))
                             .ToHashSet();
                         HashSet<BlockReference> brs = localDb.ListOfType<BlockReference>(tx, true)
-                            .Where(x => psm.FilterPropetyString(x, belongsToAlignmentProperty, al.Name ))
+                            .Where(x => psm.FilterPropetyString(x, belongsToAlignmentProperty, al.Name))
                             .Where(x => x.RealName() != "SVEJSEPUNKT")
                             .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
@@ -6318,7 +6318,7 @@ namespace IntersectUtilities
                                             toAdd.AddEntityToDbModelSpace(localDb);
 
                                             psm.CopyAllProperties(nextCurve, toAdd);
-                                            
+
                                             ll.AddFirst(toAdd);
 
                                             nextCurve.CheckOrOpenForWrite();
@@ -12338,7 +12338,7 @@ namespace IntersectUtilities
                     string belongsToAlignmentProperty = "BelongsToAlignment";
                     string branchesOffToAlignmentProperty = "BranchesOffToAlignment";
                     PropertySetManager psmBelongs = new PropertySetManager(
-                        dB,
+                        fremDb,
                         propertySetName);
                     #endregion
 
@@ -12428,7 +12428,7 @@ namespace IntersectUtilities
                             .ToHashSet();
 
                         HashSet<BlockReference> brs = allBrs
-                            .Where(x => psmBelongs.FilterPropetyString(x, belongsToAlignmentProperty, al.Name ))
+                            .Where(x => psmBelongs.FilterPropetyString(x, belongsToAlignmentProperty, al.Name))
                             .ToHashSet();
 
                         HashSet<BlockReference> brsBranchesOffTo = allBrs
@@ -12502,6 +12502,55 @@ namespace IntersectUtilities
                             //pline.AddEntityToDbModelSpace(localDb);
                         }
 
+                        #endregion
+
+                        #region Explode alignment for working around distatpoint problems
+                        objs = new DBObjectCollection();
+                        //First explode
+                        al.Explode(objs);
+                        //Explodes to 1 block
+                        firstExplode = (Entity)objs[0];
+                        //Second explode
+                        objs = new DBObjectCollection();
+                        firstExplode.Explode(objs);
+
+                        Line seedLineAl = default;
+
+                        for (int i = 0; i < objs.Count; i++)
+                        {
+                            if (objs[i] is Line)
+                            {
+                                seedLineAl = (Line)objs[i];
+                                objs.RemoveAt(i);
+                                break;
+                            }
+
+                            if (i == objs.Count - 1)
+                            {
+                                //Means no lines was found
+                                prdDbg($"No straight lines was found exploding alignment {al.Name}!");
+                                throw new System.Exception($"Alignment {al.Name} does not " +
+                                                           $"have any straight segements!");
+                            }
+                        }
+
+                        Polyline plineForSamplingDistance = new Polyline();
+
+                        plineForSamplingDistance.AddVertexAt(0,
+                            new Point2d(seedLineAl.StartPoint.X, seedLineAl.StartPoint.Y), 0, 0, 0);
+                        plineForSamplingDistance.AddVertexAt(1,
+                            new Point2d(seedLineAl.EndPoint.X, seedLineAl.EndPoint.Y), 0, 0, 0);
+
+                        try
+                        {
+                            if (objs.Count != 0)
+                                plineForSamplingDistance.JoinEntities(objs.Cast<Entity>().ToArray());
+                        }
+                        catch (System.Exception)
+                        {
+                            prdDbg($"Exploded alignment {al.Name} could not be joined!");
+                            throw;
+                        }
                         #endregion
 
                         foreach (ProfileView pv in pvs)
@@ -12648,9 +12697,52 @@ namespace IntersectUtilities
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
                                 BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
                                 brSign.SetAttributeStringValue("LEFTSIZE", type);
-                                if ((new[] { "Parallelafgrening", "Lige afgrening", "Afgrening med spring", "Påsvejsning" }).Contains(type))
-                                    brSign.SetAttributeStringValue("RIGHTSIZE", br.XrecReadStringAtIndex("Alignment", 1));
+
+                                psmBelongs.GetOrAttachPropertySet(br);
+                                if (psmBelongs.ReadPropertyString(branchesOffToAlignmentProperty).IsNotNoE())
+                                    brSign.SetAttributeStringValue("RIGHTSIZE",
+                                        psmBelongs.ReadPropertyString(branchesOffToAlignmentProperty));
                                 else brSign.SetAttributeStringValue("RIGHTSIZE", "");
+
+                                psmSource.GetOrAttachPropertySet(brSign);
+                                psmSource.WritePropertyString(sourceEntityHandleProperty, br.Handle.ToString());
+                            }
+                            #endregion
+
+                            #region Place component blocks for branches belonging to other alignments
+                            foreach (BlockReference br in brsBranchesOffTo)
+                            {
+                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
+                                Point3d brLocation = al.GetClosestPointTo(br.Position, false);
+
+                                double station;
+                                try
+                                {
+                                    station = al.GetDistAtPoint(brLocation);
+                                }
+                                catch (System.Exception)
+                                {
+                                    prdDbg(br.RealName());
+                                    prdDbg(br.Handle.ToString());
+                                    prdDbg(br.Position.ToString());
+                                    prdDbg(brLocation.ToString());
+                                    throw;
+                                }
+
+                                //Determine if blockref is within current PV
+                                //If within -> place block, else go to next iteration
+                                if (!(station > pvStStart && station < pvStEnd)) continue;
+
+                                sampledMidtElevation = SampleProfile(midtProfile, station);
+                                double X = originX + station - pvStStart;
+                                double Y = originY + (sampledMidtElevation - pvElBottom) *
+                                        profileViewStyle.GraphStyle.VerticalExaggeration;
+                                BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
+                                brSign.SetAttributeStringValue("LEFTSIZE", type);
+
+                                psmBelongs.GetOrAttachPropertySet(br);
+                                brSign.SetAttributeStringValue("RIGHTSIZE",
+                                        psmBelongs.ReadPropertyString(belongsToAlignmentProperty));
 
                                 psmSource.GetOrAttachPropertySet(brSign);
                                 psmSource.WritePropertyString(sourceEntityHandleProperty, br.Handle.ToString());
@@ -12668,16 +12760,26 @@ namespace IntersectUtilities
 
                                 Point3d brLocation = al.GetClosestPointTo(br.Position, false);
 
-                                double station;
+                                double station = 0;
                                 try
                                 {
                                     station = al.GetDistAtPoint(brLocation);
                                 }
                                 catch (System.Exception)
                                 {
-                                    prdDbg(br.Position.ToString());
-                                    prdDbg(brLocation.ToString());
-                                    throw;
+                                    prdDbg("GetDistAtPoint failed! Performing evasive maneouvres.");
+                                    //GetDistAtPoint failed again!!!!! perform evasive maneouvres
+                                    try
+                                    {
+                                        station = plineForSamplingDistance.GetDistAtPoint(brLocation);
+                                    }
+                                    catch (System.Exception ex)
+                                    {
+                                        prdDbg(br.Position.ToString());
+                                        prdDbg(brLocation.ToString());
+                                        prdDbg(ex.ToString());
+                                        throw;
+                                    }
                                 }
 
                                 //Determine if blockref is within current PV
