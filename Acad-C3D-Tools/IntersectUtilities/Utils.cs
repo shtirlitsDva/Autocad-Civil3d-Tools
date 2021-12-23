@@ -1301,7 +1301,8 @@ namespace IntersectUtilities
         public enum DefinedSets
         {
             None,
-            DriPipelineData
+            DriPipelineData,
+            DriSourceReference
         }
         private PropertySetDefinition CreatePropertySetDefinition(DefinedSets propertySetName)
         {
@@ -1322,28 +1323,42 @@ namespace IntersectUtilities
                 case DefinedSets.None:
                     break;
                 case DefinedSets.DriPipelineData:
+                    {
+                        appliedTo.Add(RXClass.GetClass(typeof(Polyline)).Name);
+                        appliedTo.Add(RXClass.GetClass(typeof(BlockReference)).Name);
 
-                    appliedTo.Add(RXClass.GetClass(typeof(Polyline)).Name);
-                    appliedTo.Add(RXClass.GetClass(typeof(BlockReference)).Name);
+                        var propDefManual = new PropertyDefinition();
+                        propDefManual.SetToStandard(Db);
+                        propDefManual.SubSetDatabaseDefaults(Db);
+                        propDefManual.Name = "BelongsToAlignment";
+                        propDefManual.Description = "Name of the alignment the component belongs to.";
+                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+                        propDefManual.DefaultData = "";
+                        propSetDef.Definitions.Add(propDefManual);
 
-                    var propDefManual = new PropertyDefinition();
-                    propDefManual.SetToStandard(Db);
-                    propDefManual.SubSetDatabaseDefaults(Db);
-                    propDefManual.Name = "BelongsToAlignment";
-                    propDefManual.Description = "Name of the alignment the component belongs to.";
-                    propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-                    propDefManual.DefaultData = "";
-                    propSetDef.Definitions.Add(propDefManual);
+                        propDefManual = new PropertyDefinition();
+                        propDefManual.SetToStandard(Db);
+                        propDefManual.SubSetDatabaseDefaults(Db);
+                        propDefManual.Name = "BranchesOffToAlignment";
+                        propDefManual.Description = "Name of the alignment the component branches off to.";
+                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+                        propDefManual.DefaultData = "";
+                        propSetDef.Definitions.Add(propDefManual); 
+                    }
+                    break;
+                case DefinedSets.DriSourceReference:
+                    {
+                        appliedTo.Add(RXClass.GetClass(typeof(BlockReference)).Name);
 
-                    propDefManual = new PropertyDefinition();
-                    propDefManual.SetToStandard(Db);
-                    propDefManual.SubSetDatabaseDefaults(Db);
-                    propDefManual.Name = "BranchesOffToAlignment";
-                    propDefManual.Description = "Name of the alignment the component branches off to.";
-                    propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-                    propDefManual.DefaultData = "";
-                    propSetDef.Definitions.Add(propDefManual);
-
+                        var propDefManual = new PropertyDefinition();
+                        propDefManual.SetToStandard(Db);
+                        propDefManual.SubSetDatabaseDefaults(Db);
+                        propDefManual.Name = "SourceEntityHandle";
+                        propDefManual.Description = "Handle of the source entity which provided information for this entity.";
+                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+                        propDefManual.DefaultData = "";
+                        propSetDef.Definitions.Add(propDefManual); 
+                    }
                     break;
                 default:
                     break;

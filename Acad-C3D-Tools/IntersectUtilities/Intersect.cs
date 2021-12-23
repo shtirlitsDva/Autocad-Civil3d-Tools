@@ -12326,6 +12326,22 @@ namespace IntersectUtilities
                     HashSet<Alignment> als = dB.HashSetOfType<Alignment>(tx);
                     #endregion
 
+                    #region Initialize PS for source object reference
+                    PropertySetManager psmSource = new PropertySetManager(
+                        dB, PropertySetManager.DefinedSets.DriSourceReference);
+                    string sourceEntityHandleProperty = "SourceEntityHandle";
+                    #endregion
+
+                    #region Initialize PS for Alignment
+                    PropertySetManager.DefinedSets propertySetName =
+                        PropertySetManager.DefinedSets.DriPipelineData;
+                    string belongsToAlignmentProperty = "BelongsToAlignment";
+                    string branchesOffToAlignmentProperty = "BranchesOffToAlignment";
+                    PropertySetManager psmBelongs = new PropertySetManager(
+                        dB,
+                        propertySetName);
+                    #endregion
+
                     #region Import blocks if missing
                     if (!bt.Has(komponentBlockName) ||
                         !bt.Has(bueBlockName) ||
@@ -12408,11 +12424,17 @@ namespace IntersectUtilities
 
                         #region GetCurvesAndBRs from fremtidig
                         HashSet<Curve> curves = allCurves
-                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .Where(x => psmBelongs.FilterPropetyString(x, belongsToAlignmentProperty, al.Name))
                             .ToHashSet();
+
                         HashSet<BlockReference> brs = allBrs
-                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .Where(x => psmBelongs.FilterPropetyString(x, belongsToAlignmentProperty, al.Name ))
                             .ToHashSet();
+
+                        HashSet<BlockReference> brsBranchesOffTo = allBrs
+                            .Where(x => psmBelongs.FilterPropetyString(x, branchesOffToAlignmentProperty, al.Name))
+                            .ToHashSet();
+
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                         #endregion
 
@@ -12609,6 +12631,8 @@ namespace IntersectUtilities
                                 }
                                 catch (System.Exception)
                                 {
+                                    prdDbg(br.RealName());
+                                    prdDbg(br.Handle.ToString());
                                     prdDbg(br.Position.ToString());
                                     prdDbg(brLocation.ToString());
                                     throw;
@@ -12627,6 +12651,9 @@ namespace IntersectUtilities
                                 if ((new[] { "Parallelafgrening", "Lige afgrening", "Afgrening med spring", "Påsvejsning" }).Contains(type))
                                     brSign.SetAttributeStringValue("RIGHTSIZE", br.XrecReadStringAtIndex("Alignment", 1));
                                 else brSign.SetAttributeStringValue("RIGHTSIZE", "");
+
+                                psmSource.GetOrAttachPropertySet(brSign);
+                                psmSource.WritePropertyString(sourceEntityHandleProperty, br.Handle.ToString());
                             }
                             #endregion
 
@@ -12677,6 +12704,9 @@ namespace IntersectUtilities
                                 string nummer = br.GetAttributeStringValue("NUMMER");
 
                                 brWeldNumber.SetAttributeStringValue("NUMMER", nummer);
+
+                                psmSource.GetOrAttachPropertySet(brWeld);
+                                psmSource.WritePropertyString(sourceEntityHandleProperty, br.Handle.ToString());
                                 #endregion
 
                                 #region Determine rotation
