@@ -12293,6 +12293,7 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database dB = database ?? docCol.MdiActiveDocument.Database;
+            Editor ed = docCol.MdiActiveDocument.Editor;
 
             using (Transaction tx = dB.TransactionManager.StartTransaction())
             {
@@ -12504,53 +12505,8 @@ namespace IntersectUtilities
 
                         #endregion
 
-                        #region Explode alignment for working around distatpoint problems
-                        objs = new DBObjectCollection();
-                        //First explode
-                        al.Explode(objs);
-                        //Explodes to 1 block
-                        firstExplode = (Entity)objs[0];
-                        //Second explode
-                        objs = new DBObjectCollection();
-                        firstExplode.Explode(objs);
+                        #region Create a pline from alignment for working around distatpoint problems
 
-                        Line seedLineAl = default;
-
-                        for (int i = 0; i < objs.Count; i++)
-                        {
-                            if (objs[i] is Line)
-                            {
-                                seedLineAl = (Line)objs[i];
-                                objs.RemoveAt(i);
-                                break;
-                            }
-
-                            if (i == objs.Count - 1)
-                            {
-                                //Means no lines was found
-                                prdDbg($"No straight lines was found exploding alignment {al.Name}!");
-                                throw new System.Exception($"Alignment {al.Name} does not " +
-                                                           $"have any straight segements!");
-                            }
-                        }
-
-                        Polyline plineForSamplingDistance = new Polyline();
-
-                        plineForSamplingDistance.AddVertexAt(0,
-                            new Point2d(seedLineAl.StartPoint.X, seedLineAl.StartPoint.Y), 0, 0, 0);
-                        plineForSamplingDistance.AddVertexAt(1,
-                            new Point2d(seedLineAl.EndPoint.X, seedLineAl.EndPoint.Y), 0, 0, 0);
-
-                        try
-                        {
-                            if (objs.Count != 0)
-                                plineForSamplingDistance.JoinEntities(objs.Cast<Entity>().ToArray());
-                        }
-                        catch (System.Exception)
-                        {
-                            prdDbg($"Exploded alignment {al.Name} could not be joined!");
-                            throw;
-                        }
                         #endregion
 
                         foreach (ProfileView pv in pvs)
@@ -12673,10 +12629,11 @@ namespace IntersectUtilities
                                 //Point3d brLocation = al.GetClosestPointTo(firstIteration, false);
                                 Point3d brLocation = al.GetClosestPointTo(br.Position, false);
 
-                                double station;
+                                double station = 0;
+                                double offset = 0;
                                 try
                                 {
-                                    station = al.GetDistAtPoint(brLocation);
+                                    al.StationOffset(brLocation.X, brLocation.Y, ref station, ref offset);
                                 }
                                 catch (System.Exception)
                                 {
@@ -12689,7 +12646,7 @@ namespace IntersectUtilities
 
                                 //Determine if blockref is within current PV
                                 //If within -> place block, else go to next iteration
-                                if (!(station > pvStStart && station < pvStEnd)) continue;
+                                if (!(station >= pvStStart && station <= pvStEnd)) continue;
 
                                 sampledMidtElevation = SampleProfile(midtProfile, station);
                                 double X = originX + station - pvStStart;
@@ -12715,23 +12672,34 @@ namespace IntersectUtilities
                                 string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
                                 Point3d brLocation = al.GetClosestPointTo(br.Position, false);
 
-                                double station;
+                                double station = 0;
                                 try
                                 {
                                     station = al.GetDistAtPoint(brLocation);
                                 }
                                 catch (System.Exception)
                                 {
-                                    prdDbg(br.RealName());
-                                    prdDbg(br.Handle.ToString());
-                                    prdDbg(br.Position.ToString());
-                                    prdDbg(brLocation.ToString());
-                                    throw;
+                                    prdDbg("GetDistAtPoint failed! Performing evasive maneouvres.");
+                                    //GetDistAtPoint failed again!!!!! perform evasive maneouvres
+                                    try
+                                    {
+                                        double offset = 0;
+                                        al.StationOffset(brLocation.X, brLocation.Y, ref station, ref offset);
+                                        //station = plineForSamplingDistance.GetDistAtPoint(brLocation);
+                                    }
+                                    catch (System.Exception ex)
+                                    {
+                                        prdDbg(br.RealName());
+                                        prdDbg(br.Handle.ToString());
+                                        prdDbg(br.Position.ToString());
+                                        prdDbg(brLocation.ToString());
+                                        throw;
+                                    }
                                 }
 
                                 //Determine if blockref is within current PV
                                 //If within -> place block, else go to next iteration
-                                if (!(station > pvStStart && station < pvStEnd)) continue;
+                                if (!(station >= pvStStart && station <= pvStEnd)) continue;
 
                                 sampledMidtElevation = SampleProfile(midtProfile, station);
                                 double X = originX + station - pvStStart;
@@ -12761,30 +12729,12 @@ namespace IntersectUtilities
                                 Point3d brLocation = al.GetClosestPointTo(br.Position, false);
 
                                 double station = 0;
-                                try
-                                {
-                                    station = al.GetDistAtPoint(brLocation);
-                                }
-                                catch (System.Exception)
-                                {
-                                    prdDbg("GetDistAtPoint failed! Performing evasive maneouvres.");
-                                    //GetDistAtPoint failed again!!!!! perform evasive maneouvres
-                                    try
-                                    {
-                                        station = plineForSamplingDistance.GetDistAtPoint(brLocation);
-                                    }
-                                    catch (System.Exception ex)
-                                    {
-                                        prdDbg(br.Position.ToString());
-                                        prdDbg(brLocation.ToString());
-                                        prdDbg(ex.ToString());
-                                        throw;
-                                    }
-                                }
+                                double offset = 0;
+                                al.StationOffset(brLocation.X, brLocation.Y, ref station, ref offset);
 
                                 //Determine if blockref is within current PV
                                 //If within -> place block, else go to next iteration
-                                if (!(station > pvStStart && station < pvStEnd)) continue;
+                                if (!(station >= pvStStart && station <= pvStEnd)) continue;
 
                                 sampledMidtElevation = SampleProfile(midtProfile, station);
                                 double X = originX + station - pvStStart;
@@ -12908,10 +12858,12 @@ namespace IntersectUtilities
                                             //Determine if centre of arc is within view
                                             CircularArc2d arcSegment2dAt = pline.GetArcSegment2dAt(i);
                                             Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
-                                            double centreStation =
-                                                al.GetDistAtPoint(
-                                                    al.GetClosestPointTo(
-                                                        new Point3d(samplePoint.X, samplePoint.Y, 0), false));
+                                            Point3d location = al.GetClosestPointTo(
+                                                        new Point3d(samplePoint.X, samplePoint.Y, 0), false);
+                                            double centreStation = 0;
+                                            double centreOffset = 0;
+                                            al.StationOffset(location.X, location.Y, ref centreStation, ref centreOffset);
+
                                             //If centre of arc is not within PV -> continue
                                             if (!(centreStation > pvStStart && centreStation < pvStEnd)) continue;
 
@@ -12924,8 +12876,15 @@ namespace IntersectUtilities
                                             else tos = TypeOfSegment.ElasticArc;
 
                                             //Acquire start and end stations
-                                            double curveStartStation = al.GetDistAtPoint(al.GetClosestPointTo(pline.GetPoint3dAt(i), false));
-                                            double curveEndStation = al.GetDistAtPoint(al.GetClosestPointTo(pline.GetPoint3dAt(i + 1), false));
+                                            location = al.GetClosestPointTo(pline.GetPoint3dAt(i), false);
+                                            double curveStartStation = 0;
+                                            double offset = 0;
+                                            al.StationOffset(location.X, location.Y, ref curveStartStation, ref offset);
+
+                                            location = al.GetClosestPointTo(pline.GetPoint3dAt(i + 1), false);
+                                            double curveEndStation = 0;
+                                            al.StationOffset(location.X, location.Y, ref curveEndStation, ref offset);
+
                                             double length = curveEndStation - curveStartStation;
                                             //double midStation = curveStartStation + length / 2;
 
@@ -16808,6 +16767,50 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test exploding alignment
+                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select an alignment: ");
+                    //promptEntityOptions1.SetRejectMessage("\n Not an alignment!");
+                    //promptEntityOptions1.AddAllowedClass(typeof(Alignment), true);
+                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    //Autodesk.AutoCAD.DatabaseServices.ObjectId alId = entity1.ObjectId;
+                    //Alignment al = alId.Go<Alignment>(tx);
+
+                    ////DBObjectCollection objs = new DBObjectCollection();
+                    //////First explode
+                    ////al.Explode(objs);
+                    //////Explodes to 1 block
+                    ////Entity firstExplode = (Entity)objs[0];
+                    ////Second explode
+                    ////objs = new DBObjectCollection();
+                    ////firstExplode.Explode(objs);
+                    ////prdDbg($"Subsequent block exploded to number of items: {objs.Count}.");
+
+                    //List<Oid> explodedObjects = new List<Oid>();
+
+                    //ObjectEventHandler handler = (s, e) =>
+                    //{
+                    //    explodedObjects.Add(e.DBObject.ObjectId);
+                    //};
+
+                    //localDb.ObjectAppended += handler;
+                    //editor.Command("_explode", al.ObjectId);
+                    //localDb.ObjectAppended -= handler;
+
+                    //prdDbg(explodedObjects.Count.ToString());
+
+                    ////Assume block reference is the only item
+                    //Oid bId = explodedObjects.First();
+
+                    //explodedObjects.Clear();
+
+                    //localDb.ObjectAppended += handler;
+                    //editor.Command("_explode", bId);
+                    //localDb.ObjectAppended -= handler;
+
+                    //prdDbg(explodedObjects.Count.ToString());
+                    #endregion
+
                     #region Test size arrays
                     //Alignment al;
 
