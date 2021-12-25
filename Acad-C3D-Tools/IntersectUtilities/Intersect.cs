@@ -12505,13 +12505,12 @@ namespace IntersectUtilities
 
                         #endregion
 
-                        #region Create a pline from alignment for working around distatpoint problems
-
-                        #endregion
-
                         foreach (ProfileView pv in pvs)
                         {
                             prdDbg($"Processing PV {pv.Name}.");
+                            
+                            //Collection to hold component symbol blocks for overlap analysis
+                            List<BlockReference> allNewBrs = new List<BlockReference>();
 
                             #region Variables and settings
                             Point3d pvOrigin = pv.Location;
@@ -12561,6 +12560,8 @@ namespace IntersectUtilities
                                         dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                     brInt.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i].DN}");
                                     brInt.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[i + 1].DN}");
+
+                                    allNewBrs.Add(brInt);
                                 }
                                 //Special cases
                                 if (i == 0)
@@ -12575,6 +12576,8 @@ namespace IntersectUtilities
                                     brAt0.SetAttributeStringValue("LEFTSIZE", "");
                                     brAt0.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[0].DN}");
 
+                                    allNewBrs.Add(brAt0);
+
                                     if (pvSizeArray.Length == 1)
                                     {//If only one size in the array also place block at end
                                         curStationBL = pvStEnd;
@@ -12586,6 +12589,8 @@ namespace IntersectUtilities
                                             dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                         brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[0].DN}");
                                         brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
+
+                                        allNewBrs.Add(brAtEnd);
                                     }
                                 }
                                 if (i == pvSizeArray.Length - 2)
@@ -12599,6 +12604,8 @@ namespace IntersectUtilities
                                         dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                     brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i + 1].DN}");
                                     brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
+
+                                    allNewBrs.Add(brAtEnd);
                                 }
                             }
                             #endregion
@@ -12661,6 +12668,8 @@ namespace IntersectUtilities
                                         psmBelongs.ReadPropertyString(branchesOffToAlignmentProperty));
                                 else brSign.SetAttributeStringValue("RIGHTSIZE", "");
 
+                                allNewBrs.Add(brSign);
+
                                 psmSource.GetOrAttachPropertySet(brSign);
                                 psmSource.WritePropertyString(sourceEntityHandleProperty, br.Handle.ToString());
                             }
@@ -12711,6 +12720,8 @@ namespace IntersectUtilities
                                 psmBelongs.GetOrAttachPropertySet(br);
                                 brSign.SetAttributeStringValue("RIGHTSIZE",
                                         psmBelongs.ReadPropertyString(belongsToAlignmentProperty));
+
+                                allNewBrs.Add(brSign);
 
                                 psmSource.GetOrAttachPropertySet(brSign);
                                 psmSource.WritePropertyString(sourceEntityHandleProperty, br.Handle.ToString());
