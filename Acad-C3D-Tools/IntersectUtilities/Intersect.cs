@@ -12387,7 +12387,7 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    foreach (Alignment al in als)
+                    foreach (Alignment al in als.OrderBy(x => x.Name))
                     {
                         prdDbg($"\nProcessing: {al.Name}...");
                         #region If exist get surface profile and profile view
@@ -12508,7 +12508,7 @@ namespace IntersectUtilities
                         foreach (ProfileView pv in pvs)
                         {
                             prdDbg($"Processing PV {pv.Name}.");
-                            
+
                             //Collection to hold component symbol blocks for overlap analysis
                             List<BlockReference> allNewBrs = new List<BlockReference>();
 
@@ -12728,6 +12728,36 @@ namespace IntersectUtilities
                             }
                             #endregion
 
+                            #region Sort overlapping component and size labels
+                            var clusters = allNewBrs.GroupByCluster((x, y) => Overlaps(x, y), 0.0001);
+
+                            foreach (IGrouping<BlockReference, BlockReference> cluster in clusters)
+                            {
+                                if (cluster.Count() < 2) continue;
+
+                                var xSorted = cluster.OrderBy(x => x.Position.X).ToArray();
+                                for (int i = 0; i < xSorted.Length - 1; i++)
+                                {
+                                    Extents3d extents = xSorted[i].GeometricExtents;
+                                    double deltaY = (extents.MaxPoint.Y - xSorted[i].Position.Y) - 0.6156 + 0.1;
+
+                                    BlockReference nextBlock = xSorted[i + 1];
+
+                                    DynamicBlockReferencePropertyCollection dbrpc =
+                                        nextBlock.DynamicBlockReferencePropertyCollection;
+                                    foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
+                                    {
+                                        if (dbrp.PropertyName == "TOP_EXTENSION")
+                                        {
+                                            //prdDbg(length.ToString());
+                                            dbrp.Value = deltaY;
+                                        }
+                                    }
+                                }
+                            }
+
+                            #endregion
+
                             #region Place weld blocks
                             HashSet<BlockReference> newWeldNumberBlocks = new HashSet<BlockReference>();
 
@@ -12795,9 +12825,9 @@ namespace IntersectUtilities
                                     profileViewStyle.GraphStyle.VerticalExaggeration, 1);
                                 #endregion
                             }
+                            #endregion
 
-                            #region Find overlapping weld labels and find a solution
-                            var clusters = newWeldNumberBlocks.GroupByCluster((x, y) => Overlaps(x, y), 0.0001);
+                            #region Overlaps function
                             double Overlaps(BlockReference i, BlockReference j)
                             {
                                 Extents3d extI = i.GeometricExtents;
@@ -12816,6 +12846,11 @@ namespace IntersectUtilities
 
                                 return result < 0 ? 0 : result;
                             }
+                            #endregion
+
+                            #region Find overlapping weld labels and find a solution
+                            clusters = newWeldNumberBlocks.GroupByCluster((x, y) => Overlaps(x, y), 0.0001);
+
                             foreach (IGrouping<BlockReference, BlockReference> cluster in clusters)
                             {
                                 if (cluster.Count() < 2) continue;
@@ -12850,7 +12885,6 @@ namespace IntersectUtilities
                                     i++;
                                 }
                             }
-                            #endregion
                             #endregion
 
                             #region Find curves and annotate
@@ -12971,6 +13005,51 @@ namespace IntersectUtilities
                 fremDb.Dispose();
                 tx.Commit();
             }
+        }
+
+        [CommandMethod("DELETEDETAILING")]
+        public void deletedetailing()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                //////////////////////////////////////
+                List<string> names = new List<string>();
+                names.Add("DRISizeChangeAnno");
+                names.Add("DRIPipeArcAnno");
+                names.Add("DRIWeldAnno");
+                names.Add("DRIWeldAnnoText");
+                //////////////////////////////////////
+
+                #region Delete previous blocks
+                //Delete previous blocks
+                foreach (string name in names)
+                {
+                    var existingBlocks = localDb.HashSetOfType<BlockReference>(tx);
+                    prdDbg(existingBlocks.Count.ToString());
+                    foreach (BlockReference br in existingBlocks)
+                    {
+                        if (br.RealName() == name)
+                        {
+                            br.CheckOrOpenForWrite();
+                            br.Erase(true);
+                        }
+                    } 
+                }
+                #endregion
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("MOVECOMPONENTINPROFILEVIEW")]
+        public void movecomponentinprofileview()
+        {
+
         }
 
         [CommandMethod("resetprofileviews")]

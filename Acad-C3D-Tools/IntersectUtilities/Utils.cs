@@ -1818,6 +1818,7 @@ namespace IntersectUtilities
             double start = 0;
             double end = 0;
             double kod = 0;
+            double offset = 0;
 
             for (int i = 0; i < brsArray.Length; i++)
             {
@@ -1828,7 +1829,8 @@ namespace IntersectUtilities
                     //First iteration case
                     dn = GetDirectionallyCorrectDn(curBr, Side.Left, dt);
                     start = 0;
-                    end = al.GetDistAtPoint(al.GetClosestPointTo(curBr.Position, false));
+                    Point3d p3d = al.GetClosestPointTo(curBr.Position, false);
+                    al.StationOffset(p3d.X, p3d.Y, ref end, ref offset);
                     kod = GetDirectionallyCorrectKod(curBr, Side.Left, dt);
 
                     sizes.Add(new SizeEntry(dn, start, end, kod));
@@ -1854,7 +1856,8 @@ namespace IntersectUtilities
 
                     dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
                     start = end;
-                    end = al.GetDistAtPoint(al.GetClosestPointTo(nextBr.Position, false));
+                    Point3d p3d = al.GetClosestPointTo(nextBr.Position, false);
+                    al.StationOffset(p3d.X, p3d.Y, ref end, ref offset);
                     kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
 
                     sizes.Add(new SizeEntry(dn, start, end, kod));

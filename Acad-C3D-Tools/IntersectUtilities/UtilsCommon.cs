@@ -1402,7 +1402,7 @@ namespace IntersectUtilities.UtilsCommon
 
             if (blkTable.Has(_BlockName))
             {
-                //Utils.prdDbg("Block exists!");
+                Utils.prdDbg("Block exists!");
                 ObjectId BlkRecId = blkTable[_BlockName];
 
                 if (BlkRecId != null)
