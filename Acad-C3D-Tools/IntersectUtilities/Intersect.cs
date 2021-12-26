@@ -13039,7 +13039,7 @@ namespace IntersectUtilities
                             br.CheckOrOpenForWrite();
                             br.Erase(true);
                         }
-                    } 
+                    }
                 }
                 #endregion
                 tx.Commit();
@@ -13049,7 +13049,170 @@ namespace IntersectUtilities
         [CommandMethod("MOVECOMPONENTINPROFILEVIEW")]
         public void movecomponentinprofileview()
         {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
 
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                #region Select profile view
+                PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select a ProfileView where to move component: ");
+                promptEntityOptions2.SetRejectMessage("\n Not a ProfileView");
+                promptEntityOptions2.AddAllowedClass(typeof(ProfileView), true);
+                PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                if (((PromptResult)entity2).Status != PromptStatus.OK)
+                {
+                    tx.Abort();
+                    return;
+                }
+                ProfileView profileView = tx.GetObject(entity2.ObjectId, OpenMode.ForRead) as ProfileView;
+                #endregion
+
+                #region Select component block
+                PromptEntityOptions promptEntityOptions = new PromptEntityOptions("\n Select component to move: ");
+                promptEntityOptions.SetRejectMessage("\n Not a block reference!");
+                promptEntityOptions.AddAllowedClass(typeof(BlockReference), true);
+                PromptEntityResult entity = editor.GetEntity(promptEntityOptions);
+                if (((PromptResult)entity).Status != PromptStatus.OK)
+                {
+                    tx.Abort();
+                    return;
+                }
+                Autodesk.AutoCAD.DatabaseServices.ObjectId Id = entity.ObjectId;
+                BlockReference detailingBr = tx.GetObject(Id, OpenMode.ForWrite, false) as BlockReference;
+                #endregion
+
+                #region Select point where to move
+                PromptPointOptions pPtOpts = new PromptPointOptions("");
+                // Prompt for the start point
+                pPtOpts.Message = "\nEnter location where to move the component:";
+                PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
+                Point3d selectedPointOnPV = pPtRes.Value;
+                // Exit if the user presses ESC or cancels the command
+                if (pPtRes.Status != PromptStatus.OK)
+                {
+                    tx.Abort();
+                    return;
+                }
+                #endregion
+
+                ////////////////////////////////////////
+                PropertySetManager.DefinedSets setNameSource = PropertySetManager.DefinedSets.DriSourceReference;
+                string propertyNameReference = "SourceEntityHandle";
+                ////////////////////////////////////////
+
+                PropertySetManager psmHandle = new PropertySetManager(localDb, setNameSource);
+
+                #region Open fremtidig db
+                DataReferencesOptions dro = new DataReferencesOptions();
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
+
+                //open the xref database
+                Database fremDb = new Database(false, true);
+                fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
+                    System.IO.FileShare.ReadWrite, false, string.Empty);
+                Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                //HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
+                HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                #endregion
+
+                //Welds cannot be moved at the same time
+                //As I cannot determine the new location
+                //I think I could do it...
+                //By finding the vector offset at the original location and applying
+                //The same offset to the new point, buuuuuut....
+                //I don't bother... yet...
+
+                //////////////////////////////////////////
+                //PropertySetManager.DefinedSets setNameBelongsTo = PropertySetManager.DefinedSets.DriPipelineData;
+                //string propertyNameBelongsTo = "BelongsToAlignment";
+                //////////////////////////////////////////
+
+                //PropertySetManager psmBelongsTo = new PropertySetManager(fremDb, setNameBelongsTo);
+
+                try
+                {
+                    #region Get the original source component block
+                    psmHandle.GetOrAttachPropertySet(detailingBr);
+                    string originalHandleString = psmHandle.ReadPropertyString(propertyNameReference);
+                    prdDbg(originalHandleString);
+                    long ln = Convert.ToInt64(originalHandleString, 16);
+                    Handle hn = new Handle(ln);
+                    BlockReference originalBr = fremDb.GetObjectId(false, hn, 0)
+                                                      .Go<BlockReference>(fremTx);
+                    //Original location
+                    Point3d originalLocation = originalBr.Position;
+                    #endregion
+
+                    #region Determine the new location
+                    double station = 0;
+                    double elevation = 0;
+                    profileView.FindStationAndElevationAtXY(selectedPointOnPV.X, selectedPointOnPV.Y,
+                        ref station, ref elevation);
+
+                    double newX = 0;
+                    double newY = 0;
+
+                    Alignment al = profileView.AlignmentId.Go<Alignment>(tx);
+                    al.PointLocation(station, 0, ref newX, ref newY);
+                    Point3d newLocation = new Point3d(newX, newY, 0);
+                    #endregion
+
+                    #region Find block's welds
+                    ////Filter allBrs to only contain belonging to the alignment in question
+                    //HashSet<BlockReference> alBrs = allBrs.Where(x =>
+                    //   psmBelongsTo.FilterPropetyString(x, propertyNameBelongsTo, al.Name)).ToHashSet();
+
+                    //HashSet<BlockReference> welds = new HashSet<BlockReference>();
+
+                    //BlockTableRecord originalBtr = originalBr.BlockTableRecord.Go<BlockTableRecord>(fremTx);
+                    //foreach (Oid oid in originalBtr)
+                    //{
+                    //    if (!oid.IsDerivedFrom<BlockReference>()) continue;
+                    //    BlockReference nestedBr = oid.Go<BlockReference>(fremTx);
+                    //    if (!nestedBr.Name.Contains("MuffeIntern")) continue;
+                    //    Point3d wPt = nestedBr.Position;
+                    //    wPt = wPt.TransformBy(originalBr.BlockTransform);
+                    //    BlockReference weld = alBrs.Where(x =>
+                    //            x.Position.HorizontalEqualz(wPt) &&
+                    //            x.RealName() == "Svejsepunkt")
+                    //             .FirstOrDefault();
+                    //    if (weld != default) welds.Add(weld);
+                    //}
+                    #endregion
+
+                    #region Move the original block
+                    Vector3d moveVector = originalLocation.GetVectorTo(newLocation);
+                    originalBr.CheckOrOpenForWrite();
+                    originalBr.TransformBy(Matrix3d.Displacement(moveVector));
+                    #endregion
+
+                    #region Move welds
+                    //foreach (BlockReference weld in welds)
+                    //{
+                    //    weld.CheckOrOpenForWrite();
+                    //    weld.TransformBy(Matrix3d.Displacement(moveVector));
+                    //}
+                    #endregion
+
+                }
+                catch (System.Exception ex)
+                {
+                    fremTx.Abort();
+                    fremTx.Dispose();
+                    fremDb.Dispose();
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                fremTx.Commit();
+                fremTx.Dispose();
+                fremDb.SaveAs(fremDb.Filename, true, DwgVersion.Current, null);
+                fremDb.Dispose();
+                tx.Commit();
+            }
         }
 
         [CommandMethod("resetprofileviews")]
