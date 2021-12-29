@@ -125,737 +125,737 @@ namespace IntersectUtilities.UtilsCommon
     public static class UtilsODData
     {
         #region "Map 3D Utility Function"
-        /// <summary>
-        /// Removes the Table named tableName.
-        /// </summary>
-        /// <remarks>
-        /// Throws no exception in common conditions.
-        /// </remarks>
-        public static bool RemoveTable(Tables tables, string tableName)
-        {
-            try
-            {
-                tables.RemoveTable(tableName);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+        ///// <summary>
+        ///// Removes the Table named tableName.
+        ///// </summary>
+        ///// <remarks>
+        ///// Throws no exception in common conditions.
+        ///// </remarks>
+        //public static bool RemoveTable(Tables tables, string tableName)
+        //{
+        //    try
+        //    {
+        //        tables.RemoveTable(tableName);
+        //        return true;
+        //    }
+        //    catch
+        //    {
+        //        return false;
+        //    }
+        //}
 
-        /// <summary>
-        /// Creates a Table named tableName.
-        /// </summary>
-        /// <remarks>
-        /// Throws no exception in common conditions.
-        /// </remarks>
-        public static bool CreateTable(
-            Tables tables, string tableName, string tableDescription,
-            string[] columnNames, string[] columnDescriptions,
-            Autodesk.Gis.Map.Constants.DataType[] dataTypes)
-        {
-            ErrorCode errODCode = ErrorCode.OK;
-            Autodesk.Gis.Map.ObjectData.Table table = null;
+        ///// <summary>
+        ///// Creates a Table named tableName.
+        ///// </summary>
+        ///// <remarks>
+        ///// Throws no exception in common conditions.
+        ///// </remarks>
+        //public static bool CreateTable(
+        //    Tables tables, string tableName, string tableDescription,
+        //    string[] columnNames, string[] columnDescriptions,
+        //    Autodesk.Gis.Map.Constants.DataType[] dataTypes)
+        //{
+        //    ErrorCode errODCode = ErrorCode.OK;
+        //    Autodesk.Gis.Map.ObjectData.Table table = null;
 
-            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+        //    Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
 
-            try
-            {
-                table = tables[tableName];
-            }
-            catch (MapException e)
-            {
-                errODCode = (ErrorCode)(e.ErrorCode);
-            }
+        //    try
+        //    {
+        //        table = tables[tableName];
+        //    }
+        //    catch (MapException e)
+        //    {
+        //        errODCode = (ErrorCode)(e.ErrorCode);
+        //    }
 
-            if (ErrorCode.ErrorObjectNotFound == errODCode)
-            {
-                try
-                {
-                    MapApplication app = HostMapApplicationServices.Application;
+        //    if (ErrorCode.ErrorObjectNotFound == errODCode)
+        //    {
+        //        try
+        //        {
+        //            MapApplication app = HostMapApplicationServices.Application;
 
-                    FieldDefinitions tabDefs = app.ActiveProject.MapUtility.NewODFieldDefinitions();
+        //            FieldDefinitions tabDefs = app.ActiveProject.MapUtility.NewODFieldDefinitions();
 
-                    for (int i = 0; i < columnNames.Length; i++)
-                    {
-                        FieldDefinition def = FieldDefinition.Create(columnNames[i], columnDescriptions[i], dataTypes[i]);
-                        if (!def.IsValid)
-                        {
-                            ed.WriteMessage($"\nField Definition {def.Name} is not valid!");
-                        }
-                        tabDefs.AddColumn(def, i);
-                    }
+        //            for (int i = 0; i < columnNames.Length; i++)
+        //            {
+        //                FieldDefinition def = FieldDefinition.Create(columnNames[i], columnDescriptions[i], dataTypes[i]);
+        //                if (!def.IsValid)
+        //                {
+        //                    ed.WriteMessage($"\nField Definition {def.Name} is not valid!");
+        //                }
+        //                tabDefs.AddColumn(def, i);
+        //            }
 
-                    tables.Add(tableName, tabDefs, tableDescription, true);
+        //            tables.Add(tableName, tabDefs, tableDescription, true);
 
-                    return true;
-                }
-                catch (MapException e)
-                {
-                    // Deal with the exception as your will
-                    errODCode = (ErrorCode)(e.ErrorCode);
+        //            return true;
+        //        }
+        //        catch (MapException e)
+        //        {
+        //            // Deal with the exception as your will
+        //            errODCode = (ErrorCode)(e.ErrorCode);
 
-                    ed.WriteMessage($"\nCreating table failed with error: {errODCode} and stacktrace: {e.StackTrace}.");
-                    return false;
-                }
-            }
+        //            ed.WriteMessage($"\nCreating table failed with error: {errODCode} and stacktrace: {e.StackTrace}.");
+        //            return false;
+        //        }
+        //    }
 
-            return false;
-        }
+        //    return false;
+        //}
 
-        /// <summary>
-        /// Adds a record to a Table named tableName, the record is generated automatically.
-        /// </summary>
-        public static bool AddODRecord(Tables tables, string tableName,
-                                          Oid id, MapValue[] values)
-        {
-            try
-            {
-                Autodesk.Gis.Map.ObjectData.Table table = tables[tableName];
+        ///// <summary>
+        ///// Adds a record to a Table named tableName, the record is generated automatically.
+        ///// </summary>
+        //public static bool AddODRecord(Tables tables, string tableName,
+        //                                  Oid id, MapValue[] values)
+        //{
+        //    try
+        //    {
+        //        Autodesk.Gis.Map.ObjectData.Table table = tables[tableName];
 
-                // Create and initialize an record 
-                Record tblRcd = Record.Create();
-                table.InitRecord(tblRcd);
+        //        // Create and initialize an record 
+        //        Record tblRcd = Record.Create();
+        //        table.InitRecord(tblRcd);
 
-                for (int i = 0; i < tblRcd.Count; i++)
-                {
-                    switch (tblRcd[i].Type)
-                    {
-                        case Autodesk.Gis.Map.Constants.DataType.UnknownType:
-                            return false;
-                        case Autodesk.Gis.Map.Constants.DataType.Integer:
-                            if (tblRcd[i].Type == values[i].Type)
-                            {
-                                tblRcd[i].Assign(values[i]);
-                            }
-                            else return false;
-                            break;
-                        case Autodesk.Gis.Map.Constants.DataType.Real:
-                            if (tblRcd[i].Type == values[i].Type)
-                            {
-                                tblRcd[i].Assign(values[i]);
-                            }
-                            else return false;
-                            break;
-                        case Autodesk.Gis.Map.Constants.DataType.Character:
-                            if (tblRcd[i].Type == values[i].Type)
-                            {
-                                tblRcd[i].Assign(values[i]);
-                            }
-                            else return false;
-                            break;
-                        case Autodesk.Gis.Map.Constants.DataType.Point:
-                            if (tblRcd[i].Type == values[i].Type)
-                            {
-                                tblRcd[i].Assign(values[i]);
-                            }
-                            else return false;
-                            break;
-                        default:
-                            return false;
-                    }
-                }
+        //        for (int i = 0; i < tblRcd.Count; i++)
+        //        {
+        //            switch (tblRcd[i].Type)
+        //            {
+        //                case Autodesk.Gis.Map.Constants.DataType.UnknownType:
+        //                    return false;
+        //                case Autodesk.Gis.Map.Constants.DataType.Integer:
+        //                    if (tblRcd[i].Type == values[i].Type)
+        //                    {
+        //                        tblRcd[i].Assign(values[i]);
+        //                    }
+        //                    else return false;
+        //                    break;
+        //                case Autodesk.Gis.Map.Constants.DataType.Real:
+        //                    if (tblRcd[i].Type == values[i].Type)
+        //                    {
+        //                        tblRcd[i].Assign(values[i]);
+        //                    }
+        //                    else return false;
+        //                    break;
+        //                case Autodesk.Gis.Map.Constants.DataType.Character:
+        //                    if (tblRcd[i].Type == values[i].Type)
+        //                    {
+        //                        tblRcd[i].Assign(values[i]);
+        //                    }
+        //                    else return false;
+        //                    break;
+        //                case Autodesk.Gis.Map.Constants.DataType.Point:
+        //                    if (tblRcd[i].Type == values[i].Type)
+        //                    {
+        //                        tblRcd[i].Assign(values[i]);
+        //                    }
+        //                    else return false;
+        //                    break;
+        //                default:
+        //                    return false;
+        //            }
+        //        }
 
-                table.AddRecord(tblRcd, id);
+        //        table.AddRecord(tblRcd, id);
 
-                return true;
-            }
-            catch (MapException)
-            {
-                return false;
-            }
-        }
-        public static bool AddEmptyODRecord(Autodesk.Gis.Map.ObjectData.Table table, Oid id)
-        {
-            try
-            {
-                // Create and initialize an record 
-                Record tblRcd = Record.Create();
-                table.InitRecord(tblRcd);
-                table.AddRecord(tblRcd, id);
+        //        return true;
+        //    }
+        //    catch (MapException)
+        //    {
+        //        return false;
+        //    }
+        //}
+        //public static bool AddEmptyODRecord(Autodesk.Gis.Map.ObjectData.Table table, Oid id)
+        //{
+        //    try
+        //    {
+        //        // Create and initialize an record 
+        //        Record tblRcd = Record.Create();
+        //        table.InitRecord(tblRcd);
+        //        table.AddRecord(tblRcd, id);
 
-                return true;
-            }
-            catch (MapException)
-            {
-                return false;
-            }
-        }
+        //        return true;
+        //    }
+        //    catch (MapException)
+        //    {
+        //        return false;
+        //    }
+        //}
 
-        public static bool AddODRecord(Tables tables, string tableName, string columnName,
-                                          Oid id, MapValue originalValue)
-        {
-            try
-            {
-                Autodesk.Gis.Map.ObjectData.Table table = tables[tableName];
-                FieldDefinitions tableDef = table.FieldDefinitions;
+        //public static bool AddODRecord(Tables tables, string tableName, string columnName,
+        //                                  Oid id, MapValue originalValue)
+        //{
+        //    try
+        //    {
+        //        Autodesk.Gis.Map.ObjectData.Table table = tables[tableName];
+        //        FieldDefinitions tableDef = table.FieldDefinitions;
 
-                // Create and initialize an record B
-                Record tblRcd = Record.Create();
-                table.InitRecord(tblRcd);
+        //        // Create and initialize an record B
+        //        Record tblRcd = Record.Create();
+        //        table.InitRecord(tblRcd);
 
-                for (int i = 0; i < tblRcd.Count; i++)
-                {
-                    FieldDefinition column = tableDef[i];
-                    if (column.Name == columnName && table.Name == tableName)
-                    {
-                        MapValue newValue = tblRcd[i];
-                        newValue.Assign(originalValue);
-                        //switch (newValue.Type)
-                        //{
-                        //    case Autodesk.Gis.Map.Constants.DataType.UnknownType:
-                        //        return false;
-                        //    case Autodesk.Gis.Map.Constants.DataType.Integer:
-                        //        if (originalValue.Type == newValue.Type)
-                        //        {
-                        //            newValue.Assign(originalValue.Int32Value);
-                        //        }
-                        //        break;
-                        //    case Autodesk.Gis.Map.Constants.DataType.Real:
-                        //        if (originalValue.Type == newValue.Type)
-                        //        {
-                        //            newValue.Assign(originalValue.DoubleValue);
-                        //        }
-                        //        break;
-                        //    case Autodesk.Gis.Map.Constants.DataType.Character:
-                        //        if (originalValue.Type == newValue.Type)
-                        //        {
-                        //            newValue.Assign(originalValue.StrValue);
-                        //        }
-                        //        break;
-                        //    case Autodesk.Gis.Map.Constants.DataType.Point:
-                        //        if (originalValue.Type == newValue.Type)
-                        //        {
-                        //            newValue.Assign(originalValue.Point);
-                        //        }
-                        //        break;
-                        //    default:
-                        //        return false;
-                        //}
-                    }
-                }
+        //        for (int i = 0; i < tblRcd.Count; i++)
+        //        {
+        //            FieldDefinition column = tableDef[i];
+        //            if (column.Name == columnName && table.Name == tableName)
+        //            {
+        //                MapValue newValue = tblRcd[i];
+        //                newValue.Assign(originalValue);
+        //                //switch (newValue.Type)
+        //                //{
+        //                //    case Autodesk.Gis.Map.Constants.DataType.UnknownType:
+        //                //        return false;
+        //                //    case Autodesk.Gis.Map.Constants.DataType.Integer:
+        //                //        if (originalValue.Type == newValue.Type)
+        //                //        {
+        //                //            newValue.Assign(originalValue.Int32Value);
+        //                //        }
+        //                //        break;
+        //                //    case Autodesk.Gis.Map.Constants.DataType.Real:
+        //                //        if (originalValue.Type == newValue.Type)
+        //                //        {
+        //                //            newValue.Assign(originalValue.DoubleValue);
+        //                //        }
+        //                //        break;
+        //                //    case Autodesk.Gis.Map.Constants.DataType.Character:
+        //                //        if (originalValue.Type == newValue.Type)
+        //                //        {
+        //                //            newValue.Assign(originalValue.StrValue);
+        //                //        }
+        //                //        break;
+        //                //    case Autodesk.Gis.Map.Constants.DataType.Point:
+        //                //        if (originalValue.Type == newValue.Type)
+        //                //        {
+        //                //            newValue.Assign(originalValue.Point);
+        //                //        }
+        //                //        break;
+        //                //    default:
+        //                //        return false;
+        //                //}
+        //            }
+        //        }
 
-                table.AddRecord(tblRcd, id);
-                return true;
-            }
-            catch (MapException)
-            {
-                return false;
-            }
-        }
+        //        table.AddRecord(tblRcd, id);
+        //        return true;
+        //    }
+        //    catch (MapException)
+        //    {
+        //        return false;
+        //    }
+        //}
 
-        /// <summary>
-        /// Updates a record to a Table named tableName, the record is generated automatically.
-        /// </summary>
-        public static bool UpdateODRecord<T>(Tables tables, string tableName, string columnName,
-                                          Oid id, T value)
-        {
-            try
-            {
-                ErrorCode errCode = ErrorCode.OK;
+        ///// <summary>
+        ///// Updates a record to a Table named tableName, the record is generated automatically.
+        ///// </summary>
+        //public static bool UpdateODRecord<T>(Tables tables, string tableName, string columnName,
+        //                                  Oid id, T value)
+        //{
+        //    try
+        //    {
+        //        ErrorCode errCode = ErrorCode.OK;
 
-                bool success = true;
+        //        bool success = true;
 
-                // Get and Initialize Records
-                using (Records records = tables.GetObjectRecords
-                    (0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForWrite, false))
-                {
-                    if (records.Count == 0)
-                    {
-                        //prdDbg($"\nThere is no ObjectData record attached on the entity.");
-                        return false;
-                    }
+        //        // Get and Initialize Records
+        //        using (Records records = tables.GetObjectRecords
+        //            (0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForWrite, false))
+        //        {
+        //            if (records.Count == 0)
+        //            {
+        //                //prdDbg($"\nThere is no ObjectData record attached on the entity.");
+        //                return false;
+        //            }
 
-                    // Iterate through all records
-                    foreach (Record record in records)
-                    {
-                        // Get record info
-                        for (int i = 0; i < record.Count; i++)
-                        {
-                            Autodesk.Gis.Map.ObjectData.Table table = tables[record.TableName];
-                            FieldDefinitions tableDef = table.FieldDefinitions;
-                            FieldDefinition column = tableDef[i];
-                            if (column.Name == columnName && record.TableName == tableName)
-                            {
-                                MapValue val = record[i];
+        //            // Iterate through all records
+        //            foreach (Record record in records)
+        //            {
+        //                // Get record info
+        //                for (int i = 0; i < record.Count; i++)
+        //                {
+        //                    Autodesk.Gis.Map.ObjectData.Table table = tables[record.TableName];
+        //                    FieldDefinitions tableDef = table.FieldDefinitions;
+        //                    FieldDefinition column = tableDef[i];
+        //                    if (column.Name == columnName && record.TableName == tableName)
+        //                    {
+        //                        MapValue val = record[i];
 
-                                switch (value)
-                                {
-                                    case int integer:
-                                        if (val.Type == Autodesk.Gis.Map.Constants.DataType.Integer)
-                                        {
-                                            val = val.Assign(integer);
-                                        }
-                                        else return false;
-                                        break;
-                                    case string str:
-                                        if (val.Type == Autodesk.Gis.Map.Constants.DataType.Character)
-                                        {
-                                            val = val.Assign(str);
-                                        }
-                                        else return false;
-                                        break;
-                                    case double real:
-                                        if (val.Type == Autodesk.Gis.Map.Constants.DataType.Real)
-                                        {
-                                            val = val.Assign(real);
-                                        }
-                                        else return false;
-                                        break;
-                                    default:
-                                        return false;
-                                }
-                            }
-                        }
-                    }
-                }
-                return true;
-            }
-            catch (MapException)
-            {
-                return false;
-            }
-        }
+        //                        switch (value)
+        //                        {
+        //                            case int integer:
+        //                                if (val.Type == Autodesk.Gis.Map.Constants.DataType.Integer)
+        //                                {
+        //                                    val = val.Assign(integer);
+        //                                }
+        //                                else return false;
+        //                                break;
+        //                            case string str:
+        //                                if (val.Type == Autodesk.Gis.Map.Constants.DataType.Character)
+        //                                {
+        //                                    val = val.Assign(str);
+        //                                }
+        //                                else return false;
+        //                                break;
+        //                            case double real:
+        //                                if (val.Type == Autodesk.Gis.Map.Constants.DataType.Real)
+        //                                {
+        //                                    val = val.Assign(real);
+        //                                }
+        //                                else return false;
+        //                                break;
+        //                            default:
+        //                                return false;
+        //                        }
+        //                    }
+        //                }
+        //            }
+        //        }
+        //        return true;
+        //    }
+        //    catch (MapException)
+        //    {
+        //        return false;
+        //    }
+        //}
 
-        public static bool UpdateODRecord(Tables tables, string tableName, string columnName,
-                                          Oid id, MapValue value)
-        {
-            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+        //public static bool UpdateODRecord(Tables tables, string tableName, string columnName,
+        //                                  Oid id, MapValue value)
+        //{
+        //    Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
 
-            try
-            {
-                ErrorCode errCode = ErrorCode.OK;
+        //    try
+        //    {
+        //        ErrorCode errCode = ErrorCode.OK;
 
-                bool success = false;
+        //        bool success = false;
 
-                // Get and Initialize Records
-                using (Records records = tables.GetObjectRecords
-                    (0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForWrite, false))
-                {
-                    if (records.Count == 0)
-                    {
-                        ed.WriteMessage($"\nThere is no ObjectData record attached on the entity.");
-                        return false;
-                    }
+        //        // Get and Initialize Records
+        //        using (Records records = tables.GetObjectRecords
+        //            (0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForWrite, false))
+        //        {
+        //            if (records.Count == 0)
+        //            {
+        //                ed.WriteMessage($"\nThere is no ObjectData record attached on the entity.");
+        //                return false;
+        //            }
 
-                    // Iterate through all records
-                    foreach (Record record in records)
-                    {
-                        Autodesk.Gis.Map.ObjectData.Table table = tables[record.TableName];
-                        FieldDefinitions tableDef = table.FieldDefinitions;
-                        // Get record info
-                        for (int i = 0; i < record.Count; i++)
-                        {
-                            FieldDefinition column = tableDef[i];
-                            if (column.Name == columnName && record.TableName == tableName)
-                            {
-                                MapValue val = record[i];
-                                val.Assign(value);
-                                records.UpdateRecord(record);
-                                return true;
-                            }
-                        }
-                    }
-                }
-                return false;
-            }
-            catch (MapException ex)
-            {
-                prdDbg(((Autodesk.Gis.Map.Constants.ErrorCode)ex.ErrorCode).ToString());
-                return false;
-            }
-        }
+        //            // Iterate through all records
+        //            foreach (Record record in records)
+        //            {
+        //                Autodesk.Gis.Map.ObjectData.Table table = tables[record.TableName];
+        //                FieldDefinitions tableDef = table.FieldDefinitions;
+        //                // Get record info
+        //                for (int i = 0; i < record.Count; i++)
+        //                {
+        //                    FieldDefinition column = tableDef[i];
+        //                    if (column.Name == columnName && record.TableName == tableName)
+        //                    {
+        //                        MapValue val = record[i];
+        //                        val.Assign(value);
+        //                        records.UpdateRecord(record);
+        //                        return true;
+        //                    }
+        //                }
+        //            }
+        //        }
+        //        return false;
+        //    }
+        //    catch (MapException ex)
+        //    {
+        //        prdDbg(((Autodesk.Gis.Map.Constants.ErrorCode)ex.ErrorCode).ToString());
+        //        return false;
+        //    }
+        //}
 
-        /// <summary>
-        /// Prints the records obtained by id.
-        /// </summary>
-        public static MapValue ReadRecordData(Tables tables, Oid id, string tableName, string columnName)
-        {
-            ErrorCode errCode = ErrorCode.OK;
-            try
-            {
-                // Get and Initialize Records
-                using (Records records
-                           = tables.GetObjectRecords(0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+        ///// <summary>
+        ///// Prints the records obtained by id.
+        ///// </summary>
+        //public static MapValue ReadRecordData(Tables tables, Oid id, string tableName, string columnName)
+        //{
+        //    ErrorCode errCode = ErrorCode.OK;
+        //    try
+        //    {
+        //        // Get and Initialize Records
+        //        using (Records records
+        //                   = tables.GetObjectRecords(0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
 
-                {
-                    if (records.Count == 0)
-                    {
-                        prdDbg("records.Count is 0!");
-                        //prdDbg($"\nThere is no ObjectData record attached on the entity.");
-                        return null;
-                    }
-                    // Iterate through all records
-                    foreach (Record record in records)
-                    {
-                        // Get the table
-                        var table = tables[record.TableName];
-                        // Get record info
-                        for (int i = 0; i < record.Count; i++)
-                        {
-                            FieldDefinitions tableDef = table.FieldDefinitions;
-                            FieldDefinition column = tableDef[i];
-                            if (column.Name == columnName && record.TableName == tableName)
-                            {
-                                return record[i];
-                            }
-                        }
-                    }
-                }
+        //        {
+        //            if (records.Count == 0)
+        //            {
+        //                prdDbg("records.Count is 0!");
+        //                //prdDbg($"\nThere is no ObjectData record attached on the entity.");
+        //                return null;
+        //            }
+        //            // Iterate through all records
+        //            foreach (Record record in records)
+        //            {
+        //                // Get the table
+        //                var table = tables[record.TableName];
+        //                // Get record info
+        //                for (int i = 0; i < record.Count; i++)
+        //                {
+        //                    FieldDefinitions tableDef = table.FieldDefinitions;
+        //                    FieldDefinition column = tableDef[i];
+        //                    if (column.Name == columnName && record.TableName == tableName)
+        //                    {
+        //                        return record[i];
+        //                    }
+        //                }
+        //            }
+        //        }
 
-                return null;
-            }
-            catch (MapException e)
-            {
-                errCode = (ErrorCode)(e.ErrorCode);
-                // Deal with the exception here as your will
-                prdDbg("Exception in ReadIntPropertyValue -> ReadRecordData!");
-                prdDbg(e.Message);
-                prdDbg(((ErrorCode)e.ErrorCode).ToString());
-                return null;
-            }
-        }
+        //        return null;
+        //    }
+        //    catch (MapException e)
+        //    {
+        //        errCode = (ErrorCode)(e.ErrorCode);
+        //        // Deal with the exception here as your will
+        //        prdDbg("Exception in ReadIntPropertyValue -> ReadRecordData!");
+        //        prdDbg(e.Message);
+        //        prdDbg(((ErrorCode)e.ErrorCode).ToString());
+        //        return null;
+        //    }
+        //}
 
-        public static int ReadIntPropertyValue(Tables tables, Oid id, string tableName, string columnName)
-        {
-            ErrorCode errCode = ErrorCode.OK;
-            try
-            {
-                MapValue value = ReadRecordData(tables, id, tableName, columnName);
-                if (value != null) return value.Int32Value;
-                else return 0;
-            }
-            catch (MapException e)
-            {
-                errCode = (ErrorCode)(e.ErrorCode);
-                // Deal with the exception here as your will
-                prdDbg("MapException in ReadIntPropertyValue!");
-                prdDbg(e.Message);
-                prdDbg(((ErrorCode)e.ErrorCode).ToString());
+        //public static int ReadIntPropertyValue(Tables tables, Oid id, string tableName, string columnName)
+        //{
+        //    ErrorCode errCode = ErrorCode.OK;
+        //    try
+        //    {
+        //        MapValue value = ReadRecordData(tables, id, tableName, columnName);
+        //        if (value != null) return value.Int32Value;
+        //        else return 0;
+        //    }
+        //    catch (MapException e)
+        //    {
+        //        errCode = (ErrorCode)(e.ErrorCode);
+        //        // Deal with the exception here as your will
+        //        prdDbg("MapException in ReadIntPropertyValue!");
+        //        prdDbg(e.Message);
+        //        prdDbg(((ErrorCode)e.ErrorCode).ToString());
 
-                return 0;
-            }
-            catch (System.Exception e)
-            {
-                prdDbg("System.Exception in ReadIntPropertyValue!");
-                prdDbg(e.Message);
-                return 0;
-            }
-        }
+        //        return 0;
+        //    }
+        //    catch (System.Exception e)
+        //    {
+        //        prdDbg("System.Exception in ReadIntPropertyValue!");
+        //        prdDbg(e.Message);
+        //        return 0;
+        //    }
+        //}
 
-        public static double ReadDoublePropertyValue(Tables tables, Oid id, string tableName, string columnName)
-        {
-            ErrorCode errCode = ErrorCode.OK;
-            try
-            {
-                MapValue value = ReadRecordData(tables, id, tableName, columnName);
-                if (value != null) return value.DoubleValue;
-                else return 0;
-            }
-            catch (MapException e)
-            {
-                errCode = (ErrorCode)(e.ErrorCode);
-                // Deal with the exception here as your will
+        //public static double ReadDoublePropertyValue(Tables tables, Oid id, string tableName, string columnName)
+        //{
+        //    ErrorCode errCode = ErrorCode.OK;
+        //    try
+        //    {
+        //        MapValue value = ReadRecordData(tables, id, tableName, columnName);
+        //        if (value != null) return value.DoubleValue;
+        //        else return 0;
+        //    }
+        //    catch (MapException e)
+        //    {
+        //        errCode = (ErrorCode)(e.ErrorCode);
+        //        // Deal with the exception here as your will
 
-                return 0;
-            }
-        }
+        //        return 0;
+        //    }
+        //}
 
-        public static string ReadStringPropertyValue(Tables tables, Oid id, string tableName, string columnName)
-        {
-            ErrorCode errCode = ErrorCode.OK;
-            try
-            {
-                MapValue value = ReadRecordData(tables, id, tableName, columnName);
-                if (value != null) return value.StrValue;
-                else return "";
-            }
-            catch (MapException e)
-            {
-                errCode = (ErrorCode)(e.ErrorCode);
-                // Deal with the exception here as your will
+        //public static string ReadStringPropertyValue(Tables tables, Oid id, string tableName, string columnName)
+        //{
+        //    ErrorCode errCode = ErrorCode.OK;
+        //    try
+        //    {
+        //        MapValue value = ReadRecordData(tables, id, tableName, columnName);
+        //        if (value != null) return value.StrValue;
+        //        else return "";
+        //    }
+        //    catch (MapException e)
+        //    {
+        //        errCode = (ErrorCode)(e.ErrorCode);
+        //        // Deal with the exception here as your will
 
-                return "";
-            }
-        }
+        //        return "";
+        //    }
+        //}
 
-        public static string ReadPropertyToStringValue(Tables tables, Oid id, string tableName, string columnName)
-        {
-            ErrorCode errCode = ErrorCode.OK;
-            try
-            {
-                MapValue value = ReadRecordData(tables, id, tableName, columnName);
-                if (value != null)
-                {
-                    switch (value.Type)
-                    {
-                        case Autodesk.Gis.Map.Constants.DataType.UnknownType:
-                            return "";
-                        case Autodesk.Gis.Map.Constants.DataType.Integer:
-                            return value.Int32Value.ToString();
-                        case Autodesk.Gis.Map.Constants.DataType.Real:
-                            return value.DoubleValue.ToString();
-                        case Autodesk.Gis.Map.Constants.DataType.Character:
-                            return value.StrValue;
-                        case Autodesk.Gis.Map.Constants.DataType.Point:
-                            return value.Point.ToString();
-                        default:
-                            return "";
-                    }
-                }
-                else return "";
-            }
-            catch (MapException e)
-            {
-                errCode = (ErrorCode)(e.ErrorCode);
-                // Deal with the exception here as your will
+        //public static string ReadPropertyToStringValue(Tables tables, Oid id, string tableName, string columnName)
+        //{
+        //    ErrorCode errCode = ErrorCode.OK;
+        //    try
+        //    {
+        //        MapValue value = ReadRecordData(tables, id, tableName, columnName);
+        //        if (value != null)
+        //        {
+        //            switch (value.Type)
+        //            {
+        //                case Autodesk.Gis.Map.Constants.DataType.UnknownType:
+        //                    return "";
+        //                case Autodesk.Gis.Map.Constants.DataType.Integer:
+        //                    return value.Int32Value.ToString();
+        //                case Autodesk.Gis.Map.Constants.DataType.Real:
+        //                    return value.DoubleValue.ToString();
+        //                case Autodesk.Gis.Map.Constants.DataType.Character:
+        //                    return value.StrValue;
+        //                case Autodesk.Gis.Map.Constants.DataType.Point:
+        //                    return value.Point.ToString();
+        //                default:
+        //                    return "";
+        //            }
+        //        }
+        //        else return "";
+        //    }
+        //    catch (MapException e)
+        //    {
+        //        errCode = (ErrorCode)(e.ErrorCode);
+        //        // Deal with the exception here as your will
 
-                return "";
-            }
-        }
+        //        return "";
+        //    }
+        //}
 
-        public static bool DoesRecordExist(Tables tables, Oid id, string tableName, string columnName)
-        {
-            ErrorCode errCode = ErrorCode.OK;
-            try
-            {
-                bool success = true;
+        //public static bool DoesRecordExist(Tables tables, Oid id, string tableName, string columnName)
+        //{
+        //    ErrorCode errCode = ErrorCode.OK;
+        //    try
+        //    {
+        //        bool success = true;
 
-                // Get and Initialize Records
-                using (Records records
-                           = tables.GetObjectRecords(0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
-                {
-                    if (records.Count == 0)
-                    {
-                        return false;
-                    }
+        //        // Get and Initialize Records
+        //        using (Records records
+        //                   = tables.GetObjectRecords(0, id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+        //        {
+        //            if (records.Count == 0)
+        //            {
+        //                return false;
+        //            }
 
-                    // Iterate through all records
-                    foreach (Record record in records)
-                    {
-                        if (record.TableName == tableName)
-                        {
-                            // Get the table
-                            Autodesk.Gis.Map.ObjectData.Table table = tables[record.TableName];
+        //            // Iterate through all records
+        //            foreach (Record record in records)
+        //            {
+        //                if (record.TableName == tableName)
+        //                {
+        //                    // Get the table
+        //                    Autodesk.Gis.Map.ObjectData.Table table = tables[record.TableName];
 
-                            // Get record info
-                            for (int i = 0; i < record.Count; i++)
-                            {
-                                FieldDefinitions tableDef = table.FieldDefinitions;
-                                FieldDefinition column = tableDef[i];
-                                if (column.Name == columnName) return true;
-                            }
-                        }
-                    }
-                }
-                return false;
-            }
-            catch (MapException e)
-            {
-                errCode = (ErrorCode)(e.ErrorCode);
-                // Deal with the exception here as your will
+        //                    // Get record info
+        //                    for (int i = 0; i < record.Count; i++)
+        //                    {
+        //                        FieldDefinitions tableDef = table.FieldDefinitions;
+        //                        FieldDefinition column = tableDef[i];
+        //                        if (column.Name == columnName) return true;
+        //                    }
+        //                }
+        //            }
+        //        }
+        //        return false;
+        //    }
+        //    catch (MapException e)
+        //    {
+        //        errCode = (ErrorCode)(e.ErrorCode);
+        //        // Deal with the exception here as your will
 
-                return false;
-            }
-        }
+        //        return false;
+        //    }
+        //}
 
-        public static void CopyAllOD(Tables tables, Entity entSource, Entity entTarget)
-        {
-            CopyAllOD(tables, entSource.Id, entTarget.Id);
-        }
+        //public static void CopyAllOD(Tables tables, Entity entSource, Entity entTarget)
+        //{
+        //    CopyAllOD(tables, entSource.Id, entTarget.Id);
+        //}
 
-        public static void CopyAllOD(Tables tables, Oid sourceId, Oid targetId)
-        {
-            using (Records records = tables.GetObjectRecords(
-                   0, sourceId, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
-            {
-                if (records == null || records.Count == 0) return;
+        //public static void CopyAllOD(Tables tables, Oid sourceId, Oid targetId)
+        //{
+        //    using (Records records = tables.GetObjectRecords(
+        //           0, sourceId, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+        //    {
+        //        if (records == null || records.Count == 0) return;
 
-                //prdDbg($"\nEntity: {entSource.Handle}");
+        //        //prdDbg($"\nEntity: {entSource.Handle}");
 
-                foreach (Record record in records)
-                {
-                    Autodesk.Gis.Map.ObjectData.Table table = tables[record.TableName];
+        //        foreach (Record record in records)
+        //        {
+        //            Autodesk.Gis.Map.ObjectData.Table table = tables[record.TableName];
 
-                    Record newRecord = Record.Create();
-                    table.InitRecord(newRecord);
+        //            Record newRecord = Record.Create();
+        //            table.InitRecord(newRecord);
 
-                    for (int i = 0; i < record.Count; i++)
-                    {
-                        MapValue sourceValue = record[i];
-                        MapValue newVal = null;
-                        switch (sourceValue.Type)
-                        {
-                            case Autodesk.Gis.Map.Constants.DataType.UnknownType:
-                                continue;
-                            case Autodesk.Gis.Map.Constants.DataType.Integer:
-                                newVal = newRecord[i];
-                                newVal.Assign(sourceValue.Int32Value);
-                                break;
-                            case Autodesk.Gis.Map.Constants.DataType.Real:
-                                newVal = newRecord[i];
-                                newVal.Assign(sourceValue.DoubleValue);
-                                break;
-                            case Autodesk.Gis.Map.Constants.DataType.Character:
-                                newVal = newRecord[i];
-                                newVal.Assign(sourceValue.StrValue);
-                                break;
-                            case Autodesk.Gis.Map.Constants.DataType.Point:
-                                newVal = newRecord[i];
-                                newVal.Assign(sourceValue.Point);
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                    try
-                    {
-                        table.AddRecord(newRecord, targetId);
-                    }
-                    catch (Autodesk.Gis.Map.MapException ex)
-                    {
-                        string ErrorText = ((Autodesk.Gis.Map.Constants.ErrorCode)ex.ErrorCode).ToString();
-                        prdDbg($"\n{ErrorText}: {ex.Message}: {ex.Source}: {ex.StackTrace}");
-                        throw;
-                    }
-                }
-            }
-        }
+        //            for (int i = 0; i < record.Count; i++)
+        //            {
+        //                MapValue sourceValue = record[i];
+        //                MapValue newVal = null;
+        //                switch (sourceValue.Type)
+        //                {
+        //                    case Autodesk.Gis.Map.Constants.DataType.UnknownType:
+        //                        continue;
+        //                    case Autodesk.Gis.Map.Constants.DataType.Integer:
+        //                        newVal = newRecord[i];
+        //                        newVal.Assign(sourceValue.Int32Value);
+        //                        break;
+        //                    case Autodesk.Gis.Map.Constants.DataType.Real:
+        //                        newVal = newRecord[i];
+        //                        newVal.Assign(sourceValue.DoubleValue);
+        //                        break;
+        //                    case Autodesk.Gis.Map.Constants.DataType.Character:
+        //                        newVal = newRecord[i];
+        //                        newVal.Assign(sourceValue.StrValue);
+        //                        break;
+        //                    case Autodesk.Gis.Map.Constants.DataType.Point:
+        //                        newVal = newRecord[i];
+        //                        newVal.Assign(sourceValue.Point);
+        //                        break;
+        //                    default:
+        //                        break;
+        //                }
+        //            }
+        //            try
+        //            {
+        //                table.AddRecord(newRecord, targetId);
+        //            }
+        //            catch (Autodesk.Gis.Map.MapException ex)
+        //            {
+        //                string ErrorText = ((Autodesk.Gis.Map.Constants.ErrorCode)ex.ErrorCode).ToString();
+        //                prdDbg($"\n{ErrorText}: {ex.Message}: {ex.Source}: {ex.StackTrace}");
+        //                throw;
+        //            }
+        //        }
+        //    }
+        //}
 
-        public static void TryCopySpecificOD(Tables tables, Entity entSource, Entity entTarget,
-            List<(string tableName, string columnName)> odList)
-        {
-            foreach (var item in odList)
-            {
-                MapValue originalValue = ReadRecordData(tables, entSource.ObjectId, item.tableName, item.columnName);
-                if (originalValue != null)
-                {
-                    if (DoesRecordExist(tables, entTarget.ObjectId, item.tableName, item.columnName))
-                    {
-                        UpdateODRecord(tables, item.tableName, item.columnName, entTarget.ObjectId, originalValue);
-                    }
-                    else
-                    {
-                        AddODRecord(tables, item.tableName, item.columnName, entTarget.ObjectId, originalValue);
-                    }
-                }
-            }
+        //public static void TryCopySpecificOD(Tables tables, Entity entSource, Entity entTarget,
+        //    List<(string tableName, string columnName)> odList)
+        //{
+        //    foreach (var item in odList)
+        //    {
+        //        MapValue originalValue = ReadRecordData(tables, entSource.ObjectId, item.tableName, item.columnName);
+        //        if (originalValue != null)
+        //        {
+        //            if (DoesRecordExist(tables, entTarget.ObjectId, item.tableName, item.columnName))
+        //            {
+        //                UpdateODRecord(tables, item.tableName, item.columnName, entTarget.ObjectId, originalValue);
+        //            }
+        //            else
+        //            {
+        //                AddODRecord(tables, item.tableName, item.columnName, entTarget.ObjectId, originalValue);
+        //            }
+        //        }
+        //    }
 
-        }
-        public static bool DoesTableExist(Tables tables, string tableName)
-        {
-            try
-            {
-                Autodesk.Gis.Map.ObjectData.Table table = tables[tableName];
-                return table != null;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+        //}
+        //public static bool DoesTableExist(Tables tables, string tableName)
+        //{
+        //    try
+        //    {
+        //        Autodesk.Gis.Map.ObjectData.Table table = tables[tableName];
+        //        return table != null;
+        //    }
+        //    catch
+        //    {
+        //        return false;
+        //    }
+        //}
 
-        public static bool DoAllColumnsExist(Tables tables, string m_tableName, string[] columnNames)
-        {
-            // Get the table
-            Autodesk.Gis.Map.ObjectData.Table table = tables[m_tableName];
-            // Get tabledef info
-            FieldDefinitions tableDef = table.FieldDefinitions;
-            List<string> existingColumnNames = new List<string>(tableDef.Count);
-            for (int k = 0; k < tableDef.Count; k++)
-            {
-                FieldDefinition column = tableDef[k];
-                existingColumnNames.Add(column.Name);
-            }
-            foreach (string name in columnNames)
-            {
-                if (existingColumnNames.Any(x => x == name)) continue;
-                else return false;
-            }
-            return true;
-        }
+        //public static bool DoAllColumnsExist(Tables tables, string m_tableName, string[] columnNames)
+        //{
+        //    // Get the table
+        //    Autodesk.Gis.Map.ObjectData.Table table = tables[m_tableName];
+        //    // Get tabledef info
+        //    FieldDefinitions tableDef = table.FieldDefinitions;
+        //    List<string> existingColumnNames = new List<string>(tableDef.Count);
+        //    for (int k = 0; k < tableDef.Count; k++)
+        //    {
+        //        FieldDefinition column = tableDef[k];
+        //        existingColumnNames.Add(column.Name);
+        //    }
+        //    foreach (string name in columnNames)
+        //    {
+        //        if (existingColumnNames.Any(x => x == name)) continue;
+        //        else return false;
+        //    }
+        //    return true;
+        //}
 
-        public static bool CreateMissingColumns(Tables tables, string m_tableName, string[] columnNames, string[] columnDescriptions,
-            DataType[] dataTypes)
-        {
-            // Get the table
-            Autodesk.Gis.Map.ObjectData.Table table = tables[m_tableName];
-            // Get tabledef info
-            FieldDefinitions tableDef = table.FieldDefinitions;
-            List<string> existingColumnNames = new List<string>(tableDef.Count);
-            for (int k = 0; k < tableDef.Count; k++)
-            {
-                FieldDefinition column = tableDef[k];
-                existingColumnNames.Add(column.Name);
-            }
-            for (int i = 0; i < columnNames.Length; i++)
-            {
-                if (existingColumnNames.Any(x => x == columnNames[i])) continue;
-                else
-                {
-                    table.FieldDefinitions.AddColumn(
-                        FieldDefinition.Create(columnNames[i], columnDescriptions[i], dataTypes[i]),
-                        table.FieldDefinitions.Count);
-                    tables.UpdateTable(m_tableName, table.FieldDefinitions);
-                }
-            }
-            return true;
-        }
+        //public static bool CreateMissingColumns(Tables tables, string m_tableName, string[] columnNames, string[] columnDescriptions,
+        //    DataType[] dataTypes)
+        //{
+        //    // Get the table
+        //    Autodesk.Gis.Map.ObjectData.Table table = tables[m_tableName];
+        //    // Get tabledef info
+        //    FieldDefinitions tableDef = table.FieldDefinitions;
+        //    List<string> existingColumnNames = new List<string>(tableDef.Count);
+        //    for (int k = 0; k < tableDef.Count; k++)
+        //    {
+        //        FieldDefinition column = tableDef[k];
+        //        existingColumnNames.Add(column.Name);
+        //    }
+        //    for (int i = 0; i < columnNames.Length; i++)
+        //    {
+        //        if (existingColumnNames.Any(x => x == columnNames[i])) continue;
+        //        else
+        //        {
+        //            table.FieldDefinitions.AddColumn(
+        //                FieldDefinition.Create(columnNames[i], columnDescriptions[i], dataTypes[i]),
+        //                table.FieldDefinitions.Count);
+        //            tables.UpdateTable(m_tableName, table.FieldDefinitions);
+        //        }
+        //    }
+        //    return true;
+        //}
 
-        public static void CheckOrCreateTable(Tables tables, string tableName, string tableDescription,
-                                               string[] columnNames, string[] columnDescrs, DataType[] dataTypes)
-        {
-            //Check or create table, or check or create all columns
-            if (DoesTableExist(tables, tableName))
-            {//Table exists
-                if (DoAllColumnsExist(tables, tableName, columnNames))
-                {
-                    //The table is in order, continue to data creation
-                }
-                //If not create missing columns
-                else CreateMissingColumns(tables, tableName, columnNames, columnDescrs, dataTypes);
-            }
-            else
-            {
-                //Table does not exist
-                if (CreateTable(tables, tableName, tableDescription,
-                    columnNames, columnDescrs, dataTypes))
-                {
-                    //Table ready for populating with data
-                }
-            }
-        }
+        //public static void CheckOrCreateTable(Tables tables, string tableName, string tableDescription,
+        //                                       string[] columnNames, string[] columnDescrs, DataType[] dataTypes)
+        //{
+        //    //Check or create table, or check or create all columns
+        //    if (DoesTableExist(tables, tableName))
+        //    {//Table exists
+        //        if (DoAllColumnsExist(tables, tableName, columnNames))
+        //        {
+        //            //The table is in order, continue to data creation
+        //        }
+        //        //If not create missing columns
+        //        else CreateMissingColumns(tables, tableName, columnNames, columnDescrs, dataTypes);
+        //    }
+        //    else
+        //    {
+        //        //Table does not exist
+        //        if (CreateTable(tables, tableName, tableDescription,
+        //            columnNames, columnDescrs, dataTypes))
+        //        {
+        //            //Table ready for populating with data
+        //        }
+        //    }
+        //}
 
-        public static bool CheckAddUpdateRecordValue(
-            Tables tables,
-            Oid entId,
-            string m_tableName,
-            string columnName,
-            MapValue value)
-        {
-            if (DoesRecordExist(tables, entId, m_tableName, columnName))
-            {
-                prdDbg($"\nRecord {columnName} already exists, updating...");
+        //public static bool CheckAddUpdateRecordValue(
+        //    Tables tables,
+        //    Oid entId,
+        //    string m_tableName,
+        //    string columnName,
+        //    MapValue value)
+        //{
+        //    if (DoesRecordExist(tables, entId, m_tableName, columnName))
+        //    {
+        //        prdDbg($"\nRecord {columnName} already exists, updating...");
 
-                if (UpdateODRecord(tables, m_tableName, columnName, entId, value))
-                {
-                    prdDbg($"\nUpdating record {columnName} succeded!");
-                    return true;
-                }
-                else
-                {
-                    prdDbg($"\nUpdating record {columnName} failed!");
-                    return false;
-                }
-            }
-            else if (AddODRecord(tables, m_tableName, columnName, entId, value))
-            {
-                prdDbg($"\nAdding record {columnName} succeded!");
-                return true;
-            }
-            return false;
-        }
+        //        if (UpdateODRecord(tables, m_tableName, columnName, entId, value))
+        //        {
+        //            prdDbg($"\nUpdating record {columnName} succeded!");
+        //            return true;
+        //        }
+        //        else
+        //        {
+        //            prdDbg($"\nUpdating record {columnName} failed!");
+        //            return false;
+        //        }
+        //    }
+        //    else if (AddODRecord(tables, m_tableName, columnName, entId, value))
+        //    {
+        //        prdDbg($"\nAdding record {columnName} succeded!");
+        //        return true;
+        //    }
+        //    return false;
+        //}
         #endregion
     }
     public static class Extensions

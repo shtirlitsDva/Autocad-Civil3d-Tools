@@ -439,25 +439,25 @@ namespace IntersectUtilities
             //}
             //return "";
         }
-        public static object ReadPropertyValueFromPS(Entity ent, string tableName, string fieldName)
-        {
-            ObjectIdCollection propertySetIds = PropertyDataServices.GetPropertySets(ent);
-            List<PropertySet> pss = new List<PropertySet>();
-            foreach (Oid oid in propertySetIds) pss.Add(oid.Go<PropertySet>(
-                ent.Database.TransactionManager.TopTransaction));
+        //public static object ReadPropertyValueFromPS(Entity ent, string tableName, string fieldName)
+        //{
+        //    ObjectIdCollection propertySetIds = PropertyDataServices.GetPropertySets(ent);
+        //    List<PropertySet> pss = new List<PropertySet>();
+        //    foreach (Oid oid in propertySetIds) pss.Add(oid.Go<PropertySet>(
+        //        ent.Database.TransactionManager.TopTransaction));
 
-            //Assume only one result
-            PropertySet ps = pss.Find(x => x.PropertySetDefinitionName == tableName);
-            if (ps == default)
-            {
-                prdDbg($"PropertySet {tableName} could not be found for entity handle {ent.Handle}.");
-                return "";
-            }
-            int propertyId = ps.PropertyNameToId(fieldName);
-            object value = ps.GetAt(propertyId);
-            if (value != null) return value;
-            else return default;
-        }
+        //    //Assume only one result
+        //    PropertySet ps = pss.Find(x => x.PropertySetDefinitionName == tableName);
+        //    if (ps == default)
+        //    {
+        //        prdDbg($"PropertySet {tableName} could not be found for entity handle {ent.Handle}.");
+        //        return "";
+        //    }
+        //    int propertyId = ps.PropertyNameToId(fieldName);
+        //    object value = ps.GetAt(propertyId);
+        //    if (value != null) return value;
+        //    else return default;
+        //}
         public static MapValue MapValueFromObject(object input, Autodesk.Gis.Map.Constants.DataType type)
         {
             switch (type)
@@ -1302,7 +1302,8 @@ namespace IntersectUtilities
         {
             None,
             DriPipelineData,
-            DriSourceReference
+            DriSourceReference,
+            DriCrossingData
         }
         private PropertySetDefinition CreatePropertySetDefinition(DefinedSets propertySetName)
         {
@@ -1357,7 +1358,21 @@ namespace IntersectUtilities
                         propDefManual.Description = "Handle of the source entity which provided information for this entity.";
                         propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
                         propDefManual.DefaultData = "";
-                        propSetDef.Definitions.Add(propDefManual); 
+                        propSetDef.Definitions.Add(propDefManual);
+                    }
+                    break;
+                case DefinedSets.DriCrossingData:
+                    {
+                        appliedTo.Add(RXClass.GetClass(typeof(CogoPoint)).Name);
+
+                        var propDefManual = new PropertyDefinition();
+                        propDefManual.SetToStandard(Db);
+                        propDefManual.SubSetDatabaseDefaults(Db);
+                        propDefManual.Name = "Diameter";
+                        propDefManual.Description = "Stores crossing pipe's diameter";
+                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Integer;
+                        propDefManual.DefaultData = 0;
+                        propSetDef.Definitions.Add(propDefManual);
                     }
                     break;
                 default:
@@ -1431,7 +1446,21 @@ namespace IntersectUtilities
             if (value == null) return "";
             else return value.ToString();
         }
+        public int ReadPropertyInt(string propertyName)
+        {
+            int propertyId = this.CurrentPropertySet.PropertyNameToId(propertyName);
+            object value = this.CurrentPropertySet.GetAt(propertyId);
+            if (value == null) return 0;
+            else return (int)value;
+        }
         public void WritePropertyString(string propertyName, string value)
+        {
+            int propertyId = this.CurrentPropertySet.PropertyNameToId(propertyName);
+            this.CurrentPropertySet.CheckOrOpenForWrite();
+            this.CurrentPropertySet.SetAt(propertyId, value);
+            this.CurrentPropertySet.DowngradeOpen();
+        }
+        public void WritePropertyObject(string propertyName, object value)
         {
             int propertyId = this.CurrentPropertySet.PropertyNameToId(propertyName);
             this.CurrentPropertySet.CheckOrOpenForWrite();
