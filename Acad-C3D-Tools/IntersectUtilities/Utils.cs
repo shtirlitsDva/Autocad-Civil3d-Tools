@@ -1299,7 +1299,6 @@ namespace IntersectUtilities
             }
             else return CreatePropertySetDefinition(propertySetName);
         }
-        
         private PropertySetDefinition CreatePropertySetDefinition(PSetDefs.DefinedSets propertySetName)
         {
             string setName = propertySetName.ToString();
@@ -1310,90 +1309,25 @@ namespace IntersectUtilities
             propSetDef.SetToStandard(Db);
             propSetDef.SubSetDatabaseDefaults(Db);
             propSetDef.Description = setName;
-            var appliedTo = new StringCollection();
             bool isStyle = false;
 
-            //Spcific properties
-            switch (propertySetName)
+            PSetDefs pSetDefs = new PSetDefs();
+            PSetDefs.PSetDef currentDef = pSetDefs.GetRequestedDef(propertySetName);
+
+            propSetDef.SetAppliesToFilter(currentDef.GetAppliesTo(), isStyle);
+
+            foreach (PSetDefs.Property property in currentDef.ListOfProperties())
             {
-                case PSetDefs.DefinedSets.None:
-                    break;
-                case PSetDefs.DefinedSets.DriPipelineData:
-                    {
-                        appliedTo.Add(RXClass.GetClass(typeof(Polyline)).Name);
-                        appliedTo.Add(RXClass.GetClass(typeof(BlockReference)).Name);
+                var propDefManual = new PropertyDefinition();
+                propDefManual.SetToStandard(Db);
+                propDefManual.SubSetDatabaseDefaults(Db);
 
-                        var propDefManual = new PropertyDefinition();
-                        propDefManual.SetToStandard(Db);
-                        propDefManual.SubSetDatabaseDefaults(Db);
-                        propDefManual.Name = "BelongsToAlignment";
-                        propDefManual.Description = "Name of the alignment the component belongs to.";
-                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-                        propDefManual.DefaultData = "";
-                        propSetDef.Definitions.Add(propDefManual);
-
-                        propDefManual = new PropertyDefinition();
-                        propDefManual.SetToStandard(Db);
-                        propDefManual.SubSetDatabaseDefaults(Db);
-                        propDefManual.Name = "BranchesOffToAlignment";
-                        propDefManual.Description = "Name of the alignment the component branches off to.";
-                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-                        propDefManual.DefaultData = "";
-                        propSetDef.Definitions.Add(propDefManual);
-                    }
-                    break;
-                case PSetDefs.DefinedSets.DriSourceReference:
-                    {
-                        appliedTo.Add(RXClass.GetClass(typeof(BlockReference)).Name);
-
-                        var propDefManual = new PropertyDefinition();
-                        propDefManual.SetToStandard(Db);
-                        propDefManual.SubSetDatabaseDefaults(Db);
-                        propDefManual.Name = "SourceEntityHandle";
-                        propDefManual.Description = "Handle of the source entity which provided information for this entity.";
-                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-                        propDefManual.DefaultData = "";
-                        propSetDef.Definitions.Add(propDefManual);
-                    }
-                    break;
-                case PSetDefs.DefinedSets.DriCrossingData:
-                    {
-                        appliedTo.Add(RXClass.GetClass(typeof(CogoPoint)).Name);
-
-                        var propDefManual = new PropertyDefinition();
-                        propDefManual.SetToStandard(Db);
-                        propDefManual.SubSetDatabaseDefaults(Db);
-                        propDefManual.Name = "Diameter";
-                        propDefManual.Description = "Stores crossing pipe's diameter";
-                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Integer;
-                        propDefManual.DefaultData = 0;
-                        propSetDef.Definitions.Add(propDefManual);
-
-                        propDefManual = new PropertyDefinition();
-                        propDefManual.SetToStandard(Db);
-                        propDefManual.SubSetDatabaseDefaults(Db);
-                        propDefManual.Name = "Alignment";
-                        propDefManual.Description = "Stores crossing alignment name.";
-                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-                        propDefManual.DefaultData = "";
-                        propSetDef.Definitions.Add(propDefManual);
-
-                        propDefManual = new PropertyDefinition();
-                        propDefManual.SetToStandard(Db);
-                        propDefManual.SubSetDatabaseDefaults(Db);
-                        propDefManual.Name = "SourceEntityHandle";
-                        propDefManual.Description = "Stores the handle of the crossing entity.";
-                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-                        propDefManual.DefaultData = "";
-                        propSetDef.Definitions.Add(propDefManual);
-                    }
-                    break;
-                default:
-                    break;
+                propDefManual.Name = property.Name;
+                propDefManual.Description = property.Description;
+                propDefManual.DataType = property.DataType;
+                propDefManual.DefaultData = property.DefaultValue;
+                propSetDef.Definitions.Add(propDefManual);
             }
-
-            //More general properties
-            propSetDef.SetAppliesToFilter(appliedTo, isStyle);
 
             using (Transaction defTx = Db.TransactionManager.StartTransaction())
             {
@@ -1404,7 +1338,7 @@ namespace IntersectUtilities
 
             return propSetDef;
         }
-        private bool PropertySetDefinitionExists(DefinedSets propertySetName)
+        private bool PropertySetDefinitionExists(PSetDefs.DefinedSets propertySetName)
         {
             string setName = propertySetName.ToString();
             if (DictionaryPropertySetDefinitions.Has(setName, Db.TransactionManager.TopTransaction))
@@ -1418,7 +1352,7 @@ namespace IntersectUtilities
                 return false;
             }
         }
-        private PropertySetDefinition GetPropertySetDefinition(DefinedSets propertySetName)
+        private PropertySetDefinition GetPropertySetDefinition(PSetDefs.DefinedSets propertySetName)
         {
             return DictionaryPropertySetDefinitions
                 .GetAt(propertySetName.ToString())
@@ -1452,35 +1386,35 @@ namespace IntersectUtilities
             return PropertyDataServices.GetPropertySet(ent, this.PropertySetDefinition.Id)
                 .Go<PropertySet>(Db.TransactionManager.TopTransaction);
         }
-        public string ReadPropertyString(string propertyName)
+        public string ReadPropertyString(PSetDefs.Property property)
         {
-            int propertyId = this.CurrentPropertySet.PropertyNameToId(propertyName);
+            int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
             object value = this.CurrentPropertySet.GetAt(propertyId);
             if (value == null) return "";
             else return value.ToString();
         }
-        public int ReadPropertyInt(string propertyName)
+        public int ReadPropertyInt(PSetDefs.Property property)
         {
-            int propertyId = this.CurrentPropertySet.PropertyNameToId(propertyName);
+            int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
             object value = this.CurrentPropertySet.GetAt(propertyId);
             if (value == null) return 0;
             else return (int)value;
         }
-        public void WritePropertyString(string propertyName, string value)
+        public void WritePropertyString(PSetDefs.Property property, string value)
         {
-            int propertyId = this.CurrentPropertySet.PropertyNameToId(propertyName);
+            int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
             this.CurrentPropertySet.CheckOrOpenForWrite();
             this.CurrentPropertySet.SetAt(propertyId, value);
             this.CurrentPropertySet.DowngradeOpen();
         }
-        public void WritePropertyObject(string propertyName, object value)
+        public void WritePropertyObject(PSetDefs.Property property, object value)
         {
-            int propertyId = this.CurrentPropertySet.PropertyNameToId(propertyName);
+            int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
             this.CurrentPropertySet.CheckOrOpenForWrite();
             this.CurrentPropertySet.SetAt(propertyId, value);
             this.CurrentPropertySet.DowngradeOpen();
         }
-        public bool FilterPropetyString(Entity ent, string propertyName, string value)
+        public bool FilterPropetyString(Entity ent, PSetDefs.Property property, string value)
         {
             ObjectIdCollection propertySetIds = PropertyDataServices.GetPropertySets(ent);
             PropertySet set = default;
@@ -1501,11 +1435,11 @@ namespace IntersectUtilities
                 set = AttachPropertySet(ent);
             }
 
-            int propertyId = set.PropertyNameToId(propertyName);
+            int propertyId = set.PropertyNameToId(property.Name);
             object storedValue = set.GetAt(propertyId);
             return value == storedValue.ToString();
         }
-        public void CopyAllProperties(Entity source, Entity target)
+        public static void CopyAllProperties(Entity source, Entity target)
         {
             //Only works within drawing
             //ToDo: implement copying from drawing to drawing
@@ -1566,61 +1500,119 @@ namespace IntersectUtilities
             None,
             DriPipelineData,
             DriSourceReference,
-            DriCrossingData
+            DriCrossingData,
+            DriGasDimOgMat
         }
-
-        public class DriCrossingData
+        public class DriCrossingData : PSetDef
         {
-            public DefinedSets SetName = DefinedSets.DriCrossingData;
-
-            public Property Diameter = new Property(
+            public DefinedSets SetName { get; } = DefinedSets.DriCrossingData;
+            public Property Diameter { get; } = new Property(
                 "Diameter",
                 "Stores crossing pipe's diameter.",
                 PsDataType.Integer,
                 0);
-
-            public Property Alignment = new Property(
+            public Property Alignment { get; } = new Property(
                 "Alignment",
                 "Stores crossing alignment name.",
                 PsDataType.Text,
                 "");
-
-            public Property SourceEntityHanlde = new Property(
+            public Property SourceEntityHandle { get; } = new Property(
                 "SourceEntityHandle",
                 "Stores the handle of the crossing entity.",
                 PsDataType.Text,
                 "");
+            public StringCollection AppliesTo { get; } = new StringCollection()
+                {
+                    RXClass.GetClass(typeof(CogoPoint)).Name
+                };
         }
-
-        public class DriSourceReference
+        public class DriSourceReference : PSetDef
         {
-            public DefinedSets SetName = DefinedSets.DriSourceReference;
-
-            public Property SourceEntityHandle = new Property(
+            public DefinedSets SetName { get; } = DefinedSets.DriSourceReference;
+            public Property SourceEntityHandle { get; } = new Property(
                 "SourceEntityHandle",
                 "Handle of the source entity which provided information for this entity.",
                 PsDataType.Text,
                 "");
+            public StringCollection AppliesTo { get; } = new StringCollection()
+                {
+                    RXClass.GetClass(typeof(BlockReference)).Name
+                };
         }
-
-        public class DriPipelineData
+        public class DriPipelineData : PSetDef
         {
-            public DefinedSets SetName = DefinedSets.DriPipelineData;
-
-            public Property BelongsToAlignment = new Property(
+            public DefinedSets SetName { get; } = DefinedSets.DriPipelineData;
+            public Property BelongsToAlignment { get; } = new Property(
                 "BelongsToAlignment",
                 "Name of the alignment the component belongs to.",
                 PsDataType.Text,
                 "");
-            
-            public Property BranchesOffToAlignment = new Property(
+            public Property BranchesOffToAlignment { get; } = new Property(
                 "BranchesOffToAlignment",
                 "Name of the alignment the component branches off to.",
                 PsDataType.Text,
                 "");
+            public StringCollection AppliesTo { get; } = new StringCollection()
+                {
+                    RXClass.GetClass(typeof(Polyline)).Name,
+                    RXClass.GetClass(typeof(BlockReference)).Name
+                };
         }
+        public class DriGasDimOgMat : PSetDef
+        {
+            public DefinedSets SetName { get; } = DefinedSets.DriGasDimOgMat;
+            public Property Dimension { get; } = new Property(
+                "Dimension",
+                "Dimension of the gas pipe.",
+                PsDataType.Integer,
+                0);
+            public Property Material { get; } = new Property(
+                "Material",
+                "Material of the gas pipe.",
+                PsDataType.Text,
+                "");
+            public Property Bemærk { get; } = new Property(
+                "Bemærk",
+                "Bemærkning til ledning.",
+                PsDataType.Text,
+                "");
+            public StringCollection AppliesTo { get; } = new StringCollection()
+                {
+                    RXClass.GetClass(typeof(Polyline)).Name,
+                    RXClass.GetClass(typeof(Polyline3d)).Name,
+                    RXClass.GetClass(typeof(Line)).Name
+                };
+        }
+        public class PSetDef
+        {
+            public List<Property> ListOfProperties()
+            {
+                var propDict = ToPropertyDictionary();
+                List<Property> list = new List<Property>();
+                foreach (var prop in propDict)
+                    if (prop.Value is Property) list.Add((Property)prop.Value);
 
-        public struct Property
+                return list;
+            }
+            public Dictionary<string, object> ToPropertyDictionary()
+            {
+                var dictionary = new Dictionary<string, object>();
+                foreach (var propertyInfo in this.GetType().GetProperties())
+                    dictionary[propertyInfo.Name] = propertyInfo.GetValue(this, null);
+                return dictionary;
+            }
+            public DefinedSets PSetName()
+            {
+                var propDict = ToPropertyDictionary();
+                return (DefinedSets)propDict["SetName"];
+            }
+            public StringCollection GetAppliesTo()
+            {
+                var propDict = ToPropertyDictionary();
+                return (StringCollection)propDict["AppliesTo"];
+            }
+        }
+        public class Property
         {
             public string Name { get; }
             public string Description { get; }
@@ -1633,6 +1625,22 @@ namespace IntersectUtilities
                 DataType = dataType;
                 DefaultValue = defaultValue;
             }
+        }
+        public List<PSetDef> GetPSetClasses()
+        {
+            var type = this.GetType();
+            var types = type.Assembly.GetTypes();
+            return types
+                .Where(x => x.BaseType.Equals(typeof(PSetDef)))
+                .Select(x => Activator.CreateInstance(x))
+                .Cast<PSetDef>()
+                .ToList();
+        }
+        public PSetDef GetRequestedDef(DefinedSets requestedSet)
+        {
+            var list = GetPSetClasses();
+
+            return list.Where(x => x.PSetName() == requestedSet).First();
         }
     }
 
