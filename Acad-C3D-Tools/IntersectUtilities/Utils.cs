@@ -50,6 +50,7 @@ using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
+using PsDataType = Autodesk.Aec.PropertyData.DataType;
 
 namespace IntersectUtilities
 {
@@ -1278,7 +1279,7 @@ namespace IntersectUtilities
         private DictionaryPropertySetDefinitions DictionaryPropertySetDefinitions { get; }
         private PropertySetDefinition PropertySetDefinition { get; }
         private PropertySet CurrentPropertySet { get; set; }
-        public PropertySetManager(Database database, DefinedSets propertySetName)
+        public PropertySetManager(Database database, PSetDefs.DefinedSets propertySetName)
         {
             //1
             Db = database;
@@ -1290,7 +1291,7 @@ namespace IntersectUtilities
             //3
             PropertySetDefinition = GetOrCreatePropertySetDefinition(propertySetName);
         }
-        private PropertySetDefinition GetOrCreatePropertySetDefinition(DefinedSets propertySetName)
+        private PropertySetDefinition GetOrCreatePropertySetDefinition(PSetDefs.DefinedSets propertySetName)
         {
             if (PropertySetDefinitionExists(propertySetName))
             {
@@ -1298,14 +1299,8 @@ namespace IntersectUtilities
             }
             else return CreatePropertySetDefinition(propertySetName);
         }
-        public enum DefinedSets
-        {
-            None,
-            DriPipelineData,
-            DriSourceReference,
-            DriCrossingData
-        }
-        private PropertySetDefinition CreatePropertySetDefinition(DefinedSets propertySetName)
+        
+        private PropertySetDefinition CreatePropertySetDefinition(PSetDefs.DefinedSets propertySetName)
         {
             string setName = propertySetName.ToString();
             prdDbg($"Defining PropertySet {propertySetName}.");
@@ -1321,9 +1316,9 @@ namespace IntersectUtilities
             //Spcific properties
             switch (propertySetName)
             {
-                case DefinedSets.None:
+                case PSetDefs.DefinedSets.None:
                     break;
-                case DefinedSets.DriPipelineData:
+                case PSetDefs.DefinedSets.DriPipelineData:
                     {
                         appliedTo.Add(RXClass.GetClass(typeof(Polyline)).Name);
                         appliedTo.Add(RXClass.GetClass(typeof(BlockReference)).Name);
@@ -1344,10 +1339,10 @@ namespace IntersectUtilities
                         propDefManual.Description = "Name of the alignment the component branches off to.";
                         propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
                         propDefManual.DefaultData = "";
-                        propSetDef.Definitions.Add(propDefManual); 
+                        propSetDef.Definitions.Add(propDefManual);
                     }
                     break;
-                case DefinedSets.DriSourceReference:
+                case PSetDefs.DefinedSets.DriSourceReference:
                     {
                         appliedTo.Add(RXClass.GetClass(typeof(BlockReference)).Name);
 
@@ -1361,7 +1356,7 @@ namespace IntersectUtilities
                         propSetDef.Definitions.Add(propDefManual);
                     }
                     break;
-                case DefinedSets.DriCrossingData:
+                case PSetDefs.DefinedSets.DriCrossingData:
                     {
                         appliedTo.Add(RXClass.GetClass(typeof(CogoPoint)).Name);
 
@@ -1372,6 +1367,24 @@ namespace IntersectUtilities
                         propDefManual.Description = "Stores crossing pipe's diameter";
                         propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Integer;
                         propDefManual.DefaultData = 0;
+                        propSetDef.Definitions.Add(propDefManual);
+
+                        propDefManual = new PropertyDefinition();
+                        propDefManual.SetToStandard(Db);
+                        propDefManual.SubSetDatabaseDefaults(Db);
+                        propDefManual.Name = "Alignment";
+                        propDefManual.Description = "Stores crossing alignment name.";
+                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+                        propDefManual.DefaultData = "";
+                        propSetDef.Definitions.Add(propDefManual);
+
+                        propDefManual = new PropertyDefinition();
+                        propDefManual.SetToStandard(Db);
+                        propDefManual.SubSetDatabaseDefaults(Db);
+                        propDefManual.Name = "SourceEntityHandle";
+                        propDefManual.Description = "Stores the handle of the crossing entity.";
+                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+                        propDefManual.DefaultData = "";
                         propSetDef.Definitions.Add(propDefManual);
                     }
                     break;
@@ -1429,7 +1442,7 @@ namespace IntersectUtilities
                 }
                 //Property set not attached
                 CurrentPropertySet = AttachPropertySet(ent);
-            } 
+            }
         }
         private PropertySet AttachPropertySet(Entity ent)
         {
@@ -1542,6 +1555,83 @@ namespace IntersectUtilities
             {
                 prdDbg(ex.ToString());
                 throw;
+            }
+        }
+    }
+
+    public class PSetDefs
+    {
+        public enum DefinedSets
+        {
+            None,
+            DriPipelineData,
+            DriSourceReference,
+            DriCrossingData
+        }
+
+        public class DriCrossingData
+        {
+            public DefinedSets SetName = DefinedSets.DriCrossingData;
+
+            public Property Diameter = new Property(
+                "Diameter",
+                "Stores crossing pipe's diameter.",
+                PsDataType.Integer,
+                0);
+
+            public Property Alignment = new Property(
+                "Alignment",
+                "Stores crossing alignment name.",
+                PsDataType.Text,
+                "");
+
+            public Property SourceEntityHanlde = new Property(
+                "SourceEntityHandle",
+                "Stores the handle of the crossing entity.",
+                PsDataType.Text,
+                "");
+        }
+
+        public class DriSourceReference
+        {
+            public DefinedSets SetName = DefinedSets.DriSourceReference;
+
+            public Property SourceEntityHandle = new Property(
+                "SourceEntityHandle",
+                "Handle of the source entity which provided information for this entity.",
+                PsDataType.Text,
+                "");
+        }
+
+        public class DriPipelineData
+        {
+            public DefinedSets SetName = DefinedSets.DriPipelineData;
+
+            public Property BelongsToAlignment = new Property(
+                "BelongsToAlignment",
+                "Name of the alignment the component belongs to.",
+                PsDataType.Text,
+                "");
+            
+            public Property BranchesOffToAlignment = new Property(
+                "BranchesOffToAlignment",
+                "Name of the alignment the component branches off to.",
+                PsDataType.Text,
+                "");
+        }
+
+        public struct Property
+        {
+            public string Name { get; }
+            public string Description { get; }
+            public PsDataType DataType { get; }
+            public object DefaultValue { get; }
+            public Property(string name, string description, PsDataType dataType, object defaultValue)
+            {
+                Name = name;
+                Description = description;
+                DataType = dataType;
+                DefaultValue = defaultValue;
             }
         }
     }

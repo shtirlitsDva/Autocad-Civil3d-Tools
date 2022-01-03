@@ -1023,6 +1023,11 @@ namespace IntersectUtilities
                     }
                     #endregion
 
+                    #region Instantiate property set manager
+                    PropertySetManager psmDriCrossingData =
+                        new PropertySetManager(localDb, PropertySetManager.DefinedSets.DriCrossingData);
+                    #endregion
+
                     HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
                     foreach (ProfileView pv in pvs)
                     {
@@ -1113,10 +1118,13 @@ namespace IntersectUtilities
                             Oid pId = ppl.FeatureId;
                             if (!pId.IsDerivedFrom<CogoPoint>()) continue;
                             CogoPoint cp = pId.Go<CogoPoint>(tx);
-                            if (ReadStringPropertyValue(tables, pId, "CrossingData", "Alignment") != al.Name) continue;
+                            //if (ReadStringPropertyValue(tables, pId, "CrossingData", "Alignment")
+                            //!= al.Name) continue;
+                            if (psmDriCrossingData.ReadPropertyString("Alignment") != al.Name) continue;
 
                             //Get original object from LER dwg
-                            string handle = ReadStringPropertyValue(tables, pId, "IdRecord", "Handle");
+                            //string handle = ReadStringPropertyValue(tables, pId, "IdRecord", "Handle");
+                            string handle = psmDriCrossingData.ReadPropertyString("SourceEntityHandle");
                             //If returned handle string is empty
                             //For any reason, fx missing OD data
                             //Fall back to the name of the cogopoint
@@ -7183,9 +7191,8 @@ namespace IntersectUtilities
                     HashSet<ProfileView> pvSetExisting = localDb.HashSetOfType<ProfileView>(tx);
 
                     #region Check or create propertysetdata to store crossing data
-                    PropertySetManager psm = new PropertySetManager(localDb,
+                    PropertySetManager psmDriCrossingData = new PropertySetManager(localDb,
                         PropertySetManager.DefinedSets.DriCrossingData);
-                    string propertyNameDiameter = "Diameter";
                     #endregion
 
                     #region Read Csv Data for Layers and Depth
@@ -7524,10 +7531,10 @@ namespace IntersectUtilities
                                     #region Attach property set
                                     //Attach property set to CogoPoint
                                     //Check or creation of the set happen at the top now
-                                    psm.GetOrAttachPropertySet(cogoPoint);
+                                    psmDriCrossingData.GetOrAttachPropertySet(cogoPoint);
                                     #endregion
 
-                                    #region Populate diameter property
+                                    #region Populate DriCrossingData property set
                                     List<(string TableName,
                                             string RecordName,
                                             string PropertyName,
@@ -7555,8 +7562,11 @@ namespace IntersectUtilities
                                             pss, ent, item.TableName, item.RecordName);
 
                                         if (value != null)
-                                            psm.WritePropertyObject(item.PropertyName, value);
+                                            psmDriCrossingData.WritePropertyObject(item.PropertyName, value);
                                     }
+
+                                    psmDriCrossingData.WritePropertyString("Alignment", alignment.Name);
+                                    psmDriCrossingData.WritePropertyString("SourceEntityHandle", ent.Handle.ToString());
                                     #endregion
 
                                     //Reference newly created cogoPoint to gathering collection
