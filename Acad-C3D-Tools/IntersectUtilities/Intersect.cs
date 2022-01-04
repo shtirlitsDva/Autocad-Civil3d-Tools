@@ -3427,8 +3427,6 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                HashSet<Polyline3d> allLinework = new HashSet<Polyline3d>();
-
                 try
                 {
                     //Prepare for saving all the time
@@ -3444,7 +3442,7 @@ namespace IntersectUtilities
                     #region Read Csv Data for Layers and Depth
 
                     //Establish the pathnames to files
-                    //Files should be placed in a specific folder on desktop
+                    //Files should be placed in a specific folder
                     string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
                     string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
 
@@ -3456,22 +3454,26 @@ namespace IntersectUtilities
                     BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
 
+                    #region Alignments and profile views
                     List<Alignment> allAlignments = localDb.ListOfType<Alignment>(tx)
-                        .OrderBy(x => x.Name)
-                        //.Where(x => x.Name == "20 Rybjerg Allé")
-                        .ToList();
+                                    .OrderBy(x => x.Name)
+                                    //.Where(x => x.Name == "20 Rybjerg Allé")
+                                    .ToList();
                     prdDbg(allAlignments.Count.ToString());
                     HashSet<ProfileView> pvSetExisting = localDb.HashSetOfType<ProfileView>(tx);
                     HashSet<string> pvNames = pvSetExisting.Select(x => x.Name).ToHashSet();
                     //Filter out already created profile views
-                    allAlignments = allAlignments.Where(x => !pvNames.Contains(x.Name + "_PV")).OrderBy(x => x.Name).ToList();
+                    allAlignments = allAlignments.Where(x => !pvNames.Contains(x.Name + "_PV")).OrderBy(x => x.Name).ToList(); 
+                    #endregion
 
+                    #region Paths to data files
                     DataReferencesOptions dro = new DataReferencesOptions();
                     string projectName = dro.ProjectName;
                     string etapeName = dro.EtapeName;
 
                     editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Ler"));
-                    editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Surface"));
+                    editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Surface")); 
+                    #endregion
 
                     #region Read surface from file
                     // open the xref database
@@ -3513,24 +3515,11 @@ namespace IntersectUtilities
                         {
                             try
                             {
-                                HashSet<Polyline3d> remoteLinework = xRefLerDb.HashSetOfType<Polyline3d>(xRefLerTx)
-                                                        .Where(x => ReadStringParameterFromDataTable(x.Layer, dtKrydsninger, "Type", 0) != "IGNORE")
-                                                        .ToHashSet();
-
-                                #region ModelSpaces
-                                Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(xRefLerDb);
-                                Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
-
-                                ObjectIdCollection remoteP3dIds = new ObjectIdCollection();
-                                foreach (Polyline3d p3d in remoteLinework) remoteP3dIds.Add(p3d.ObjectId);
-
-                                IdMapping mapping = new IdMapping();
-                                xRefLerDb.WblockCloneObjects(remoteP3dIds, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
-                                //Pick up new objects
-                                foreach (IdPair pair in mapping)
-                                    if (pair.Value.IsDerivedFrom<Polyline3d>()) allLinework.Add(pair.Value.Go<Polyline3d>(tx));
-                                prdDbg($"Number of cloned objects: {allLinework.Count}.");
-                                #endregion
+                                HashSet<Polyline3d> remoteLinework =
+                                    xRefLerDb.HashSetOfType<Polyline3d>(xRefLerTx)
+                                    .Where(x => ReadStringParameterFromDataTable(
+                                        x.Layer, dtKrydsninger, "Type", 0) != "IGNORE")
+                                    .ToHashSet();
 
                                 PointGroupCollection pgs = civilDoc.PointGroups;
 
@@ -3556,7 +3545,6 @@ namespace IntersectUtilities
                                 if (pPtRes.Status != PromptStatus.OK) return;
                                 #endregion
 
-
                                 //allAlignments = new List<Alignment>(2) { allAlignments.Where(x => x.Name == "32 Berlingsbakke").FirstOrDefault() };
                                 //allAlignments = allAlignments.Where(x => x.Name == "35 Brogårdsvej" ||//)
                                 //                             x.Name == "36 Søtoften")
@@ -3577,55 +3565,38 @@ namespace IntersectUtilities
                                     #region Delete existing points
                                     //TODO: what to do about if the group already exists???
                                     Oid pgId = Oid.Null;
+                                    PointGroup pg = null;
                                     if (pgs.Contains(alignment.Name))
                                     {
                                         pgId = pgs[alignment.Name];
-
-                                        PointGroup pg = tx.GetObject(pgId, OpenMode.ForRead) as PointGroup;
-
+                                        pg = tx.GetObject(pgId, OpenMode.ForRead) as PointGroup;
                                         pg.CheckOrOpenForWrite();
                                         pg.Update();
                                         pg.DeletePoints();
-                                        //uint[] numbers = pg.GetPointNumbers();
-                                        //CogoPointCollection cpc = civilDoc.CogoPoints;
-                                        //for (int j = 0; j < numbers.Length; j++)
-                                        //{
-                                        //    uint number = numbers[j];
-
-                                        //    if (cpc.Contains(number))
-                                        //    {
-                                        //        cpc.Remove(number);
-                                        //    }
-                                        //}
                                         pg.Update();
                                         StandardPointGroupQuery spgqEmpty = new StandardPointGroupQuery();
                                         spgqEmpty.IncludeNumbers = "";
                                         pg.SetQuery(spgqEmpty);
-
                                         pg.Update();
+                                    }
+                                    else
+                                    {
+                                        //Create the point group
+                                        pgId = civilDoc.PointGroups.Add(alignment.Name);
+                                        pg = pgId.GetObject(OpenMode.ForWrite) as PointGroup;
                                     }
                                     #endregion
 
-                                    HashSet<Polyline3d> filteredLinework = FilterForCrossingEntities(allLinework, alignment);
+                                    HashSet<Polyline3d> filteredLinework = FilterForCrossingEntities(remoteLinework, alignment);
 
                                     #region Create profile view
                                     #region Calculate point
                                     Point3d insertionPoint = new Point3d(selectedPoint.X, selectedPoint.Y + (index - 1) * -120, 0);
                                     #endregion
 
-                                    // ***** Existing PVs are filtered at start, so the if is redudant *****
-                                    ////If ProfileView already exists -> continue
-                                    //if (pvSetExisting.Any(x => x.Name == $"{alignment.Name}_PV"))
-                                    //{
-                                    //    var existingPv = pvSetExisting.Where(x => x.Name == $"{alignment.Name}_PV").FirstOrDefault();
-                                    //    if (existingPv == null) throw new System.Exception("Selection of existing PV failed!");
-                                    //    pvId = existingPv.Id;
-                                    //}
-                                    //else
-                                    //{
                                     pvId = ProfileView.Create(alignment.ObjectId, insertionPoint,
                                         $"{alignment.Name}_PV", profileViewBandSetStyleId, profileViewStyleId);
-                                    //}
+                                    
                                     index++;
                                     #endregion
 
@@ -3634,8 +3605,16 @@ namespace IntersectUtilities
                                     {
                                         try
                                         {
-                                            //TODO: A1: Test if creating profile views works as intended!
-                                            createlerdatapss();
+                                            Plane plane = new Plane();
+                                            prdDbg($"Number of intersections detected: {filteredLinework.Count}.");
+
+                                            CogoPointCollection cogoPoints = civilDoc.CogoPoints;
+                                            HashSet<CogoPoint> allNewlyCreatedPoints = new HashSet<CogoPoint>();
+
+                                            foreach (Entity ent in filteredLinework)
+                                            {
+
+                                            }
                                         }
                                         catch (System.Exception e)
                                         {
@@ -3659,7 +3638,7 @@ namespace IntersectUtilities
                                 xRefLerDb.Dispose();
                                 xRefSurfaceTx.Abort();
                                 xRefSurfaceDB.Dispose();
-                                editor.WriteMessage($"\n{e.Message}");
+                                editor.WriteMessage($"\n{e.ToString()}");
                                 return;
                             }
                             xRefLerTx.Abort();
@@ -3669,18 +3648,11 @@ namespace IntersectUtilities
                     #endregion
                     xRefSurfaceTx.Abort();
                     xRefSurfaceDB.Dispose();
-
-                    //Clean up the cloned linework
-                    foreach (Polyline3d p3d in allLinework)
-                    {
-                        p3d.CheckOrOpenForWrite();
-                        p3d.Erase(true);
-                    }
                 }
                 catch (System.Exception e)
                 {
                     tx.Abort();
-                    editor.WriteMessage($"\n{e.Message}");
+                    editor.WriteMessage($"\n{e.ToString()}");
                     return;
                 }
 

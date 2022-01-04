@@ -1888,7 +1888,7 @@ namespace IntersectUtilities.UtilsCommon
             var type = this.GetType();
             var types = type.Assembly.GetTypes();
             return types
-                .Where(x => x.BaseType.Equals(typeof(PSetDef)))
+                .Where(x => x.BaseType != null && x.BaseType.Equals(typeof(PSetDef)))
                 .Select(x => Activator.CreateInstance(x))
                 .Cast<PSetDef>()
                 .ToList();
