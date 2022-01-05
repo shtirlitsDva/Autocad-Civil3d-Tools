@@ -1073,28 +1073,30 @@ namespace IntersectUtilities.UtilsCommon
                 ? ((BlockTableRecord)tx.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)).Name
                 : br.Name;
         }
-        public static bool XrecFilter(this Autodesk.AutoCAD.DatabaseServices.DBObject obj,
-            string xRecordName, string[] filterValues)
-        {
-            Transaction tx = obj.Database.TransactionManager.TopTransaction;
-            Oid extId = obj.ExtensionDictionary;
-            if (extId == Oid.Null) return false;
-            DBDictionary dbExt = extId.Go<DBDictionary>(tx);
-            if (!dbExt.Contains(xRecordName)) return false;
-            Oid xrecId = dbExt.GetAt(xRecordName);
-            if (xrecId == Oid.Null) return false;
-            Xrecord xrec = xrecId.Go<Xrecord>(tx);
-            TypedValue[] data = xrec.Data.AsArray();
-            bool[] resArray = new bool[0];
-            for (int i = 0; i < filterValues.Length; i++)
-            {
-                if (data.Length <= i) break;
-                if (data[i].Value.ToString() == filterValues[i]) resArray = resArray.Append(true).ToArray();
-                else resArray = resArray.Append(false).ToArray();
-            }
-            if (resArray.Length == 0) return false;
-            return resArray.All(x => x);
-        }
+        #region XrecFilter
+        //public static bool XrecFilter(this Autodesk.AutoCAD.DatabaseServices.DBObject obj,
+        //    string xRecordName, string[] filterValues)
+        //{
+        //    Transaction tx = obj.Database.TransactionManager.TopTransaction;
+        //    Oid extId = obj.ExtensionDictionary;
+        //    if (extId == Oid.Null) return false;
+        //    DBDictionary dbExt = extId.Go<DBDictionary>(tx);
+        //    if (!dbExt.Contains(xRecordName)) return false;
+        //    Oid xrecId = dbExt.GetAt(xRecordName);
+        //    if (xrecId == Oid.Null) return false;
+        //    Xrecord xrec = xrecId.Go<Xrecord>(tx);
+        //    TypedValue[] data = xrec.Data.AsArray();
+        //    bool[] resArray = new bool[0];
+        //    for (int i = 0; i < filterValues.Length; i++)
+        //    {
+        //        if (data.Length <= i) break;
+        //        if (data[i].Value.ToString() == filterValues[i]) resArray = resArray.Append(true).ToArray();
+        //        else resArray = resArray.Append(false).ToArray();
+        //    }
+        //    if (resArray.Length == 0) return false;
+        //    return resArray.All(x => x);
+        //} 
+        #endregion
         public static string XrecReadStringAtIndex(this Autodesk.AutoCAD.DatabaseServices.DBObject obj,
             string xRecordName, int indexToRead)
         {

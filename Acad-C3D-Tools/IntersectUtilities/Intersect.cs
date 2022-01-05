@@ -1025,9 +1025,14 @@ namespace IntersectUtilities
 
                     #region Instantiate property set manager
                     PSetDefs.DriCrossingData driCrossingData = new PSetDefs.DriCrossingData();
-
                     PropertySetManager psmDriCrossingData =
                         new PropertySetManager(localDb, driCrossingData.SetName);
+
+                    PropertySetManager psmPipeLineData = new PropertySetManager(
+                        fremDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineData =
+                        new PSetDefs.DriPipelineData();
                     #endregion
 
                     HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
@@ -1051,56 +1056,20 @@ namespace IntersectUtilities
 
                         #region GetCurvesAndBRs from fremtidig
                         HashSet<Curve> curves = allCurves
-                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                             .ToHashSet();
+
+                        HashSet<BlockReference> brs = allBrs
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                            .ToHashSet();
+                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                         #endregion
 
                         #region Build size array
-                        (int dn, double station, double kod)[] sizeArray = new (int dn, double station, double kod)[0];
-                        int previousDn = 0;
-                        int currentDn = 0;
-                        for (int i = 0; i < nrOfSteps + 1; i++)
-                        {
-                            double curStationBA = pvStStart + stepLength * i;
-                            Point3d curSamplePoint = default;
-                            try { curSamplePoint = al.GetPointAtDist(curStationBA); }
-                            catch (System.Exception) { continue; }
-
-                            HashSet<(Curve curve, double dist, double kappeOd)> curveDistTuples =
-                                new HashSet<(Curve curve, double dist, double kappeOd)>();
-
-                            foreach (Curve curve in curves)
-                            {
-                                if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
-                                Point3d closestPoint = curve.GetClosestPointTo(curSamplePoint, false);
-                                if (closestPoint != default)
-                                    curveDistTuples.Add(
-                                        (curve, curSamplePoint.DistanceHorizontalTo(closestPoint), GetPipeKOd(curve)));
-                            }
-                            var result = curveDistTuples.MinBy(x => x.dist).FirstOrDefault();
-                            //Detect current dn
-                            currentDn = GetPipeDN(result.curve);
-                            if (currentDn != previousDn)
-                            {
-                                //Set the previous segment end station unless there's 0 segments
-                                if (sizeArray.Length != 0) sizeArray[sizeArray.Length - 1].station = curStationBA;
-                                //Add the new segment
-                                sizeArray = sizeArray.Append((currentDn, 0, result.kappeOd)).ToArray();
-                            }
-                            //Hand over DN to cache in "previous" variable
-                            previousDn = currentDn;
-                            //on the last iteration set the last segment distance
-                            if (i == nrOfSteps) sizeArray[sizeArray.Length - 1].station = al.Length;
-                        }
-
-                        prdDbg("");
-                        prdDbg($"****{al.Name}****");
-                        for (int i = 0; i < sizeArray.Length; i++)
-                        {
-                            prdDbg($"{sizeArray[i].dn.ToString("D3")} || " +
-                                   $"{sizeArray[i].station.ToString("0.00")} || " +
-                                   $"{sizeArray[i].kod.ToString("0.0")}");
-                        }
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        prdDbg(sizeArray.ToString());
                         #endregion
 
                         #region Blockrefs and labels
@@ -1183,7 +1152,7 @@ namespace IntersectUtilities
                             double kappeOd = 0;
                             for (int i = 0; i < sizeArray.Length; i++)
                             {
-                                if (station <= sizeArray[i].station) { kappeOd = sizeArray[i].kod / 1000; break; }
+                                if (station <= sizeArray[i].EndStation) { kappeOd = sizeArray[i].Kod / 1000; break; }
                             }
 
                             Circle circle = null;
@@ -1307,8 +1276,8 @@ namespace IntersectUtilities
                         }
 
                         //Update block references
-                        ObjectIdCollection brs = btr.GetBlockReferenceIds(true, true);
-                        foreach (Oid oid in brs)
+                        ObjectIdCollection brsToUpdate = btr.GetBlockReferenceIds(true, true);
+                        foreach (Oid oid in brsToUpdate)
                         {
                             BlockReference br = oid.Go<BlockReference>(tx, OpenMode.ForWrite);
                             br.RecordGraphicsModified(true);
@@ -1504,8 +1473,8 @@ namespace IntersectUtilities
 
                 catch (System.Exception ex)
                 {
-                    throw new System.Exception(ex.Message);
-                    editor.WriteMessage("\n" + ex.Message);
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
                     return;
                 }
                 tx.Commit();
@@ -3587,7 +3556,7 @@ namespace IntersectUtilities
                                     }
                                     #endregion
 
-                                    HashSet<Polyline3d> filteredLinework = FilterForCrossingEntities(remoteLinework, alignment);
+                                    //HashSet<Polyline3d> filteredLinework = FilterForCrossingEntities(remoteLinework, alignment);
 
                                     #region Create profile view
                                     #region Calculate point
@@ -3606,15 +3575,15 @@ namespace IntersectUtilities
                                         try
                                         {
                                             Plane plane = new Plane();
-                                            prdDbg($"Number of intersections detected: {filteredLinework.Count}.");
+                                            //prdDbg($"Number of intersections detected: {filteredLinework.Count}.");
 
                                             CogoPointCollection cogoPoints = civilDoc.CogoPoints;
                                             HashSet<CogoPoint> allNewlyCreatedPoints = new HashSet<CogoPoint>();
 
-                                            foreach (Entity ent in filteredLinework)
-                                            {
+                                            //foreach (Entity ent in filteredLinework)
+                                            //{
 
-                                            }
+                                            //}
                                         }
                                         catch (System.Exception e)
                                         {
@@ -3687,8 +3656,6 @@ namespace IntersectUtilities
 
                 //////////////////////////////////////
                 string draftProfileLayerName = "0-FJV-PROFILE-DRAFT";
-                string komponentBlockName = "DRISizeChangeAnno";
-                string bueBlockName = "DRIPipeArcAnno";
                 //////////////////////////////////////
 
                 try
@@ -3725,34 +3692,9 @@ namespace IntersectUtilities
                     HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
                     #endregion
 
-                    #region Import blocks if missing
-                    if (!bt.Has(komponentBlockName) || !bt.Has(bueBlockName))
-                    {
-                        prdDbg("Block for size annotation is missing! Importing...");
-                        Database blockDb = new Database(false, true);
-                        blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
-                            System.IO.FileShare.Read, false, string.Empty);
-                        Transaction blockTx = blockDb.TransactionManager.StartTransaction();
-
-                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
-                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
-
-                        BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                        ObjectIdCollection idsToClone = new ObjectIdCollection();
-                        if (!bt.Has(komponentBlockName)) idsToClone.Add(sourceBt[komponentBlockName]);
-                        if (!bt.Has(bueBlockName)) idsToClone.Add(sourceBt[bueBlockName]);
-
-                        IdMapping mapping = new IdMapping();
-                        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
-                        blockTx.Commit();
-                        blockTx.Dispose();
-                        blockDb.Dispose();
-                    }
-                    #endregion
-
                     #region Delete previous lines
                     //Delete previous blocks
-                    var existingPlines = localDb.HashSetOfType<Polyline>(tx, true).Where(x => x.Layer == draftProfileLayerName).ToHashSet();
+                    var existingPlines = localDb.HashSetOfType<Polyline>(tx, false).Where(x => x.Layer == draftProfileLayerName).ToHashSet();
                     foreach (Entity ent in existingPlines)
                     {
                         ent.CheckOrOpenForWrite();
@@ -3760,21 +3702,12 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    #region Delete previous blocks
-                    //Delete previous blocks
-                    var existingBlocks = localDb.GetBlockReferenceByName(komponentBlockName);
-                    foreach (BlockReference br in existingBlocks)
-                    {
-                        br.CheckOrOpenForWrite();
-                        br.Erase(true);
-                    }
-                    //Delete previous blocks
-                    existingBlocks = localDb.GetBlockReferenceByName(bueBlockName);
-                    foreach (BlockReference br in existingBlocks)
-                    {
-                        br.CheckOrOpenForWrite();
-                        br.Erase(true);
-                    }
+                    #region Initialize PS for Alignment
+                    PropertySetManager psmPipeLineData = new PropertySetManager(
+                        fremDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineData =
+                        new PSetDefs.DriPipelineData();
                     #endregion
 
                     foreach (Alignment al in als)
@@ -3813,10 +3746,13 @@ namespace IntersectUtilities
 
                         #region GetCurvesAndBRs from fremtidig
                         HashSet<Curve> curves = allCurves
-                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                             .ToHashSet();
+
                         HashSet<BlockReference> brs = allBrs
-                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                             .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                         #endregion
@@ -3842,103 +3778,8 @@ namespace IntersectUtilities
                         #endregion
 
                         #region Build size array
-                        (int dn, double station, double kod)[] sizeArray = new (int dn, double station, double kod)[0];
-                        int previousDn = 0;
-                        int currentDn = 0;
-                        for (int i = 0; i < nrOfSteps + 1; i++)
-                        {
-                            double curStationBA = pvStStart + stepLength * i;
-                            Point3d curSamplePoint = default;
-                            try { curSamplePoint = al.GetPointAtDist(curStationBA); }
-                            catch (System.Exception) { continue; }
-
-                            HashSet<(Curve curve, double dist, double kappeOd)> curveDistTuples =
-                                new HashSet<(Curve curve, double dist, double kappeOd)>();
-
-                            foreach (Curve curve in curves)
-                            {
-                                if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
-                                Point3d closestPoint = curve.GetClosestPointTo(curSamplePoint, false);
-                                if (closestPoint != default)
-                                    curveDistTuples.Add(
-                                        (curve, curSamplePoint.DistanceHorizontalTo(closestPoint), GetPipeKOd(curve)));
-                            }
-                            var result = curveDistTuples.MinBy(x => x.dist).FirstOrDefault();
-                            //Detect current dn
-                            currentDn = GetPipeDN(result.curve);
-                            if (currentDn != previousDn)
-                            {
-                                //Set the previous segment end station unless there's 0 segments
-                                if (sizeArray.Length != 0) sizeArray[sizeArray.Length - 1].station = curStationBA;
-                                //Add the new segment
-                                sizeArray = sizeArray.Append((currentDn, 0, result.kappeOd)).ToArray();
-                            }
-                            //Hand over DN to cache in "previous" variable
-                            previousDn = currentDn;
-                            //TODO: on the last iteration set the last segment distance
-                            if (i == nrOfSteps) sizeArray[sizeArray.Length - 1].station = al.Length;
-                        }
-
-                        for (int i = 0; i < sizeArray.Length; i++)
-                        {
-                            prdDbg($"{sizeArray[i].dn.ToString("D3")} || " +
-                                   $"{sizeArray[i].station.ToString("0000.00")} || " +
-                                   $"{sizeArray[i].kod.ToString("0.0")}");
-                        }
-                        #endregion
-
-                        #region Place size change blocks
-                        //-1 is because of lookahead
-                        for (int i = 0; i < sizeArray.Length; i++)
-                        {
-                            double curStationBL = 0;
-                            double sampledSurfaceElevation = 0;
-                            double curX = 0, curY = 0;
-                            if (i == 0)
-                            {
-                                sampledSurfaceElevation = SampleProfile(surfaceProfile, curStationBL);
-                                curX = originX + curStationBL;
-                                curY = originY + sampledSurfaceElevation - pvElBottom;
-                                BlockReference brAt0 =
-                                    localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                brAt0.SetAttributeStringValue("LEFTSIZE", "");
-                                brAt0.SetAttributeStringValue("RIGHTSIZE", $"DN {sizeArray[0].dn}");
-                            }
-                            if (i == 0 && sizeArray.Length == 1)
-                            {
-                                curStationBL = al.Length;
-                                sampledSurfaceElevation = SampleProfile(surfaceProfile, curStationBL - .1);
-                                curX = originX + curStationBL;
-                                curY = originY + sampledSurfaceElevation - pvElBottom;
-                                BlockReference brAtEnd =
-                                    localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {sizeArray[0].dn}");
-                                brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
-                            }
-                            if (i == sizeArray.Length - 1) continue;
-                            if (sizeArray.Length != 1)
-                            {
-                                curStationBL = sizeArray[i].station;
-                                sampledSurfaceElevation = SampleProfile(surfaceProfile, curStationBL);
-                                curX = originX + curStationBL;
-                                curY = originY + sampledSurfaceElevation - pvElBottom;
-                                BlockReference brInt =
-                                    localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                brInt.SetAttributeStringValue("LEFTSIZE", $"DN {sizeArray[i].dn}");
-                                brInt.SetAttributeStringValue("RIGHTSIZE", $"DN {sizeArray[i + 1].dn}");
-                            }
-                            if (i == sizeArray.Length - 2) //This should give last iteration on arrays larger than 1
-                            {
-                                curStationBL = sizeArray[i + 1].station;
-                                sampledSurfaceElevation = SampleProfile(surfaceProfile, curStationBL - .1);
-                                curX = originX + curStationBL;
-                                curY = originY + sampledSurfaceElevation - pvElBottom;
-                                BlockReference brAtEnd =
-                                    localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {sizeArray[i + 1].dn}");
-                                brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
-                            }
-                        }
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        prdDbg(sizeArray.ToString());
                         #endregion
 
                         #region Local method to sample profiles
@@ -3956,41 +3797,6 @@ namespace IntersectUtilities
                         }
                         #endregion
 
-                        #region Place component blocks
-                        System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
-                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-                        foreach (BlockReference br in brs)
-                        {
-                            string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
-                            if (type == "Reduktion") continue;
-                            //Point3d firstIteration = al.GetClosestPointTo(br.Position, false);
-                            //Point3d brLocation = al.GetClosestPointTo(firstIteration, false);
-                            Point3d brLocation = al.GetClosestPointTo(br.Position, false);
-
-                            double station;
-                            try
-                            {
-                                station = al.GetDistAtPoint(brLocation);
-                            }
-                            catch (System.Exception)
-                            {
-                                prdDbg(br.Position.ToString());
-                                prdDbg(brLocation.ToString());
-                                throw;
-                            }
-
-                            double sampledSurfaceElevation = SampleProfile(surfaceProfile, station);
-                            double X = originX + station;
-                            double Y = originY + sampledSurfaceElevation - pvElBottom;
-                            BlockReference brSign = localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
-                            brSign.SetAttributeStringValue("LEFTSIZE", type);
-                            if ((new[] { "Parallelafgrening", "Lige afgrening", "Afgrening med spring", "Påsvejsning" }).Contains(type))
-                                brSign.SetAttributeStringValue("RIGHTSIZE", br.XrecReadStringAtIndex("Alignment", 1));
-                            else brSign.SetAttributeStringValue("RIGHTSIZE", "");
-                        }
-
-                        #endregion
-
                         #region Sample profile with cover
                         double startStation = 0;
                         double endStation = 0;
@@ -3999,13 +3805,13 @@ namespace IntersectUtilities
                         {
                             List<Point2d> allSteps = new List<Point2d>();
                             //Station management
-                            endStation = sizeArray[i].station;
+                            endStation = sizeArray[i].EndStation;
                             double segmentLength = endStation - startStation;
                             nrOfSteps = (int)(segmentLength / stepLength);
                             //Cover depth management
-                            int curDn = sizeArray[i].dn;
+                            int curDn = sizeArray[i].DN;
                             double cover = curDn <= 65 ? 0.6 : 1.0; //CWO info
-                            double halfKappeOd = sizeArray[i].kod / 2.0 / 1000.0;
+                            double halfKappeOd = sizeArray[i].Kod / 2.0 / 1000.0;
                             prdDbg($"S: {startStation.ToString("0000.0")}, " +
                                    $"E: {endStation.ToString("0000.00")}, " +
                                    $"L: {segmentLength.ToString("0000.00")}, " +
@@ -4062,7 +3868,7 @@ namespace IntersectUtilities
                             }
                             #endregion
 
-                            startStation = sizeArray[i].station;
+                            startStation = sizeArray[i].EndStation;
                         }
                         #endregion
 
@@ -4157,69 +3963,6 @@ namespace IntersectUtilities
                         ////    $"{((coverList.Count(x => x < cover) / Convert.ToDouble(coverList.Count)) * 100.0).ToString("0.##")} %");
                         //#endregion
 
-                        #endregion
-
-                        #region Find curves and annotate
-                        foreach (Curve curve1 in curves)
-                        {
-                            if (curve1 is Polyline pline)
-                            {
-                                //Detect arcs and determine if it is a buerør or not
-                                for (int i = 0; i < pline.NumberOfVertices; i++)
-                                {
-                                    TypeOfSegment tos;
-                                    double bulge = pline.GetBulgeAt(i);
-                                    if (bulge == 0) tos = TypeOfSegment.Straight;
-                                    else
-                                    {
-                                        //Calculate radius
-                                        double u = pline.GetPoint2dAt(i).GetDistanceTo(pline.GetPoint2dAt(i + 1));
-                                        double radius = u * ((1 + bulge.Pow(2)) / (4 * Math.Abs(bulge)));
-                                        double minRadius = GetPipeMinElasticRadius(pline);
-
-                                        if (radius < minRadius) tos = TypeOfSegment.CurvedPipe;
-                                        else tos = TypeOfSegment.ElasticArc;
-
-                                        //Acquire start and end stations
-                                        double curveStartStation = al.GetDistAtPoint(al.GetClosestPointTo(pline.GetPoint3dAt(i), false));
-                                        double curveEndStation = al.GetDistAtPoint(al.GetClosestPointTo(pline.GetPoint3dAt(i + 1), false));
-                                        double length = curveEndStation - curveStartStation;
-                                        double midStation = curveStartStation + length / 2;
-
-                                        double sampledSurfaceElevation = 0;
-                                        double curX = 0, curY = 0;
-
-                                        sampledSurfaceElevation = SampleProfile(surfaceProfile, midStation);
-                                        curX = originX + midStation;
-                                        curY = originY + sampledSurfaceElevation - pvElBottom;
-                                        BlockReference brCurve =
-                                            localDb.CreateBlockWithAttributes(bueBlockName, new Point3d(curX, curY, 0));
-
-                                        DynamicBlockReferencePropertyCollection dbrpc = brCurve.DynamicBlockReferencePropertyCollection;
-                                        foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
-                                        {
-                                            if (dbrp.PropertyName == "Length")
-                                            {
-                                                prdDbg(length.ToString());
-                                                dbrp.Value = Math.Abs(length);
-                                            }
-                                        }
-
-                                        switch (tos)
-                                        {
-                                            case TypeOfSegment.ElasticArc:
-                                                brCurve.SetAttributeStringValue("TEXT", "Elastisk bue");
-                                                break;
-                                            case TypeOfSegment.CurvedPipe:
-                                                brCurve.SetAttributeStringValue("TEXT", "Buerør");
-                                                break;
-                                            default:
-                                                break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
                         #endregion
                     }
                 }
@@ -5181,6 +4924,14 @@ namespace IntersectUtilities
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
                 #endregion
 
+                #region Initialize PS for Alignment
+                PropertySetManager psmPipeLineData = new PropertySetManager(
+                    fremDb,
+                    PSetDefs.DefinedSets.DriPipelineData);
+                PSetDefs.DriPipelineData driPipelineData =
+                    new PSetDefs.DriPipelineData();
+                #endregion
+
                 //////////////////////////////////////
                 string profileLayerName = "0-FJV-PROFILE";
                 //////////////////////////////////////
@@ -5238,12 +4989,14 @@ namespace IntersectUtilities
 
                     #region GetCurvesAndBRs from fremtidig
                     HashSet<Curve> curves = allCurves
-                        .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
-                        .ToHashSet();
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                            .ToHashSet();
+
                     HashSet<BlockReference> brs = allBrs
-                        .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                        .Where(x => psmPipeLineData
+                        .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                         .ToHashSet();
-                    prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                     #endregion
 
                     //PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves);
@@ -6466,7 +6219,10 @@ namespace IntersectUtilities
 
                         //Sorting is not verified!!!
                         //Must be sorted from start alignment to end
-                        ProfileView[] pvs = localDb.ListOfType<ProfileView>(tx).ToArray();
+                        ObjectIdCollection pvIds = alignment.GetProfileViewIds();
+                        List<ProfileView> pvs = new List<ProfileView>();
+                        foreach (Oid pvId in pvIds) pvs.Add(pvId.Go<ProfileView>(tx, OpenMode.ForWrite));
+                        //ProfileView[] pvs = localDb.ListOfType<ProfileView>(tx).ToArray();
 
                         #region Find and set max elevation for PVs
                         foreach (ProfileView pv in pvs)
@@ -6535,7 +6291,7 @@ namespace IntersectUtilities
                         }
 
                         //Set minimum height
-                        for (int i = 0; i < pvs.Length; i++)
+                        for (int i = 0; i < pvs.Count; i++)
                         {
                             int idx = i + 1;
                             double elMin = staPoints.Where(x => x.ProfileViewNumber == idx)
@@ -6572,7 +6328,6 @@ namespace IntersectUtilities
 
                     xRefSurfaceTx.Abort();
                     xRefSurfaceDB.Dispose();
-                    throw new System.Exception(ex.Message);
                     editor.WriteMessage("\n" + ex.ToString());
                     return;
                 }
@@ -8314,7 +8069,7 @@ namespace IntersectUtilities
             //Can be used to check if labels are inside
             drawviewportrectangles();
             //Colorize layer as per krydsninger table
-            colorizealllerlayers();
+            colorizealllerlayersmethod();
         }
 
         /// <summary>
@@ -8343,6 +8098,14 @@ namespace IntersectUtilities
                 Transaction fremTx = fremDb.TransactionManager.StartTransaction();
                 HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                #endregion
+
+                #region Initialize PS for Alignment
+                PropertySetManager psmPipeLineData = new PropertySetManager(
+                    fremDb,
+                    PSetDefs.DefinedSets.DriPipelineData);
+                PSetDefs.DriPipelineData driPipelineData =
+                    new PSetDefs.DriPipelineData();
                 #endregion
 
                 //////////////////////////////////////
@@ -8423,10 +8186,13 @@ namespace IntersectUtilities
 
                         #region GetCurvesAndBRs from fremtidig
                         HashSet<Curve> curves = allCurves
-                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                             .ToHashSet();
+
                         HashSet<BlockReference> brs = allBrs
-                            .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                             .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                         #endregion
@@ -8553,10 +8319,11 @@ namespace IntersectUtilities
                                 if (type == "Reduktion" || type == "Svejsning") continue;
                                 Point3d brLocation = al.GetClosestPointTo(br.Position, false);
 
-                                double station;
+                                double station = 0;
+                                double offset = 0;
                                 try
                                 {
-                                    station = al.GetDistAtPoint(brLocation);
+                                    al.StationOffset(brLocation.X, brLocation.Y, ref station, ref offset);
                                 }
                                 catch (System.Exception)
                                 {
@@ -8597,10 +8364,12 @@ namespace IntersectUtilities
                                             //Determine if centre of arc is within view
                                             CircularArc2d arcSegment2dAt = pline.GetArcSegment2dAt(i);
                                             Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
-                                            double centreStation =
-                                                al.GetDistAtPoint(
-                                                    al.GetClosestPointTo(
-                                                        new Point3d(samplePoint.X, samplePoint.Y, 0), false));
+                                            Point3d location = al.GetClosestPointTo(
+                                                        new Point3d(samplePoint.X, samplePoint.Y, 0), false);
+                                            double centreStation = 0;
+                                            double centreOffset = 0;
+                                            al.StationOffset(location.X, location.Y, ref centreStation, ref centreOffset);
+
                                             //If centre of arc is not within PV -> continue
                                             if (!(centreStation > pvStStart && centreStation < pvStEnd)) continue;
 
@@ -8613,8 +8382,14 @@ namespace IntersectUtilities
                                             else tos = TypeOfSegment.ElasticArc;
 
                                             //Acquire start and end stations
-                                            double curveStartStation = al.GetDistAtPoint(al.GetClosestPointTo(pline.GetPoint3dAt(i), false));
-                                            double curveEndStation = al.GetDistAtPoint(al.GetClosestPointTo(pline.GetPoint3dAt(i + 1), false));
+                                            location = al.GetClosestPointTo(pline.GetPoint3dAt(i), false);
+                                            double curveStartStation = 0;
+                                            double offset = 0;
+                                            al.StationOffset(location.X, location.Y, ref curveStartStation, ref offset);
+
+                                            location = al.GetClosestPointTo(pline.GetPoint3dAt(i + 1), false);
+                                            double curveEndStation = 0;
+                                            al.StationOffset(location.X, location.Y, ref curveEndStation, ref offset);
                                             double length = curveEndStation - curveStartStation;
                                             //double midStation = curveStartStation + length / 2;
 
@@ -9987,7 +9762,7 @@ namespace IntersectUtilities
 
                         using (Transaction extTx = extDb.TransactionManager.StartTransaction())
                         {
-                            colorizealllerlayers(extDb);
+                            colorizealllerlayersmethod(extDb);
 
                             extTx.Commit();
                         }
@@ -11818,7 +11593,12 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("COLORIZEALLLERLAYERS")]
-        public void colorizealllerlayers(Database extDb = null)
+        public void colorizealllerlayers()
+        {
+            colorizealllerlayersmethod();
+        }
+
+        public void colorizealllerlayersmethod(Database extDb = null)
         {
 
             DocumentCollection docCol = Application.DocumentManager;
