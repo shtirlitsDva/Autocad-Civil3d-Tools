@@ -134,93 +134,6 @@ namespace IntersectUtilities
             objXL.Quit();
             return dt;
         }
-        #region Xrecord functions
-        public static void XrecordCreateWriteUpdateString(
-            Autodesk.AutoCAD.DatabaseServices.DBObject obj,
-            string xRecName, string[] valuesToWrite)
-        {
-            Oid extId = obj.ExtensionDictionary;
-            if (extId == Oid.Null)
-            {
-                obj.CheckOrOpenForWrite();
-                obj.CreateExtensionDictionary();
-                extId = obj.ExtensionDictionary;
-            }
-
-            Transaction tx = obj.Database.TransactionManager.TopTransaction;
-
-            DBDictionary dbExt = extId.Go<DBDictionary>(tx, OpenMode.ForWrite);
-
-            Xrecord xRec;
-            if (dbExt.Contains(xRecName))
-            {
-                Oid xRecId = dbExt.GetAt(xRecName);
-                xRec = xRecId.Go<Xrecord>(tx, OpenMode.ForWrite);
-            }
-            else
-            {
-                xRec = new Xrecord();
-                dbExt.SetAt(xRecName, xRec);
-                tx.AddNewlyCreatedDBObject(xRec, true);
-            }
-
-            ResultBuffer rb = new ResultBuffer();
-            for (int i = 0; i < valuesToWrite.Length; i++)
-            {
-                rb.Add(new TypedValue(
-                    (int)DxfCode.ExtendedDataAsciiString, valuesToWrite[i]));
-            }
-
-            xRec.Data = rb;
-        }
-        public static bool XrecCopyTo(DBObject sourceObj, DBObject targetObj, string xRecordName)
-        {
-            Transaction sourceTx = sourceObj.Database.TransactionManager.TopTransaction;
-            Oid sourceExtId = sourceObj.ExtensionDictionary;
-            if (sourceExtId == Oid.Null)
-            {
-                prdDbg($"DBObject with handle {sourceObj.Handle} does not have extension dictionary!");
-                return false;
-            }
-            DBDictionary sourceDbExt = sourceExtId.Go<DBDictionary>(sourceTx);
-            Xrecord sourceXrec;
-            if (sourceDbExt.Contains(xRecordName))
-            {
-                Oid sourceXrecId = sourceDbExt.GetAt(xRecordName);
-                sourceXrec = sourceXrecId.Go<Xrecord>(sourceTx);
-
-                Transaction targetTx = targetObj.Database.TransactionManager.TopTransaction;
-                Oid targetExtId = targetObj.ExtensionDictionary;
-                if (targetExtId == Oid.Null)
-                {
-                    targetObj.CheckOrOpenForWrite();
-                    targetObj.CreateExtensionDictionary();
-                    targetExtId = targetObj.ExtensionDictionary;
-                }
-                DBDictionary targetDbExt = targetExtId.Go<DBDictionary>(targetTx, OpenMode.ForWrite);
-                Xrecord targetXrec;
-                if (targetDbExt.Contains(xRecordName))
-                {
-                    Oid targetXrecId = targetDbExt.GetAt(xRecordName);
-                    targetXrec = targetXrecId.Go<Xrecord>(targetTx, OpenMode.ForWrite);
-                }
-                else
-                {
-                    targetXrec = new Xrecord();
-                    targetDbExt.SetAt(xRecordName, targetXrec);
-                    targetTx.AddNewlyCreatedDBObject(targetXrec, true);
-                }
-
-                targetXrec.Data = sourceXrec.Data;
-                return true;
-            }
-            else
-            {
-                prdDbg($"DBObject with handle {sourceObj.Handle} does not have xrecord {xRecordName}!");
-                return false;
-            }
-        }
-        #endregion
         /// <summary>
         /// Gets all vertices of a polyline.
         /// </summary>
@@ -1039,6 +952,11 @@ namespace IntersectUtilities
         public static Queue<Curve> GetSortedQueue(Database localDb, Alignment al, HashSet<Curve> curves,
             ref Enums.TypeOfIteration iterType)
         {
+            #region PropertySetManager
+            PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriPipelineData);
+            PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
+            #endregion
+
             #region Detect curves direction
             double alLength = al.Length;
             double stepLength = 0.1;
@@ -1067,10 +985,15 @@ namespace IntersectUtilities
                 if (sortedTuples.First().ent is Curve curve)
                 {
                     //Determine direction of curve
-                    double curveStartStation = al.GetDistAtPoint(
-                        al.GetClosestPointTo(curve.GetPointAtParameter(curve.StartParam), false));
-                    double curveEndStation = al.GetDistAtPoint(
-                        al.GetClosestPointTo(curve.GetPointAtParameter(curve.EndParam), false));
+                    Point3d p1 = al.GetClosestPointTo(curve.GetPointAtParameter(curve.StartParam), false);
+                    double curveStartStation = 0;
+                    double offset = 0;
+                    al.StationOffset(p1.X, p1.Y, ref curveStartStation, ref offset);
+
+                    Point3d p2 = al.GetClosestPointTo(curve.GetPointAtParameter(curve.EndParam), false);
+                    double curveEndStation = 0;
+                    al.StationOffset(p2.X, p2.Y, ref curveEndStation, ref offset);
+
                     if ((iterType == Enums.TypeOfIteration.Backward && curveStartStation < curveEndStation) ||
                         (iterType == Enums.TypeOfIteration.Forward && curveStartStation > curveEndStation))
                     {//Catches if curve is reversed
@@ -1116,7 +1039,9 @@ namespace IntersectUtilities
                                 if (obj is Polyline newPline)
                                 {
                                     newPline.AddEntityToDbModelSpace(localDb);
-                                    XrecCopyTo(curve, newPline, "Alignment");
+                                    
+                                    PropertySetManager.CopyAllProperties(curve, newPline);
+                                    //XrecCopyTo(curve, newPline, "Alignment");
 
                                     ////Check direction of curve
                                     //curveStartStation = al.GetDistAtPoint(
@@ -1209,28 +1134,7 @@ namespace IntersectUtilities
                 pline.RemoveVertexAt(verticesToRemove[j]);
         }
     }
-    public static class OdTables
-    {
-        public static class Gas
-        {
-            public static string GetTableName() => "GasDimOgMat";
-            public static string[] GetColumnNames() => new string[3] { "Dimension", "Material", "Bemærk" };
-            public static string[] GetColumnDescriptions() =>
-                new string[3] { "Pipe diameter", "Pipe material", "Bemærkning til ledning" };
-            public static DataType[] GetDataTypes() =>
-                new DataType[3] { DataType.Integer, DataType.Character, DataType.Character };
-            public static string GetTableDescription() => "Gas data";
-        }
-        public static class Labels
-        {
-            public static string GetTableName() => "DRILabelData";
-            public static string[] GetColumnNames() => new string[1] { "EntityHandle" };
-            public static string[] GetColumnDescriptions() =>
-                new string[1] { "Handle of the labeled entity" };
-            public static DataType[] GetDataTypes() => new DataType[1] { DataType.Character };
-            public static string GetTableDescription() => "Labels data";
-        }
-    }
+    
     public static class Enums
     {
         public enum ElevationInputMethod
@@ -1294,8 +1198,6 @@ namespace IntersectUtilities
             else FirstPosition = input;
         }
     }
-
-    
 
     public class ProfileViewCollection : Collection<ProfileView>
     {
