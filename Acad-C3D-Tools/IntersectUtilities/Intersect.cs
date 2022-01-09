@@ -3432,7 +3432,7 @@ namespace IntersectUtilities
                     HashSet<ProfileView> pvSetExisting = localDb.HashSetOfType<ProfileView>(tx);
                     HashSet<string> pvNames = pvSetExisting.Select(x => x.Name).ToHashSet();
                     //Filter out already created profile views
-                    allAlignments = allAlignments.Where(x => !pvNames.Contains(x.Name + "_PV")).OrderBy(x => x.Name).ToList(); 
+                    allAlignments = allAlignments.Where(x => !pvNames.Contains(x.Name + "_PV")).OrderBy(x => x.Name).ToList();
                     #endregion
 
                     #region Paths to data files
@@ -3441,7 +3441,7 @@ namespace IntersectUtilities
                     string etapeName = dro.EtapeName;
 
                     editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Ler"));
-                    editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Surface")); 
+                    editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Surface"));
                     #endregion
 
                     #region Read surface from file
@@ -3565,7 +3565,7 @@ namespace IntersectUtilities
 
                                     pvId = ProfileView.Create(alignment.ObjectId, insertionPoint,
                                         $"{alignment.Name}_PV", profileViewBandSetStyleId, profileViewStyleId);
-                                    
+
                                     index++;
                                     #endregion
 
@@ -4149,11 +4149,11 @@ namespace IntersectUtilities
                             {//1 to skip start, which is handled separately
                                 Point3d wPt = curve.GetPointAtDist(j * pipeStdLength);
                                 Point3d tempPt = al.GetClosestPointTo(wPt, false);
-                                //double station = al.GetDistAtPoint(tempPt);
-                                double station;
+                                double station = 0;
+                                double offset = 0;
                                 try
                                 {
-                                    station = al.GetDistAtPoint(tempPt);
+                                    al.StationOffset(tempPt.X, tempPt.Y, ref station, ref offset);
                                 }
                                 catch (System.Exception)
                                 {
@@ -4176,30 +4176,38 @@ namespace IntersectUtilities
                                 });
                             }
 
-                            //Handle start and end points separately
-                            wps.Add(new WeldPointData()
-                            {
-                                WeldPoint = curve.GetPointAtParameter(curve.StartParam),
-                                Alignment = al,
-                                IterationType = iterType,
-                                Station = al.GetDistAtPoint(al.GetClosestPointTo(
-                                        curve.GetPointAtParameter(curve.StartParam), false)),
-                                SourceEntity = curve,
-                                DN = GetPipeDN(curve),
-                                System = GetPipeSystem(curve)
-                            });
-                            wps.Add(new WeldPointData()
-                            {
-                                WeldPoint = curve.GetPointAtParameter(curve.EndParam),
-                                Alignment = al,
-                                IterationType = iterType,
-                                Station = al.GetDistAtPoint(al.GetClosestPointTo(
-                                        curve.GetPointAtParameter(curve.EndParam), false)),
-                                SourceEntity = curve,
-                                DN = GetPipeDN(curve),
-                                System = GetPipeSystem(curve)
-                            });
+                            { //Extra scope to localise variables station and offset
+                                //Handle start and end points separately
+                                double station = 0;
+                                double offset = 0;
 
+                                Point3d pt = al.GetClosestPointTo(curve.GetPointAtParameter(curve.StartParam), false);
+                                al.StationOffset(pt.X, pt.Y, ref station, ref offset);
+                                wps.Add(new WeldPointData()
+                                {
+                                    WeldPoint = curve.GetPointAtParameter(curve.StartParam),
+                                    Alignment = al,
+                                    IterationType = iterType,
+                                    Station = station,
+                                    SourceEntity = curve,
+                                    DN = GetPipeDN(curve),
+                                    System = GetPipeSystem(curve)
+                                });
+
+
+                                pt = al.GetClosestPointTo(curve.GetPointAtParameter(curve.EndParam), false);
+                                al.StationOffset(pt.X, pt.Y, ref station, ref offset);
+                                wps.Add(new WeldPointData()
+                                {
+                                    WeldPoint = curve.GetPointAtParameter(curve.EndParam),
+                                    Alignment = al,
+                                    IterationType = iterType,
+                                    Station = station,
+                                    SourceEntity = curve,
+                                    DN = GetPipeDN(curve),
+                                    System = GetPipeSystem(curve)
+                                });
+                            }
                             #region Debug
                             //if (curve is Polyline pline)
                             //{
@@ -4290,12 +4298,17 @@ namespace IntersectUtilities
                                 }
                                 #endregion
 
+                                double station = 0;
+                                double offset = 0;
+
+                                Point3d pt = al.GetClosestPointTo(wPt, false);
+                                al.StationOffset(pt.X, pt.Y, ref station, ref offset);
                                 wps.Add(new WeldPointData()
                                 {
                                     WeldPoint = wPt,
                                     Alignment = alignment,
                                     IterationType = iterType,
-                                    Station = al.GetDistAtPoint(al.GetClosestPointTo(wPt, false)),
+                                    Station = station,
                                     SourceEntity = br,
                                     DN = DN,
                                     System = system
@@ -8856,28 +8869,18 @@ namespace IntersectUtilities
                                 Point3d brLocation = al.GetClosestPointTo(br.Position, false);
 
                                 double station = 0;
+                                double offset = 0;
                                 try
                                 {
-                                    station = al.GetDistAtPoint(brLocation);
+                                    al.StationOffset(brLocation.X, brLocation.Y, ref station, ref offset);
                                 }
                                 catch (System.Exception)
                                 {
-                                    prdDbg("GetDistAtPoint failed! Performing evasive maneouvres.");
-                                    //GetDistAtPoint failed again!!!!! perform evasive maneouvres
-                                    try
-                                    {
-                                        double offset = 0;
-                                        al.StationOffset(brLocation.X, brLocation.Y, ref station, ref offset);
-                                        //station = plineForSamplingDistance.GetDistAtPoint(brLocation);
-                                    }
-                                    catch (System.Exception ex)
-                                    {
-                                        prdDbg(br.RealName());
-                                        prdDbg(br.Handle.ToString());
-                                        prdDbg(br.Position.ToString());
-                                        prdDbg(brLocation.ToString());
-                                        throw;
-                                    }
+                                    prdDbg(br.RealName());
+                                    prdDbg(br.Handle.ToString());
+                                    prdDbg(br.Position.ToString());
+                                    prdDbg(brLocation.ToString());
+                                    throw;
                                 }
 
                                 //Determine if blockref is within current PV
@@ -12917,36 +12920,6 @@ namespace IntersectUtilities
                     prdDbg(ex.ToString());
                 }
                 tr.Commit();
-            }
-        }
-
-        [CommandMethod("TESTGETDISTANCEATPOINT")]
-        public void testgetdistanceatpoint()
-        {
-            Document doc = Application.DocumentManager.MdiActiveDocument;
-            Database db = doc.Database;
-            Editor ed = doc.Editor;
-            Transaction tx = db.TransactionManager.StartTransaction();
-            using (tx)
-            {
-                try
-                {
-                    List<BlockReference> blocks = db.ListOfType<BlockReference>(tx);
-                    Alignment al = db.ListOfType<Alignment>(tx).FirstOrDefault();
-
-                    foreach (BlockReference br in blocks)
-                    {
-                        Point3d nearest = al.GetClosestPointTo(br.Position, false);
-                        double station = al.GetDistAtPoint(nearest);
-                        ed.WriteMessage($"\nNearest station: {station}");
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    ed.WriteMessage(ex.ToString());
-                }
-                tx.Commit();
             }
         }
 
