@@ -255,7 +255,7 @@ namespace IntersectUtilities.ODDataConverter
                     return;
                 }
                 tx.Commit();
-                prdDbg("Finishd!");
+                prdDbg("Finished!");
             }
         }
 

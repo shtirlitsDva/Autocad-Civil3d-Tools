@@ -13663,5 +13663,13 @@ namespace IntersectUtilities
         {
             IntersectUtilities.ODDataConverter.ODDataConverter.populatepropertysetswithoddata();
         }
+
+        [CommandMethod("CONVERTODTOPSS")]
+        public void convertodtopss()
+        {
+            IntersectUtilities.ODDataConverter.ODDataConverter.oddatacreatepropertysetsdefs();
+            IntersectUtilities.ODDataConverter.ODDataConverter.attachpropertysetstoobjects();
+            IntersectUtilities.ODDataConverter.ODDataConverter.populatepropertysetswithoddata();
+        }
     }
 }
