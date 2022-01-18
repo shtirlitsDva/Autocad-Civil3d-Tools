@@ -880,8 +880,6 @@ namespace IntersectUtilities
                                     Oid newPolyId;
 
                                     #region Assign elevation based on 3D conditions
-                                    double zElevation = 0;
-
                                     //Create vertical line to intersect the Ler line
                                     using (Transaction txp3d = localDb.TransactionManager.StartTransaction())
                                     {
@@ -938,7 +936,7 @@ namespace IntersectUtilities
                     xRefAlsTx.Dispose();
                     xRefAlsDB.Dispose();
                     tx.Abort();
-                    editor.WriteMessage($"\n{e.Message}");
+                    editor.WriteMessage($"\n{e.ToString()}");
                     return;
                 }
 
@@ -7723,16 +7721,16 @@ namespace IntersectUtilities
                             objIds.Add(stylesDoc.Styles.LabelStyles.ProjectionLabelStyles
                                 .ProfileViewProjectionLabelStyles["PROFILE PROJEKTION MGO"]);
 
-                            int i = 0;
-                            foreach (Oid oid in objIds)
-                            {
-                                prdDbg($"{i}: {oid.ToString()}");
-                                i++;
+                            //int i = 0;
+                            //foreach (Oid oid in objIds)
+                            //{
+                            //    prdDbg($"{i}: {oid.ToString()}");
+                            //    i++;
 
-                            }
+                            //}
 
-                            prdDbg("Stylebase.ExportTo() doesn't work!");
-                            //Autodesk.Civil.DatabaseServices.Styles.StyleBase.ExportTo(objIds, localDb, Autodesk.Civil.StyleConflictResolverType.Override);
+                            //prdDbg("Stylebase.ExportTo() doesn't work!");
+                            Autodesk.Civil.DatabaseServices.Styles.StyleBase.ExportTo(objIds, localDb, Autodesk.Civil.StyleConflictResolverType.Override);
                         }
                         catch (System.Exception)
                         {

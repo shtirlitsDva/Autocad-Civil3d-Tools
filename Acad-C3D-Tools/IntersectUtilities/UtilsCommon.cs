@@ -1693,7 +1693,22 @@ namespace IntersectUtilities.UtilsCommon
         public static int ReadNonDefinedPropertySetInt(Entity ent, string propertySetName, string propertyName)
         {
             object value = ReadNonDefinedPropertySetObject(ent, propertySetName, propertyName);
-            return Convert.ToInt32(value);
+            int number = 0;
+            try
+            {
+                if (value.ToString().IsNoE()) return number;
+                number = Convert.ToInt32(value);
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ent.Handle.ToString());
+                prdDbg(propertySetName);
+                prdDbg(propertyName);
+                prdDbg(value.ToString());
+                number = 0;
+            }
+                
+            return number;
         }
         public static string ReadNonDefinedPropertySetString(Entity ent, string propertySetName, string propertyName)
         {
