@@ -1096,22 +1096,23 @@ namespace IntersectUtilities.UtilsCommon
         //    if (resArray.Length == 0) return false;
         //    return resArray.All(x => x);
         //} 
+
+        //public static string XrecReadStringAtIndex(this Autodesk.AutoCAD.DatabaseServices.DBObject obj,
+        //    string xRecordName, int indexToRead)
+        //{
+        //    Transaction tx = obj.Database.TransactionManager.TopTransaction;
+        //    Oid extId = obj.ExtensionDictionary;
+        //    if (extId == Oid.Null) return "";
+        //    DBDictionary dbExt = extId.Go<DBDictionary>(tx);
+        //    Oid xrecId = Oid.Null;
+        //    if (!dbExt.Contains(xRecordName)) return "";
+        //    xrecId = dbExt.GetAt(xRecordName);
+        //    Xrecord xrec = xrecId.Go<Xrecord>(tx);
+        //    TypedValue[] data = xrec.Data.AsArray();
+        //    if (data.Length <= indexToRead) return "";
+        //    return data[indexToRead].Value.ToString();
+        //}
         #endregion
-        public static string XrecReadStringAtIndex(this Autodesk.AutoCAD.DatabaseServices.DBObject obj,
-            string xRecordName, int indexToRead)
-        {
-            Transaction tx = obj.Database.TransactionManager.TopTransaction;
-            Oid extId = obj.ExtensionDictionary;
-            if (extId == Oid.Null) return "";
-            DBDictionary dbExt = extId.Go<DBDictionary>(tx);
-            Oid xrecId = Oid.Null;
-            if (!dbExt.Contains(xRecordName)) return "";
-            xrecId = dbExt.GetAt(xRecordName);
-            Xrecord xrec = xrecId.Go<Xrecord>(tx);
-            TypedValue[] data = xrec.Data.AsArray();
-            if (data.Length <= indexToRead) return "";
-            return data[indexToRead].Value.ToString();
-        }
         public static void SetAttributeStringValue(this BlockReference br, string attributeName, string value)
         {
             Database db = br.Database;
@@ -1442,7 +1443,16 @@ namespace IntersectUtilities.UtilsCommon
     {
         private Database Db { get; }
         private DictionaryPropertySetDefinitions DictionaryPropertySetDefinitions { get; }
-        private PropertySetDefinition PropertySetDefinition { get; }
+        private PropertySetDefinition propertySetDefinition;
+        private PropertySetDefinition PropertySetDefinition { get
+            {
+                if (propertySetDefinition == null)
+                {
+                    prdDbg("PropertySetDefinition is null! Have you remembered to GetOrAttachPropertySet?");
+                    throw new System.Exception("PropertySetDefinition is null! Have you remembered to GetOrAttachPropertySet?");
+                }
+                return propertySetDefinition;
+            } set => propertySetDefinition = value; }
         private PropertySet CurrentPropertySet { get; set; }
         public PropertySetManager(Database database, PSetDefs.DefinedSets propertySetName)
         {

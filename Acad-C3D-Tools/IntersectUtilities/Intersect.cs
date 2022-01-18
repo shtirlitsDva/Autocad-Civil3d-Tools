@@ -1089,6 +1089,7 @@ namespace IntersectUtilities
                             CogoPoint cp = pId.Go<CogoPoint>(tx);
                             //if (ReadStringPropertyValue(tables, pId, "CrossingData", "Alignment")
                             //!= al.Name) continue;
+                            psmDriCrossingData.GetOrAttachPropertySet(cp);
                             if (psmDriCrossingData.ReadPropertyString(driCrossingData.Alignment) != al.Name) continue;
 
                             //Get original object from LER dwg
@@ -6342,90 +6343,6 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("updateprofile")]
-        public void updateprofile()
-        {
-
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                DataReferencesOptions dro = new DataReferencesOptions();
-                string projectName = dro.ProjectName;
-                string etapeName = dro.EtapeName;
-
-                editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Ler"));
-                editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Fremtid"));
-
-                #region Load linework from LER Xref
-                // open the LER dwg database
-                Database xRefLerDB = new Database(false, true);
-
-                xRefLerDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
-                    System.IO.FileShare.Read, false, string.Empty);
-                Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
-                #endregion
-
-                #region Load linework from Fremtid Xref
-                // open the Fremtid dwg database
-                Database xRefFremtidDB = new Database(false, true);
-
-                xRefFremtidDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                    System.IO.FileShare.Read, false, string.Empty);
-                Transaction xRefFremtidTx = xRefFremtidDB.TransactionManager.StartTransaction();
-                #endregion
-
-                try
-                {
-                    #region Load blocks from Fremtid -- NOT USED NOW
-                    //HashSet<string> allExistingNames = File.ReadAllLines(@"X:\AutoCAD DRI - 01 Civil 3D\SymbolNames.txt")
-                    //                                       .Distinct().ToHashSet();
-
-                    //BlockTable bt = xRefFremtidTx.GetObject(xRefFremtidDB.BlockTableId, OpenMode.ForRead) as BlockTable;
-                    //BlockTableRecord btr = tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead)
-                    //    as BlockTableRecord;
-                    //foreach (oid oid in btr)
-                    //{
-                    //    if (oid.ObjectClass.Name == "AcDbBlockReference")
-                    //    {
-                    //        BlockReference br = oid.Go<BlockReference>(tx);
-                    //        if (!allExistingNames.Contains(br.Name))
-                    //        {
-                    //            editor.WriteMessage($"\n{br.Name}");
-                    //        }
-                    //    }
-                    //}
-                    #endregion
-
-                    HashSet<Alignment> allAls = localDb.HashSetOfType<Alignment>(tx);
-
-                    Alignment selectedAl = allAls.Where(x => x.Name == "11 Brogårdsvej - Tjørnestien").FirstOrDefault();
-                    if (selectedAl == null) throw new System.Exception("Selection of alignment failed! -> null");
-
-
-                }
-                catch (System.Exception ex)
-                {
-                    xRefLerTx.Abort();
-                    xRefLerDB.Dispose();
-                    xRefFremtidTx.Abort();
-                    xRefFremtidDB.Dispose();
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
-                    return;
-                }
-                xRefLerTx.Abort();
-                xRefLerDB.Dispose();
-                xRefFremtidTx.Abort();
-                xRefFremtidDB.Dispose();
-                tx.Commit();
-            }
-        }
-
         [CommandMethod("scaleallblocks")]
         public void scaleallblocks()
         {
@@ -8158,14 +8075,16 @@ namespace IntersectUtilities
 
                     #region Delete previous blocks
                     //Delete previous blocks
-                    var existingBlocks = localDb.GetBlockReferenceByName(komponentBlockName);
-                    existingBlocks.UnionWith(localDb.GetBlockReferenceByName(bueBlockName));
+                    deletedetailing();
 
-                    foreach (BlockReference br in existingBlocks)
-                    {
-                        br.CheckOrOpenForWrite();
-                        br.Erase(true);
-                    }
+                    //var existingBlocks = localDb.GetBlockReferenceByName(komponentBlockName);
+                    //existingBlocks.UnionWith(localDb.GetBlockReferenceByName(bueBlockName));
+
+                    //foreach (BlockReference br in existingBlocks)
+                    //{
+                    //    br.CheckOrOpenForWrite();
+                    //    br.Erase(true);
+                    //}
                     #endregion
 
                     foreach (Alignment al in als)
@@ -8349,8 +8268,9 @@ namespace IntersectUtilities
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
                                 BlockReference brSign = localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
                                 brSign.SetAttributeStringValue("LEFTSIZE", type);
+                                psmPipeLineData.GetOrAttachPropertySet(br);
                                 if ((new[] { "Parallelafgrening", "Lige afgrening", "Afgrening med spring", "Påsvejsning" }).Contains(type))
-                                    brSign.SetAttributeStringValue("RIGHTSIZE", br.XrecReadStringAtIndex("Alignment", 1));
+                                    brSign.SetAttributeStringValue("RIGHTSIZE", psmPipeLineData.ReadPropertyString(driPipelineData.BranchesOffToAlignment));
                                 else brSign.SetAttributeStringValue("RIGHTSIZE", "");
                             }
                             #endregion
