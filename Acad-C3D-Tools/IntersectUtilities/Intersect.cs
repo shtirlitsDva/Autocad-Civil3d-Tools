@@ -654,7 +654,7 @@ namespace IntersectUtilities
                             xRefLerTx.Dispose();
                             xRefLerDB.Dispose();
                             tx.Abort();
-                            editor.WriteMessage($"\n{e.Message}");
+                            editor.WriteMessage($"\n{e.ToString()}");
                             return;
                         }
 
@@ -693,10 +693,6 @@ namespace IntersectUtilities
                         allLinework.UnionWith(plines.Cast<Entity>().ToHashSet());
                         allLinework.UnionWith(plines3d.Cast<Entity>().ToHashSet());
                         allLinework.UnionWith(arcs.Cast<Entity>().ToHashSet());
-
-                        allLinework = allLinework
-                            .Where(x => ReadStringParameterFromDataTable(x.Layer, dtKrydsninger, "Type", 0) != "IGNORE")
-                            .ToHashSet();
 
                         try
                         {
