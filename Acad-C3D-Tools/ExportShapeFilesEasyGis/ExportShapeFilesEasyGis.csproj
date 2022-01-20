@@ -33,15 +33,32 @@
   <ItemGroup>
     <Reference Include="accoremgd">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\accoremgd.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="acdbmgd">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\acdbmgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="EGIS.Controls">
+      <HintPath>X:\AutoCAD DRI - QGIS\EGIS\EGIS.Controls.dll</HintPath>
+    </Reference>
+    <Reference Include="EGIS.Projections">
+      <HintPath>X:\AutoCAD DRI - QGIS\EGIS\EGIS.Projections.dll</HintPath>
+    </Reference>
+    <Reference Include="EGIS.ShapeFileLib">
+      <HintPath>X:\AutoCAD DRI - QGIS\EGIS\EGIS.ShapeFileLib.dll</HintPath>
+    </Reference>
+    <Reference Include="ManagedMapApi">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\Map\ManagedMapApi.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.ValueTuple.4.5.0\lib\net47\System.ValueTuple.dll</HintPath>
     </Reference>
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -53,12 +70,45 @@
     <Compile Include="..\IntersectUtilities\MoreLinq.cs">
       <Link>MoreLinq.cs</Link>
     </Compile>
+    <Compile Include="..\IntersectUtilities\PipeSchedule.cs">
+      <Link>PipeSchedule.cs</Link>
+    </Compile>
     <Compile Include="ExportShapeFilesEasyGis.cs" />
     <Compile Include="GisUtils.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\proj.db">
+      <Link>Proj6\proj.db</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="X:\AutoCAD DRI - QGIS\EGIS\geomutil_lib.dll">
+      <Link>geomutil_lib.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="X:\AutoCAD DRI - QGIS\EGIS\geomutil_libx64.dll">
+      <Link>geomutil_libx64.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\x64\proj_6_1.dll">
+      <Link>Proj6\x64\proj_6_1.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\x64\sqlite3.dll">
+      <Link>Proj6\x64\sqlite3.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\x86\proj_6_1.dll">
+      <Link>Proj6\x86\proj_6_1.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\x86\sqlite3.dll">
+      <Link>Proj6\x86\sqlite3.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
