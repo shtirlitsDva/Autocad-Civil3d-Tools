@@ -975,6 +975,7 @@ namespace IntersectUtilities.UtilsCommon
                 case ProfileCircular circular:
                     return circular.GetBulge(profileView);
                 default:
+                    prdDbg("Segment type: " + next.ToString() + ". Lav om til circular!");
                     throw new System.Exception($"LookAheadAndGetBulge: ProfileEntity unknown type encountered!");
             }
         }
@@ -1444,7 +1445,9 @@ namespace IntersectUtilities.UtilsCommon
         private Database Db { get; }
         private DictionaryPropertySetDefinitions DictionaryPropertySetDefinitions { get; }
         private PropertySetDefinition propertySetDefinition;
-        private PropertySetDefinition PropertySetDefinition { get
+        private PropertySetDefinition PropertySetDefinition
+        {
+            get
             {
                 if (propertySetDefinition == null)
                 {
@@ -1452,7 +1455,9 @@ namespace IntersectUtilities.UtilsCommon
                     throw new System.Exception("PropertySetDefinition is null! Have you remembered to GetOrAttachPropertySet?");
                 }
                 return propertySetDefinition;
-            } set => propertySetDefinition = value; }
+            }
+            set => propertySetDefinition = value;
+        }
         private PropertySet CurrentPropertySet { get; set; }
         public PropertySetManager(Database database, PSetDefs.DefinedSets propertySetName)
         {
@@ -1717,7 +1722,7 @@ namespace IntersectUtilities.UtilsCommon
                 prdDbg(value.ToString());
                 number = 0;
             }
-                
+
             return number;
         }
         public static string ReadNonDefinedPropertySetString(Entity ent, string propertySetName, string propertyName)
