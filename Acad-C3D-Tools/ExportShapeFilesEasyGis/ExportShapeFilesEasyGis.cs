@@ -86,6 +86,7 @@ namespace ExportShapeFiles
                         {
                             List<Point2d> points = new List<Point2d>();
                             int numOfVert = pline.NumberOfVertices - 1;
+                            if (pline.Closed) numOfVert++;
                             for (int i = 0; i < numOfVert; i++)
                             {
                                 switch (pline.GetSegmentType(i))
@@ -104,7 +105,7 @@ namespace ExportShapeFiles
                                         double ePar = arc.GetParameterOf(arc.EndPoint);
                                         double length = arc.GetLength(sPar, ePar);
                                         double radians = length / arc.Radius;
-                                        int nrOfSamples = (int)(radians / 0.086071032);
+                                        int nrOfSamples = (int)(radians / 0.04);
                                         if (nrOfSamples < 3)
                                         {
                                             if (i == 0) points.Add(arc.StartPoint);
@@ -124,13 +125,13 @@ namespace ExportShapeFiles
                                         continue;
                                 }
                             }
-                            
+
                             PointD[] shapePoints = points.Select(p => new PointD(p.X, p.Y)).ToArray();
-                            
+
                             string[] attributes = new string[3];
                             attributes[0] = GetPipeDN(pline).ToString();
                             attributes[1] = GetPipeSystem(pline);
-                            attributes[2] = GetPipeSeries(pline); 
+                            attributes[2] = GetPipeSeries(pline);
 
                             writer.AddRecord(shapePoints, shapePoints.Length, attributes);
                         }
