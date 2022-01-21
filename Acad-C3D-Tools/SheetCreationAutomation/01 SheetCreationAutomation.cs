@@ -128,7 +128,7 @@ namespace SheetCreationAutomation
             }
         }
 
-        [CommandMethod("CREATEALIGNMENTDRAWINGS")]
+        [CommandMethod("CREATEVIEWFRAMEDRAWINGS")]
         public void createalignmentdrawings()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -150,10 +150,10 @@ namespace SheetCreationAutomation
                 #region
                 int publishedCount = sm.GetPublishedItemsCount();
                 prdDbg($"publishedCount = {publishedCount}");
-
+                
                 /////////////////////////////////////////////////////////////////////////////////////////////
-                string pathToFolderToSave = @"X:\037-1178 - Gladsaxe udbygning - Dokumenter\" +
-                                            @"01 Intern\02 Tegninger\01 Autocad - xxx\Etape 1.2\ViewFrames\";
+                string pathToFolderToSave = @"X:\022-1226 Egedal - Krogholmvej, Etape 1 - Dokumenter\" +
+                                            @"01 Intern\02 Tegninger\01 Autocad\ViewFrames\";
                 /////////////////////////////////////////////////////////////////////////////////////////////
 
                 for (int i = 0; i < publishedCount; i++)
