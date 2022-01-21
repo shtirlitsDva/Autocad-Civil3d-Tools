@@ -5293,6 +5293,9 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            //Lists MIDT profiles for which sampling of distances at start and ends failed.
+            //These profiles must be fixed.
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 HashSet<Profile> pvs = localDb.HashSetOfType<Profile>(tx);
