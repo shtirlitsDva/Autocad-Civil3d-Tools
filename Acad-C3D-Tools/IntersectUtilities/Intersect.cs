@@ -6211,13 +6211,13 @@ namespace IntersectUtilities
 
                         #region Manage PVs
                         ObjectIdCollection pIds = alignment.GetProfileIds();
-                        Profile p = null;
+                        Profile pSurface = null;
                         foreach (Oid oid in pIds)
                         {
                             Profile pt = oid.Go<Profile>(tx);
-                            if (pt.Name == $"{alignment.Name}_surface_P") p = pt;
+                            if (pt.Name == $"{alignment.Name}_surface_P") pSurface = pt;
                         }
-                        if (p == null)
+                        if (pSurface == null)
                         {
                             editor.WriteMessage($"\nNo profile named {alignment.Name}_surface_P found!");
                             xRefLerTx.Abort();
@@ -6226,7 +6226,30 @@ namespace IntersectUtilities
                             xRefSurfaceDB.Dispose();
                             return;
                         }
-                        else editor.WriteMessage($"\nProfile {p.Name} found!");
+                        else editor.WriteMessage($"\nProfile {pSurface.Name} found!");
+
+                        #region Find bottom profile
+                        Profile bundProfile = null;
+                        Profile midtProfile = null;
+                        Profile topProfile = null;
+                        Profile bottomProfile = null;
+                        foreach (Oid oid in pIds)
+                        {
+                            Profile pt = oid.Go<Profile>(tx);
+                            if (pt.Name.Contains("BUND")) bundProfile = pt;
+                            if (pt.Name.Contains("MIDT")) midtProfile = pt;
+                            if (pt.Name.Contains("TOP")) topProfile = pt;
+                        }
+                        if (bundProfile == null &&
+                            midtProfile == null &&
+                            topProfile == null)
+                        {
+                            bottomProfile = pSurface;
+                        }
+                        else if (bundProfile != null) bottomProfile = bundProfile;
+                        else if (midtProfile != null) bottomProfile = midtProfile;
+                        else if (topProfile != null) bottomProfile = topProfile;
+                        #endregion
 
                         //Sorting is not verified!!!
                         //Must be sorted from start alignment to end
@@ -6234,43 +6257,6 @@ namespace IntersectUtilities
                         List<ProfileView> pvs = new List<ProfileView>();
                         foreach (Oid pvId in pvIds) pvs.Add(pvId.Go<ProfileView>(tx, OpenMode.ForWrite));
                         //ProfileView[] pvs = localDb.ListOfType<ProfileView>(tx).ToArray();
-
-                        #region Find and set max elevation for PVs
-                        foreach (ProfileView pv in pvs)
-                        {
-                            double pvStStart = pv.StationStart;
-                            double pvStEnd = pv.StationEnd;
-
-                            int nrOfIntervals = 100;
-                            double delta = (pvStEnd - pvStStart) / nrOfIntervals;
-                            HashSet<double> elevs = new HashSet<double>();
-
-                            for (int i = 0; i < nrOfIntervals + 1; i++)
-                            {
-                                double testEl = 0;
-                                try
-                                {
-                                    testEl = p.ElevationAt(pvStStart + delta * i);
-                                }
-                                catch (System.Exception)
-                                {
-                                    editor.WriteMessage($"\n{pvStStart + delta * i} threw an exception! " +
-                                        $"PV: {pv.StationStart}-{pv.StationEnd}.");
-                                    continue;
-                                }
-                                elevs.Add(testEl);
-                                //editor.WriteMessage($"\nElevation at {i} is {testEl}.");
-                            }
-
-                            double maxEl = elevs.Max();
-                            editor.WriteMessage($"\nMax elevation of {pv.Name} is {maxEl}.");
-
-                            pv.CheckOrOpenForWrite();
-                            pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
-
-                            pv.ElevationMax = Math.Ceiling(maxEl);
-                        }
-                        #endregion
 
                         //Create StationPoints and assign PV number to them
                         HashSet<StationPoint> staPoints = new HashSet<StationPoint>(allNewlyCreatedPoints.Count);
@@ -6301,23 +6287,72 @@ namespace IntersectUtilities
                             staPoints.Add(sp);
                         }
 
-                        //Set minimum height
                         for (int i = 0; i < pvs.Count; i++)
                         {
                             int idx = i + 1;
-                            double elMin = staPoints.Where(x => x.ProfileViewNumber == idx)
+                            ProfileView pv = pvs[i];
+
+                            #region Determine profile top and bottom elevations
+                            double pvStStart = pv.StationStart;
+                            double pvStEnd = pv.StationEnd;
+
+                            int nrOfIntervals = (int)((pvStEnd - pvStStart) / 0.25);
+                            double delta = (pvStEnd - pvStStart) / nrOfIntervals;
+                            HashSet<double> topElevs = new HashSet<double>();
+                            HashSet<double> minElevs = new HashSet<double>();
+
+                            for (int j = 0; j < nrOfIntervals + 1; j++)
+                            {
+                                double topTestEl = 0;
+                                try
+                                {
+                                    topTestEl = pSurface.ElevationAt(pvStStart + delta * j);
+                                }
+                                catch (System.Exception)
+                                {
+                                    editor.WriteMessage($"\nTop profile at {pvStStart + delta * i} threw an exception! " +
+                                        $"PV: {pv.StationStart}-{pv.StationEnd}.");
+                                    continue;
+                                }
+                                topElevs.Add(topTestEl);
+                                double bottomTestEl = 0;
+                                try
+                                {
+                                    bottomTestEl = bottomProfile.ElevationAt(pvStStart + delta * j);
+                                }
+                                catch (System.Exception)
+                                {
+                                    editor.WriteMessage($"\nBottom profile at {pvStStart + delta * i} threw an exception! " +
+                                        $"PV: {pv.StationStart}-{pv.StationEnd}.");
+                                    continue;
+                                }
+                                minElevs.Add(bottomTestEl);
+                            }
+
+                            double maxEl = topElevs.Max();
+                            editor.WriteMessage($"\nMax elevation of {pv.Name} is {maxEl}.");
+
+                            double profileMinEl = minElevs.Min();
+
+                            double pointsMinEl = staPoints.Where(x => x.ProfileViewNumber == idx)
                                                     .Select(x => x.CogoPoint.Elevation)
                                                     .Min();
-                            pvs[i].CheckOrOpenForWrite();
-                            pvs[i].ElevationRangeMode = ElevationRangeType.UserSpecified;
-                            pvs[i].ElevationMin = Math.Floor(elMin) - 1;
+
+                            double minEl = profileMinEl > pointsMinEl ? pointsMinEl : profileMinEl;
+                            #endregion
+
+                            //Set the elevations
+                            pv.CheckOrOpenForWrite();
+                            pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+                            pv.ElevationMax = Math.Ceiling(maxEl);
+                            pv.ElevationMin = Math.Floor(minEl) - 1;
 
                             //Project the points
                             editor.SetImpliedSelection(staPoints
                                 .Where(x => x.ProfileViewNumber == idx)
                                 .Select(x => x.CogoPoint.ObjectId)
                                 .ToArray());
-                            editor.Command("_AeccProjectObjectsToProf", pvs[i].ObjectId);
+                            editor.Command("_AeccProjectObjectsToProf", pv.ObjectId);
                         }
                         #endregion
 
@@ -8029,7 +8064,7 @@ namespace IntersectUtilities
                         Profile surfaceProfile = ps.Where(x => x.Name.Contains("surface")).FirstOrDefault();
                         Oid surfaceProfileId = Oid.Null;
                         if (surfaceProfile != null) surfaceProfileId = surfaceProfile.ObjectId;
-                        else 
+                        else
                         {
                             ed.WriteMessage("\nSurface profile not found!");
                             continue;
