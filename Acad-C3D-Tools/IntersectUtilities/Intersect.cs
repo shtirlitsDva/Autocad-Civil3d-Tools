@@ -7437,12 +7437,15 @@ namespace IntersectUtilities
         [CommandMethod("sgall")]
         public void staggerlabelsall()
         {
-
+            staggerlabelsallmethod();
+        }
+        public void staggerlabelsallmethod(Database db = default)
+        {
             DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
+            Database localDb = db ?? docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            CivilDocument civilDoc = CivilDocument.GetCivilDocument(localDb);
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -7493,6 +7496,37 @@ namespace IntersectUtilities
                         extents = pv.GeometricExtents;
                         labels = labelsInView.OrderByDescending(x => x.LabelLocation.X).ToArray();
 
+                        var pIds = pv.AlignmentId.Go<Alignment>(tx).GetProfileIds();
+                        Profile surfaceP = default;
+                        foreach (Oid oid in pIds) if (oid.Go<Profile>(tx).Name.EndsWith("_surface_P"))
+                                surfaceP = oid.Go<Profile>(tx);
+                        double calculatedLengthOfFirstLabel = 0;
+                        if (surfaceP != default && labels.Length > 0)
+                        {
+                            //get the first label which is setting the start elevation
+                            ProfileProjectionLabel label = labels[0];
+                            double station = 0;
+                            double labelElevation = 0;
+                            //Get station and elevation of label
+                            pv.FindStationAndElevationAtXY(
+                                label.LabelLocation.X, label.LabelLocation.Y, ref station, ref labelElevation);
+                            //Update elevation to be that of surface
+                            double surfaceElevation = surfaceP.ElevationAt(station);
+                            double labelDepthUnderSurface = (surfaceElevation - labelElevation) * 2.5;
+                            double userSpecifiedLabelHeightOverSurfaceM = 5;
+                            double deltaM = labelDepthUnderSurface + userSpecifiedLabelHeightOverSurfaceM;
+                            calculatedLengthOfFirstLabel = deltaM / 250;
+                            prdDbg($"{surfaceElevation}, {labelElevation}, {labelDepthUnderSurface}, {deltaM}, {calculatedLengthOfFirstLabel}");
+                        }
+
+                        if (labels.Length == 1)
+                        {
+                            ProfileProjectionLabel label = labels.First();
+                            label.CheckOrOpenForWrite();
+                            label.DimensionAnchorValue = calculatedLengthOfFirstLabel;
+                            label.StyleId = styleId;
+                        }
+
                         for (int i = 0; i < labels.Length - 1; i++)
                         {
                             ProfileProjectionLabel firstLabel = labels[i];
@@ -7501,9 +7535,8 @@ namespace IntersectUtilities
                             //Handle first label
                             if (i == 0)
                             {
-                                double length = 32;
                                 firstLabel.CheckOrOpenForWrite();
-                                firstLabel.DimensionAnchorValue = length / 250 / 4;
+                                firstLabel.DimensionAnchorValue = calculatedLengthOfFirstLabel;
                                 firstLabel.StyleId = styleId;
                             }
 
@@ -9247,7 +9280,7 @@ namespace IntersectUtilities
                 foreach (string name in names)
                 {
                     var existingBlocks = localDb.HashSetOfType<BlockReference>(tx);
-                    prdDbg(existingBlocks.Count.ToString());
+                    //prdDbg(existingBlocks.Count.ToString());
                     foreach (BlockReference br in existingBlocks)
                     {
                         if (br.RealName() == name)
@@ -11941,6 +11974,55 @@ namespace IntersectUtilities
                             {
                                 try
                                 {
+                                    #region CreateDetailing
+                                    //staggerlabelsallmethod(extDb);
+                                    #endregion
+                                    #region Unhide specific layer in DB
+                                    //LayerTable extLt = extDb.LayerTableId.Go<LayerTable>(extTx);
+                                    //foreach (Oid oid in extLt)
+                                    //{
+                                    //    LayerTableRecord ltr = oid.Go<LayerTableRecord>(extTx);
+                                    //    if (ltr.Name.Contains("|"))
+                                    //    {
+                                    //        var split = ltr.Name.Split('|');
+                                    //        string xrefName = split[0];
+                                    //        string layerName = split[1];
+                                    //        if (xrefName == "FJV-Fremtid-E1" &&
+                                    //            layerName.Contains("SVEJSEPKT-NR"))
+                                    //        {
+                                    //            prdDbg(ltr.Name);
+                                    //            prdDbg(ltr.IsDependent.ToString());
+                                    //            ltr.CheckOrOpenForWrite();
+                                    //            prdDbg(ltr.IsOff.ToString());
+                                    //            ltr.IsOff = false;
+                                    //            prdDbg(ltr.IsOff.ToString());
+                                    //        }
+                                    //    }
+                                    //}
+                                    #endregion
+                                    #region Set linetypes of xref
+                                    //LayerTable extLt = extDb.LayerTableId.Go<LayerTable>(extTx);
+                                    //foreach (Oid oid in extLt)
+                                    //{
+                                    //    LayerTableRecord ltr = oid.Go<LayerTableRecord>(extTx);
+                                    //    if (ltr.Name.Contains("|"))
+                                    //    {
+                                    //        var split = ltr.Name.Split('|');
+                                    //        string xrefName = split[0];
+                                    //        string layerName = split[1];
+                                    //        if (xrefName == "FJV-Fremtid-E1" &&
+                                    //            layerName.Contains("TWIN"))
+                                    //        {
+                                    //            prdDbg(ltr.Name);
+                                    //            prdDbg(ltr.IsDependent.ToString());
+                                    //            LinetypeTable ltt = extDb.LinetypeTableId.Go<LinetypeTable>(extTx);
+                                    //            Oid contId = ltt["Continuous"];
+                                    //            ltr.CheckOrOpenForWrite();
+                                    //            ltr.LinetypeObjectId = contId;
+                                    //        }
+                                    //    }
+                                    //}
+                                    #endregion
                                     #region CreateDetailing
                                     createdetailingmethod(dro, extDb);
                                     #endregion
