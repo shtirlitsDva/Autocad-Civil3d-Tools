@@ -8625,17 +8625,7 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Delete previous blocks
-                    //Delete previous blocks
-                    //var existingBlocks = dB.GetBlockReferenceByName(komponentBlockName);
-                    //existingBlocks.UnionWith(dB.GetBlockReferenceByName(bueBlockName));
-                    //existingBlocks.UnionWith(dB.GetBlockReferenceByName(weldBlockName));
-                    //existingBlocks.UnionWith(dB.GetBlockReferenceByName(weldNumberBlockName));
-                    //foreach (BlockReference br in existingBlocks)
-                    //{
-                    //    br.CheckOrOpenForWrite();
-                    //    br.Erase(true);
-                    //}
-                    deletedetailing();
+                    deletedetailingmethod(dB);
                     #endregion
 
                     foreach (Alignment al in als.OrderBy(x => x.Name))
@@ -8692,10 +8682,6 @@ namespace IntersectUtilities
 
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                         #endregion
-
-                        //PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves);
-                        //prdDbg("Curves:");
-                        //prdDbg(sizeArray.ToString());
 
                         prdDbg("Blocks:");
                         PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
@@ -9201,15 +9187,15 @@ namespace IntersectUtilities
                                             }
 
                                             //Set length text
-                                            brCurve.SetAttributeStringValue("LGD", Math.Abs(length).ToString("0.0") + " m");
+                                            brCurve.SetAttributeStringValue("LGD", "L=" + Math.Abs(length).ToString("0.0") + " m");
 
                                             switch (tos)
                                             {
                                                 case TypeOfSegment.ElasticArc:
-                                                    brCurve.SetAttributeStringValue("TEXT", $"Elastisk bue {radius.ToString("0.0")} m");
+                                                    brCurve.SetAttributeStringValue("TEXT", $"Elastisk bue R={radius.ToString("0.0")} m");
                                                     break;
                                                 case TypeOfSegment.CurvedPipe:
-                                                    brCurve.SetAttributeStringValue("TEXT", $"Buerør {radius.ToString("0.0")} m");
+                                                    brCurve.SetAttributeStringValue("TEXT", $"Buerør R={radius.ToString("0.0")} m");
                                                     break;
                                                 default:
                                                     break;
@@ -9259,11 +9245,14 @@ namespace IntersectUtilities
         [CommandMethod("DELETEDETAILING")]
         public void deletedetailing()
         {
+            deletedetailingmethod();
+        }
+        public void deletedetailingmethod(Database db = default)
+        {
             DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
+            Database localDb = db ?? docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -11974,7 +11963,7 @@ namespace IntersectUtilities
                             {
                                 try
                                 {
-                                    #region CreateDetailing
+                                    #region Stagger labels
                                     //staggerlabelsallmethod(extDb);
                                     #endregion
                                     #region Unhide specific layer in DB
