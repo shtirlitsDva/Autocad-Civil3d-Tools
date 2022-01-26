@@ -826,6 +826,39 @@ namespace IntersectUtilities
                 string etapeName = dro.EtapeName;
 
                 editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Alignments"));
+                editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Surface"));
+
+                #region Read surface from file
+                // open the xref database
+                Database xRefSurfaceDB = new Database(false, true);
+                xRefSurfaceDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Surface"),
+                    System.IO.FileShare.Read, false, string.Empty);
+                Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
+
+                CivSurface surface = null;
+                try
+                {
+
+                    surface = xRefSurfaceDB
+                        .HashSetOfType<TinSurface>(xRefSurfaceTx)
+                        .FirstOrDefault() as CivSurface;
+                }
+                catch (System.Exception)
+                {
+                    xRefSurfaceTx.Abort();
+                    xRefSurfaceDB.Dispose();
+                    prdDbg("No surface found in file! Aborting...");
+                    throw;
+                }
+
+                if (surface == null)
+                {
+                    editor.WriteMessage("\nSurface could not be loaded from the xref!");
+                    xRefSurfaceTx.Commit();
+                    xRefSurfaceDB.Dispose();
+                    throw new System.Exception("Surface is null!");
+                }
+                #endregion
 
                 #region Load alignments from drawing
                 HashSet<Alignment> alignments = null;
@@ -915,6 +948,13 @@ namespace IntersectUtilities
                                             {
                                                 editor.WriteMessage($"\nEntity {ent.Handle} returned {p3dInt.Z}" +
                                                     $" elevation for a 3D layer.");
+                                            }
+
+                                            double surfaceElevation = surface.FindElevationAtXY(p3dInt.X, p3dInt.Y);
+                                            if (p3dInt.Z >= surfaceElevation)
+                                            {
+                                                prdDbg($"Entity {ent.Handle} return intersection point above surface!\n" +
+                                                       $"Location: {p3dInt.ToString()}, Surface E: {surfaceElevation}.");
                                             }
                                         }
                                     }
@@ -9458,16 +9498,18 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            deletedetailingmethod(localDb);
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
-                    //#region Delete cogo points
-                    //CogoPointCollection cogoPoints = civilDoc.CogoPoints;
-                    //ObjectIdCollection cpIds = new ObjectIdCollection();
-                    //foreach (oid oid in cogoPoints) cpIds.Add(oid);
-                    //foreach (oid oid in cpIds) cogoPoints.Remove(oid);
-                    //#endregion
+                    #region Delete cogo points
+                    CogoPointCollection cogoPoints = civilDoc.CogoPoints;
+                    ObjectIdCollection cpIds = new ObjectIdCollection();
+                    foreach (Oid oid in cogoPoints) cpIds.Add(oid);
+                    foreach (Oid oid in cpIds) cogoPoints.Remove(oid);
+                    #endregion
 
                     #region Stylize Profile Views
                     HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
