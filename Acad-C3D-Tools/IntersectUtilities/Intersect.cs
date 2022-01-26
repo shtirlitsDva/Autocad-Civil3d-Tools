@@ -13124,6 +13124,35 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test location point of BRs
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
+                    BlockReference br = brs.Where(x => x.Handle.ToString() == "4E2A23").FirstOrDefault();
+                    prdDbg($"{br != default}");
+
+                    Database alsDB = new Database(false, true);
+                    alsDB.ReadDwgFile(@"X:\022-1226 Egedal - Krogholmvej, Etape 1 - Dokumenter\" +
+                                      @"01 Intern\02 Tegninger\01 Autocad\Alignment\Alignment - Etape 1.dwg",
+                        System.IO.FileShare.Read, false, string.Empty);
+                    using (Transaction alsTx = alsDB.TransactionManager.StartTransaction())
+                    {
+                        HashSet<Alignment> als = alsDB.HashSetOfType<Alignment>(alsTx);
+                        Alignment al = als.Where(x => x.Name == "05 Sigurdsvej").FirstOrDefault();
+
+                        if (al != default)
+                        {
+                            Point3d brLoc = al.GetClosestPointTo(br.Position, false);
+
+                            double station = 0;
+                            double offset = 0;
+                            al.StationOffset(brLoc.X, brLoc.Y, ref station, ref offset);
+                            prdDbg($"S: {station}, O: {offset}");
+                        }
+
+                        alsTx.Abort();
+                    }
+                    alsDB.Dispose();
+                    #endregion
+
                     #region Test exploding alignment
                     //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select an alignment: ");
                     //promptEntityOptions1.SetRejectMessage("\n Not an alignment!");
