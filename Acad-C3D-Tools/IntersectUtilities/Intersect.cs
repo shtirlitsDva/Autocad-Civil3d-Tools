@@ -4314,11 +4314,9 @@ namespace IntersectUtilities
                                     {
                                         foreach (Alignment newAl in als)
                                         {
-                                            if (newAl.Length < 1) continue;
-                                            double newStation = 0;
-                                            double newOffset = 0;
-                                            newAl.StationOffset(wPt.X, wPt.Y, ref newStation, ref newOffset);
-                                            alDistTuples.Add((newOffset, newAl));
+                                            Polyline pline = newAl.GetPolyline().Go<Polyline>(alTx);
+                                            Point3d tempP3d = pline.GetClosestPointTo(wPt, false);
+                                            alDistTuples.Add((tempP3d.DistanceHorizontalTo(wPt), newAl));
                                         }
                                     }
                                     catch (System.Exception ex)
@@ -4334,7 +4332,7 @@ namespace IntersectUtilities
                                 double station = 0;
                                 double offset = 0;
 
-                                al.StationOffset(wPt.X, wPt.Y, ref station, ref offset);
+                                alignment.StationOffset(wPt.X, wPt.Y, ref station, ref offset);
                                 wps.Add(new WeldPointData()
                                 {
                                     WeldPoint = wPt,
@@ -13118,30 +13116,29 @@ namespace IntersectUtilities
                 try
                 {
                     #region Test buerør
-                    PromptEntityOptions peo = new PromptEntityOptions("Select pline");
-                    PromptEntityResult per = editor.GetEntity(peo);
-                    Polyline pline = per.ObjectId.Go<Polyline>(tx);
-                    
-                    for (int j = 0; j < pline.NumberOfVertices - 1; j++)
-                    {
-                        //Guard against already cut out curves
-                        if (j == 0 && pline.NumberOfVertices == 2) { break; }
-                        double b = pline.GetBulgeAt(j);
-                        Point2d fP = pline.GetPoint2dAt(j);
-                        Point2d sP = pline.GetPoint2dAt(j + 1);
-                        double u = fP.GetDistanceTo(sP);
-                        double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
-                        double minRadius = PipeSchedule.GetPipeMinElasticRadius(pline);
+                    //PromptEntityOptions peo = new PromptEntityOptions("Select pline");
+                    //PromptEntityResult per = editor.GetEntity(peo);
+                    //Polyline pline = per.ObjectId.Go<Polyline>(tx);
 
-                        //If radius is less than minRadius a buerør is detected
-                        //Split the pline in segments delimiting buerør and append
-                        if (radius < minRadius)
-                        {
-                            prdDbg($"Buerør detected {fP.ToString()} and {sP.ToString()}.");
-                            prdDbg($"R: {radius}, minR: {minRadius}");
-                        }
-                    }
+                    //for (int j = 0; j < pline.NumberOfVertices - 1; j++)
+                    //{
+                    //    //Guard against already cut out curves
+                    //    if (j == 0 && pline.NumberOfVertices == 2) { break; }
+                    //    double b = pline.GetBulgeAt(j);
+                    //    Point2d fP = pline.GetPoint2dAt(j);
+                    //    Point2d sP = pline.GetPoint2dAt(j + 1);
+                    //    double u = fP.GetDistanceTo(sP);
+                    //    double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
+                    //    double minRadius = PipeSchedule.GetPipeMinElasticRadius(pline);
 
+                    //    //If radius is less than minRadius a buerør is detected
+                    //    //Split the pline in segments delimiting buerør and append
+                    //    if (radius < minRadius)
+                    //    {
+                    //        prdDbg($"Buerør detected {fP.ToString()} and {sP.ToString()}.");
+                    //        prdDbg($"R: {radius}, minR: {minRadius}");
+                    //    }
+                    //}
                     #endregion
 
                     #region Test location point of BRs
