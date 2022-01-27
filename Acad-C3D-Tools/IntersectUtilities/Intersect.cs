@@ -4183,18 +4183,16 @@ namespace IntersectUtilities
                             for (int j = 1; j < nrOfSections + 1; j++)
                             {//1 to skip start, which is handled separately
                                 Point3d wPt = curve.GetPointAtDist(j * pipeStdLength);
-                                Point3d tempPt = al.GetClosestPointTo(wPt, false);
                                 double station = 0;
                                 double offset = 0;
                                 try
                                 {
-                                    al.StationOffset(tempPt.X, tempPt.Y, ref station, ref offset);
+                                    al.StationOffset(wPt.X, wPt.Y, ref station, ref offset);
                                 }
                                 catch (System.Exception)
                                 {
                                     prdDbg(al.Name);
                                     prdDbg(wPt.ToString());
-                                    prdDbg(tempPt.ToString());
                                     prdDbg(curve.Handle.ToString());
                                     throw;
                                 }
@@ -4216,7 +4214,7 @@ namespace IntersectUtilities
                                 double station = 0;
                                 double offset = 0;
 
-                                Point3d pt = al.GetClosestPointTo(curve.GetPointAtParameter(curve.StartParam), false);
+                                Point3d pt = curve.GetPointAtParameter(curve.StartParam);
                                 al.StationOffset(pt.X, pt.Y, ref station, ref offset);
                                 wps.Add(new WeldPointData()
                                 {
@@ -4230,7 +4228,7 @@ namespace IntersectUtilities
                                 });
 
 
-                                pt = al.GetClosestPointTo(curve.GetPointAtParameter(curve.EndParam), false);
+                                pt = curve.GetPointAtParameter(curve.EndParam);
                                 al.StationOffset(pt.X, pt.Y, ref station, ref offset);
                                 wps.Add(new WeldPointData()
                                 {
@@ -4317,15 +4315,15 @@ namespace IntersectUtilities
                                         foreach (Alignment newAl in als)
                                         {
                                             if (newAl.Length < 1) continue;
-                                            Point3d closestPoint = newAl.GetClosestPointTo(wPt, false);
-                                            if (closestPoint != null)
-                                            {
-                                                alDistTuples.Add((wPt.DistanceHorizontalTo(closestPoint), newAl));
-                                            }
+                                            double newStation = 0;
+                                            double newOffset = 0;
+                                            newAl.StationOffset(wPt.X, wPt.Y, ref newStation, ref newOffset);
+                                            alDistTuples.Add((newOffset, newAl));
                                         }
                                     }
-                                    catch (System.Exception)
+                                    catch (System.Exception ex)
                                     {
+                                        //prdDbg(ex.ToString());
                                         prdDbg("Error in GetClosestPointTo -> loop incomplete!");
                                     }
 
@@ -4336,8 +4334,7 @@ namespace IntersectUtilities
                                 double station = 0;
                                 double offset = 0;
 
-                                Point3d pt = al.GetClosestPointTo(wPt, false);
-                                al.StationOffset(pt.X, pt.Y, ref station, ref offset);
+                                al.StationOffset(wPt.X, wPt.Y, ref station, ref offset);
                                 wps.Add(new WeldPointData()
                                 {
                                     WeldPoint = wPt,
@@ -4403,8 +4400,11 @@ namespace IntersectUtilities
                         int idx = 1;
                         foreach (var wp in orderedByDist)
                         {
-                            Vector3d deriv = wp.Alignment.GetFirstDerivative(
-                                wp.Alignment.GetClosestPointTo(wp.WeldPoint, false));
+                            double station = 0;
+                            double offset = 0;
+                            wp.Alignment.StationOffset(wp.WeldPoint.X, wp.WeldPoint.Y, ref station, ref offset);
+                            Polyline pline = wp.Alignment.GetPolyline().Go<Polyline>(alTx);
+                            Vector3d deriv = pline.GetFirstDerivative(pline.GetClosestPointTo(wp.WeldPoint, false));
                             double rotation = Math.Atan2(deriv.Y, deriv.X);
                             //BlockReference wpBr = localDb.CreateBlockWithAttributes(blockName, wp.WeldPoint, rotation);
                             var wpBr = new BlockReference(wp.WeldPoint, btrId);
@@ -6860,11 +6860,10 @@ namespace IntersectUtilities
                             foreach (Alignment al in als)
                             {
                                 if (al.Length < 1) continue;
-                                Point3d closestPoint = al.GetClosestPointTo(br.Position, false);
-                                if (closestPoint != null)
-                                {
-                                    alDistTuples.Add((br, br.Position.DistanceHorizontalTo(closestPoint), al));
-                                }
+                                double station = 0;
+                                double offset = 0;
+                                al.StationOffset(br.Position.X, br.Position.Y, ref station, ref offset);
+                                alDistTuples.Add((br, offset, al));
                             }
                         }
                         catch (System.Exception)
@@ -9002,7 +9001,7 @@ namespace IntersectUtilities
                             foreach (IGrouping<BlockReference, BlockReference> cluster in clusters)
                             {
                                 if (cluster.Count() < 2) continue;
-                                
+
                                 var xSorted = cluster.OrderBy(x => x.Position.X).ToArray();
                                 double deltaY = 0;
                                 for (int i = 0; i < xSorted.Length - 1; i++)
@@ -13118,33 +13117,60 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Test location point of BRs
-                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
-                    BlockReference br = brs.Where(x => x.Handle.ToString() == "4E2A23").FirstOrDefault();
-                    prdDbg($"{br != default}");
-
-                    Database alsDB = new Database(false, true);
-                    alsDB.ReadDwgFile(@"X:\022-1226 Egedal - Krogholmvej, Etape 1 - Dokumenter\" +
-                                      @"01 Intern\02 Tegninger\01 Autocad\Alignment\Alignment - Etape 1.dwg",
-                        System.IO.FileShare.Read, false, string.Empty);
-                    using (Transaction alsTx = alsDB.TransactionManager.StartTransaction())
+                    #region Test buerør
+                    PromptEntityOptions peo = new PromptEntityOptions("Select pline");
+                    PromptEntityResult per = editor.GetEntity(peo);
+                    Polyline pline = per.ObjectId.Go<Polyline>(tx);
+                    
+                    for (int j = 0; j < pline.NumberOfVertices - 1; j++)
                     {
-                        HashSet<Alignment> als = alsDB.HashSetOfType<Alignment>(alsTx);
-                        Alignment al = als.Where(x => x.Name == "05 Sigurdsvej").FirstOrDefault();
+                        //Guard against already cut out curves
+                        if (j == 0 && pline.NumberOfVertices == 2) { break; }
+                        double b = pline.GetBulgeAt(j);
+                        Point2d fP = pline.GetPoint2dAt(j);
+                        Point2d sP = pline.GetPoint2dAt(j + 1);
+                        double u = fP.GetDistanceTo(sP);
+                        double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
+                        double minRadius = PipeSchedule.GetPipeMinElasticRadius(pline);
 
-                        if (al != default)
+                        //If radius is less than minRadius a buerør is detected
+                        //Split the pline in segments delimiting buerør and append
+                        if (radius < minRadius)
                         {
-                            Point3d brLoc = al.GetClosestPointTo(br.Position, false);
-
-                            double station = 0;
-                            double offset = 0;
-                            al.StationOffset(brLoc.X, brLoc.Y, ref station, ref offset);
-                            prdDbg($"S: {station}, O: {offset}");
+                            prdDbg($"Buerør detected {fP.ToString()} and {sP.ToString()}.");
+                            prdDbg($"R: {radius}, minR: {minRadius}");
                         }
-
-                        alsTx.Abort();
                     }
-                    alsDB.Dispose();
+
+                    #endregion
+
+                    #region Test location point of BRs
+                    //HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
+                    //BlockReference br = brs.Where(x => x.Handle.ToString() == "4E2A23").FirstOrDefault();
+                    //prdDbg($"{br != default}");
+
+                    //Database alsDB = new Database(false, true);
+                    //alsDB.ReadDwgFile(@"X:\022-1226 Egedal - Krogholmvej, Etape 1 - Dokumenter\" +
+                    //                  @"01 Intern\02 Tegninger\01 Autocad\Alignment\Alignment - Etape 1.dwg",
+                    //    System.IO.FileShare.Read, false, string.Empty);
+                    //using (Transaction alsTx = alsDB.TransactionManager.StartTransaction())
+                    //{
+                    //    HashSet<Alignment> als = alsDB.HashSetOfType<Alignment>(alsTx);
+                    //    Alignment al = als.Where(x => x.Name == "05 Sigurdsvej").FirstOrDefault();
+
+                    //    if (al != default)
+                    //    {
+                    //        Point3d brLoc = al.GetClosestPointTo(br.Position, false);
+
+                    //        double station = 0;
+                    //        double offset = 0;
+                    //        al.StationOffset(brLoc.X, brLoc.Y, ref station, ref offset);
+                    //        prdDbg($"S: {station}, O: {offset}");
+                    //    }
+
+                    //    alsTx.Abort();
+                    //}
+                    //alsDB.Dispose();
                     #endregion
 
                     #region Test exploding alignment

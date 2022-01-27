@@ -863,9 +863,11 @@ namespace IntersectUtilities
                 if (forwardOrBackward == Enums.TypeOfIteration.Forward)
                     station = i * step;
                 else station = length - i * step;
-                Point3d location = al.GetPointAtDist(station);
-                var tuples = CreateDistTuples(location, ents);
-                var min = tuples.OrderBy(x => x.dist);
+                double x = 0;
+                double y = 0;
+                al.PointLocation(station, 0, ref x, ref y);
+                var tuples = CreateDistTuples(new Point3d(x, y, 0), ents);
+                var min = tuples.OrderBy(t => t.dist);
                 if (min.First().ent is T) return min.First().ent as T;
             }
             return null;
@@ -979,20 +981,23 @@ namespace IntersectUtilities
             for (int i = 0; i < nrOfSteps + 1; i++)
             {
                 double station = iterType == Enums.TypeOfIteration.Forward ? i * stepLength : alLength - i * stepLength;
-                distTuples = CreateDistTuples(al.GetPointAtDist(station), curves);
-                var sortedTuples = distTuples.OrderBy(x => x.dist);
+                double x = 0;
+                double y = 0;
+                al.PointLocation(station, 0, ref x, ref y);
+                distTuples = CreateDistTuples(new Point3d(x, y, 0), curves);
+                var sortedTuples = distTuples.OrderBy(t => t.dist);
                 if (previousEnt?.Id == sortedTuples.First().ent.Id) continue;
                 if (sortedTuples.First().ent is Curve curve)
                 {
                     //Determine direction of curve
-                    Point3d p1 = al.GetClosestPointTo(curve.GetPointAtParameter(curve.StartParam), false);
+                    Point3d tempP3d = curve.GetPointAtParameter(curve.StartParam);
                     double curveStartStation = 0;
                     double offset = 0;
-                    al.StationOffset(p1.X, p1.Y, ref curveStartStation, ref offset);
+                    al.StationOffset(tempP3d.X, tempP3d.Y, ref curveStartStation, ref offset);
 
-                    Point3d p2 = al.GetClosestPointTo(curve.GetPointAtParameter(curve.EndParam), false);
+                    tempP3d = curve.GetPointAtParameter(curve.EndParam);
                     double curveEndStation = 0;
-                    al.StationOffset(p2.X, p2.Y, ref curveEndStation, ref offset);
+                    al.StationOffset(tempP3d.X, tempP3d.Y, ref curveEndStation, ref offset);
 
                     if ((iterType == Enums.TypeOfIteration.Backward && curveStartStation < curveEndStation) ||
                         (iterType == Enums.TypeOfIteration.Forward && curveStartStation > curveEndStation))
@@ -1039,7 +1044,7 @@ namespace IntersectUtilities
                                 if (obj is Polyline newPline)
                                 {
                                     newPline.AddEntityToDbModelSpace(localDb);
-                                    
+
                                     PropertySetManager.CopyAllProperties(curve, newPline);
                                     //XrecCopyTo(curve, newPline, "Alignment");
 
@@ -1134,7 +1139,7 @@ namespace IntersectUtilities
                 pline.RemoveVertexAt(verticesToRemove[j]);
         }
     }
-    
+
     public static class Enums
     {
         public enum ElevationInputMethod
