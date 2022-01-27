@@ -1314,6 +1314,11 @@ namespace IntersectUtilities
             ProjectName = GetProjectName();
             EtapeName = GetEtapeName(ProjectName);
         }
+        public DataReferencesOptions(string projectName, string etapeName)
+        {
+            ProjectName = projectName;
+            EtapeName = etapeName;
+        }
     }
     public class PipelineSizeArray
     {
