@@ -285,6 +285,36 @@ namespace SheetCreationAutomation
                 tx.Abort();
             }
         }
+        [CommandMethod("LISTNUMBEROFPROFILEVIEWS")]
+        public void listnumberofprofileviews()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region List number of Vframes
+                    HashSet<ProfileView> vfs = localDb.HashSetOfType<ProfileView>(tx);
+                    prdDbg($"Number_of_VFs: {{{vfs.Count}}}");
+                    System.Windows.Forms.Application.DoEvents();
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                finally
+                {
+                }
+                tx.Abort();
+            }
+        }
 
         [CommandMethod("CREATEREFERENCETOPROFILES")]
         public void createreferencetoprofiles()
