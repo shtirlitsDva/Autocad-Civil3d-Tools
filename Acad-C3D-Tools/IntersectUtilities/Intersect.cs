@@ -8912,22 +8912,18 @@ namespace IntersectUtilities
                             {
                                 string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
                                 if (type == "Reduktion" || type == "Svejsning") continue;
-                                //Point3d firstIteration = al.GetClosestPointTo(br.Position, false);
-                                //Point3d brLocation = al.GetClosestPointTo(firstIteration, false);
-                                Point3d brLocation = al.GetClosestPointTo(br.Position, false);
 
                                 double station = 0;
                                 double offset = 0;
                                 try
                                 {
-                                    al.StationOffset(brLocation.X, brLocation.Y, ref station, ref offset);
+                                    al.StationOffset(br.Position.X, br.Position.Y, ref station, ref offset);
                                 }
                                 catch (System.Exception)
                                 {
                                     prdDbg(br.RealName());
                                     prdDbg(br.Handle.ToString());
                                     prdDbg(br.Position.ToString());
-                                    prdDbg(brLocation.ToString());
                                     throw;
                                 }
 
@@ -8960,21 +8956,17 @@ namespace IntersectUtilities
                             #region Place component blocks for branches belonging to other alignments
                             foreach (BlockReference br in brsBranchesOffTo)
                             {
-                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
-                                Point3d brLocation = al.GetClosestPointTo(br.Position, false);
-
                                 double station = 0;
                                 double offset = 0;
                                 try
                                 {
-                                    al.StationOffset(brLocation.X, brLocation.Y, ref station, ref offset);
+                                    al.StationOffset(br.Position.X, br.Position.Y, ref station, ref offset);
                                 }
                                 catch (System.Exception)
                                 {
                                     prdDbg(br.RealName());
                                     prdDbg(br.Handle.ToString());
                                     prdDbg(br.Position.ToString());
-                                    prdDbg(brLocation.ToString());
                                     throw;
                                 }
 
@@ -8986,6 +8978,8 @@ namespace IntersectUtilities
                                 double X = originX + station - pvStStart;
                                 double Y = originY + (sampledMidtElevation - pvElBottom) *
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
+
+                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
                                 BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
                                 brSign.SetAttributeStringValue("LEFTSIZE", type);
 
@@ -9008,15 +9002,15 @@ namespace IntersectUtilities
                             foreach (IGrouping<BlockReference, BlockReference> cluster in clusters)
                             {
                                 if (cluster.Count() < 2) continue;
-
+                                
                                 var xSorted = cluster.OrderBy(x => x.Position.X).ToArray();
+                                double deltaY = 0;
                                 for (int i = 0; i < xSorted.Length - 1; i++)
                                 {
                                     Extents3d extents = xSorted[i].GeometricExtents;
-                                    double deltaY = (extents.MaxPoint.Y - xSorted[i].Position.Y) - 0.6156 + 0.1;
+                                    deltaY = deltaY + (extents.MaxPoint.Y - xSorted[i].Position.Y) - 0.6156 + 0.1;
 
                                     BlockReference nextBlock = xSorted[i + 1];
-
                                     DynamicBlockReferencePropertyCollection dbrpc =
                                         nextBlock.DynamicBlockReferencePropertyCollection;
                                     foreach (DynamicBlockReferenceProperty dbrp in dbrpc)

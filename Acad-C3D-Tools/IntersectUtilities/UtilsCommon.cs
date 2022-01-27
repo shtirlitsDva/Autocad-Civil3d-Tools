@@ -1279,6 +1279,28 @@ namespace IntersectUtilities.UtilsCommon
         public static bool IsPointInsideXY(this Extents3d extents, Point3d pnt)
         => pnt.X >= extents.MinPoint.X && pnt.X <= extents.MaxPoint.X
             && pnt.Y >= extents.MinPoint.Y && pnt.Y <= extents.MaxPoint.Y;
+        public static Polyline DrawExtents(this Entity entity)
+        {
+            Extents3d extents = entity.GeometricExtents;
+            if (extents == null) return null;
+            Polyline pline = new Polyline(4);
+            List<Point2d> point2Ds = new List<Point2d>();
+            point2Ds.Add(new Point2d(extents.MinPoint.X, extents.MinPoint.Y));
+            point2Ds.Add(new Point2d(extents.MinPoint.X, extents.MaxPoint.Y));
+            point2Ds.Add(new Point2d(extents.MaxPoint.X, extents.MaxPoint.Y));
+            point2Ds.Add(new Point2d(extents.MaxPoint.X, extents.MinPoint.Y));
+            foreach (Point2d p2d in point2Ds)
+            {
+                pline.AddVertexAt(pline.NumberOfVertices, p2d, 0, 0, 0);
+            }
+            pline.Closed = true;
+            using (Transaction tx = entity.Database.TransactionManager.StartTransaction())
+            {
+                pline.AddEntityToDbModelSpace(entity.Database);
+                tx.Commit();
+            }
+            return pline;
+        }
         public static Transaction GetTopTx(this Entity ent) => ent.Database.TransactionManager.TopTransaction;
         public static Transaction StartTx(this Entity ent) => ent.Database.TransactionManager.StartTransaction();
         public static List<PropertySet> GetPropertySets(this Entity ent)
@@ -1312,6 +1334,7 @@ namespace IntersectUtilities.UtilsCommon
         public static Oid AddEntityToDbModelSpace<T>(this T entity, Database db) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
             Transaction tx = db.TransactionManager.TopTransaction;
+
             BlockTableRecord modelSpace = db.GetModelspaceForWrite();
             Oid id = modelSpace.AppendEntity(entity);
             tx.AddNewlyCreatedDBObject(entity, true);
