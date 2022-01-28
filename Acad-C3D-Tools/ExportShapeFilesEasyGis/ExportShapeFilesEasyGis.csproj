@@ -82,6 +82,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\IntersectUtilities\ComponentSchedule.cs">
+      <Link>ComponentSchedule.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\CsvReader.cs">
+      <Link>CsvReader.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\MoreLinq.cs">
       <Link>MoreLinq.cs</Link>
     </Compile>
@@ -95,7 +101,6 @@
       <Link>UtilsCommon.cs</Link>
     </Compile>
     <Compile Include="ExportShapeFilesEasyGis.cs" />
-    <Compile Include="GisUtils.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

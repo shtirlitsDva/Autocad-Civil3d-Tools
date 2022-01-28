@@ -511,4 +511,12 @@ namespace IntersectUtilities
             return list.Where(x => x.PSetName() == requestedSet).First();
         }
     }
+
+    public class PropertySetNameComparer : IEqualityComparer<PropertySet>
+    {
+        public bool Equals(PropertySet x, PropertySet y)
+            => x.PropertySetDefinitionName == y.PropertySetDefinitionName;
+        public int GetHashCode(PropertySet obj)
+            => obj.PropertySetDefinitionName.GetHashCode();
+    }
 }

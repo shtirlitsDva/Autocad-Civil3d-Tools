@@ -9,10 +9,11 @@ using Autodesk.AutoCAD.ApplicationServices.Core;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.Aec.PropertyData.DatabaseServices;
-using ExportShapeFilesEasyGis;
 using IntersectUtilities;
+using IntersectUtilities.UtilsCommon;
 
 using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.ComponentSchedule;
 
 using EGIS.ShapeFileLib;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
@@ -43,6 +44,7 @@ namespace ExportShapeFiles
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 string logFileName = @"X:\AutoCAD DRI - QGIS\EGIS\Export\export.log";
+                string shapeName = "KROGHLM1226";
 
                 try
                 {
@@ -60,8 +62,9 @@ namespace ExportShapeFiles
                                              pl.Layer.Contains("FJV-FREM") ||
                                              pl.Layer.Contains("FJV-RETUR"))).ToHashSet();
 
-                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {pls.Count} object(s) found for export." });
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {pls.Count} pline(s) found for export." });
 
+                    #region Field def
                     DbfFieldDesc[] dbfFields = new DbfFieldDesc[3];
 
                     dbfFields[0].FieldName = "DN";
@@ -74,10 +77,11 @@ namespace ExportShapeFiles
 
                     dbfFields[2].FieldName = "Serie";
                     dbfFields[2].FieldType = DbfFieldType.General;
-                    dbfFields[2].FieldLength = 100;
+                    dbfFields[2].FieldLength = 100; 
+                    #endregion
 
                     using (ShapeFileWriter writer = ShapeFileWriter.CreateWriter(
-                        baseDir, "test",
+                        baseDir, shapeName + "_pipes",
                         ShapeType.PolyLine, dbfFields,
                         EGIS.Projections.CoordinateReferenceSystemFactory.Default.GetCRSById(25832)
                         .GetWKT(EGIS.Projections.PJ_WKT_TYPE.PJ_WKT1_GDAL, false)))
@@ -137,6 +141,76 @@ namespace ExportShapeFiles
                         }
                     }
 
+                    System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
+                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+                    HashSet<BlockReference> brs = localDb.ListOfType<BlockReference>(tx)
+                        .Where(x => UtilsDataTables.ReadStringParameterFromDataTable(
+                            x.RealName(), komponenter, "Navn", 0) != null).ToHashSet();
+
+                    File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {brs.Count} br(s) found for export." });
+
+                    #region Field def
+                    dbfFields = new DbfFieldDesc[8];
+
+                    dbfFields[0].FieldName = "BlockName";
+                    dbfFields[0].FieldType = DbfFieldType.General;
+                    dbfFields[0].FieldLength = 100;
+
+                    dbfFields[1].FieldName = "Type";
+                    dbfFields[1].FieldType = DbfFieldType.General;
+                    dbfFields[1].FieldLength = 100;
+
+                    dbfFields[2].FieldName = "Rotation";
+                    dbfFields[2].FieldType = DbfFieldType.General;
+                    dbfFields[2].FieldLength = 100;
+
+                    dbfFields[3].FieldName = "System";
+                    dbfFields[3].FieldType = DbfFieldType.General;
+                    dbfFields[3].FieldLength = 100;
+
+                    dbfFields[4].FieldName = "DN1";
+                    dbfFields[4].FieldType = DbfFieldType.Number;
+                    dbfFields[4].FieldLength = 100;
+
+                    dbfFields[5].FieldName = "DN2";
+                    dbfFields[5].FieldType = DbfFieldType.Number;
+                    dbfFields[5].FieldLength = 100;
+
+                    dbfFields[6].FieldName = "Serie";
+                    dbfFields[6].FieldType = DbfFieldType.General;
+                    dbfFields[6].FieldLength = 100;
+
+                    dbfFields[7].FieldName = "Vinkel";
+                    dbfFields[7].FieldType = DbfFieldType.Number;
+                    dbfFields[7].FieldLength = 100;
+                    #endregion
+
+                    using (ShapeFileWriter writer = ShapeFileWriter.CreateWriter(
+                        baseDir, shapeName + "_comps",
+                        ShapeType.Point, dbfFields,
+                        EGIS.Projections.CoordinateReferenceSystemFactory.Default.GetCRSById(25832)
+                        .GetWKT(EGIS.Projections.PJ_WKT_TYPE.PJ_WKT1_GDAL, false)))
+                    {
+                        foreach (BlockReference br in brs)
+                        {
+                            PointD[] shapePoints = new PointD[1];
+                            shapePoints[0] = new PointD(br.Position.X, br.Position.Y);
+
+                            string[] attributes = new string[7];
+                            attributes[0] = br.RealName();
+                            attributes[1] = ReadComponentType(br, komponenter);
+                            attributes[2] = ReadBlockRotation(br, komponenter).ToString("0.00");
+                            attributes[3] = ReadComponentSystem(br, komponenter);
+                            attributes[4] = ReadComponentDN1(br, komponenter);
+                            attributes[5] = ReadComponentDN2(br, komponenter);
+                            attributes[6] = ReadComponentSeries(br, komponenter);
+                            attributes[7] = ReadComponentVinkel(br, komponenter);
+
+                            writer.AddRecord(shapePoints, shapePoints.Length, attributes);
+                        }
+                    }
+
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -190,7 +264,7 @@ namespace ExportShapeFiles
                     dbfFields[1].FieldType = DbfFieldType.Number;
                     dbfFields[1].FieldLength = 10;
 
-                    dbfFields[2].FieldName = "Belægning";
+                    dbfFields[2].FieldName = "Belaegning";
                     dbfFields[2].FieldType = DbfFieldType.General;
                     dbfFields[2].FieldLength = 100;
 

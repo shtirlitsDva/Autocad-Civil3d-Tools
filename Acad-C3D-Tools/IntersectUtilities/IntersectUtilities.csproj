@@ -122,6 +122,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ComponentSchedule.cs" />
     <Compile Include="CreateGisData.cs" />
     <Compile Include="CsvReader.cs" />
     <Compile Include="DataQAClass.cs" />
