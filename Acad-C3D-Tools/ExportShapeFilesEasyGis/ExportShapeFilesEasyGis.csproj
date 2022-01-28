@@ -99,6 +99,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="loadNet.scr" />
     <None Include="packages.config" />
     <Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\proj.db">
       <Link>Proj6\proj.db</Link>
