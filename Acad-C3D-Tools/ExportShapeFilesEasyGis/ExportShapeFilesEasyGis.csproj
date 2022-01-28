@@ -39,6 +39,21 @@
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\acdbmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="acmgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\acmgd.dll</HintPath>
+    </Reference>
+    <Reference Include="AecBaseMgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\AecBaseMgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="AeccDbMgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\C3D\AeccDbMgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="AecPropDataMgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\ACA\AecPropDataMgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="EGIS.Controls">
       <HintPath>X:\AutoCAD DRI - QGIS\EGIS\EGIS.Controls.dll</HintPath>
     </Reference>
@@ -72,6 +87,12 @@
     </Compile>
     <Compile Include="..\IntersectUtilities\PipeSchedule.cs">
       <Link>PipeSchedule.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\PropertySetManager.cs">
+      <Link>PropertySetManager.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\UtilsCommon.cs">
+      <Link>UtilsCommon.cs</Link>
     </Compile>
     <Compile Include="ExportShapeFilesEasyGis.cs" />
     <Compile Include="GisUtils.cs" />

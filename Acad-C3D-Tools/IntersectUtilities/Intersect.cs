@@ -7865,8 +7865,10 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            DataReferencesOptions dro = new DataReferencesOptions();
+
             //Create crossing points first
-            createlerdatapss();
+            createlerdatapssmethod(dro);
             //Populateprofileviews with crossing data
             populateprofiles();
 
@@ -8098,7 +8100,7 @@ namespace IntersectUtilities
             }
 
             //Create detailing blocks on top of exaggerated views
-            createdetailingmethod();
+            createdetailingmethod(dro, localDb);
             //Auto stagger all labels to right
             staggerlabelsall();
             //Draw rectangles representing viewports around longitudinal profiles
@@ -12161,6 +12163,7 @@ namespace IntersectUtilities
                                 ltr.Name = områderLayer;
                                 ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 0);
                                 ltr.LineWeight = LineWeight.LineWeight000;
+                                ltr.IsPlottable = false;
 
                                 //Make layertable writable
                                 lt.CheckOrOpenForWrite();
