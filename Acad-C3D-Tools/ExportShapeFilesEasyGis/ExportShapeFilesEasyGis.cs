@@ -44,13 +44,13 @@ namespace ExportShapeFiles
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 string logFileName = @"X:\AutoCAD DRI - QGIS\EGIS\Export\export.log";
-                string shapeName = "KROGHLM1226";
-
+                
                 try
                 {
                     string fileName = localDb.OriginalFileName;
 
-                    string baseDir = @"X:\AutoCAD DRI - QGIS\EGIS\Export\";
+                    string baseDir = @"X:\022-1226 Egedal - Krogholmvej, Etape 1 - Dokumenter\01 Intern\02 Tegninger\03 Intern\2022.01.27 - DWF til optælling\";
+                    string shapeName = "KROGHLM1226";
 
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Exporting to {baseDir}." });
 
@@ -170,11 +170,11 @@ namespace ExportShapeFiles
                     dbfFields[3].FieldLength = 100;
 
                     dbfFields[4].FieldName = "DN1";
-                    dbfFields[4].FieldType = DbfFieldType.Number;
+                    dbfFields[4].FieldType = DbfFieldType.General;
                     dbfFields[4].FieldLength = 100;
 
                     dbfFields[5].FieldName = "DN2";
-                    dbfFields[5].FieldType = DbfFieldType.Number;
+                    dbfFields[5].FieldType = DbfFieldType.General;
                     dbfFields[5].FieldLength = 100;
 
                     dbfFields[6].FieldName = "Serie";
@@ -182,7 +182,7 @@ namespace ExportShapeFiles
                     dbfFields[6].FieldLength = 100;
 
                     dbfFields[7].FieldName = "Vinkel";
-                    dbfFields[7].FieldType = DbfFieldType.Number;
+                    dbfFields[7].FieldType = DbfFieldType.General;
                     dbfFields[7].FieldLength = 100;
                     #endregion
 
@@ -197,7 +197,7 @@ namespace ExportShapeFiles
                             PointD[] shapePoints = new PointD[1];
                             shapePoints[0] = new PointD(br.Position.X, br.Position.Y);
 
-                            string[] attributes = new string[7];
+                            string[] attributes = new string[8];
                             attributes[0] = br.RealName();
                             attributes[1] = ReadComponentType(br, komponenter);
                             attributes[2] = ReadBlockRotation(br, komponenter).ToString("0.00");

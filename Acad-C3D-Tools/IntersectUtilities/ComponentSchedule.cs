@@ -154,7 +154,11 @@ namespace IntersectUtilities
                     valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
                 }
                 //Else the value is parameter literal to read
-                else return br.GetDynamicPropertyByName(valueToReturn).Value as string ?? "";
+                else
+                {
+                    double value = Convert.ToDouble(br.GetDynamicPropertyByName(valueToReturn).Value);
+                    return (value * (180 / Math.PI)).ToString("0.##");
+                }
             }
             return valueToReturn ?? "";
         }
