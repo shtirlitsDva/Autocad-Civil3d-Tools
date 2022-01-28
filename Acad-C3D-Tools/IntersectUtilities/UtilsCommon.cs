@@ -1855,11 +1855,11 @@ namespace IntersectUtilities.UtilsCommon
                 "Name of street.",
                 PsDataType.Text,
                 "");
-            public Property Ejerskab { get; } = new Property(
-                "Ejerskab",
-                "Owner type of street.",
-                PsDataType.Text,
-                "");
+            //public Property Ejerskab { get; } = new Property(
+            //    "Ejerskab",
+            //    "Owner type of street.",
+            //    PsDataType.Text,
+            //    "");
             public Property Vejklasse { get; } = new Property(
                 "Vejklasse",
                 "Street/road class.",

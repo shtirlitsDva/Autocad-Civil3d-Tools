@@ -8107,7 +8107,7 @@ namespace IntersectUtilities
             //Colorize layer as per krydsninger table
             colorizealllerlayersmethod();
         }
-        
+
         [CommandMethod("finalizesheetsauto")]
         public void finalizesheetsauto()
         {
@@ -8121,7 +8121,7 @@ namespace IntersectUtilities
             DataReferencesOptions dro = new DataReferencesOptions(
                 "KROGHLM1226", "1");
             createlerdatapssmethod(dro);
-            
+
             //Populateprofileviews with crossing data
             populateprofiles();
 
@@ -12096,14 +12096,12 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("ATTACHAREADATA")]
-        //Does not update dynamic blocks
         public static void attachareadata()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
             Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
 
             try
@@ -12112,8 +12110,8 @@ namespace IntersectUtilities
                 {
                     #region Populate area data from string
                     System.Data.DataTable areaDescriptions = CsvReader.ReadCsvToDataTable(
-                                        @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\05 Udbudsmateriale\" +
-                                        @"01 Paradigme\04 TBL\Mængder\4.7\FJV-Fremtid 4.7.csv",
+                                        @"X:\022-1226 Egedal - Krogholmvej, Etape 1 - Dokumenter\01 Intern\02 Tegninger\" +
+                                        @"03 Intern\2022.01.27 - DWF til optælling\Krogholmvej-delområder.csv",
                                         "Areas");
 
                     //Datatable to list of strings
@@ -12122,6 +12120,7 @@ namespace IntersectUtilities
                     foreach (string name in areaNames)
                     {
                         prdDbg(name);
+                        System.Windows.Forms.Application.DoEvents();
                         #region Select pline
                         PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
                             "\nSelect polyline to add data to:");
@@ -12133,16 +12132,19 @@ namespace IntersectUtilities
                         #endregion
 
                         string[] split1 = name.Split(new[] { ", " }, StringSplitOptions.None);
+                        split1[1] = split1[1].Replace("Vejkl. ", "");
 
-                        string ownership = "O";
-                        //Handle the ownership dilemma
-                        if (split1[0].Contains("(P)"))
-                        {
-                            split1[0] = split1[0].Split(new[] { " (" }, StringSplitOptions.None)[0];
-                            ownership = "P";
-                        }
+                        #region Old ownership logic
+                        //string ownership = "O";
+                        ////Handle the ownership dilemma
+                        //if (split1[0].Contains("(P)"))
+                        //{
+                        //    split1[0] = split1[0].Split(new[] { " (" }, StringSplitOptions.None)[0];
+                        //    ownership = "P";
+                        //}
 
-                        string[] data = new string[4] { split1[0], ownership, split1[1], split1[2] };
+                        //string[] data = new string[4] { split1[0], ownership, split1[1], split1[2] }; 
+                        #endregion
 
                         //Test change
                         //if (ownership == "P") prdDbg(data[0] + " " + data[1] + " " + data[2] + " " + data[3]);
@@ -12182,10 +12184,10 @@ namespace IntersectUtilities
                             Polyline pline = plineId.Go<Polyline>(tx, OpenMode.ForWrite);
 
                             psmOmråder.GetOrAttachPropertySet(pline);
-                            psmOmråder.WritePropertyString(driOmråder.Vejnavn, data[0]);
-                            psmOmråder.WritePropertyString(driOmråder.Ejerskab, data[1]);
-                            psmOmråder.WritePropertyString(driOmråder.Vejklasse, data[2]);
-                            psmOmråder.WritePropertyString(driOmråder.Belægning, data[3]);
+                            psmOmråder.WritePropertyString(driOmråder.Vejnavn, split1[0]);
+                            //psmOmråder.WritePropertyString(driOmråder.Ejerskab, split1[1]);
+                            psmOmråder.WritePropertyString(driOmråder.Vejklasse, split1[1]);
+                            psmOmråder.WritePropertyString(driOmråder.Belægning, split1[2]);
 
                             pline.Layer = områderLayer;
                             tx.Commit();
@@ -14102,7 +14104,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        
+
         [CommandMethod("CLEANPLINE")]
         public void cleanpline()
         {
