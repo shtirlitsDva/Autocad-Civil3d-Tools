@@ -12305,7 +12305,7 @@ namespace IntersectUtilities
                                     //}
                                     #endregion
                                     #region CreateDetailing
-                                    createdetailingmethod(dro, extDb);
+                                    //createdetailingmethod(dro, extDb);
                                     #endregion
                                     #region Change xref layer
                                     //BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
@@ -12351,12 +12351,15 @@ namespace IntersectUtilities
                                     //DisplayStyle ds;
                                     //ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.Line);
                                     //ds.LinetypeScale = 10;
+                                    //ds.Lineweight = LineWeight.LineWeight000;
 
                                     //ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.Curve);
                                     //ds.LinetypeScale = 10;
+                                    //ds.Lineweight = LineWeight.LineWeight000;
 
                                     //ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.SymmetricalParabola);
                                     //ds.LinetypeScale = 10;
+                                    //ds.Lineweight = LineWeight.LineWeight000;
                                     #endregion
                                 }
                                 catch (System.Exception ex)
