@@ -8107,7 +8107,7 @@ namespace IntersectUtilities
             //Colorize layer as per krydsninger table
             colorizealllerlayersmethod();
         }
-        
+
         [CommandMethod("finalizesheetsauto")]
         public void finalizesheetsauto()
         {
@@ -8121,7 +8121,7 @@ namespace IntersectUtilities
             DataReferencesOptions dro = new DataReferencesOptions(
                 "KROGHLM1226", "1");
             createlerdatapssmethod(dro);
-            
+
             //Populateprofileviews with crossing data
             populateprofiles();
 
@@ -11989,6 +11989,7 @@ namespace IntersectUtilities
                                 prdDbg($"Set layer {name} to color: R: {R.ToString()}, G: {G.ToString()}, B: {B.ToString()}");
                                 LayerTableRecord ltr = lt[name].Go<LayerTableRecord>(selectedDB.TransactionManager.TopTransaction, OpenMode.ForWrite);
                                 ltr.Color = Color.FromRgb(R, G, B);
+                                ltr.LineWeight = LineWeight.LineWeight013;
                             }
                             else prdDbg("No match!");
                         }
@@ -12242,7 +12243,7 @@ namespace IntersectUtilities
                     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                     //Project and etape selection object
                     //Comment out if not needed
-                    DataReferencesOptions dro = new DataReferencesOptions();
+                    //DataReferencesOptions dro = new DataReferencesOptions();
 
                     foreach (string name in fileList)
                     {
@@ -12255,6 +12256,24 @@ namespace IntersectUtilities
                             {
                                 try
                                 {
+                                    #region Correct line weight layers
+                                    //string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                                    //System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+
+                                    //LayerTable lt = extDb.LayerTableId.Go<LayerTable>(extDb.TransactionManager.TopTransaction);
+
+                                    //HashSet<string> layerNames = dtKrydsninger.AsEnumerable().Select(x => x["Layer"].ToString()).ToHashSet();
+
+                                    //foreach (string layerName in layerNames.Where(x => x.IsNotNoE()).OrderBy(x => x))
+                                    //{
+                                    //    if (lt.Has(layerName))
+                                    //    {
+                                    //        LayerTableRecord ltr = lt[layerName].Go<LayerTableRecord>(
+                                    //            extDb.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                                    //        ltr.LineWeight = LineWeight.LineWeight013;
+                                    //    }
+                                    //}
+                                    #endregion
                                     #region Stagger labels
                                     //staggerlabelsallmethod(extDb);
                                     #endregion
@@ -12305,7 +12324,7 @@ namespace IntersectUtilities
                                     //}
                                     #endregion
                                     #region CreateDetailing
-                                    createdetailingmethod(dro, extDb);
+                                    //createdetailingmethod(dro, extDb);
                                     #endregion
                                     #region Change xref layer
                                     //BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
@@ -14099,7 +14118,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        
+
         [CommandMethod("CLEANPLINE")]
         public void cleanpline()
         {
