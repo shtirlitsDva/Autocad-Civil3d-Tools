@@ -140,9 +140,11 @@ namespace ExportShapeFiles
                             writer.AddRecord(shapePoints, shapePoints.Length, attributes);
                         }
                     }
+                    #endregion
 
+                    #region Exporting BRs
                     System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
-                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
                     HashSet<BlockReference> brs = localDb.ListOfType<BlockReference>(tx)
                         .Where(x => UtilsDataTables.ReadStringParameterFromDataTable(
@@ -209,15 +211,13 @@ namespace ExportShapeFiles
 
                             writer.AddRecord(shapePoints, shapePoints.Length, attributes);
                         }
-                    }
-
+                    } 
                     #endregion
                 }
                 catch (System.Exception ex)
                 {
                     tx.Abort();
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: An exception was caught! Message: {ex.ToString()}. Aborting export of current file!" });
-                    //editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
                 tx.Abort();
