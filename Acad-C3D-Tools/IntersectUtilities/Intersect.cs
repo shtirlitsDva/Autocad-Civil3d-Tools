@@ -4140,7 +4140,7 @@ namespace IntersectUtilities
                     foreach (Alignment al in als.OrderBy(x => x.Name))
                     {
                         ////////////////////////////////////////////
-                        //if (al.Name != "01 Rybjerg Allé") continue;
+                        //if (al.Name != "10 Juni Allé") continue;
                         ////////////////////////////////////////////
                         prdDbg($"\nProcessing: {al.Name}...");
 
@@ -8940,6 +8940,9 @@ namespace IntersectUtilities
                     foreach (Alignment al in als.OrderBy(x => x.Name))
                     {
                         prdDbg($"\nProcessing: {al.Name}...");
+
+                        Polyline alPline = al.GetPolyline().Go<Polyline>(tx);
+
                         #region If exist get surface profile and profile view
                         ObjectIdCollection profileIds = al.GetProfileIds();
                         ObjectIdCollection profileViewIds = al.GetProfileViewIds();
@@ -9182,11 +9185,13 @@ namespace IntersectUtilities
                                 string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
                                 if (type == "Reduktion" || type == "Svejsning") continue;
 
+                                Point3d tpt = alPline.GetClosestPointTo(br.Position, false);
+
                                 double station = 0;
                                 double offset = 0;
                                 try
                                 {
-                                    al.StationOffset(br.Position.X, br.Position.Y, ref station, ref offset);
+                                    al.StationOffset(tpt.X, tpt.Y, ref station, ref offset);
                                 }
                                 catch (System.Exception)
                                 {
@@ -9304,7 +9309,7 @@ namespace IntersectUtilities
                                 string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
                                 if (type != "Svejsning") continue;
 
-                                Point3d brLocation = al.GetClosestPointTo(br.Position, false);
+                                Point3d brLocation = alPline.GetClosestPointTo(br.Position, false);
 
                                 double station = 0;
                                 double offset = 0;
@@ -9581,6 +9586,33 @@ namespace IntersectUtilities
                             br.Erase(true);
                         }
                     }
+                }
+                #endregion
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("DELETESURFACEPROFILES")]
+        public void deletesurfaceprofiles()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                //////////////////////////////////////
+                List<Profile> profiles = localDb.ListOfType<Profile>(tx)
+                    .Where(x => x.Name.Contains("_surface_P")).ToList();
+                //////////////////////////////////////
+
+                #region Delete previous blocks
+                //Delete previous blocks
+                foreach (Profile p in profiles)
+                {
+                    p.CheckOrOpenForWrite();
+                    p.Erase(true);
                 }
                 #endregion
                 tx.Commit();
