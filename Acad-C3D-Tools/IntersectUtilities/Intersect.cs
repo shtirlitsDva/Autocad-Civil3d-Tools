@@ -4332,7 +4332,18 @@ namespace IntersectUtilities
                                 double station = 0;
                                 double offset = 0;
 
-                                alignment.StationOffset(wPt.X, wPt.Y, ref station, ref offset);
+                                Point3d tempPt = alignment.GetPolyline().Go<Polyline>(alTx).GetClosestPointTo(wPt, false);
+
+                                try
+                                {
+                                    alignment.StationOffset(tempPt.X, tempPt.Y, ref station, ref offset);
+                                }
+                                catch (System.Exception)
+                                {
+                                    prdDbg(wPt.ToString());
+                                    throw;
+                                }
+
                                 wps.Add(new WeldPointData()
                                 {
                                     WeldPoint = wPt,
@@ -4398,10 +4409,11 @@ namespace IntersectUtilities
                         int idx = 1;
                         foreach (var wp in orderedByDist)
                         {
+                            Polyline pline = wp.Alignment.GetPolyline().Go<Polyline>(alTx);
+                            Point3d temp = pline.GetClosestPointTo(wp.WeldPoint, false);
                             double station = 0;
                             double offset = 0;
-                            wp.Alignment.StationOffset(wp.WeldPoint.X, wp.WeldPoint.Y, ref station, ref offset);
-                            Polyline pline = wp.Alignment.GetPolyline().Go<Polyline>(alTx);
+                            wp.Alignment.StationOffset(temp.X, temp.Y, ref station, ref offset);
                             Vector3d deriv = pline.GetFirstDerivative(pline.GetClosestPointTo(wp.WeldPoint, false));
                             double rotation = Math.Atan2(deriv.Y, deriv.X);
                             //BlockReference wpBr = localDb.CreateBlockWithAttributes(blockName, wp.WeldPoint, rotation);
@@ -6863,15 +6875,14 @@ namespace IntersectUtilities
                             foreach (Alignment al in als)
                             {
                                 if (al.Length < 1) continue;
-                                double station = 0;
-                                double offset = 0;
-                                al.StationOffset(br.Position.X, br.Position.Y, ref station, ref offset);
-                                alDistTuples.Add((br, offset, al));
+                                Polyline pline = al.GetPolyline().Go<Polyline>(alTx);
+                                Point3d tP3d = pline.GetClosestPointTo(br.Position, false);
+                                alDistTuples.Add((br, tP3d.DistanceHorizontalTo(br.Position), al));
                             }
                         }
                         catch (System.Exception)
                         {
-                            prdDbg("Error in GetClosestPointTo -> loop incomplete!");
+                            prdDbg("Error in GetClosestPointTo -> loop incomplete! (Using GetPolyline)");
                         }
 
                         double distThreshold = 0.15;
@@ -13401,29 +13412,61 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Test buerør
-                    //PromptEntityOptions peo = new PromptEntityOptions("Select pline");
-                    //PromptEntityResult per = editor.GetEntity(peo);
-                    //Polyline pline = per.ObjectId.Go<Polyline>(tx);
+                    #region QA pipe lengths
+                    //HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
+                    ////PromptEntityOptions peo = new PromptEntityOptions("Select pline");
+                    ////PromptEntityResult per = editor.GetEntity(peo);
+                    ////Polyline pline = per.ObjectId.Go<Polyline>(tx);
 
-                    //for (int j = 0; j < pline.NumberOfVertices - 1; j++)
+                    //foreach (Polyline pline in plines)
                     //{
-                    //    //Guard against already cut out curves
-                    //    if (j == 0 && pline.NumberOfVertices == 2) { break; }
-                    //    double b = pline.GetBulgeAt(j);
-                    //    Point2d fP = pline.GetPoint2dAt(j);
-                    //    Point2d sP = pline.GetPoint2dAt(j + 1);
-                    //    double u = fP.GetDistanceTo(sP);
-                    //    double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
-                    //    double minRadius = PipeSchedule.GetPipeMinElasticRadius(pline);
+                    //    double length = pline.Length;
+                    //    double pipeStdLength = PipeSchedule.GetPipeStdLength(pline);
+                    //    if (length < pipeStdLength) continue;
 
-                    //    //If radius is less than minRadius a buerør is detected
-                    //    //Split the pline in segments delimiting buerør and append
-                    //    if (radius < minRadius)
+                    //    int times = (int)(length / pipeStdLength);
+                    //    double rest = length - (pipeStdLength * (double)times);
+
+                    //    prdDbg($"Length: {length}, std: {pipeStdLength}, times: {times}, rest: {rest}, std-rest: {pipeStdLength - rest}");
+
+                    //    if (rest > 0.001 && (pipeStdLength - rest) > 0.001)
                     //    {
-                    //        prdDbg($"Buerør detected {fP.ToString()} and {sP.ToString()}.");
-                    //        prdDbg($"R: {radius}, minR: {minRadius}");
+                    //        Line line = new Line(new Point3d(), pline.GetPointAtDist(length / 2));
+                    //        line.AddEntityToDbModelSpace(localDb);
                     //    }
+                    //}
+                    #endregion
+
+                    #region Test buerør
+                    ////PromptEntityOptions peo = new PromptEntityOptions("Select pline");
+                    ////PromptEntityResult per = editor.GetEntity(peo);
+                    ////Polyline pline = per.ObjectId.Go<Polyline>(tx);
+                    //HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
+
+                    //foreach (Polyline pline in plines)
+                    //{
+                    //    for (int j = 0; j < pline.NumberOfVertices - 1; j++)
+                    //    {
+                    //        //Guard against already cut out curves
+                    //        if (j == 0 && pline.NumberOfVertices == 2) { break; }
+                    //        double b = pline.GetBulgeAt(j);
+                    //        Point2d fP = pline.GetPoint2dAt(j);
+                    //        Point2d sP = pline.GetPoint2dAt(j + 1);
+                    //        double u = fP.GetDistanceTo(sP);
+                    //        double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
+                    //        double minRadius = PipeSchedule.GetPipeMinElasticRadius(pline);
+
+                    //        //If radius is less than minRadius a buerør is detected
+                    //        //Split the pline in segments delimiting buerør and append
+                    //        if (radius < minRadius)
+                    //        {
+                    //            prdDbg($"Buerør detected {fP.ToString()} and {sP.ToString()}.");
+                    //            prdDbg($"R: {radius}, minR: {minRadius}");
+
+                    //            Line line = new Line(new Point3d(0, 0, 0), pline.GetPointAtDist(pline.Length / 2));
+                    //            line.AddEntityToDbModelSpace(localDb);
+                    //        }
+                    //    } 
                     //}
                     #endregion
 

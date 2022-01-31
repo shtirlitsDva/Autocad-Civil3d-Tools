@@ -232,8 +232,27 @@ namespace IntersectUtilities
             GetPipeSystem(ent) == "Twin" ? GetTwinPipeKOd(ent) : GetBondedPipeKOd(ent);
         public static string GetPipeSeries(Entity ent) => "S3";
         public static double GetPipeStdLength(Entity ent) => GetPipeDN(ent) <= 80 ? 12 : 16;
-        public static double GetPipeMinElasticRadius(Entity ent)
+        public static bool IsInSituBent(Entity ent)
         {
+            string system = GetPipeSystem(ent);
+            switch (system)
+            {
+                case "Twin":
+                    if (GetPipeDN(ent) < 65) return true;
+                    break;
+                case "Enkelt":
+                    if (GetPipeDN(ent) < 100) return true;
+                    break;
+                default:
+                    throw new Exception(
+                        $"Entity handle {ent.Handle} has invalid layer!");
+            }
+            return false;
+        }
+        public static double GetPipeMinElasticRadius(Entity ent, bool considerInSituBending = true)
+        {
+            if (considerInSituBending && IsInSituBent(ent)) return 0;
+
             Dictionary<int, double> radii = new Dictionary<int, double>
             {
                 { 20, 13.0 },

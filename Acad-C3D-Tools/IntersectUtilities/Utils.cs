@@ -993,11 +993,29 @@ namespace IntersectUtilities
                     Point3d tempP3d = curve.GetPointAtParameter(curve.StartParam);
                     double curveStartStation = 0;
                     double offset = 0;
-                    al.StationOffset(tempP3d.X, tempP3d.Y, ref curveStartStation, ref offset);
+
+                    try
+                    {
+                        al.StationOffset(tempP3d.X, tempP3d.Y, ref curveStartStation, ref offset);
+                    }
+                    catch (System.Exception)
+                    {
+                        prdDbg(tempP3d.ToString());
+                        throw;
+                    }
 
                     tempP3d = curve.GetPointAtParameter(curve.EndParam);
                     double curveEndStation = 0;
-                    al.StationOffset(tempP3d.X, tempP3d.Y, ref curveEndStation, ref offset);
+
+                    try
+                    {
+                        al.StationOffset(tempP3d.X, tempP3d.Y, ref curveEndStation, ref offset);
+                    }
+                    catch (System.Exception)
+                    {
+                        prdDbg(tempP3d.ToString());
+                        throw;
+                    }
 
                     if ((iterType == Enums.TypeOfIteration.Backward && curveStartStation < curveEndStation) ||
                         (iterType == Enums.TypeOfIteration.Forward && curveStartStation > curveEndStation))
