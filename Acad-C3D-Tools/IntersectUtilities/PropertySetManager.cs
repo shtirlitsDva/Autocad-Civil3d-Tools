@@ -406,6 +406,11 @@ namespace IntersectUtilities
         public class DriOmråder : PSetDef
         {
             public DefinedSets SetName { get; } = DefinedSets.DriOmråder;
+            public Property Nummer { get; } = new Property(
+                "Nummer",
+                "Number of pipeline.",
+                PsDataType.Text,
+                "");
             public Property Vejnavn { get; } = new Property(
                 "Vejnavn",
                 "Name of street.",

@@ -12154,18 +12154,38 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Dialog box for file list selection and path determination
+                    string path = string.Empty;
+                    OpenFileDialog dialog = new OpenFileDialog()
+                    {
+                        Title = "Choose csv file:",
+                        DefaultExt = "csv",
+                        Filter = "csv files (*.csv)|*.csv|All files (*.*)|*.*",
+                        FilterIndex = 0
+                    };
+                    if (dialog.ShowDialog() == DialogResult.OK)
+                    {
+                        path = dialog.FileName;
+                    }
+                    else return;
+                    #endregion
+
                     #region Populate area data from string
-                    System.Data.DataTable areaDescriptions = CsvReader.ReadCsvToDataTable(
-                                        @"X:\022-1226 Egedal - Krogholmvej, Etape 1 - Dokumenter\01 Intern\02 Tegninger\" +
-                                        @"03 Intern\2022.01.27 - DWF til optælling\Krogholmvej-delområder.csv",
-                                        "Areas");
+                    System.Data.DataTable areaDescriptions = CsvReader.ReadCsvToDataTable(path, "Areas");
 
                     //Datatable to list of strings
-                    List<string> areaNames = (from System.Data.DataRow dr in areaDescriptions.Rows select (string)dr[1]).ToList();
+                    //List<string> areaNames = (from System.Data.DataRow dr in areaDescriptions.Rows select (string)dr[1]).ToList();
 
-                    foreach (string name in areaNames)
+                    //foreach (string name in areaNames)
+                    foreach (DataRow row in areaDescriptions.Rows)
                     {
-                        prdDbg(name);
+                        string nummer = row["Nummer"].ToString();
+                        string navn = row["Navn"].ToString();
+                        string vejkl = row["Vejkl"].ToString();
+                        string belægning = row["Belaegning"].ToString();
+
+                        //prdDbg(name);
+                        prdDbg($"{navn} {nummer}, Vejkl. {vejkl}, {belægning}");
                         System.Windows.Forms.Application.DoEvents();
                         #region Select pline
                         PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
@@ -12177,8 +12197,8 @@ namespace IntersectUtilities
                         Oid plineId = entity1.ObjectId;
                         #endregion
 
-                        string[] split1 = name.Split(new[] { ", " }, StringSplitOptions.None);
-                        split1[1] = split1[1].Replace("Vejkl. ", "");
+                        //string[] split1 = name.Split(new[] { ", " }, StringSplitOptions.None);
+                        //split1[1] = split1[1].Replace("Vejkl. ", "");
 
                         #region Old ownership logic
                         //string ownership = "O";
@@ -12231,12 +12251,19 @@ namespace IntersectUtilities
                             Polyline pline = plineId.Go<Polyline>(tx, OpenMode.ForWrite);
 
                             psmOmråder.GetOrAttachPropertySet(pline);
-                            psmOmråder.WritePropertyString(driOmråder.Vejnavn, split1[0]);
-                            //psmOmråder.WritePropertyString(driOmråder.Ejerskab, split1[1]);
-                            psmOmråder.WritePropertyString(driOmråder.Vejklasse, split1[1]);
-                            psmOmråder.WritePropertyString(driOmråder.Belægning, split1[2]);
+                            //psmOmråder.WritePropertyString(driOmråder.Vejnavn, split1[0]);
+                            ////psmOmråder.WritePropertyString(driOmråder.Ejerskab, split1[1]);
+                            //psmOmråder.WritePropertyString(driOmråder.Vejklasse, split1[1]);
+                            //psmOmråder.WritePropertyString(driOmråder.Belægning, split1[2]);
+
+                            psmOmråder.WritePropertyString(driOmråder.Nummer, nummer);
+                            psmOmråder.WritePropertyString(driOmråder.Vejnavn, navn);
+                            psmOmråder.WritePropertyString(driOmråder.Vejklasse, vejkl);
+                            psmOmråder.WritePropertyString(driOmråder.Belægning, belægning);
 
                             pline.Layer = områderLayer;
+                            pline.Color = Color.FromColorIndex(ColorMethod.ByAci, 256);
+                            pline.LineWeight = LineWeight.ByLayer;
                             tx.Commit();
                         }
                     }
