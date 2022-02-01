@@ -14,6 +14,7 @@ using IntersectUtilities.UtilsCommon;
 
 using static IntersectUtilities.PipeSchedule;
 using static IntersectUtilities.ComponentSchedule;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 using EGIS.ShapeFileLib;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
@@ -49,8 +50,8 @@ namespace ExportShapeFiles
                 {
                     string fileName = localDb.OriginalFileName;
 
-                    string baseDir = @"X:\022-1226 Egedal - Krogholmvej, Etape 1 - Dokumenter\01 Intern\02 Tegninger\03 Intern\2022.01.27 - DWF til optælling\";
-                    string shapeName = "KROGHLM1226";
+                    string baseDir = @"X:\037-1178 - Gladsaxe udbygning - Dokumenter\01 Intern\04 Projektering\05 Optælling til TBL\";
+                    string shapeName = "GLADSAXE1178_1.2";
 
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Exporting to {baseDir}." });
 
@@ -146,9 +147,9 @@ namespace ExportShapeFiles
                     System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
                                         @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
-                    HashSet<BlockReference> brs = localDb.ListOfType<BlockReference>(tx)
-                        .Where(x => UtilsDataTables.ReadStringParameterFromDataTable(
-                            x.RealName(), komponenter, "Navn", 0) != null).ToHashSet();
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
+                    brs = brs.Where(x => UtilsDataTables.ReadStringParameterFromDataTable(
+                            x.RealName(), komponenter, "Navn", 0) != default).ToHashSet();
 
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {brs.Count} br(s) found for export." });
 
@@ -218,7 +219,8 @@ namespace ExportShapeFiles
                 {
                     tx.Abort();
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: An exception was caught! Message: {ex.ToString()}. Aborting export of current file!" });
-                    return;
+                    throw new System.Exception(ex.ToString());
+                    //return;
                 }
                 tx.Abort();
             }
@@ -242,7 +244,7 @@ namespace ExportShapeFiles
                 {
                     string fileName = localDb.OriginalFileName;
 
-                    string baseDir = @"X:\022-1226 Egedal - Krogholmvej, Etape 1 - Dokumenter\01 Intern\02 Tegninger\03 Intern\2022.01.27 - DWF til optælling\";
+                    string baseDir = @"X:\037-1178 - Gladsaxe udbygning - Dokumenter\01 Intern\04 Projektering\05 Optælling til TBL\";
                     string shapeName = "Områder";
 
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Exporting to {baseDir}." });
@@ -254,7 +256,7 @@ namespace ExportShapeFiles
 
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: {pls.Count} object(s) found for export." });
 
-                    DbfFieldDesc[] dbfFields = new DbfFieldDesc[3];
+                    DbfFieldDesc[] dbfFields = new DbfFieldDesc[4];
 
                     dbfFields[0].FieldName = "Vejnavn";
                     dbfFields[0].FieldType = DbfFieldType.General;
@@ -267,6 +269,12 @@ namespace ExportShapeFiles
                     dbfFields[2].FieldName = "Belaegning";
                     dbfFields[2].FieldType = DbfFieldType.General;
                     dbfFields[2].FieldLength = 100;
+                    
+                    dbfFields[3].FieldName = "Nummer";
+                    dbfFields[3].FieldType = DbfFieldType.General;
+                    dbfFields[3].FieldLength = 100;
+
+
 
                     using (ShapeFileWriter writer = ShapeFileWriter.CreateWriter(
                         baseDir, shapeName,
@@ -320,13 +328,14 @@ namespace ExportShapeFiles
 
                             PointD[] shapePoints = points.Select(p => new PointD(p.X, p.Y)).ToArray();
 
-                            string[] attributes = new string[3];
+                            string[] attributes = new string[4];
 
                             psm.GetOrAttachPropertySet(pline);
                             
                             attributes[0] = psm.ReadPropertyString(driOmråder.Vejnavn);
                             attributes[1] = psm.ReadPropertyString(driOmråder.Vejklasse);
                             attributes[2] = psm.ReadPropertyString(driOmråder.Belægning);
+                            attributes[3] = psm.ReadPropertyString(driOmråder.Nummer);
 
                             writer.AddRecord(shapePoints, shapePoints.Length, attributes);
                         }
