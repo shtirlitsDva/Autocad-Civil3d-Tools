@@ -13457,6 +13457,65 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("MARKBUEPIPES")]
+        public void markbuepipes()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    //PromptEntityOptions peo = new PromptEntityOptions("Select pline");
+                    //PromptEntityResult per = editor.GetEntity(peo);
+                    //Polyline pline = per.ObjectId.Go<Polyline>(tx);
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
+
+                    foreach (Polyline pline in plines)
+                    {
+                        for (int j = 0; j < pline.NumberOfVertices - 1; j++)
+                        {
+                            //Guard against already cut out curves
+                            if (j == 0 && pline.NumberOfVertices == 2) { break; }
+                            double b = pline.GetBulgeAt(j);
+                            if (b == 0) continue;
+                            Point2d fP = pline.GetPoint2dAt(j);
+                            Point2d sP = pline.GetPoint2dAt(j + 1);
+                            double u = fP.GetDistanceTo(sP);
+                            double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
+                            double minRadius = PipeSchedule.GetPipeMinElasticRadius(pline);
+
+                            //If radius is less than minRadius a buerør is detected
+                            //Split the pline in segments delimiting buerør and append
+                            if (radius < minRadius)
+                            {
+                                prdDbg($"Buerør detected {fP.ToString()} and {sP.ToString()}.");
+                                prdDbg($"R: {radius}, minR: {minRadius}");
+
+                                CircularArc2d arc = pline.GetArcSegment2dAt(j);
+                                Point2d[] samples = arc.GetSamplePoints(3);
+
+                                Line line = new Line(new Point3d(0, 0, 0), new Point3d(samples[1].X, samples[1].Y, 0));
+                                line.AddEntityToDbModelSpace(localDb);
+                            }
+                        }
+                    }
+
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("testing")]
         public void testing()
         {
@@ -13471,6 +13530,79 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test dynamic properties
+                    //PromptEntityOptions peo = new PromptEntityOptions("Select a BR: ");
+                    //PromptEntityResult per = editor.GetEntity(peo);
+                    //BlockReference br = per.ObjectId.Go<BlockReference>(tx);
+
+                    //string stringToTry = "Buerør V{$Vinkel} R{$R} L{$L}";
+
+                    ////DynamicBlockReferencePropertyCollection props = br.DynamicBlockReferencePropertyCollection;
+                    ////foreach (DynamicBlockReferenceProperty property in props)
+                    ////{
+                    ////    prdDbg($"Name: {property.PropertyName}, Units: {property.UnitsType}, Value: {property.Value}");
+                    ////}
+
+                    ////Construct pattern which matches the parameter definition
+                    //Regex variablePattern = new Regex(@"{\$(?<Parameter>[a-zæøåA-ZÆØÅ0-9_:-]*)}");
+
+                    //stringToTry = ConstructStringByRegex(stringToTry);
+                    //prdDbg(stringToTry);
+
+                    ////Test if a pattern matches in the input string
+                    //string ConstructStringByRegex(string stringToProcess)
+                    //{
+                    //    if (variablePattern.IsMatch(stringToProcess))
+                    //    {
+                    //        //Get the first match
+                    //        Match match = variablePattern.Match(stringToProcess);
+                    //        //Get the first capture
+                    //        string capture = match.Captures[0].Value;
+                    //        //Get the parameter name from the regex match
+                    //        string parameterName = match.Groups["Parameter"].Value;
+                    //        //Read the parameter value from BR
+                    //        string parameterValue = ReadDynamicPropertyValue(br, parameterName);
+                    //        //Replace the captured group in original string with the parameter value
+                    //        stringToProcess = stringToProcess.Replace(capture, parameterValue);
+                    //        //Recursively call current function
+                    //        //It runs on the string until no more captures remain
+                    //        //Then it returns
+                    //        stringToProcess = ConstructStringByRegex(stringToProcess);
+                    //    }
+
+                    //    return stringToProcess; 
+                    //}
+
+                    //string ReadDynamicPropertyValue(BlockReference block, string propertyName)
+                    //{
+                    //    DynamicBlockReferencePropertyCollection props = block.DynamicBlockReferencePropertyCollection;
+                    //    foreach (DynamicBlockReferenceProperty property in props)
+                    //    {
+                    //        //prdDbg($"Name: {property.PropertyName}, Units: {property.UnitsType}, Value: {property.Value}");
+                    //        if (property.PropertyName == propertyName)
+                    //        {
+                    //            switch (property.UnitsType)
+                    //            {
+                    //                case DynamicBlockReferencePropertyUnitsType.NoUnits:
+                    //                    return property.Value.ToString();
+                    //                case DynamicBlockReferencePropertyUnitsType.Angular:
+                    //                    double angular = Convert.ToDouble(property.Value);
+                    //                    return angular.ToDegrees().ToString("0.##");
+                    //                case DynamicBlockReferencePropertyUnitsType.Distance:
+                    //                    double distance = Convert.ToDouble(property.Value);
+                    //                    return distance.ToString("0.##");
+                    //                case DynamicBlockReferencePropertyUnitsType.Area:
+                    //                    double area = Convert.ToDouble(property.Value);
+                    //                    return area.ToString("0.00");
+                    //                default:
+                    //                    return "";
+                    //            }
+                    //        }
+                    //    }
+                    //    return "";
+                    //}
+                    #endregion
+
                     #region QA pipe lengths
                     //HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
                     ////PromptEntityOptions peo = new PromptEntityOptions("Select pline");
@@ -13525,7 +13657,7 @@ namespace IntersectUtilities
                     //            Line line = new Line(new Point3d(0, 0, 0), pline.GetPointAtDist(pline.Length / 2));
                     //            line.AddEntityToDbModelSpace(localDb);
                     //        }
-                    //    } 
+                    //    }
                     //}
                     #endregion
 

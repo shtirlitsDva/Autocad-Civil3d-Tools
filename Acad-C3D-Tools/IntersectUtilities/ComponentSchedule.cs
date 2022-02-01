@@ -3,6 +3,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using System;
 using System.Text.RegularExpressions;
+using IntersectUtilities.UtilsCommon;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 
@@ -21,6 +22,34 @@ namespace IntersectUtilities
                 if (property.PropertyName == name) return property;
             }
             return null;
+        }
+        private static string ReadDynamicPropertyValue(this BlockReference br, string propertyName)
+        {
+            DynamicBlockReferencePropertyCollection props = br.DynamicBlockReferencePropertyCollection;
+            foreach (DynamicBlockReferenceProperty property in props)
+            {
+                //prdDbg($"Name: {property.PropertyName}, Units: {property.UnitsType}, Value: {property.Value}");
+                if (property.PropertyName == propertyName)
+                {
+                    switch (property.UnitsType)
+                    {
+                        case DynamicBlockReferencePropertyUnitsType.NoUnits:
+                            return property.Value.ToString();
+                        case DynamicBlockReferencePropertyUnitsType.Angular:
+                            double angular = Convert.ToDouble(property.Value);
+                            return angular.ToDegrees().ToString("0.##");
+                        case DynamicBlockReferencePropertyUnitsType.Distance:
+                            double distance = Convert.ToDouble(property.Value);
+                            return distance.ToString("0.##");
+                        case DynamicBlockReferencePropertyUnitsType.Area:
+                            double area = Convert.ToDouble(property.Value);
+                            return area.ToString("0.00");
+                        default:
+                            return "";
+                    }
+                }
+            }
+            return "";
         }
         private static string RealName(this BlockReference br)
         {
@@ -57,32 +86,51 @@ namespace IntersectUtilities
             if (!finalValueRegex.IsMatch(rawContents)) throw new System.Exception($"Extracted Regex failed to match Raw Value for block {br.Name}, handle {br.Handle.ToString()}!");
             return finalValueRegex.Match(rawContents).Groups[propertyToExtractName].Value;
         }
+        private static string ConstructStringByRegex(BlockReference br, string stringToProcess)
+        {
+            //Construct pattern which matches the parameter definition
+            Regex variablePattern = new Regex(@"{\$(?<Parameter>[a-zæøåA-ZÆØÅ0-9_:-]*)}");
+
+            //Test if a pattern matches in the input string
+            if (variablePattern.IsMatch(stringToProcess))
+            {
+                //Get the first match
+                Match match = variablePattern.Match(stringToProcess);
+                //Get the first capture
+                string capture = match.Captures[0].Value;
+                //Get the parameter name from the regex match
+                string parameterName = match.Groups["Parameter"].Value;
+                //Read the parameter value from BR
+                string parameterValue = br.ReadDynamicPropertyValue(parameterName);
+                //Replace the captured group in original string with the parameter value
+                stringToProcess = stringToProcess.Replace(capture, parameterValue);
+                //Recursively call current function
+                //It runs on the string until no more captures remain
+                //Then it returns
+                stringToProcess = ConstructStringByRegex(br, stringToProcess);
+            }
+            
+            return stringToProcess;
+        }
         public static string ReadBlockName(BlockReference br, System.Data.DataTable fjvTable) => br.RealName();
         public static string ReadComponentType(BlockReference br, System.Data.DataTable fjvTable)
         {
-            if (br.GetDynamicPropertyByName("Betegnelse") != null)
-            {
-                return br.GetDynamicPropertyByName("Betegnelse").Value as string;
-            }
-            else
-            {
-                string propertyToExtractName = "Type";
+            string propertyToExtractName = "Type";
 
-                return ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0);
+            string valueToReturn = ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0);
 
-                //    if (valueToReturn.StartsWith("$"))
-                //    {
-                //        valueToReturn = valueToReturn.Substring(1);
-                //        //If the value is a pattern to extract from string
-                //        if (valueToReturn.Contains("{"))
-                //        {
-                //            valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
-                //        }
-                //        //Else the value is parameter literal to read
-                //        else return new MapValue(br.GetDynamicPropertyByName(valueToReturn).Value as string ?? "");
-                //    }
-                //    return new MapValue(valueToReturn ?? "");
+            if (valueToReturn.StartsWith("$"))
+            {
+                valueToReturn = valueToReturn.Substring(1);
+                //If the value is a pattern to extract from string
+                if (valueToReturn.Contains("{"))
+                {
+                    valueToReturn = ConstructStringByRegex(br, valueToReturn);
+                }
+                //Else the value is parameter literal to read
+                else return (br.GetDynamicPropertyByName(valueToReturn)?.Value as string ?? "");
             }
+            return valueToReturn ?? "";
         }
         public static double ReadBlockRotation(BlockReference br, System.Data.DataTable fjvTable) =>
             br.Rotation * (180 / Math.PI);

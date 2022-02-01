@@ -50,7 +50,7 @@ namespace ExportShapeFiles
                 {
                     string fileName = localDb.OriginalFileName;
 
-                    string baseDir = @"X:\037-1178 - Gladsaxe udbygning - Dokumenter\01 Intern\04 Projektering\05 Optælling til TBL\";
+                    string baseDir = @"X:\037-1178 - Gladsaxe udbygning - Dokumenter\01 Intern\02 Tegninger\03 Intern\";
                     string shapeName = "GLADSAXE1178_1.2";
 
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Exporting to {baseDir}." });
