@@ -115,6 +115,7 @@ namespace IntersectUtilities
                     return 999;
             }
         }
+        /// <returns>"Twin" or "Enkelt", null if fail.</returns>
         public static string GetPipeSystem(Entity ent)
         {
             string layer = ent.Layer;

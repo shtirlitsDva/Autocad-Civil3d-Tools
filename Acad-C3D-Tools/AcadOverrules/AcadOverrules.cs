@@ -41,19 +41,27 @@ namespace AcadOverrules
 {
     public class FjvPolylineLabel : Autodesk.AutoCAD.GraphicsInterface.DrawableOverrule
     {
+        public FjvPolylineLabel()
+        {
+            base.SetCustomFilter();
+        }
+
         //Settings
         private const double labelDist = 10;
         private const double labelOffset = 1.2;
-
-        public bool Enabled { get; set; } = false;
+        private const double labelHeight = 1.25;
+        //public bool Enabled { get; set; } = false;
         public override bool IsApplicable(RXObject overruledSubject)
         {
-            return Enabled && isFjvPline(overruledSubject) && ((Polyline)overruledSubject).NumberOfVertices > 1;
+            //Put a check of Enabled here if using that also
+            return ((Polyline)overruledSubject).NumberOfVertices > 1 && isFjvPline(overruledSubject);
         }
         private bool isFjvPline(RXObject overruledSubject)
         {
             if (overruledSubject is Polyline pline)
             {
+                if (pline.Database == null) return false;
+
                 if (pline.Layer.Contains("FJV-TWIN") ||
                     pline.Layer.Contains("FJV-FREM") ||
                     pline.Layer.Contains("FJV-RETUR")) return true;
@@ -78,7 +86,10 @@ namespace AcadOverrules
                 if (numberOfLabels == 1) dist = length / 2;
                 Point3d pt = pline.GetPointAtDist(dist);
                 int dn = IntersectUtilities.PipeSchedule.GetPipeDN(pline);
-                string label = $"{dn}";
+                string system = 
+                    IntersectUtilities.PipeSchedule.GetPipeSystem(pline) == "Twin" ?
+                    "T" : "E";
+                string label = $"{system}{dn}";
 
                 Vector3d deriv = pline.GetFirstDerivative(pt);
                 deriv = deriv.GetNormal();
@@ -86,7 +97,7 @@ namespace AcadOverrules
                 Vector3d perp = deriv.GetPerpendicularVector();
 
                 wd.Geometry.Text(
-                    pt + perp * labelOffset, Vector3d.ZAxis, deriv, 2.5, 1.0, 0.0, label);
+                    pt + perp * labelOffset, Vector3d.ZAxis, deriv, labelHeight, 1.0, 0.0, label);
             }
 
             return true;
@@ -95,22 +106,22 @@ namespace AcadOverrules
 
     public class Commands
     {
-        private static FjvPolylineLabel fjvPolylineLabelOverrule;
+        private static FjvPolylineLabel _fjvPolylineLabelOverrule;
 
         [CommandMethod("TOGGLEFJVLABEL")]
         public static void togglefjvlabeloverrule()
         {
-            if (fjvPolylineLabelOverrule == null)
+            if (_fjvPolylineLabelOverrule == null)
             {
-                fjvPolylineLabelOverrule = new FjvPolylineLabel();
-                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), fjvPolylineLabelOverrule, false);
+                _fjvPolylineLabelOverrule = new FjvPolylineLabel();
+                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), _fjvPolylineLabelOverrule, false);
                 Overrule.Overruling = true;
             }
             else
             {
-                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), fjvPolylineLabelOverrule);
-                fjvPolylineLabelOverrule.Dispose();
-                fjvPolylineLabelOverrule = null;
+                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _fjvPolylineLabelOverrule);
+                _fjvPolylineLabelOverrule.Dispose();
+                _fjvPolylineLabelOverrule = null;
             }
             Application.DocumentManager.MdiActiveDocument.Editor.Regen();
         }
