@@ -14424,5 +14424,36 @@ namespace IntersectUtilities
             IntersectUtilities.ODDataConverter.ODDataConverter.attachpropertysetstoobjects();
             IntersectUtilities.ODDataConverter.ODDataConverter.populatepropertysetswithoddata();
         }
+
+        [CommandMethod("GRAPHPOPULATE")]
+        public void graphpopulate()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
+                                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, komponenter, true);
+
+                    Graph graph = new Graph();
+
+                    foreach (Entity entity in allEnts) graph.AddEntityToPOIs(entity);
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex.ToString());
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
     }
 }

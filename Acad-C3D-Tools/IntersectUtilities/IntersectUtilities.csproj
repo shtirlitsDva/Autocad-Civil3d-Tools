@@ -129,6 +129,7 @@
     <Compile Include="DouglasPeuckerReduction.cs" />
     <Compile Include="DynamicBlockPropertyReader.cs" />
     <Compile Include="GroupByCluster.cs" />
+    <Compile Include="MyGraph.cs" />
     <Compile Include="ObsoleteMethods.cs" />
     <Compile Include="Intersect.cs" />
     <Compile Include="MoreLinq.cs" />

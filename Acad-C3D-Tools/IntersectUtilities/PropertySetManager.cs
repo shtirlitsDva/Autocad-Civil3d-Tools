@@ -321,7 +321,8 @@ namespace IntersectUtilities
             DriCrossingData,
             DriGasDimOgMat,
             DriOmråder,
-            DriComponentsGisData
+            DriComponentsGisData,
+            DriGraph
         }
         public class DriCrossingData : PSetDef
         {
@@ -453,6 +454,21 @@ namespace IntersectUtilities
             public Property Width { get; } = new Property("Width", "Width of symbol", PsDataType.Real, 0);
             public StringCollection AppliesTo { get; } = new StringCollection()
                 {
+                    RXClass.GetClass(typeof(BlockReference)).Name
+                };
+        }
+        public class DriGraph : PSetDef
+        {
+            public DefinedSets Setname { get; } = DefinedSets.DriGraph;
+            public Property ConnectedEntities { get; } = new Property(
+                "ConnectedEntities",
+                "Lists connected entities",
+                PsDataType.Text,
+                "");
+
+            public StringCollection AppliesTo { get; } = new StringCollection()
+                {
+                    RXClass.GetClass(typeof(Polyline)).Name,
                     RXClass.GetClass(typeof(BlockReference)).Name
                 };
         }

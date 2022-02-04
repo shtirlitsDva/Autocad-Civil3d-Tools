@@ -1322,6 +1322,8 @@ namespace IntersectUtilities.UtilsCommon
 
             return vertices.ToArray();
         }
+        public static Point3d To3D(this Point2d p2d, double Z = 0.0) => new Point3d(p2d.X, p2d.Y, Z);
+        public static Point2d To2D(this Point3d p3d) => new Point2d(p3d.X, p3d.Y);
     }
     public static class ExtensionMethods
     {
@@ -1415,6 +1417,24 @@ namespace IntersectUtilities.UtilsCommon
             where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
             return new HashSet<T>(db.ListOfType<T>(tr, discardFrozen));
+        }
+        public static HashSet<Entity> GetFjvEntities(this Database db, Transaction tr, System.Data.DataTable fjvKomponenter, 
+            bool discardFrozen = false)
+        {
+            HashSet<Entity> entities = new HashSet<Entity>();
+
+            var rawPlines = db.ListOfType<Polyline>(tr, discardFrozen);
+            var plineQuery = rawPlines.Where(pline => pline.Layer.Contains("FJV-TWIN") ||
+                                                      pline.Layer.Contains("FJV-FREM") ||
+                                                      pline.Layer.Contains("FJV-RETUR"));
+
+            var rawBrefs = db.ListOfType<BlockReference>(tr, discardFrozen);
+            var brQuery = rawBrefs.Where(x => UtilsDataTables.ReadStringParameterFromDataTable(
+                            x.RealName(), fjvKomponenter, "Navn", 0) != default);
+
+            entities.UnionWith(brQuery);
+            entities.UnionWith(plineQuery);
+            return entities;
         }
         // Searches the drawing for a block with the specified name.
         // Returns either the block, or null - check accordingly.
