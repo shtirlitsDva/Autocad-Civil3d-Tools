@@ -57,14 +57,26 @@ namespace IntersectUtilities
     public class Graph
     {
         public HashSet<POI> POIs = new HashSet<POI>();
-
+        PSetDefs.DriGraph DriGraph { get; } = new PSetDefs.DriGraph();
+        PropertySetManager PSM { get; }
+        public Graph(PropertySetManager psm) => PSM = psm;
         public class POI
         {
             public Entity Owner { get; }
             public Point2d Point { get; }
-            public Graph.EndType EndType { get; }
-            public POI(Entity owner, Point2d point, EndType endType) { Owner = owner; Point = point; EndType = endType; }
+            public EndType EndType { get; }
+            private PropertySetManager PSM { get; }
+            private PSetDefs.DriGraph DriGraph { get; }
+            public POI(Entity owner, Point2d point, EndType endType, PropertySetManager psm, PSetDefs.DriGraph driGraph)
+                { Owner = owner; Point = point; EndType = endType; PSM = psm; DriGraph = driGraph; }
             public bool IsSameOwner(POI toCompare) => Owner.Id == toCompare.Owner.Id;
+            internal void AddReference(POI connectedEntity)
+            {
+                PSM.GetOrAttachPropertySet(Owner);
+                string value = PSM.ReadPropertyString(DriGraph.ConnectedEntities);
+                value += $"{EndType}:{connectedEntity.EndType}:{connectedEntity.Owner.Handle};";
+                PSM.WritePropertyString(DriGraph.ConnectedEntities, value);
+            }
         }
 
         public void AddEntityToPOIs(Entity ent)
@@ -72,8 +84,8 @@ namespace IntersectUtilities
             switch (ent)
             {
                 case Polyline pline:
-                    POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.End));
-                    POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.End));
+                    POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.End, PSM, DriGraph));
+                    POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.End, PSM, DriGraph));
                     break;
                 case BlockReference br:
                     Transaction tx = br.Database.TransactionManager.TopTransaction;
@@ -88,7 +100,7 @@ namespace IntersectUtilities
                         EndType endType;
                         if (nestedBr.Name.Contains("BRANCH")) endType = EndType.Branch;
                         else endType = EndType.Main;
-                        POIs.Add(new POI(br, wPt.To2D(), endType));
+                        POIs.Add(new POI(br, wPt.To2D(), endType, PSM, DriGraph));
                     }
                     break;
                 default:

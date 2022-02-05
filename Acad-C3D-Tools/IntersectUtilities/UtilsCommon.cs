@@ -1418,8 +1418,8 @@ namespace IntersectUtilities.UtilsCommon
         {
             return new HashSet<T>(db.ListOfType<T>(tr, discardFrozen));
         }
-        public static HashSet<Entity> GetFjvEntities(this Database db, Transaction tr, System.Data.DataTable fjvKomponenter, 
-            bool discardFrozen = false)
+        public static HashSet<Entity> GetFjvEntities(this Database db, Transaction tr, System.Data.DataTable fjvKomponenter,
+            bool discardWelds = true, bool discardFrozen = false)
         {
             HashSet<Entity> entities = new HashSet<Entity>();
 
@@ -1431,6 +1431,7 @@ namespace IntersectUtilities.UtilsCommon
             var rawBrefs = db.ListOfType<BlockReference>(tr, discardFrozen);
             var brQuery = rawBrefs.Where(x => UtilsDataTables.ReadStringParameterFromDataTable(
                             x.RealName(), fjvKomponenter, "Navn", 0) != default);
+            if (discardWelds) brQuery = brQuery.Where(x => x.RealName() != "SVEJSEPUNKT");
 
             entities.UnionWith(brQuery);
             entities.UnionWith(plineQuery);

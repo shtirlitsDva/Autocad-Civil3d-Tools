@@ -459,13 +459,12 @@ namespace IntersectUtilities
         }
         public class DriGraph : PSetDef
         {
-            public DefinedSets Setname { get; } = DefinedSets.DriGraph;
+            public DefinedSets SetName { get; } = DefinedSets.DriGraph;
             public Property ConnectedEntities { get; } = new Property(
                 "ConnectedEntities",
                 "Lists connected entities",
                 PsDataType.Text,
                 "");
-
             public StringCollection AppliesTo { get; } = new StringCollection()
                 {
                     RXClass.GetClass(typeof(Polyline)).Name,
