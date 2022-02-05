@@ -97,6 +97,9 @@
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\ACA\AecPropDataMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="csdot, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\csdot.2.0.1\lib\net461\csdot.dll</HintPath>
+    </Reference>
     <Reference Include="ManagedMapApi">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\Map\ManagedMapApi.dll</HintPath>
       <Private>False</Private>

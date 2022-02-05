@@ -14443,14 +14443,14 @@ namespace IntersectUtilities
                     HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, komponenter, true);
 
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
-                    Graph graph = new Graph(psm);
+                    Graph graph = new Graph(psm, komponenter);
 
                     foreach (Entity entity in allEnts) graph.AddEntityToPOIs(entity);
 
                     //Create clusters of POIs based on a maximum distance
                     //which is based on the smallest block distance between MuffeIntern
                     IEnumerable<IGrouping<Graph.POI, Graph.POI>> clusters
-                        = graph.POIs.GroupByCluster((x, y) => x.Point.GetDistanceTo(y.Point), 0.02);
+                        = graph.POIs.GroupByCluster((x, y) => x.Point.GetDistanceTo(y.Point), 0.01);
 
                     //Iterate over clusters
                     foreach (IGrouping<Graph.POI, Graph.POI> cluster in clusters)
@@ -14465,6 +14465,43 @@ namespace IntersectUtilities
                             pair.second.AddReference(pair.first);
                         }
                     }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex.ToString());
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+        
+        [CommandMethod("GRAPHWRITE")]
+        public void graphwrite()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
+                                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, komponenter, true, true);
+
+                    PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
+                    Graph graph = new Graph(psm, komponenter);
+
+                    foreach (Entity entity in allEnts)
+                    {
+                        graph.AddEntityToGraphEntities(entity);
+                    }
+
+                    graph.CreateAndWriteGraph();
                 }
                 catch (System.Exception ex)
                 {
