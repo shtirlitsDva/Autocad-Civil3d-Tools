@@ -14425,7 +14425,7 @@ namespace IntersectUtilities
             IntersectUtilities.ODDataConverter.ODDataConverter.populatepropertysetswithoddata();
         }
 
-        [CommandMethod("GRAPHPOPULATE")]
+        //[CommandMethod("GRAPHPOPULATE")]
         public void graphpopulate()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -14443,7 +14443,7 @@ namespace IntersectUtilities
                     HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, komponenter, true);
 
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
-                    Graph graph = new Graph(psm, komponenter);
+                    Graph graph = new Graph(localDb, psm, komponenter);
 
                     foreach (Entity entity in allEnts) graph.AddEntityToPOIs(entity);
 
@@ -14484,6 +14484,9 @@ namespace IntersectUtilities
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
 
+            graphclear();
+            graphpopulate();
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -14494,7 +14497,7 @@ namespace IntersectUtilities
                     HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, komponenter, true, true);
 
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
-                    Graph graph = new Graph(psm, komponenter);
+                    Graph graph = new Graph(localDb, psm, komponenter);
 
                     foreach (Entity entity in allEnts)
                     {
@@ -14513,7 +14516,7 @@ namespace IntersectUtilities
             }
         }
         
-        [CommandMethod("GRAPHCLEAR")]
+        //[CommandMethod("GRAPHCLEAR")]
         public void graphclear()
         {
             DocumentCollection docCol = Application.DocumentManager;

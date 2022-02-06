@@ -61,11 +61,13 @@ namespace IntersectUtilities
         public HashSet<POI> POIs = new HashSet<POI>();
         PSetDefs.DriGraph DriGraph { get; } = new PSetDefs.DriGraph();
         PropertySetManager PSM { get; }
+        Database dB { get; }
         private System.Data.DataTable ComponentTable { get; }
-        public Graph(PropertySetManager psm, System.Data.DataTable componentTable)
+        public Graph(Database database, PropertySetManager psm, System.Data.DataTable componentTable)
         {
             PSM = psm;
             ComponentTable = componentTable;
+            dB = database;
         }
         public class POI
         {
@@ -104,8 +106,42 @@ namespace IntersectUtilities
                         Point3d wPt = nestedBr.Position;
                         wPt = wPt.TransformBy(br.BlockTransform);
                         EndType endType;
-                        if (nestedBr.Name.Contains("BRANCH")) endType = EndType.Branch;
-                        else endType = EndType.Main;
+                        if (nestedBr.Name.Contains("BRANCH")) { endType = EndType.Branch; }
+                        else
+                        {
+                            endType = EndType.Main;
+                            //Handle special case of AFGRSTUDS
+                            //which does not coincide with an end on polyline
+                            //but is situated somewhere along the polyline
+                            if (br.RealName() == "AFGRSTUDS")
+                            {
+                                PropertySetManager psmPipeline =
+                                    new PropertySetManager(dB, PSetDefs.DefinedSets.DriPipelineData);
+                                PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
+
+                                psmPipeline.GetOrAttachPropertySet(br);
+                                string branchAlName = psmPipeline.ReadPropertyString(driPipelineData.BranchesOffToAlignment);
+
+                                HashSet<Polyline> polylines = dB
+                                    .HashSetOfType<Polyline>(tx, true)
+                                    .Where(x =>
+                                    {
+                                        psmPipeline.GetOrAttachPropertySet(x);
+                                        return psmPipeline.FilterPropetyString
+                                            (x, driPipelineData.BelongsToAlignment, branchAlName);
+                                    }).ToHashSet();
+
+                                foreach (Polyline polyline in polylines)
+                                {
+                                    Point3d nearest = polyline.GetClosestPointTo(wPt, false);
+                                    if (nearest.DistanceHorizontalTo(wPt) < 0.01)
+                                    {
+                                        POIs.Add(new POI(polyline, nearest.To2D(), EndType.Branch, PSM, DriGraph));
+                                        break;
+                                    }
+                                }
+                            }
+                        }
                         POIs.Add(new POI(br, wPt.To2D(), endType, PSM, DriGraph));
                     }
                     break;
@@ -190,122 +226,184 @@ namespace IntersectUtilities
                 ConHandle = new Handle(Convert.ToInt64(handle, 16));
             }
         }
-        private HashSet<GraphEntity> GraphEntities { get; } = new HashSet<GraphEntity>();
+        private HashSet<GraphEntity> GraphEntities { get; set; } = new HashSet<GraphEntity>();
         public void AddEntityToGraphEntities(Entity entity)
         {
             GraphEntities.Add(new GraphEntity(entity, ComponentTable, PSM, DriGraph));
         }
         public void CreateAndWriteGraph()
         {
-            //Collection to keep track of visited nodes
-            //To prevent looping for ever
-            //And to be able to handle disjoined piping networks
-            HashSet<Handle> visitedHandles = new HashSet<Handle>();
+            //Counter to count all disjoined graphs
+            int graphCount = 0;
+            //Stringbuilder to collect all disjoined graphs
+            StringBuilder sbAll = new StringBuilder();
+            sbAll.AppendLine("digraph G {");
 
-            //Determine starting entity
-            //Criteria: Only one child -> means an end node AND largest DN of all not visited
-            //Currently only for one network
-            //Disjoined networks are not handled yet
-            GraphEntity ge = GraphEntities.Where(x => x.Cons.Length == 1).MaxBy(x => x.LargestDn()).FirstOrDefault();
-            //prdDbg(ge.OwnerHandle.ToString());
-            if (ge == null) throw new System.Exception("No entity found!");
-
-            //Collection to collect the edges
-            HashSet<Edge> edges = new HashSet<Edge>();
-
-            //Collection to collect the subgraphs
-            Dictionary<string, Subgraph> subgraphs = new Dictionary<string, Subgraph>();
-            //Instantiate property set manager necessary to gather alignment names
-            //It must be done after an element is found to get at the database
-            PropertySetManager psmPipeline = new PropertySetManager(ge.Owner.Database, PSetDefs.DefinedSets.DriPipelineData);
-            PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
-
-            //Using a stack traversing strategy
-            Stack<GraphEntity> stack = new Stack<GraphEntity>();
-            //Put the first element on to the stack manually
-            stack.Push(ge);
-            //Iterate the stack until no connected nodes left
-            while (stack.Count > 0)
+            while (GraphEntities.Count > 0)
             {
-                //Fetch the topmost entity on stack
-                GraphEntity current = stack.Pop();
+                //Increment graph counter
+                graphCount++;
 
-                //Determine the subgraph it is part of
-                psmPipeline.GetOrAttachPropertySet(current.Owner);
-                string alName = psmPipeline.ReadPropertyString(driPipelineData.BelongsToAlignment);
-                //Fetch or create new subgraph object
-                Subgraph subgraph;
-                if (subgraphs.ContainsKey(alName)) subgraph = subgraphs[alName];
-                else
+                //Collection to keep track of visited nodes
+                //To prevent looping for ever
+                //And to be able to handle disjoined piping networks
+                HashSet<Handle> visitedHandles = new HashSet<Handle>();
+
+                //Determine starting entity
+                //Criteria: Only one child -> means an end node AND largest DN of all not visited
+                //Currently only for one network
+                //Disjoined networks are not handled yet
+                GraphEntity ge = GraphEntities.Where(x => x.Cons.Length == 1).MaxBy(x => x.LargestDn()).FirstOrDefault();
+                //prdDbg(ge.OwnerHandle.ToString());
+                if (ge == null) throw new System.Exception("No entity found!");
+
+                //Collection to collect the edges
+                HashSet<Edge> edges = new HashSet<Edge>();
+
+                //Collection to collect the subgraphs
+                Dictionary<string, Subgraph> subgraphs = new Dictionary<string, Subgraph>();
+                //Instantiate property set manager necessary to gather alignment names
+                //It must be done after an element is found to get at the database
+                PropertySetManager psmPipeline = new PropertySetManager(ge.Owner.Database, PSetDefs.DefinedSets.DriPipelineData);
+                PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
+
+                //Using a stack traversing strategy
+                Stack<GraphEntity> stack = new Stack<GraphEntity>();
+                //Put the first element on to the stack manually
+                stack.Push(ge);
+                //Iterate the stack until no connected nodes left
+                while (stack.Count > 0)
                 {
-                    subgraph = new Subgraph(alName);
-                    subgraphs.Add(alName, subgraph);
-                }
-                subgraph.Nodes.Add($"\"{current.OwnerHandle}\"");
+                    //Fetch the topmost entity on stack
+                    GraphEntity current = stack.Pop();
 
-                //Iterate over current node's children
-                foreach (Con con in current.Cons)
+                    //Determine the subgraph it is part of
+                    psmPipeline.GetOrAttachPropertySet(current.Owner);
+                    string alName = psmPipeline.ReadPropertyString(driPipelineData.BelongsToAlignment);
+                    //Fetch or create new subgraph object
+                    Subgraph subgraph;
+                    if (subgraphs.ContainsKey(alName)) subgraph = subgraphs[alName];
+                    else
+                    {
+                        subgraph = new Subgraph(dB, ComponentTable, alName);
+                        subgraphs.Add(alName, subgraph);
+                    }
+                    subgraph.Nodes.Add(current.OwnerHandle);
+
+                    //Iterate over current node's children
+                    foreach (Con con in current.Cons)
+                    {
+                        //Find the child the con is referencing to
+                        GraphEntity child = GraphEntities.Where(x => x.OwnerHandle == con.ConHandle).FirstOrDefault();
+                        //if it is the con refering back to the parent -> skip it
+                        if (child.OwnerHandle == current.OwnerHandle) continue;
+                        //Also skip if child has already been visited
+                        //This prevents from making circular graphs I think
+                        //Comment next line out to test circular graphs
+                        if (visitedHandles.Contains(child.OwnerHandle)) continue;
+                        //Record the edge between nodes
+                        edges.Add(new Edge(current.OwnerHandle, child.OwnerHandle));
+                        //If this child node is in visited collection -> skip, so we don't ger circular referencing
+                        if (visitedHandles.Contains(child.OwnerHandle)) continue;
+                        //If the node has not been visited yet, then put it on the stack
+                        stack.Push(child);
+                    }
+                    //When current iteration completes, put the current node handle in the visited collection
+                    visitedHandles.Add(current.OwnerHandle);
+                }
+
+                //Write collected data
+                //Stringbuilder to contain the overall file
+                //This must be refactored when working with disjoined networks
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine($"subgraph G_{graphCount} {{"); //First line of file stating a graph
+                                              //Set the shape of the nodes for whole graph
+                sb.AppendLine("node [shape=record];");
+
+                //Write edges
+                foreach (Edge edge in edges)
                 {
-                    //Find the child the con is referencing to
-                    GraphEntity child = GraphEntities.Where(x => x.OwnerHandle == con.ConHandle).FirstOrDefault();
-                    //if it is the con refering back to the parent -> skip it
-                    if (child.OwnerHandle == current.OwnerHandle) continue;
-                    //Also skip if child has already been visited
-                    //This prevents from making circular graphs I think
-                    if (visitedHandles.Contains(child.OwnerHandle)) continue;
-                    //Record the edge between nodes
-                    edges.Add(new Edge(current.OwnerHandle, child.OwnerHandle));
-                    //If this child node is in visited collection -> skip, so we don't ger circular referencing
-                    if (visitedHandles.Contains(child.OwnerHandle)) continue;
-                    //If the node has not been visited yet, then put it on the stack
-                    stack.Push(child);
+                    sb.AppendLine(edge.ToString("->"));
                 }
-                //When current iteration completes, put the current node handle in the visited collection
-                visitedHandles.Add(current.OwnerHandle);
+
+                //Write subgraphs
+                int i = 0;
+                foreach (var sg in subgraphs)
+                {
+                    i++;
+                    sb.Append(sg.Value.WriteSubgraph(i));
+                }
+
+                //Add closing curly brace correspoinding to the first line
+                sb.AppendLine("}");
+                //Append current disjoined graph to all collector
+                sbAll.Append(sb.ToString());
+
+                //using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\MyGraph_{graphCount}.dot"))
+                //{
+                //    file.WriteLine(sb.ToString()); // "sb" is the StringBuilder
+                //}
+
+                //Modify the GraphEntities to remove visited entities
+                GraphEntities = GraphEntities.ExceptWhere(x => visitedHandles.Contains(x.OwnerHandle)).ToHashSet();
             }
 
-            //Write collected data
-            //Stringbuilder to contain the overall file
-            //This must be refactored when working with disjoined networks
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine("digraph G {"); //First line of file stating a graph
+            //Closing brace of the main graph
+            sbAll.AppendLine("}");
 
-            //Write edges
-            foreach (Edge edge in edges)
+            //Write the collected graphs to one file
+            using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\MyGraph.dot"))
             {
-                sb.AppendLine(edge.ToString("->"));
-            }
-
-            //Write subgraphs
-            int i = 0;
-            foreach (var sg in subgraphs)
-            {
-                i++;
-                sb.Append(sg.Value.WriteSubgraph(i));
-            }
-
-            //Add closing curly brace correspoinding to the first line
-            sb.AppendLine("}");
-
-            using (System.IO.StreamWriter file = new System.IO.StreamWriter(@"C:\Temp\MyGraph.dot"))
-            {
-                file.WriteLine(sb.ToString()); // "sb" is the StringBuilder
+                file.WriteLine(sbAll.ToString()); // "sb" is the StringBuilder
             }
         }
 
         internal class Subgraph
         {
+            private Database Database { get; }
+            private System.Data.DataTable Table { get; }
             internal string Alignment { get; }
-            internal HashSet<string> Nodes { get; } = new HashSet<string>();
-            internal Subgraph(string alignment) => Alignment = alignment;
-            internal string WriteSubgraph(int subgraphIndex)
+            internal HashSet<Handle> Nodes { get; } = new HashSet<Handle>();
+            internal Subgraph(Database database, System.Data.DataTable table, string alignment)
+            { Alignment = alignment; Database = database; Table = table; }
+            internal string WriteSubgraph(int subgraphIndex, bool subGraphsOn = true)
             {
                 StringBuilder sb = new StringBuilder();
-                sb.AppendLine($"subgraph cluster_{subgraphIndex} {{");
-                sb.AppendLine(string.Join(" ", Nodes) + ";");
-                sb.AppendLine($"label = \"{Alignment}\";");
-                sb.AppendLine("color=red");
-                sb.AppendLine("}");
+                if (subGraphsOn) sb.AppendLine($"subgraph cluster_{subgraphIndex} {{");
+                foreach (Handle handle in Nodes)
+                {
+                    //Gather information about element
+                    DBObject obj = handle.Go(Database);
+                    if (obj == null) continue;
+                    //Write the reference to the node
+                    sb.Append($"\"{handle}\" ");
+
+                    switch (obj)
+                    {
+                        case Polyline pline:
+                            int dn = PipeSchedule.GetPipeDN(pline);
+                            string system = GetPipeSystem(pline);
+                            sb.AppendLine($"[label=\"{{{handle}|Rør L{pline.Length.ToString("0.##")}}}|{system}\\n{dn}\"];");
+                            break;
+                        case BlockReference br:
+                            string dn1 = ReadComponentDN1(br, Table);
+                            string dn2 = ReadComponentDN2(br, Table);
+                            string dnStr = dn2 == "0" ? dn1 : dn1 + "/" + dn2;
+                            system = ComponentSchedule.ReadComponentSystem(br, Table);
+                            string type = ComponentSchedule.ReadComponentType(br, Table);
+                            sb.AppendLine($"[label=\"{{{handle}|{type}}}|{system}\\n{dnStr}\"];");
+                            break;
+                        default:
+                            continue;
+                    }
+                }
+                //sb.AppendLine(string.Join(" ", Nodes) + ";");
+                if (subGraphsOn)
+                {
+                    sb.AppendLine($"label = \"{Alignment}\";");
+                    sb.AppendLine("color=red");
+                    sb.AppendLine("}");
+                }
                 return sb.ToString();
             }
         }
