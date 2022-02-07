@@ -14505,6 +14505,13 @@ namespace IntersectUtilities
                     }
 
                     graph.CreateAndWriteGraph();
+
+                    //Start the dot engine to create the graph
+                    System.Diagnostics.Process cmd = new System.Diagnostics.Process();
+                    cmd.StartInfo.FileName = "cmd.exe";
+                    cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
+                    cmd.StartInfo.Arguments = @"/c ""dot -Tpdf MyGraph.dot > MyGraph.pdf""";
+                    cmd.Start();
                 }
                 catch (System.Exception ex)
                 {

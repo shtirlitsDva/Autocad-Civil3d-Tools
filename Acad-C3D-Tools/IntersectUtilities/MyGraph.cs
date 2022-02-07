@@ -235,6 +235,8 @@ namespace IntersectUtilities
         {
             //Counter to count all disjoined graphs
             int graphCount = 0;
+            //Flag to signal the entry point subgraph
+            bool isEntryPoint = false;
             //Stringbuilder to collect all disjoined graphs
             StringBuilder sbAll = new StringBuilder();
             sbAll.AppendLine("digraph G {");
@@ -257,6 +259,9 @@ namespace IntersectUtilities
                 //prdDbg(ge.OwnerHandle.ToString());
                 if (ge == null) throw new System.Exception("No entity found!");
 
+                //Flag the entry point subgraph
+                isEntryPoint = true;
+
                 //Collection to collect the edges
                 HashSet<Edge> edges = new HashSet<Edge>();
 
@@ -276,6 +281,7 @@ namespace IntersectUtilities
                 {
                     //Fetch the topmost entity on stack
                     GraphEntity current = stack.Pop();
+                    Handle previousHandle = default;
 
                     //Determine the subgraph it is part of
                     psmPipeline.GetOrAttachPropertySet(current.Owner);
@@ -290,6 +296,12 @@ namespace IntersectUtilities
                     }
                     subgraph.Nodes.Add(current.OwnerHandle);
 
+                    if (isEntryPoint)
+                    {
+                        subgraph.isEntryPoint = isEntryPoint;
+                        isEntryPoint = false;
+                    }
+
                     //Iterate over current node's children
                     foreach (Con con in current.Cons)
                     {
@@ -300,7 +312,9 @@ namespace IntersectUtilities
                         //Also skip if child has already been visited
                         //This prevents from making circular graphs I think
                         //Comment next line out to test circular graphs
-                        if (visitedHandles.Contains(child.OwnerHandle)) continue;
+                        //if (visitedHandles.Contains(child.OwnerHandle)) continue; <-- First solution
+                        //Solution with caching of previous handle, it I don't think it works when backtracking to a branch -> there will be a double arrow
+                        if (previousHandle != null && previousHandle == child.OwnerHandle) continue;
                         //Record the edge between nodes
                         edges.Add(new Edge(current.OwnerHandle, child.OwnerHandle));
                         //If this child node is in visited collection -> skip, so we don't ger circular referencing
@@ -310,6 +324,7 @@ namespace IntersectUtilities
                     }
                     //When current iteration completes, put the current node handle in the visited collection
                     visitedHandles.Add(current.OwnerHandle);
+                    //Cache current node handle to avoid backreference
                 }
 
                 //Write collected data
@@ -351,6 +366,10 @@ namespace IntersectUtilities
             //Closing brace of the main graph
             sbAll.AppendLine("}");
 
+            //Check or create directory
+            if (!Directory.Exists(@"C:\Temp\"))
+                Directory.CreateDirectory(@"C:\Temp\");
+
             //Write the collected graphs to one file
             using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\MyGraph.dot"))
             {
@@ -363,6 +382,7 @@ namespace IntersectUtilities
             private Database Database { get; }
             private System.Data.DataTable Table { get; }
             internal string Alignment { get; }
+            internal bool isEntryPoint { get; set; } = false;
             internal HashSet<Handle> Nodes { get; } = new HashSet<Handle>();
             internal Subgraph(Database database, System.Data.DataTable table, string alignment)
             { Alignment = alignment; Database = database; Table = table; }
@@ -401,7 +421,8 @@ namespace IntersectUtilities
                 if (subGraphsOn)
                 {
                     sb.AppendLine($"label = \"{Alignment}\";");
-                    sb.AppendLine("color=red");
+                    sb.AppendLine("color=red;");
+                    if (isEntryPoint) sb.AppendLine("penwidth=2.5;");
                     sb.AppendLine("}");
                 }
                 return sb.ToString();
