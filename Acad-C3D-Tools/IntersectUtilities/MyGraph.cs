@@ -262,6 +262,9 @@ namespace IntersectUtilities
                 //Flag the entry point subgraph
                 isEntryPoint = true;
 
+                //Variable to cache previous handle to avoid backreferences
+                Handle previousHandle = default;
+
                 //Collection to collect the edges
                 HashSet<Edge> edges = new HashSet<Edge>();
 
@@ -281,8 +284,7 @@ namespace IntersectUtilities
                 {
                     //Fetch the topmost entity on stack
                     GraphEntity current = stack.Pop();
-                    Handle previousHandle = default;
-
+                    
                     //Determine the subgraph it is part of
                     psmPipeline.GetOrAttachPropertySet(current.Owner);
                     string alName = psmPipeline.ReadPropertyString(driPipelineData.BelongsToAlignment);
@@ -325,6 +327,7 @@ namespace IntersectUtilities
                     //When current iteration completes, put the current node handle in the visited collection
                     visitedHandles.Add(current.OwnerHandle);
                     //Cache current node handle to avoid backreference
+                    previousHandle = current.OwnerHandle;
                 }
 
                 //Write collected data
