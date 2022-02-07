@@ -1957,6 +1957,7 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("selectbyhandle")]
+        [CommandMethod("SBH")]
         public void selectbyhandle()
         {
             DocumentCollection docCol = Application.DocumentManager;
