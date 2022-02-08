@@ -55,7 +55,7 @@ namespace IntersectUtilities
         {
             if (br.IsDynamicBlock)
             {
-                Transaction tx = Application.DocumentManager.MdiActiveDocument.Database.TransactionManager.TopTransaction;
+                Transaction tx = br.Database.TransactionManager.TopTransaction;
                 return ((BlockTableRecord)tx.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead)).Name;
             }
             else return br.Name;
@@ -83,7 +83,12 @@ namespace IntersectUtilities
             string extractedRegx = regxExtract.Match(valueToProcess).Groups["Regx"].Value;
             //extract needed value from the rawContents by using the extracted regex
             Regex finalValueRegex = new Regex(extractedRegx);
-            if (!finalValueRegex.IsMatch(rawContents)) throw new System.Exception($"Extracted Regex failed to match Raw Value for block {br.Name}, handle {br.Handle.ToString()}!");
+            if (!finalValueRegex.IsMatch(rawContents))
+            {
+                prdDbg($"Extracted Regex failed to match Raw Value for block {br.RealName()}, handle {br.Handle}!");
+                prdDbg($"Returning instead: {finalValueRegex.Match(rawContents).Groups[propertyToExtractName].Value}");
+                return finalValueRegex.Match(rawContents).Groups[propertyToExtractName].Value;
+            }
             return finalValueRegex.Match(rawContents).Groups[propertyToExtractName].Value;
         }
         private static string ConstructStringByRegex(BlockReference br, string stringToProcess)
