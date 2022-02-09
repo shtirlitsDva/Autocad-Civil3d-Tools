@@ -12327,13 +12327,13 @@ namespace IntersectUtilities
                     //Comment out if not needed
                     //DataReferencesOptions dro = new DataReferencesOptions();
 
-                    foreach (string name in fileList)
+                    foreach (string fileName in fileList)
                     {
-                        prdDbg(name);
-                        string fileName = path + name;
+                        prdDbg(fileName);
+                        string file = path + fileName;
                         using (Database extDb = new Database(false, true))
                         {
-                            extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
+                            extDb.ReadDwgFile(file, System.IO.FileShare.ReadWrite, false, "");
                             using (Transaction extTx = extDb.TransactionManager.StartTransaction())
                             {
                                 try
@@ -12461,6 +12461,128 @@ namespace IntersectUtilities
                                     //ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.SymmetricalParabola);
                                     //ds.LinetypeScale = 10;
                                     //ds.Lineweight = LineWeight.LineWeight000;
+                                    #endregion
+                                }
+                                catch (System.Exception ex)
+                                {
+                                    prdDbg(ex.ToString());
+                                    extTx.Abort();
+                                    extDb.Dispose();
+                                    throw;
+                                }
+
+                                extTx.Commit();
+                            }
+                            extDb.SaveAs(extDb.Filename, true, DwgVersion.Newest, extDb.SecurityParameters);
+                        }
+                        System.Windows.Forms.Application.DoEvents();
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+        
+        [CommandMethod("UPDATEALLDYNAMICBLOCKSOFTYPE")]
+        public void updatealldynamicblocksoftype()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Dialog box for file list selection and path determination
+                    //string path = string.Empty;
+                    //OpenFileDialog dialog = new OpenFileDialog()
+                    //{
+                    //    Title = "Choose txt file:",
+                    //    DefaultExt = "txt",
+                    //    Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
+                    //    FilterIndex = 0
+                    //};
+                    //if (dialog.ShowDialog() == DialogResult.OK)
+                    //{
+                    //    path = dialog.FileName;
+                    //}
+                    //else return;
+
+                    //List<string> fileList;
+                    //fileList = File.ReadAllLines(path).ToList();
+                    //path = Path.GetDirectoryName(path) + "\\";
+                    #endregion
+
+                    #region For update "SH LIGE" blocks in Gentofte
+                    System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\Stier.csv", "Stier");
+                    List<string> list = dt.AsEnumerable()
+                        .Where(x => x["PrjId"].ToString() == "GENTOFTE1158")
+                        .Select(x => x["Fremtid"].ToString()).ToList();
+                    #endregion
+
+                    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    //Project and etape selection object
+                    //Comment out if not needed
+                    //DataReferencesOptions dro = new DataReferencesOptions();
+
+                    foreach (string fileName in list)
+                    {
+                        prdDbg(fileName);
+                        using (Database extDb = new Database(false, true))
+                        {
+                            extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
+                            using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                            {
+                                try
+                                {
+                                    #region Update dynamic block "SH LIGE"
+                                    string blockName = "SH LIGE";
+                                    string blockPath = @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Symboler.dwg";
+
+                                    using (var blockDb = new Database(false, true))
+                                    {
+                                        // Read the DWG into a side database
+                                        blockDb.ReadDwgFile(blockPath, FileOpenMode.OpenForReadAndAllShare, true, "");
+
+                                        Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+
+                                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(extDb);
+
+                                        BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                                        ObjectIdCollection idsToClone = new ObjectIdCollection();
+                                        idsToClone.Add(sourceBt[blockName]);
+
+                                        IdMapping mapping = new IdMapping();
+                                        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+
+                                        blockTx.Commit();
+                                        blockTx.Dispose();
+                                    }
+
+                                    var existingBlocks = extDb.HashSetOfType<BlockReference>(extTx);
+                                    foreach (var existingBlock in existingBlocks)
+                                    {
+                                        if (existingBlock.RealName() == blockName)
+                                        {
+                                            existingBlock.ResetBlock();
+                                            var props = existingBlock.DynamicBlockReferencePropertyCollection;
+                                            foreach (DynamicBlockReferenceProperty prop in props)
+                                            {
+                                                if (prop.PropertyName == "Type") prop.Value = "200x40";
+                                            }
+                                            existingBlock.RecordGraphicsModified(true);
+                                        }
+                                    }
                                     #endregion
                                 }
                                 catch (System.Exception ex)
@@ -13537,6 +13659,48 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    string blockName = "SH LIGE";
+                    string blockPath = @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Symboler.dwg";
+
+                    using (var blockDb = new Database(false, true))
+                    {
+                        #region Test redefine
+                        // Read the DWG into a side database
+                        blockDb.ReadDwgFile(blockPath, FileOpenMode.OpenForReadAndAllShare, true, "");
+
+                        Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+
+                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+
+                        BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                        ObjectIdCollection idsToClone = new ObjectIdCollection();
+                        idsToClone.Add(sourceBt[blockName]);
+
+                        IdMapping mapping = new IdMapping();
+                        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+
+                        blockTx.Commit();
+                        blockTx.Dispose();
+                    }
+
+                    var existingBlocks = localDb.HashSetOfType<BlockReference>(tx);
+                    foreach (var existingBlock in existingBlocks)
+                    {
+                        if (existingBlock.RealName() == blockName)
+                        {
+                            existingBlock.ResetBlock();
+                            var props = existingBlock.DynamicBlockReferencePropertyCollection;
+                            foreach (DynamicBlockReferenceProperty prop in props)
+                            {
+                                if (prop.PropertyName == "Type") prop.Value = "200x40";
+                            }
+                            existingBlock.RecordGraphicsModified(true);
+                        }
+                    }
+
+                    #endregion
+
                     #region Test dynamic properties
                     //PromptEntityOptions peo = new PromptEntityOptions("Select a BR: ");
                     //PromptEntityResult per = editor.GetEntity(peo);
@@ -14482,7 +14646,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        
+
         [CommandMethod("GRAPHWRITE")]
         public void graphwrite()
         {
@@ -14529,7 +14693,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        
+
         //[CommandMethod("GRAPHCLEAR")]
         public void graphclear()
         {

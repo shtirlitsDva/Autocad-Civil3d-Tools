@@ -76,7 +76,8 @@ namespace IntersectUtilities
 
             string rawContents = br.GetDynamicPropertyByName(propName).Value as string;
             //Safeguard against value not being set -> CUSTOM
-            if (rawContents == "Custom") throw new System.Exception($"Parameter {propName} is not set for block handle {br.Handle}!");
+            if (rawContents == "Custom" || rawContents == "ÆNDR MIG")
+                throw new System.Exception($"Parameter {propName} is not set for block handle {br.Handle}!");
             //Extract regex def from the table
             Regex regxExtract = new Regex(@"{(?<Regx>[^}]+)}");
             if (!regxExtract.IsMatch(valueToProcess)) throw new System.Exception("Regex definition is incorrect!");
