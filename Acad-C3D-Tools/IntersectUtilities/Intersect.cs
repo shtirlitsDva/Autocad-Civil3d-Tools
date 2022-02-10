@@ -8133,7 +8133,7 @@ namespace IntersectUtilities
 
             //Create crossing points first
             DataReferencesOptions dro = new DataReferencesOptions(
-                "KROGHLM1226", "1");
+                "GLADSAXE1178", "1.2");
             createlerdatapssmethod(dro);
 
             //Populateprofileviews with crossing data
@@ -9072,6 +9072,12 @@ namespace IntersectUtilities
 
                             double pvStStart = pv.StationStart;
                             double pvStEnd = pv.StationEnd;
+                            //This is needed because polyline gives slightly deviating
+                            //Station values at start and ends
+                            double extension = 0.01;
+                            double extendedPvStStart =  pvStStart - extension;
+                            double extendedPvStEnd = pvStEnd + extension;
+
                             double pvElBottom = pv.ElevationMin;
                             double pvElTop = pv.ElevationMax;
                             double pvLength = pvStEnd - pvStStart;
@@ -9204,7 +9210,8 @@ namespace IntersectUtilities
 
                                 //Determine if blockref is within current PV
                                 //If within -> place block, else go to next iteration
-                                if (!(station >= pvStStart && station <= pvStEnd)) continue;
+
+                                if (!(station >= extendedPvStStart && station <= extendedPvStEnd)) continue;
 
                                 sampledMidtElevation = SampleProfile(midtProfile, station);
                                 double X = originX + station - pvStStart;
@@ -9247,7 +9254,7 @@ namespace IntersectUtilities
 
                                 //Determine if blockref is within current PV
                                 //If within -> place block, else go to next iteration
-                                if (!(station >= pvStStart && station <= pvStEnd)) continue;
+                                if (!(station >= extendedPvStStart && station <= extendedPvStEnd)) continue;
 
                                 sampledMidtElevation = SampleProfile(midtProfile, station);
                                 double X = originX + station - pvStStart;
@@ -9318,7 +9325,7 @@ namespace IntersectUtilities
 
                                 //Determine if blockref is within current PV
                                 //If within -> place block, else go to next iteration
-                                if (!(station >= pvStStart && station <= pvStEnd)) continue;
+                                if (!(station >= extendedPvStStart && station <= extendedPvStEnd)) continue;
 
                                 sampledMidtElevation = SampleProfile(midtProfile, station);
                                 double X = originX + station - pvStStart;
