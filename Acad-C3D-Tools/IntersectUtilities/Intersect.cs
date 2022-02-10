@@ -4144,6 +4144,8 @@ namespace IntersectUtilities
                         //if (al.Name != "10 Juni Allé") continue;
                         ////////////////////////////////////////////
                         prdDbg($"\nProcessing: {al.Name}...");
+                        //Cache the alingment polyline
+                        Polyline alPoly = al.GetPolyline().Go<Polyline>(alTx);
 
                         #region GetCurvesAndBRs from fremtidig
                         HashSet<Curve> curves = localDb.ListOfType<Curve>(tx, true)
@@ -4184,6 +4186,7 @@ namespace IntersectUtilities
                             for (int j = 1; j < nrOfSections + 1; j++)
                             {//1 to skip start, which is handled separately
                                 Point3d wPt = curve.GetPointAtDist(j * pipeStdLength);
+                                //Point3d temp = alPoly.GetClosestPointTo(wPt, false);
                                 double station = 0;
                                 double offset = 0;
                                 try
@@ -4419,10 +4422,11 @@ namespace IntersectUtilities
                             double rotation = Math.Atan2(deriv.Y, deriv.X);
                             //BlockReference wpBr = localDb.CreateBlockWithAttributes(blockName, wp.WeldPoint, rotation);
                             var wpBr = new BlockReference(wp.WeldPoint, btrId);
-                            modelSpace.AppendEntity(wpBr);
-                            tx.AddNewlyCreatedDBObject(wpBr, true);
                             wpBr.Rotation = rotation;
                             wpBr.Layer = blockLayerName;
+
+                            modelSpace.AppendEntity(wpBr);
+                            tx.AddNewlyCreatedDBObject(wpBr, true);
 
                             foreach (AttributeDefinition attDef in attDefs)
                             {
@@ -4442,6 +4446,8 @@ namespace IntersectUtilities
 
                             psm.GetOrAttachPropertySet(wpBr);
                             psm.WritePropertyString(driPipelineData.BelongsToAlignment, wp.Alignment.Name);
+
+                            wpBr.RecordGraphicsModified(true);
 
                             idx++;
                         }
