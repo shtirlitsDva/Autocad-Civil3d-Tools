@@ -12,8 +12,8 @@
   version="1.0.1">
   <import namespace="http://data.gov.dk/schemas/annotations/1/gml" schemaLocation="1.0_annotations.xsd"/>
   <import namespace="http://data.gov.dk/schemas/dimensions/1/gml" schemaLocation="1.0_dimensions.xsd"/>
-  <import namespace="http://purl.org/dc/terms/" schemaLocation="dcterms.xsd"/>
-  <import namespace="http://www.isotc211.org/2005/gmx" schemaLocation="iso/19139/20070417/gmx/gmx.xsd"/>
+  <import namespace="http://purl.org/dc/terms/" schemaLocation="https://www.dublincore.org/schemas/xmls/qdc/2008/02/11/dcterms.xsd"/>
+  <import namespace="http://www.isotc211.org/2005/gmx" schemaLocation="http://schemas.opengis.net/iso/19139/20070417/gmx/gmx.xsd"/>
   <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="http://schemas.opengis.net/gml/3.2.1/gml.xsd"/>
   <!--XML Schema document created by ShapeChange - http://shapechange.net/-->
   <element name="Afloebskomponent" substitutionGroup="ler:Ledningskomponent" type="ler:AfloebskomponentType">
