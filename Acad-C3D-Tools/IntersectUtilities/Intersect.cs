@@ -12487,7 +12487,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        
+
         [CommandMethod("UPDATEALLDYNAMICBLOCKSOFTYPE")]
         public void updatealldynamicblocksoftype()
         {
@@ -13659,46 +13659,46 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    string blockName = "SH LIGE";
-                    string blockPath = @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Symboler.dwg";
+                    #region Test redefine
+                    //string blockName = "SH LIGE";
+                    //string blockPath = @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Symboler.dwg";
 
-                    using (var blockDb = new Database(false, true))
-                    {
-                        #region Test redefine
-                        // Read the DWG into a side database
-                        blockDb.ReadDwgFile(blockPath, FileOpenMode.OpenForReadAndAllShare, true, "");
+                    //using (var blockDb = new Database(false, true))
+                    //{
 
-                        Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+                    //    // Read the DWG into a side database
+                    //    blockDb.ReadDwgFile(blockPath, FileOpenMode.OpenForReadAndAllShare, true, "");
 
-                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
-                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                    //    Transaction blockTx = blockDb.TransactionManager.StartTransaction();
 
-                        BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                        ObjectIdCollection idsToClone = new ObjectIdCollection();
-                        idsToClone.Add(sourceBt[blockName]);
+                    //    Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                    //    Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
 
-                        IdMapping mapping = new IdMapping();
-                        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                    //    BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    //    ObjectIdCollection idsToClone = new ObjectIdCollection();
+                    //    idsToClone.Add(sourceBt[blockName]);
 
-                        blockTx.Commit();
-                        blockTx.Dispose();
-                    }
+                    //    IdMapping mapping = new IdMapping();
+                    //    blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
 
-                    var existingBlocks = localDb.HashSetOfType<BlockReference>(tx);
-                    foreach (var existingBlock in existingBlocks)
-                    {
-                        if (existingBlock.RealName() == blockName)
-                        {
-                            existingBlock.ResetBlock();
-                            var props = existingBlock.DynamicBlockReferencePropertyCollection;
-                            foreach (DynamicBlockReferenceProperty prop in props)
-                            {
-                                if (prop.PropertyName == "Type") prop.Value = "200x40";
-                            }
-                            existingBlock.RecordGraphicsModified(true);
-                        }
-                    }
+                    //    blockTx.Commit();
+                    //    blockTx.Dispose();
+                    //}
 
+                    //var existingBlocks = localDb.HashSetOfType<BlockReference>(tx);
+                    //foreach (var existingBlock in existingBlocks)
+                    //{
+                    //    if (existingBlock.RealName() == blockName)
+                    //    {
+                    //        existingBlock.ResetBlock();
+                    //        var props = existingBlock.DynamicBlockReferencePropertyCollection;
+                    //        foreach (DynamicBlockReferenceProperty prop in props)
+                    //        {
+                    //            if (prop.PropertyName == "Type") prop.Value = "200x40";
+                    //        }
+                    //        existingBlock.RecordGraphicsModified(true);
+                    //    }
+                    //}
                     #endregion
 
                     #region Test dynamic properties
@@ -13775,28 +13775,57 @@ namespace IntersectUtilities
                     #endregion
 
                     #region QA pipe lengths
-                    //HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
-                    ////PromptEntityOptions peo = new PromptEntityOptions("Select pline");
-                    ////PromptEntityResult per = editor.GetEntity(peo);
-                    ////Polyline pline = per.ObjectId.Go<Polyline>(tx);
+                    HashSet<Profile> profiles = localDb.HashSetOfType<Profile>(tx);
+
+                    double totalProfLength = 0;
+
+                    foreach (Profile profile in profiles)
+                    {
+                        if (profile.Name.Contains("MIDT"))
+                            totalProfLength += profile.Length;
+                    }
+
+                    prdDbg($"Profiles: {totalProfLength.ToString("0.###")}");
+
+                    //#region Read surface from file
+                    //CivSurface surface = null;
+                    //try
+                    //{
+                    //    surface = localDb
+                    //        .HashSetOfType<TinSurface>(tx)
+                    //        .FirstOrDefault() as CivSurface;
+                    //}
+                    //catch (System.Exception)
+                    //{
+                    //    throw;
+                    //}
+
+                    //if (surface == null)
+                    //{
+                    //    editor.WriteMessage("\nSurface could not be loaded!");
+                    //    tx.Abort();
+                    //    return;
+                    //}
+                    //#endregion
+
+                    //HashSet<Polyline> plines = localDb.GetFjvPipes(tx).Where(x => GetPipeDN(x) != 999).ToHashSet();
+                    //prdDbg(plines.Count.ToString());
+
+                    //double totalPlineLength = 0;
+                    //double totalFlLength = 0;
 
                     //foreach (Polyline pline in plines)
                     //{
-                    //    double length = pline.Length;
-                    //    double pipeStdLength = PipeSchedule.GetPipeStdLength(pline);
-                    //    if (length < pipeStdLength) continue;
+                    //    totalPlineLength += pline.Length;
 
-                    //    int times = (int)(length / pipeStdLength);
-                    //    double rest = length - (pipeStdLength * (double)times);
+                    //    Oid flOid = FeatureLine.Create(pline.Handle.ToString(), pline.Id);
+                    //    FeatureLine fl = flOid.Go<FeatureLine>(tx);
+                    //    fl.AssignElevationsFromSurface(surface.Id, true);
 
-                    //    prdDbg($"Length: {length}, std: {pipeStdLength}, times: {times}, rest: {rest}, std-rest: {pipeStdLength - rest}");
-
-                    //    if (rest > 0.001 && (pipeStdLength - rest) > 0.001)
-                    //    {
-                    //        Line line = new Line(new Point3d(), pline.GetPointAtDist(length / 2));
-                    //        line.AddEntityToDbModelSpace(localDb);
-                    //    }
+                    //    totalFlLength += fl.Length3D;
                     //}
+
+                    //prdDbg($"Pls: {totalPlineLength.ToString("0.###")}, Fls: {totalFlLength.ToString("0.###")}");
                     #endregion
 
                     #region Test buerør

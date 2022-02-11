@@ -1444,6 +1444,19 @@ namespace IntersectUtilities.UtilsCommon
             entities.UnionWith(plineQuery);
             return entities;
         }
+        public static HashSet<Polyline> GetFjvPipes(this Database db, Transaction tr, bool discardFrozen = false)
+        {
+            HashSet<Polyline> entities = new HashSet<Polyline>();
+
+            var rawPlines = db.ListOfType<Polyline>(tr, discardFrozen);
+            entities = rawPlines.Where(pline => pline.Layer.Contains("FJV-TWIN") ||
+                                                      pline.Layer.Contains("FJV-FREM") ||
+                                                      pline.Layer.Contains("FJV-RETUR"))
+                .ToHashSet();
+
+            return entities;
+        }
+
         // Searches the drawing for a block with the specified name.
         // Returns either the block, or null - check accordingly.
         public static HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference> GetBlockReferenceByName(

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema
+  xmlns="http://www.w3.org/2001/XMLSchema"
+  xmlns:ann="http://data.gov.dk/schemas/annotations/1/gml"
+  xmlns:gml="http://www.opengis.net/gml/3.2"
+  elementFormDefault="qualified"
+  targetNamespace="http://data.gov.dk/schemas/annotations/1/gml"
+  version="1.0.1">
+  <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="http://schemas.opengis.net/gml/3.2.1/gml.xsd"/>
+  <!--XML Schema document created by ShapeChange - http://shapechange.net/-->
+  <element name="LinearAnnotation" substitutionGroup="gml:AbstractFeature" type="ann:LinearAnnotationType">
+    <annotation>
+      <documentation>linear marking on illustrative material for the purpose of clarification</documentation>
+    </annotation>
+  </element>
+  <complexType name="LinearAnnotationType">
+    <complexContent>
+      <extension base="gml:AbstractFeatureType">
+        <sequence>
+          <element name="geometry" type="gml:CurvePropertyType">
+            <annotation>
+              <documentation>location</documentation>
+            </annotation>
+          </element>
+          <element name="type" type="ann:LinearAnnotationTypeType">
+            <annotation>
+              <documentation>category</documentation>
+            </annotation>
+          </element>
+        </sequence>
+      </extension>
+    </complexContent>
+  </complexType>
+  <complexType name="LinearAnnotationPropertyType">
+    <sequence minOccurs="0">
+      <element ref="ann:LinearAnnotation"/>
+    </sequence>
+    <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    <attributeGroup ref="gml:OwnershipAttributeGroup"/>
+  </complexType>
+  <simpleType name="LinearAnnotationTypeType">
+    <annotation>
+      <documentation>classification of linear annotations</documentation>
+    </annotation>
+    <restriction base="string">
+      <enumeration value="line">
+        <annotation>
+          <documentation>primitive geometry consisting of straight lines without arrowheads</documentation>
+        </annotation>
+      </enumeration>
+      <enumeration value="one directional arrow">
+        <annotation>
+          <documentation>primitive geometry consisting of straight lines with an arrowhead in one end point</documentation>
+        </annotation>
+      </enumeration>
+    </restriction>
+  </simpleType>
+  <element name="TextAnnotation" substitutionGroup="gml:AbstractFeature" type="ann:TextAnnotationType">
+    <annotation>
+      <documentation>textual marking on illustrative material for the purpose of clarification</documentation>
+    </annotation>
+  </element>
+  <complexType name="TextAnnotationType">
+    <complexContent>
+      <extension base="gml:AbstractFeatureType">
+        <sequence>
+          <element name="geometry" type="gml:PointPropertyType">
+            <annotation>
+              <documentation>location</documentation>
+            </annotation>
+          </element>
+          <element name="text" type="string">
+            <annotation>
+              <documentation>data intended with language to convey a meaning and whose interpretation is essentially based upon the reader's knowledge of some natural language or artificial language</documentation>
+            </annotation>
+          </element>
+          <element minOccurs="0" name="annotatedFeature" type="gml:ReferenceType">
+            <annotation>
+              <documentation>feature that is the target of the annotation</documentation>
+            </annotation>
+          </element>
+          <element minOccurs="0" name="connector" type="gml:ReferenceType">
+            <annotation>
+              <documentation>line feature which shows the connection between a feature and a text regarding that feature</documentation>
+              <appinfo>
+                <targetElement xmlns="http://www.opengis.net/gml/3.2">ann:LinearAnnotation</targetElement>
+              </appinfo>
+            </annotation>
+          </element>
+        </sequence>
+      </extension>
+    </complexContent>
+  </complexType>
+  <complexType name="TextAnnotationPropertyType">
+    <sequence minOccurs="0">
+      <element ref="ann:TextAnnotation"/>
+    </sequence>
+    <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    <attributeGroup ref="gml:OwnershipAttributeGroup"/>
+  </complexType>
+</schema>
