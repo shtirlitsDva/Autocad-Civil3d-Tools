@@ -107,6 +107,139 @@
       <SubType>Designer</SubType>
     </None>
     <None Include="packages.config" />
+    <None Include="Schema\dcterms.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gco\basicTypes.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gco\gco.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gco\gcoBase.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\applicationSchema.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\citation.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\constraints.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\content.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\dataQuality.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\distribution.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\extent.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\freeText.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\gmd.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\identification.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\maintenance.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\metadataApplication.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\metadataEntity.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\metadataExtension.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\portrayalCatalogue.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\referenceSystem.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmd\spatialRepresentation.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmx\catalogues.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmx\codelistItem.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmx\crsItem.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmx\extendedTypes.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmx\gmx.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmx\gmxUsage.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gmx\uomItem.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gsr\gsr.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gsr\spatialReferencing.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gss\geometry.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gss\gss.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gts\gts.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\gts\temporalObjects.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\srv\1.0\serviceMetadata.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\srv\1.0\serviceModel.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\iso\19139\20070417\srv\1.0\srv.xsd">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="Schema\xml.xsd">
+      <SubType>Designer</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Schema\iso\19139\20070417\gco\ReadMe.txt" />
+    <Content Include="Schema\iso\19139\20070417\gmd\ReadMe.txt" />
+    <Content Include="Schema\iso\19139\20070417\gmx\ReadMe.txt" />
+    <Content Include="Schema\iso\19139\20070417\gsr\ReadMe.txt" />
+    <Content Include="Schema\iso\19139\20070417\gss\ReadMe.txt" />
+    <Content Include="Schema\iso\19139\20070417\gts\ReadMe.txt" />
+    <Content Include="Schema\iso\19139\20070417\ReadMe.txt" />
+    <Content Include="Schema\iso\19139\20070417\resources\codelist\gmxCodelists.xml" />
+    <Content Include="Schema\iso\19139\20070417\resources\codelist\ML_gmxCodelists.xml" />
+    <Content Include="Schema\iso\19139\20070417\resources\codelist\tcCodelists.xml" />
+    <Content Include="Schema\iso\19139\20070417\resources\crs\gmxCrs.xml" />
+    <Content Include="Schema\iso\19139\20070417\resources\crs\ML_gmxCrs.xml" />
+    <Content Include="Schema\iso\19139\20070417\resources\example\fr-fr.xml" />
+    <Content Include="Schema\iso\19139\20070417\resources\ReadMe.txt" />
+    <Content Include="Schema\iso\19139\20070417\resources\uom\gmxUom.xml" />
+    <Content Include="Schema\iso\19139\20070417\resources\uom\ML_gmxUom.xml" />
+    <Content Include="Schema\iso\19139\20070417\srv\ReadMe.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
