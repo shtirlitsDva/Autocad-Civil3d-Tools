@@ -98,11 +98,11 @@
       <Link>UtilsCommon.cs</Link>
     </Compile>
     <Compile Include="LerImporter.cs" />
-    <Compile Include="LerSchema.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Schema\1.0_ler.Designer.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="loadNet.scr" />
     <None Include="packages.config" />
     <None Include="Schema\1.0_annotations.xsd">
       <SubType>Designer</SubType>
@@ -114,6 +114,8 @@
       <SubType>Designer</SubType>
     </None>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Content Include="DebugCommandLineAttribute.txt" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
