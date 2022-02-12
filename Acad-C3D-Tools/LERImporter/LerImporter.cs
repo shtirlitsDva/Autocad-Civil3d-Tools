@@ -76,11 +76,15 @@ namespace LERImporter
             {
                 try
                 {
-                    Schema.GraveforespoergselssvarType gf = new Schema.GraveforespoergselssvarType();
+                    //var serializer = new XmlSerializer(typeof(Schema.GraveforespoergselssvarType));
+                    Schema.GraveforespoergselssvarType gf;
+
+                    //Schema.GraveforespoergselssvarType gf = new Schema.GraveforespoergselssvarType();
                     using (var fileStream = new FileStream(
                         @"D:\OneDrive - Damgaard Rådgivende Ingeniører ApS\34 Lerimporter" +
                         @"\Dev\53296456-7831-4836-95ae-6aeb955daf9c.gml", FileMode.Open))
                     {
+                        //gf = (Schema.GraveforespoergselssvarType)serializer.Deserialize(fileStream);
                         gf = Schema.GraveforespoergselssvarType.Deserialize(fileStream);
                         prdDbg(gf.ToString());
                     }
