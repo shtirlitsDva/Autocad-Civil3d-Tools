@@ -22,6 +22,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Data;
+using System.Xml;
+using System.Xml.Serialization;
 //using MoreLinq;
 //using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
@@ -74,14 +76,21 @@ namespace LERImporter
             {
                 try
                 {
-                    
-
+                    Schema.GraveforespoergselssvarType gf = new Schema.GraveforespoergselssvarType();
+                    using (var fileStream = new FileStream(
+                        @"D:\OneDrive - Damgaard Rådgivende Ingeniører ApS\34 Lerimporter" +
+                        @"\Dev\53296456-7831-4836-95ae-6aeb955daf9c.gml", FileMode.Open))
+                    {
+                        gf = Schema.GraveforespoergselssvarType.Deserialize(fileStream);
+                        prdDbg(gf.ToString());
+                    }
 
                 }
                 catch (System.Exception ex)
                 {
                     tx.Abort();
                     editor.WriteMessage("\n" + ex.Message);
+                    editor.WriteMessage(ex.ToString());
                     return;
                 }
                 tx.Commit();

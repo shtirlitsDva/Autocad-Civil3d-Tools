@@ -113,6 +113,7 @@
     <None Include="Schema\1.0_ler.xsd">
       <SubType>Designer</SubType>
     </None>
+    <None Include="Schema\xsd2code.config" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="DebugCommandLineAttribute.txt" />
