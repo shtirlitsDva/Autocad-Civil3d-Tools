@@ -24,6 +24,7 @@ using System.Windows.Forms;
 using System.Data;
 using System.Xml;
 using System.Xml.Serialization;
+using Newtonsoft.Json;
 //using MoreLinq;
 //using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
@@ -76,7 +77,7 @@ namespace LERImporter
             {
                 try
                 {
-                    //var serializer = new XmlSerializer(typeof(Schema.GraveforespoergselssvarType));
+                    var serializer = new XmlSerializer(typeof(Schema.GraveforespoergselssvarType));
                     Schema.GraveforespoergselssvarType gf;
 
                     //Schema.GraveforespoergselssvarType gf = new Schema.GraveforespoergselssvarType();
@@ -84,11 +85,36 @@ namespace LERImporter
                         @"D:\OneDrive - Damgaard Rådgivende Ingeniører ApS\34 Lerimporter" +
                         @"\Dev\53296456-7831-4836-95ae-6aeb955daf9c.gml", FileMode.Open))
                     {
-                        //gf = (Schema.GraveforespoergselssvarType)serializer.Deserialize(fileStream);
-                        gf = Schema.GraveforespoergselssvarType.Deserialize(fileStream);
-                        prdDbg(gf.ToString());
+                        gf = (Schema.GraveforespoergselssvarType)serializer.Deserialize(fileStream);
+                        //gf = Schema.GraveforespoergselssvarType.Deserialize(fileStream);
                     }
 
+                    gf.Database = localDb;
+
+                    gf.test();
+
+                    #region Archive
+                    ////Check or create directory
+                    //if (!Directory.Exists(@"C:\Temp\"))
+                    //    Directory.CreateDirectory(@"C:\Temp\");
+
+                    //string graph = Visualizer.ObjectGraphVisualizer.Visualize(gf);
+
+                    ////Write the collected graphs to one file
+                    //using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\MyGraph.dot"))
+                    //{
+                    //    file.WriteLine(graph); // "sb" is the StringBuilder
+                    //}
+
+                    //string fileName = @"D:\OneDrive - Damgaard Rådgivende Ingeniører ApS\34 Lerimporter" +
+                    //                  @"\Dev\gf.json";
+                    //JsonSerializer serializer = new JsonSerializer();
+                    //using (StreamWriter sw = new StreamWriter(fileName))
+                    //using (JsonWriter writer = new JsonTextWriter(sw))
+                    //{
+                    //    serializer.Serialize(writer, gf);
+                    //} 
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
