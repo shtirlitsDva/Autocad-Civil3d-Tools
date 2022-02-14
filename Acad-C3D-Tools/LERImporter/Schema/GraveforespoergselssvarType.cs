@@ -66,7 +66,7 @@ namespace LERImporter.Schema
 
             HashSet<string> names = new HashSet<string>();
 
-            //prdDbg(ObjectDumper.Dump(ledningMember[0]));
+            prdDbg(ObjectDumper.Dump(ledningMember[50]));
 
             foreach (GraveforespoergselssvarTypeLedningMember member in ledningMember)
             {

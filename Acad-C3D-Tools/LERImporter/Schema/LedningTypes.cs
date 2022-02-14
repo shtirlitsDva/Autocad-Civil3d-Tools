@@ -25,6 +25,7 @@ using System.Windows.Forms;
 using System.Data;
 //using MoreLinq;
 //using GroupByCluster;
+using IntersectUtilities;
 using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -56,11 +57,32 @@ namespace LERImporter.Schema
     }
     public static class LerLedning
     {
-
+        private static string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+        internal static System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
     }
     public partial class LedningType
     {
         public DriftsstatusType Driftsstatus { get => this.driftsstatus.Value; }
+
+        public Oid DrawPline2D(Database database)
+        {
+            IPointParser parser = this.geometri.AbstractCurve as IPointParser;
+
+            Point3d[] points = parser.GetPoints();
+            Polyline polyline = new Polyline(points.Length);
+
+            for (int i = 0; i < points.Length; i++)
+                polyline.AddVertexAt(polyline.NumberOfVertices, points[i].To2D(), 0, 0, 0);
+
+            Oid oid = polyline.AddEntityToDbModelSpace(database);
+
+            return oid;
+        }
+
+        public Oid DrawEntity3D(Database database)
+        {
+            throw new NotImplementedException();
+        }
     }
     public partial class TelekommunikationsledningType : ILerLedning
     {
@@ -153,8 +175,7 @@ namespace LERImporter.Schema
             {"telekommunikation",ForsyningsartEnum.telekommunikation},
             {"vand",ForsyningsartEnum.vand}
         };
-
-        public Oid DrawEntity2D(Database database)
+        private string DetermineLayerName(Database database)
         {
             #region Determine correct layer name
             string layerName;
@@ -195,23 +216,19 @@ namespace LERImporter.Schema
 
             layerName += suffix;
             database.CheckOrCreateLayer(layerName);
+            return layerName;
             #endregion
+        }
+        public Oid DrawEntity2D(Database database)
+        {
+            //Create new polyline in the base class
+            Polyline pline = DrawPline2D(database).Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
-            #region Draw 2D polyline
-            IPointParser parser = this.geometri.AbstractCurve as IPointParser;
-            
-            Point3d[] points = parser.GetPoints();
-            Polyline polyline = new Polyline(points.Length);
-            
-            for (int i = 0; i < points.Length; i++)
-                polyline.AddVertexAt(polyline.NumberOfVertices, points[i].To2D(), 0, 0, 0);
+            pline.Layer = DetermineLayerName(database);
 
-            Oid oid = polyline.AddEntityToDbModelSpace(database);
 
-            polyline.Layer = layerName;
 
-            return oid;
-            #endregion
+            return pline.ObjectId;
         }
         public Oid DrawEntity3D(Database database)
         {
@@ -325,27 +342,117 @@ namespace LERImporter.Schema
     }
     public partial class ElledningType : ILerLedning
     {
+        public ElledningTypeEnum Type { get => getElledningTypeType(); }
+        private ElledningTypeEnum getElledningTypeType()
+        {
+            if (this.type.Value.IsNoE())
+            {
+                Log.log($"WARNING! Element id {id} has NO ElledningType specified!");
+                return ElledningTypeEnum.none;
+            }
+
+            ElledningTypeEnum type;
+            if (Enum.TryParse(this.type.Value, out type)) return type;
+            else
+            {
+                Log.log($"WARNING! Element id {id} has non-standard ElledningType {this.type.Value}!");
+                return ElledningTypeEnum.other;
+            }
+        }
+
+        private string DetermineLayerName(Database database)
+        {
+            #region Determine correct layer name
+            string layerName = "";
+            string suffix = "";
+
+            switch (this.Driftsstatus)
+            {
+                case DriftsstatusType.underetablering:
+                case DriftsstatusType.idrift:
+                    break;
+                case DriftsstatusType.permanentudeafdrift:
+                    suffix = "_UAD";
+                    break;
+                default:
+                    throw new System.Exception(
+                        $"Element id {this.id} has invalid driftsstatus: {Driftsstatus.ToString()}!");
+            }
+
+            switch (getElledningTypeType())
+            {
+                case ElledningTypeEnum.none:
+                    layerName = "0-ERROR-ElledningType-none";
+                    break;
+                case ElledningTypeEnum.other:
+                    layerName = "0-ERROR-ElledningType-other";
+                    break;
+                case ElledningTypeEnum.beskyttelsesleder:
+                    break;
+                case ElledningTypeEnum.forsyningskabel:
+                    break;
+                case ElledningTypeEnum.luftledning:
+                    break;
+                case ElledningTypeEnum.stikkabel:
+                    break;
+                case ElledningTypeEnum.vejbelysningskabel:
+                    break;
+                default:
+                    break;
+            }
+
+            //switch (this.)
+            //{
+            //    //case ForsyningsartEnum.none:
+            //    //case ForsyningsartEnum.other:
+            //    //case ForsyningsartEnum.afløb:
+            //    //    throw new NotImplementedException($"Element id {this.id} has unimplemented Forsyningsart!");
+            //    //case ForsyningsartEnum.el:
+            //    //    layerName = "El-beskyttelsesrør";
+            //    //    break;
+            //    //case ForsyningsartEnum.fjernvarmefjernkøling:
+            //    //case ForsyningsartEnum.gas:
+            //    //case ForsyningsartEnum.olie:
+            //    //case ForsyningsartEnum.telekommunikation:
+            //    //case ForsyningsartEnum.vand:
+            //    //    throw new NotImplementedException($"Element id {this.id} has unimplemented Forsyningsart!");
+            //    //default:
+            //    //    throw new System.Exception(
+            //    //        $"Element id {this.id} has invalid forsyningsart: {forsyningsart[0].ToString()}!");
+            //}
+
+            layerName += suffix;
+            database.CheckOrCreateLayer(layerName);
+            return layerName;
+            #endregion
+        }
+
         public Oid DrawEntity2D(Database database)
         {
             #region Draw 2D polyline
-            IPointParser parser = this.geometri.AbstractCurve as IPointParser;
-            Point3d[] points = parser.GetPoints();
-            Polyline polyline = new Polyline(points.Length);
-
-            for (int i = 0; i < points.Length; i++)
-                polyline.AddVertexAt(polyline.NumberOfVertices, points[i].To2D(), 0, 0, 0);
-
-            Oid oid = polyline.AddEntityToDbModelSpace(database);
+            Polyline pline = DrawPline2D(database)
+                .Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             //polyline.Layer = layerName;
 
-            return oid;
+            return pline.Id;
             #endregion
         }
 
         public Oid DrawEntity3D(Database database)
         {
             throw new NotImplementedException();
+        }
+
+        public enum ElledningTypeEnum
+        {
+            none,
+            other,
+            beskyttelsesleder,
+            forsyningskabel,
+            luftledning,
+            stikkabel,
+            vejbelysningskabel
         }
     }
     public partial class AndenLedningType : ILerLedning
