@@ -872,25 +872,6 @@ namespace IntersectUtilities
             }
             return null;
         }
-        public static bool CheckOrCreateLayer(this Database db, string layerName)
-        {
-            Transaction txLag = db.TransactionManager.TopTransaction;
-            LayerTable lt = txLag.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
-            if (!lt.Has(layerName))
-            {
-                LayerTableRecord ltr = new LayerTableRecord();
-                ltr.Name = layerName;
-
-                //Make layertable writable
-                lt.CheckOrOpenForWrite();
-
-                //Add the new layer to layer table
-                Oid ltId = lt.Add(ltr);
-                txLag.AddNewlyCreatedDBObject(ltr, true);
-                return true;
-            }
-            else return true;
-        }
         public static void DisplayDynBlockProperties(Editor ed, BlockReference br, string name)
         {
             // Only continue is we have a valid dynamic block

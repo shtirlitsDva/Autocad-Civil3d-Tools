@@ -44,47 +44,89 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
+using Log = LERImporter.SimpleLogger;
 
 namespace LERImporter.Schema
 {
     public partial class GraveforespoergselssvarType
     {
         public Database Database { get; set; }
-        public GraveforespoergselssvarTypeLedningMember[] getLedningMembers()
-        {
-            if (this.ledningMember != null) 
-                this.ledningMember.Where(x => x != null && x.Item != null).ToArray();
-            return new GraveforespoergselssvarTypeLedningMember[0];
-        }
-        public GraveforespoergselssvarTypeLedningstraceMember[] getLedningstraceMembers()
-        {
-            if (this.ledningstraceMember != null) 
-                return this.ledningstraceMember?.Where(x => x != null && x.Ledningstrace != null).ToArray();
-            return new GraveforespoergselssvarTypeLedningstraceMember[0];
-        }
-        public GraveforespoergselssvarTypeLedningskomponentMember[] getLedningskomponentMembers()
-        {
-            if (this.ledningskomponentMember != null)
-                return this.ledningskomponentMember?.Where(x => x != null && x.Item != null).ToArray();
-            return new GraveforespoergselssvarTypeLedningskomponentMember[0];
-        }
-
         public void test()
         {
-            foreach (GraveforespoergselssvarTypeLedningMember member in getLedningMembers())
-            {
-                prdDbg(member.Item.ToString());
-            }
-            
-            //foreach (GraveforespoergselssvarTypeLedningstraceMember item in getLedningstraceMembers())
-            //{
-            //    prdDbg(item.Ledningstrace?.Item.ToString());
-            //}
+            if (this.ledningMember == null) this.ledningMember =
+                    new GraveforespoergselssvarTypeLedningMember[0];
+            if (this.ledningstraceMember == null) this.ledningstraceMember =
+                    new GraveforespoergselssvarTypeLedningstraceMember[0];
+            if (this.ledningskomponentMember == null) this.ledningskomponentMember =
+                    new GraveforespoergselssvarTypeLedningskomponentMember[0];
 
-            //foreach (GraveforespoergselssvarTypeLedningskomponentMember member in getLedningskomponentMembers())
-            //{
-            //    prdDbg(member.Item.ToString());
-            //}
+            Log.log($"Number of ledningMember -> {this.ledningMember?.Length.ToString()}");
+            Log.log($"Number of ledningstraceMember -> {this.ledningstraceMember?.Length.ToString()}");
+            Log.log($"Number of ledningskomponentMember -> {this.ledningskomponentMember?.Length.ToString()}");
+
+            HashSet<string> names = new HashSet<string>();
+
+            //prdDbg(ObjectDumper.Dump(ledningMember[0]));
+
+            foreach (GraveforespoergselssvarTypeLedningMember member in ledningMember)
+            {
+                if (member.Item == null)
+                {
+                    Log.log($"ledningMember is null! Some enity has not been deserialized correct!");
+                    continue;
+                }
+                
+                ILerLedning ledning = member.Item as ILerLedning;
+                ledning.DrawEntity2D(Database);
+
+                names.Add(member.Item.ToString());
+            }
+
+            foreach (GraveforespoergselssvarTypeLedningstraceMember item in ledningstraceMember)
+            {
+                if (item.Ledningstrace == null)
+                {
+                    Log.log($"ledningstraceMember is null! Some enity has not been deserialized correct!");
+                    continue;
+                }
+                names.Add(item.Ledningstrace.ToString());
+            }
+
+            foreach (GraveforespoergselssvarTypeLedningskomponentMember member in ledningskomponentMember)
+            {
+                if (member.Item == null)
+                {
+                    Log.log($"ledningskomponentMember is null! Some enity has not been deserialized correct!");
+                    continue;
+                }
+                names.Add(member.Item.ToString());
+            }
+
+            foreach (string s in names)
+            {
+                prdDbg(s);
+            }
         }
+
+        #region Archive
+        //public GraveforespoergselssvarTypeLedningMember[] getLedningMembers()
+        //{
+        //    if (this.ledningMember != null) 
+        //        this.ledningMember?.Where(x => x != null && x.Item != null).ToArray();
+        //    return new GraveforespoergselssvarTypeLedningMember[0];
+        //}
+        //public GraveforespoergselssvarTypeLedningstraceMember[] getLedningstraceMembers()
+        //{
+        //    if (this.ledningstraceMember != null) 
+        //        return this.ledningstraceMember?.Where(x => x != null && x.Ledningstrace != null).ToArray();
+        //    return new GraveforespoergselssvarTypeLedningstraceMember[0];
+        //}
+        //public GraveforespoergselssvarTypeLedningskomponentMember[] getLedningskomponentMembers()
+        //{
+        //    if (this.ledningskomponentMember != null)
+        //        return this.ledningskomponentMember?.Where(x => x != null && x.Item != null).ToArray();
+        //    return new GraveforespoergselssvarTypeLedningskomponentMember[0];
+        //}
+        #endregion
     }
 }

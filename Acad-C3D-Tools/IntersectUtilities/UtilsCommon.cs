@@ -48,6 +48,20 @@ using PsDataType = Autodesk.Aec.PropertyData.DataType;
 
 namespace IntersectUtilities.UtilsCommon
 {
+    public class SimpleLogger
+    {
+        public bool EchoToEditor { get; set; } = true;
+        public string LogFileName { get; set; } = "C:\\Temp\\ShapeExportLog.txt";
+        public void ClearLog()
+        {
+            File.WriteAllText(LogFileName, string.Empty);
+        }
+        public void log(string msg)
+        {
+            File.AppendAllLines(LogFileName, new string[] { $"{DateTime.Now}: {msg}" });
+            if (EchoToEditor) prdDbg(msg);
+        }
+    }
     public static class Utils
     {
         public static void prdDbg(string msg)
@@ -1324,6 +1338,15 @@ namespace IntersectUtilities.UtilsCommon
         }
         public static Point3d To3D(this Point2d p2d, double Z = 0.0) => new Point3d(p2d.X, p2d.Y, Z);
         public static Point2d To2D(this Point3d p3d) => new Point2d(p3d.X, p3d.Y);
+        public static T[] ConcatAr<T>(this T[] x, T[] y)
+        {
+            if (x == null) throw new ArgumentNullException("x");
+            if (y == null) throw new ArgumentNullException("y");
+            int oldLen = x.Length;
+            Array.Resize<T>(ref x, x.Length + y.Length);
+            Array.Copy(y, 0, x, oldLen, y.Length);
+            return x;
+        }
     }
     public static class ExtensionMethods
     {
@@ -1348,6 +1371,25 @@ namespace IntersectUtilities.UtilsCommon
             Oid id = modelSpace.AppendEntity(entity);
             tx.AddNewlyCreatedDBObject(entity, true);
             return id;
+        }
+        public static bool CheckOrCreateLayer(this Database db, string layerName)
+        {
+            Transaction txLag = db.TransactionManager.TopTransaction;
+            LayerTable lt = txLag.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
+            if (!lt.Has(layerName))
+            {
+                LayerTableRecord ltr = new LayerTableRecord();
+                ltr.Name = layerName;
+
+                //Make layertable writable
+                lt.CheckOrOpenForWrite();
+
+                //Add the new layer to layer table
+                Oid ltId = lt.Add(ltr);
+                txLag.AddNewlyCreatedDBObject(ltr, true);
+                return true;
+            }
+            else return true;
         }
         public static string Layer(this Oid oid)
         {

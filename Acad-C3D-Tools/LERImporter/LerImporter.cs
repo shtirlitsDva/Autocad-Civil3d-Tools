@@ -46,6 +46,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
+using Log = LERImporter.SimpleLogger;
 
 namespace LERImporter
 {
@@ -55,13 +56,15 @@ namespace LERImporter
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
-            doc.Editor.WriteMessage("\n LER Import Application indlæst.");
+            doc.Editor.WriteMessage("\nLER Import Application indlæst.");
         }
 
         public void Terminate()
         {
         }
         #endregion
+
+        public static readonly string ImplementedVersion = "1.0.1";
 
         [CommandMethod("TESTLER")]
         public void testler()
@@ -77,13 +80,17 @@ namespace LERImporter
             {
                 try
                 {
+                    string fileName = @"D:\OneDrive - Damgaard Rådgivende Ingeniører ApS\34 Lerimporter" +
+                                      @"\Dev\53296456-7831-4836-95ae-6aeb955daf9c.gml";
+
+                    Log.log($"Starting import of {Path.GetFileName(fileName)}");
+                    Log.log($"Located at {Path.GetDirectoryName(fileName)}");
+
                     var serializer = new XmlSerializer(typeof(Schema.GraveforespoergselssvarType));
                     Schema.GraveforespoergselssvarType gf;
 
                     //Schema.GraveforespoergselssvarType gf = new Schema.GraveforespoergselssvarType();
-                    using (var fileStream = new FileStream(
-                        @"D:\OneDrive - Damgaard Rådgivende Ingeniører ApS\34 Lerimporter" +
-                        @"\Dev\53296456-7831-4836-95ae-6aeb955daf9c.gml", FileMode.Open))
+                    using (var fileStream = new FileStream(fileName, FileMode.Open))
                     {
                         gf = (Schema.GraveforespoergselssvarType)serializer.Deserialize(fileStream);
                         //gf = Schema.GraveforespoergselssvarType.Deserialize(fileStream);
@@ -125,6 +132,17 @@ namespace LERImporter
                 }
                 tx.Commit();
             }
+        }
+    }
+
+    public static class SimpleLogger
+    {
+        public static bool EchoToEditor { get; set; } = true;
+        public static string LogFileName { get; set; } = "C:\\Temp\\LerImportLog.txt";
+        public static void log(string msg)
+        {
+            File.AppendAllLines(LogFileName, new string[] { $"{DateTime.Now}: {msg}" });
+            if (EchoToEditor) prdDbg(msg);
         }
     }
 }

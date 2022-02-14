@@ -4100,8 +4100,8 @@ namespace IntersectUtilities
                 try
                 {
                     #region Create layer for weld blocks and
-                    Utils.CheckOrCreateLayer(localDb, blockLayerName);
-                    Utils.CheckOrCreateLayer(localDb, textLayerName);
+                    localDb.CheckOrCreateLayer(blockLayerName);
+                    localDb.CheckOrCreateLayer(textLayerName);
                     #endregion
 
                     #region Read components file

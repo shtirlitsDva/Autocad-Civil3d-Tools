@@ -19,7 +19,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Afloebskomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -200,7 +200,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class AfloebskomponentTypeBroendform
@@ -235,7 +235,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class MX_ScopeCode_PropertyType
@@ -247,7 +247,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class CodeListValue_Type
@@ -264,7 +264,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class MX_File_PropertyType
@@ -280,7 +280,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(MX_DataFile_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public abstract partial class AbstractMX_File_Type : AbstractObject_Type
@@ -292,7 +292,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class FileName_PropertyType
@@ -304,7 +304,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class FileName_Type
@@ -318,7 +318,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(PT_FreeText_PropertyType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class CharacterString_PropertyType
@@ -330,7 +330,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class PT_FreeText_PropertyType : CharacterString_PropertyType
@@ -340,7 +340,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class PT_FreeText_Type : AbstractObject_Type
@@ -351,7 +351,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class LocalisedCharacterString_PropertyType : ObjectReference_PropertyType
@@ -361,7 +361,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class LocalisedCharacterString_Type
@@ -377,7 +377,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(LocalisedCharacterString_PropertyType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class ObjectReference_PropertyType
@@ -500,7 +500,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(EX_SpatialTemporalExtent_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public abstract partial class AbstractObject_Type
@@ -516,7 +516,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class MultiplicityRange_Type : AbstractObject_Type
@@ -527,7 +527,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class Integer_PropertyType
@@ -540,7 +540,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class UnlimitedInteger_PropertyType
@@ -553,7 +553,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class UnlimitedInteger_Type
@@ -569,7 +569,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class Multiplicity_Type : AbstractObject_Type
@@ -580,7 +580,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class MultiplicityRange_PropertyType
@@ -597,7 +597,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(CT_CodelistCatalogue_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public abstract partial class AbstractCT_Catalogue_Type : AbstractObject_Type
@@ -619,7 +619,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class Date_PropertyType
@@ -633,7 +633,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_CharacterSetCode_PropertyType
@@ -645,7 +645,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class PT_Locale_PropertyType
@@ -659,7 +659,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class PT_Locale_Type : AbstractObject_Type
@@ -671,7 +671,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class LanguageCode_PropertyType
@@ -683,7 +683,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class Country_PropertyType
@@ -695,7 +695,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_Catalogue_PropertyType
@@ -709,7 +709,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_UomCatalogue_Type : AbstractCT_Catalogue_Type
@@ -720,7 +720,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class UnitDefinition_PropertyType
@@ -743,7 +743,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_BaseUnit_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class UnitDefinitionType : DefinitionType
@@ -755,7 +755,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class StringOrRefType
@@ -773,7 +773,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ReferenceType
@@ -802,7 +802,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(CodeWithAuthorityType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CodeType
@@ -818,7 +818,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CodeWithAuthorityType : CodeType
@@ -940,7 +940,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_CodeListDictionary_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DefinitionType : DefinitionBaseType
@@ -1064,7 +1064,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_CodeListDictionary_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DefinitionBaseType : AbstractGMLType
@@ -1286,7 +1286,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(GraveforespoergselssvarType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractGMLType
@@ -1318,7 +1318,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class MetaDataPropertyType
@@ -1335,7 +1335,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(GenericMetaDataType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractMetaDataType
@@ -1348,7 +1348,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GenericMetaDataType : AbstractMetaDataType
@@ -1389,7 +1389,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(LCSH))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/elements/1.1/")]
     public partial class SimpleLiteral
@@ -1400,7 +1400,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class TGN : SimpleLiteral
@@ -1409,7 +1409,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class Box : SimpleLiteral
@@ -1418,7 +1418,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class ISO3166 : SimpleLiteral
@@ -1430,7 +1430,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class Point : SimpleLiteral
@@ -1439,7 +1439,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class RFC4646 : SimpleLiteral
@@ -1448,7 +1448,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class RFC3066 : SimpleLiteral
@@ -1457,7 +1457,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class RFC1766 : SimpleLiteral
@@ -1466,7 +1466,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(TypeName = "ISO639-3", Namespace = "http://purl.org/dc/terms/")]
     public partial class ISO6393 : SimpleLiteral
@@ -1475,7 +1475,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(TypeName = "ISO639-2", Namespace = "http://purl.org/dc/terms/")]
     public partial class ISO6392 : SimpleLiteral
@@ -1484,7 +1484,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class URI : SimpleLiteral
@@ -1493,7 +1493,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class IMT : SimpleLiteral
@@ -1502,7 +1502,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class DCMIType : SimpleLiteral
@@ -1511,7 +1511,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class W3CDTF : SimpleLiteral
@@ -1520,7 +1520,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class Period : SimpleLiteral
@@ -1529,7 +1529,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class UDC : SimpleLiteral
@@ -1538,7 +1538,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class LCC : SimpleLiteral
@@ -1547,7 +1547,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class DDC : SimpleLiteral
@@ -1556,7 +1556,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class MESH : SimpleLiteral
@@ -1565,7 +1565,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class LCSH : SimpleLiteral
@@ -1586,7 +1586,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ArrayType : AbstractGMLType
@@ -1596,7 +1596,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ArrayAssociationType
@@ -1618,7 +1618,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class BagType : AbstractGMLType
@@ -1630,7 +1630,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class AssociationRoleType
@@ -1669,7 +1669,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(NodeType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractTopologyType : AbstractGMLType
@@ -1678,7 +1678,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TopoComplexType : AbstractTopologyType
@@ -1708,7 +1708,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TopoComplexPropertyType
@@ -1722,7 +1722,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TopoPrimitiveMemberType
@@ -1751,7 +1751,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(NodeType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractTopoPrimitiveType : AbstractTopologyType
@@ -1760,7 +1760,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TopoSolidType : AbstractTopoPrimitiveType
@@ -1790,7 +1790,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class NodeOrEdgePropertyType
@@ -1817,7 +1817,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class EdgeType : AbstractTopoPrimitiveType
@@ -1834,7 +1834,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TopoSolidPropertyType
@@ -1860,7 +1860,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DirectedNodePropertyType
@@ -1889,7 +1889,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class NodeType : AbstractTopoPrimitiveType
@@ -1907,7 +1907,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class FaceOrTopoSolidPropertyType
@@ -1934,7 +1934,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class FaceType : AbstractTopoPrimitiveType
@@ -1966,7 +1966,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class NodePropertyType
@@ -1992,7 +1992,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DirectedEdgePropertyType
@@ -2035,7 +2035,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DirectedTopoSolidPropertyType
@@ -2067,7 +2067,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class SurfacePropertyType
@@ -2101,7 +2101,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(PolygonType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractSurfaceType : AbstractGeometricPrimitiveType
@@ -2132,7 +2132,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(PointType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractGeometricPrimitiveType : AbstractGeometryType
@@ -2176,7 +2176,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(PointType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractGeometryType : AbstractGMLType
@@ -2190,7 +2190,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(RectifiedGridType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GridType : AbstractGeometryType
@@ -2209,7 +2209,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GridLimitsType
@@ -2219,7 +2219,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GridEnvelopeType
@@ -2239,7 +2239,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class RectifiedGridType : GridType
@@ -2254,12 +2254,11 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class PointPropertyType
     {
-        public PointType Point { get; set; }
         [XmlAttribute]
         public string nilReason { get; set; }
         [XmlAttribute(Form = System.Xml.Schema.XmlSchemaForm.Qualified, DataType = "anyURI")]
@@ -2279,7 +2278,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class PointType : AbstractGeometricPrimitiveType
@@ -2300,7 +2299,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CoordinatesType
@@ -2335,7 +2334,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(VectorType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DirectPositionType
@@ -2344,8 +2343,6 @@ namespace LERImporter.Schema
         public string srsName { get; set; }
         [XmlAttribute(DataType = "positiveInteger")]
         public string srsDimension { get; set; }
-        [XmlAttribute]
-        public double[] Text { get; set; }
     }
 
     /// <summary>
@@ -2353,7 +2350,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class VectorType : DirectPositionType
@@ -2362,7 +2359,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeometricComplexType : AbstractGeometryType
@@ -2378,7 +2375,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeometricPrimitivePropertyType
@@ -2421,7 +2418,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(MultiGeometryType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractGeometricAggregateType : AbstractGeometryType
@@ -2432,7 +2429,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class MultiSolidType : AbstractGeometricAggregateType
@@ -2447,7 +2444,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class SolidPropertyType
@@ -2477,7 +2474,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(SolidType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class AbstractSolidType : AbstractGeometricPrimitiveType
@@ -2486,7 +2483,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CompositeSolidType : AbstractSolidType
@@ -2499,7 +2496,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class SolidType : AbstractSolidType
@@ -2514,7 +2511,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ShellPropertyType
@@ -2524,7 +2521,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ShellType : AbstractSurfaceType
@@ -2540,7 +2537,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class SolidArrayPropertyType
@@ -2562,7 +2559,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class MultiSurfaceType : AbstractGeometricAggregateType
@@ -2577,7 +2574,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class SurfaceArrayPropertyType
@@ -2599,7 +2596,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class MultiCurveType : AbstractGeometricAggregateType
@@ -2614,12 +2611,11 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CurvePropertyType
     {
-        public AbstractCurveType AbstractCurve { get; set; }
         [XmlAttribute]
         public string nilReason { get; set; }
         [XmlAttribute(Form = System.Xml.Schema.XmlSchemaForm.Qualified, DataType = "anyURI")]
@@ -2649,7 +2645,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(LineStringType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractCurveType : AbstractGeometricPrimitiveType
@@ -2658,7 +2654,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CompositeCurveType : AbstractCurveType
@@ -2671,7 +2667,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class OrientableCurveType : AbstractCurveType
@@ -2692,7 +2688,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CurveType : AbstractCurveType
@@ -2705,7 +2701,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CurveSegmentArrayPropertyType
@@ -2731,7 +2727,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(LineStringSegmentType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractCurveSegmentType
@@ -2760,7 +2756,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(GeodesicType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeodesicStringType : AbstractCurveSegmentType
@@ -2789,7 +2785,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DirectPositionListType
@@ -2800,8 +2796,7 @@ namespace LERImporter.Schema
         public string srsDimension { get; set; }
         [XmlAttribute(DataType = "positiveInteger")]
         public string count { get; set; }
-        [XmlAttribute]
-        public double[] Text { get; set; }
+        
     }
 
     /// <summary>
@@ -2827,7 +2822,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeodesicType : GeodesicStringType
@@ -2836,7 +2831,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ClothoidType : AbstractCurveSegmentType
@@ -2859,7 +2854,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ClothoidTypeRefLocation
@@ -2869,7 +2864,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class AffinePlacementType
@@ -2885,7 +2880,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class OffsetCurveType : AbstractCurveSegmentType
@@ -2900,7 +2895,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class LengthType : MeasureType
@@ -2920,7 +2915,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(LengthType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class MeasureType
@@ -2933,7 +2928,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class AngleType : MeasureType
@@ -2942,7 +2937,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class SpeedType : MeasureType
@@ -2951,7 +2946,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class VolumeType : MeasureType
@@ -2960,7 +2955,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class AreaType : MeasureType
@@ -2969,7 +2964,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GridLengthType : MeasureType
@@ -2978,7 +2973,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeType : MeasureType
@@ -2987,7 +2982,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ScaleType : MeasureType
@@ -2997,7 +2992,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(BezierType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class BSplineType : AbstractCurveSegmentType
@@ -3050,7 +3045,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class KnotPropertyType
@@ -3066,7 +3061,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class KnotType
@@ -3092,7 +3087,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class BezierType : BSplineType
@@ -3101,7 +3096,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CubicSplineType : AbstractCurveSegmentType
@@ -3148,7 +3143,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(CircleByCenterPointType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ArcByCenterPointType : AbstractCurveSegmentType
@@ -3194,7 +3189,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CircleByCenterPointType : ArcByCenterPointType
@@ -3204,7 +3199,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ArcByBulgeType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ArcStringByBulgeType : AbstractCurveSegmentType
@@ -3251,7 +3246,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ArcByBulgeType : ArcStringByBulgeType
@@ -3262,7 +3257,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(CircleType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ArcStringType : AbstractCurveSegmentType
@@ -3306,7 +3301,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(CircleType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ArcType : ArcStringType
@@ -3315,7 +3310,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CircleType : ArcType
@@ -3324,7 +3319,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class LineStringSegmentType : AbstractCurveSegmentType
@@ -3367,7 +3362,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(LinearRingType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractRingType : AbstractCurveType
@@ -3376,7 +3371,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class RingType : AbstractRingType
@@ -3389,7 +3384,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class LinearRingType : AbstractRingType
@@ -3420,7 +3415,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class LineStringType : AbstractCurveType
@@ -3454,7 +3449,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CurveArrayPropertyType
@@ -3476,7 +3471,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class MultiPointType : AbstractGeometricAggregateType
@@ -3491,7 +3486,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class PointArrayPropertyType
@@ -3513,7 +3508,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class MultiGeometryType : AbstractGeometricAggregateType
@@ -3529,7 +3524,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeometryPropertyType
@@ -3558,7 +3553,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeometryArrayPropertyType
@@ -3580,7 +3575,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CompositeSurfaceType : AbstractSurfaceType
@@ -3593,7 +3588,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class OrientableSurfaceType : AbstractSurfaceType
@@ -3615,7 +3610,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(TinType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class SurfaceType : AbstractSurfaceType
@@ -3628,7 +3623,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class SurfacePatchArrayPropertyType
@@ -3647,7 +3642,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(PolygonPatchType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractSurfacePatchType
@@ -3660,7 +3655,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ConeType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractParametricCurveSurfaceType : AbstractSurfacePatchType
@@ -3674,7 +3669,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ConeType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractGriddedSurfaceType : AbstractParametricCurveSurfaceType
@@ -3689,7 +3684,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class AbstractGriddedSurfaceTypeRow
@@ -3702,7 +3697,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class SphereType : AbstractGriddedSurfaceType
@@ -3724,7 +3719,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CylinderType : AbstractGriddedSurfaceType
@@ -3746,7 +3741,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ConeType : AbstractGriddedSurfaceType
@@ -3768,7 +3763,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class RectangleType : AbstractSurfacePatchType
@@ -3791,7 +3786,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class AbstractRingPropertyType
@@ -3821,7 +3816,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TriangleType : AbstractSurfacePatchType
@@ -3841,7 +3836,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class PolygonPatchType : AbstractSurfacePatchType
@@ -3863,7 +3858,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TinType : SurfaceType
@@ -3881,7 +3876,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class LineStringSegmentArrayPropertyType
@@ -3892,7 +3887,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TinTypeControlPoint
@@ -3905,7 +3900,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class PolygonType : AbstractSurfaceType
@@ -3917,7 +3912,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DirectedFacePropertyType
@@ -3946,7 +3941,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TopoPrimitiveArrayAssociationType
@@ -3968,7 +3963,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TopoVolumeType : AbstractTopologyType
@@ -3981,7 +3976,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TopoSurfaceType : AbstractTopologyType
@@ -3994,7 +3989,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TopoCurveType : AbstractTopologyType
@@ -4007,7 +4002,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TopoPointType : AbstractTopologyType
@@ -4018,7 +4013,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ValueArrayType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CompositeValueType : AbstractGMLType
@@ -4032,7 +4027,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ValuePropertyType
@@ -4069,7 +4064,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(TimeInstantType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractTimeObjectType : AbstractGMLType
@@ -4079,7 +4074,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(TimeTopologyComplexType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractTimeComplexType : AbstractTimeObjectType
@@ -4088,7 +4083,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class TimeTopologyComplexType : AbstractTimeComplexType
@@ -4102,7 +4097,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeTopologyPrimitivePropertyType
@@ -4129,7 +4124,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(TimeNodeType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractTimeTopologyPrimitiveType : AbstractTimePrimitiveType
@@ -4145,7 +4140,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(TimeInstantType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractTimePrimitiveType : AbstractTimeObjectType
@@ -4159,7 +4154,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class RelatedTimeType : TimePrimitivePropertyType
@@ -4194,7 +4189,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(RelatedTimeType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimePrimitivePropertyType
@@ -4221,7 +4216,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(TimeInstantType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractTimeGeometricPrimitiveType : AbstractTimePrimitiveType
@@ -4241,7 +4236,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimePeriodType : AbstractTimeGeometricPrimitiveType
@@ -4262,7 +4257,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeInstantPropertyType
@@ -4287,7 +4282,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeInstantType : AbstractTimeGeometricPrimitiveType
@@ -4306,7 +4301,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimePositionType
@@ -4353,7 +4348,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeIntervalLengthType
@@ -4370,7 +4365,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeEdgeType : AbstractTimeTopologyPrimitiveType
@@ -4385,7 +4380,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeNodePropertyType
@@ -4410,7 +4405,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeNodeType : AbstractTimeTopologyPrimitiveType
@@ -4427,7 +4422,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeEdgePropertyType
@@ -4455,7 +4450,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimePeriodPropertyType
@@ -4480,7 +4475,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ValueArrayPropertyType
@@ -4508,7 +4503,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ValueArrayType : CompositeValueType
@@ -4522,7 +4517,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(MovingObjectStatusType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractTimeSliceType : AbstractGMLType
@@ -4533,7 +4528,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class MovingObjectStatusType : AbstractTimeSliceType
@@ -4555,7 +4550,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(PriorityLocationPropertyType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class LocationPropertyType
@@ -4573,7 +4568,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class PriorityLocationPropertyType : LocationPropertyType
@@ -4584,7 +4579,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DirectionPropertyType
@@ -4647,7 +4642,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DirectionDescriptionType
@@ -4664,7 +4659,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DirectionVectorType
@@ -4737,7 +4732,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(GraveforespoergselssvarType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractFeatureType : AbstractGMLType
@@ -4749,7 +4744,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class BoundingShapeType
@@ -4764,7 +4759,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(EnvelopeWithTimePeriodType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class EnvelopeType
@@ -4797,7 +4792,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class EnvelopeWithTimePeriodType : EnvelopeType
@@ -4820,7 +4815,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(FeatureCollectionType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractFeatureCollectionType : AbstractFeatureType
@@ -4832,7 +4827,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class FeaturePropertyType
@@ -4857,7 +4852,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class FeatureArrayPropertyType
@@ -4868,7 +4863,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class FeatureCollectionType : AbstractFeatureCollectionType
@@ -4877,7 +4872,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class BoundedFeatureType : AbstractFeatureType
@@ -4888,7 +4883,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DirectedObservationAtDistanceType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ObservationType : AbstractFeatureType
@@ -4901,7 +4896,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ProcedurePropertyType
@@ -4926,7 +4921,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TargetPropertyType
@@ -4953,7 +4948,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ResultType
@@ -4980,7 +4975,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DirectedObservationAtDistanceType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DirectedObservationType : ObservationType
@@ -4990,7 +4985,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DirectedObservationAtDistanceType : DirectedObservationType
@@ -5005,7 +5000,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DiscreteCoverageType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractCoverageType : AbstractFeatureType
@@ -5016,7 +5011,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DomainSetType
@@ -5043,7 +5038,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class RangeSetType
@@ -5057,7 +5052,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DataBlockType
@@ -5070,7 +5065,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class FileType
@@ -5100,7 +5095,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractContinuousCoverageType : AbstractCoverageType
@@ -5110,7 +5105,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CoverageFunctionType
@@ -5123,7 +5118,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class MappingRuleType
@@ -5135,7 +5130,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GridFunctionType
@@ -5149,7 +5144,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class SequenceRuleType
@@ -5193,7 +5188,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DiscreteCoverageType : AbstractCoverageType
@@ -5203,7 +5198,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/annotations/1/gml")]
     public partial class LinearAnnotationType : AbstractFeatureType
@@ -5239,7 +5234,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/annotations/1/gml")]
     public partial class TextAnnotationType : AbstractFeatureType
@@ -5264,7 +5259,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/dimensions/1/gml")]
     public partial class LinearDimensionType : AbstractFeatureType
@@ -5309,7 +5304,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Informationsressource", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -5386,7 +5381,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class InformationsressourceTypeFormat : MimeFileType_Type
@@ -5395,7 +5390,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class MimeFileType_Type
@@ -5452,7 +5447,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(AfloebskomponentType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Ledningskomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -5522,7 +5517,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class LedningskomponentTypeDriftsstatus
@@ -5563,7 +5558,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class LedningskomponentTypeFareklasse
@@ -5603,7 +5598,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class LedningskomponentTypeNoejagtighedsklasse
@@ -5652,7 +5647,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Vandkomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -5814,7 +5809,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class VandkomponentTypeTapstedstype
@@ -5877,7 +5872,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class VandkomponentTypeAnborsted
@@ -5912,7 +5907,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("TermiskKomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -5968,7 +5963,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Telekommunikationskomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -6021,7 +6016,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Oliekomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -6035,7 +6030,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Gaskomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -6140,7 +6135,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Elkomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -6266,7 +6261,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("AndenKomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -6297,7 +6292,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(AndenLedningType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("LedningEllerLedningstrace", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -6363,7 +6358,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class LedningEllerLedningstraceTypeDriftsstatus
@@ -6379,7 +6374,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class LedningEllerLedningstraceTypeFareklasse
@@ -6417,7 +6412,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class LedningEllerLedningstraceTypeNoejagtighedsklasse
@@ -6430,7 +6425,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Ledningstrace", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -6462,7 +6457,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class MultiCurvePropertyType
@@ -6490,7 +6485,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class LedningstraceTypeBredde : MeasureType
@@ -6504,7 +6499,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class LedningstraceTypeForsyningsart
@@ -6528,7 +6523,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(AndenLedningType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Ledning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -6589,7 +6584,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class LedningTypeIndeholderLedninger
@@ -6669,7 +6664,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class LedningTypeUdvendigDiameter : MeasureType
@@ -6680,7 +6675,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Telekommunikationsledning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -6698,7 +6693,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class TelekommunikationsledningTypeType
@@ -6717,7 +6712,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(AfloebsledningType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Roerledning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -6745,7 +6740,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class RoerledningTypeTvaersnitsform
@@ -6761,7 +6756,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class RoerledningTypeUdvendigBredde : MeasureType
@@ -6775,7 +6770,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class RoerledningTypeUdvendigHoejde : MeasureType
@@ -6786,7 +6781,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Vandledning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -6796,7 +6791,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("TermiskLedning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -6830,7 +6825,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class TermiskLedningTypeType
@@ -6911,7 +6906,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Olieledning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -6929,7 +6924,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Gasledning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -6951,7 +6946,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class GasledningTypeType
@@ -6964,7 +6959,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Foeringsroer", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -6979,7 +6974,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Afloebsledning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -7002,7 +6997,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class AfloebsledningTypeHarFod
@@ -7018,7 +7013,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class AfloebsledningTypeLedningstransporttype
@@ -7053,7 +7048,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("LedningUkendtForsyningsart", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -7067,7 +7062,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Elledning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -7102,7 +7097,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class ElledningTypeType
@@ -7115,7 +7110,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("AndenLedning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -7149,7 +7144,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class AndenLedningTypeTvaersnitsform
@@ -7163,7 +7158,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DynamicFeatureCollectionType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DynamicFeatureType : AbstractFeatureType
@@ -7176,7 +7171,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class HistoryPropertyType
@@ -7198,7 +7193,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DynamicFeatureCollectionType : DynamicFeatureType
@@ -7208,7 +7203,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DynamicFeatureMemberType : AbstractFeatureMemberType
@@ -7228,7 +7223,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DynamicFeatureMemberType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractFeatureMemberType
@@ -7248,7 +7243,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Kontaktprofil", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -7270,7 +7265,6 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Graveforespoergselssvar", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -7376,7 +7370,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class GraveforespoergselssvarTypeKontaktprofilTilTekniskeSpoergsmaal
@@ -7400,7 +7394,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class GraveforespoergselssvarTypeLedningstraceMember : AbstractFeatureMemberType
@@ -7413,16 +7407,12 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class GraveforespoergselssvarTypeLedningMember : AbstractFeatureMemberType
     {
-        [XmlElement("AndenLedning", typeof(AndenLedningType))]
-        [XmlElement("Elledning", typeof(ElledningType))]
-        [XmlElement("LedningUkendtForsyningsart", typeof(LedningUkendtForsyningsartType))]
-        [XmlElement("Telekommunikationsledning", typeof(TelekommunikationsledningType))]
-        public LedningType Item { get; set; }
+        //Item moved to custom part
     }
 
     /// <summary>
@@ -7430,7 +7420,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class GraveforespoergselssvarTypeLedningskomponentMember : AbstractFeatureMemberType
@@ -7451,7 +7441,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class GraveforespoergselssvarTypeBilagMember : AbstractFeatureMemberType
@@ -7464,7 +7454,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class GraveforespoergselssvarTypeLineaerMaalsaetningMember : AbstractFeatureMemberType
@@ -7478,7 +7468,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class GraveforespoergselssvarTypeTekstannotationMember : AbstractFeatureMemberType
@@ -7492,7 +7482,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class GraveforespoergselssvarTypeLinjeannotationMember : AbstractFeatureMemberType
@@ -7503,7 +7493,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeOrdinalEraType : DefinitionType
@@ -7523,7 +7513,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeOrdinalEraPropertyType
@@ -7548,7 +7538,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeCalendarEraType : DefinitionType
@@ -7565,7 +7555,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(TimeCoordinateSystemType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeReferenceSystemType : DefinitionType
@@ -7575,7 +7565,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeOrdinalReferenceSystemType : TimeReferenceSystemType
@@ -7586,7 +7576,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeClockType : TimeReferenceSystemType
@@ -7605,7 +7595,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeCalendarPropertyType
@@ -7630,7 +7620,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeCalendarType : TimeReferenceSystemType
@@ -7644,7 +7634,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeCalendarEraPropertyType
@@ -7669,7 +7659,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeCoordinateSystemType : TimeReferenceSystemType
@@ -7685,7 +7675,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ClAlternativeExpression_Type : DefinitionType
@@ -7791,7 +7781,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_ProjectedCRS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class IdentifiedObjectType : DefinitionType
@@ -7803,7 +7793,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class EllipsoidAlt_Type : IdentifiedObjectType
@@ -7816,7 +7806,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_Ellipsoid_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class EllipsoidType : IdentifiedObjectType
@@ -7832,7 +7822,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class secondDefiningParameter
@@ -7847,7 +7837,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class SecondDefiningParameter
@@ -7860,7 +7850,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_Ellipsoid_Type : EllipsoidType
@@ -7871,7 +7861,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class EllipsoidAlt_PropertyType
@@ -7888,7 +7878,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class PrimeMeridianAlt_Type : IdentifiedObjectType
@@ -7901,7 +7891,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_PrimeMeridian_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class PrimeMeridianType : IdentifiedObjectType
@@ -7911,7 +7901,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_PrimeMeridian_Type : PrimeMeridianType
@@ -7922,7 +7912,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class PrimeMeridianAlt_PropertyType
@@ -7948,7 +7938,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_GeodeticDatum_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractDatumType : IdentifiedObjectType
@@ -7966,7 +7956,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class domainOfValidity
@@ -7984,7 +7974,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class EX_Extent_Type : AbstractObject_Type
@@ -8000,7 +7990,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class EX_GeographicExtent_PropertyType
@@ -8020,7 +8010,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(EX_BoundingPolygon_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public abstract partial class AbstractEX_GeographicExtent_Type : AbstractObject_Type
@@ -8030,7 +8020,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class Boolean_PropertyType
@@ -8042,7 +8032,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class EX_GeographicDescription_Type : AbstractEX_GeographicExtent_Type
@@ -8052,7 +8042,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Identifier_PropertyType
@@ -8067,7 +8057,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(RS_Identifier_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Identifier_Type : AbstractObject_Type
@@ -8078,7 +8068,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_Citation_PropertyType
@@ -8095,7 +8085,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_Citation_Type : AbstractObject_Type
@@ -8122,7 +8112,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_Date_PropertyType
@@ -8136,7 +8126,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_Date_Type : AbstractObject_Type
@@ -8147,7 +8137,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_DateTypeCode_PropertyType
@@ -8159,7 +8149,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_ResponsibleParty_PropertyType
@@ -8176,7 +8166,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_ResponsibleParty_Type : AbstractObject_Type
@@ -8190,7 +8180,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_Contact_PropertyType
@@ -8207,7 +8197,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_Contact_Type : AbstractObject_Type
@@ -8221,7 +8211,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_Telephone_PropertyType
@@ -8238,7 +8228,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_Telephone_Type : AbstractObject_Type
@@ -8251,7 +8241,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_Address_PropertyType
@@ -8268,7 +8258,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_Address_Type : AbstractObject_Type
@@ -8285,7 +8275,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_OnlineResource_PropertyType
@@ -8302,7 +8292,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_OnlineResource_Type : AbstractObject_Type
@@ -8317,7 +8307,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class URL_PropertyType
@@ -8330,7 +8320,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_OnLineFunctionCode_PropertyType
@@ -8342,7 +8332,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_RoleCode_PropertyType
@@ -8354,7 +8344,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_PresentationFormCode_PropertyType
@@ -8366,7 +8356,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_Series_PropertyType
@@ -8380,7 +8370,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class CI_Series_Type : AbstractObject_Type
@@ -8392,7 +8382,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class RS_Identifier_Type : MD_Identifier_Type
@@ -8406,7 +8396,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class EX_GeographicBoundingBox_Type : AbstractEX_GeographicExtent_Type
@@ -8419,7 +8409,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class Decimal_PropertyType
@@ -8434,7 +8424,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class EX_BoundingPolygon_Type : AbstractEX_GeographicExtent_Type
@@ -8445,7 +8435,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gss")]
     public partial class GM_Object_PropertyType
@@ -8460,7 +8450,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class EX_TemporalExtent_PropertyType
@@ -8478,7 +8468,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(EX_SpatialTemporalExtent_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class EX_TemporalExtent_Type : AbstractObject_Type
@@ -8488,7 +8478,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gts")]
     public partial class TM_Primitive_PropertyType
@@ -8506,7 +8496,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class EX_SpatialTemporalExtent_Type : EX_TemporalExtent_Type
@@ -8517,7 +8507,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class EX_VerticalExtent_PropertyType
@@ -8534,7 +8524,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class EX_VerticalExtent_Type : AbstractObject_Type
@@ -8546,7 +8536,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class Real_PropertyType
@@ -8558,7 +8548,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gsr")]
     public partial class SC_CRS_PropertyType
@@ -8593,7 +8583,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_ProjectedCRS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractCRSType : IdentifiedObjectType
@@ -8606,7 +8596,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeocentricCRSType : AbstractCRSType
@@ -8622,7 +8612,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CartesianCSPropertyType
@@ -8637,7 +8627,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_CartesianCS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CartesianCSType : AbstractCoordinateSystemType
@@ -8668,7 +8658,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_EllipsoidalCS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractCoordinateSystemType : IdentifiedObjectType
@@ -8684,7 +8674,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CoordinateSystemAxisPropertyType
@@ -8700,7 +8690,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_CoordinateSystemAxis_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CoordinateSystemAxisType : IdentifiedObjectType
@@ -8722,7 +8712,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CoordinateSystemAxisAlt_Type : CoordinateSystemAxisType
@@ -8734,7 +8724,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_CoordinateSystemAxis_Type : CoordinateSystemAxisType
@@ -8745,7 +8735,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CoordinateSystemAxisAlt_PropertyType
@@ -8759,7 +8749,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ObliqueCartesianCSType : AbstractCoordinateSystemType
@@ -8768,7 +8758,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TemporalCSType : AbstractCoordinateSystemType
@@ -8778,7 +8768,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_AffineCS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class AffineCSType : AbstractCoordinateSystemType
@@ -8787,7 +8777,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_AffineCS_Type : AffineCSType
@@ -8798,7 +8788,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CoordinateSystemAlt_PropertyType
@@ -8815,7 +8805,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CoordinateSystemAlt_Type : IdentifiedObjectType
@@ -8830,7 +8820,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_CylindricalCS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CylindricalCSType : AbstractCoordinateSystemType
@@ -8839,7 +8829,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_CylindricalCS_Type : CylindricalCSType
@@ -8851,7 +8841,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_PolarCS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class PolarCSType : AbstractCoordinateSystemType
@@ -8860,7 +8850,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_PolarCS_Type : PolarCSType
@@ -8872,7 +8862,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_SphericalCS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class SphericalCSType : AbstractCoordinateSystemType
@@ -8881,7 +8871,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_SphericalCS_Type : SphericalCSType
@@ -8893,7 +8883,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_UserDefinedCS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class UserDefinedCSType : AbstractCoordinateSystemType
@@ -8902,7 +8892,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_UserDefinedCS_Type : UserDefinedCSType
@@ -8914,7 +8904,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_LinearCS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class LinearCSType : AbstractCoordinateSystemType
@@ -8923,7 +8913,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_LinearCS_Type : LinearCSType
@@ -8935,7 +8925,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_TimeCS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeCSType : AbstractCoordinateSystemType
@@ -8944,7 +8934,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_TimeCS_Type : TimeCSType
@@ -8956,7 +8946,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_VerticalCS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class VerticalCSType : AbstractCoordinateSystemType
@@ -8965,7 +8955,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_VerticalCS_Type : VerticalCSType
@@ -8977,7 +8967,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_EllipsoidalCS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class EllipsoidalCSType : AbstractCoordinateSystemType
@@ -8986,7 +8976,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_EllipsoidalCS_Type : EllipsoidalCSType
@@ -8997,7 +8987,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_CartesianCS_Type : CartesianCSType
@@ -9011,7 +9001,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class SphericalCSPropertyType
@@ -9028,7 +9018,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeodeticDatumPropertyType
@@ -9043,7 +9033,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_GeodeticDatum_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeodeticDatumType : AbstractDatumType
@@ -9057,7 +9047,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class PrimeMeridianPropertyType
@@ -9074,7 +9064,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class EllipsoidPropertyType
@@ -9088,7 +9078,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_GeodeticDatum_Type : GeodeticDatumType
@@ -9099,7 +9089,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class DatumAlt_PropertyType
@@ -9116,7 +9106,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class DatumAlt_Type : AbstractDatumType
@@ -9129,7 +9119,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_TemporalCRS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TemporalCRSType : AbstractCRSType
@@ -9145,7 +9135,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeCSPropertyType
@@ -9159,7 +9149,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TemporalCSPropertyType
@@ -9176,7 +9166,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TemporalDatumPropertyType
@@ -9191,7 +9181,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_TemporalDatum_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TemporalDatumType : TemporalDatumBaseType
@@ -9206,7 +9196,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_TemporalDatum_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class TemporalDatumBaseType : AbstractDatumType
@@ -9215,7 +9205,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_TemporalDatum_Type : TemporalDatumType
@@ -9226,7 +9216,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_TemporalCRS_Type : TemporalCRSType
@@ -9237,7 +9227,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CrsAlt_PropertyType
@@ -9254,7 +9244,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CrsAlt_Type : AbstractCRSType
@@ -9267,7 +9257,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_ImageCRS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ImageCRSType : AbstractCRSType
@@ -9284,7 +9274,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class AffineCSPropertyType
@@ -9298,7 +9288,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ObliqueCartesianCSPropertyType
@@ -9315,7 +9305,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ImageDatumPropertyType
@@ -9330,7 +9320,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_ImageDatum_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ImageDatumType : AbstractDatumType
@@ -9340,7 +9330,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_ImageDatum_Type : ImageDatumType
@@ -9351,7 +9341,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_ImageCRS_Type : ImageCRSType
@@ -9363,7 +9353,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_EngineeringCRS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class EngineeringCRSType : AbstractCRSType
@@ -9385,7 +9375,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CoordinateSystemPropertyType
@@ -9402,7 +9392,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CylindricalCSPropertyType
@@ -9419,7 +9409,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class LinearCSPropertyType
@@ -9436,7 +9426,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class PolarCSPropertyType
@@ -9453,7 +9443,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class UserDefinedCSPropertyType
@@ -9470,7 +9460,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class EngineeringDatumPropertyType
@@ -9485,7 +9475,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_EngineeringDatum_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class EngineeringDatumType : AbstractDatumType
@@ -9494,7 +9484,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_EngineeringDatum_Type : EngineeringDatumType
@@ -9505,7 +9495,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_EngineeringCRS_Type : EngineeringCRSType
@@ -9517,7 +9507,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_VerticalCRS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class VerticalCRSType : AbstractCRSType
@@ -9531,7 +9521,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class VerticalCSPropertyType
@@ -9548,7 +9538,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class VerticalDatumPropertyType
@@ -9563,7 +9553,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_VerticalDatum_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class VerticalDatumType : AbstractDatumType
@@ -9572,7 +9562,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_VerticalDatum_Type : VerticalDatumType
@@ -9583,7 +9573,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_VerticalCRS_Type : VerticalCRSType
@@ -9595,7 +9585,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_CompoundCRS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CompoundCRSType : AbstractCRSType
@@ -9611,7 +9601,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class SingleCRSPropertyType
@@ -9625,7 +9615,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_CompoundCRS_Type : CompoundCRSType
@@ -9636,7 +9626,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeographicCRSType : AbstractCRSType
@@ -9650,7 +9640,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class EllipsoidalCSPropertyType
@@ -9668,7 +9658,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_GeodeticCRS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeodeticCRSType : AbstractCRSType
@@ -9682,7 +9672,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_GeodeticCRS_Type : GeodeticCRSType
@@ -9697,7 +9687,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_ProjectedCRS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractGeneralDerivedCRSType : AbstractCRSType
@@ -9710,7 +9700,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeneralConversionPropertyType
@@ -9726,7 +9716,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_Conversion_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractGeneralConversionType : AbstractCoordinateOperationType
@@ -9746,7 +9736,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_Conversion_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractCoordinateOperationType : IdentifiedObjectType
@@ -9766,7 +9756,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class coordinateOperationAccuracy
@@ -9784,7 +9774,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DQ_RelativeInternalPositionalAccuracy_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public abstract partial class AbstractDQ_PositionalAccuracy_Type : AbstractDQ_Element_Type
@@ -9813,7 +9803,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DQ_TemporalValidity_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public abstract partial class AbstractDQ_Element_Type : AbstractObject_Type
@@ -9833,7 +9823,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_EvaluationMethodTypeCode_PropertyType
@@ -9845,7 +9835,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class DateTime_PropertyType
@@ -9857,7 +9847,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_Result_PropertyType
@@ -9873,7 +9863,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DQ_ConformanceResult_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public abstract partial class AbstractDQ_Result_Type : AbstractObject_Type
@@ -9885,7 +9875,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_QuantitativeResult_Type : AbstractDQ_Result_Type
@@ -9899,7 +9889,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class RecordType_PropertyType
@@ -9911,7 +9901,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class RecordType_Type
@@ -9980,7 +9970,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class UnitOfMeasure_PropertyType
@@ -9995,7 +9985,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class Record_PropertyType
@@ -10012,7 +10002,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_ConformanceResult_Type : AbstractDQ_Result_Type
@@ -10026,7 +10016,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DQ_CompletenessOmission_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public abstract partial class AbstractDQ_Completeness_Type : AbstractDQ_Element_Type
@@ -10035,7 +10025,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_CompletenessCommission_Type : AbstractDQ_Completeness_Type
@@ -10044,7 +10034,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_CompletenessOmission_Type : AbstractDQ_Completeness_Type
@@ -10057,7 +10047,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DQ_TopologicalConsistency_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public abstract partial class AbstractDQ_LogicalConsistency_Type : AbstractDQ_Element_Type
@@ -10066,7 +10056,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_ConceptualConsistency_Type : AbstractDQ_LogicalConsistency_Type
@@ -10075,7 +10065,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_DomainConsistency_Type : AbstractDQ_LogicalConsistency_Type
@@ -10084,7 +10074,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_FormatConsistency_Type : AbstractDQ_LogicalConsistency_Type
@@ -10093,7 +10083,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_TopologicalConsistency_Type : AbstractDQ_LogicalConsistency_Type
@@ -10105,7 +10095,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DQ_QuantitativeAttributeAccuracy_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public abstract partial class AbstractDQ_ThematicAccuracy_Type : AbstractDQ_Element_Type
@@ -10114,7 +10104,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_ThematicClassificationCorrectness_Type : AbstractDQ_ThematicAccuracy_Type
@@ -10123,7 +10113,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_NonQuantitativeAttributeAccuracy_Type : AbstractDQ_ThematicAccuracy_Type
@@ -10132,7 +10122,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_QuantitativeAttributeAccuracy_Type : AbstractDQ_ThematicAccuracy_Type
@@ -10144,7 +10134,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DQ_TemporalValidity_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public abstract partial class AbstractDQ_TemporalAccuracy_Type : AbstractDQ_Element_Type
@@ -10153,7 +10143,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_AccuracyOfATimeMeasurement_Type : AbstractDQ_TemporalAccuracy_Type
@@ -10162,7 +10152,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_TemporalConsistency_Type : AbstractDQ_TemporalAccuracy_Type
@@ -10171,7 +10161,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_TemporalValidity_Type : AbstractDQ_TemporalAccuracy_Type
@@ -10180,7 +10170,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_AbsoluteExternalPositionalAccuracy_Type : AbstractDQ_PositionalAccuracy_Type
@@ -10189,7 +10179,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_GriddedDataPositionalAccuracy_Type : AbstractDQ_PositionalAccuracy_Type
@@ -10198,7 +10188,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_RelativeInternalPositionalAccuracy_Type : AbstractDQ_PositionalAccuracy_Type
@@ -10210,7 +10200,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CRSPropertyType
@@ -10225,7 +10215,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_PassThroughOperation_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class PassThroughOperationType : AbstractCoordinateOperationType
@@ -10242,7 +10232,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CoordinateOperationPropertyType
@@ -10256,7 +10246,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_PassThroughOperation_Type : PassThroughOperationType
@@ -10267,7 +10257,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class OperationAlt_PropertyType
@@ -10284,7 +10274,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class OperationAlt_Type : AbstractCoordinateOperationType
@@ -10301,7 +10291,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_ConcatenatedOperation_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ConcatenatedOperationType : AbstractCoordinateOperationType
@@ -10314,7 +10304,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_ConcatenatedOperation_Type : ConcatenatedOperationType
@@ -10327,7 +10317,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_Transformation_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractGeneralTransformationType : AbstractCoordinateOperationType
@@ -10337,7 +10327,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_Transformation_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TransformationType : AbstractGeneralTransformationType
@@ -10352,7 +10342,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class OperationMethodPropertyType
@@ -10367,7 +10357,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_OperationMethod_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class OperationMethodType : IdentifiedObjectType
@@ -10388,7 +10378,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class formulaCitation
@@ -10406,7 +10396,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class AbstractGeneralOperationParameterPropertyType
@@ -10425,7 +10415,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_OperationParameter_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractGeneralOperationParameterType : IdentifiedObjectType
@@ -10437,7 +10427,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_OperationParameterGroup_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class OperationParameterGroupType : AbstractGeneralOperationParameterType
@@ -10450,7 +10440,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_OperationParameterGroup_Type : OperationParameterGroupType
@@ -10461,7 +10451,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class OperationParameterAlt_PropertyType
@@ -10478,7 +10468,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class OperationParameterAlt_Type : OperationParameterType
@@ -10492,7 +10482,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_OperationParameter_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class OperationParameterType : AbstractGeneralOperationParameterType
@@ -10501,7 +10491,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_OperationParameter_Type : OperationParameterType
@@ -10512,7 +10502,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_OperationMethod_Type : OperationMethodType
@@ -10523,7 +10513,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class OperationMethodAlt_PropertyType
@@ -10540,7 +10530,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class OperationMethodAlt_Type : IdentifiedObjectType
@@ -10555,7 +10545,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class AbstractGeneralParameterValuePropertyType
@@ -10567,7 +10557,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ParameterValueType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractGeneralParameterValueType
@@ -10576,7 +10566,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ParameterValueGroupType : AbstractGeneralParameterValueType
@@ -10591,7 +10581,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class OperationParameterGroupPropertyType
@@ -10605,7 +10595,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ParameterValueType : AbstractGeneralParameterValueType
@@ -10627,7 +10617,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DMSAngleType
@@ -10645,7 +10635,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DegreesType
@@ -10686,7 +10676,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class MeasureListType
@@ -10717,7 +10707,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class OperationParameterPropertyType
@@ -10731,7 +10721,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_Transformation_Type : TransformationType
@@ -10743,7 +10733,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_Conversion_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ConversionType : AbstractGeneralConversionType
@@ -10755,7 +10745,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_Conversion_Type : ConversionType
@@ -10767,7 +10757,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_DerivedCRS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DerivedCRSType : AbstractGeneralDerivedCRSType
@@ -10779,7 +10769,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_DerivedCRS_Type : DerivedCRSType
@@ -10791,7 +10781,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_ProjectedCRS_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ProjectedCRSType : AbstractGeneralDerivedCRSType
@@ -10807,7 +10797,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeodeticCRSPropertyType
@@ -10821,7 +10811,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeographicCRSPropertyType
@@ -10835,7 +10825,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_ProjectedCRS_Type : ProjectedCRSType
@@ -10849,7 +10839,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CodeAlternativeExpression_Type : DefinitionType
@@ -10862,7 +10852,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_CodeDefinition_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CodeDefinition_Type : DefinitionType
@@ -10871,7 +10861,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_CodeDefinition_Type : CodeDefinition_Type
@@ -10882,7 +10872,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CodeAlternativeExpression_PropertyType
@@ -10896,7 +10886,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DefinitionProxyType : DefinitionType
@@ -10908,7 +10898,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_CodeListDictionary_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DictionaryType : DefinitionType
@@ -10922,7 +10912,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DictionaryEntryType : AbstractMemberType
@@ -10942,7 +10932,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DictionaryEntryType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractMemberType
@@ -10962,7 +10952,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class IndirectEntryType
@@ -10976,7 +10966,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_CodeListDictionary_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CodeListDictionary_Type : DictionaryType
@@ -10987,7 +10977,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CodeDefinition_PropertyType
@@ -11004,7 +10994,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_CodeListDictionary_Type : CodeListDictionary_Type
@@ -11015,7 +11005,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ClAlternativeExpression_PropertyType
@@ -11029,7 +11019,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_UnitDefinition_Type : UnitDefinitionType
@@ -11040,7 +11030,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class UomAlternativeExpression_PropertyType
@@ -11057,7 +11047,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class UomAlternativeExpression_Type : UnitDefinitionType
@@ -11070,7 +11060,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_ConventionalUnit_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ConventionalUnitType : UnitDefinitionType
@@ -11094,7 +11084,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ConversionToPreferredUnitType : UnitOfMeasureType
@@ -11106,7 +11096,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class FormulaType
@@ -11121,7 +11111,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DerivationUnitTermType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class UnitOfMeasureType
@@ -11132,7 +11122,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DerivationUnitTermType : UnitOfMeasureType
@@ -11152,7 +11142,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_ConventionalUnit_Type : ConventionalUnitType
@@ -11164,7 +11154,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_DerivedUnit_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DerivedUnitType : UnitDefinitionType
@@ -11175,7 +11165,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_DerivedUnit_Type : DerivedUnitType
@@ -11187,7 +11177,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(ML_BaseUnit_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class BaseUnitType : UnitDefinitionType
@@ -11197,7 +11187,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_BaseUnit_Type : BaseUnitType
@@ -11208,7 +11198,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_CrsCatalogue_Type : AbstractCT_Catalogue_Type
@@ -11235,7 +11225,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_CRS_PropertyType
@@ -11250,7 +11240,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_CoordinateSystem_PropertyType
@@ -11265,7 +11255,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_CoordinateSystemAxis_PropertyType
@@ -11280,7 +11270,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_Datum_PropertyType
@@ -11295,7 +11285,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_Ellipsoid_PropertyType
@@ -11310,7 +11300,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_PrimeMeridian_PropertyType
@@ -11325,7 +11315,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_Operation_PropertyType
@@ -11340,7 +11330,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_OperationMethod_PropertyType
@@ -11355,7 +11345,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_OperationParameters_PropertyType
@@ -11370,7 +11360,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_CodelistCatalogue_Type : AbstractCT_Catalogue_Type
@@ -11381,7 +11371,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_Codelist_PropertyType
@@ -11399,7 +11389,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(MX_DataSet_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_DataSet_Type : AbstractObject_Type
@@ -11412,7 +11402,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Metadata_PropertyType
@@ -11429,7 +11419,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Metadata_Type : AbstractObject_Type
@@ -11484,7 +11474,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ScopeCode_PropertyType
@@ -11496,7 +11486,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_SpatialRepresentation_PropertyType
@@ -11517,7 +11507,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(MD_Georeferenceable_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public abstract partial class AbstractMD_SpatialRepresentation_Type : AbstractObject_Type
@@ -11529,7 +11519,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_VectorSpatialRepresentation_Type : AbstractMD_SpatialRepresentation_Type
@@ -11541,7 +11531,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_TopologyLevelCode_PropertyType
@@ -11553,7 +11543,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_GeometricObjects_PropertyType
@@ -11567,7 +11557,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_GeometricObjects_Type : AbstractObject_Type
@@ -11578,7 +11568,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_GeometricObjectTypeCode_PropertyType
@@ -11595,7 +11585,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(MD_Georeferenceable_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_GridSpatialRepresentation_Type : AbstractMD_SpatialRepresentation_Type
@@ -11609,7 +11599,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Dimension_PropertyType
@@ -11623,7 +11613,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Dimension_Type : AbstractObject_Type
@@ -11635,7 +11625,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_DimensionNameTypeCode_PropertyType
@@ -11647,7 +11637,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class Measure_PropertyType
@@ -11659,7 +11649,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_CellGeometryCode_PropertyType
@@ -11671,7 +11661,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Georectified_Type : MD_GridSpatialRepresentation_Type
@@ -11689,7 +11679,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gss")]
     public partial class GM_Point_PropertyType
@@ -11704,7 +11694,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_PixelOrientationCode_PropertyType
@@ -11728,7 +11718,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Georeferenceable_Type : MD_GridSpatialRepresentation_Type
@@ -11743,7 +11733,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ReferenceSystem_PropertyType
@@ -11757,7 +11747,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ReferenceSystem_Type : AbstractObject_Type
@@ -11767,7 +11757,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class RS_Identifier_PropertyType
@@ -11781,7 +11771,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_MetadataExtensionInformation_PropertyType
@@ -11798,7 +11788,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_MetadataExtensionInformation_Type : AbstractObject_Type
@@ -11810,7 +11800,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ExtendedElementInformation_PropertyType
@@ -11827,7 +11817,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ExtendedElementInformation_Type : AbstractObject_Type
@@ -11852,7 +11842,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ObligationCode_PropertyType
@@ -11874,7 +11864,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_DatatypeCode_PropertyType
@@ -11886,7 +11876,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Identification_PropertyType
@@ -11905,7 +11895,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(MD_DataIdentification_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public abstract partial class AbstractMD_Identification_Type : AbstractObject_Type
@@ -11937,7 +11927,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ProgressCode_PropertyType
@@ -11949,7 +11939,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_MaintenanceInformation_PropertyType
@@ -11966,7 +11956,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_MaintenanceInformation_Type : AbstractObject_Type
@@ -11986,7 +11976,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_MaintenanceFrequencyCode_PropertyType
@@ -11998,7 +11988,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gts")]
     public partial class TM_PeriodDuration_PropertyType
@@ -12011,7 +12001,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ScopeDescription_PropertyType
@@ -12026,7 +12016,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ScopeDescription_Type
@@ -12059,7 +12049,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_BrowseGraphic_PropertyType
@@ -12076,7 +12066,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_BrowseGraphic_Type : AbstractObject_Type
@@ -12088,7 +12078,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Format_PropertyType
@@ -12105,7 +12095,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Format_Type : AbstractObject_Type
@@ -12121,7 +12111,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Distributor_PropertyType
@@ -12138,7 +12128,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Distributor_Type : AbstractObject_Type
@@ -12154,7 +12144,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_StandardOrderProcess_PropertyType
@@ -12171,7 +12161,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_StandardOrderProcess_Type : AbstractObject_Type
@@ -12184,7 +12174,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_DigitalTransferOptions_PropertyType
@@ -12201,7 +12191,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_DigitalTransferOptions_Type : AbstractObject_Type
@@ -12215,7 +12205,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Medium_PropertyType
@@ -12232,7 +12222,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Medium_Type : AbstractObject_Type
@@ -12249,7 +12239,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_MediumNameCode_PropertyType
@@ -12261,7 +12251,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_MediumFormatCode_PropertyType
@@ -12273,7 +12263,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Keywords_PropertyType
@@ -12290,7 +12280,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Keywords_Type : AbstractObject_Type
@@ -12303,7 +12293,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_KeywordTypeCode_PropertyType
@@ -12315,7 +12305,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Usage_PropertyType
@@ -12332,7 +12322,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Usage_Type : AbstractObject_Type
@@ -12346,7 +12336,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Constraints_PropertyType
@@ -12365,7 +12355,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(MD_LegalConstraints_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Constraints_Type : AbstractObject_Type
@@ -12379,7 +12369,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_SecurityConstraints_Type : MD_Constraints_Type
@@ -12392,7 +12382,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ClassificationCode_PropertyType
@@ -12407,7 +12397,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_LegalConstraints_Type : MD_Constraints_Type
@@ -12422,7 +12412,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_RestrictionCode_PropertyType
@@ -12434,7 +12424,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_AggregateInformation_PropertyType
@@ -12451,7 +12441,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_AggregateInformation_Type : AbstractObject_Type
@@ -12464,7 +12454,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_AssociationTypeCode_PropertyType
@@ -12476,7 +12466,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_InitiativeTypeCode_PropertyType
@@ -12491,7 +12481,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ServiceIdentification_Type : AbstractMD_Identification_Type
@@ -12500,7 +12490,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_DataIdentification_Type : AbstractMD_Identification_Type
@@ -12523,7 +12513,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_SpatialRepresentationTypeCode_PropertyType
@@ -12535,7 +12525,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Resolution_PropertyType
@@ -12547,7 +12537,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Resolution_Type
@@ -12559,7 +12549,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class Distance_PropertyType
@@ -12571,7 +12561,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_RepresentativeFraction_PropertyType
@@ -12585,7 +12575,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_RepresentativeFraction_Type : AbstractObject_Type
@@ -12595,7 +12585,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_TopicCategoryCode_PropertyType
@@ -12636,7 +12626,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class EX_Extent_PropertyType
@@ -12650,7 +12640,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ContentInformation_PropertyType
@@ -12667,7 +12657,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(MD_FeatureCatalogueDescription_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public abstract partial class AbstractMD_ContentInformation_Type : AbstractObject_Type
@@ -12680,7 +12670,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(MD_ImageDescription_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_CoverageDescription_Type : AbstractMD_ContentInformation_Type
@@ -12693,7 +12683,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_CoverageContentTypeCode_PropertyType
@@ -12705,7 +12695,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_RangeDimension_PropertyType
@@ -12723,7 +12713,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(MD_Band_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_RangeDimension_Type : AbstractObject_Type
@@ -12734,7 +12724,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class MemberName_PropertyType
@@ -12751,7 +12741,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class MemberName_Type : AbstractObject_Type
@@ -12762,7 +12752,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class TypeName_PropertyType
@@ -12779,7 +12769,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class TypeName_Type : AbstractObject_Type
@@ -12789,7 +12779,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Band_Type : MD_RangeDimension_Type
@@ -12806,7 +12796,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class UomLength_PropertyType
@@ -12824,7 +12814,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ImageDescription_Type : MD_CoverageDescription_Type
@@ -12845,7 +12835,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ImagingConditionCode_PropertyType
@@ -12860,7 +12850,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_FeatureCatalogueDescription_Type : AbstractMD_ContentInformation_Type
@@ -12877,7 +12867,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class GenericName_PropertyType
@@ -12889,7 +12879,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Distribution_PropertyType
@@ -12906,7 +12896,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Distribution_Type : AbstractObject_Type
@@ -12921,7 +12911,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_DataQuality_PropertyType
@@ -12935,7 +12925,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_DataQuality_Type : AbstractObject_Type
@@ -12948,7 +12938,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_Scope_PropertyType
@@ -12962,7 +12952,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_Scope_Type : AbstractObject_Type
@@ -12975,7 +12965,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_Element_PropertyType
@@ -12989,7 +12979,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class LI_Lineage_PropertyType
@@ -13003,7 +12993,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class LI_Lineage_Type : AbstractObject_Type
@@ -13017,7 +13007,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class LI_ProcessStep_PropertyType
@@ -13031,7 +13021,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class LI_ProcessStep_Type : AbstractObject_Type
@@ -13047,7 +13037,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class LI_Source_PropertyType
@@ -13061,7 +13051,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class LI_Source_Type : AbstractObject_Type
@@ -13078,7 +13068,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_PortrayalCatalogueReference_PropertyType
@@ -13095,7 +13085,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_PortrayalCatalogueReference_Type : AbstractObject_Type
@@ -13106,7 +13096,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ApplicationSchemaInformation_PropertyType
@@ -13123,7 +13113,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ApplicationSchemaInformation_Type : AbstractObject_Type
@@ -13139,7 +13129,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class Binary_PropertyType
@@ -13151,7 +13141,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class Binary_Type
@@ -13164,7 +13154,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_Aggregate_PropertyType
@@ -13189,7 +13179,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DS_StereoMate_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public abstract partial class AbstractDS_Aggregate_Type : AbstractObject_Type
@@ -13206,7 +13196,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_DataSet_PropertyType
@@ -13220,7 +13210,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class MX_Aggregate_Type : AbstractDS_Aggregate_Type
@@ -13233,7 +13223,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class MX_SupportFile_PropertyType
@@ -13247,7 +13237,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class MX_SupportFile_Type : AbstractMX_File_Type
@@ -13256,7 +13246,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_Initiative_Type : AbstractDS_Aggregate_Type
@@ -13268,7 +13258,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DS_Platform_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_Series_Type : AbstractDS_Aggregate_Type
@@ -13277,7 +13267,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_ProductionSeries_Type : DS_Series_Type
@@ -13286,7 +13276,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_Sensor_Type : DS_Series_Type
@@ -13295,7 +13285,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_Platform_Type : DS_Series_Type
@@ -13305,7 +13295,7 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DS_StereoMate_Type))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_OtherAggregate_Type : AbstractDS_Aggregate_Type
@@ -13314,7 +13304,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_StereoMate_Type : DS_OtherAggregate_Type
@@ -13323,7 +13313,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class MX_DataSet_Type : DS_DataSet_Type
@@ -13338,7 +13328,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class MX_DataFile_PropertyType
@@ -13352,7 +13342,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class MX_DataFile_Type : AbstractMX_File_Type
@@ -13364,7 +13354,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_Association_Type : AbstractObject_Type
@@ -13376,7 +13366,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public abstract partial class AbstractRS_ReferenceSystem_Type : AbstractObject_Type
@@ -13388,7 +13378,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class MimeFileType_PropertyType
@@ -13400,7 +13390,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class MX_DataSet_PropertyType
@@ -13414,7 +13404,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class MX_Aggregate_PropertyType
@@ -13428,7 +13418,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class Anchor_Type
@@ -13461,7 +13451,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class Anchor_PropertyType
@@ -13473,7 +13463,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_UomCatalogue_PropertyType
@@ -13487,7 +13477,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_CrsCatalogue_PropertyType
@@ -13501,7 +13491,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_CodelistCatalogue_PropertyType
@@ -13515,7 +13505,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_OperationParameter_PropertyType
@@ -13529,7 +13519,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_OperationParameterGroup_PropertyType
@@ -13543,7 +13533,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_OperationMethod_PropertyType
@@ -13557,7 +13547,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_Conversion_PropertyType
@@ -13571,7 +13561,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_Transformation_PropertyType
@@ -13585,7 +13575,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_PassThroughOperation_PropertyType
@@ -13599,7 +13589,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_ConcatenatedOperation_PropertyType
@@ -13613,7 +13603,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_GeodeticDatum_PropertyType
@@ -13627,7 +13617,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_EngineeringDatum_PropertyType
@@ -13641,7 +13631,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_ImageDatum_PropertyType
@@ -13655,7 +13645,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_VerticalDatum_PropertyType
@@ -13669,7 +13659,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_TemporalDatum_PropertyType
@@ -13683,7 +13673,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_PrimeMeridian_PropertyType
@@ -13697,7 +13687,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_Ellipsoid_PropertyType
@@ -13711,7 +13701,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_LinearCS_PropertyType
@@ -13725,7 +13715,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_PolarCS_PropertyType
@@ -13739,7 +13729,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_SphericalCS_PropertyType
@@ -13753,7 +13743,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_CylindricalCS_PropertyType
@@ -13767,7 +13757,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_TimeCS_PropertyType
@@ -13781,7 +13771,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_VerticalCS_PropertyType
@@ -13795,7 +13785,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_UserDefinedCS_PropertyType
@@ -13809,7 +13799,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_AffineCS_PropertyType
@@ -13823,7 +13813,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_CartesianCS_PropertyType
@@ -13837,7 +13827,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_EllipsoidalCS_PropertyType
@@ -13851,7 +13841,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_CoordinateSystemAxis_PropertyType
@@ -13865,7 +13855,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_DerivedCRS_PropertyType
@@ -13879,7 +13869,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_ProjectedCRS_PropertyType
@@ -13893,7 +13883,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_ImageCRS_PropertyType
@@ -13907,7 +13897,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_TemporalCRS_PropertyType
@@ -13921,7 +13911,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_VerticalCRS_PropertyType
@@ -13935,7 +13925,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_EngineeringCRS_PropertyType
@@ -13949,7 +13939,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_GeodeticCRS_PropertyType
@@ -13963,7 +13953,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_CompoundCRS_PropertyType
@@ -13977,7 +13967,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_CodeListDictionary_PropertyType
@@ -13991,7 +13981,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_CodeDefinition_PropertyType
@@ -14005,7 +13995,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CodeListDictionary_PropertyType
@@ -14019,7 +14009,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class CT_CodelistValue_PropertyType
@@ -14033,7 +14023,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_UnitDefinition_PropertyType
@@ -14047,7 +14037,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_ConventionalUnit_PropertyType
@@ -14061,7 +14051,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_DerivedUnit_PropertyType
@@ -14075,7 +14065,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ML_BaseUnit_PropertyType
@@ -14089,7 +14079,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class ConventionalUnit_PropertyType
@@ -14104,7 +14094,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class DerivedUnit_PropertyType
@@ -14119,7 +14109,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmx")]
     public partial class BaseUnit_PropertyType
@@ -14138,7 +14128,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/elements/1.1/")]
     public partial class elementContainer
@@ -14195,7 +14185,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class elementOrRefinementContainer
@@ -14264,7 +14254,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/dimensions/1/gml")]
     public partial class LinearDimensionPropertyType
@@ -14289,7 +14279,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class Number_PropertyType
@@ -14304,7 +14294,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class UomVolume_PropertyType
@@ -14319,7 +14309,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class UomTime_PropertyType
@@ -14334,7 +14324,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class UomVelocity_PropertyType
@@ -14349,7 +14339,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class UomArea_PropertyType
@@ -14364,7 +14354,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class UomScale_PropertyType
@@ -14379,7 +14369,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class UomAngle_PropertyType
@@ -14394,7 +14384,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class ScopedName_PropertyType
@@ -14406,7 +14396,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class LocalName_PropertyType
@@ -14418,7 +14408,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class Scale_PropertyType
@@ -14430,7 +14420,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class Angle_PropertyType
@@ -14442,7 +14432,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class Length_PropertyType
@@ -14454,7 +14444,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gco")]
     public partial class Multiplicity_PropertyType
@@ -14468,7 +14458,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_StereoMate_PropertyType
@@ -14482,7 +14472,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_ProductionSeries_PropertyType
@@ -14496,7 +14486,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_Sensor_PropertyType
@@ -14510,7 +14500,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_Platform_PropertyType
@@ -14524,7 +14514,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_Initiative_PropertyType
@@ -14538,7 +14528,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_Series_PropertyType
@@ -14552,7 +14542,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_OtherAggregate_PropertyType
@@ -14566,7 +14556,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class PT_LocaleContainer_PropertyType
@@ -14580,7 +14570,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class PT_LocaleContainer_Type
@@ -14597,7 +14587,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_Completeness_PropertyType
@@ -14611,7 +14601,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_LogicalConsistency_PropertyType
@@ -14625,7 +14615,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_PositionalAccuracy_PropertyType
@@ -14639,7 +14629,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_ThematicAccuracy_PropertyType
@@ -14653,7 +14643,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_TemporalAccuracy_PropertyType
@@ -14667,7 +14657,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_CompletenessCommission_PropertyType
@@ -14681,7 +14671,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_CompletenessOmission_PropertyType
@@ -14695,7 +14685,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_ConceptualConsistency_PropertyType
@@ -14709,7 +14699,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_DomainConsistency_PropertyType
@@ -14723,7 +14713,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_FormatConsistency_PropertyType
@@ -14737,7 +14727,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_TopologicalConsistency_PropertyType
@@ -14751,7 +14741,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_AbsoluteExternalPositionalAccuracy_PropertyType
@@ -14765,7 +14755,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_GriddedDataPositionalAccuracy_PropertyType
@@ -14779,7 +14769,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_RelativeInternalPositionalAccuracy_PropertyType
@@ -14793,7 +14783,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_ThematicClassificationCorrectness_PropertyType
@@ -14807,7 +14797,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_NonQuantitativeAttributeAccuracy_PropertyType
@@ -14821,7 +14811,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_QuantitativeAttributeAccuracy_PropertyType
@@ -14835,7 +14825,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_AccuracyOfATimeMeasurement_PropertyType
@@ -14849,7 +14839,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_TemporalConsistency_PropertyType
@@ -14863,7 +14853,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_TemporalValidity_PropertyType
@@ -14877,7 +14867,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_QuantitativeResult_PropertyType
@@ -14891,7 +14881,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DQ_ConformanceResult_PropertyType
@@ -14905,7 +14895,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class DS_Association_PropertyType
@@ -14919,7 +14909,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ServiceIdentification_PropertyType
@@ -14933,7 +14923,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_DataIdentification_PropertyType
@@ -14947,7 +14937,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_DistributionUnits_PropertyType
@@ -14959,7 +14949,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_SecurityConstraints_PropertyType
@@ -14973,7 +14963,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_LegalConstraints_PropertyType
@@ -14987,7 +14977,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Band_PropertyType
@@ -15001,7 +14991,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_ImageDescription_PropertyType
@@ -15015,7 +15005,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_CoverageDescription_PropertyType
@@ -15029,7 +15019,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_FeatureCatalogueDescription_PropertyType
@@ -15043,7 +15033,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Georectified_PropertyType
@@ -15057,7 +15047,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_Georeferenceable_PropertyType
@@ -15071,7 +15061,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_VectorSpatialRepresentation_PropertyType
@@ -15085,7 +15075,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class MD_GridSpatialRepresentation_PropertyType
@@ -15099,7 +15089,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class RS_ReferenceSystem_PropertyType
@@ -15113,7 +15103,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class EX_GeographicDescription_PropertyType
@@ -15127,7 +15117,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class EX_SpatialTemporalExtent_PropertyType
@@ -15141,7 +15131,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class EX_GeographicBoundingBox_PropertyType
@@ -15155,7 +15145,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.isotc211.org/2005/gmd")]
     public partial class EX_BoundingPolygon_PropertyType
@@ -15169,7 +15159,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.w3.org/1999/xlink")]
     public partial class arcType
@@ -15205,7 +15195,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.w3.org/1999/xlink")]
     public partial class locatorType
@@ -15238,7 +15228,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.w3.org/1999/xlink")]
     public partial class resourceType
@@ -15266,7 +15256,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.w3.org/1999/xlink")]
     public partial class titleEltType
@@ -15302,7 +15292,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.w3.org/1999/xlink")]
     public partial class extended
@@ -15335,7 +15325,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.w3.org/1999/xlink")]
     public partial class simple
@@ -15369,7 +15359,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class AngleChoiceType
@@ -15381,7 +15371,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeocentricCRSPropertyType
@@ -15395,7 +15385,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class OperationPropertyType
@@ -15412,7 +15402,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeClockPropertyType
@@ -15440,7 +15430,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TimeTopologyComplexPropertyType
@@ -15468,7 +15458,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TemporalCRSPropertyType
@@ -15485,7 +15475,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ImageCRSPropertyType
@@ -15502,7 +15492,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class EngineeringCRSPropertyType
@@ -15519,7 +15509,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DerivedCRSPropertyType
@@ -15536,7 +15526,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ProjectedCRSPropertyType
@@ -15553,7 +15543,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class VerticalCRSPropertyType
@@ -15570,7 +15560,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CompoundCRSPropertyType
@@ -15587,7 +15577,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TransformationPropertyType
@@ -15604,7 +15594,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ConversionPropertyType
@@ -15621,7 +15611,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class PassThroughOperationPropertyType
@@ -15638,7 +15628,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class ConcatenatedOperationPropertyType
@@ -15655,7 +15645,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeneralTransformationPropertyType
@@ -15672,7 +15662,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class SingleOperationPropertyType
@@ -15689,7 +15679,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DatumPropertyType
@@ -15703,7 +15693,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CountPropertyType
@@ -15718,7 +15708,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class Count
@@ -15731,7 +15721,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class QuantityPropertyType
@@ -15749,7 +15739,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class Quantity : MeasureType
@@ -15760,7 +15750,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class CategoryPropertyType
@@ -15778,7 +15768,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class Category : CodeType
@@ -15789,7 +15779,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class BooleanPropertyType
@@ -15804,7 +15794,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class Boolean
@@ -15817,7 +15807,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TopoVolumePropertyType
@@ -15838,7 +15828,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TopoSurfacePropertyType
@@ -15859,7 +15849,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TopoCurvePropertyType
@@ -15880,7 +15870,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class TopoPointPropertyType
@@ -15904,7 +15894,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeometricComplexPropertyType
@@ -15936,7 +15926,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class MultiSolidPropertyType
@@ -15964,7 +15954,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class MultiSurfacePropertyType
@@ -15992,7 +15982,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class MultiPointPropertyType
@@ -16020,7 +16010,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class MultiGeometryPropertyType
@@ -16048,7 +16038,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class RingPropertyType
@@ -16061,7 +16051,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class LinearRingPropertyType
@@ -16077,7 +16067,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractMetadataPropertyType
@@ -16097,7 +16087,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class InlinePropertyType
@@ -16119,7 +16109,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/annotations/1/gml")]
     public partial class TextAnnotationPropertyType
@@ -16144,7 +16134,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/annotations/1/gml")]
     public partial class LinearAnnotationPropertyType
@@ -16169,7 +16159,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class VandledningPropertyType
@@ -16194,7 +16184,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class VandkomponentPropertyType
@@ -16219,7 +16209,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class TermiskLedningPropertyType
@@ -16244,7 +16234,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class TermiskKomponentPropertyType
@@ -16269,7 +16259,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class TelekommunikationsledningPropertyType
@@ -16294,7 +16284,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class TelekommunikationskomponentPropertyType
@@ -16319,7 +16309,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class RoerledningPropertyType
@@ -16350,7 +16340,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class OlieledningPropertyType
@@ -16375,7 +16365,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class OliekomponentPropertyType
@@ -16400,7 +16390,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class LedningstracePropertyType
@@ -16425,7 +16415,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class LedningskomponentPropertyType
@@ -16458,7 +16448,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class LedningUkendtForsyningsartPropertyType
@@ -16483,7 +16473,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class LedningEllerLedningstracePropertyType
@@ -16509,7 +16499,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class LedningPropertyType
@@ -16538,7 +16528,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class KontaktprofilPropertyType
@@ -16563,7 +16553,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class InformationsressourcePropertyType
@@ -16588,7 +16578,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class GraveforespoergselssvarPropertyType
@@ -16613,7 +16603,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class GasledningPropertyType
@@ -16638,7 +16628,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class GaskomponentPropertyType
@@ -16663,7 +16653,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class FoeringsroerPropertyType
@@ -16688,7 +16678,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class ElledningPropertyType
@@ -16713,7 +16703,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class ElkomponentPropertyType
@@ -16738,7 +16728,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class AndenLedningPropertyType
@@ -16763,7 +16753,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class AndenKomponentPropertyType
@@ -16788,7 +16778,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class AfloebsledningPropertyType
@@ -16813,7 +16803,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [DebuggerStepThrough]
+    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     public partial class AfloebskomponentPropertyType
