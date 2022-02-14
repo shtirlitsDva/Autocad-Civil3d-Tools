@@ -59,10 +59,36 @@ namespace LERImporter.Schema
     {
         private static string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
         internal static System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+        internal static Regex colorRegex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)");
     }
     public partial class LedningType
     {
         public DriftsstatusType Driftsstatus { get => this.driftsstatus.Value; }
+
+        private Color getLayerColorSetting(Database database, string layerName)
+        {
+            string colorString = ReadStringParameterFromDataTable(layerName, LerLedning.dtKrydsninger, "Farve", 0);
+            if (colorString.IsNoE())
+            {
+                Log.log($"Ledning id {id} with layer name {layerName} could not get a color!");
+                return Color.FromColorIndex(ColorMethod.ByAci, 0);
+            }
+            if (LerLedning.colorRegex.IsMatch(colorString))
+            {
+                Match match = LerLedning.colorRegex.Match(colorString);
+                byte R = Convert.ToByte(int.Parse(match.Groups["R"].Value));
+                byte G = Convert.ToByte(int.Parse(match.Groups["G"].Value));
+                byte B = Convert.ToByte(int.Parse(match.Groups["B"].Value));
+                //prdDbg($"Set layer {name} to color: R: {R.ToString()}, G: {G.ToString()}, B: {B.ToString()}");
+                return Color.FromRgb(R, G, B);
+            }
+            else
+            {
+                Log.log($"Ledning id {id} with layer name {layerName} could not parse colorString {colorString}!");
+                return Color.FromColorIndex(ColorMethod.ByAci, 0);
+            }
+
+        }
 
         public Oid DrawPline2D(Database database)
         {
@@ -197,21 +223,35 @@ namespace LERImporter.Schema
             switch (this.Forsyningsart)
             {
                 case ForsyningsartEnum.none:
+                    layerName = "0-ERROR-ForingsrørForsyningsArt-none";
+                    break;
                 case ForsyningsartEnum.other:
+                    layerName = "0-ERROR-ForingsrørForsyningsArt-other";
+                    break;
                 case ForsyningsartEnum.afløb:
-                    throw new NotImplementedException($"Element id {this.id} has unimplemented Forsyningsart!");
+                    layerName = "Foringsrør-Afløb";
+                    break;
                 case ForsyningsartEnum.el:
-                    layerName = "El-beskyttelsesrør";
+                    layerName = "Foringsrør-EL";
                     break;
                 case ForsyningsartEnum.fjernvarmefjernkøling:
+                    layerName = "Foringsrør-FJV-FKØL";
+                    break;
                 case ForsyningsartEnum.gas:
+                    layerName = "Foringsrør-Gas";
+                    break;
                 case ForsyningsartEnum.olie:
+                    layerName = "Foringsrør-Olie";
+                    break;
                 case ForsyningsartEnum.telekommunikation:
+                    layerName = "Foringsrør-Telekommunikation";
+                    break;
                 case ForsyningsartEnum.vand:
-                    throw new NotImplementedException($"Element id {this.id} has unimplemented Forsyningsart!");
+                    layerName = "Foringsrør-Vand";
+                    break;
                 default:
-                    throw new System.Exception(
-                        $"Element id {this.id} has invalid forsyningsart: {forsyningsart[0].ToString()}!");
+                    layerName = "0-ERROR-ForingsrørForsyningsArt-other";
+                    break;
             }
 
             layerName += suffix;
@@ -225,8 +265,6 @@ namespace LERImporter.Schema
             Polyline pline = DrawPline2D(database).Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             pline.Layer = DetermineLayerName(database);
-
-
 
             return pline.ObjectId;
         }
@@ -363,8 +401,8 @@ namespace LERImporter.Schema
         private string DetermineLayerName(Database database)
         {
             #region Determine correct layer name
-            string layerName = "";
-            string suffix = "";
+            string layerName;
+            string driftsstatusSuffix = "";
 
             switch (this.Driftsstatus)
             {
@@ -372,7 +410,7 @@ namespace LERImporter.Schema
                 case DriftsstatusType.idrift:
                     break;
                 case DriftsstatusType.permanentudeafdrift:
-                    suffix = "_UAD";
+                    driftsstatusSuffix = "_UAD";
                     break;
                 default:
                     throw new System.Exception(
@@ -388,40 +426,30 @@ namespace LERImporter.Schema
                     layerName = "0-ERROR-ElledningType-other";
                     break;
                 case ElledningTypeEnum.beskyttelsesleder:
+                    layerName = "EL-Beskyttelsesleder";
                     break;
                 case ElledningTypeEnum.forsyningskabel:
+                    layerName = "EL-Forsyningskabel";
                     break;
                 case ElledningTypeEnum.luftledning:
+                    layerName = "EL-Luftledning";
                     break;
                 case ElledningTypeEnum.stikkabel:
+                    layerName = "EL-Stikkabel";
                     break;
                 case ElledningTypeEnum.vejbelysningskabel:
+                    layerName = "EL-Vejbelysningskabel";
                     break;
                 default:
+                    layerName = "0-ERROR-ElledningType-other";
                     break;
             }
 
-            //switch (this.)
-            //{
-            //    //case ForsyningsartEnum.none:
-            //    //case ForsyningsartEnum.other:
-            //    //case ForsyningsartEnum.afløb:
-            //    //    throw new NotImplementedException($"Element id {this.id} has unimplemented Forsyningsart!");
-            //    //case ForsyningsartEnum.el:
-            //    //    layerName = "El-beskyttelsesrør";
-            //    //    break;
-            //    //case ForsyningsartEnum.fjernvarmefjernkøling:
-            //    //case ForsyningsartEnum.gas:
-            //    //case ForsyningsartEnum.olie:
-            //    //case ForsyningsartEnum.telekommunikation:
-            //    //case ForsyningsartEnum.vand:
-            //    //    throw new NotImplementedException($"Element id {this.id} has unimplemented Forsyningsart!");
-            //    //default:
-            //    //    throw new System.Exception(
-            //    //        $"Element id {this.id} has invalid forsyningsart: {forsyningsart[0].ToString()}!");
-            //}
+            string spænding = spaendingsniveau.Value.ToString() + spaendingsniveau.uom;
 
-            layerName += suffix;
+            layerName += $"-{spænding}";
+            layerName += driftsstatusSuffix;
+
             database.CheckOrCreateLayer(layerName);
             return layerName;
             #endregion
@@ -433,7 +461,15 @@ namespace LERImporter.Schema
             Polyline pline = DrawPline2D(database)
                 .Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
-            //polyline.Layer = layerName;
+            string layerName = DetermineLayerName(database);
+
+            pline.Layer = layerName;
+
+            LayerTable lt = database.LayerTableId.Go<LayerTable>(database.TransactionManager.TopTransaction);
+            LayerTableRecord ltr = lt[layerName]
+                .Go<LayerTableRecord>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+
 
             return pline.Id;
             #endregion
