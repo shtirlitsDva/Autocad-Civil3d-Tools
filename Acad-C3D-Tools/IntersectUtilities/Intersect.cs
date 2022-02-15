@@ -9081,7 +9081,7 @@ namespace IntersectUtilities
                             //This is needed because polyline gives slightly deviating
                             //Station values at start and ends
                             double extension = 0.01;
-                            double extendedPvStStart =  pvStStart - extension;
+                            double extendedPvStStart = pvStStart - extension;
                             double extendedPvStEnd = pvStEnd + extension;
 
                             double pvElBottom = pv.ElevationMin;
@@ -13480,7 +13480,7 @@ namespace IntersectUtilities
                 tr.Commit();
             }
         }
-        
+
         [CommandMethod("CREATEALLLINETYPESLAYERS")]
         public void createcalllinetypeslayers()
         {
@@ -13492,21 +13492,20 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    // We'll use the textstyle table to access
-                    // the "Standard" textstyle for our text segment
                     TextStyleTable tt = (TextStyleTable)tx.GetObject(db.TextStyleTableId, OpenMode.ForRead);
                     // Get the linetype table from the drawing
                     LinetypeTable ltt = (LinetypeTable)tx.GetObject(db.LinetypeTableId, OpenMode.ForWrite);
                     // Get layer table
                     LayerTable lt = tx.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
 
-                    double startX = 0; double startY = 0; int i = 0; double delta = 5; double endX = 100;
+                    double startX = 0; double Y = 0; int i = 0; double delta = 5; 
+                    double endX = 100;
 
                     foreach (Oid lttrOid in ltt)
                     {
                         LinetypeTableRecord lttr = lttrOid.Go<LinetypeTableRecord>(tx);
 
-                        string layerName = lttr.Name;
+                        string layerName = "00LT-" + lttr.Name;
 
                         if (!lt.Has(layerName))
                         {
@@ -13515,12 +13514,20 @@ namespace IntersectUtilities
 
                         Oid ltrId = lt[layerName];
 
+                        LayerTableRecord ltr = ltrId.Go<LayerTableRecord>(tx, OpenMode.ForWrite);
 
+                        ltr.LinetypeObjectId = lttrOid;
+
+                        Polyline pline = new Polyline(2);
+
+                        pline.AddVertexAt(pline.NumberOfVertices, new Point2d(startX, Y), 0, 0, 0);
+                        pline.AddVertexAt(pline.NumberOfVertices, new Point2d(endX, Y), 0, 0, 0);
+                        pline.AddEntityToDbModelSpace(db);
+
+                        Y -= delta;
 
                         i++;
                     }
-
-                    
                 }
                 catch (System.Exception ex)
                 {
