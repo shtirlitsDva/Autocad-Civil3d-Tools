@@ -96,9 +96,9 @@ namespace LERImporter
                         //gf = Schema.GraveforespoergselssvarType.Deserialize(fileStream);
                     }
 
-                    gf.Database = localDb;
+                    gf.WorkingDatabase = localDb;
 
-                    gf.test();
+                    gf.CreateLerData();
 
                     #region Archive
                     ////Check or create directory

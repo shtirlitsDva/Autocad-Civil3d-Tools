@@ -57,38 +57,11 @@ namespace LERImporter.Schema
     }
     public static class LerLedning
     {
-        private static string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-        internal static System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
-        internal static Regex colorRegex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)");
+        
     }
     public partial class LedningType
     {
         public DriftsstatusType Driftsstatus { get => this.driftsstatus.Value; }
-
-        private Color getLayerColorSetting(Database database, string layerName)
-        {
-            string colorString = ReadStringParameterFromDataTable(layerName, LerLedning.dtKrydsninger, "Farve", 0);
-            if (colorString.IsNoE())
-            {
-                Log.log($"Ledning id {id} with layer name {layerName} could not get a color!");
-                return Color.FromColorIndex(ColorMethod.ByAci, 0);
-            }
-            if (LerLedning.colorRegex.IsMatch(colorString))
-            {
-                Match match = LerLedning.colorRegex.Match(colorString);
-                byte R = Convert.ToByte(int.Parse(match.Groups["R"].Value));
-                byte G = Convert.ToByte(int.Parse(match.Groups["G"].Value));
-                byte B = Convert.ToByte(int.Parse(match.Groups["B"].Value));
-                //prdDbg($"Set layer {name} to color: R: {R.ToString()}, G: {G.ToString()}, B: {B.ToString()}");
-                return Color.FromRgb(R, G, B);
-            }
-            else
-            {
-                Log.log($"Ledning id {id} with layer name {layerName} could not parse colorString {colorString}!");
-                return Color.FromColorIndex(ColorMethod.ByAci, 0);
-            }
-
-        }
 
         public Oid DrawPline2D(Database database)
         {
@@ -464,12 +437,6 @@ namespace LERImporter.Schema
             string layerName = DetermineLayerName(database);
 
             pline.Layer = layerName;
-
-            LayerTable lt = database.LayerTableId.Go<LayerTable>(database.TransactionManager.TopTransaction);
-            LayerTableRecord ltr = lt[layerName]
-                .Go<LayerTableRecord>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
-
-
 
             return pline.Id;
             #endregion

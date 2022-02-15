@@ -13480,6 +13480,56 @@ namespace IntersectUtilities
                 tr.Commit();
             }
         }
+        
+        [CommandMethod("CREATEALLLINETYPESLAYERS")]
+        public void createcalllinetypeslayers()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+            Transaction tx = db.TransactionManager.StartTransaction();
+            using (tx)
+            {
+                try
+                {
+                    // We'll use the textstyle table to access
+                    // the "Standard" textstyle for our text segment
+                    TextStyleTable tt = (TextStyleTable)tx.GetObject(db.TextStyleTableId, OpenMode.ForRead);
+                    // Get the linetype table from the drawing
+                    LinetypeTable ltt = (LinetypeTable)tx.GetObject(db.LinetypeTableId, OpenMode.ForWrite);
+                    // Get layer table
+                    LayerTable lt = tx.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                    double startX = 0; double startY = 0; int i = 0; double delta = 5; double endX = 100;
+
+                    foreach (Oid lttrOid in ltt)
+                    {
+                        LinetypeTableRecord lttr = lttrOid.Go<LinetypeTableRecord>(tx);
+
+                        string layerName = lttr.Name;
+
+                        if (!lt.Has(layerName))
+                        {
+                            db.CheckOrCreateLayer(layerName);
+                        }
+
+                        Oid ltrId = lt[layerName];
+
+
+
+                        i++;
+                    }
+
+                    
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                }
+                tx.Commit();
+            }
+        }
 
         [CommandMethod("SETLINETYPESCALEDTOFIT")]
         public void setlinetypescaledtofit()

@@ -25,6 +25,7 @@ using System.Windows.Forms;
 using System.Data;
 //using MoreLinq;
 //using GroupByCluster;
+using IntersectUtilities;
 using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -50,8 +51,8 @@ namespace LERImporter.Schema
 {
     public partial class GraveforespoergselssvarType
     {
-        public Database Database { get; set; }
-        public void test()
+        public Database WorkingDatabase { get; set; }
+        public void CreateLerData()
         {
             if (this.ledningMember == null) this.ledningMember =
                     new GraveforespoergselssvarTypeLedningMember[0];
@@ -64,7 +65,11 @@ namespace LERImporter.Schema
             Log.log($"Number of ledningstraceMember -> {this.ledningstraceMember?.Length.ToString()}");
             Log.log($"Number of ledningskomponentMember -> {this.ledningskomponentMember?.Length.ToString()}");
 
+            //Debug list of all types in collections
             HashSet<string> names = new HashSet<string>();
+
+            //List of all (new) layers of new entities
+            HashSet<string> layerNames = new HashSet<string>();
 
             prdDbg(ObjectDumper.Dump(ledningMember[50]));
 
@@ -75,9 +80,10 @@ namespace LERImporter.Schema
                     Log.log($"ledningMember is null! Some enity has not been deserialized correct!");
                     continue;
                 }
-                
+
                 ILerLedning ledning = member.Item as ILerLedning;
-                ledning.DrawEntity2D(Database);
+                Oid entityId = ledning.DrawEntity2D(WorkingDatabase);
+                layerNames.Add(entityId.Layer());
 
                 names.Add(member.Item.ToString());
             }
@@ -102,6 +108,49 @@ namespace LERImporter.Schema
                 names.Add(member.Item.ToString());
             }
 
+            //Read the layer setup file
+            string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+            System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+
+            #region MyRegion
+            //Regex to parse the color information
+            Regex colorRegex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)");
+
+            //Set up all LER layers
+            foreach (string layerName in layerNames)
+            {
+                string colorString = ReadStringParameterFromDataTable(layerName, dtKrydsninger, "Farve", 0);
+
+                Color color;
+                if (colorString.IsNoE())
+                {
+                    Log.log($"Ledning id {id} with layer name {layerName} could not get a color!");
+                    color = Color.FromColorIndex(ColorMethod.ByAci, 0);
+                }
+                if (colorRegex.IsMatch(colorString))
+                {
+                    Match match = colorRegex.Match(colorString);
+                    byte R = Convert.ToByte(int.Parse(match.Groups["R"].Value));
+                    byte G = Convert.ToByte(int.Parse(match.Groups["G"].Value));
+                    byte B = Convert.ToByte(int.Parse(match.Groups["B"].Value));
+                    //prdDbg($"Set layer {name} to color: R: {R.ToString()}, G: {G.ToString()}, B: {B.ToString()}");
+                    color = Color.FromRgb(R, G, B);
+                }
+                else
+                {
+                    Log.log($"Ledning id {id} with layer name {layerName} could not parse colorString {colorString}!");
+                    color = Color.FromColorIndex(ColorMethod.ByAci, 0);
+                }
+
+                LayerTable lt = WorkingDatabase.LayerTableId.Go<LayerTable>(WorkingDatabase.TransactionManager.TopTransaction);
+                LayerTableRecord ltr = lt[layerName]
+                    .Go<LayerTableRecord>(WorkingDatabase.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+                ltr.Color = color;
+            } 
+            #endregion
+
+            //Print debug information on all types in collections
             foreach (string s in names)
             {
                 prdDbg(s);
