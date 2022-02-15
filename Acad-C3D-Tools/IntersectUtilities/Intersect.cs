@@ -13498,7 +13498,7 @@ namespace IntersectUtilities
                     // Get layer table
                     LayerTable lt = tx.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
 
-                    double startX = 0; double Y = 0; int i = 0; double delta = 5; 
+                    double startX = 0; double Y = 0; double delta = 5; 
                     double endX = 100;
 
                     foreach (Oid lttrOid in ltt)
@@ -13524,9 +13524,14 @@ namespace IntersectUtilities
                         pline.AddVertexAt(pline.NumberOfVertices, new Point2d(endX, Y), 0, 0, 0);
                         pline.AddEntityToDbModelSpace(db);
 
-                        Y -= delta;
+                        pline.Layer = layerName;
 
-                        i++;
+                        DBText text = new DBText();
+                        text.Position = new Point3d(-60, Y, 0);
+                        text.TextString = lttr.Name;
+                        text.AddEntityToDbModelSpace(db);
+
+                        Y -= delta;
                     }
                 }
                 catch (System.Exception ex)
