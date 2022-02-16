@@ -148,8 +148,8 @@ namespace LERImporter
                 try
                 {
                     string fileName = @"D:\OneDrive - Damgaard Rådgivende Ingeniører ApS\34 Lerimporter" +
-                                      //@"\Dev\53296456-7831-4836-95ae-6aeb955daf9c.gml";
-                                      @"\Dev\test.gml";
+                                      @"\Dev\53296456-7831-4836-95ae-6aeb955daf9c.gml";
+                                      //"\Dev\test.gml";
 
                     var serializer = new XmlSerializer(typeof(Schema.GraveforespoergselssvarType));
                     Schema.GraveforespoergselssvarType gf;

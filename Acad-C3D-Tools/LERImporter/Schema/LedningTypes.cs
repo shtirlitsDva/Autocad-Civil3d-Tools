@@ -55,20 +55,49 @@ namespace LERImporter.Schema
         Oid DrawEntity2D(Database database);
         Oid DrawEntity3D(Database database);
     }
-    [AttributeUsage(AttributeTargets.All, Inherited = false, AllowMultiple = true)]
+    [AttributeUsage(AttributeTargets.All, Inherited = true, AllowMultiple = true)]
     public class PsInclude : Attribute
     {
-        
+
     }
-    public static class LerLedning
+    public partial class LedningEllerLedningstraceType
     {
-        
+        [PsInclude]
+        public string Driftsstatus { get => this.driftsstatus.Value.GetXmlEnumAttributeValueFromEnum(); }
+        public DriftsstatusType Driftsstatus2 { get => this.driftsstatus.Value; }
+        [PsInclude]
+        public string EtableringsTidspunkt { get => this.etableringstidspunkt?.Value; }
+        [PsInclude]
+        public string Fareklasse { get => this.fareklasse?.Value.GetXmlEnumAttributeValueFromEnum() ?? ""; }
+        [PsInclude]
+        public string Id { get => this.id; }
+        [PsInclude]
+        public string IndtegningsMetode { get => this.indtegningsmetode.GetXmlEnumAttributeValueFromEnum(); }
+        [PsInclude]
+        public string Nøjagtighedsklasse { get => this.noejagtighedsklasse?.Value.GetXmlEnumAttributeValueFromEnum() ?? ""; }
+        [PsInclude]
+        public string RegistreringFra { get => this.registreringFra.ToString() ?? string.Empty; }
+        [PsInclude]
+        public string Sikkerhedshensyn { get => this.sikkerhedshensyn; }
+        [PsInclude]
+        public double VejledendeDybde { get => this.vejledendeDybde?.getValueInStdUnits() ?? default; }
     }
     public partial class LedningType
     {
         [PsInclude]
-        public DriftsstatusType Driftsstatus { get => this.driftsstatus.Value; }
-
+        public string Niveau { get => this.niveau.GetXmlEnumAttributeValueFromEnum(); }
+        [PsInclude]
+        public string IndeholderLedning { get => this.indeholderLedninger?.Value == true ? "Sand" : "Falsk"; }
+        [PsInclude]
+        public string LedningsEtableringsMetode { get => this.ledningsetableringsmetode.GetXmlEnumAttributeValueFromEnum(); }
+        [PsInclude]
+        public string LiggerILedning { get => this.liggerILedning == true ? "Sand" : "Falsk"; }
+        [PsInclude]
+        public double UdvendigDiameter { get => this.udvendigDiameter?.getValueInStdUnits() ?? default; }
+        [PsInclude]
+        public string UdvendigFarve { get => this.udvendigFarve != null ? string.Join(", ", this.udvendigFarve) : ""; }
+        [PsInclude]
+        public string UdvendigMateriale { get => this.udvendigMateriale ?? ""; }
         public Oid DrawPline2D(Database database)
         {
             IPointParser parser = this.geometri.AbstractCurve as IPointParser;
@@ -88,6 +117,10 @@ namespace LERImporter.Schema
         {
             throw new NotImplementedException();
         }
+        public string GetTypeName()
+        {
+            return this.GetTypeName().Replace("Type", "");
+        }
     }
     public partial class TelekommunikationsledningType : ILerLedning
     {
@@ -104,8 +137,11 @@ namespace LERImporter.Schema
     public partial class RoerledningType
     {
         [PsInclude]
-        public string Tværsnitsform { get => this?.tvaersnitsform?.Value; }
-        public string UdvendigBredde { get => this?.udvendigBredde.}
+        public string Tværsnitsform { get => this.tvaersnitsform?.Value ?? ""; }
+        [PsInclude]
+        public double UdvendigBredde { get => this.udvendigBredde?.getValueInStdUnits() ?? default; }
+        [PsInclude]
+        public double UdvendigHøjde { get => this.udvendigHoejde?.getValueInStdUnits() ?? default; }
     }
     public partial class VandledningType : ILerLedning
     {
@@ -158,7 +194,8 @@ namespace LERImporter.Schema
     public partial class FoeringsroerType : ILerLedning
     {
         [PsInclude]
-        public ForsyningsartEnum Forsyningsart { get => getForsyningsart(forsyningsart); }
+        public string Forsyningsart { get => getForsyningsart2.ToString(); }
+        public ForsyningsartEnum getForsyningsart2 { get => getForsyningsart(forsyningsart); }
         private ForsyningsartEnum getForsyningsart(string[] forsyningsart)
         {
             if (forsyningsart.Length == 0) return ForsyningsartEnum.none;
@@ -189,7 +226,7 @@ namespace LERImporter.Schema
             string layerName;
             string suffix = "";
 
-            switch (this.Driftsstatus)
+            switch (this.driftsstatus.Value)
             {
                 case DriftsstatusType.underetablering:
                 case DriftsstatusType.idrift:
@@ -202,7 +239,7 @@ namespace LERImporter.Schema
                         $"Element id {this.id} has invalid driftsstatus: {Driftsstatus.ToString()}!");
             }
 
-            switch (this.Forsyningsart)
+            switch (this.getForsyningsart2)
             {
                 case ForsyningsartEnum.none:
                     layerName = "0-ERROR-ForingsrørForsyningsArt-none";
@@ -255,7 +292,6 @@ namespace LERImporter.Schema
         {
             throw new NotImplementedException();
         }
-
         public enum ForsyningsartEnum
         {
             none,
@@ -267,74 +303,6 @@ namespace LERImporter.Schema
             olie,
             telekommunikation,
             vand
-        }
-
-        private class LerFoeringsroerPS
-        {
-            DefinedSets SetName { get; } = DefinedSets.LerFoeringsroerPS;
-            PSetDefs.Property Forsyningsart { get; } =
-                new IntersectUtilities.PSetDefs.Property(
-                    "Forsyningsart",
-                    "Arten af rør som foringsrøret indeholder.",
-                    PsDataType.Text,
-                    "");
-            PSetDefs.Property Tværsnitsform { get; } =
-                new IntersectUtilities.PSetDefs.Property(
-                    "Tværsnitsform",
-                    "Ledningens tværsnitsform.",
-                    PsDataType.Text,
-                    "");
-            PSetDefs.Property UdvendigDiameterUnits { get; } =
-                new IntersectUtilities.PSetDefs.Property(
-                    "UdvendigDiameterUnits",
-                    "Enheden som udvendig diameter er angivet med.",
-                    PsDataType.Text,
-                    "");
-            PSetDefs.Property UdvendigDiameterValue { get; } =
-                new IntersectUtilities.PSetDefs.Property(
-                    "UdvendigDiameterValue",
-                    "Udvendig diameter af røret.",
-                    PsDataType.Real,
-                    0);
-            PSetDefs.Property Driftsstatus { get; } =
-                new IntersectUtilities.PSetDefs.Property(
-                    "Driftsstatus",
-                    "Er ledningen i drift?",
-                    PsDataType.Text,
-                    "");
-            PSetDefs.Property Id { get; } =
-                new IntersectUtilities.PSetDefs.Property(
-                    "Id",
-                    "Ledningens Ler id.",
-                    PsDataType.Text,
-                    "");
-            PSetDefs.Property Indtegningsmetode { get; } =
-                new IntersectUtilities.PSetDefs.Property(
-                    "Indtegningsmetode",
-                    "Nøjagtighed på geometri.",
-                    PsDataType.Text,
-                    "");
-            PSetDefs.Property Nøjagtighedsklasse { get; } =
-                new IntersectUtilities.PSetDefs.Property(
-                    "Nøjagtighedsklasse",
-                    "Nøjagtighedsmargin i geometri.",
-                    PsDataType.Text,
-                    "");
-            PSetDefs.Property VejledendeDybde { get; } =
-                new IntersectUtilities.PSetDefs.Property(
-                    "VejledendeDybde",
-                    "Vejledende dybde for ledningens placering.",
-                    PsDataType.Text,
-                    "");
-            StringCollection AppliesTo { get; } = new StringCollection()
-                {
-                    RXClass.GetClass(typeof(Polyline)).Name,
-                    RXClass.GetClass(typeof(Polyline3d)).Name,
-                };
-        }
-        private enum DefinedSets
-        {
-            LerFoeringsroerPS
         }
     }
     public partial class AfloebsledningType : ILerLedning
@@ -363,7 +331,17 @@ namespace LERImporter.Schema
     }
     public partial class ElledningType : ILerLedning
     {
-        public ElledningTypeEnum Type { get => getElledningTypeType(); }
+        [PsInclude]
+        public string Type { get => Type2.ToString(); }
+        [PsInclude]
+        public string Afdækning { get => this.afdaekning; }
+        [PsInclude]
+        public string AntalKabler { get => this.antalKabler; }
+        [PsInclude]
+        public string KabelType { get => this.kabeltype; }
+        [PsInclude]
+        public string SpædningsNiveau { get => this.spaendingsniveau.Value.ToString() + this.spaendingsniveau.uom; }
+        public ElledningTypeEnum Type2 { get => getElledningTypeType(); }
         private ElledningTypeEnum getElledningTypeType()
         {
             if (this.type.Value.IsNoE())
@@ -380,14 +358,13 @@ namespace LERImporter.Schema
                 return ElledningTypeEnum.other;
             }
         }
-
         private string DetermineLayerName(Database database)
         {
             #region Determine correct layer name
             string layerName;
             string driftsstatusSuffix = "";
 
-            switch (this.Driftsstatus)
+            switch (this.Driftsstatus2)
             {
                 case DriftsstatusType.underetablering:
                 case DriftsstatusType.idrift:

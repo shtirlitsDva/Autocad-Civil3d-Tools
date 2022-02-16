@@ -116,6 +116,7 @@
     <Compile Include="Schema\GraveforespoergselssvarType.cs" />
     <Compile Include="Schema\GraveforespoergselssvarTypeLedningMember.cs" />
     <Compile Include="Schema\LedningTypes.cs" />
+    <Compile Include="Schema\VariousClasses.cs" />
     <Compile Include="Visualizer.cs" />
   </ItemGroup>
   <ItemGroup>

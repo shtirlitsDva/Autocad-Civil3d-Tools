@@ -227,6 +227,23 @@ namespace LERImporter.Schema
             Log.log($"Number of ledningstraceMember -> {this.ledningstraceMember?.Length.ToString()}");
             Log.log($"Number of ledningskomponentMember -> {this.ledningskomponentMember?.Length.ToString()}");
 
+            //Determine owner
+            string owner;
+            switch (this.kontaktprofilTilTekniskeSpoergsmaal?.Kontaktprofil?.mailadresse)
+            {
+                case "gravetilsyn@radiuselnet.dk":
+                    owner = "RADIUS";
+                    break;
+                default:
+                    throw new System.Exception($"Ukendt ejer!");
+            }
+
+            HashSet<string> alleUnikkeLedningsTyper = ledningMember.Select(x => (x.Item.GetType().Name).Replace("Type", "")).ToHashSet();
+            foreach (string typeName in alleUnikkeLedningsTyper)
+            {
+                prdDbg($"{owner}_{typeName}");
+            }
+
             foreach (GraveforespoergselssvarTypeLedningMember member in ledningMember)
             {
                 if (member.Item == null)
@@ -238,10 +255,10 @@ namespace LERImporter.Schema
                 //ILerLedning ledning = member.Item as ILerLedning;
                 //Oid entityId = ledning.DrawEntity2D(WorkingDatabase);
 
-                prdDbg(ObjectDumper.Dump(member.Item));
+                //prdDbg(ObjectDumper.Dump(member.Item));
 
-                GmlToPropertySet gps = new GmlToPropertySet();
-                prdDbg(gps.TranslateGml(member.Item));
+                //GmlToPropertySet gps = new GmlToPropertySet();
+                //prdDbg(gps.TestTranslateGml(member.Item));
             }
         }
 

@@ -1,0 +1,52 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Log = LERImporter.SimpleLogger;
+
+namespace LERImporter.Schema
+{
+    public partial class MeasureType
+    {
+        /// <summary>
+        /// Should always return value in standard units.
+        /// Standard units are:
+        /// Meters, degrees, (add others as they come)
+        /// </summary>
+        public double getValueInStdUnits()
+        {
+            if (string.IsNullOrEmpty(this.uom))
+            {
+                throw new Exception("No units specified in MeasureType: uom is NoE!");
+            }
+
+            UnitsEnum units;
+            if (Enum.TryParse(this.uom, out units))
+            {
+                switch (units)
+                {
+                    case UnitsEnum.None:
+                        throw new Exception($"Non defined units in MeasureType: uom = {this.uom}!");
+                    case UnitsEnum.mm:
+                        return this.Value / 1000;
+                    case UnitsEnum.m:
+                        return this.Value;
+                    default:
+                        throw new Exception($"Non defined units in MeasureType: uom = {this.uom}!");
+                }
+            }
+            else
+            {
+                throw new Exception($"Non defined units in MeasureType: uom = {this.uom}!");
+            }
+        }
+    }
+
+    public enum UnitsEnum
+    {
+        None,
+        mm,
+        m
+    }
+}

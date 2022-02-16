@@ -13,6 +13,7 @@ using System.Globalization;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 using System.Windows.Forms;
+using System.Xml.Serialization;
 using Autodesk.Aec.DatabaseServices;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -1346,6 +1347,18 @@ namespace IntersectUtilities.UtilsCommon
             Array.Resize<T>(ref x, x.Length + y.Length);
             Array.Copy(y, 0, x, oldLen, y.Length);
             return x;
+        }
+        public static string GetXmlEnumAttributeValueFromEnum<TEnum>(this TEnum value) where TEnum : struct, IConvertible
+        {
+            var enumType = typeof(TEnum);
+            if (!enumType.IsEnum) return string.Empty;//or string.Empty, or throw exception
+
+            var member = enumType.GetMember(value.ToString()).FirstOrDefault();
+            if (member == null) return string.Empty;//or string.Empty, or throw exception
+
+            var attribute = member.GetCustomAttributes(false).OfType<XmlEnumAttribute>().FirstOrDefault();
+            if (attribute == null) return value.ToString();//or string.Empty, or throw exception
+            return attribute.Name;
         }
     }
     public static class ExtensionMethods
