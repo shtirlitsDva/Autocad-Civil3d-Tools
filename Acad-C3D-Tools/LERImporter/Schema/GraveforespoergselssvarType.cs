@@ -71,7 +71,7 @@ namespace LERImporter.Schema
             //List of all (new) layers of new entities
             HashSet<string> layerNames = new HashSet<string>();
 
-            prdDbg(ObjectDumper.Dump(ledningMember[50]));
+            prdDbg(ObjectDumper.Dump(ledningMember[0]));
 
             foreach (GraveforespoergselssvarTypeLedningMember member in ledningMember)
             {
@@ -112,9 +112,12 @@ namespace LERImporter.Schema
             string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
             System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
 
-            #region MyRegion
+            #region Read and assign layer's color
             //Regex to parse the color information
             Regex colorRegex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)");
+
+            //Cache layer table
+            LayerTable lt = WorkingDatabase.LayerTableId.Go<LayerTable>(WorkingDatabase.TransactionManager.TopTransaction);
 
             //Set up all LER layers
             foreach (string layerName in layerNames)
@@ -142,18 +145,103 @@ namespace LERImporter.Schema
                     color = Color.FromColorIndex(ColorMethod.ByAci, 0);
                 }
 
-                LayerTable lt = WorkingDatabase.LayerTableId.Go<LayerTable>(WorkingDatabase.TransactionManager.TopTransaction);
                 LayerTableRecord ltr = lt[layerName]
                     .Go<LayerTableRecord>(WorkingDatabase.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
                 ltr.Color = color;
-            } 
+            }
+            #endregion
+
+            #region Read and assign layer's linetype
+            LinetypeTable ltt = (LinetypeTable)WorkingDatabase.TransactionManager.TopTransaction
+                .GetObject(WorkingDatabase.LinetypeTableId, OpenMode.ForWrite);
+
+            //Check if all line types are present
+            HashSet<string> missingLineTypes = new HashSet<string>();
+            foreach (string layerName in layerNames)
+            {
+                string lineTypeName = ReadStringParameterFromDataTable(layerName, dtKrydsninger, "LineType", 0);
+                if (lineTypeName.IsNoE()) continue;
+                else if (!ltt.Has(lineTypeName)) missingLineTypes.Add(lineTypeName);
+            }
+
+            if (missingLineTypes.Count > 0)
+            {
+                Database ltDb = new Database(false, true);
+                ltDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\Projection_styles.dwg",
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
+                Transaction ltTx = ltDb.TransactionManager.StartTransaction();
+
+                Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(WorkingDatabase);
+
+                LinetypeTable sourceLtt = (LinetypeTable)ltDb.TransactionManager.TopTransaction
+                    .GetObject(ltDb.LinetypeTableId, OpenMode.ForRead);
+                ObjectIdCollection idsToClone = new ObjectIdCollection();
+                
+                foreach (string missingName in missingLineTypes) idsToClone.Add(sourceLtt[missingName]);
+
+                IdMapping mapping = new IdMapping();
+                ltDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                ltTx.Commit();
+                ltTx.Dispose();
+                ltDb.Dispose();
+            }
+
+            Oid lineTypeId;
+            foreach (string layerName in layerNames)
+            {
+                string lineTypeName = ReadStringParameterFromDataTable(layerName, dtKrydsninger, "LineType", 0);
+                if (lineTypeName.IsNoE())
+                {
+                    Log.log($"WARNING! Layer name {layerName} does not have a line type specified!.");
+                    //If linetype string is NoE -> CONTINUOUS linetype must be used
+                    lineTypeId = ltt["Continuous"];
+                }
+                else
+                {
+                    //the presence of the linetype is assured in previous foreach.
+                    lineTypeId = ltt[lineTypeName];
+                }
+                LayerTableRecord ltr = lt[layerName]
+                        .Go<LayerTableRecord>(WorkingDatabase.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                ltr.LinetypeObjectId = lineTypeId;
+            }
             #endregion
 
             //Print debug information on all types in collections
             foreach (string s in names)
             {
                 prdDbg(s);
+            }
+        }
+        public void TestPs()
+        {
+            if (this.ledningMember == null) this.ledningMember =
+                    new GraveforespoergselssvarTypeLedningMember[0];
+            if (this.ledningstraceMember == null) this.ledningstraceMember =
+                    new GraveforespoergselssvarTypeLedningstraceMember[0];
+            if (this.ledningskomponentMember == null) this.ledningskomponentMember =
+                    new GraveforespoergselssvarTypeLedningskomponentMember[0];
+
+            Log.log($"Number of ledningMember -> {this.ledningMember?.Length.ToString()}");
+            Log.log($"Number of ledningstraceMember -> {this.ledningstraceMember?.Length.ToString()}");
+            Log.log($"Number of ledningskomponentMember -> {this.ledningskomponentMember?.Length.ToString()}");
+
+            foreach (GraveforespoergselssvarTypeLedningMember member in ledningMember)
+            {
+                if (member.Item == null)
+                {
+                    Log.log($"ledningMember is null! Some enity has not been deserialized correct!");
+                    continue;
+                }
+
+                //ILerLedning ledning = member.Item as ILerLedning;
+                //Oid entityId = ledning.DrawEntity2D(WorkingDatabase);
+
+                prdDbg(ObjectDumper.Dump(member));
+
+                GmlToPropertySet gps = new GmlToPropertySet();
+                prdDbg(gps.TranslateGml(member));
             }
         }
 

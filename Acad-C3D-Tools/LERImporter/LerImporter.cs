@@ -81,7 +81,8 @@ namespace LERImporter
                 try
                 {
                     string fileName = @"D:\OneDrive - Damgaard Rådgivende Ingeniører ApS\34 Lerimporter" +
-                                      @"\Dev\53296456-7831-4836-95ae-6aeb955daf9c.gml";
+                                      //@"\Dev\53296456-7831-4836-95ae-6aeb955daf9c.gml";
+                                      @"\Dev\test.gml";
 
                     Log.log($"Starting import of {Path.GetFileName(fileName)}");
                     Log.log($"Located at {Path.GetDirectoryName(fileName)}");
@@ -128,6 +129,44 @@ namespace LERImporter
                     tx.Abort();
                     editor.WriteMessage("\n" + ex.Message);
                     editor.WriteMessage(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("TESTPS")]
+        public void testps()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    string fileName = @"D:\OneDrive - Damgaard Rådgivende Ingeniører ApS\34 Lerimporter" +
+                                      //@"\Dev\53296456-7831-4836-95ae-6aeb955daf9c.gml";
+                                      @"\Dev\test.gml";
+
+                    var serializer = new XmlSerializer(typeof(Schema.GraveforespoergselssvarType));
+                    Schema.GraveforespoergselssvarType gf;
+
+                    using (var fileStream = new FileStream(fileName, FileMode.Open))
+                    {
+                        gf = (Schema.GraveforespoergselssvarType)serializer.Deserialize(fileStream);
+                    }
+
+                    gf.WorkingDatabase = localDb;
+
+                    gf.TestPs();
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
                     return;
                 }
                 tx.Commit();

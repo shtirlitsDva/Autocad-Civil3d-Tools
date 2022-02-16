@@ -98,6 +98,7 @@
     <Compile Include="..\IntersectUtilities\UtilsCommon.cs">
       <Link>UtilsCommon.cs</Link>
     </Compile>
+    <Compile Include="GmlToPropertySet.cs" />
     <Compile Include="LerImporter.cs" />
     <Compile Include="ObjectDumper\DumpOptions.cs" />
     <Compile Include="ObjectDumper\DumpStyle.cs" />

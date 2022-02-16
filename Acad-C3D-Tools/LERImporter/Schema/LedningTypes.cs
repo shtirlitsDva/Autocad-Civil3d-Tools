@@ -239,6 +239,7 @@ namespace LERImporter.Schema
 
             pline.Layer = DetermineLayerName(database);
 
+
             return pline.ObjectId;
         }
         public Oid DrawEntity3D(Database database)
@@ -262,64 +263,64 @@ namespace LERImporter.Schema
         private class LerFoeringsroerPS
         {
             DefinedSets SetName { get; } = DefinedSets.LerFoeringsroerPS;
-            IntersectUtilities.PSetDefs.Property Forsyningsart { get; } =
+            PSetDefs.Property Forsyningsart { get; } =
                 new IntersectUtilities.PSetDefs.Property(
                     "Forsyningsart",
                     "Arten af rør som foringsrøret indeholder.",
                     PsDataType.Text,
                     "");
-            IntersectUtilities.PSetDefs.Property Tværsnitsform { get; } =
+            PSetDefs.Property Tværsnitsform { get; } =
                 new IntersectUtilities.PSetDefs.Property(
                     "Tværsnitsform",
                     "Ledningens tværsnitsform.",
                     PsDataType.Text,
                     "");
-            IntersectUtilities.PSetDefs.Property UdvendigDiameterUnits { get; } =
+            PSetDefs.Property UdvendigDiameterUnits { get; } =
                 new IntersectUtilities.PSetDefs.Property(
                     "UdvendigDiameterUnits",
                     "Enheden som udvendig diameter er angivet med.",
                     PsDataType.Text,
                     "");
-            IntersectUtilities.PSetDefs.Property UdvendigDiameterValue { get; } =
+            PSetDefs.Property UdvendigDiameterValue { get; } =
                 new IntersectUtilities.PSetDefs.Property(
                     "UdvendigDiameterValue",
                     "Udvendig diameter af røret.",
                     PsDataType.Real,
                     0);
-            IntersectUtilities.PSetDefs.Property Driftsstatus { get; } =
+            PSetDefs.Property Driftsstatus { get; } =
                 new IntersectUtilities.PSetDefs.Property(
                     "Driftsstatus",
                     "Er ledningen i drift?",
                     PsDataType.Text,
                     "");
-            IntersectUtilities.PSetDefs.Property Id { get; } =
+            PSetDefs.Property Id { get; } =
                 new IntersectUtilities.PSetDefs.Property(
                     "Id",
                     "Ledningens Ler id.",
                     PsDataType.Text,
                     "");
-            IntersectUtilities.PSetDefs.Property Indtegningsmetode { get; } =
+            PSetDefs.Property Indtegningsmetode { get; } =
                 new IntersectUtilities.PSetDefs.Property(
                     "Indtegningsmetode",
                     "Nøjagtighed på geometri.",
                     PsDataType.Text,
                     "");
-            IntersectUtilities.PSetDefs.Property Nøjagtighedsklasse { get; } =
+            PSetDefs.Property Nøjagtighedsklasse { get; } =
                 new IntersectUtilities.PSetDefs.Property(
                     "Nøjagtighedsklasse",
                     "Nøjagtighedsmargin i geometri.",
                     PsDataType.Text,
                     "");
-
-            IntersectUtilities.PSetDefs.Property VejledendeDybde { get; } =
+            PSetDefs.Property VejledendeDybde { get; } =
                 new IntersectUtilities.PSetDefs.Property(
                     "VejledendeDybde",
                     "Vejledende dybde for ledningens placering.",
                     PsDataType.Text,
                     "");
-            public StringCollection AppliesTo { get; } = new StringCollection()
+            StringCollection AppliesTo { get; } = new StringCollection()
                 {
                     RXClass.GetClass(typeof(Polyline)).Name,
+                    RXClass.GetClass(typeof(Polyline3d)).Name,
                 };
         }
         private enum DefinedSets
