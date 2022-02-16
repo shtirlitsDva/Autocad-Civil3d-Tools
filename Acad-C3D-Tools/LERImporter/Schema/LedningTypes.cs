@@ -55,12 +55,18 @@ namespace LERImporter.Schema
         Oid DrawEntity2D(Database database);
         Oid DrawEntity3D(Database database);
     }
+    [AttributeUsage(AttributeTargets.All, Inherited = false, AllowMultiple = true)]
+    public class PsInclude : Attribute
+    {
+        
+    }
     public static class LerLedning
     {
         
     }
     public partial class LedningType
     {
+        [PsInclude]
         public DriftsstatusType Driftsstatus { get => this.driftsstatus.Value; }
 
         public Oid DrawPline2D(Database database)
@@ -97,7 +103,9 @@ namespace LERImporter.Schema
     }
     public partial class RoerledningType
     {
-
+        [PsInclude]
+        public string Tværsnitsform { get => this?.tvaersnitsform?.Value; }
+        public string UdvendigBredde { get => this?.udvendigBredde.}
     }
     public partial class VandledningType : ILerLedning
     {
@@ -149,6 +157,7 @@ namespace LERImporter.Schema
     }
     public partial class FoeringsroerType : ILerLedning
     {
+        [PsInclude]
         public ForsyningsartEnum Forsyningsart { get => getForsyningsart(forsyningsart); }
         private ForsyningsartEnum getForsyningsart(string[] forsyningsart)
         {

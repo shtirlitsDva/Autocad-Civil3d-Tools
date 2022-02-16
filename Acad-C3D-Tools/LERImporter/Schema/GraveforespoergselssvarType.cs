@@ -238,10 +238,10 @@ namespace LERImporter.Schema
                 //ILerLedning ledning = member.Item as ILerLedning;
                 //Oid entityId = ledning.DrawEntity2D(WorkingDatabase);
 
-                prdDbg(ObjectDumper.Dump(member));
+                prdDbg(ObjectDumper.Dump(member.Item));
 
                 GmlToPropertySet gps = new GmlToPropertySet();
-                prdDbg(gps.TranslateGml(member));
+                prdDbg(gps.TranslateGml(member.Item));
             }
         }
 

@@ -6,14 +6,21 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Reflection;
+using System.Xml.Serialization;
 
 namespace LERImporter
 {
     internal class GmlToPropertySet
     {
         private StringBuilder sb = new StringBuilder();
+        private HashSet<string> excludeProperties = new HashSet<string>()
+        {
+            "geometri"
+        };
         internal string TranslateGml(object element)
         {
+            string currentType = "";
+
             if (element == null || element is ValueType || element is string)
             {
                 sb.AppendLine(this.FormatValue(element));
@@ -23,31 +30,33 @@ namespace LERImporter
                 var objectType = element.GetType();
                 if (!typeof(IEnumerable).GetTypeInfo().IsAssignableFrom(objectType.GetTypeInfo()))
                 {
-                    sb.AppendLine(GetClassName(element));
+                    string[] split;
+
+                    sb.Append(GetClassName(element));
+                    XmlRootAttribute xmlRoot = objectType.GetCustomAttribute<XmlRootAttribute>();
+                    if (xmlRoot != null)
+                    {
+                        sb.AppendLine($" <- {xmlRoot.ElementName}");
+                        currentType = xmlRoot.ElementName;
+                    }
+                    //Split the name of class by the keyword Type as it seems to be present everywhere
+                    //Don't know if it will be true for everything
+                    else if ((split = GetClassName(element).Split(new string[] { "Type" }, StringSplitOptions.RemoveEmptyEntries)).Length > 0)
+                    {
+                        sb.AppendLine($" <- {split.Last()}");
+                        currentType = split.Last();
+                    }
+                    else
+                    {
+                        sb.Append("\n");
+                    }
+                    //objectType.CustomAttributes.ToList().ForEach(a => sb.AppendLine(a.ToString()));
                 }
 
                 var enumerableElement = element as IEnumerable;
                 if (enumerableElement != null)
                 {
-                    foreach (var item in enumerableElement)
-                    {
-                        if (item is IEnumerable && !(item is string))
-                        {
-                            this.TranslateGml(item);
-                        }
-                        else
-                        {
-                            //if (!this.AlreadyTouched(item))
-                            //{
-                            this.TranslateGml(item);
-                            //}
-                            //else
-                            //{
-                            //    this.Write($"{GetClassName(element)} <-- bidirectional reference found");
-                            //    this.LineBreak();
-                            //}
-                        }
-                    }
+                    foreach (var item in enumerableElement) this.TranslateGml(item);
                 }
                 else
                 {
@@ -59,40 +68,25 @@ namespace LERImporter
                         if (fieldInfo.FieldType.GetTypeInfo().IsValueType || fieldInfo.FieldType == typeof(string))
                         {
                             sb.AppendLine($"{fieldInfo.Name}: {this.FormatValue(value)}");
-                            //this.LineBreak();
                         }
                         else
                         {
                             var isEnumerable = typeof(IEnumerable).GetTypeInfo()
                                 .IsAssignableFrom(fieldInfo.FieldType.GetTypeInfo());
-                            sb.AppendLine($"{fieldInfo.Name}: {(isEnumerable ? "..." : (value != null ? "{ }" : "null"))}");
-                            //this.LineBreak();
+                            sb.AppendLine($"{fieldInfo.Name}: {(isEnumerable ? "..." : (value != null ? "{ field }" : "null"))}");
 
-                            if (value != null)
-                            {
-                                var alreadyTouched = !isEnumerable; // && this.AlreadyTouched(value);
-                                if (!alreadyTouched)
-                                {
-                                    this.TranslateGml(value);
-                                }
-                                else
-                                {
-                                    
-                                }
-                            }
+                            if (value != null) this.TranslateGml(value);
                         }
                     }
 
+                    //Iterate properties
                     var properties = element.GetType().GetRuntimeProperties()
                         .Where(p => p.GetMethod != null && p.GetMethod.IsPublic && p.GetMethod.IsStatic == false)
                         .ToList();
 
-                    //if (this.DumpOptions.ExcludeProperties != null && this.DumpOptions.ExcludeProperties.Any())
-                    //{
-                    //    properties = properties
-                    //        .Where(p => !this.DumpOptions.ExcludeProperties.Contains(p.Name))
-                    //        .ToList();
-                    //}
+                    properties = properties
+                        .Where(p => !this.excludeProperties.Contains(p.Name))
+                        .ToList();
 
                     foreach (var propertyInfo in properties)
                     {
@@ -101,24 +95,14 @@ namespace LERImporter
 
                         if (type.GetTypeInfo().IsValueType || type == typeof(string))
                         {
-                            sb.AppendLine($"{propertyInfo.Name}: {this.FormatValue(value)}");
+                            sb.AppendLine($"{currentType}-{propertyInfo.Name}: {this.FormatValue(value)}");
                         }
                         else
                         {
                             var isEnumerable = typeof(IEnumerable).GetTypeInfo().IsAssignableFrom(type.GetTypeInfo());
-                            sb.AppendLine($"{propertyInfo.Name}: {(isEnumerable ? "..." : (value != null ? "{ }" : "null"))}");
+                            sb.AppendLine($"{currentType}-{propertyInfo.Name}: {(isEnumerable ? "..." : (value != null ? "{ property }" : "null"))}");
 
-                            if (value != null)
-                            {
-                                //var alreadyTouched = !isEnumerable; // && this.AlreadyTouched(value);
-                                //if (!isEnumerable)
-                                {
-                                    this.TranslateGml(value);
-                                }
-                                //else
-                                //{
-                                //}
-                            }
+                            if (value != null) this.TranslateGml(value);
                         }
                     }
                 }
