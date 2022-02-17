@@ -49,11 +49,11 @@ namespace LERImporter.Schema
         mm,
         m
     }
+    [XmlRootAttribute("AbstractGML", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
     public abstract partial class AbstractGMLType
     {
-        public string GMLTypeID { get => this.id; }
-        [XmlAttribute(Form = System.Xml.Schema.XmlSchemaForm.Qualified, DataType = "ID")]
-        [XmlIgnore]
-        public string id { get; set; }
+        public string GMLTypeID { get => this.gmlid; }
+        [XmlAttribute(Form = System.Xml.Schema.XmlSchemaForm.Qualified, AttributeName = "id", DataType = "ID")]
+        public string gmlid { get; set; }
     }
 }

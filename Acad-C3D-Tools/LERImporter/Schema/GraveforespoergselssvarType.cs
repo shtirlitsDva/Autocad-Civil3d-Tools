@@ -53,6 +53,19 @@ namespace LERImporter.Schema
 {
     public partial class GraveforespoergselssvarType
     {
+        public string Owner
+        {
+            get
+            {
+                switch (this.kontaktprofilTilTekniskeSpoergsmaal?.Kontaktprofil?.mailadresse)
+                {
+                    case "gravetilsyn@radiuselnet.dk":
+                        return "RADIUS";
+                    default:
+                        throw new System.Exception($"Ukendt ejer!");
+                }
+            }
+        }
         public Database WorkingDatabase { get; set; }
         public void CreateLerData()
         {
@@ -67,13 +80,92 @@ namespace LERImporter.Schema
             Log.log($"Number of ledningstraceMember -> {this.ledningstraceMember?.Length.ToString()}");
             Log.log($"Number of ledningskomponentMember -> {this.ledningskomponentMember?.Length.ToString()}");
 
+            #region Create property sets
+            //Dictionary to translate between type name and psName
+            Dictionary<string, string> psDict = new Dictionary<string, string>();
+
+            //Create property sets
+            HashSet<Type> allUniqueTypes = ledningMember.Select(x => x.Item.GetType()).Distinct().ToHashSet();
+            foreach (Type type in allUniqueTypes)
+            {
+                string typeName = type.Name.Replace("Type", "");
+                string psName = Owner + "-" + typeName;
+                //Store the ps name in dictionary referenced by the type name
+                psDict.Add(type.Name, psName);
+
+                PropertySetDefinition propSetDef = new PropertySetDefinition();
+                propSetDef.SetToStandard(WorkingDatabase);
+                propSetDef.SubSetDatabaseDefaults(WorkingDatabase);
+
+                propSetDef.Description = type.FullName;
+                bool isStyle = false;
+                var appliedTo = new StringCollection()
+                {
+                    RXClass.GetClass(typeof(Polyline)).Name,
+                    RXClass.GetClass(typeof(Polyline3d)).Name
+                };
+                propSetDef.SetAppliesToFilter(appliedTo, isStyle);
+
+                var properties = type.GetProperties();
+
+                foreach (PropertyInfo prop in properties)
+                {
+                    bool include = prop.CustomAttributes.Any(x => x.AttributeType == typeof(Schema.PsInclude));
+                    if (include)
+                    {
+                        var propDefManual = new PropertyDefinition();
+                        propDefManual.SetToStandard(WorkingDatabase);
+                        propDefManual.SubSetDatabaseDefaults(WorkingDatabase);
+                        propDefManual.Name = prop.Name;
+                        propDefManual.Description = prop.Name;
+                        switch (prop.PropertyType.Name)
+                        {
+                            case nameof(String):
+                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+                                propDefManual.DefaultData = "";
+                                break;
+                            case nameof(Boolean):
+                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.TrueFalse;
+                                propDefManual.DefaultData = false;
+                                break;
+                            case nameof(Double):
+                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Real;
+                                propDefManual.DefaultData = 0.0;
+                                break;
+                            case nameof(Int32):
+                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Integer;
+                                propDefManual.DefaultData = 0;
+                                break;
+                            default:
+                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+                                propDefManual.DefaultData = "";
+                                break;
+                        }
+                        propSetDef.Definitions.Add(propDefManual);
+                    }
+                }
+
+                using (Transaction tx = WorkingDatabase.TransactionManager.StartTransaction())
+                {
+                    //check if prop set already exists
+                    DictionaryPropertySetDefinitions dictPropSetDef = new DictionaryPropertySetDefinitions(WorkingDatabase);
+                    if (dictPropSetDef.Has(psName, tx))
+                    {
+                        tx.Abort();
+                        continue;
+                    }
+                    dictPropSetDef.AddNewRecord(psName, propSetDef);
+                    tx.AddNewlyCreatedDBObject(propSetDef, true);
+                    tx.Commit();
+                }
+            }
+            #endregion
+
             //Debug list of all types in collections
             HashSet<string> names = new HashSet<string>();
 
             //List of all (new) layers of new entities
             HashSet<string> layerNames = new HashSet<string>();
-
-            prdDbg(ObjectDumper.Dump(ledningMember[0]));
 
             foreach (GraveforespoergselssvarTypeLedningMember member in ledningMember)
             {
@@ -83,9 +175,18 @@ namespace LERImporter.Schema
                     continue;
                 }
 
+                string psName = psDict[member.Item.GetType().Name];
                 ILerLedning ledning = member.Item as ILerLedning;
                 Oid entityId = ledning.DrawEntity2D(WorkingDatabase);
-                layerNames.Add(entityId.Layer());
+                Entity ent = entityId.Go<Entity>(WorkingDatabase.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                layerNames.Add(ent.Layer);
+
+                //Attach the property set
+                PropertySetManager.AttachNonDefinedPropertySet(WorkingDatabase, ent, psName);
+
+                //Populate the property set
+                var psData = GmlToPropertySet.TranslateGmlToPs(member.Item);
+                PropertySetManager.PopulateNonDefinedPropertySet(WorkingDatabase, ent, psName, psData);
 
                 names.Add(member.Item.ToString());
             }
@@ -209,12 +310,6 @@ namespace LERImporter.Schema
                 ltr.LinetypeObjectId = lineTypeId;
             }
             #endregion
-
-            //Print debug information on all types in collections
-            foreach (string s in names)
-            {
-                prdDbg(s);
-            }
         }
         public void TestPs()
         {
@@ -229,89 +324,9 @@ namespace LERImporter.Schema
             Log.log($"Number of ledningstraceMember -> {this.ledningstraceMember?.Length.ToString()}");
             Log.log($"Number of ledningskomponentMember -> {this.ledningskomponentMember?.Length.ToString()}");
 
-            //Determine owner
-            string owner;
-            switch (this.kontaktprofilTilTekniskeSpoergsmaal?.Kontaktprofil?.mailadresse)
-            {
-                case "gravetilsyn@radiuselnet.dk":
-                    owner = "RADIUS";
-                    break;
-                default:
-                    throw new System.Exception($"Ukendt ejer!");
-            }
 
-            //Create property sets
-            HashSet<Type> allUniqueTypes = ledningMember.Select(x => x.Item.GetType()).Distinct().ToHashSet();
-            foreach (Type type in allUniqueTypes)
-            {
-                string typeName = type.Name.Replace("Type", "");
-                string psName = owner + "_" + typeName;
 
-                PropertySetDefinition propSetDef = new PropertySetDefinition();
-                propSetDef.SetToStandard(WorkingDatabase);
-                propSetDef.SubSetDatabaseDefaults(WorkingDatabase);
 
-                propSetDef.Description = type.FullName;
-                bool isStyle = false;
-                var appliedTo = new StringCollection()
-                {
-                    RXClass.GetClass(typeof(Polyline)).Name,
-                    RXClass.GetClass(typeof(Polyline3d)).Name
-                };
-                propSetDef.SetAppliesToFilter(appliedTo, isStyle);
-
-                var properties = type.GetProperties();
-
-                foreach (PropertyInfo prop in properties)
-                {
-                    bool include = prop.CustomAttributes.Any(x => x.AttributeType == typeof(Schema.PsInclude));
-                    if (include)
-                    {
-                        var propDefManual = new PropertyDefinition();
-                        propDefManual.SetToStandard(WorkingDatabase);
-                        propDefManual.SubSetDatabaseDefaults(WorkingDatabase);
-                        propDefManual.Name = prop.Name;
-                        switch (prop.PropertyType.Name)
-                        {
-                            case nameof(String):
-                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-                                propDefManual.DefaultData = "";
-                                break;
-                            case nameof(Boolean):
-                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.TrueFalse;
-                                propDefManual.DefaultData = false;
-                                break;
-                            case nameof(Double):
-                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Real;
-                                propDefManual.DefaultData = 0;
-                                break;
-                            case nameof(Int32):
-                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Integer;
-                                propDefManual.DefaultData = 0;
-                                break;
-                            default:
-                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-                                propDefManual.DefaultData = "";
-                                break;
-                        }
-                        propSetDef.Definitions.Add(propDefManual);
-                    }
-                }
-
-                using (Transaction tx = WorkingDatabase.TransactionManager.StartTransaction())
-                {
-                    //check if prop set already exists
-                    var dictPropSetDef = new DictionaryPropertySetDefinitions(WorkingDatabase);
-                    if (dictPropSetDef.Has(psName, tx))
-                    {
-                        tx.Abort();
-                        continue;
-                    }
-
-                    dictPropSetDef.AddNewRecord(psName, propSetDef);
-                    tx.Commit();
-                }
-            }
 
             foreach (GraveforespoergselssvarTypeLedningMember member in ledningMember)
             {

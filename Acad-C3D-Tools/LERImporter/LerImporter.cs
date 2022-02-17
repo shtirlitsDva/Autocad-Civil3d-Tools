@@ -149,7 +149,7 @@ namespace LERImporter
                 {
                     string fileName = @"D:\OneDrive - Damgaard Rådgivende Ingeniører ApS\34 Lerimporter" +
                                       @"\Dev\53296456-7831-4836-95ae-6aeb955daf9c.gml";
-                                      //"\Dev\test.gml";
+                    //"\Dev\test.gml";
 
                     var serializer = new XmlSerializer(typeof(Schema.GraveforespoergselssvarType));
                     Schema.GraveforespoergselssvarType gf;
@@ -170,6 +170,81 @@ namespace LERImporter
                     return;
                 }
                 tx.Commit();
+            }
+        }
+        [CommandMethod("IMPORTGMLLERDATA")]
+        public void importgmllerdata()
+        {
+            try
+            {
+                #region Get file and folder of gml
+                string pathToGml = string.Empty;
+                OpenFileDialog dialog = new OpenFileDialog()
+                {
+                    Title = "Choose gml file:",
+                    DefaultExt = "gml",
+                    Filter = "gml files (*.gml)|*.gml|All files (*.*)|*.*",
+                    FilterIndex = 0
+                };
+                if (dialog.ShowDialog() == DialogResult.OK) pathToGml = dialog.FileName;
+                else return;
+
+                string folderPath = Path.GetDirectoryName(pathToGml) + "\\";
+                #endregion
+
+                Log.LogFileName = folderPath + "LerImport.log";
+                Log.log($"Importing {pathToGml}");
+
+                #region Deserialize gml
+                var serializer = new XmlSerializer(typeof(Schema.GraveforespoergselssvarType));
+                Schema.GraveforespoergselssvarType gf;
+
+                using (var fileStream = new FileStream(pathToGml, FileMode.Open))
+                {
+                    gf = (Schema.GraveforespoergselssvarType)serializer.Deserialize(fileStream);
+                }
+                #endregion
+
+                #region Create database for 2D ler
+                using (Database ler2dDb = new Database(false, true))
+                {
+                    ler2dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Templates\LerTemplate.dwt",
+                                FileOpenMode.OpenForReadAndAllShare, false, null);
+                    //Build the new future file name of the drawing
+                    string newFilename = $"{folderPath}{gf.Owner}_2D.dwg";
+                    Log.log($"Writing Ler 2D to new dwg file: {newFilename}.");
+                    //ler2dDb.SaveAs(newFilename, true, DwgVersion.Newest, null);
+
+                    using (Transaction ler2dTx = ler2dDb.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            gf.WorkingDatabase = ler2dDb;
+                            gf.CreateLerData();
+                            gf.WorkingDatabase = null;
+                        }
+                        catch (System.Exception ex)
+                        {
+                            Log.log(ex.ToString());
+                            ler2dTx.Abort();
+                            ler2dDb.Dispose();
+                            throw;
+                        }
+
+                        ler2dTx.Commit();
+                    }
+
+                    //Save the new dwg file
+                    ler2dDb.SaveAs(newFilename, DwgVersion.Current);
+                    //ler2dDb.Dispose();
+                }
+                #endregion
+
+            }
+            catch (System.Exception ex)
+            {
+                Log.log(ex.ToString());
+                return;
             }
         }
     }

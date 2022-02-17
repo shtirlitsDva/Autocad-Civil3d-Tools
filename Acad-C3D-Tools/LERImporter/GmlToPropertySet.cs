@@ -13,7 +13,27 @@ namespace LERImporter
     internal class GmlToPropertySet
     {
         private StringBuilder sb = new StringBuilder();
-        
+        internal static Dictionary<string, object> TranslateGmlToPs(object element)
+        {
+            Dictionary<string, object> psData = new Dictionary<string, object>();
+
+            var properties = element.GetType().GetRuntimeProperties()
+                .Where(p => p.GetMethod != null && p.GetMethod.IsPublic && p.GetMethod.IsStatic == false)
+                .ToList();
+
+            foreach (var propertyInfo in properties)
+            {
+                bool include = propertyInfo.CustomAttributes.Any(x => x.AttributeType == typeof(Schema.PsInclude));
+
+                if (include)
+                {
+                    var value = TryGetValue(propertyInfo, element);
+                    psData.Add(propertyInfo.Name, value);
+                }
+            }
+
+            return psData;
+        }
         internal string TestTranslateGml(object element)
         {
             sb.AppendLine("<----- My Dump starts here ----->");
@@ -32,7 +52,7 @@ namespace LERImporter
                     sb.AppendLine($"{propertyInfo.Name}: {value}");
                 }
             }
-            
+
             return sb.ToString();
         }
         internal static object TryGetValue(PropertyInfo property, object element)
@@ -41,6 +61,28 @@ namespace LERImporter
             try
             {
                 value = property.GetValue(element);
+
+                if (value == null)
+                {
+                    switch (property.PropertyType.Name)
+                    {
+                        case nameof(String):
+                            value = "";
+                            break;
+                        case nameof(Boolean):
+                            value = false;
+                            break;
+                        case nameof(Double):
+                            value = 0;
+                            break;
+                        case nameof(Int32):
+                            value = 0;
+                            break;
+                        default:
+                            value = "";
+                            break;
+                    }
+                }
             }
             catch (Exception ex)
             {

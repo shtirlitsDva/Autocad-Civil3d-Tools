@@ -309,6 +309,55 @@ namespace IntersectUtilities
             object value = ReadNonDefinedPropertySetObject(ent, propertySetName, propertyName);
             return Convert.ToString(value);
         }
+        public static void AttachNonDefinedPropertySet(Database database, Entity ent, string propertySetName)
+        {
+            var dictPropSetDefs = new DictionaryPropertySetDefinitions(database);
+            Oid psId = dictPropSetDefs.GetAt(propertySetName);
+            if (psId == Oid.Null) throw new System.Exception($"No property set named {propertySetName} was found!");
+            //Add property set to the entity
+            ent.CheckOrOpenForWrite();
+            PropertyDataServices.AddPropertySet(ent, psId);
+        }
+        public static void PopulateNonDefinedPropertySet(
+            Database database, Entity ent, string propertySetName, Dictionary<string, object> psData)
+        {
+            ObjectIdCollection propertySetIds = PropertyDataServices.GetPropertySets(ent);
+
+            if (propertySetIds.Count == 0)
+            {
+                throw new System.Exception($"Property set {propertySetName} have not been attached correctly!");
+            }
+            else
+            {
+                foreach (Oid oid in propertySetIds)
+                {
+                    PropertySet ps = oid.Go<PropertySet>(database.TransactionManager.TopTransaction);
+                    if (ps.PropertySetDefinitionName == propertySetName)
+                    {
+                        int i = 0;
+                        ps.CheckOrOpenForWrite();
+                        foreach (KeyValuePair<string, object> pair in psData)
+                        {
+                            i++;
+                            int propertyId = ps.PropertyNameToId(pair.Key);
+                            try
+                            {
+                                ps.SetAt(propertyId, pair.Value);
+                            }
+                            catch (System.Exception)
+                            {
+                                prdDbg($"{i} Data: {pair.Key}: {pair.Value}");
+                                throw;
+                            }
+                        }
+                        ps.DowngradeOpen();
+                        return;
+                    }
+                }
+                //Property set not attached
+                throw new System.Exception($"Property set {propertySetName} could not been found attached to entity!");
+            }
+        }
     }
 
     public class PSetDefs
