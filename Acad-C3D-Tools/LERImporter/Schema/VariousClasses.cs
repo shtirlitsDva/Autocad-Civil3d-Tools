@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 using Log = LERImporter.SimpleLogger;
 
 namespace LERImporter.Schema
@@ -42,11 +43,17 @@ namespace LERImporter.Schema
             }
         }
     }
-
     public enum UnitsEnum
     {
         None,
         mm,
         m
+    }
+    public abstract partial class AbstractGMLType
+    {
+        public string GMLTypeID { get => this.id; }
+        [XmlAttribute(Form = System.Xml.Schema.XmlSchemaForm.Qualified, DataType = "ID")]
+        [XmlIgnore]
+        public string id { get; set; }
     }
 }

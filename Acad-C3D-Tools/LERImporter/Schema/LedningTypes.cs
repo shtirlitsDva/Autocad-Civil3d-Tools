@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -71,6 +72,8 @@ namespace LERImporter.Schema
         public string Fareklasse { get => this.fareklasse?.Value.GetXmlEnumAttributeValueFromEnum() ?? ""; }
         [PsInclude]
         public string Id { get => this.id; }
+        [PsInclude]
+        public string GmlId { get => this.GMLTypeID; }
         [PsInclude]
         public string IndtegningsMetode { get => this.indtegningsmetode.GetXmlEnumAttributeValueFromEnum(); }
         [PsInclude]
@@ -336,7 +339,9 @@ namespace LERImporter.Schema
         [PsInclude]
         public string Afdækning { get => this.afdaekning; }
         [PsInclude]
-        public string AntalKabler { get => this.antalKabler; }
+        public Int32 AntalKabler { get => this.antalKabler; }
+        //[XmlElement(DataType = "integer")]
+        public Int32 antalKabler { get; set; }
         [PsInclude]
         public string KabelType { get => this.kabeltype; }
         [PsInclude]

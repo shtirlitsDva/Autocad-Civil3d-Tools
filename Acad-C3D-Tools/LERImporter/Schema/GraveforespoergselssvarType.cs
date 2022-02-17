@@ -23,6 +23,8 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Data;
+using System.Reflection;
+using System.Xml.Serialization;
 //using MoreLinq;
 //using GroupByCluster;
 using IntersectUtilities;
@@ -177,7 +179,7 @@ namespace LERImporter.Schema
                 LinetypeTable sourceLtt = (LinetypeTable)ltDb.TransactionManager.TopTransaction
                     .GetObject(ltDb.LinetypeTableId, OpenMode.ForRead);
                 ObjectIdCollection idsToClone = new ObjectIdCollection();
-                
+
                 foreach (string missingName in missingLineTypes) idsToClone.Add(sourceLtt[missingName]);
 
                 IdMapping mapping = new IdMapping();
@@ -238,10 +240,77 @@ namespace LERImporter.Schema
                     throw new System.Exception($"Ukendt ejer!");
             }
 
-            HashSet<string> alleUnikkeLedningsTyper = ledningMember.Select(x => (x.Item.GetType().Name).Replace("Type", "")).ToHashSet();
-            foreach (string typeName in alleUnikkeLedningsTyper)
+            //Create property sets
+            HashSet<Type> allUniqueTypes = ledningMember.Select(x => x.Item.GetType()).Distinct().ToHashSet();
+            foreach (Type type in allUniqueTypes)
             {
-                prdDbg($"{owner}_{typeName}");
+                string typeName = type.Name.Replace("Type", "");
+                string psName = owner + "_" + typeName;
+
+                PropertySetDefinition propSetDef = new PropertySetDefinition();
+                propSetDef.SetToStandard(WorkingDatabase);
+                propSetDef.SubSetDatabaseDefaults(WorkingDatabase);
+
+                propSetDef.Description = type.FullName;
+                bool isStyle = false;
+                var appliedTo = new StringCollection()
+                {
+                    RXClass.GetClass(typeof(Polyline)).Name,
+                    RXClass.GetClass(typeof(Polyline3d)).Name
+                };
+                propSetDef.SetAppliesToFilter(appliedTo, isStyle);
+
+                var properties = type.GetProperties();
+
+                foreach (PropertyInfo prop in properties)
+                {
+                    bool include = prop.CustomAttributes.Any(x => x.AttributeType == typeof(Schema.PsInclude));
+                    if (include)
+                    {
+                        var propDefManual = new PropertyDefinition();
+                        propDefManual.SetToStandard(WorkingDatabase);
+                        propDefManual.SubSetDatabaseDefaults(WorkingDatabase);
+                        propDefManual.Name = prop.Name;
+                        switch (prop.PropertyType.Name)
+                        {
+                            case nameof(String):
+                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+                                propDefManual.DefaultData = "";
+                                break;
+                            case nameof(Boolean):
+                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.TrueFalse;
+                                propDefManual.DefaultData = false;
+                                break;
+                            case nameof(Double):
+                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Real;
+                                propDefManual.DefaultData = 0;
+                                break;
+                            case nameof(Int32):
+                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Integer;
+                                propDefManual.DefaultData = 0;
+                                break;
+                            default:
+                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+                                propDefManual.DefaultData = "";
+                                break;
+                        }
+                        propSetDef.Definitions.Add(propDefManual);
+                    }
+                }
+
+                using (Transaction tx = WorkingDatabase.TransactionManager.StartTransaction())
+                {
+                    //check if prop set already exists
+                    var dictPropSetDef = new DictionaryPropertySetDefinitions(WorkingDatabase);
+                    if (dictPropSetDef.Has(psName, tx))
+                    {
+                        tx.Abort();
+                        continue;
+                    }
+
+                    dictPropSetDef.AddNewRecord(psName, propSetDef);
+                    tx.Commit();
+                }
             }
 
             foreach (GraveforespoergselssvarTypeLedningMember member in ledningMember)
@@ -260,6 +329,9 @@ namespace LERImporter.Schema
                 //GmlToPropertySet gps = new GmlToPropertySet();
                 //prdDbg(gps.TestTranslateGml(member.Item));
             }
+
+            GmlToPropertySet gps = new GmlToPropertySet();
+            prdDbg(gps.TestTranslateGml(ledningMember[56].Item));
         }
 
         #region Archive

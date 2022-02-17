@@ -1311,9 +1311,6 @@ namespace LERImporter.Schema
         [XmlIgnore]
         [XmlElement("name")]
         public CodeType[] name { get; set; }
-        [XmlIgnore]
-        [XmlAttribute(Form = System.Xml.Schema.XmlSchemaForm.Qualified, DataType = "ID")]
-        public string id { get; set; }
     }
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
@@ -6313,10 +6310,6 @@ namespace LERImporter.Schema
         [XmlElement(IsNullable = true)]
         public LedningEllerLedningstraceTypeFareklasse fareklasse { get; set; }
         /// <summary>
-        /// sproglig uafhængig rækkefølge af tegn der er egnet til unikt og permanent at identificere det som det er knyttet til
-        /// </summary>
-        public string id { get; set; }
-        /// <summary>
         /// måden et objekts geometri repræsenteres på, afhængig af formålet med en visualisering
         /// </summary>
         [DefaultValue(IndtegningsmetodetypeType.nøjagtigt)]
@@ -6326,6 +6319,10 @@ namespace LERImporter.Schema
         /// </summary>
         [XmlElement(IsNullable = true)]
         public LedningEllerLedningstraceTypeNoejagtighedsklasse noejagtighedsklasse { get; set; }
+        /// <summary>
+        /// sproglig uafhængig rækkefølge af tegn der er egnet til unikt og permanent at identificere det som det er knyttet til
+        /// </summary>
+        public string id { get; set; }
         /// <summary>
         /// tidspunkt hvor registrering er foretaget
         /// </summary>
@@ -7080,8 +7077,7 @@ namespace LERImporter.Schema
         /// <summary>
         /// mængde af kabler
         /// </summary>
-        [XmlElement(DataType = "integer")]
-        public string antalKabler { get; set; }
+        //AntalKabler was here
         /// <summary>
         /// siger noget om hvilken type kabel det er
         /// </summary>
@@ -7271,10 +7267,6 @@ namespace LERImporter.Schema
     public partial class GraveforespoergselssvarType : AbstractFeatureType
     {
         /// <summary>
-        /// sproglig uafhængig rækkefølge af tegn der er egnet til unikt og permanent at identificere det som det er knyttet til
-        /// </summary>
-        public string id { get; set; }
-        /// <summary>
         /// kategori af graveforespørgselssvar
         /// </summary>
         public GraveforespoergselssvartypeType type { get; set; }
@@ -7291,6 +7283,10 @@ namespace LERImporter.Schema
         /// supplerende oplysninger om type af graveforespørgselssvar
         /// </summary>
         public string typeSupplerendeInfo { get; set; }
+        /// <summary>
+        /// sproglig uafhængig rækkefølge af tegn der er egnet til unikt og permanent at identificere det som det er knyttet til
+        /// </summary>
+        public string id { get; set; }
         /// <summary>
         /// kontaktprofil der giver adgang til kontaktoplysninger på nogen man kan kontakte for at få svar på tekniske spørgsmål
         /// </summary>
