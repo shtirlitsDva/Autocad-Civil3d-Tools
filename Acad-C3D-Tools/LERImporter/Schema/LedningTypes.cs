@@ -77,7 +77,8 @@ namespace LERImporter.Schema
         [PsInclude]
         public string IndtegningsMetode { get => this.indtegningsmetode.GetXmlEnumAttributeValueFromEnum(); }
         [PsInclude]
-        public string Nøjagtighedsklasse { get => this.noejagtighedsklasse?.Value.GetXmlEnumAttributeValueFromEnum() ?? ""; }
+        public string Nøjagtighedsklasse { 
+            get => this.noejagtighedsklasse?.Value.GetXmlEnumAttributeValueFromEnum() ?? "ukendt"; }
         [PsInclude]
         public string RegistreringFra { get => this.registreringFra.ToString() ?? string.Empty; }
         [PsInclude]

@@ -15,6 +15,23 @@ namespace LERImporter.Schema
         public string EtableringsTidspunkt { get => this.etableringstidspunkt?.Value; }
         [PsInclude]
         public string Fareklasse { get => this.fareklasse?.Value.GetXmlEnumAttributeValueFromEnum() ?? "ukendt"; }
+        [PsInclude]
+        public string Id { get => this.id; }
+        [PsInclude]
+        public string GmlId { get => this.GMLTypeID; }
+        [PsInclude]
+        public string Materiale { get => this.materiale; }
+        [PsInclude]
+        public string Nøjagtighedsklasse { 
+            get => this.noejagtighedsklasse?.Value.GetXmlEnumAttributeValueFromEnum() ?? "ukendt"; }
+        [PsInclude]
+        public string RegistreringFra { get => this.registreringFra.ToString() ?? string.Empty; }
+        [PsInclude]
+        public string Sikkerhedshensyn { get => this.sikkerhedshensyn; }
+        [PsInclude]
+        public double VejledendeDybde { get => this.vejledendeDybde?.getValueInStdUnits() ?? default; }
+        [PsInclude]
+        public string Niveau { get => this.niveau.GetXmlEnumAttributeValueFromEnum(); }
     }
     public partial class VandkomponentType : LedningskomponentType { }
     public partial class TermiskKomponentType : LedningskomponentType { }
