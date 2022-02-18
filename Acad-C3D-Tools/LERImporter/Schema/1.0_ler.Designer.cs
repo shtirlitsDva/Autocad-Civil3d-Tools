@@ -5443,7 +5443,6 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(AfloebskomponentType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Ledningskomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]

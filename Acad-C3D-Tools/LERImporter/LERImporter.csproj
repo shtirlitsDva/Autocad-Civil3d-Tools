@@ -115,6 +115,7 @@
     <Compile Include="Schema\Geometri.cs" />
     <Compile Include="Schema\GraveforespoergselssvarType.cs" />
     <Compile Include="Schema\GraveforespoergselssvarTypeLedningMember.cs" />
+    <Compile Include="Schema\Ledningskomponenter.cs" />
     <Compile Include="Schema\LedningTypes.cs" />
     <Compile Include="Schema\VariousClasses.cs" />
     <Compile Include="Visualizer.cs" />
