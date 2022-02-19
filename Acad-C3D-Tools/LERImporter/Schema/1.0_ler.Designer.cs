@@ -3520,7 +3520,6 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeometryPropertyType
@@ -3549,7 +3548,6 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeometryArrayPropertyType
@@ -3896,7 +3894,6 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class PolygonType : AbstractSurfaceType

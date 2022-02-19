@@ -171,18 +171,6 @@ namespace LERImporter.Schema
             throw new NotImplementedException();
         }
     }
-    public partial class OlieledningType : ILerLedning
-    {
-        public Oid DrawEntity2D(Database database)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Oid DrawEntity3D(Database database)
-        {
-            throw new NotImplementedException();
-        }
-    }
     public partial class GasledningType : ILerLedning
     {
         public Oid DrawEntity2D(Database database)

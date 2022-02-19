@@ -93,8 +93,6 @@ namespace LERImporter.Schema
     public partial class CurveType : AbstractCurveType { }
     [XmlRootAttribute("OrientableCurve", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
     public partial class OrientableCurveType : AbstractCurveType { }
-    
-    
     [XmlRootAttribute("posList", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
     public partial class DirectPositionListType : IPointParser
     {
@@ -152,4 +150,7 @@ namespace LERImporter.Schema
     }
     [XmlRootAttribute("Point", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
     public partial class PointType : AbstractGeometricPrimitiveType { }
+
+    [System.Xml.Serialization.XmlRootAttribute("geometryMember", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
+    public partial class GeometryPropertyType { }
 }
