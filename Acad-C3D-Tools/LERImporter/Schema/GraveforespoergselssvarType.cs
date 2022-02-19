@@ -94,6 +94,7 @@ namespace LERImporter.Schema
 
             //Create property sets
             HashSet<Type> allUniqueTypes = ledningMember.Select(x => x.Item.GetType()).Distinct().ToHashSet();
+            allUniqueTypes.UnionWith(ledningskomponentMember.Select(x=> x.Item.GetType()).Distinct().ToHashSet());
             foreach (Type type in allUniqueTypes)
             {
                 string psName = type.Name.Replace("Type", "");
@@ -219,11 +220,23 @@ namespace LERImporter.Schema
                     Log.log($"ledningskomponentMember is null! Some enity has not been deserialized correct!");
                     continue;
                 }
+
+                string psName = psDict[member.Item.GetType().Name];
+                ILerKomponent creator = member.Item as ILerKomponent;
+                Oid entityId = creator.DrawComponent(WorkingDatabase);
+                Entity ent = entityId.Go<Entity>(WorkingDatabase.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                //Layer names are not analyzed for components currently
+                //layerNames.Add(ent.Layer);
+
+                //Attach the property set
+                PropertySetManager.AttachNonDefinedPropertySet(WorkingDatabase, ent, psName);
+
+                //Populate the property set
+                var psData = GmlToPropertySet.TranslateGmlToPs(member.Item);
+                PropertySetManager.PopulateNonDefinedPropertySet(WorkingDatabase, ent, psName, psData);
+
                 names.Add(member.Item.ToString());
             }
-
-            //Read the layer setup file
-            
 
             #region Read and assign layer's color
             //Regex to parse the color information

@@ -94,10 +94,10 @@ namespace LERImporter.Schema
         public string RelativNiveau { get => this.relativNiveau.GetXmlEnumAttributeValueFromEnum(); }
         [PsInclude]
         public string SpædningsNiveau { get => this.spaendingsniveau.Value.ToString() + this.spaendingsniveau.uom; }
-
         public Oid DrawComponent(Database database)
         {
-            throw new NotImplementedException();
+            IEntityCreator creator = this.geometri.Item as IEntityCreator;
+            return creator.CreateEntity(database);
         }
     }
     public partial class AndenKomponentType : LedningskomponentType { }

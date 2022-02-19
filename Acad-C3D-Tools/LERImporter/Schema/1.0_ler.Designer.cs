@@ -1426,7 +1426,6 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://purl.org/dc/terms/")]
     public partial class Point : SimpleLiteral
@@ -2172,7 +2171,6 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(PointType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractGeometryType : AbstractGMLType
@@ -2274,7 +2272,6 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class PointType : AbstractGeometricPrimitiveType
@@ -3358,7 +3355,6 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(LinearRingType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractRingType : AbstractCurveType
@@ -3367,7 +3363,6 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class RingType : AbstractRingType
@@ -3380,7 +3375,6 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class LinearRingType : AbstractRingType
@@ -3524,7 +3518,6 @@ namespace LERImporter.Schema
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeometryPropertyType
     {
-        public AbstractGeometryType AbstractGeometry { get; set; }
         [XmlAttribute]
         public string nilReason { get; set; }
         [XmlAttribute(Form = System.Xml.Schema.XmlSchemaForm.Qualified, DataType = "anyURI")]
@@ -3780,12 +3773,11 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class AbstractRingPropertyType
     {
-        public AbstractRingType AbstractRing { get; set; }
+        //AbstractRing moved to Geometri.cs and renamed Item
     }
 
     /// <summary>
