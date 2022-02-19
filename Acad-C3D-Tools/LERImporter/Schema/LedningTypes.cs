@@ -346,7 +346,7 @@ namespace LERImporter.Schema
         [PsInclude]
         public string KabelType { get => this.kabeltype; }
         [PsInclude]
-        public string SpædningsNiveau { get => this.spaendingsniveau.Value.ToString() + this.spaendingsniveau.uom; }
+        public string SpædningsNiveau { get => this.spaendingsniveau?.Value.ToString() + this.spaendingsniveau?.uom ?? ""; }
         public ElledningTypeEnum Type2 { get => getElledningTypeType(); }
         private ElledningTypeEnum getElledningTypeType()
         {
@@ -411,9 +411,7 @@ namespace LERImporter.Schema
                     break;
             }
 
-            string spænding = spaendingsniveau.Value.ToString() + spaendingsniveau.uom;
-
-            layerName += $"-{spænding}";
+            if (SpædningsNiveau.IsNotNoE()) layerName += $"-{SpædningsNiveau}";
             layerName += driftsstatusSuffix;
 
             database.CheckOrCreateLayer(layerName);

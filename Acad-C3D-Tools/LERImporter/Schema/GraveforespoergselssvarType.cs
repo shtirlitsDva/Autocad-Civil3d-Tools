@@ -57,10 +57,13 @@ namespace LERImporter.Schema
         {
             get
             {
+                //return (this.kontaktprofilTilTekniskeSpoergsmaal?.Kontaktprofil?.mailadresse);
                 switch (this.kontaktprofilTilTekniskeSpoergsmaal?.Kontaktprofil?.mailadresse)
                 {
                     case "gravetilsyn@radiuselnet.dk":
                         return "RADIUS";
+                    case "ledningsvejsoplysninger@andel-lumen.dk":
+                        return "NEXEL";
                     default:
                         throw new System.Exception($"Ukendt ejer!");
                 }
@@ -88,9 +91,12 @@ namespace LERImporter.Schema
             HashSet<Type> allUniqueTypes = ledningMember.Select(x => x.Item.GetType()).Distinct().ToHashSet();
             foreach (Type type in allUniqueTypes)
             {
-                string typeName = type.Name.Replace("Type", "");
-                string psName = Owner + "-" + typeName;
+                string psName = type.Name.Replace("Type", "");
                 //Store the ps name in dictionary referenced by the type name
+                //PS name is not goood! It becomes Elledning which is not unique
+                //But it is unique!!
+                //Data with different files will still follow the class definition in code
+                //Which assures that all pssets are the same
                 psDict.Add(type.Name, psName);
 
                 PropertySetDefinition propSetDef = new PropertySetDefinition();
@@ -230,10 +236,10 @@ namespace LERImporter.Schema
                 Color color;
                 if (colorString.IsNoE())
                 {
-                    Log.log($"Ledning id {id} with layer name {layerName} could not get a color!");
+                    Log.log($"Ledning with layer name {layerName} could not get a color!");
                     color = Color.FromColorIndex(ColorMethod.ByAci, 0);
                 }
-                if (colorRegex.IsMatch(colorString))
+                else if (colorRegex.IsMatch(colorString))
                 {
                     Match match = colorRegex.Match(colorString);
                     byte R = Convert.ToByte(int.Parse(match.Groups["R"].Value));
@@ -244,7 +250,7 @@ namespace LERImporter.Schema
                 }
                 else
                 {
-                    Log.log($"Ledning id {id} with layer name {layerName} could not parse colorString {colorString}!");
+                    Log.log($"Ledning layer name {layerName} could not parse colorString {colorString}!");
                     color = Color.FromColorIndex(ColorMethod.ByAci, 0);
                 }
 
