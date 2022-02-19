@@ -53,20 +53,25 @@ namespace LERImporter.Schema
 {
     public partial class GraveforespoergselssvarType
     {
+        private System.Data.DataTable DtKrydsninger;
+        private System.Data.DataTable EjerRegister;
+        public GraveforespoergselssvarType()
+        {
+            string ejerRegisterCsv = "X:\\AutoCAD DRI - 01 Civil 3D\\LedningsejerRegisterLer2.0.csv";
+            EjerRegister = CsvReader.ReadCsvToDataTable(ejerRegisterCsv, "Krydsninger");
+
+            string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+            DtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+
+            if (DtKrydsninger == null) throw new System.Exception("Krydsninger could not be read!");
+            if (EjerRegister == null) throw new System.Exception("Ejer register could not be read!");
+        }
         public string Owner
         {
             get
             {
-                //return (this.kontaktprofilTilTekniskeSpoergsmaal?.Kontaktprofil?.mailadresse);
-                switch (this.kontaktprofilTilTekniskeSpoergsmaal?.Kontaktprofil?.mailadresse)
-                {
-                    case "gravetilsyn@radiuselnet.dk":
-                        return "RADIUS";
-                    case "ledningsvejsoplysninger@andel-lumen.dk":
-                        return "NEXEL";
-                    default:
-                        throw new System.Exception($"Ukendt ejer!");
-                }
+                string email = this.kontaktprofilTilTekniskeSpoergsmaal?.Kontaktprofil?.mailadresse;
+                return ReadStringParameterFromDataTable(email, EjerRegister, "Ejer", 1);
             }
         }
         public Database WorkingDatabase { get; set; }
@@ -218,8 +223,7 @@ namespace LERImporter.Schema
             }
 
             //Read the layer setup file
-            string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-            System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+            
 
             #region Read and assign layer's color
             //Regex to parse the color information
@@ -231,7 +235,7 @@ namespace LERImporter.Schema
             //Set up all LER layers
             foreach (string layerName in layerNames)
             {
-                string colorString = ReadStringParameterFromDataTable(layerName, dtKrydsninger, "Farve", 0);
+                string colorString = ReadStringParameterFromDataTable(layerName, DtKrydsninger, "Farve", 0);
 
                 Color color;
                 if (colorString.IsNoE())
@@ -269,7 +273,7 @@ namespace LERImporter.Schema
             HashSet<string> missingLineTypes = new HashSet<string>();
             foreach (string layerName in layerNames)
             {
-                string lineTypeName = ReadStringParameterFromDataTable(layerName, dtKrydsninger, "LineType", 0);
+                string lineTypeName = ReadStringParameterFromDataTable(layerName, DtKrydsninger, "LineType", 0);
                 if (lineTypeName.IsNoE()) continue;
                 else if (!ltt.Has(lineTypeName)) missingLineTypes.Add(lineTypeName);
             }
@@ -299,7 +303,7 @@ namespace LERImporter.Schema
             Oid lineTypeId;
             foreach (string layerName in layerNames)
             {
-                string lineTypeName = ReadStringParameterFromDataTable(layerName, dtKrydsninger, "LineType", 0);
+                string lineTypeName = ReadStringParameterFromDataTable(layerName, DtKrydsninger, "LineType", 0);
                 if (lineTypeName.IsNoE())
                 {
                     Log.log($"WARNING! Layer name {layerName} does not have a line type specified!.");

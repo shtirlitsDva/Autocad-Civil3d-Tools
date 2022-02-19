@@ -289,6 +289,7 @@ namespace LERImporter.Schema
 
             pline.Layer = DetermineLayerName(database);
 
+            pline.ConstantWidth = this.UdvendigDiameter;
 
             return pline.ObjectId;
         }
