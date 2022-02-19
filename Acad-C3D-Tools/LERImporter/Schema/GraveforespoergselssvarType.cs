@@ -114,7 +114,9 @@ namespace LERImporter.Schema
                 var appliedTo = new StringCollection()
                 {
                     RXClass.GetClass(typeof(Polyline)).Name,
-                    RXClass.GetClass(typeof(Polyline3d)).Name
+                    RXClass.GetClass(typeof(Polyline3d)).Name,
+                    RXClass.GetClass(typeof(DBPoint)).Name,
+                    RXClass.GetClass(typeof(Hatch)).Name,
                 };
                 propSetDef.SetAppliesToFilter(appliedTo, isStyle);
 

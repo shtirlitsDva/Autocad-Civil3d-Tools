@@ -196,7 +196,7 @@ namespace LERImporter.Schema
                         Point2dCollection points2d = new Point2dCollection();
                         DoubleCollection dc = new DoubleCollection();
                         //-1 beacuse the last point is a repetition of first
-                        for (int i = 0; i < points.Length - 1; i++)
+                        for (int i = 0; i < points.Length; i++)
                         {
                             points2d.Add(points[i].To2D());
                             dc.Add(0.0);
