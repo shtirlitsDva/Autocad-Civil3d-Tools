@@ -13498,7 +13498,7 @@ namespace IntersectUtilities
                     // Get layer table
                     LayerTable lt = tx.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
 
-                    double startX = 0; double Y = 0; double delta = 5; 
+                    double startX = 0; double Y = 0; double delta = 5;
                     double endX = 100;
 
                     foreach (Oid lttrOid in ltt)
@@ -13844,17 +13844,62 @@ namespace IntersectUtilities
                     #endregion
 
                     #region QA pipe lengths
-                    HashSet<Profile> profiles = localDb.HashSetOfType<Profile>(tx);
+                    //System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
+                    //        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
-                    double totalProfLength = 0;
+                    //HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
+                    //prdDbg($"Block count: {brs.Count}");
 
-                    foreach (Profile profile in profiles)
-                    {
-                        if (profile.Name.Contains("MIDT"))
-                            totalProfLength += profile.Length;
-                    }
+                    //double totalLength = 0;
+                    //int antal = 0;
 
-                    prdDbg($"Profiles: {totalProfLength.ToString("0.###")}");
+                    //foreach (BlockReference br in brs)
+                    //{
+                    //    if (br.RealName() == "SVEJSEPUNKT" ||
+                    //        ReadStringParameterFromDataTable(br.RealName(), komponenter, "Navn", 0) == null) continue;
+
+                    //    DBObjectCollection objs = new DBObjectCollection();
+                    //    br.Explode(objs);
+
+                    //    if (br.RealName().Contains("RED KDLR"))
+                    //    {
+                    //        BlockReference br1 = null;
+                    //        BlockReference br2 = null;
+
+                    //        foreach (DBObject obj in objs)
+                    //        {
+                    //            if (obj is BlockReference muffe1 && br1 == null) br1 = muffe1;
+                    //            else if (obj is BlockReference muffe2 && br1 != null) br2 = muffe2;
+                    //        }
+
+                    //        double dist = br1.Position.DistanceHorizontalTo(br2.Position);
+                    //        totalLength += dist;
+                    //        antal++;
+                    //    }
+                    //    else
+                    //    {
+                    //        foreach (DBObject obj in objs)
+                    //        {
+                    //            if (br.RealName() == "PA TWIN S3") prdDbg(obj.GetType().Name);
+                    //            if (obj is Line line) totalLength += line.Length;
+                    //        }
+                    //        antal++;
+                    //    }
+                    //}
+
+                    //prdDbg($"Samlet længde af {antal} komponenter: {totalLength}");
+
+                    //HashSet<Profile> profiles = localDb.HashSetOfType<Profile>(tx);
+
+                    //double totalProfLength = 0;
+
+                    //foreach (Profile profile in profiles)
+                    //{
+                    //    if (profile.Name.Contains("MIDT"))
+                    //        totalProfLength += profile.Length;
+                    //}
+
+                    //prdDbg($"Profiles: {totalProfLength.ToString("0.###")}");
 
                     //#region Read surface from file
                     //CivSurface surface = null;
@@ -14623,7 +14668,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
+                    editor.WriteMessage("\n" + ex.ToString());
                     return;
                 }
                 tx.Commit();
