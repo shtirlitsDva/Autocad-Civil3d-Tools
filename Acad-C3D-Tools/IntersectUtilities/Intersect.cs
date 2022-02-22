@@ -13713,6 +13713,81 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        
+        [CommandMethod("CREATE3DTRACEFROMBUNDPROFILE")]
+        public void create3dtracefrombundprofile()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    string layerName = "0-TRACE-3D";
+                    localDb.CheckOrCreateLayer(layerName);
+
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                    foreach (Alignment al in als)
+                    {
+                        var pIds = al.GetProfileIds();
+                        Profile bundProfile = null;
+                        foreach (Oid oid in pIds)
+                            if (oid.Go<Profile>(tx).Name.Contains("BUND")) bundProfile = oid.Go<Profile>(tx);
+
+                        if (bundProfile == null)
+                        {
+                            prdDbg($"Bund profile could not be found for alignment {al.Name}!");
+                            continue;
+                        }
+
+                        double alLength = al.Length;
+                        double step = 0.1;
+                        int nrOfSteps = (int)(alLength / step);
+
+                        Point3dCollection p3ds = new Point3dCollection();
+
+                        for (int i = 0; i < nrOfSteps; i++)
+                        {
+                            double curStation = i * step;
+
+                            double X = 0;
+                            double Y = 0;
+
+                            al.PointLocation(curStation, 0, ref X, ref Y);
+
+                            double Z = 0;
+                            try
+                            {
+                                Z = bundProfile.ElevationAt(curStation);
+                            }
+                            catch (System.Exception)
+                            {
+                                prdDbg($"Elevation sampling failed at alignment {al.Name}, station {curStation}.");
+                            }
+
+                            p3ds.Add(new Point3d(X, Y, Z));
+                        }
+
+                        Polyline3d pline3d = new Polyline3d(Poly3dType.SimplePoly, p3ds, false);
+                        pline3d.AddEntityToDbModelSpace(localDb);
+
+                        pline3d.Layer = layerName;
+                    }
+
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
 
         [CommandMethod("testing")]
         public void testing()
