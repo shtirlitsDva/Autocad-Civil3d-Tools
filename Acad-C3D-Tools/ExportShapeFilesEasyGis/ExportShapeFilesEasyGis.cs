@@ -50,6 +50,7 @@ namespace ExportShapeFiles
             string dbFilename = localDb.OriginalFileName;
             string path = Path.GetDirectoryName(dbFilename);
             string shapeExportPath = path + "\\SHP\\";
+            if (Directory.Exists(shapeExportPath) == false) Directory.CreateDirectory(shapeExportPath);
 
             Log.LogFileName = shapeExportPath + "export.log";
 
