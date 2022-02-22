@@ -43,12 +43,32 @@ namespace ExportShapeFiles
         [CommandMethod("EXPORTSHAPEFILES")]
         public void exportshapefiles()
         {
-            Log.LogFileName = @"X:\AutoCAD DRI - 01 Civil 3D\Export\export.log";
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
 
-            string baseDir = @"X:\037-1178 - Gladsaxe udbygning - Dokumenter\01 Intern\02 Tegninger\03 Intern\";
-            string shapeName = "GLADSAXE1178_1.2";
+            string dbFilename = localDb.OriginalFileName;
+            string path = Path.GetDirectoryName(dbFilename);
+            string shapeExportPath = path + "\\SHP\\";
 
-            exportshapefilesmethod(baseDir, shapeName, "_pipes", "_comps"); 
+            Log.LogFileName = shapeExportPath + "export.log";
+
+            string baseDir = shapeExportPath;
+
+            PromptStringOptions options = new PromptStringOptions("\nAngiv navnet på shapefilen: ");
+            options.DefaultValue = $"{Path.GetFileName(dbFilename)}";
+            options.UseDefaultValue = true;
+            PromptResult result = doc.Editor.GetString(options);
+
+            if (result.Status != PromptStatus.OK) return;
+
+            string input = result.StringResult;
+
+            if (input.IsNotNoE())
+            {
+                string shapeName = input;
+                exportshapefilesmethod(baseDir, shapeName, "_pipes", "_comps");
+            }
         }
         public void exportshapefilesmethod(
             string exportDir, 
