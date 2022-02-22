@@ -13713,7 +13713,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        
+
         [CommandMethod("CREATE3DTRACEFROMBUNDPROFILE")]
         public void create3dtracefrombundprofile()
         {
@@ -13776,6 +13776,8 @@ namespace IntersectUtilities
                         pline3d.AddEntityToDbModelSpace(localDb);
 
                         pline3d.Layer = layerName;
+
+                        RemoveColinearVertices3dPolyline(pline3d);
                     }
 
                 }
@@ -13803,6 +13805,47 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test clean 3d poly
+                    //PromptEntityOptions peo = new PromptEntityOptions("\nSelect pline 3d: ");
+                    //peo.SetRejectMessage("\nNot a Polyline3d!");
+                    //peo.AddAllowedClass(typeof(Polyline3d), true);
+                    //PromptEntityResult per = editor.GetEntity(peo);
+                    //Polyline3d pline = per.ObjectId.Go<Polyline3d>(tx);
+
+                    //List<int> verticesToRemove = new List<int>();
+
+                    //PolylineVertex3d[] vertices = pline.GetVertices(tx);
+
+                    //for (int i = 0; i < vertices.Length - 2; i++)
+                    //{
+                    //    PolylineVertex3d vertex1 = vertices[i];
+                    //    PolylineVertex3d vertex2 = vertices[i + 1];
+                    //    PolylineVertex3d vertex3 = vertices[i + 2];
+
+                    //    Vector3d vec1 = vertex1.Position.GetVectorTo(vertex2.Position);
+                    //    Vector3d vec2 = vertex2.Position.GetVectorTo(vertex3.Position);
+
+                    //    if (vec1.IsCodirectionalTo(vec2, Tolerance.Global)) verticesToRemove.Add(i + 1);
+                    //}
+
+                    //Point3dCollection p3ds = new Point3dCollection();
+
+                    //for (int i = 0; i < vertices.Length; i++)
+                    //{
+                    //    if (verticesToRemove.Contains(i)) continue;
+                    //    PolylineVertex3d v = vertices[i];
+                    //    p3ds.Add(v.Position);
+                    //}
+
+                    //Polyline3d nyPline = new Polyline3d(Poly3dType.SimplePoly, p3ds, false);
+                    //nyPline.AddEntityToDbModelSpace(localDb);
+
+                    //nyPline.Layer = pline.Layer;
+
+                    //pline.CheckOrOpenForWrite();
+                    //pline.Erase(true);
+                    #endregion
+
                     #region Test redefine
                     //string blockName = "SH LIGE";
                     //string blockPath = @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Symboler.dwg";

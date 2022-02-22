@@ -1137,6 +1137,46 @@ namespace IntersectUtilities
             for (int j = 0; j < verticesToRemove.Count; j++)
                 pline.RemoveVertexAt(verticesToRemove[j]);
         }
+        /// <summary>
+        /// Requires called inside a transaction and creates new Polyline3d
+        /// in the same database as the original, original is the deleted.
+        /// </summary>
+        public static void RemoveColinearVertices3dPolyline(Polyline3d pline)
+        {
+            Transaction tx = pline.Database.TransactionManager.TopTransaction;
+            HashSet<int> verticesToRemove = new HashSet<int>();
+
+            PolylineVertex3d[] vertices = pline.GetVertices(tx);
+
+            for (int i = 0; i < vertices.Length - 2; i++)
+            {
+                PolylineVertex3d vertex1 = vertices[i];
+                PolylineVertex3d vertex2 = vertices[i + 1];
+                PolylineVertex3d vertex3 = vertices[i + 2];
+
+                Vector3d vec1 = vertex1.Position.GetVectorTo(vertex2.Position);
+                Vector3d vec2 = vertex2.Position.GetVectorTo(vertex3.Position);
+
+                if (vec1.IsCodirectionalTo(vec2, Tolerance.Global)) verticesToRemove.Add(i + 1);
+            }
+
+            Point3dCollection p3ds = new Point3dCollection();
+
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                if (verticesToRemove.Contains(i)) continue;
+                PolylineVertex3d v = vertices[i];
+                p3ds.Add(v.Position);
+            }
+
+            Polyline3d nyPline = new Polyline3d(Poly3dType.SimplePoly, p3ds, false);
+            nyPline.AddEntityToDbModelSpace(pline.Database);
+
+            nyPline.Layer = pline.Layer;
+
+            pline.CheckOrOpenForWrite();
+            pline.Erase(true);
+        }
     }
 
     public static class Enums
