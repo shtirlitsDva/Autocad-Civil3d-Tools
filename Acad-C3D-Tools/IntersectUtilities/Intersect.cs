@@ -203,7 +203,7 @@ namespace IntersectUtilities
                         editor.WriteMessage($"\nTargetPath -> {curPathName}");
                     }
 
-                    xRefDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
+                    xRefDB.ReadDwgFile(curPathName, FileOpenMode.OpenForReadAndAllShare, false, null);
 
                     //Transaction from Database of the Xref
                     Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
@@ -445,7 +445,7 @@ namespace IntersectUtilities
                         editor.WriteMessage($"\nTargetPath -> {curPathName}");
                     }
 
-                    xRefDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
+                    xRefDB.ReadDwgFile(curPathName, FileOpenMode.OpenForReadAndAllShare, false, null);
 
                     //Transaction from Database of the Xref
                     Transaction xrefTx = xRefDB.TransactionManager.StartTransaction();
@@ -618,7 +618,7 @@ namespace IntersectUtilities
                         Database xRefLerDB = new Database(false, true);
 
                         xRefLerDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
-                            System.IO.FileShare.Read, false, string.Empty);
+                            FileOpenMode.OpenForReadAndAllShare, false, null);
                         Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
 
                         HashSet<Line> lines = xRefLerDB.HashSetOfType<Line>(xRefLerTx);
@@ -832,7 +832,7 @@ namespace IntersectUtilities
                 // open the xref database
                 Database xRefSurfaceDB = new Database(false, true);
                 xRefSurfaceDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Surface"),
-                    System.IO.FileShare.Read, false, string.Empty);
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
 
                 CivSurface surface = null;
@@ -869,7 +869,7 @@ namespace IntersectUtilities
                 Database xRefAlsDB = new Database(false, true);
 
                 xRefAlsDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
-                    System.IO.FileShare.Read, false, string.Empty);
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction xRefAlsTx = xRefAlsDB.TransactionManager.StartTransaction();
 
                 if (alignments.Count < 1)
@@ -1005,14 +1005,14 @@ namespace IntersectUtilities
             // open the xref database
             Database fremDb = new Database(false, true);
             fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                System.IO.FileShare.Read, false, string.Empty);
+                FileOpenMode.OpenForReadAndAllShare, false, null);
             Transaction fremTx = fremDb.TransactionManager.StartTransaction();
             HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
             HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
             // open the LER database
             Database lerDb = new Database(false, true);
             lerDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
-                FileShare.Read, false, string.Empty);
+                FileOpenMode.OpenForReadAndAllShare, false, null);
             Transaction lerTx = lerDb.TransactionManager.StartTransaction();
             #endregion
 
@@ -2020,7 +2020,7 @@ namespace IntersectUtilities
                 Database xRefAlDB = new Database(false, true);
 
                 xRefAlDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
-                    System.IO.FileShare.Read, false, string.Empty);
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction xRefAlTx = xRefAlDB.TransactionManager.StartTransaction();
                 HashSet<Alignment> als = xRefAlDB.HashSetOfType<Alignment>(xRefAlTx);
                 editor.WriteMessage($"\nNr. of alignments: {als.Count}");
@@ -3091,7 +3091,7 @@ namespace IntersectUtilities
                     xRefFjvDB = new Database(false, true);
 
                     xRefFjvDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                        System.IO.FileShare.Read, false, string.Empty);
+                        FileOpenMode.OpenForReadAndAllShare, false, null);
                     xRefFjvTx = xRefFjvDB.TransactionManager.StartTransaction();
 
                     HashSet<Line> lines = xRefFjvDB.HashSetOfType<Line>(xRefFjvTx, true);
@@ -3484,7 +3484,7 @@ namespace IntersectUtilities
                     // open the xref database
                     Database xRefSurfaceDB = new Database(false, true);
                     xRefSurfaceDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Surface"),
-                        System.IO.FileShare.Read, false, string.Empty);
+                        FileOpenMode.OpenForReadAndAllShare, false, null);
                     Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
 
                     CivSurface surface = null;
@@ -3684,7 +3684,7 @@ namespace IntersectUtilities
                 // open the xref database
                 Database fremDb = new Database(false, true);
                 fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                    System.IO.FileShare.Read, false, string.Empty);
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction fremTx = fremDb.TransactionManager.StartTransaction();
                 HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
@@ -4069,7 +4069,7 @@ namespace IntersectUtilities
                 // open the xref database
                 Database alDb = new Database(false, true);
                 alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
-                    System.IO.FileShare.Read, false, string.Empty);
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction alTx = alDb.TransactionManager.StartTransaction();
                 HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
                 #endregion
@@ -4117,7 +4117,7 @@ namespace IntersectUtilities
                         prdDbg("Block for weld annotation is missing! Importing...");
                         Database blockDb = new Database(false, true);
                         blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
-                            System.IO.FileShare.Read, false, string.Empty);
+                            FileOpenMode.OpenForReadAndAllShare, false, null);
                         Transaction blockTx = blockDb.TransactionManager.StartTransaction();
 
                         Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
@@ -4494,7 +4494,7 @@ namespace IntersectUtilities
                 // open the xref database
                 Database alDb = new Database(false, true);
                 alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
-                    System.IO.FileShare.Read, false, string.Empty);
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction alTx = alDb.TransactionManager.StartTransaction();
                 HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
                 #endregion
@@ -4983,7 +4983,7 @@ namespace IntersectUtilities
                 //open the xref database
                 Database fremDb = new Database(false, true);
                 fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                    System.IO.FileShare.Read, false, string.Empty);
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction fremTx = fremDb.TransactionManager.StartTransaction();
                 HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
@@ -5500,7 +5500,7 @@ namespace IntersectUtilities
                         editor.WriteMessage($"\nTargetPath -> {curPathName}");
                     }
 
-                    xRefDB.ReadDwgFile(curPathName, System.IO.FileShare.Read, false, string.Empty);
+                    xRefDB.ReadDwgFile(curPathName, FileOpenMode.OpenForReadAndAllShare, false, null);
                     #endregion
 
                     #region Read Csv Data for Layers and Depth
@@ -5702,7 +5702,7 @@ namespace IntersectUtilities
                 // open the xref database
                 Database xRefSurfaceDB = new Database(false, true);
                 xRefSurfaceDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Surface"),
-                    System.IO.FileShare.Read, false, string.Empty);
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
 
                 CivSurface surface = null;
@@ -5837,7 +5837,7 @@ namespace IntersectUtilities
                 // open the xref database
                 Database xRefSurfaceDB = new Database(false, true);
                 xRefSurfaceDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Surface"),
-                    System.IO.FileShare.Read, false, string.Empty);
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
 
                 CivSurface surface = null;
@@ -5867,7 +5867,7 @@ namespace IntersectUtilities
                 Database xRefLerDB = new Database(false, true);
 
                 xRefLerDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
-                    System.IO.FileShare.Read, false, string.Empty);
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
                 List<Polyline3d> allLinework = xRefLerDB.ListOfType<Polyline3d>(xRefLerTx);
                 editor.WriteMessage($"\nNr. of 3D polies: {allLinework.Count}");
@@ -6834,7 +6834,7 @@ namespace IntersectUtilities
             // open the xref database
             Database alDb = new Database(false, true);
             alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
-                System.IO.FileShare.Read, false, string.Empty);
+                FileOpenMode.OpenForReadAndAllShare, false, null);
             Transaction alTx = alDb.TransactionManager.StartTransaction();
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -7706,7 +7706,7 @@ namespace IntersectUtilities
 
                 using (Database stylesDB = new Database(false, true))
                 {
-                    stylesDB.ReadDwgFile(pathToStyles, FileOpenMode.OpenForReadAndWriteNoShare, false, "");
+                    stylesDB.ReadDwgFile(pathToStyles, FileOpenMode.OpenForReadAndAllShare, false, null);
 
                     using (Transaction localTx = localDb.TransactionManager.StartTransaction())
                     using (Transaction stylesTx = stylesDB.TransactionManager.StartTransaction())
@@ -8489,7 +8489,7 @@ namespace IntersectUtilities
                 // open the xref database
                 Database fremDb = new Database(false, true);
                 fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                    System.IO.FileShare.Read, false, string.Empty);
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction fremTx = fremDb.TransactionManager.StartTransaction();
                 HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
@@ -8524,7 +8524,7 @@ namespace IntersectUtilities
                         prdDbg("Some of the blocks for detailing are missing! Importing...");
                         Database blockDb = new Database(false, true);
                         blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
-                            System.IO.FileShare.Read, false, string.Empty);
+                            FileOpenMode.OpenForReadAndAllShare, false, null);
                         Transaction blockTx = blockDb.TransactionManager.StartTransaction();
 
                         Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
@@ -8872,7 +8872,7 @@ namespace IntersectUtilities
                 // open the xref database
                 Database fremDb = new Database(false, true);
                 fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                    System.IO.FileShare.Read, false, string.Empty);
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction fremTx = fremDb.TransactionManager.StartTransaction();
                 HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
@@ -8918,7 +8918,7 @@ namespace IntersectUtilities
                         prdDbg("Some of the blocks for detailing are missing! Importing...");
                         Database blockDb = new Database(false, true);
                         blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
-                            System.IO.FileShare.Read, false, string.Empty);
+                            FileOpenMode.OpenForReadAndAllShare, false, null);
                         Transaction blockTx = blockDb.TransactionManager.StartTransaction();
 
                         Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
@@ -8977,7 +8977,7 @@ namespace IntersectUtilities
                         }
                         if (midtProfile == null)
                         {
-                            prdDbg($"No surface profile found for alignment: {al.Name}, skipping current alignment.");
+                            prdDbg($"No midt profile found for alignment: {al.Name}, skipping current alignment.");
                             continue;
                         }
                         #endregion
@@ -9695,7 +9695,7 @@ namespace IntersectUtilities
                 //open the xref database
                 Database fremDb = new Database(false, true);
                 fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                    System.IO.FileShare.ReadWrite, false, string.Empty);
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction fremTx = fremDb.TransactionManager.StartTransaction();
                 //HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
@@ -12086,7 +12086,7 @@ namespace IntersectUtilities
 
                         symbolerDB.ReadDwgFile(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\" +
                                                @"02 Tegninger\01 Autocad\Autocad\01 Views\0.0 Fælles\Symboler.dwg",
-                                               System.IO.FileShare.Read, true, "");
+                                               FileOpenMode.OpenForReadAndAllShare, false, null);
 
                         ObjectIdCollection ids = new ObjectIdCollection();
 
