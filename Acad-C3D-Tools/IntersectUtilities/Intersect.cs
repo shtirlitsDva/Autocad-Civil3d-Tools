@@ -13400,9 +13400,9 @@ namespace IntersectUtilities
                     //**************************************
                     //Change name of line type to create new and text value
                     //**************************************
-                    string ltName = "FJV_RETUR";
-                    string text = "RETUR";
-                    string textStyleName = "FJV_LINE_TXT";
+                    string ltName = "BIPS_TEXT_CU";
+                    string text = "CU";
+                    string textStyleName = "Standard";
                     prdDbg($"Remember to create text style: {textStyleName}!!!");
 
                     List<string> layersToChange = new List<string>();
@@ -13435,26 +13435,26 @@ namespace IntersectUtilities
                       $"{text} ---- {text} ---- {text} ----";
                     lttr.PatternLength = 0.9;
                     //IsScaledToFit makes so that there are no gaps at ends if text cannot fit
-                    lttr.IsScaledToFit = true;
+                    lttr.IsScaledToFit = false;
                     lttr.NumDashes = 4;
                     // Dash #1
-                    lttr.SetDashLengthAt(0, 60);
+                    lttr.SetDashLengthAt(0, 7);
                     // Dash #2
-                    lttr.SetDashLengthAt(1, -10.9);
+                    lttr.SetDashLengthAt(1, -2.5);
                     lttr.SetShapeStyleAt(1, tt[textStyleName]);
                     lttr.SetShapeNumberAt(1, 0);
-                    lttr.SetShapeOffsetAt(1, new Vector2d(-10.9, -1.1));
+                    lttr.SetShapeOffsetAt(1, new Vector2d(-2.2, -0.5));
                     lttr.SetShapeScaleAt(1, 0.9);
                     lttr.SetShapeIsUcsOrientedAt(1, false);
                     lttr.SetShapeRotationAt(1, 0);
                     lttr.SetTextAt(1, text);
                     // Dash #3
-                    lttr.SetDashLengthAt(2, 60);
+                    lttr.SetDashLengthAt(2, 7);
                     // Dash #4
-                    lttr.SetDashLengthAt(3, -10.9);
+                    lttr.SetDashLengthAt(3, -2.5);
                     lttr.SetShapeStyleAt(3, tt[textStyleName]);
                     lttr.SetShapeNumberAt(3, 0);
-                    lttr.SetShapeOffsetAt(3, new Vector2d(0, 1.1));
+                    lttr.SetShapeOffsetAt(3, new Vector2d(-0.3, 0.5));
                     lttr.SetShapeScaleAt(3, 0.9);
                     lttr.SetShapeIsUcsOrientedAt(3, false);
                     lttr.SetShapeRotationAt(3, Math.PI);

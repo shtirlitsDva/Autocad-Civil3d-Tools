@@ -56,6 +56,7 @@ namespace LERImporter
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             doc.Editor.WriteMessage("\nLER Import Application indlæst.");
+            doc.Editor.WriteMessage("\nKommando til LER 2.0 -> IMPORTGMLLERDATA.");
         }
 
         public void Terminate()

@@ -128,14 +128,100 @@ namespace LERImporter.Schema
     }
     public partial class TelekommunikationsledningType : ILerLedning
     {
+        [PsInclude]
+        public string Type { get => this.type?.Value?.ToString() ?? ""; }
+        private string DetermineLayerName(Database database)
+        {
+            #region Determine correct layer name
+            string layerName;
+            string driftsstatusSuffix = "";
+
+            switch (this.Driftsstatus2)
+            {
+                case DriftsstatusType.underetablering:
+                case DriftsstatusType.idrift:
+                    break;
+                case DriftsstatusType.permanentudeafdrift:
+                    driftsstatusSuffix = "_UAD";
+                    break;
+                default:
+                    throw new System.Exception(
+                        $"Element id {this.gmlid} has invalid driftsstatus: {Driftsstatus}!");
+            }
+
+            switch (getTelekommunikationsledningType())
+            {
+                case TelekommunikationsledningTypeEnum.none:
+                    layerName = "0-ERROR-TelekommunikationsledningType-none";
+                    break;
+                case TelekommunikationsledningTypeEnum.other:
+                    layerName = "0-ERROR-TelekommunikationsledningType-other";
+                    break;
+                case TelekommunikationsledningTypeEnum.coaxkabel:
+                    layerName = "TELE-Coax";
+                    break;
+                case TelekommunikationsledningTypeEnum.fiberkabel:
+                    layerName = "TELE-Fiber";
+                    break;
+                case TelekommunikationsledningTypeEnum.kobberkabel:
+                    layerName = "TELE-Kobber";
+                    break;
+                default:
+                    layerName = "0-ERROR-TelekommunikationsledningType-other";
+                    break;
+            }
+
+            layerName += driftsstatusSuffix;
+
+            database.CheckOrCreateLayer(layerName);
+            return layerName;
+            #endregion
+        }
         public Oid DrawEntity2D(Database database)
         {
-            throw new NotImplementedException();
-        }
+            #region Draw 2D polyline
+            Polyline pline = DrawPline2D(database)
+                .Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
+            string layerName = DetermineLayerName(database);
+
+            pline.Layer = layerName;
+
+            return pline.Id;
+            #endregion
+        }
         public Oid DrawEntity3D(Database database)
         {
             throw new NotImplementedException();
+        }
+        public TelekommunikationsledningTypeEnum getTelekommunikationsledningType()
+        {
+            if (this.type == null)
+            {
+                Log.log($"WARNING! Element id {gmlid} has NO ElledningType specified! (holding type is null)");
+                return TelekommunikationsledningTypeEnum.none;
+            }
+            if (this.type.Value.IsNoE())
+            {
+                Log.log($"WARNING! Element id {gmlid} has NO ElledningType specified! (string Value is NoE)");
+                return TelekommunikationsledningTypeEnum.none;
+            }
+
+            TelekommunikationsledningTypeEnum type;
+            if (Enum.TryParse(this.type.Value, out type)) return type;
+            else
+            {
+                Log.log($"WARNING! Element id {gmlid} has non-standard ElledningType {this.type.Value}!");
+                return TelekommunikationsledningTypeEnum.other;
+            }
+        }
+        public enum TelekommunikationsledningTypeEnum
+        {
+            none,
+            other,
+            coaxkabel,
+            fiberkabel,
+            kobberkabel
         }
     }
     public partial class RoerledningType
@@ -341,7 +427,7 @@ namespace LERImporter.Schema
         {
             if (this.type.Value.IsNoE())
             {
-                Log.log($"WARNING! Element id {id} has NO ElledningType specified!");
+                Log.log($"WARNING! Element id {gmlid} has NO ElledningType specified!");
                 return ElledningTypeEnum.none;
             }
 
@@ -349,7 +435,7 @@ namespace LERImporter.Schema
             if (Enum.TryParse(this.type.Value, out type)) return type;
             else
             {
-                Log.log($"WARNING! Element id {id} has non-standard ElledningType {this.type.Value}!");
+                Log.log($"WARNING! Element id {gmlid} has non-standard ElledningType {this.type.Value}!");
                 return ElledningTypeEnum.other;
             }
         }
