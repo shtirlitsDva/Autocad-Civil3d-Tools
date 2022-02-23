@@ -13723,12 +13723,19 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            string dbFilename = localDb.OriginalFileName;
+            string fileName = Path.GetFileNameWithoutExtension(dbFilename);
+            string path = Path.GetDirectoryName(dbFilename);
+            string poly3dExportFile = path + "\\" + fileName + "_3D_Bundprofil.dwg";
+
+            Database poly3dDb = new Database(true, true);
+            using (Transaction poly3dTx = poly3dDb.TransactionManager.StartTransaction())
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
-                    string layerName = "0-TRACE-3D";
-                    localDb.CheckOrCreateLayer(layerName);
+                    //string layerName = "0-TRACE-3D";
+                    //localDb.CheckOrCreateLayer(layerName);
 
                     HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
                     foreach (Alignment al in als)
@@ -13775,19 +13782,50 @@ namespace IntersectUtilities
                         Polyline3d pline3d = new Polyline3d(Poly3dType.SimplePoly, p3ds, false);
                         pline3d.AddEntityToDbModelSpace(localDb);
 
-                        pline3d.Layer = layerName;
+                        HashSet<int> verticesToRemove = new HashSet<int>();
+                        PolylineVertex3d[] vertices = pline3d.GetVertices(tx);
 
-                        RemoveColinearVertices3dPolyline(pline3d);
+                        for (int i = 0; i < vertices.Length - 2; i++)
+                        {
+                            PolylineVertex3d vertex1 = vertices[i];
+                            PolylineVertex3d vertex2 = vertices[i + 1];
+                            PolylineVertex3d vertex3 = vertices[i + 2];
+
+                            Vector3d vec1 = vertex1.Position.GetVectorTo(vertex2.Position);
+                            Vector3d vec2 = vertex2.Position.GetVectorTo(vertex3.Position);
+
+                            if (vec1.IsCodirectionalTo(vec2, Tolerance.Global)) verticesToRemove.Add(i + 1);
+                        }
+
+                        Point3dCollection p3dsClean = new Point3dCollection();
+
+                        for (int i = 0; i < vertices.Length; i++)
+                        {
+                            if (verticesToRemove.Contains(i)) continue;
+                            PolylineVertex3d v = vertices[i];
+                            p3dsClean.Add(v.Position);
+                        }
+
+                        Polyline3d nyPline = new Polyline3d(Poly3dType.SimplePoly, p3dsClean, false);
+                        nyPline.AddEntityToDbModelSpace(poly3dDb);
+
+                        pline3d.CheckOrOpenForWrite();
+                        pline3d.Erase(true);
                     }
 
                 }
                 catch (System.Exception ex)
                 {
                     tx.Abort();
+                    poly3dTx.Abort();
+                    poly3dDb.Dispose();
                     editor.WriteMessage("\n" + ex.ToString());
                     return;
                 }
                 tx.Commit();
+                poly3dTx.Commit();
+                poly3dDb.SaveAs(poly3dExportFile, DwgVersion.Newest);
+                poly3dDb.Dispose();
             }
         }
 

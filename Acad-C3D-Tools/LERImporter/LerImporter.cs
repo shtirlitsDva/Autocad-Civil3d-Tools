@@ -24,7 +24,6 @@ using System.Windows.Forms;
 using System.Data;
 using System.Xml;
 using System.Xml.Serialization;
-using Newtonsoft.Json;
 //using MoreLinq;
 //using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
