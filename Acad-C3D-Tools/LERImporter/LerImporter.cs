@@ -65,7 +65,7 @@ namespace LERImporter
 
         public static readonly string ImplementedVersion = "1.0.1";
 
-        [CommandMethod("TESTLER")]
+        //[CommandMethod("TESTLER")]
         public void testler()
         {
 
@@ -134,7 +134,7 @@ namespace LERImporter
             }
         }
 
-        [CommandMethod("TESTPS")]
+        //[CommandMethod("TESTPS")]
         public void testps()
         {
             DocumentCollection docCol = Application.DocumentManager;
