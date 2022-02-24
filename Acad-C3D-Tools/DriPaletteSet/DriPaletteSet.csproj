@@ -4,14 +4,14 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{96AE4F77-001B-4C48-8ED9-590009510DE5}</ProjectGuid>
+    <ProjectGuid>{0F92C1BB-FADB-4DF2-8FF8-F28391C1ED3C}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>SheetCreationAutomation</RootNamespace>
-    <AssemblyName>SheetCreationAutomation</AssemblyName>
+    <RootNamespace>DriPaletteSet</RootNamespace>
+    <AssemblyName>DriPaletteSet</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <Deterministic>true</Deterministic>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -49,15 +49,15 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="accoremgd">
+    <Reference Include="AcCoreMgd">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\accoremgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="acdbmgd">
+    <Reference Include="AcDbMgd">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\acdbmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="acmgd">
+    <Reference Include="AcMgd">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\acmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
@@ -65,31 +65,13 @@
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\AecBaseMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="AeccDataShortcutMgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\C3D\AeccDataShortcutMgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="AeccDbMgd">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\C3D\AeccDbMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="AecPropDataMgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\ACA\AecPropDataMgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="ManagedMapApi">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\Map\ManagedMapApi.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Microsoft.Office.Interop.Excel, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
-      <EmbedInteropTypes>True</EmbedInteropTypes>
-    </Reference>
-    <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.ValueTuple.4.5.0\lib\net47\System.ValueTuple.dll</HintPath>
-    </Reference>
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -99,20 +81,32 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\IntersectUtilities\CsvReader.cs">
-      <Link>CsvReader.cs</Link>
+    <Compile Include="CheckGroupBox.cs">
+      <SubType>Component</SubType>
     </Compile>
-    <Compile Include="..\IntersectUtilities\MoreLinq.cs">
-      <Link>MoreLinq.cs</Link>
+    <Compile Include="EnkeltPalette.cs">
+      <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="..\IntersectUtilities\UtilsCommon.cs">
-      <Link>UtilsCommon.cs</Link>
+    <Compile Include="EnkeltPalette.Designer.cs">
+      <DependentUpon>EnkeltPalette.cs</DependentUpon>
     </Compile>
-    <Compile Include="01 SheetCreationAutomation.cs" />
+    <Compile Include="MyCommands.cs" />
+    <Compile Include="MyPaletteSet.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SecondPalette.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="SecondPalette.Designer.cs">
+      <DependentUpon>SecondPalette.cs</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <EmbeddedResource Include="EnkeltPalette.resx">
+      <DependentUpon>EnkeltPalette.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SecondPalette.resx">
+      <DependentUpon>SecondPalette.cs</DependentUpon>
+    </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
