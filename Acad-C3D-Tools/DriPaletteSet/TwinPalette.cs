@@ -10,9 +10,9 @@ using System.Windows.Forms;
 
 namespace DriPaletteSet
 {
-    public partial class EnkeltPalette : UserControl
+    public partial class TwinPalette : System.Windows.Forms.UserControl
     {
-        public EnkeltPalette()
+        public TwinPalette()
         {
             InitializeComponent();
 

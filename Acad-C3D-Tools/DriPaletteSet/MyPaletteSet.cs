@@ -10,7 +10,7 @@ namespace DriPaletteSet
 {
     public class MyPaletteSet : PaletteSet
     {
-        private EnkeltPalette _first = null;
+        private TwinPalette _first = null;
         private SecondPalette _second = null;
         public MyPaletteSet() : base("", "", new Guid("87374E16-C0DB-4F3F-9271-7A71ED921226"))
         {
@@ -19,7 +19,7 @@ namespace DriPaletteSet
                  PaletteSetStyles.ShowAutoHideButton |
                  PaletteSetStyles.ShowTabForSingle;
 
-            _first = new EnkeltPalette();
+            _first = new TwinPalette();
             Add("Twin", _first);
 
             _second = new SecondPalette();
