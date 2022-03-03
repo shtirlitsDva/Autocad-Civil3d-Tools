@@ -81,7 +81,7 @@
     <Compile Include="TwinPalette.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="EnkeltPalette.Designer.cs">
+    <Compile Include="TwinPalette.Designer.cs">
       <DependentUpon>TwinPalette.cs</DependentUpon>
     </Compile>
     <Compile Include="MyCommands.cs" />
@@ -95,9 +95,6 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="EnkeltPalette.resx">
-      <DependentUpon>TwinPalette.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="SecondPalette.resx">
       <DependentUpon>SecondPalette.cs</DependentUpon>
     </EmbeddedResource>
