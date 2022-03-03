@@ -25,6 +25,7 @@ using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Table = Autodesk.Gis.Map.ObjectData.Table;
 using System.Collections.ObjectModel;
+using Autodesk.AutoCAD.Runtime;
 
 namespace IntersectUtilities.ODDataConverter
 {
@@ -65,10 +66,11 @@ namespace IntersectUtilities.ODDataConverter
                     // apply to objects or styles. True if style, False if objects
                     bool isStyle = false;
                     var appliedTo = new StringCollection();
-                    appliedTo.Add("AcDbLine");
-                    appliedTo.Add("AcDbSpline");
-                    appliedTo.Add("AcDbPolyline");
-                    appliedTo.Add("AcDb3dPolyline");
+                    //appliedTo.Add("AcDbLine");
+                    //appliedTo.Add("AcDbSpline");
+                    //appliedTo.Add("AcDbPolyline");
+                    //appliedTo.Add("AcDb3dPolyline");
+                    appliedTo.Add(RXClass.GetClass(typeof(BlockReference)).Name);
                     propSetDef.SetAppliesToFilter(appliedTo, isStyle);
 
                     FieldDefinitions defs = curTable.FieldDefinitions;
@@ -116,7 +118,7 @@ namespace IntersectUtilities.ODDataConverter
                     }
 
                 }
-                catch (Exception ex)
+                catch (System.Exception ex)
                 {
                     ed.WriteMessage("\nError while creating Property Set definitions: " + ex.ToString());
                     return;
@@ -143,10 +145,11 @@ namespace IntersectUtilities.ODDataConverter
                 //I need to work with 3d polylines
                 //Change here to add other types of objects
                 HashSet<Entity> ents = new HashSet<Entity>();
-                ents.UnionWith(localDb.HashSetOfType<Line>(tx));
-                ents.UnionWith(localDb.HashSetOfType<Spline>(tx));
-                ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
-                ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
+                //ents.UnionWith(localDb.HashSetOfType<Line>(tx));
+                //ents.UnionWith(localDb.HashSetOfType<Spline>(tx));
+                //ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
+                //ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
+                ents.UnionWith(localDb.HashSetOfType<BlockReference>(tx));
 
                 foreach (Entity ent in ents)
                 {
@@ -199,10 +202,11 @@ namespace IntersectUtilities.ODDataConverter
                     //I need to work with 3d polylines
                     //Change here to add other types of objects
                     HashSet<Entity> ents = new HashSet<Entity>();
-                    ents.UnionWith(localDb.HashSetOfType<Line>(tx));
-                    ents.UnionWith(localDb.HashSetOfType<Spline>(tx));
-                    ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
-                    ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
+                    //ents.UnionWith(localDb.HashSetOfType<Line>(tx));
+                    //ents.UnionWith(localDb.HashSetOfType<Spline>(tx));
+                    //ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
+                    //ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
+                    ents.UnionWith(localDb.HashSetOfType<BlockReference>(tx));
 
                     foreach (Entity ent in ents)
                     {
@@ -248,7 +252,7 @@ namespace IntersectUtilities.ODDataConverter
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (System.Exception ex)
                 {
                     tx.Abort();
                     ed.WriteMessage(ex.ToString());
@@ -274,7 +278,7 @@ namespace IntersectUtilities.ODDataConverter
                 case DataType.Point:
                     return Autodesk.Aec.PropertyData.DataType.Text;
                 default:
-                    throw new Exception("DataType Default case not implemented!");
+                    throw new System.Exception("DataType Default case not implemented!");
             }
         }
         private static object GetMapValueData(MapValue mapValue)
@@ -292,7 +296,7 @@ namespace IntersectUtilities.ODDataConverter
                 case DataType.Point:
                     return mapValue.Point.ToString();
                 default:
-                    throw new Exception("DataType Default case not implemented!");
+                    throw new System.Exception("DataType Default case not implemented!");
             }
         }
         /// <summary>
@@ -313,7 +317,7 @@ namespace IntersectUtilities.ODDataConverter
                 case DataType.Point:
                     return "";
                 default:
-                    throw new Exception($"Default DataType {fieldDefinition.Type.ToString()} not implemented!");
+                    throw new System.Exception($"Default DataType {fieldDefinition.Type.ToString()} not implemented!");
             }
         }
         public static void testing()
