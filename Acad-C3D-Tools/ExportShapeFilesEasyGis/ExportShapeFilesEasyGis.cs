@@ -103,15 +103,15 @@ namespace ExportShapeFiles
                     DbfFieldDesc[] dbfFields = new DbfFieldDesc[3];
 
                     dbfFields[0].FieldName = "DN";
-                    dbfFields[0].FieldType = DbfFieldType.Number;
+                    dbfFields[0].FieldType = DbfFieldType.Character;
                     dbfFields[0].FieldLength = 10;
 
                     dbfFields[1].FieldName = "System";
-                    dbfFields[1].FieldType = DbfFieldType.General;
+                    dbfFields[1].FieldType = DbfFieldType.Character;
                     dbfFields[1].FieldLength = 100;
 
                     dbfFields[2].FieldName = "Serie";
-                    dbfFields[2].FieldType = DbfFieldType.General;
+                    dbfFields[2].FieldType = DbfFieldType.Character;
                     dbfFields[2].FieldLength = 100;
                     #endregion
 
@@ -200,35 +200,35 @@ namespace ExportShapeFiles
                     dbfFields = new DbfFieldDesc[8];
 
                     dbfFields[0].FieldName = "BlockName";
-                    dbfFields[0].FieldType = DbfFieldType.General;
+                    dbfFields[0].FieldType = DbfFieldType.Character;
                     dbfFields[0].FieldLength = 100;
 
                     dbfFields[1].FieldName = "Type";
-                    dbfFields[1].FieldType = DbfFieldType.General;
+                    dbfFields[1].FieldType = DbfFieldType.Character;
                     dbfFields[1].FieldLength = 100;
 
                     dbfFields[2].FieldName = "Rotation";
-                    dbfFields[2].FieldType = DbfFieldType.General;
+                    dbfFields[2].FieldType = DbfFieldType.Character;
                     dbfFields[2].FieldLength = 100;
 
                     dbfFields[3].FieldName = "System";
-                    dbfFields[3].FieldType = DbfFieldType.General;
+                    dbfFields[3].FieldType = DbfFieldType.Character;
                     dbfFields[3].FieldLength = 100;
 
                     dbfFields[4].FieldName = "DN1";
-                    dbfFields[4].FieldType = DbfFieldType.General;
+                    dbfFields[4].FieldType = DbfFieldType.Character;
                     dbfFields[4].FieldLength = 100;
 
                     dbfFields[5].FieldName = "DN2";
-                    dbfFields[5].FieldType = DbfFieldType.General;
+                    dbfFields[5].FieldType = DbfFieldType.Character;
                     dbfFields[5].FieldLength = 100;
 
                     dbfFields[6].FieldName = "Serie";
-                    dbfFields[6].FieldType = DbfFieldType.General;
+                    dbfFields[6].FieldType = DbfFieldType.Character;
                     dbfFields[6].FieldLength = 100;
 
                     dbfFields[7].FieldName = "Vinkel";
-                    dbfFields[7].FieldType = DbfFieldType.General;
+                    dbfFields[7].FieldType = DbfFieldType.Character;
                     dbfFields[7].FieldLength = 100;
                     #endregion
 
