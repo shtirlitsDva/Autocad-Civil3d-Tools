@@ -1955,6 +1955,60 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        
+        [CommandMethod("CONVERTLINESTOPOLIESPSS")]
+        public void convertlinestopoliespss()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            prdDbg("Remember that the PropertySets need be defined in advance!!!");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<Line> lines = localDb.HashSetOfType<Line>(tx);
+                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
+
+                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                    foreach (Line line in lines)
+                    {
+                        Point3dCollection p3dcol = new Point3dCollection();
+
+                        p3dcol.Add(line.StartPoint);
+                        p3dcol.Add(line.EndPoint);
+
+                        Polyline pline = new Polyline(2);
+
+                        pline.AddVertexAt(pline.NumberOfVertices, line.StartPoint.To2D(), 0, 0, 0);
+                        pline.AddVertexAt(pline.NumberOfVertices, line.EndPoint.To2D(), 0, 0, 0);
+                        pline.AddEntityToDbModelSpace(localDb);
+
+                        pline.Layer = line.Layer;
+                        
+                        PropertySetManager.CopyAllProperties(line, pline);
+                    }
+
+                    foreach (Line line in lines)
+                    {
+                        line.CheckOrOpenForWrite();
+                        line.Erase(true);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.ToString());
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
 
         [CommandMethod("selectbyhandle")]
         [CommandMethod("SBH")]

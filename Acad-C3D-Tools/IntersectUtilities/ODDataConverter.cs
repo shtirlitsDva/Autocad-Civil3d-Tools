@@ -66,11 +66,11 @@ namespace IntersectUtilities.ODDataConverter
                     // apply to objects or styles. True if style, False if objects
                     bool isStyle = false;
                     var appliedTo = new StringCollection();
-                    //appliedTo.Add("AcDbLine");
+                    appliedTo.Add("AcDbLine");
                     //appliedTo.Add("AcDbSpline");
-                    //appliedTo.Add("AcDbPolyline");
+                    appliedTo.Add("AcDbPolyline");
                     //appliedTo.Add("AcDb3dPolyline");
-                    appliedTo.Add(RXClass.GetClass(typeof(BlockReference)).Name);
+                    //appliedTo.Add(RXClass.GetClass(typeof(BlockReference)).Name);
                     propSetDef.SetAppliesToFilter(appliedTo, isStyle);
 
                     FieldDefinitions defs = curTable.FieldDefinitions;
@@ -145,11 +145,11 @@ namespace IntersectUtilities.ODDataConverter
                 //I need to work with 3d polylines
                 //Change here to add other types of objects
                 HashSet<Entity> ents = new HashSet<Entity>();
-                //ents.UnionWith(localDb.HashSetOfType<Line>(tx));
+                ents.UnionWith(localDb.HashSetOfType<Line>(tx));
                 //ents.UnionWith(localDb.HashSetOfType<Spline>(tx));
-                //ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
+                ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
                 //ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
-                ents.UnionWith(localDb.HashSetOfType<BlockReference>(tx));
+                //ents.UnionWith(localDb.HashSetOfType<BlockReference>(tx));
 
                 foreach (Entity ent in ents)
                 {
@@ -202,11 +202,11 @@ namespace IntersectUtilities.ODDataConverter
                     //I need to work with 3d polylines
                     //Change here to add other types of objects
                     HashSet<Entity> ents = new HashSet<Entity>();
-                    //ents.UnionWith(localDb.HashSetOfType<Line>(tx));
+                    ents.UnionWith(localDb.HashSetOfType<Line>(tx));
                     //ents.UnionWith(localDb.HashSetOfType<Spline>(tx));
-                    //ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
+                    ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
                     //ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
-                    ents.UnionWith(localDb.HashSetOfType<BlockReference>(tx));
+                    //ents.UnionWith(localDb.HashSetOfType<BlockReference>(tx));
 
                     foreach (Entity ent in ents)
                     {
