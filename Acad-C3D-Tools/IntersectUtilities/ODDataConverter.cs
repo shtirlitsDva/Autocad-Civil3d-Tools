@@ -150,6 +150,7 @@ namespace IntersectUtilities.ODDataConverter
                 ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
                 //ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
                 //ents.UnionWith(localDb.HashSetOfType<BlockReference>(tx));
+                ents = ents.Where(x => x.Layer == "0-FJV_fremtid").ToHashSet();
 
                 foreach (Entity ent in ents)
                 {
@@ -207,6 +208,7 @@ namespace IntersectUtilities.ODDataConverter
                     ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
                     //ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
                     //ents.UnionWith(localDb.HashSetOfType<BlockReference>(tx));
+                    ents = ents.Where(x => x.Layer == "0-FJV_fremtid").ToHashSet();
 
                     foreach (Entity ent in ents)
                     {
