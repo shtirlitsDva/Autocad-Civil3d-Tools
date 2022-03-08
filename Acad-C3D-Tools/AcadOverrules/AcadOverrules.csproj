@@ -97,6 +97,8 @@
     <Compile Include="..\IntersectUtilities\UtilsCommon.cs">
       <Link>UtilsCommon.cs</Link>
     </Compile>
+    <Compile Include="02 FjvPolySizeAndArcLabel.cs" />
+    <Compile Include="01 PolylineDirection.cs" />
     <Compile Include="AcadOverrules.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
