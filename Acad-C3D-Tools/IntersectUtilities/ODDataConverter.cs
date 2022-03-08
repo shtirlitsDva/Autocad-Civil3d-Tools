@@ -67,9 +67,9 @@ namespace IntersectUtilities.ODDataConverter
                     bool isStyle = false;
                     var appliedTo = new StringCollection();
                     appliedTo.Add("AcDbLine");
-                    //appliedTo.Add("AcDbSpline");
+                    appliedTo.Add("AcDbSpline");
                     appliedTo.Add("AcDbPolyline");
-                    //appliedTo.Add("AcDb3dPolyline");
+                    appliedTo.Add("AcDb3dPolyline");
                     //appliedTo.Add(RXClass.GetClass(typeof(BlockReference)).Name);
                     propSetDef.SetAppliesToFilter(appliedTo, isStyle);
 
@@ -146,11 +146,11 @@ namespace IntersectUtilities.ODDataConverter
                 //Change here to add other types of objects
                 HashSet<Entity> ents = new HashSet<Entity>();
                 ents.UnionWith(localDb.HashSetOfType<Line>(tx));
-                //ents.UnionWith(localDb.HashSetOfType<Spline>(tx));
+                ents.UnionWith(localDb.HashSetOfType<Spline>(tx));
                 ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
-                //ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
+                ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
                 //ents.UnionWith(localDb.HashSetOfType<BlockReference>(tx));
-                ents = ents.Where(x => x.Layer == "0-FJV_fremtid").ToHashSet();
+                //ents = ents.Where(x => x.Layer == "0-FJV_fremtid").ToHashSet();
 
                 foreach (Entity ent in ents)
                 {
@@ -204,11 +204,11 @@ namespace IntersectUtilities.ODDataConverter
                     //Change here to add other types of objects
                     HashSet<Entity> ents = new HashSet<Entity>();
                     ents.UnionWith(localDb.HashSetOfType<Line>(tx));
-                    //ents.UnionWith(localDb.HashSetOfType<Spline>(tx));
+                    ents.UnionWith(localDb.HashSetOfType<Spline>(tx));
                     ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
-                    //ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
+                    ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
                     //ents.UnionWith(localDb.HashSetOfType<BlockReference>(tx));
-                    ents = ents.Where(x => x.Layer == "0-FJV_fremtid").ToHashSet();
+                    //ents = ents.Where(x => x.Layer == "0-FJV_fremtid").ToHashSet();
 
                     foreach (Entity ent in ents)
                     {
