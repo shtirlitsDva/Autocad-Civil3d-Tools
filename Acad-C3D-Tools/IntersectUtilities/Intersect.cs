@@ -1955,6 +1955,60 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        
+        [CommandMethod("CONVERTLINESTOPOLIESPSS")]
+        public void convertlinestopoliespss()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            prdDbg("Remember that the PropertySets need be defined in advance!!!");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<Line> lines = localDb.HashSetOfType<Line>(tx);
+                    editor.WriteMessage($"\nNr. of lines: {lines.Count}");
+
+                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                    foreach (Line line in lines)
+                    {
+                        Point3dCollection p3dcol = new Point3dCollection();
+
+                        p3dcol.Add(line.StartPoint);
+                        p3dcol.Add(line.EndPoint);
+
+                        Polyline pline = new Polyline(2);
+
+                        pline.AddVertexAt(pline.NumberOfVertices, line.StartPoint.To2D(), 0, 0, 0);
+                        pline.AddVertexAt(pline.NumberOfVertices, line.EndPoint.To2D(), 0, 0, 0);
+                        pline.AddEntityToDbModelSpace(localDb);
+
+                        pline.Layer = line.Layer;
+                        
+                        PropertySetManager.CopyAllProperties(line, pline);
+                    }
+
+                    foreach (Line line in lines)
+                    {
+                        line.CheckOrOpenForWrite();
+                        line.Erase(true);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.ToString());
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
 
         [CommandMethod("selectbyhandle")]
         [CommandMethod("SBH")]
@@ -13082,59 +13136,37 @@ namespace IntersectUtilities
 
                 try
                 {
-                    #region 
-                    using (Database extDb = new Database(false, true))
+
+
+                    #region Stik counting
+                    var plines = extDb.HashSetOfType<Polyline>(extTx, false)
+                        .Where(x => ODDataReader.Pipes.ReadPipeDimension((Entity)x).Int32Value != 999)
+                        .ToHashSet();
+                    var points = localDb.HashSetOfType<DBPoint>(tx);
+
+                    foreach (DBPoint point in points)
                     {
-                        extDb.ReadDwgFile(@"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\" +
-                                          @"01 Autocad\Autocad\01 Views\4.1 og 4.2\FJV-Fremtid 4.2.dwg",
-                                          System.IO.FileShare.ReadWrite, false, "");
-
-                        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                        List<(double dist, Oid id, Point3d np)> res = new List<(double dist, Oid id, Point3d np)>();
+                        foreach (Polyline pline in plines)
                         {
-                            try
-                            {
-                                #region Stik counting
-                                var plines = extDb.HashSetOfType<Polyline>(extTx, false)
-                                    .Where(x => ODDataReader.Pipes.ReadPipeDimension((Entity)x).Int32Value != 999)
-                                    .ToHashSet();
-                                var points = localDb.HashSetOfType<DBPoint>(tx);
-
-                                foreach (DBPoint point in points)
-                                {
-                                    List<(double dist, Oid id, Point3d np)> res = new List<(double dist, Oid id, Point3d np)>();
-                                    foreach (Polyline pline in plines)
-                                    {
-                                        Point3d closestPoint = pline.GetClosestPointTo(point.Position, false);
-                                        res.Add((point.Position.DistanceHorizontalTo(closestPoint), pline.Id, closestPoint));
-                                    }
-
-                                    var nearest = res.MinBy(x => x.dist).FirstOrDefault();
-                                    if (nearest == default) continue;
-
-                                    #region Create line
-                                    Line connection = new Line();
-                                    connection.SetDatabaseDefaults();
-                                    connection.Layer = conLayName;
-                                    connection.StartPoint = point.Position;
-                                    connection.EndPoint = nearest.np;
-                                    modelSpace.AppendEntity(connection);
-                                    tx.AddNewlyCreatedDBObject(connection, true);
-                                    #endregion
-                                }
-
-                                #endregion
-
-                                extTx.Commit();
-                            }
-                            catch (System.Exception ex)
-                            {
-                                prdDbg(ex.Message);
-                                extTx.Abort();
-                                throw;
-                            }
+                            Point3d closestPoint = pline.GetClosestPointTo(point.Position, false);
+                            res.Add((point.Position.DistanceHorizontalTo(closestPoint), pline.Id, closestPoint));
                         }
-                        //extDb.SaveAs(extDb.Filename, DwgVersion.Current);
+
+                        var nearest = res.MinBy(x => x.dist).FirstOrDefault();
+                        if (nearest == default) continue;
+
+                        #region Create line
+                        Line connection = new Line();
+                        connection.SetDatabaseDefaults();
+                        connection.Layer = conLayName;
+                        connection.StartPoint = point.Position;
+                        connection.EndPoint = nearest.np;
+                        modelSpace.AppendEntity(connection);
+                        tx.AddNewlyCreatedDBObject(connection, true);
+                        #endregion
                     }
+
                     System.Windows.Forms.Application.DoEvents();
 
                     #endregion
