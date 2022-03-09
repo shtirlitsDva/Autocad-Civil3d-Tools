@@ -146,6 +146,7 @@
     <Compile Include="CreateGisData.cs" />
     <Compile Include="CsvReader.cs" />
     <Compile Include="DataQAClass.cs" />
+    <Compile Include="Dimensionering.cs" />
     <Compile Include="DouglasPeuckerReduction.cs" />
     <Compile Include="DynamicBlockPropertyReader.cs" />
     <Compile Include="GroupByCluster.cs" />

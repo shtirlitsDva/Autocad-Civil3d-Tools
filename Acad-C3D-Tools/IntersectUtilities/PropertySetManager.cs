@@ -371,7 +371,33 @@ namespace IntersectUtilities
             DriGasDimOgMat,
             DriOmråder,
             DriComponentsGisData,
-            DriGraph
+            DriGraph,
+            DriDimGraph,
+            FJV_fremtid
+        }
+        public class FJV_fremtid
+        {
+            public DefinedSets SetName { get; } = DefinedSets.FJV_fremtid;
+            public Property Bemærkninger { get; } = new Property(
+                "Bemærkninger",
+                "Bemærkninger",
+                PsDataType.Text,
+                "");
+            public Property Distriktets_navn { get; } = new Property(
+                "Distriktets_navn",
+                "Distriktets_navn.",
+                PsDataType.Text,
+                "");
+            public Property Length { get; } = new Property(
+                "Length",
+                "Stores the length of the entity.",
+                PsDataType.Real,
+                0);
+            public StringCollection AppliesTo { get; } = new StringCollection()
+                {
+                    RXClass.GetClass(typeof(Polyline)).Name,
+                    RXClass.GetClass(typeof(Line)).Name
+                };
         }
         public class DriCrossingData : PSetDef
         {
@@ -516,6 +542,26 @@ namespace IntersectUtilities
                 "");
             public StringCollection AppliesTo { get; } = new StringCollection()
                 {
+                    RXClass.GetClass(typeof(Polyline)).Name,
+                    RXClass.GetClass(typeof(BlockReference)).Name
+                };
+        }
+        public class DriDimGraph : PSetDef
+        {
+            public DefinedSets SetName { get; } = DefinedSets.DriDimGraph;
+            public Property Parent { get; } = new Property(
+                "Parent",
+                "Lists parent entity",
+                PsDataType.Text,
+                "");
+            public Property Children { get; } = new Property(
+                "Children",
+                "Lists children entities",
+                PsDataType.Text,
+                "");
+            public StringCollection AppliesTo { get; } = new StringCollection()
+                {
+                    RXClass.GetClass(typeof(Line)).Name,
                     RXClass.GetClass(typeof(Polyline)).Name,
                     RXClass.GetClass(typeof(BlockReference)).Name
                 };

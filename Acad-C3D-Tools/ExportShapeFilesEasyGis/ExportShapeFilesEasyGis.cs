@@ -264,7 +264,7 @@ namespace ExportShapeFiles
                             string[] attributes = new string[8];
                             attributes[0] = br.Name;
                             attributes[1] = ReadStringParameterFromDataTable(br.Name, stdBlocks, "Type", 0);
-                            attributes[2] = (br.Rotation * (180 / Math.PI)).ToString("0.###");
+                            attributes[2] = (br.Rotation * (180 / Math.PI)).ToString("0.##");
                             attributes[3] = ReadStringParameterFromDataTable(br.Name, stdBlocks, "System", 0);
                             attributes[4] = ReadStringParameterFromDataTable(br.Name, stdBlocks, "DN1", 0); ;
                             attributes[5] = ReadStringParameterFromDataTable(br.Name, stdBlocks, "DN2", 0); ;

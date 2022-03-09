@@ -396,7 +396,7 @@ namespace IntersectUtilities
                 foreach (Handle handle in Nodes)
                 {
                     //Gather information about element
-                    DBObject obj = handle.Go(Database);
+                    DBObject obj = handle.Go<DBObject>(Database);
                     if (obj == null) continue;
                     //Write the reference to the node
                     sb.Append($"\"{handle}\" ");

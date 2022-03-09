@@ -1955,7 +1955,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        
+
         [CommandMethod("CONVERTLINESTOPOLIESPSS")]
         public void convertlinestopoliespss()
         {
@@ -1990,7 +1990,7 @@ namespace IntersectUtilities
                         pline.AddEntityToDbModelSpace(localDb);
 
                         pline.Layer = line.Layer;
-                        
+
                         PropertySetManager.CopyAllProperties(line, pline);
                     }
 
@@ -13102,8 +13102,8 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("TESTSTIKCOUNTING")]
-        public void teststikcounting()
+        [CommandMethod("DIMSTIKAUTOGEN")]
+        public void dimstikautogen()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -13113,7 +13113,8 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
+                //Settings
+                string curEtapeName = "Etape 9.4";
 
                 #region Manage layer to contain connection lines
                 LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
@@ -13132,39 +13133,239 @@ namespace IntersectUtilities
                     Oid ltId = lt.Add(ltr);
                     tx.AddNewlyCreatedDBObject(ltr, true);
                 }
+
+                string noCrossLayName = "0-NOCROSS_LINE";
+                if (!lt.Has(noCrossLayName))
+                {
+                    LayerTableRecord ltr = new LayerTableRecord();
+                    ltr.Name = noCrossLayName;
+                    ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                    ltr.LineWeight = LineWeight.LineWeight030;
+
+                    //Make layertable writable
+                    lt.CheckOrOpenForWrite();
+
+                    //Add the new layer to layer table
+                    Oid ltId = lt.Add(ltr);
+                    tx.AddNewlyCreatedDBObject(ltr, true);
+                }
+
                 #endregion
+
+                #region Delete previous stiks
+                HashSet<Line> eksStik = localDb.HashSetOfType<Line>(tx)
+                    .Where(x => x.Layer == conLayName)
+                    .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "FJV_fremtid", "Distriktets_navn") == curEtapeName)
+                    .ToHashSet();
+                foreach (Entity entity in eksStik)
+                {
+                    entity.CheckOrOpenForWrite();
+                    entity.Erase(true);
+                }
+                #endregion
+
+                PropertySetManager psManFjvFremtid = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
+                PSetDefs.FJV_fremtid fjvFremtidDef = new PSetDefs.FJV_fremtid();
+
+                PropertySetManager psManGraph = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
+                PSetDefs.DriDimGraph driDimGraphDef = new PSetDefs.DriDimGraph();
 
                 try
                 {
-
-
                     #region Stik counting
-                    var plines = extDb.HashSetOfType<Polyline>(extTx, false)
-                        .Where(x => ODDataReader.Pipes.ReadPipeDimension((Entity)x).Int32Value != 999)
-                        .ToHashSet();
-                    var points = localDb.HashSetOfType<DBPoint>(tx);
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
+                    plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
 
-                    foreach (DBPoint point in points)
+                    HashSet<string> acceptedTypes = new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie" };
+
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
+                    brs = brs
+                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Distriktets_navn") == curEtapeName)
+                        .Where(x => acceptedTypes.Contains(PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
+                        .ToHashSet();
+
+                    //Collection to hold no cross lines
+                    HashSet<Line> noCross = localDb.HashSetOfType<Line>(tx, true)
+                        .Where(x => x.Layer == "0-NOCROSS_LINE")
+                        .ToHashSet();
+
+                    foreach (BlockReference br in brs)
                     {
-                        List<(double dist, Oid id, Point3d np)> res = new List<(double dist, Oid id, Point3d np)>();
+                        List<Connection> res = new List<Connection>();
                         foreach (Polyline pline in plines)
                         {
-                            Point3d closestPoint = pline.GetClosestPointTo(point.Position, false);
-                            res.Add((point.Position.DistanceHorizontalTo(closestPoint), pline.Id, closestPoint));
+                            Point3d closestPoint = pline.GetClosestPointTo(br.Position, false);
+
+                            foreach (Line noCrossLine in noCross)
+                            {
+                                using (Line testLine = new Line(br.Position, closestPoint))
+                                using (Point3dCollection p3dcol = new Point3dCollection())
+                                {
+                                    noCrossLine.IntersectWith(testLine, 0, new Plane(), p3dcol, new IntPtr(0), new IntPtr(0));
+                                    if (p3dcol.Count == 0) res.Add(new Connection(br.Position.DistanceHorizontalTo(closestPoint), pline.Id, br.Id, closestPoint));
+                                }
+                            }
                         }
 
-                        var nearest = res.MinBy(x => x.dist).FirstOrDefault();
+                        var nearest = res.MinBy(x => x.Dist).FirstOrDefault();
                         if (nearest == default) continue;
 
                         #region Create line
                         Line connection = new Line();
                         connection.SetDatabaseDefaults();
                         connection.Layer = conLayName;
-                        connection.StartPoint = point.Position;
-                        connection.EndPoint = nearest.np;
-                        modelSpace.AppendEntity(connection);
-                        tx.AddNewlyCreatedDBObject(connection, true);
+                        connection.StartPoint = br.Position;
+                        connection.EndPoint = nearest.NearestPoint;
+                        connection.AddEntityToDbModelSpace(localDb);
+                        //Write area data
+                        psManFjvFremtid.GetOrAttachPropertySet(connection);
+                        psManFjvFremtid.WritePropertyString(fjvFremtidDef.Distriktets_navn, curEtapeName);
+                        psManFjvFremtid.WritePropertyString(fjvFremtidDef.Bemærkninger, "Stik");
+                        //Write graph data
+                        psManGraph.GetOrAttachPropertySet(connection);
+                        psManGraph.WritePropertyString(driDimGraphDef.Children, br.Handle.ToString());
+                        psManGraph.WritePropertyString(driDimGraphDef.Parent, nearest.ParentId.Go<Entity>(tx).Handle.ToString());
                         #endregion
+
+                        #region Write BR parent data
+                        psManGraph.GetOrAttachPropertySet(br);
+                        psManGraph.WritePropertyString(driDimGraphDef.Parent, connection.Handle.ToString());
+                        #endregion
+
+                        #region Write PL children data
+                        {
+                            Polyline pline = nearest.ParentId.Go<Polyline>(tx);
+                            psManGraph.GetOrAttachPropertySet(pline);
+                            string currentChildren = psManGraph.ReadPropertyString(driDimGraphDef.Children);
+                            currentChildren += connection.Handle.ToString() + ";";
+                            psManGraph.WritePropertyString(driDimGraphDef.Children, currentChildren);
+                        }
+                        #endregion
+                    }
+
+                    System.Windows.Forms.Application.DoEvents();
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("DIMADRESSERDUMP")]
+        public void dimadresserdump()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                //Settings
+                string curEtapeName = "Etape 9.4";
+
+                try
+                {
+                    #region dump af adresser
+                    HashSet<string> acceptedTypes = new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie" };
+
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
+                    brs = brs
+                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Distriktets_navn") == curEtapeName)
+                        .Where(x => acceptedTypes.Contains(PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
+                        .ToHashSet();
+
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine("Adresse;Energiforbrug;Antal ejendomme;Antal boliger med varmtvandsforbrug;Stik længde (tracé) [m]");
+
+                    foreach (BlockReference br in brs)
+                    {
+                        string vejnavn = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
+                        string husnummer = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
+                        string estVarmeForbrug = (PropertySetManager.ReadNonDefinedPropertySetDouble(br, "BBR", "EstimeretVarmeForbrug") * 1000).ToString("0.##");
+                        string antalEjendomme = "1";
+                        string antalBoligerOsv = "1";
+
+                        string handleString = PropertySetManager.ReadNonDefinedPropertySetString(br, "DriDimGraph", "Parent");
+                        Handle parent = new Handle(Convert.ToInt64(handleString, 16));
+                        Line line = parent.Go<Line>(localDb);
+                        string stikLængde = line.Length.ToString("0.##");
+
+                        sb.AppendLine($"{vejnavn} {husnummer};{estVarmeForbrug};{antalEjendomme};{antalBoligerOsv};{stikLængde}");
+                    }
+
+                    //Build file name
+                    string dbFilename = localDb.OriginalFileName;
+                    string path = Path.GetDirectoryName(dbFilename);
+                    string dumpExportFileName = path + "\\dimaddressdump.csv";
+
+                    Utils.ClrFile(dumpExportFileName);
+                    Utils.OutputWriter(dumpExportFileName, sb.ToString());
+
+                    System.Windows.Forms.Application.DoEvents();
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("DIMPOPULATEGRAPH")]
+        public void dimpopulategraph()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                //Settings
+                string curEtapeName = "Etape 9.3";
+                string conLayName = "0-CONNECTION_LINE";
+                string noCrossLayName = "0-NOCROSS_LINE";
+
+                PropertySetManager psManFjvFremtid = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
+                PSetDefs.FJV_fremtid fjvFremtidDef = new PSetDefs.FJV_fremtid();
+
+                PropertySetManager psManGraph = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
+                PSetDefs.DriDimGraph driDimGraphDef = new PSetDefs.DriDimGraph();
+
+                try
+                {
+                    #region Traverse system and build graph
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
+                    plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
+
+                    //The idea is to use 
+                    var groups = plines.GroupByCluster();
+
+                    double AnalyzePlinesForConnection(Polyline first, Polyline second)
+                    {
+                        Point3d p1 = first.StartPoint;
+                        Point3d p2 = second.EndPoint;
                     }
 
                     System.Windows.Forms.Application.DoEvents();

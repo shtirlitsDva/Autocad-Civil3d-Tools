@@ -1369,12 +1369,12 @@ namespace IntersectUtilities.UtilsCommon
         {
             return (T)tx.GetObject(oid, openMode, false);
         }
-        public static DBObject Go(this Handle handle, Database database)
+        public static T Go<T>(this Handle handle, Database database) where T : Autodesk.AutoCAD.DatabaseServices.DBObject
         {
             Oid id = database.GetObjectId(false, handle, 0);
             if (database.TransactionManager.TopTransaction == null) 
                 throw new System.Exception("Handle.Go<DBObject> -> no top transaction found! Call inside transaction.");
-            return id.Go<DBObject>(database.TransactionManager.TopTransaction);
+            return id.Go<T>(database.TransactionManager.TopTransaction);
         }
         public static Oid AddEntityToDbModelSpace<T>(this T entity, Database db) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
