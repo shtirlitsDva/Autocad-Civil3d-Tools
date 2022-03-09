@@ -13191,7 +13191,7 @@ namespace IntersectUtilities
 
                     foreach (BlockReference br in brs)
                     {
-                        List<Connection> res = new List<Connection>();
+                        List<Stik> res = new List<Stik>();
                         foreach (Polyline pline in plines)
                         {
                             Point3d closestPoint = pline.GetClosestPointTo(br.Position, false);
@@ -13202,7 +13202,7 @@ namespace IntersectUtilities
                                 using (Point3dCollection p3dcol = new Point3dCollection())
                                 {
                                     noCrossLine.IntersectWith(testLine, 0, new Plane(), p3dcol, new IntPtr(0), new IntPtr(0));
-                                    if (p3dcol.Count == 0) res.Add(new Connection(br.Position.DistanceHorizontalTo(closestPoint), pline.Id, br.Id, closestPoint));
+                                    if (p3dcol.Count == 0) res.Add(new Stik(br.Position.DistanceHorizontalTo(closestPoint), pline.Id, br.Id, closestPoint));
                                 }
                             }
                         }
@@ -13344,8 +13344,6 @@ namespace IntersectUtilities
             {
                 //Settings
                 string curEtapeName = "Etape 9.3";
-                string conLayName = "0-CONNECTION_LINE";
-                string noCrossLayName = "0-NOCROSS_LINE";
 
                 PropertySetManager psManFjvFremtid = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
                 PSetDefs.FJV_fremtid fjvFremtidDef = new PSetDefs.FJV_fremtid();
@@ -13358,14 +13356,93 @@ namespace IntersectUtilities
                     #region Traverse system and build graph
                     HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
                     plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
+                    prdDbg("Nr. of plines " + plines.Count().ToString());
 
-                    //The idea is to use 
-                    var groups = plines.GroupByCluster();
-
-                    double AnalyzePlinesForConnection(Polyline first, Polyline second)
+                    HashSet<POI> allPoiCol = new HashSet<POI>();
+                    foreach (Polyline item in plines)
                     {
-                        Point3d p1 = first.StartPoint;
-                        Point3d p2 = second.EndPoint;
+                        allPoiCol.Add(new POI(item.Id, item.StartPoint, POI.EndTypeEnum.Start));
+                        allPoiCol.Add(new POI(item.Id, item.EndPoint, POI.EndTypeEnum.End));
+                    }
+
+                    var entryPoints = allPoiCol
+                            .GroupByCluster((x, y) => x.Point.DistanceHorizontalTo(y.Point), 0.005)
+                            .Where(x => x.Count() == 1 && x.Key.EndType == POI.EndTypeEnum.Start);
+
+                    int groupCounter = 0;
+                    foreach (IGrouping<POI, POI> entryPoint in entryPoints)
+                    {
+                        //Debug
+                        HashSet<Polyline> groupPlines = new HashSet<Polyline>();
+
+                        groupCounter++;
+
+                        //Using stack traversing strategy
+                        Stack<Polyline> stack = new Stack<Polyline>();
+                        stack.Push(entryPoint.Key.OwnerId.Go<Polyline>(tx));
+                        int subGroupCounter = 0;
+                        while (stack.Count > 0)
+                        {
+                            subGroupCounter++;
+                            Polyline curItem = stack.Pop();
+                            groupPlines.Add(curItem);
+
+                            //Write group and subgroup numbers
+                            string strækningsNr = $"{groupCounter}.{subGroupCounter}";
+                            psManFjvFremtid.GetOrAttachPropertySet(curItem);
+                            psManFjvFremtid.WritePropertyString(
+                                fjvFremtidDef.Bemærkninger, $"Strækning {strækningsNr}");
+
+                            //Place label to mark the strækning
+                            Point3d midPoint = curItem.GetPointAtDist(curItem.Length / 2);
+                            DBText text = new DBText();
+                            text.SetDatabaseDefaults();
+                            text.TextString = strækningsNr;
+                            text.Height = 2.5;
+                            text.Position = midPoint;
+                            text.Layer = "0";
+                            text.AddEntityToDbModelSpace(localDb);
+
+                            //Find next connections
+                            var query = allPoiCol.Where(
+                                x => x.Point.DistanceHorizontalTo(curItem.EndPoint) < 0.005 &&
+                                x.EndType == POI.EndTypeEnum.Start);
+
+                            foreach (POI poi in query)
+                            {
+                                Polyline connectedItem = poi.OwnerId.Go<Polyline>(tx);
+
+                                //Add child to current item
+                                psManGraph.GetOrAttachPropertySet(curItem);
+                                string curChildren = psManGraph
+                                    .ReadPropertyString(driDimGraphDef.Children);
+                                curChildren += connectedItem.Handle.ToString() + ";";
+                                psManGraph.WritePropertyString(driDimGraphDef.Children, curChildren);
+                                //Write parent to the child
+                                psManGraph.GetOrAttachPropertySet(connectedItem);
+                                psManGraph.WritePropertyString(
+                                    driDimGraphDef.Parent, curItem.Handle.ToString());
+                                //Push the child to stack for further processing
+                                stack.Push(connectedItem);
+                            }
+                        }
+
+                        #region Debug
+                        //Debug
+                        List<Point2d> pts = new List<Point2d>();
+                        foreach (Polyline pl in groupPlines)
+                        {
+                            for (int i = 0; i < pl.NumberOfVertices; i++)
+                            {
+                                pts.Add(pl.GetPoint3dAt(i).To2D());
+                            }
+                        }
+
+                        Polyline circum = PolylineFromConvexHull(pts);
+                        circum.AddEntityToDbModelSpace(localDb);
+                        localDb.CheckOrCreateLayer("0-FJV_Debug");
+                        circum.Layer = "0-FJV_Debug";
+                        #endregion
                     }
 
                     System.Windows.Forms.Application.DoEvents();
@@ -13375,7 +13452,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
+                    editor.WriteMessage("\n" + ex.ToString());
                     return;
                 }
                 finally

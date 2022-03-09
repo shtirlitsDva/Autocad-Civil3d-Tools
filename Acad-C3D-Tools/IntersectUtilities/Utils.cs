@@ -1177,6 +1177,135 @@ namespace IntersectUtilities
             pline.CheckOrOpenForWrite();
             pline.Erase(true);
         }
+        struct Segment
+        {
+            public Point2d StartPt { get; set; }
+            public Point2d EndPt { get; set; }
+            public double Bulge { get; set; }
+        }
+        /// <summary>
+        /// Union of two rectangular closed polylines
+        /// </summary>
+        public static IEnumerable<Polyline> Union(IEnumerable<Polyline> plines)
+        {
+            foreach (var group in plines.GroupBy(pl => new { pl.Elevation, pl.Normal }))
+            {
+                if (group.Count() == 1)
+                {
+                    yield return group.First();
+                }
+                else
+                {
+                    var plane = new Plane(Point3d.Origin, group.Key.Normal);
+                    var segs = new List<Segment>();
+                    using (var dbObjects = new DBObjectCollection())
+                    {
+                        foreach (var pline in group)
+                        {
+                            pline.Explode(dbObjects);
+                        }
+                        using (DBObjectCollection regions = Region.CreateFromCurves(dbObjects))
+                        {
+                            var region = (Region)regions[0];
+                            for (int i = 1; i < regions.Count; i++)
+                            {
+                                region.BooleanOperation(BooleanOperationType.BoolUnite, (Region)regions[i]);
+                                regions[i].Dispose();
+                            }
+                            foreach (DBObject o in dbObjects) o.Dispose();
+                            dbObjects.Clear();
+                            region.Explode(dbObjects);
+                            region.Dispose();
+                            for (int i = 0; i < dbObjects.Count; i++)
+                            {
+                                if (dbObjects[i] is Region)
+                                {
+                                    ((Region)dbObjects[i]).Explode(dbObjects);
+                                    continue;
+                                }
+                                var curve = (Curve)dbObjects[i];
+                                Point3d start = curve.StartPoint;
+                                Point3d end = curve.EndPoint;
+                                double bulge = 0.0;
+                                if (curve is Arc)
+                                {
+                                    Arc arc = (Arc)curve;
+                                    double angle = arc.Center.GetVectorTo(start).GetAngleTo(arc.Center.GetVectorTo(end), arc.Normal);
+                                    bulge = Math.Tan(angle / 4.0);
+                                }
+                                segs.Add(new Segment { StartPt = start.Convert2d(plane), EndPt = end.Convert2d(plane), Bulge = bulge });
+                            }
+                            foreach (DBObject obj in dbObjects) obj.Dispose();
+                            while (segs.Count > 0)
+                            {
+                                using (Polyline pline = new Polyline())
+                                {
+                                    pline.AddVertexAt(0, segs[0].StartPt, segs[0].Bulge, 0.0, 0.0);
+                                    Point2d pt = segs[0].EndPt;
+                                    segs.RemoveAt(0);
+                                    int vtx = 1;
+                                    while (true)
+                                    {
+                                        int i = segs.FindIndex(delegate (Segment s)
+                                        {
+                                            return s.StartPt.IsEqualTo(pt) || s.EndPt.IsEqualTo(pt);
+                                        });
+                                        if (i < 0) break;
+                                        Segment seg = segs[i];
+                                        if (seg.EndPt.IsEqualTo(pt))
+                                            seg = new Segment { StartPt = seg.EndPt, EndPt = seg.StartPt, Bulge = -seg.Bulge };
+                                        pline.AddVertexAt(vtx, seg.StartPt, seg.Bulge, 0.0, 0.0);
+                                        pt = seg.EndPt;
+                                        segs.RemoveAt(i);
+                                        vtx++;
+                                    }
+                                    pline.Closed = true;
+                                    pline.Normal = group.Key.Normal;
+                                    pline.Elevation = group.Key.Elevation;
+                                    yield return pline;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private static bool Clockwise(Point2d p1, Point2d p2, Point2d p3)
+        {
+            return ((p2.X - p1.X) * (p3.Y - p1.Y) - (p2.Y - p1.Y) * (p3.X - p1.X)) < 1e-9;
+        }
+        private static Point2d _p0;
+        private static double Cosine(Point2d pt)
+        {
+            double d = _p0.GetDistanceTo(pt);
+            return d == 0.0 ? 1.0 : Math.Round((pt.X - _p0.X) / d, 9);
+        }
+        private static List<Point2d> ConvexHull(List<Point2d> pts)
+        {
+            _p0 = pts.OrderBy(p => p.Y).ThenBy(p => p.X).First();
+            pts = pts.OrderByDescending(p => Cosine(p)).ThenBy(p => _p0.GetDistanceTo(p)).ToList();
+            for (int i = 1; i < pts.Count - 1; i++)
+            {
+                while (i > 0 && Clockwise(pts[i - 1], pts[i], pts[i + 1]))
+                {
+                    pts.RemoveAt(i);
+                    i--;
+                }
+            }
+            return pts;
+        }
+        public static Polyline PolylineFromConvexHull(List<Point2d> pts)
+        {
+            pts = ConvexHull(pts);
+            Polyline pline = new Polyline();
+            for (int i = 0; i < pts.Count; i++)
+            {
+                pline.AddVertexAt(i, pts[i], 0.0, 0.0, 0.0);
+            }
+            pline.Closed = true;
+            return pline;
+        }
     }
 
     public static class Enums
