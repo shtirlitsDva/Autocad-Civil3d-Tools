@@ -1376,6 +1376,11 @@ namespace IntersectUtilities.UtilsCommon
                 throw new System.Exception("Handle.Go<DBObject> -> no top transaction found! Call inside transaction.");
             return id.Go<T>(database.TransactionManager.TopTransaction);
         }
+        public static T Go<T>(this Database db, string handle) where T : Autodesk.AutoCAD.DatabaseServices.DBObject
+        {
+            Handle h = new Handle(Convert.ToInt64(handle, 16));
+            return h.Go<T>(db);
+        }
         public static Oid AddEntityToDbModelSpace<T>(this T entity, Database db) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
             Transaction tx = db.TransactionManager.TopTransaction;

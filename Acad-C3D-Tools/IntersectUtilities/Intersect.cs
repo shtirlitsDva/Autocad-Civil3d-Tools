@@ -13102,8 +13102,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("DIMSTIKAUTOGEN")]
-        public void dimstikautogen()
+        public void dimstikautogen(string curEtapeName)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -13114,7 +13113,7 @@ namespace IntersectUtilities
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 //Settings
-                string curEtapeName = "Etape 9.4";
+                //string curEtapeName = "Etape 9.4";
 
                 #region Manage layer to contain connection lines
                 LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
@@ -13176,7 +13175,7 @@ namespace IntersectUtilities
                     HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
                     plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
 
-                    HashSet<string> acceptedTypes = new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie" };
+                    HashSet<string> acceptedTypes = new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet" };
 
                     HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
                     brs = brs
@@ -13278,7 +13277,7 @@ namespace IntersectUtilities
                 try
                 {
                     #region dump af adresser
-                    HashSet<string> acceptedTypes = new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie" };
+                    HashSet<string> acceptedTypes = new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet" };
 
                     HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
                     brs = brs
@@ -13345,19 +13344,59 @@ namespace IntersectUtilities
                 //Settings
                 string curEtapeName = "Etape 9.3";
 
-                PropertySetManager psManFjvFremtid = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
-                PSetDefs.FJV_fremtid fjvFremtidDef = new PSetDefs.FJV_fremtid();
+                PropertySetManager psmFjvFrem = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
+                PSetDefs.FJV_fremtid defFjvFrem = new PSetDefs.FJV_fremtid();
 
-                PropertySetManager psManGraph = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
-                PSetDefs.DriDimGraph driDimGraphDef = new PSetDefs.DriDimGraph();
+                PropertySetManager psmGraph = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
+                PSetDefs.DriDimGraph defGraph = new PSetDefs.DriDimGraph();
 
                 try
                 {
-                    #region Traverse system and build graph
+                    #region Clear previous data
                     HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
                     plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
                     prdDbg("Nr. of plines " + plines.Count().ToString());
 
+                    HashSet<string> acceptedTypes = new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet" };
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
+                    brs = brs
+                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Distriktets_navn") == curEtapeName)
+                        .Where(x => acceptedTypes.Contains(PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
+                        .ToHashSet();
+                    prdDbg("Nr. of blocks " + brs.Count().ToString());
+
+                    HashSet<Line> lines = localDb.HashSetOfType<Line>(tx, true);
+                    plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
+                    prdDbg("Nr. of lines " + lines.Count().ToString());
+
+                    HashSet<Entity> entities = new HashSet<Entity>();
+                    entities.UnionWith(plines);
+                    entities.UnionWith(brs);
+                    entities.UnionWith(lines);
+                    #endregion
+
+                    #region Clear previous data
+                    foreach (Entity entity in entities)
+                    {
+                        psmGraph.GetOrAttachPropertySet(entity);
+                        psmGraph.WritePropertyString(defGraph.Parent, "");
+                        psmGraph.WritePropertyString(defGraph.Children, "");
+                    }
+                    #endregion
+
+                    #region Delete old labels
+                    var labels = localDb
+                        .HashSetOfType<DBText>(tx)
+                        .Where(x => x.Layer == "0-FJV_Strækning_label");
+
+                    foreach (DBText label in labels)
+                    {
+                        label.CheckOrOpenForWrite();
+                        label.Erase(true);
+                    }
+                    #endregion
+
+                    #region Traverse system and build graph
                     HashSet<POI> allPoiCol = new HashSet<POI>();
                     foreach (Polyline item in plines)
                     {
@@ -13377,9 +13416,17 @@ namespace IntersectUtilities
 
                         groupCounter++;
 
+                        //Get the entrypoint element
+                        Polyline entryPline = entryPoint.Key.OwnerId.Go<Polyline>(tx);
+
+                        //Mark the element as entry point
+                        psmGraph.GetOrAttachPropertySet(entryPline);
+                        psmGraph.WritePropertyString(
+                            defGraph.Parent, $"Entry");
+
                         //Using stack traversing strategy
                         Stack<Polyline> stack = new Stack<Polyline>();
-                        stack.Push(entryPoint.Key.OwnerId.Go<Polyline>(tx));
+                        stack.Push(entryPline);
                         int subGroupCounter = 0;
                         while (stack.Count > 0)
                         {
@@ -13389,9 +13436,9 @@ namespace IntersectUtilities
 
                             //Write group and subgroup numbers
                             string strækningsNr = $"{groupCounter}.{subGroupCounter}";
-                            psManFjvFremtid.GetOrAttachPropertySet(curItem);
-                            psManFjvFremtid.WritePropertyString(
-                                fjvFremtidDef.Bemærkninger, $"Strækning {strækningsNr}");
+                            psmFjvFrem.GetOrAttachPropertySet(curItem);
+                            psmFjvFrem.WritePropertyString(
+                                defFjvFrem.Bemærkninger, $"Strækning {strækningsNr}");
 
                             //Place label to mark the strækning
                             Point3d midPoint = curItem.GetPointAtDist(curItem.Length / 2);
@@ -13400,7 +13447,8 @@ namespace IntersectUtilities
                             text.TextString = strækningsNr;
                             text.Height = 2.5;
                             text.Position = midPoint;
-                            text.Layer = "0";
+                            localDb.CheckOrCreateLayer("0-FJV_Strækning_label");
+                            text.Layer = "0-FJV_Strækning_label";
                             text.AddEntityToDbModelSpace(localDb);
 
                             //Find next connections
@@ -13413,15 +13461,21 @@ namespace IntersectUtilities
                                 Polyline connectedItem = poi.OwnerId.Go<Polyline>(tx);
 
                                 //Add child to current item
-                                psManGraph.GetOrAttachPropertySet(curItem);
-                                string curChildren = psManGraph
-                                    .ReadPropertyString(driDimGraphDef.Children);
-                                curChildren += connectedItem.Handle.ToString() + ";";
-                                psManGraph.WritePropertyString(driDimGraphDef.Children, curChildren);
+                                psmGraph.GetOrAttachPropertySet(curItem);
+                                string curChildren = psmGraph
+                                    .ReadPropertyString(defGraph.Children);
+                                //Check to see if children already contain the entry before adding
+                                //So we don't get multiple equal entries when running the command again
+                                if (curChildren.Contains(connectedItem.Handle.ToString()) == false)
+                                {
+                                    curChildren += connectedItem.Handle.ToString() + ";";
+                                    psmGraph.WritePropertyString(defGraph.Children, curChildren);
+                                }
+
                                 //Write parent to the child
-                                psManGraph.GetOrAttachPropertySet(connectedItem);
-                                psManGraph.WritePropertyString(
-                                    driDimGraphDef.Parent, curItem.Handle.ToString());
+                                psmGraph.GetOrAttachPropertySet(connectedItem);
+                                psmGraph.WritePropertyString(
+                                    defGraph.Parent, curItem.Handle.ToString());
                                 //Push the child to stack for further processing
                                 stack.Push(connectedItem);
                             }
@@ -13429,6 +13483,14 @@ namespace IntersectUtilities
 
                         #region Debug
                         //Debug
+
+                        foreach (Polyline pline in localDb.ListOfType<Polyline>(tx))
+                        {
+                            if (pline.Layer != "0-FJV_Debug") continue;
+                            pline.CheckOrOpenForWrite();
+                            pline.Erase(true);
+                        }
+
                         List<Point2d> pts = new List<Point2d>();
                         foreach (Polyline pl in groupPlines)
                         {
@@ -13445,8 +13507,128 @@ namespace IntersectUtilities
                         #endregion
                     }
 
+                    dimstikautogen(curEtapeName);
+
                     System.Windows.Forms.Application.DoEvents();
 
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("DIMDUMPGRAPH")]
+        public void dimdumpgraph()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                //Settings
+                string curEtapeName = "Etape 9.3";
+
+                PropertySetManager psManFjvFremtid = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
+                PSetDefs.FJV_fremtid fjvFremtidDef = new PSetDefs.FJV_fremtid();
+
+                PropertySetManager psManGraph = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
+                PSetDefs.DriDimGraph driDimGraphDef = new PSetDefs.DriDimGraph();
+
+                try
+                {
+                    #region Traverse system and build graph
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
+                    plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
+                    prdDbg("Nr. of plines " + plines.Count().ToString());
+
+                    var entryElements = plines.Where(x => psManGraph.FilterPropetyString(x, driDimGraphDef.Parent, "Entry"));
+                    prdDbg($"Nr. of entry elements: {entryElements.Count()}");
+
+                    //StringBuilder to dump the text
+                    StringBuilder sb = new StringBuilder();
+
+                    foreach (Polyline entryElement in entryElements)
+                    {
+                        //Write group number
+                        psManFjvFremtid.GetOrAttachPropertySet(entryElement);
+                        string strNr = psManFjvFremtid.ReadPropertyString(
+                            fjvFremtidDef.Bemærkninger).Replace("Strækning ", "");
+
+                        sb.AppendLine($"****** Rørgruppe nr.: {strNr.Split('.')[0]} ******");
+                        sb.AppendLine();
+
+                        //Using stack traversing strategy
+                        Stack<Polyline> stack = new Stack<Polyline>();
+                        stack.Push(entryElement);
+                        while (stack.Count > 0)
+                        {
+                            Polyline curItem = stack.Pop();
+
+                            //Write group and subgroup numbers
+                            psManFjvFremtid.GetOrAttachPropertySet(curItem);
+                            string strNrString = psManFjvFremtid.ReadPropertyString(fjvFremtidDef.Bemærkninger);
+                            sb.AppendLine($"--> {strNrString} <--");
+
+                            strNr = strNrString.Replace("Strækning ", "");
+
+                            //Get the children
+                            HashSet<Entity> children = new HashSet<Entity>();
+                            Dimensionering.GatherChildren(curItem, localDb, psManGraph, ref children);
+
+                            //First print connections
+                            foreach (Entity child in children)
+                            {
+                                if (child is Polyline pline)
+                                {
+                                    psManFjvFremtid.GetOrAttachPropertySet(pline);
+                                    string childStrNr = psManFjvFremtid.ReadPropertyString(fjvFremtidDef.Bemærkninger).Replace("Strækning ","");
+                                    sb.AppendLine($"{strNr} -> {childStrNr}");
+
+                                    //Push the polyline in to stack to continue iterating
+                                    stack.Push(pline);
+                                }
+                            }
+
+                            foreach (Entity child in children)
+                            {
+                                if (child is BlockReference br)
+                                {
+                                    string vejnavn = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
+                                    string husnummer = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
+
+                                    Point3d np = curItem.GetClosestPointTo(br.Position, false);
+                                    double st = curItem.GetDistAtPoint(np);
+
+                                    sb.AppendLine($"{vejnavn} {husnummer} - {st.ToString("0.##")}");
+                                }
+                            }
+
+                            sb.AppendLine();
+                        }
+                    }
+
+                    System.Windows.Forms.Application.DoEvents();
+
+                    //Build file name
+                    string dbFilename = localDb.OriginalFileName;
+                    string path = Path.GetDirectoryName(dbFilename);
+                    string dumpExportFileName = path + "\\dimgraphdump.txt";
+
+                    Utils.ClrFile(dumpExportFileName);
+                    Utils.OutputWriter(dumpExportFileName, sb.ToString());
                     #endregion
                 }
                 catch (System.Exception ex)
