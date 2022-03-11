@@ -210,6 +210,15 @@ namespace IntersectUtilities
                     }
                     #endregion
 
+                    #region Delete old debug plines
+                    foreach (Polyline pline in localDb.ListOfType<Polyline>(tx))
+                    {
+                        if (pline.Layer != "0-FJV_Debug") continue;
+                        pline.CheckOrOpenForWrite();
+                        pline.Erase(true);
+                    }
+                    #endregion
+
                     #region Traverse system and build graph
                     HashSet<POI> allPoiCol = new HashSet<POI>();
                     foreach (Polyline item in plines)
@@ -298,14 +307,6 @@ namespace IntersectUtilities
 
                         #region Debug
                         //Debug
-
-                        foreach (Polyline pline in localDb.ListOfType<Polyline>(tx))
-                        {
-                            if (pline.Layer != "0-FJV_Debug") continue;
-                            pline.CheckOrOpenForWrite();
-                            pline.Erase(true);
-                        }
-
                         List<Point2d> pts = new List<Point2d>();
                         foreach (Polyline pl in groupPlines)
                         {
@@ -686,9 +687,6 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                //Settings
-                //string curEtapeName = "Etape 9.4";
-
                 #region Manage layer to contain connection lines
                 LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
 
@@ -748,6 +746,7 @@ namespace IntersectUtilities
                     #region Stik counting
                     HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
                     plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
+                    prdDbg($"Number of plines: {plines.Count}");
 
                     HashSet<string> acceptedTypes = new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet" };
 
@@ -756,6 +755,7 @@ namespace IntersectUtilities
                         .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Distriktets_navn") == curEtapeName)
                         .Where(x => acceptedTypes.Contains(PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
                         .ToHashSet();
+                    prdDbg($"Number of blocks: {brs.Count}");
 
                     //Collection to hold no cross lines
                     HashSet<Line> noCross = localDb.HashSetOfType<Line>(tx, true)
@@ -769,14 +769,23 @@ namespace IntersectUtilities
                         {
                             Point3d closestPoint = pline.GetClosestPointTo(br.Position, false);
 
-                            foreach (Line noCrossLine in noCross)
+                            if (noCross.Count == 0)
                             {
-                                using (Line testLine = new Line(br.Position, closestPoint))
-                                using (Point3dCollection p3dcol = new Point3dCollection())
+                                res.Add(new Stik(br.Position.DistanceHorizontalTo(closestPoint), pline.Id, br.Id, closestPoint));
+                            }
+                            else
+                            {
+                                int intersectionsCounter = 0;
+                                foreach (Line noCrossLine in noCross)
                                 {
-                                    noCrossLine.IntersectWith(testLine, 0, new Plane(), p3dcol, new IntPtr(0), new IntPtr(0));
-                                    if (p3dcol.Count == 0) res.Add(new Stik(br.Position.DistanceHorizontalTo(closestPoint), pline.Id, br.Id, closestPoint));
+                                    using (Line testLine = new Line(br.Position, closestPoint))
+                                    using (Point3dCollection p3dcol = new Point3dCollection())
+                                    {
+                                        noCrossLine.IntersectWith(testLine, 0, new Plane(), p3dcol, new IntPtr(0), new IntPtr(0));
+                                        if (p3dcol.Count > 0) intersectionsCounter += p3dcol.Count;
+                                    }
                                 }
+                                if (intersectionsCounter == 0) res.Add(new Stik(br.Position.DistanceHorizontalTo(closestPoint), pline.Id, br.Id, closestPoint));
                             }
                         }
 

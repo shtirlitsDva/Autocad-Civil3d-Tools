@@ -279,6 +279,32 @@ namespace IntersectUtilities
             //If no PS found return null
             return null;
         }
+        private static object WriteNonDefinedPropertySetObject(Entity ent, string propertySetName, string propertyName, object value)
+        {
+            ObjectIdCollection psIds = PropertyDataServices.GetPropertySets(ent);
+            List<PropertySet> pss = new List<PropertySet>();
+            foreach (Oid oid in psIds) pss.Add(oid.Go<PropertySet>(ent.GetTopTx()));
+
+            foreach (PropertySet ps in pss)
+            {
+                if (ps.PropertySetDefinitionName == propertySetName)
+                {
+                    try
+                    {
+                        int id = ps.PropertyNameToId(propertyName);
+                        ps.SetAt(id, value);
+                        return value;
+                    }
+                    catch (System.Exception)
+                    {
+                        return null;
+                    }
+                }
+            }
+            //Fall through
+            //If no PS found return null
+            return null;
+        }
         public static double ReadNonDefinedPropertySetDouble(Entity ent, string propertySetName, string propertyName)
         {
             object value = ReadNonDefinedPropertySetObject(ent, propertySetName, propertyName);
@@ -308,6 +334,10 @@ namespace IntersectUtilities
         {
             object value = ReadNonDefinedPropertySetObject(ent, propertySetName, propertyName);
             return Convert.ToString(value);
+        }
+        public static void WriteNonDefinedPropertySetString(Entity ent, string propertySetName, string propertyName, string value)
+        {
+            WriteNonDefinedPropertySetObject(ent, propertySetName, propertyName, value);
         }
         public static void AttachNonDefinedPropertySet(Database database, Entity ent, string propertySetName)
         {

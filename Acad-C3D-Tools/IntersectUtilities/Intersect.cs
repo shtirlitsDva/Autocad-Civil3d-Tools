@@ -13126,6 +13126,77 @@ namespace IntersectUtilities
             Dimensionering.dimwritegraph(Dimensionering.CurrentEtapeName);
         }
 
+        [CommandMethod("REPLACEBLOCK")]
+        public void replaceblock()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            const string kwd1 = "Naturgas";
+            const string kwd2 = "Andet";
+            const string kwd3 = "UDGÅR";
+            const string kwd4 = "Ingen";
+            const string kwd5 = "El";
+            const string kwd6 = "Olie";
+            const string kwd7 = "Varmepumpe";
+            const string kwd8 = "Fjernvarme";
+            const string kwd9 = "Fast brændsel";
+
+            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
+            pKeyOpts.Message = "\nHvilken block skal indsættes i stedet? ";
+            pKeyOpts.Keywords.Add(kwd1);
+            pKeyOpts.Keywords.Add(kwd2);
+            pKeyOpts.Keywords.Add(kwd3);
+            pKeyOpts.Keywords.Add(kwd4);
+            pKeyOpts.Keywords.Add(kwd5);
+            pKeyOpts.Keywords.Add(kwd6);
+            pKeyOpts.Keywords.Add(kwd7);
+            pKeyOpts.Keywords.Add(kwd8);
+            pKeyOpts.Keywords.Add(kwd9);
+            pKeyOpts.AllowNone = true;
+            pKeyOpts.Keywords.Default = kwd1;
+            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+
+            string blockName = pKeyRes.StringResult;
+
+            while (true)
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        #region Select block
+                        PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                            "\nSelect block to replace:");
+                        promptEntityOptions1.SetRejectMessage("\n Not a block!");
+                        promptEntityOptions1.AddAllowedClass(typeof(BlockReference), true);
+                        PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                        if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
+                        Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
+                        BlockReference brOld = entId.Go<BlockReference>(tx, OpenMode.ForWrite);
+                        #endregion
+
+                        BlockReference brNew = localDb.CreateBlockWithAttributes(blockName, brOld.Position);
+
+                        PropertySetManager.CopyAllProperties(brOld, brNew);
+                        PropertySetManager.WriteNonDefinedPropertySetString(brNew, "BBR", "Type", blockName);
+
+                        brOld.Erase(true);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        editor.WriteMessage("\n" + ex.ToString());
+                        return;
+                    }
+                    tx.Commit();
+                }
+            }
+        }
+
         [CommandMethod("LABELPIPE")]
         [CommandMethod("LB")]
         public void labelpipe()
