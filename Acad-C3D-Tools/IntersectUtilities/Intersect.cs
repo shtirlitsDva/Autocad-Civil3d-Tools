@@ -13342,7 +13342,7 @@ namespace IntersectUtilities
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 //Settings
-                string curEtapeName = "Etape 9.3";
+                string curEtapeName = "Etape 9.4";
 
                 PropertySetManager psmFjvFrem = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
                 PSetDefs.FJV_fremtid defFjvFrem = new PSetDefs.FJV_fremtid();
@@ -13539,7 +13539,7 @@ namespace IntersectUtilities
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 //Settings
-                string curEtapeName = "Etape 9.3";
+                string curEtapeName = "Etape 9.4";
 
                 PropertySetManager psManFjvFremtid = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
                 PSetDefs.FJV_fremtid fjvFremtidDef = new PSetDefs.FJV_fremtid();
