@@ -13594,7 +13594,7 @@ namespace IntersectUtilities
                                 if (child is Polyline pline)
                                 {
                                     psManFjvFremtid.GetOrAttachPropertySet(pline);
-                                    string childStrNr = psManFjvFremtid.ReadPropertyString(fjvFremtidDef.Bemærkninger).Replace("Strækning ","");
+                                    string childStrNr = psManFjvFremtid.ReadPropertyString(fjvFremtidDef.Bemærkninger).Replace("Strækning ", "");
                                     sb.AppendLine($"{strNr} -> {childStrNr}");
 
                                     //Push the polyline in to stack to continue iterating
@@ -13629,6 +13629,164 @@ namespace IntersectUtilities
 
                     Utils.ClrFile(dumpExportFileName);
                     Utils.OutputWriter(dumpExportFileName, sb.ToString());
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("DIMWRITEGRAPH")]
+        public void dimwritegraph()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                //Settings
+                string curEtapeName = "Etape 9.3";
+                string arrowShape = " -> ";
+
+                PropertySetManager psManFjvFremtid = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
+                PSetDefs.FJV_fremtid fjvFremtidDef = new PSetDefs.FJV_fremtid();
+
+                PropertySetManager psManGraph = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
+                PSetDefs.DriDimGraph driDimGraphDef = new PSetDefs.DriDimGraph();
+
+                try
+                {
+                    #region Traverse system and build graph
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
+                    plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
+                    prdDbg("Nr. of plines " + plines.Count().ToString());
+
+                    var entryElements = plines.Where(x => psManGraph.FilterPropetyString(x, driDimGraphDef.Parent, "Entry"));
+                    prdDbg($"Nr. of entry elements: {entryElements.Count()}");
+
+                    //StringBuilder to dump the text
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine("digraph G {");
+
+                    foreach (Polyline entryElement in entryElements)
+                    {
+                        //Collection to store subgraph clusters
+                        HashSet<Subgraph> subgraphs = new HashSet<Subgraph>();
+
+                        //Write group number
+                        psManFjvFremtid.GetOrAttachPropertySet(entryElement);
+                        string strNr = psManFjvFremtid.ReadPropertyString(
+                            fjvFremtidDef.Bemærkninger).Replace("Strækning ", "");
+
+                        string subGraphNr = strNr.Split('.')[0];
+
+                        sb.AppendLine($"subgraph G_{strNr.Split('.')[0]} {{");
+                        //sb.AppendLine($"label = \"Delstrækning nr. {subGraphNr}\"");
+                        sb.AppendLine("node [shape=record];");
+
+                        //Using stack traversing strategy
+                        Stack<Polyline> stack = new Stack<Polyline>();
+                        stack.Push(entryElement);
+                        while (stack.Count > 0)
+                        {
+                            Polyline curItem = stack.Pop();
+
+                            //Write group and subgroup numbers
+                            psManFjvFremtid.GetOrAttachPropertySet(curItem);
+                            string strNrString = psManFjvFremtid.ReadPropertyString(fjvFremtidDef.Bemærkninger);
+                            strNr = strNrString.Replace("Strækning ", "");
+
+                            string curNodeHandle = curItem.Handle.ToString();
+
+                            //Write label
+                            sb.AppendLine(
+                                $"\"{curNodeHandle}\" " +
+                                $"[label = \"{{{strNrString}|{curNodeHandle}}}\"];");
+
+                            //Get the children
+                            HashSet<Entity> children = new HashSet<Entity>();
+                            Dimensionering.GatherChildren(curItem, localDb, psManGraph, ref children);
+
+                            //First print connections
+                            foreach (Entity child in children)
+                            {
+                                if (child is Polyline pline)
+                                {
+                                    string childHandle = child.Handle.ToString();
+                                    //psManFjvFremtid.GetOrAttachPropertySet(pline);
+                                    //string childStrNr = psManFjvFremtid.ReadPropertyString
+                                    //      (fjvFremtidDef.Bemærkninger).Replace("Strækning ", "");
+                                    sb.AppendLine($"\"{curNodeHandle}\"{arrowShape}\"{childHandle}\"");
+
+                                    //Push the polyline in to stack to continue iterating
+                                    stack.Push(pline);
+                                }
+                            }
+
+                            //Invoke only subgraph if clients are present
+                            if (children.Any(x => x is BlockReference))
+                            {
+                                Subgraph subgraph = new Subgraph(localDb, curItem, strNrString);
+                                subgraphs.Add(subgraph);
+
+                                foreach (Entity child in children)
+                                {
+                                    if (child is BlockReference br)
+                                    {
+                                        string childHandle = child.Handle.ToString();
+                                        sb.AppendLine($"\"{curNodeHandle}\"{arrowShape}\"{childHandle}\"");
+                                        //sb.AppendLine($"{vejnavn} {husnummer} - {st.ToString("0.##")}");
+
+                                        subgraph.Nodes.Add(child.Handle);
+                                    }
+                                }
+                            }
+                        }
+
+                        //Write subgraphs
+                        int subGraphCount = 0;
+                        foreach (Subgraph sg in subgraphs)
+                        {
+                            subGraphCount++;
+                            sb.Append(sg.WriteSubgraph(subGraphCount));
+                        }
+
+                        //Close subgraph curly braces
+                        sb.AppendLine("}");
+                    }
+
+                    //Close graph curly braces
+                    sb.AppendLine("}");
+
+                    System.Windows.Forms.Application.DoEvents();
+
+                    //Build file name
+                    if (!Directory.Exists(@"C:\Temp\"))
+                        Directory.CreateDirectory(@"C:\Temp\");
+
+                    //Write the collected graphs to one file
+                    using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\DimGraph.dot"))
+                    {
+                        file.WriteLine(sb.ToString()); // "sb" is the StringBuilder
+                    }
+
+                    System.Diagnostics.Process cmd = new System.Diagnostics.Process();
+                    cmd.StartInfo.FileName = "cmd.exe";
+                    cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
+                    cmd.StartInfo.Arguments = @"/c ""dot -Tpdf DimGraph.dot > DimGraph.pdf""";
+                    cmd.Start();
                     #endregion
                 }
                 catch (System.Exception ex)

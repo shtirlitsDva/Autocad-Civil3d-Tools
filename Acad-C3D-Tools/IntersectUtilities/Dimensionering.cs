@@ -115,4 +115,62 @@ namespace IntersectUtilities
             }
         }
     }
+    /// <summary>
+    /// Creates subgraphs from blockreferenes
+    /// </summary>
+    internal class Subgraph
+    {
+        private Database Database { get; }
+        internal string StrækningsNummer { get; }
+        internal Polyline Parent { get; }
+        internal HashSet<Handle> Nodes { get; } = new HashSet<Handle>();
+        internal Subgraph(Database database, Polyline parent, string strækningsNummer)
+        {
+            Database = database; Parent = parent; StrækningsNummer = strækningsNummer;
+        }
+
+        internal string WriteSubgraph(int subgraphIndex, bool subGraphsOn = true)
+        {
+            StringBuilder sb = new StringBuilder();
+            if (subGraphsOn) sb.AppendLine($"subgraph cluster_{subgraphIndex} {{");
+            foreach (Handle handle in Nodes)
+            {
+                //Gather information about element
+                DBObject obj = handle.Go<DBObject>(Database);
+                if (obj == null) continue;
+                //Write the reference to the node
+                sb.Append($"\"{handle}\" ");
+
+                switch (obj)
+                {
+                    case Polyline pline:
+                        //int dn = PipeSchedule.GetPipeDN(pline);
+                        //string system = GetPipeSystem(pline);
+                        //sb.AppendLine($"[label=\"{{{handle}|Rør L{pline.Length.ToString("0.##")}}}|{system}\\n{dn}\"];");
+                        break;
+                    case BlockReference br:
+                        string vejnavn = PropertySetManager
+                            .ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
+                        string husnummer = PropertySetManager
+                            .ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
+                        Point3d np = Parent.GetClosestPointTo(br.Position, false);
+                        double st = Parent.GetDistAtPoint(np);
+                        sb.AppendLine(
+                            $"[label=\"{{{handle}|{vejnavn} {husnummer}}}|{st.ToString("0.00")}\"];");
+                        break;
+                    default:
+                        continue;
+                }
+            }
+            //sb.AppendLine(string.Join(" ", Nodes) + ";");
+            if (subGraphsOn)
+            {
+                sb.AppendLine($"label = \"{StrækningsNummer}\";");
+                sb.AppendLine("color=red;");
+                //if (isEntryPoint) sb.AppendLine("penwidth=2.5;");
+                sb.AppendLine("}");
+            }
+            return sb.ToString();
+        }
+    }
 }
