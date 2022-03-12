@@ -59,6 +59,13 @@
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\ACA\AecPropDataMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="ManagedMapApi">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\Map\ManagedMapApi.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Office.Interop.Excel, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Windows.Forms" />
@@ -70,11 +77,20 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\IntersectUtilities\CsvReader.cs">
+      <Link>CsvReader.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\DynamicBlockPropertyReader.cs">
+      <Link>DynamicBlockPropertyReader.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\GroupByCluster.cs">
       <Link>GroupByCluster.cs</Link>
     </Compile>
     <Compile Include="..\IntersectUtilities\MoreLinq.cs">
       <Link>MoreLinq.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\PipeSchedule.cs">
+      <Link>PipeSchedule.cs</Link>
     </Compile>
     <Compile Include="..\IntersectUtilities\PropertySetManager.cs">
       <Link>PropertySetManager.cs</Link>
