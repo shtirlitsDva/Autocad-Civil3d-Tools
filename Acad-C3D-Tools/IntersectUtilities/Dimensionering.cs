@@ -386,15 +386,16 @@ namespace IntersectUtilities
                         }
                         #endregion
 
-                        #region Reorder nodes
-                        //Order by descending
-                        var ordered = nodes.OrderByDescending(x => x.PartNumber);
-                        int newNumber = 0;
-                        foreach (var node in ordered)
-                        {
-                            newNumber++;
-                            node.PartNumber = newNumber;
-                        }
+                        var ordered = nodes.OrderBy(x => x.PartNumber);
+
+                        #region Reorder nodes, doesn't make sense
+
+                        //int newNumber = 0;
+                        //foreach (var node in ordered)
+                        //{
+                        //    newNumber++;
+                        //    node.PartNumber = newNumber;
+                        //}
                         #endregion
 
                         #region Write node data
@@ -563,7 +564,7 @@ namespace IntersectUtilities
 
                             //Get the children
                             HashSet<Entity> children = new HashSet<Entity>();
-                            Dimensionering.GatherChildren(curItem, localDb, graphPsm, ref children);
+                            Dimensionering.GatherChildren(curItem, localDb, graphPsm, children);
 
                             //Populate strækning with data
                             Strækning strækning = new Strækning();
@@ -756,7 +757,7 @@ namespace IntersectUtilities
 
                             //Get the children
                             HashSet<Entity> children = new HashSet<Entity>();
-                            Dimensionering.GatherChildren(curItem, localDb, graphPsm, ref children);
+                            Dimensionering.GatherChildren(curItem, localDb, graphPsm, children);
 
                             //First print connections
                             foreach (Entity child in children)
@@ -826,6 +827,103 @@ namespace IntersectUtilities
                     cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
                     cmd.StartInfo.Arguments = @"/c ""dot -Tpdf DimGraph.dot > DimGraph.pdf""";
                     cmd.Start();
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+        }
+        internal static void dimwriteexcel(string curEtapeName)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                //Settings
+                PropertySetManager fjvFremPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
+                PSetDefs.FJV_fremtid fjvFremDef = new PSetDefs.FJV_fremtid();
+
+                PropertySetManager graphPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
+                PSetDefs.DriDimGraph graphDef = new PSetDefs.DriDimGraph();
+
+                try
+                {
+                    #region Traverse system and build graph
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
+                    plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                        x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
+                    prdDbg("Nr. of plines " + plines.Count().ToString());
+
+                    var entryElements = plines.Where(x => graphPsm.FilterPropetyString(
+                        x, graphDef.Parent, "Entry"));
+                    prdDbg($"Nr. of entry elements: {entryElements.Count()}");
+
+                    int faneNumber = 0;
+
+                    foreach (Polyline entryElement in entryElements)
+                    {
+                        #region Build graph nodes
+                        HashSet<Node> nodes = new HashSet<Node>();
+                        Node seedNode = new Node();
+                        seedNode.Self = entryElement;
+
+                        //Using stack traversing strategy
+                        Stack<Node> stack = new Stack<Node>();
+                        stack.Push(seedNode);
+                        while (stack.Count > 0)
+                        {
+                            Node node = stack.Pop();
+
+                            //Write group and subgroup numbers
+                            fjvFremPsm.GetOrAttachPropertySet(node.Self);
+                            string strNrString = fjvFremPsm.ReadPropertyString(fjvFremDef.Bemærkninger);
+                            node.SetGroupAndPartNumbers(strNrString);
+
+                            //Get the children
+                            Dimensionering.GatherChildren(
+                                node.Self, localDb, graphPsm,
+                                node.ConnectionChildren, node.ClientChildren);
+
+                            //First print connections
+                            foreach (Polyline child in node.ConnectionChildren)
+                            {
+                                Node childNode = new Node();
+                                childNode.Self = child;
+                                childNode.Parent = node.Self;
+                                //Push the childNode in to stack to continue iterating
+                                stack.Push(childNode);
+                            }
+                        }
+                        #endregion
+
+                        #region Populate excel file
+                        #region Init excel connection
+
+                        #endregion
+
+                        //Start by writing end nodes (nodes with no further connections)
+                        var endNodes = nodes.Where(x => 
+                        x.ConnectionChildren.Count == 0 && x.ClientChildren.Count > 0);
+
+
+
+                        #endregion
+                    }
+
+                    System.Windows.Forms.Application.DoEvents();
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -1010,7 +1108,7 @@ namespace IntersectUtilities
             }
         }
         internal static void GatherChildren(
-            Entity ent, Database db, PropertySetManager psmGraph, ref HashSet<Entity> children)
+            Entity ent, Database db, PropertySetManager psmGraph, HashSet<Entity> children)
         {
             PSetDefs.DriDimGraph defGraph = new PSetDefs.DriDimGraph();
 
@@ -1034,7 +1132,29 @@ namespace IntersectUtilities
                         children.Add(child);
                         break;
                     case Line line:
-                        GatherChildren(child, db, psmGraph, ref children);
+                        GatherChildren(child, db, psmGraph, children);
+                        break;
+                    default:
+                        throw new System.Exception($"Unexpected type {child.GetType().Name}!");
+                }
+            }
+        }
+        internal static void GatherChildren(
+            Entity ent, Database db, PropertySetManager psmGraph,
+            HashSet<Polyline> plineChildren, HashSet<BlockReference> blockChildren)
+        {
+            HashSet<Entity> children = new HashSet<Entity>();
+            GatherChildren(ent, db, psmGraph, children);
+
+            foreach (Entity child in children)
+            {
+                switch (child)
+                {
+                    case Polyline pline:
+                        plineChildren.Add(pline);
+                        break;
+                    case BlockReference br:
+                        blockChildren.Add(br);
                         break;
                     default:
                         throw new System.Exception($"Unexpected type {child.GetType().Name}!");
@@ -1046,11 +1166,18 @@ namespace IntersectUtilities
     {
         internal int GroupNumber { get; set; }
         internal int PartNumber { get; set; }
+        internal int FaneNumber { get; set; } = 0;
         internal Polyline Parent { get; set; }
         internal Polyline Self { get; set; }
         internal HashSet<Polyline> ConnectionChildren { get; set; } = new HashSet<Polyline>();
         internal HashSet<BlockReference> ClientChildren { get; set; }
             = new HashSet<BlockReference>();
+        internal void SetGroupAndPartNumbers(string input)
+        {
+            input = input.Replace("Strækning ", "");
+            GroupNumber = Convert.ToInt32(input.Split('.')[0]);
+            PartNumber = Convert.ToInt32(input.Split('.')[1]);
+        }
     }
     /// <summary>
     /// Creates subgraphs from blockreferenes
