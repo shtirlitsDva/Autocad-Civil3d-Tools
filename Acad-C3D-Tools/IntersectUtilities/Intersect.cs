@@ -13102,30 +13102,6 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("DIMADRESSERDUMP")]
-        public void dimadresserdump()
-        {
-            Dimensionering.dimadressedump(Dimensionering.CurrentEtapeName);
-        }
-
-        [CommandMethod("DIMPOPULATEGRAPH")]
-        public void dimpopulategraph()
-        {
-            Dimensionering.dimpopulategraph(Dimensionering.CurrentEtapeName);
-        }
-
-        [CommandMethod("DIMDUMPGRAPH")]
-        public void dimdumpgraph()
-        {
-            Dimensionering.dimdumpgraph(Dimensionering.CurrentEtapeName);
-        }
-
-        [CommandMethod("DIMWRITEGRAPH")]
-        public void dimwritegraph()
-        {
-            Dimensionering.dimwritegraph(Dimensionering.CurrentEtapeName);
-        }
-
         [CommandMethod("REPLACEBLOCK")]
         public void replaceblock()
         {

@@ -9,9 +9,6 @@ using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
 using Autodesk.Civil.DataShortcuts;
-using Autodesk.Gis.Map;
-using Autodesk.Gis.Map.ObjectData;
-using Autodesk.Gis.Map.Utilities;
 using Autodesk.Aec.PropertyData;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using System;
@@ -32,14 +29,12 @@ using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
-using static IntersectUtilities.PipeSchedule;
 
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.UtilsODData;
 
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
-using DataType = Autodesk.Gis.Map.Constants.DataType;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
@@ -48,8 +43,61 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 
-namespace IntersectUtilities
+
+
+namespace IntersectUtilities.Dimensionering
 {
+    /// <summary>
+    /// Class for intersection tools.
+    /// </summary>
+    public class DimensioneringExtension : IExtensionApplication
+    {
+        #region IExtensionApplication members
+        public void Initialize()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            doc.Editor.WriteMessage("\n-> Dump all addresses to file: DIMADRESSERDUMP");
+            doc.Editor.WriteMessage("\n-> Populate property data based on geometry: DIMPOPULATEGRAPH");
+            doc.Editor.WriteMessage("\n-> Dump graph to text file: DIMDUMPGRAPH");
+            doc.Editor.WriteMessage("\n-> Write graph to DOT (Graphviz) file: DIMWRITEGRAPH");
+        }
+
+        public void Terminate()
+        {
+        }
+        #endregion
+
+        [CommandMethod("DIMADRESSERDUMP")]
+        public void dimadresserdump()
+        {
+            Dimensionering.dimadressedump(Dimensionering.CurrentEtapeName);
+        }
+
+        [CommandMethod("DIMPOPULATEGRAPH")]
+        public void dimpopulategraph()
+        {
+            Dimensionering.dimpopulategraph(Dimensionering.CurrentEtapeName);
+        }
+
+        [CommandMethod("DIMDUMPGRAPH")]
+        public void dimdumpgraph()
+        {
+            Dimensionering.dimdumpgraph(Dimensionering.CurrentEtapeName);
+        }
+
+        [CommandMethod("DIMWRITEGRAPH")]
+        public void dimwritegraph()
+        {
+            Dimensionering.dimwritegraph(Dimensionering.CurrentEtapeName);
+        }
+        
+        [CommandMethod("DIMWRITEEXCEL")]
+        public void dimwriteexcel()
+        {
+            Dimensionering.dimwriteexcel(Dimensionering.CurrentEtapeName);
+        }
+    }
+
     internal class Stik
     {
         internal double Dist;
@@ -915,7 +963,7 @@ namespace IntersectUtilities
                         #endregion
 
                         //Start by writing end nodes (nodes with no further connections)
-                        var endNodes = nodes.Where(x => 
+                        var endNodes = nodes.Where(x =>
                         x.ConnectionChildren.Count == 0 && x.ClientChildren.Count > 0);
 
 
