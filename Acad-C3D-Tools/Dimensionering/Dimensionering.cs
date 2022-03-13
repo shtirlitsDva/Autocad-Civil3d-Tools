@@ -132,6 +132,8 @@ namespace IntersectUtilities.Dimensionering
     internal static class Dimensionering
     {
         internal static string CurrentEtapeName = "Etape 9.3";
+        internal static GlobalSheetCount GlobalSheetCount { get; set; }
+        internal static readonly string PRef = "Pref:";
         internal static void dimadressedump(string curEtapeName)
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -174,7 +176,7 @@ namespace IntersectUtilities.Dimensionering
 
                     //Build file name
                     string dbFilename = localDb.OriginalFileName;
-                    string path = Path.GetDirectoryName(dbFilename);
+                    string path = System.IO.Path.GetDirectoryName(dbFilename);
                     string dumpExportFileName = path + "\\dimaddressdump.csv";
 
                     Utils.ClrFile(dumpExportFileName);
@@ -438,7 +440,6 @@ namespace IntersectUtilities.Dimensionering
                         var ordered = nodes.OrderBy(x => x.PartNumber);
 
                         #region Reorder nodes, doesn't make sense
-
                         //int newNumber = 0;
                         //foreach (var node in ordered)
                         //{
@@ -679,7 +680,7 @@ namespace IntersectUtilities.Dimensionering
 
                     //Build file name
                     string dbFilename = localDb.OriginalFileName;
-                    string path = Path.GetDirectoryName(dbFilename);
+                    string path = System.IO.Path.GetDirectoryName(dbFilename);
                     string dumpExportFileName = path + "\\dimgraphdump.txt";
 
                     Utils.ClrFile(dumpExportFileName);
@@ -876,153 +877,6 @@ namespace IntersectUtilities.Dimensionering
                     cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
                     cmd.StartInfo.Arguments = @"/c ""dot -Tpdf DimGraph.dot > DimGraph.pdf""";
                     cmd.Start();
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.ToString());
-                    return;
-                }
-                finally
-                {
-
-                }
-                tx.Commit();
-            }
-        }
-        internal static void dimwriteexcel(string curEtapeName)
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                //Settings
-                PropertySetManager fjvFremPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
-                PSetDefs.FJV_fremtid fjvFremDef = new PSetDefs.FJV_fremtid();
-
-                PropertySetManager graphPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
-                PSetDefs.DriDimGraph graphDef = new PSetDefs.DriDimGraph();
-
-                try
-                {
-                    #region Init excel objects
-                    //#region Dialog box for selecting the excel file
-                    //string fileName = string.Empty;
-                    //OpenFileDialog dialog = new OpenFileDialog()
-                    //{
-                    //    Title = "Choose excel file:",
-                    //    DefaultExt = "xlsm",
-                    //    Filter = "Excel files (*.xlsm)|*.xlsm|All files (*.*)|*.*",
-                    //    FilterIndex = 0
-                    //};
-                    //if (dialog.ShowDialog() == DialogResult.OK)
-                    //{
-                    //    fileName = dialog.FileName;
-                    //}
-                    //else { tx.Abort(); return; }
-                    //#endregion
-
-                    //Workbook wb;
-                    //Sheets wss;
-                    //Worksheet ws;
-                    //Microsoft.Office.Interop.Excel.Application oXL;
-                    //object misValue = System.Reflection.Missing.Value;
-                    //oXL = new Microsoft.Office.Interop.Excel.Application();
-                    //oXL.Visible = false;
-                    //oXL.DisplayAlerts = false;
-                    //wb = oXL.Workbooks.Open(fileName,
-                    //    0, false, 5, "", "", false, XlPlatform.xlWindows, "", true, false,
-                    //    0, false, false, XlCorruptLoad.xlNormalLoad);
-                    #endregion
-
-                    #region Traverse system and build graph
-                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
-                    plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                        x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
-                    prdDbg("Nr. of plines " + plines.Count().ToString());
-
-                    var entryElements = plines.Where(x => graphPsm.FilterPropetyString(
-                        x, graphDef.Parent, "Entry"));
-                    prdDbg($"Nr. of entry elements: {entryElements.Count()}");
-
-                    int sheetNumber = 0;
-
-                    foreach (Polyline entryElement in entryElements)
-                    {
-                        #region Build graph nodes
-                        HashSet<ExcelNode> nodes = new HashSet<ExcelNode>();
-                        ExcelNode seedNode = new ExcelNode();
-                        seedNode.Self = entryElement;
-                        seedNode.NodeLevel = 1;
-
-                        //Using stack traversing strategy
-                        Stack<ExcelNode> stack = new Stack<ExcelNode>();
-                        stack.Push(seedNode);
-                        while (stack.Count > 0)
-                        {
-                            ExcelNode node = stack.Pop();
-                            nodes.Add(node);
-
-                            //Write group and subgroup numbers
-                            fjvFremPsm.GetOrAttachPropertySet(node.Self);
-                            string strNrString = fjvFremPsm.ReadPropertyString(fjvFremDef.Bemærkninger);
-                            node.SetGroupAndPartNumbers(strNrString);
-
-                            //Get the children
-                            HashSet<Polyline> conChildren = new HashSet<Polyline>();
-                            Dimensionering.GatherChildren(
-                                node.Self, localDb, graphPsm,
-                                conChildren, node.ClientChildren);
-
-                            //First print connections
-                            foreach (Polyline child in conChildren)
-                            {
-                                ExcelNode childNode = new ExcelNode();
-                                childNode.Self = child;
-                                childNode.Parent = node;
-                                childNode.NodeLevel = node.NodeLevel + 1;
-
-                                //Add the node to children list of node
-                                node.ConnectionChildren.Add(childNode);
-                                //Push the childExcelNode in to stack to continue iterating
-                                stack.Push(childNode);
-                            }
-                        }
-                        #endregion
-
-                        #region Find paths
-                        int pathId = 0;
-                        while (nodes.Any(x => x.PathId == 0))
-                        {
-                            pathId++;
-                            var curNode = nodes
-                                .Where(x => x.PathId == 0)
-                                .MaxBy(x => x.NodeLevel)
-                                .FirstOrDefault();
-                            TraversePath(curNode, pathId);
-                        }
-
-                        //Debug and test
-                        var groups = nodes.GroupBy(x => x.PathId).OrderByDescending(x => x.Count());
-                        foreach (var group in groups)
-                        {
-                            var ordered = group.OrderBy(x => x.NodeLevel);
-                            prdDbg(string.Join(" -> ", ordered.Select(x => x.Name)));
-                        }
-                        
-                        #endregion
-
-                        #region Populate excel file
-                        //Start by writing end nodes (nodes with no further connections)
-                        #endregion
-                    }
-
-                    System.Windows.Forms.Application.DoEvents();
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -1266,7 +1120,7 @@ namespace IntersectUtilities.Dimensionering
         }
         internal static void GatherChildren(
             Entity ent, Database db, PropertySetManager psmGraph,
-            HashSet<Polyline> plineChildren, HashSet<BlockReference> blockChildren)
+            HashSet<ExcelNode> plineChildren, HashSet<BlockReference> blockChildren)
         {
             HashSet<Entity> children = new HashSet<Entity>();
             GatherChildren(ent, db, psmGraph, children);
@@ -1276,7 +1130,9 @@ namespace IntersectUtilities.Dimensionering
                 switch (child)
                 {
                     case Polyline pline:
-                        plineChildren.Add(pline);
+                        ExcelNode newNode = new ExcelNode();
+                        newNode.Self = pline;
+                        plineChildren.Add(newNode);
                         break;
                     case BlockReference br:
                         blockChildren.Add(br);
@@ -1286,58 +1142,460 @@ namespace IntersectUtilities.Dimensionering
                 }
             }
         }
-    }
-    internal class Sheet
-    {
-        internal int SheetNumber { get; set; }
-        internal List<string> Adresser { get; } = new List<string>();
-        internal List<double> Længder { get; } = new List<double>();
-        internal List<Node> NodesOnSheet { get; } = new List<Node>();
-        internal void AddData(Node node)
+        internal static void GatherChildren(ExcelNode node, Database db)
         {
-            NodesOnSheet.Add(node);
+            string childrenString = 
+                PropertySetManager.ReadNonDefinedPropertySetString(node.Self, "DriDimGraph", "Children");
 
-            //Write kundedata
-            if (node.ClientChildren.Count > 0)
+            var splitArray = childrenString.Split(';');
+
+            foreach (var childString in splitArray)
             {
-                var sortedClients = node.ClientChildren
-                        .OrderByDescending(x => node.Self.GetDistAtPoint(
-                            node.Self.GetClosestPointTo(x.Position, false))).ToList();
+                if (childString.IsNoE()) continue;
 
-                for (int i = 0; i < sortedClients.Count - 1; i++)
+                Entity child = db.Go<Entity>(childString);
+                
+                switch (child)
                 {
-                    BlockReference br = sortedClients[i];
-                    string vejnavn = PropertySetManager
-                        .ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
-                    string husnummer = PropertySetManager
-                        .ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
-                    Adresser.Add($"{vejnavn} {husnummer}");
-
-                    double currentDist = node.Self.GetDistAtPoint(
-                        node.Self.GetClosestPointTo(br.Position, false));
-
-                    double previousDist = node.Self.GetDistAtPoint(
-                        node.Self.GetClosestPointTo(sortedClients[i + 1].Position, false));
-                    Længder.Add(currentDist - previousDist);
-
-                    //Handle the last case
-                    if (i == sortedClients.Count - 2)
-                    {
-                        br = sortedClients[i + 1];
-                        vejnavn = PropertySetManager
-                        .ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
-                        husnummer = PropertySetManager
-                            .ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
-                        Adresser.Add($"{vejnavn} {husnummer}");
-
-                        currentDist = node.Self.GetDistAtPoint(
-                            node.Self.GetClosestPointTo(br.Position, false));
-
-                        Længder.Add(currentDist);
-                    }
+                    case Polyline pline:
+                        ExcelNode childNode = new ExcelNode();
+                        childNode.Self = pline;
+                        node.ConnectionChildren.Add(childNode);
+                        break;
+                    case BlockReference br:
+                        node.ClientChildren.Add(br);
+                        break;
+                    case Line line:
+                        GatherChildren(line, node);
+                        break;
+                    default:
+                        throw new System.Exception($"Unexpected type {child.GetType().Name}!");
                 }
             }
         }
+        internal static void GatherChildren(Line line, ExcelNode node)
+        {
+            string childrenString =
+                PropertySetManager.ReadNonDefinedPropertySetString(line, "DriDimGraph", "Children");
+
+            var splitArray = childrenString.Split(';');
+
+            foreach (var childString in splitArray)
+            {
+                if (childString.IsNoE()) continue;
+
+                BlockReference child = line.Database.Go<BlockReference>(childString);
+
+                node.ClientChildren.Add(child);
+            }
+        }
+        internal static void dimwriteexcel(string curEtapeName)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                //Settings
+                PropertySetManager fjvFremPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
+                PSetDefs.FJV_fremtid fjvFremDef = new PSetDefs.FJV_fremtid();
+
+                PropertySetManager graphPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
+                PSetDefs.DriDimGraph graphDef = new PSetDefs.DriDimGraph();
+
+                try
+                {
+                    #region Init excel objects
+                    #region Dialog box for selecting the excel file
+                    string fileName = string.Empty;
+                    OpenFileDialog dialog = new OpenFileDialog()
+                    {
+                        Title = "Choose excel file:",
+                        DefaultExt = "xlsm",
+                        Filter = "Excel files (*.xlsm)|*.xlsm|All files (*.*)|*.*",
+                        FilterIndex = 0
+                    };
+                    if (dialog.ShowDialog() == DialogResult.OK)
+                    {
+                        fileName = dialog.FileName;
+                    }
+                    else { tx.Abort(); return; }
+                    #endregion
+
+                    Workbook wb;
+                    Sheets wss;
+                    Worksheet ws;
+                    Microsoft.Office.Interop.Excel.Application oXL;
+                    object misValue = System.Reflection.Missing.Value;
+                    oXL = new Microsoft.Office.Interop.Excel.Application();
+                    oXL.Visible = false;
+                    oXL.DisplayAlerts = false;
+                    wb = oXL.Workbooks.Open(fileName,
+                        0, false, 5, "", "", false, XlPlatform.xlWindows, "", true, false,
+                        0, false, false, XlCorruptLoad.xlNormalLoad);
+                    #endregion
+
+                    #region Traverse system and build graph
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
+                    plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                        x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
+                    prdDbg("Nr. of plines " + plines.Count().ToString());
+
+                    var entryElements = plines.Where(x => graphPsm.FilterPropetyString(
+                        x, graphDef.Parent, "Entry"));
+                    prdDbg($"Nr. of entry elements: {entryElements.Count()}");
+
+                    Dimensionering.GlobalSheetCount = new GlobalSheetCount();
+
+                    //Write graph docs
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine("digraph G {");
+
+                    foreach (Polyline entryElement in entryElements)
+                    {
+                        #region Build graph nodes
+                        HashSet<ExcelNode> nodes = new HashSet<ExcelNode>();
+                        ExcelNode seedNode = new ExcelNode();
+                        seedNode.Self = entryElement;
+                        seedNode.NodeLevel = 1;
+
+                        //Using stack traversing strategy
+                        Stack<ExcelNode> stack = new Stack<ExcelNode>();
+                        stack.Push(seedNode);
+                        while (stack.Count > 0)
+                        {
+                            ExcelNode node = stack.Pop();
+                            nodes.Add(node);
+
+                            //Write group and subgroup numbers
+                            fjvFremPsm.GetOrAttachPropertySet(node.Self);
+                            string strNrString = fjvFremPsm.ReadPropertyString(fjvFremDef.Bemærkninger);
+                            node.SetGroupAndPartNumbers(strNrString);
+
+                            //Get the children
+                            Dimensionering.GatherChildren(node, localDb);
+
+                            //First print connections
+                            foreach (ExcelNode child in node.ConnectionChildren)
+                            {
+                                child.Parent = node;
+                                child.NodeLevel = node.NodeLevel + 1;
+
+                                //Push the childExcelNode in to stack to continue iterating
+                                stack.Push(child);
+                            }
+                        }
+                        #endregion
+
+                        #region Find paths
+                        int pathId = 0;
+                        while (nodes.Any(x => x.PathId == 0))
+                        {
+                            pathId++;
+                            var curNode = nodes
+                                .Where(x => x.PathId == 0)
+                                .MaxBy(x => x.NodeLevel)
+                                .FirstOrDefault();
+                            TraversePath(curNode, pathId);
+                        }
+
+                        //Organize paths
+                        //Order is important -> using a list
+                        List<Path> paths = new List<Path>();
+                        var groups = nodes.GroupBy(x => x.PathId).OrderBy(x => x.Key);
+                        foreach (var group in groups)
+                        {
+                            var ordered = group.OrderByDescending(x => x.NodeLevel);
+                            prdDbg(string.Join("->", ordered.Select(x => x.Name.Replace("ækning", ""))));
+                            Path path = new Path();
+                            paths.Add(path);
+                            path.PathNumber = group.Key;
+                            path.NodesOnPath = ordered.ToList();
+                        }
+                        #endregion
+
+                        #region Populate path with sheet data
+                        foreach (Path path in paths) path.PopulateSheets();
+                        #endregion
+
+                        #region Replace path references with sheet numbers
+                        //Assume only one sheet per path -> splitting not implemented yet!
+                        foreach (Path path in paths)
+                        {
+                            foreach (ExcelSheet sheet in path.Sheets)
+                            {
+                                for (int i = 0; i < sheet.Adresser.Count; i++)
+                                {
+                                    string current = sheet.Adresser[i];
+                                    if (current.Contains(PRef))
+                                    {
+                                        current = current.Replace(PRef, "");
+                                        int pathRef = Convert.ToInt32(current);
+
+                                        Path refPath = paths
+                                            .Where(x => x.PathNumber == pathRef)
+                                            .FirstOrDefault();
+
+                                        ExcelSheet refSheet = refPath.Sheets.Last();
+
+                                        sheet.Adresser[i] = refSheet.SheetNumber.ToString();
+                                    }
+                                }
+                            }
+                        }
+                        #endregion
+
+                        #region Populate excel file
+                        List<ExcelSheet> sheets = new List<ExcelSheet>();
+                        foreach (Path path in paths) sheets.AddRange(path.Sheets);
+                        var orderedSheets = sheets.OrderBy(x => x.SheetNumber);
+
+                        foreach (ExcelSheet sheet in orderedSheets)
+                        {
+                            prdDbg($"Writing sheet: {sheet.SheetNumber}");
+                            System.Windows.Forms.Application.DoEvents();
+
+                            ws = (Worksheet)wb.Worksheets[sheet.SheetNumber.ToString()];
+                            //Write addresses
+                            int row = 60; int col = 5;
+                            for (int i = 0; i < sheet.Adresser.Count; i++)
+                            {
+                                ws.Cells[row, col] = sheet.Adresser[i];
+                                row++;
+                            }
+                            row = 60; col = 17;
+                            for (int i = 0; i < sheet.Længder.Count; i++)
+                            {
+                                ws.Cells[row, col] = sheet.Længder[i];
+                                row++;
+                            }
+                        }
+                        #endregion
+
+                        #region Write graph documentation
+                        int subGraphNr = paths.Select(x => x.NodesOnPath.First().GroupNumber).First();
+                        sb.AppendLine(
+                            $"subgraph G_{subGraphNr} {{");
+                        sb.AppendLine("node [shape=record]");
+
+                        foreach (Path path in paths)
+                        {
+                            string strækninger = string.Join(
+                                "|", path.NodesOnPath.Select(x => x.Name).ToArray());
+
+                            string sheetNames = string.Join(
+                                "|", path.Sheets.Select(x => x.SheetNumber).ToArray());
+
+                            Regex regex = new Regex(@"^\d{1,2}");
+                            foreach (ExcelSheet sheet in path.Sheets)
+                            {
+                                foreach (string s in sheet.Adresser)
+                                {
+                                    if (regex.IsMatch(s)) sb.AppendLine(
+                                        $"\"{sheetNames}\" -> \"{s}\"");
+                                }
+                            }
+
+                            sb.AppendLine(
+                                $"\"{sheetNames}\" " +
+                                $"[label = \"{{{sheetNames}|Pnr.: {path.PathNumber}|{strækninger}}}\"]; ");
+                        }
+
+                        //close subgraph
+                        sb.AppendLine("}");
+                        #endregion
+                    }
+
+                    //close graph
+                    sb.AppendLine("}");
+
+                    #region Write graph to file
+                    //Build file name
+                    if (!Directory.Exists(@"C:\Temp\"))
+                        Directory.CreateDirectory(@"C:\Temp\");
+
+                    //Write the collected graphs to one file
+                    using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\AutoDimGraph.dot"))
+                    {
+                        file.WriteLine(sb.ToString()); // "sb" is the StringBuilder
+                    }
+
+                    System.Diagnostics.Process cmd = new System.Diagnostics.Process();
+                    cmd.StartInfo.FileName = "cmd.exe";
+                    cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
+                    cmd.StartInfo.Arguments = @"/c ""dot -Tpdf AutoDimGraph.dot > AutoDimGraph.pdf""";
+                    cmd.Start();
+                    #endregion
+
+                    wb.Save();
+                    wb.Close();
+
+                    System.Windows.Forms.Application.DoEvents();
+                    #endregion
+                }
+                #region Catch and finally
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                }
+                tx.Commit();
+                #endregion
+            }
+        }
+    }
+    internal class Path
+    {
+        internal int PathNumber { get; set; } = 0;
+        /// <summary>
+        /// Order is important. Nodes must be ordered from max level to min level (descending).
+        /// </summary>
+        internal List<ExcelNode> NodesOnPath { get; set; }
+        internal List<ExcelSheet> Sheets { get; } = new List<ExcelSheet>();
+        internal void PopulateSheets()
+        {
+            string pRef = Dimensionering.PRef;
+            List<string> adresser = new List<string>();
+            List<double> distancer = new List<double>();
+
+            //Write data
+            //Assume nodes in list sorted descending (max to min) by node level
+            foreach (ExcelNode node in NodesOnPath)
+            {
+                List<BlockReference> sortedClients = null;
+                if (node.ClientChildren.Count > 0)
+                {
+                    sortedClients = node.ClientChildren
+                        .OrderByDescending(x => node.Self
+                        .GetDistAtPoint(node.Self.GetClosestPointTo(x.Position, false))).ToList();
+                }
+
+                //Debug
+                if (node.Name == "Strækning 1.4")
+                {
+                    prdDbg("Strækning 1.4 has following children: ");
+                    foreach (var item in node.ConnectionChildren)
+                    {
+                        prdDbg(item.Name);
+                    }
+                }
+
+                //First write children connections to nodes NOT on path
+                //Leaf nodes have no children connections
+                if (node.ConnectionChildren.Count() > 0)
+                {
+                    var foreignChildren = node.ConnectionChildren
+                        .Where(x => x.PathId != this.PathNumber).ToList();
+
+                    //For loop is to account for possibility of two or more children at a node
+                    for (int i = 0; i < foreignChildren.Count; i++)
+                    {
+                        adresser.Add($"{pRef}{foreignChildren[i].PathId}");
+
+                        //On last iteration
+                        if (i == foreignChildren.Count - 1)
+                        {
+                            //two cases: client children present or not
+                            if (sortedClients == null)
+                            {
+                                distancer.Add(node.Self.Length);
+                            }
+                            else
+                            {
+                                distancer.Add(
+                                    node.Self.EndPoint.DistanceHorizontalTo(
+                                        node.Self.GetClosestPointTo(
+                                            sortedClients.First().Position, false)));
+                            }
+                        }
+                        else distancer.Add(0.0);
+                    }
+                }
+
+                //Then write client nodes if any
+                if (sortedClients != null)
+                {
+                    if (sortedClients.Count > 1)
+                    {
+                        for (int i = 0; i < sortedClients.Count - 1; i++)
+                        {
+                            BlockReference br = sortedClients[i];
+                            string vejnavn = PropertySetManager
+                                .ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
+                            string husnummer = PropertySetManager
+                                .ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
+                            adresser.Add($"{vejnavn} {husnummer}");
+
+                            double currentDist = node.Self.GetDistAtPoint(
+                                node.Self.GetClosestPointTo(br.Position, false));
+
+                            double previousDist = node.Self.GetDistAtPoint(
+                                node.Self.GetClosestPointTo(sortedClients[i + 1].Position, false));
+                            distancer.Add(currentDist - previousDist);
+
+                            //Handle the last case
+                            if (i == sortedClients.Count - 2)
+                            {
+                                br = sortedClients[i + 1];
+                                vejnavn = PropertySetManager
+                                .ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
+                                husnummer = PropertySetManager
+                                    .ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
+                                adresser.Add($"{vejnavn} {husnummer}");
+
+                                currentDist = node.Self.GetDistAtPoint(
+                                    node.Self.GetClosestPointTo(br.Position, false));
+
+                                distancer.Add(currentDist);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        BlockReference br = sortedClients.First();
+                        string vejnavn = PropertySetManager
+                            .ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
+                        string husnummer = PropertySetManager
+                            .ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
+                        adresser.Add($"{vejnavn} {husnummer}");
+
+                        double currentDist = node.Self.GetDistAtPoint(
+                            node.Self.GetClosestPointTo(br.Position, false));
+
+                        distancer.Add(currentDist);
+                    }
+                }
+            }
+
+            //Split sheets and write them
+            while (adresser.Count > 50)
+            {
+                //When implementing splitting logic
+                //Remember to take into account when replacing path references
+                throw new System.NotImplementedException("Splitting of sheets not implemented yet!");
+            }
+
+            ExcelSheet excelSheet = new ExcelSheet();
+            excelSheet.SheetNumber = Dimensionering.GlobalSheetCount.GetNextNumber();
+            excelSheet.Adresser = adresser;
+            excelSheet.Længder = distancer;
+            this.Sheets.Add(excelSheet);
+        }
+    }
+    internal class ExcelSheet
+    {
+        internal int SheetNumber { get; set; } = 0;
+        internal List<string> Adresser { get; set; } = new List<string>();
+        internal List<double> Længder { get; set; } = new List<double>();
     }
     internal class ExcelNode
     {
@@ -1348,7 +1606,7 @@ namespace IntersectUtilities.Dimensionering
         internal int PathId { get; set; } = 0;
         internal ExcelNode Parent { get; set; }
         internal Polyline Self { get; set; }
-        internal HashSet<ExcelNode> ConnectionChildren { get; set; } = new HashSet<ExcelNode>();
+        internal List<ExcelNode> ConnectionChildren { get; set; } = new List<ExcelNode>();
         internal HashSet<BlockReference> ClientChildren { get; set; }
             = new HashSet<BlockReference>();
         internal void SetGroupAndPartNumbers(string input)
@@ -1367,6 +1625,11 @@ namespace IntersectUtilities.Dimensionering
         {
             return this.Name.GetHashCode() ^ this.GroupNumber.GetHashCode() ^ this.PartNumber.GetHashCode();
         }
+    }
+    internal class GlobalSheetCount
+    {
+        internal int CurrentSheetNumber { get; private set; } = 0;
+        internal int GetNextNumber() { CurrentSheetNumber++; return CurrentSheetNumber; }
     }
     internal class Node
     {
