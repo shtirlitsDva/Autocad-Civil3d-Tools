@@ -26,6 +26,7 @@ using MoreLinq;
 using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
 using Microsoft.Office.Interop.Excel;
+using ChunkedEnumerator;
 
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
@@ -1144,7 +1145,7 @@ namespace IntersectUtilities.Dimensionering
         }
         internal static void GatherChildren(ExcelNode node, Database db)
         {
-            string childrenString = 
+            string childrenString =
                 PropertySetManager.ReadNonDefinedPropertySetString(node.Self, "DriDimGraph", "Children");
 
             var splitArray = childrenString.Split(';');
@@ -1154,7 +1155,7 @@ namespace IntersectUtilities.Dimensionering
                 if (childString.IsNoE()) continue;
 
                 Entity child = db.Go<Entity>(childString);
-                
+
                 switch (child)
                 {
                     case Polyline pline:
@@ -1322,37 +1323,35 @@ namespace IntersectUtilities.Dimensionering
                         #endregion
 
                         #region Replace path references with sheet numbers
-                        //Assume only one sheet per path -> splitting not implemented yet!
-                        foreach (Path path in paths)
+                        List<ExcelSheet> sheets = new List<ExcelSheet>();
+                        foreach (Path path in paths) sheets.AddRange(path.Sheets);
+                        var orderedSheets = sheets.OrderBy(x => x.SheetNumber);
+                        prdDbg($"Number of sheets total: {sheets.Count}");
+
+                        foreach (ExcelSheet sheet in sheets)
                         {
-                            foreach (ExcelSheet sheet in path.Sheets)
+                            for (int i = 0; i < sheet.Adresser.Count; i++)
                             {
-                                for (int i = 0; i < sheet.Adresser.Count; i++)
+                                string current = sheet.Adresser[i];
+                                if (current.Contains(PRef))
                                 {
-                                    string current = sheet.Adresser[i];
-                                    if (current.Contains(PRef))
-                                    {
-                                        current = current.Replace(PRef, "");
-                                        int pathRef = Convert.ToInt32(current);
+                                    current = current.Replace(PRef, "");
+                                    int pathRef = Convert.ToInt32(current);
 
-                                        Path refPath = paths
-                                            .Where(x => x.PathNumber == pathRef)
-                                            .FirstOrDefault();
+                                    Path refPath = paths
+                                        .Where(x => x.PathNumber == pathRef)
+                                        .FirstOrDefault();
 
-                                        ExcelSheet refSheet = refPath.Sheets.Last();
+                                    ExcelSheet refSheet = refPath.Sheets.Last();
 
-                                        sheet.Adresser[i] = refSheet.SheetNumber.ToString();
-                                    }
+                                    sheet.Adresser[i] =
+                                        (refSheet.SheetNumber).ToString();
                                 }
                             }
                         }
                         #endregion
 
                         #region Populate excel file
-                        List<ExcelSheet> sheets = new List<ExcelSheet>();
-                        foreach (Path path in paths) sheets.AddRange(path.Sheets);
-                        var orderedSheets = sheets.OrderBy(x => x.SheetNumber);
-
                         foreach (ExcelSheet sheet in orderedSheets)
                         {
                             prdDbg($"Writing sheet: {sheet.SheetNumber}");
@@ -1381,27 +1380,21 @@ namespace IntersectUtilities.Dimensionering
                             $"subgraph G_{subGraphNr} {{");
                         sb.AppendLine("node [shape=record]");
 
-                        foreach (Path path in paths)
+                        foreach (ExcelSheet sheet in orderedSheets)
                         {
                             string strækninger = string.Join(
-                                "|", path.NodesOnPath.Select(x => x.Name).ToArray());
-
-                            string sheetNames = string.Join(
-                                "|", path.Sheets.Select(x => x.SheetNumber).ToArray());
+                                "|", sheet.SheetParts.Select(x => x.Name).ToArray());
 
                             Regex regex = new Regex(@"^\d{1,2}");
-                            foreach (ExcelSheet sheet in path.Sheets)
+                            foreach (string s in sheet.Adresser)
                             {
-                                foreach (string s in sheet.Adresser)
-                                {
-                                    if (regex.IsMatch(s)) sb.AppendLine(
-                                        $"\"{sheetNames}\" -> \"{s}\"");
-                                }
+                                if (regex.IsMatch(s)) sb.AppendLine(
+                                    $"\"{sheet.SheetNumber}\" -> \"{s}\"");
                             }
 
                             sb.AppendLine(
-                                $"\"{sheetNames}\" " +
-                                $"[label = \"{{{sheetNames}|Pnr.: {path.PathNumber}|{strækninger}}}\"]; ");
+                                $"\"{sheet.SheetNumber}\" " +
+                                $"[label = \"{{{sheet.SheetNumber}|{strækninger}}}\"]; ");
                         }
 
                         //close subgraph
@@ -1453,6 +1446,13 @@ namespace IntersectUtilities.Dimensionering
             }
         }
     }
+    internal class SheetPart
+    {
+        internal string Name { get; set; }
+        internal List<string> Adresser { get; } = new List<string>();
+        internal List<double> Distancer { get; } = new List<double>();
+
+    }
     internal class Path
     {
         internal int PathNumber { get; set; } = 0;
@@ -1464,29 +1464,22 @@ namespace IntersectUtilities.Dimensionering
         internal void PopulateSheets()
         {
             string pRef = Dimensionering.PRef;
-            List<string> adresser = new List<string>();
-            List<double> distancer = new List<double>();
+            Queue<SheetPart> parts = new Queue<SheetPart>();
 
             //Write data
             //Assume nodes in list sorted descending (max to min) by node level
             foreach (ExcelNode node in NodesOnPath)
             {
+                SheetPart part = new SheetPart();
+                part.Name = node.Name;
+                parts.Enqueue(part);
+
                 List<BlockReference> sortedClients = null;
                 if (node.ClientChildren.Count > 0)
                 {
                     sortedClients = node.ClientChildren
                         .OrderByDescending(x => node.Self
                         .GetDistAtPoint(node.Self.GetClosestPointTo(x.Position, false))).ToList();
-                }
-
-                //Debug
-                if (node.Name == "Strækning 1.4")
-                {
-                    prdDbg("Strækning 1.4 has following children: ");
-                    foreach (var item in node.ConnectionChildren)
-                    {
-                        prdDbg(item.Name);
-                    }
                 }
 
                 //First write children connections to nodes NOT on path
@@ -1499,7 +1492,7 @@ namespace IntersectUtilities.Dimensionering
                     //For loop is to account for possibility of two or more children at a node
                     for (int i = 0; i < foreignChildren.Count; i++)
                     {
-                        adresser.Add($"{pRef}{foreignChildren[i].PathId}");
+                        part.Adresser.Add($"{pRef}{foreignChildren[i].PathId}");
 
                         //On last iteration
                         if (i == foreignChildren.Count - 1)
@@ -1507,17 +1500,17 @@ namespace IntersectUtilities.Dimensionering
                             //two cases: client children present or not
                             if (sortedClients == null)
                             {
-                                distancer.Add(node.Self.Length);
+                                part.Distancer.Add(node.Self.Length);
                             }
                             else
                             {
-                                distancer.Add(
+                                part.Distancer.Add(
                                     node.Self.EndPoint.DistanceHorizontalTo(
                                         node.Self.GetClosestPointTo(
                                             sortedClients.First().Position, false)));
                             }
                         }
-                        else distancer.Add(0.0);
+                        else part.Distancer.Add(0.0);
                     }
                 }
 
@@ -1533,14 +1526,14 @@ namespace IntersectUtilities.Dimensionering
                                 .ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
                             string husnummer = PropertySetManager
                                 .ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
-                            adresser.Add($"{vejnavn} {husnummer}");
+                            part.Adresser.Add($"{vejnavn} {husnummer}");
 
                             double currentDist = node.Self.GetDistAtPoint(
                                 node.Self.GetClosestPointTo(br.Position, false));
 
                             double previousDist = node.Self.GetDistAtPoint(
                                 node.Self.GetClosestPointTo(sortedClients[i + 1].Position, false));
-                            distancer.Add(currentDist - previousDist);
+                            part.Distancer.Add(currentDist - previousDist);
 
                             //Handle the last case
                             if (i == sortedClients.Count - 2)
@@ -1550,12 +1543,12 @@ namespace IntersectUtilities.Dimensionering
                                 .ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
                                 husnummer = PropertySetManager
                                     .ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
-                                adresser.Add($"{vejnavn} {husnummer}");
+                                part.Adresser.Add($"{vejnavn} {husnummer}");
 
                                 currentDist = node.Self.GetDistAtPoint(
                                     node.Self.GetClosestPointTo(br.Position, false));
 
-                                distancer.Add(currentDist);
+                                part.Distancer.Add(currentDist);
                             }
                         }
                     }
@@ -1566,34 +1559,63 @@ namespace IntersectUtilities.Dimensionering
                             .ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
                         string husnummer = PropertySetManager
                             .ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
-                        adresser.Add($"{vejnavn} {husnummer}");
+                        part.Adresser.Add($"{vejnavn} {husnummer}");
 
                         double currentDist = node.Self.GetDistAtPoint(
                             node.Self.GetClosestPointTo(br.Position, false));
 
-                        distancer.Add(currentDist);
+                        part.Distancer.Add(currentDist);
                     }
                 }
             }
 
             //Split sheets and write them
-            while (adresser.Count > 50)
+            int numberOfLines = 0;
+            List<SheetPart> tempList = new List<SheetPart>();
+            while (parts.Count > 0)
             {
-                //When implementing splitting logic
-                //Remember to take into account when replacing path references
-                throw new System.NotImplementedException("Splitting of sheets not implemented yet!");
+                SheetPart part = parts.Dequeue();
+                numberOfLines += part.Adresser.Count;
+                tempList.Add(part);
+
+                if (parts.Count != 0 && parts.Peek().Adresser.Count + numberOfLines < 50) continue;
+                else if (parts.Count != 0)
+                {
+                    ExcelSheet excelSheet = new ExcelSheet();
+                    excelSheet.SheetNumber = Dimensionering.GlobalSheetCount.GetNextNumber();
+                    foreach (SheetPart sheetPart in tempList) excelSheet.Adresser.AddRange(sheetPart.Adresser);
+                    foreach (SheetPart sheetPart in tempList) excelSheet.Længder.AddRange(sheetPart.Distancer);
+                    excelSheet.SheetParts.AddRange(tempList);
+                    this.Sheets.Add(excelSheet);
+                    if (this.Sheets.Count > 1)
+                    {
+                        Dimensionering.GlobalSheetCount.IncrementOffset();
+                        excelSheet.Adresser.Insert(0, (excelSheet.SheetNumber - 1).ToString());
+                        excelSheet.Længder.Insert(0, 0.0);
+                    }
+                    tempList = new List<SheetPart>();
+                    numberOfLines = 0;
+                }
             }
 
-            ExcelSheet excelSheet = new ExcelSheet();
-            excelSheet.SheetNumber = Dimensionering.GlobalSheetCount.GetNextNumber();
-            excelSheet.Adresser = adresser;
-            excelSheet.Længder = distancer;
-            this.Sheets.Add(excelSheet);
+            ExcelSheet lastSheet = new ExcelSheet();
+            lastSheet.SheetNumber = Dimensionering.GlobalSheetCount.GetNextNumber();
+            foreach (SheetPart sheetPart in tempList) lastSheet.Adresser.AddRange(sheetPart.Adresser);
+            foreach (SheetPart sheetPart in tempList) lastSheet.Længder.AddRange(sheetPart.Distancer);
+            lastSheet.SheetParts.AddRange(tempList);
+            this.Sheets.Add(lastSheet);
+            if (this.Sheets.Count > 1)
+            {
+                Dimensionering.GlobalSheetCount.IncrementOffset();
+                lastSheet.Adresser.Insert(0, (lastSheet.SheetNumber - 1).ToString());
+                lastSheet.Længder.Insert(0, 0.0);
+            }
         }
     }
     internal class ExcelSheet
     {
         internal int SheetNumber { get; set; } = 0;
+        internal List<SheetPart> SheetParts { get; } = new List<SheetPart>();
         internal List<string> Adresser { get; set; } = new List<string>();
         internal List<double> Længder { get; set; } = new List<double>();
     }
@@ -1629,7 +1651,24 @@ namespace IntersectUtilities.Dimensionering
     internal class GlobalSheetCount
     {
         internal int CurrentSheetNumber { get; private set; } = 0;
-        internal int GetNextNumber() { CurrentSheetNumber++; return CurrentSheetNumber; }
+        internal int GetNextNumber()
+        {
+            CurrentSheetNumber++;
+            TestValidity();
+            return CurrentSheetNumber;
+        }
+        internal int SheetOffset { get; private set; } = 0;
+        internal int IncrementOffset()
+        {
+            SheetOffset++;
+            TestValidity();
+            return SheetOffset;
+        }
+        private void TestValidity()
+        {
+            if ((CurrentSheetNumber + SheetOffset) > 58)
+                throw new System.Exception("Total number of sheets needed has exceeded 58!");
+        }
     }
     internal class Node
     {

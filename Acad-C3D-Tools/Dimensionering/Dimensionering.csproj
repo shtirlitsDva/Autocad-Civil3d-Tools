@@ -103,6 +103,7 @@
       <Link>UtilsCommon.cs</Link>
     </Compile>
     <Compile Include="Dimensionering.cs" />
+    <Compile Include="Extensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

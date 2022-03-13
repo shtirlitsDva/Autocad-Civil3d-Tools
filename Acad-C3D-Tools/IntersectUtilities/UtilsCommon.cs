@@ -1360,6 +1360,7 @@ namespace IntersectUtilities.UtilsCommon
             if (attribute == null) return value.ToString();//or string.Empty, or throw exception
             return attribute.Name;
         }
+
     }
     public static class ExtensionMethods
     {
