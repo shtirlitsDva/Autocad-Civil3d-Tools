@@ -256,10 +256,15 @@ namespace IntersectUtilities.Dimensionering
                     }
                     #endregion
 
+                    #region Manage layer for labels
+                    string labelLayerName = $"0-FJV_Strækning_label_{curEtapeName}";
+                    localDb.CheckOrCreateLayer(labelLayerName);
+                    #endregion
+
                     #region Delete old labels
                     var labels = localDb
                         .HashSetOfType<DBText>(tx)
-                        .Where(x => x.Layer == "0-FJV_Strækning_label");
+                        .Where(x => x.Layer == labelLayerName);
 
                     foreach (DBText label in labels)
                     {
@@ -518,8 +523,7 @@ namespace IntersectUtilities.Dimensionering
                             text.TextString = strækningsNr;
                             text.Height = 2.5;
                             text.Position = midPoint;
-                            localDb.CheckOrCreateLayer("0-FJV_Strækning_label");
-                            text.Layer = "0-FJV_Strækning_label";
+                            text.Layer = labelLayerName;
                             text.AddEntityToDbModelSpace(localDb);
                         }
                         #endregion
