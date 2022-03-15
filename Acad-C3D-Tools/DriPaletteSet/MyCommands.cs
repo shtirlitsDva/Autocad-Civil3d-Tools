@@ -35,7 +35,7 @@ namespace DriPaletteSet
             if (firstShow)
             {
                 _myPs.Dock = Autodesk.AutoCAD.Windows.DockSides.None;
-                _myPs.Size = new System.Drawing.Size(500, 500);
+                _myPs.Size = new System.Drawing.Size(500, 1000);
             }
         }
     }

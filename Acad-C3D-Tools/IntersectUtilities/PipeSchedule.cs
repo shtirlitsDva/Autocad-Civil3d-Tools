@@ -11,7 +11,37 @@ namespace IntersectUtilities
 {
     public static class PipeSchedule
     {
-        private static readonly Dictionary<int, double> kOdsTwin = new Dictionary<int, double>
+        private static readonly Dictionary<int, double> kOdsS1Twin = new Dictionary<int, double>
+            {
+                {20,125.0},
+                {25,140.0},
+                {32,160.0},
+                {40,160.0},
+                {50,200.0},
+                {65,225.0},
+                {80,250.0},
+                {100,315.0},
+                {125,400.0},
+                {150,450.0},
+                {200,560.0},
+                {250,710.0}
+            };
+        private static readonly Dictionary<int, double> kOdsS2Twin = new Dictionary<int, double>
+            {
+                {20,140.0},
+                {25,160.0},
+                {32,180.0},
+                {40,180.0},
+                {50,225.0},
+                {65,250.0},
+                {80,280.0},
+                {100,355.0},
+                {125,450.0},
+                {150,500.0},
+                {200,630.0},
+                {250,800.0}
+            };
+        private static readonly Dictionary<int, double> kOdsS3Twin = new Dictionary<int, double>
             {
                 {  20, 160.0 },
                 {  25, 180.0 },
@@ -23,9 +53,52 @@ namespace IntersectUtilities
                 { 100, 400.0 },
                 { 125, 500.0 },
                 { 150, 560.0 },
-                { 200, 710.0 }
+                { 200, 710.0 },
+                { 250, 900.0 }
             };
-        private static readonly Dictionary<int, double> kOdsBonded = new Dictionary<int, double>
+        private static readonly Dictionary<int, double> kOdsS1Bonded = new Dictionary<int, double>
+            {
+                {20,90.0},
+                {25,90.0},
+                {32,110.0},
+                {40,110.0},
+                {50,125.0},
+                {65,140.0},
+                {80,160.0},
+                {100,200.0},
+                {125,225.0},
+                {150,250.0},
+                {200,315.0},
+                {250,400.0},
+                {300,450.0},
+                {350,500.0},
+                {400,560.0},
+                {450,630.0},
+                {500,710.0},
+                {600,800.0}
+            };
+        private static readonly Dictionary<int, double> kOdsS2Bonded = new Dictionary<int, double>
+            {
+                {20,110.0},
+                {25,110.0},
+                {32,125.0},
+                {40,125.0},
+                {50,140.0},
+                {65,160.0},
+                {80,180.0},
+                {100,225.0},
+                {125,250.0},
+                {150,280.0},
+                {200,355.0},
+                {250,450.0},
+                {300,500.0},
+                {350,560.0},
+                {400,630.0},
+                {450,710.0},
+                {500,800.0},
+                {600,900.0}
+            };
+        private static readonly Dictionary<int, double> kOdsS3Bonded = new Dictionary<int, double>
             {
                 { 20, 125.0 },
                 { 25, 125.0 },
@@ -51,6 +124,14 @@ namespace IntersectUtilities
             string layer = ent.Layer;
             switch (layer)
             {
+                case "FJV-TWIN-DN20":
+                case "FJV-FREM-DN20":
+                case "FJV-RETUR-DN20":
+                    return 20;
+                case "FJV-TWIN-DN25":
+                case "FJV-FREM-DN25":
+                case "FJV-RETUR-DN25":
+                    return 25;
                 case "FJV-TWIN-DN32":
                 case "FJV-FREM-DN32":
                 case "FJV-RETUR-DN32":
@@ -87,6 +168,7 @@ namespace IntersectUtilities
                 case "FJV-FREM-DN200":
                 case "FJV-RETUR-DN200":
                     return 200;
+                case "FJV-TWIN-DN250":
                 case "FJV-FREM-DN250":
                 case "FJV-RETUR-DN250":
                     return 250;
@@ -121,6 +203,8 @@ namespace IntersectUtilities
             string layer = ent.Layer;
             switch (layer)
             {
+                case "FJV-TWIN-DN20":
+                case "FJV-TWIN-DN25":
                 case "FJV-TWIN-DN32":
                 case "FJV-TWIN-DN40":
                 case "FJV-TWIN-DN50":
@@ -130,7 +214,12 @@ namespace IntersectUtilities
                 case "FJV-TWIN-DN125":
                 case "FJV-TWIN-DN150":
                 case "FJV-TWIN-DN200":
+                case "FJV-TWIN-DN250":
                     return "Twin";
+                case "FJV-FREM-DN20":
+                case "FJV-RETUR-DN20":
+                case "FJV-FREM-DN25":
+                case "FJV-RETUR-DN25":
                 case "FJV-FREM-DN32":
                 case "FJV-RETUR-DN32":
                 case "FJV-FREM-DN40":
@@ -204,34 +293,94 @@ namespace IntersectUtilities
         /// <summary>
         /// WARNING! Currently Series 3 only.
         /// </summary>
-        public static double GetTwinPipeKOd(Entity ent)
+        public static double GetTwinPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
-            if (kOdsTwin.ContainsKey(dn)) return kOdsTwin[dn];
+            switch (pipeSeries)
+            {
+                case PipeSeriesEnum.S1:
+                    if (kOdsS1Twin.ContainsKey(dn)) return kOdsS1Twin[dn];
+                    else return 0;
+                case PipeSeriesEnum.S2:
+                    if (kOdsS2Twin.ContainsKey(dn)) return kOdsS2Twin[dn];
+                    else return 0;
+                case PipeSeriesEnum.S3:
+                    if (kOdsS3Twin.ContainsKey(dn)) return kOdsS3Twin[dn];
+                    else return 0;
+                default:
+                    return 0;
+            }
+        }
+        public static double GetTwinPipeKOd(Entity ent)
+        {
+            int DN = GetPipeDN(ent);
+            if (kOdsS3Twin.ContainsKey(DN)) return kOdsS3Twin[DN];
             return 0;
         }
         public static double GetTwinPipeKOd(int DN)
         {
-            if (kOdsTwin.ContainsKey(DN)) return kOdsTwin[DN];
+            if (kOdsS3Twin.ContainsKey(DN)) return kOdsS3Twin[DN];
             return 0;
         }
         /// <summary>
         /// WARNING! Currently S3 only.
         /// </summary>
+        public static double GetBondedPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
+        {
+            int dn = GetPipeDN(ent);
+            switch (pipeSeries)
+            {
+                case PipeSeriesEnum.S1:
+                    if (kOdsS1Bonded.ContainsKey(dn)) return kOdsS1Bonded[dn];
+                    break;
+                case PipeSeriesEnum.S2:
+                    if (kOdsS2Bonded.ContainsKey(dn)) return kOdsS2Bonded[dn];
+                    break;
+                case PipeSeriesEnum.S3:
+                    if (kOdsS3Bonded.ContainsKey(dn)) return kOdsS3Bonded[dn];
+                    break;
+                default:
+                    return 0;
+            }
+            return 0;
+        }
         public static double GetBondedPipeKOd(Entity ent)
         {
             int dn = GetPipeDN(ent);
-            if (kOdsBonded.ContainsKey(dn)) return kOdsBonded[dn];
+            if (kOdsS3Bonded.ContainsKey(dn)) return kOdsS3Bonded[dn];
             return 0;
         }
         public static double GetBondedPipeKOd(int DN)
         {
-            if (kOdsBonded.ContainsKey(DN)) return kOdsBonded[DN];
+            if (kOdsS3Bonded.ContainsKey(DN)) return kOdsS3Bonded[DN];
             return 0;
         }
+        public static double GetPipeKOd(Entity ent, PipeSeriesEnum pipeSeries) =>
+            GetPipeSystem(ent) == "Twin" ?
+            GetTwinPipeKOd(ent, pipeSeries) : GetBondedPipeKOd(ent, pipeSeries);
         public static double GetPipeKOd(Entity ent) =>
             GetPipeSystem(ent) == "Twin" ? GetTwinPipeKOd(ent) : GetBondedPipeKOd(ent);
         public static string GetPipeSeries(Entity ent) => "S3";
+        public static PipeSeriesEnum GetPipeSeriesV2(Entity ent)
+        {
+            double realKod = ((Polyline)ent).ConstantWidth;
+            double kod = GetPipeKOd(ent, PipeSeriesEnum.S3) / 1000;
+            if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S3;
+            kod = GetPipeKOd(ent, PipeSeriesEnum.S2) / 1000;
+            if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S2;
+            kod = GetPipeKOd(ent, PipeSeriesEnum.S1) / 1000;
+            if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S1;
+
+            bool Equalz(double x, double y, double eps)
+            {
+                if (Math.Abs(x - y) < eps) return true;
+                else return false;
+            }
+
+            throw new System.Exception(
+                $"Entity {ent.Handle.ToString()} does not have valid Constant Width!");
+        }
+        public static string GetPipeSeries(PipeSeriesEnum pipeSeries) => pipeSeries.ToString();
         public static double GetPipeStdLength(Entity ent) => GetPipeDN(ent) <= 80 ? 12 : 16;
         public static bool IsInSituBent(Entity ent)
         {
@@ -274,6 +423,38 @@ namespace IntersectUtilities
                 { 999, 0.0 }
             };
             return radii[GetPipeDN(ent)];
+        }
+        internal enum PipeTypeEnum
+        {
+            Twin,
+            Enkelt
+        }
+        public enum PipeSeriesEnum
+        {
+            S1,
+            S2,
+            S3
+        }
+        internal enum PipeDnEnum
+        {
+            DN20,
+            DN25,
+            DN32,
+            DN40,
+            DN50,
+            DN65,
+            DN80,
+            DN100,
+            DN125,
+            DN150,
+            DN200,
+            DN250,
+            DN300,
+            DN350,
+            DN400,
+            DN450,
+            DN500,
+            DN600
         }
     }
 }

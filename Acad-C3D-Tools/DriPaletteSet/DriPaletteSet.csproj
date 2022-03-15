@@ -93,9 +93,13 @@
     <Compile Include="..\IntersectUtilities\MoreLinq.cs">
       <Link>MoreLinq.cs</Link>
     </Compile>
+    <Compile Include="..\IntersectUtilities\PipeSchedule.cs">
+      <Link>PipeSchedule.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\UtilsCommon.cs">
       <Link>UtilsCommon.cs</Link>
     </Compile>
+    <Compile Include="PaletteUtils.cs" />
     <Compile Include="TwinPalette.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -119,6 +123,9 @@
     <EmbeddedResource Include="TwinPalette.resx">
       <DependentUpon>TwinPalette.cs</DependentUpon>
     </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="loadNet.scr" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
