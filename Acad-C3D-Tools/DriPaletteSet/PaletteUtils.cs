@@ -78,7 +78,20 @@ namespace DriPaletteSet
 
                         LayerTableRecord ltr = new LayerTableRecord();
                         ltr.Name = layerName;
-                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
+                        switch (pipeType)
+                        {
+                            case PipeTypeEnum.Twin:
+                                ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
+                                break;
+                            case PipeTypeEnum.Frem:
+                                ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                                break;
+                            case PipeTypeEnum.Retur:
+                                ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 5);
+                                break;
+                            default:
+                                break;
+                        }
                         Oid continuous = ltt["Continuous"];
                         ltr.LinetypeObjectId = continuous;
                         ltr.LineWeight = LineWeight.ByLineWeightDefault;
