@@ -100,6 +100,16 @@ namespace LERImporter.Schema
             return creator.CreateEntity(database);
         }
     }
-    public partial class AndenKomponentType : LedningskomponentType { }
+    public partial class AndenKomponentType : LedningskomponentType, ILerKomponent
+    {
+        [PsInclude]
+        public string Forsyningsart { get => this?.forsyningsart ?? ""; }
+        public string Type { get => this?.type ?? ""; }
+        public Oid DrawComponent(Database database)
+        {
+            IEntityCreator creator = this.geometri.Item as IEntityCreator;
+            return creator.CreateEntity(database);
+        }
+    }
     public partial class AfloebskomponentType : LedningskomponentType { }
 }

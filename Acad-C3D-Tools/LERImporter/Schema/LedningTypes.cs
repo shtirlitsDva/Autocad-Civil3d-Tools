@@ -77,8 +77,10 @@ namespace LERImporter.Schema
         [PsInclude]
         public string IndtegningsMetode { get => this.indtegningsmetode.GetXmlEnumAttributeValueFromEnum(); }
         [PsInclude]
-        public string Nøjagtighedsklasse { 
-            get => this.noejagtighedsklasse?.Value.GetXmlEnumAttributeValueFromEnum() ?? "ukendt"; }
+        public string Nøjagtighedsklasse
+        {
+            get => this.noejagtighedsklasse?.Value.GetXmlEnumAttributeValueFromEnum() ?? "ukendt";
+        }
         [PsInclude]
         public string RegistreringFra { get => this.registreringFra.ToString() ?? string.Empty; }
         [PsInclude]
@@ -386,9 +388,48 @@ namespace LERImporter.Schema
     }
     public partial class AfloebsledningType : ILerLedning
     {
+        [PsInclude]
+        public bool HarFod { get => this.harFod?.Value ?? false; }
+        [PsInclude]
+        public LedningstransporttypeType? LedningstransportType { get => this.ledningstransporttype?.Value; }
+        private string DetermineLayerName(Database database)
+        {
+            string layerName = "Afløbsledning";
+            string driftsstatusSuffix = "";
+
+            switch (this.Driftsstatus2)
+            {
+                case DriftsstatusType.underetablering:
+                case DriftsstatusType.idrift:
+                    break;
+                case DriftsstatusType.permanentudeafdrift:
+                    driftsstatusSuffix = "_UAD";
+                    break;
+                default:
+                    throw new System.Exception(
+                        $"Element id {this.id} has invalid driftsstatus: {Driftsstatus.ToString()}!");
+            }
+
+            if (driftsstatusSuffix.IsNotNoE())
+            {
+                layerName = layerName + driftsstatusSuffix;
+            }
+
+            database.CheckOrCreateLayer(layerName);
+            return layerName;
+        }
         public Oid DrawEntity2D(Database database)
         {
-            throw new NotImplementedException();
+            Polyline pline = DrawPline2D(database)
+                .Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            string layerName = DetermineLayerName(database);
+
+            pline.Layer = layerName;
+
+            pline.ConstantWidth = this.UdvendigDiameter != default ? this.UdvendigDiameter : 0.011;
+
+            return pline.Id;
         }
 
         public Oid DrawEntity3D(Database database)
@@ -486,14 +527,14 @@ namespace LERImporter.Schema
                     break;
             }
 
-            if (SpædningsNiveau.IsNotNoE()) layerName += $"-{SpædningsNiveau}";
+            if (SpædningsNiveau.IsNotNoE() &&
+                SpædningsNiveau != "0kV") layerName += $"-{SpædningsNiveau}";
             layerName += driftsstatusSuffix;
 
             database.CheckOrCreateLayer(layerName);
             return layerName;
             #endregion
         }
-
         public Oid DrawEntity2D(Database database)
         {
             #region Draw 2D polyline
@@ -507,12 +548,10 @@ namespace LERImporter.Schema
             return pline.Id;
             #endregion
         }
-
         public Oid DrawEntity3D(Database database)
         {
             throw new NotImplementedException();
         }
-
         public enum ElledningTypeEnum
         {
             none,
