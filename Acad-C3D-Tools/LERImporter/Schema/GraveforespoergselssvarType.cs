@@ -202,7 +202,7 @@ namespace LERImporter.Schema
                 var psData = GmlToPropertySet.TranslateGmlToPs(member.Item);
                 PropertySetManager.PopulateNonDefinedPropertySet(WorkingDatabase, ent, psName, psData);
 
-                names.Add(member.Item.ToString());
+                //names.Add(member.Item.ToString());
             }
 
             foreach (GraveforespoergselssvarTypeLedningstraceMember item in ledningstraceMember)
@@ -212,7 +212,9 @@ namespace LERImporter.Schema
                     Log.log($"ledningstraceMember is null! Some enity has not been deserialized correct!");
                     continue;
                 }
-                names.Add(item.Ledningstrace.ToString());
+                item.Ledningstrace.
+                //names.Add(item.Ledningstrace.ToString());
+                //prdDbg(ObjectDumper.Dump(item.Ledningstrace));
             }
 
             foreach (GraveforespoergselssvarTypeLedningskomponentMember member in ledningskomponentMember)
@@ -237,8 +239,10 @@ namespace LERImporter.Schema
                 var psData = GmlToPropertySet.TranslateGmlToPs(member.Item);
                 PropertySetManager.PopulateNonDefinedPropertySet(WorkingDatabase, ent, psName, psData);
 
-                names.Add(member.Item.ToString());
+                //names.Add(member.Item.ToString());
             }
+
+            foreach (string name in names) prdDbg(name);
 
             #region Read and assign layer's color
             //Regex to parse the color information

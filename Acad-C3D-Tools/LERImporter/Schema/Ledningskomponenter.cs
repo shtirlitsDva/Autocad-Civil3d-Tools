@@ -55,7 +55,7 @@ namespace LERImporter.Schema
     {
         Oid DrawComponent(Database database);
     }
-    public abstract partial class LedningskomponentType 
+    public abstract partial class LedningskomponentType
     {
         [PsInclude]
         public string Driftsstatus { get => this.driftsstatus.Value.GetXmlEnumAttributeValueFromEnum(); }
@@ -70,8 +70,10 @@ namespace LERImporter.Schema
         [PsInclude]
         public string Materiale { get => this.materiale; }
         [PsInclude]
-        public string Nøjagtighedsklasse { 
-            get => this.noejagtighedsklasse?.Value.GetXmlEnumAttributeValueFromEnum() ?? "ukendt"; }
+        public string Nøjagtighedsklasse
+        {
+            get => this.noejagtighedsklasse?.Value.GetXmlEnumAttributeValueFromEnum() ?? "ukendt";
+        }
         [PsInclude]
         public string RegistreringFra { get => this.registreringFra.ToString() ?? string.Empty; }
         [PsInclude]
@@ -83,7 +85,15 @@ namespace LERImporter.Schema
     }
     public partial class VandkomponentType : LedningskomponentType { }
     public partial class TermiskKomponentType : LedningskomponentType { }
-    public partial class TelekommunikationskomponentType : LedningskomponentType { }
+    public partial class TelekommunikationskomponentType : LedningskomponentType, ILerKomponent
+    {
+        public string Telekommunikationskomponenttype { get => this.type.ToString(); }
+        public Oid DrawComponent(Database database)
+        {
+            IEntityCreator creator = this.geometri.Item as IEntityCreator;
+            return creator.CreateEntity(database);
+        }
+    }
     public partial class OliekomponentType : LedningskomponentType { }
     public partial class GaskomponentType : LedningskomponentType { }
     public partial class ElkomponentType : LedningskomponentType, ILerKomponent
@@ -93,7 +103,7 @@ namespace LERImporter.Schema
         [PsInclude]
         public string RelativNiveau { get => this.relativNiveau.GetXmlEnumAttributeValueFromEnum(); }
         [PsInclude]
-        public string SpædningsNiveau { get => this.spaendingsniveau.Value.ToString() + this.spaendingsniveau.uom; }
+        public string SpædningsNiveau { get => this.spaendingsniveau?.Value.ToString() + this.spaendingsniveau?.uom ?? ""; }
         public Oid DrawComponent(Database database)
         {
             IEntityCreator creator = this.geometri.Item as IEntityCreator;
@@ -104,6 +114,7 @@ namespace LERImporter.Schema
     {
         [PsInclude]
         public string Forsyningsart { get => this?.forsyningsart ?? ""; }
+        [PsInclude]
         public string Type { get => this?.type ?? ""; }
         public Oid DrawComponent(Database database)
         {

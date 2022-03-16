@@ -545,6 +545,9 @@ namespace LERImporter.Schema
 
             pline.Layer = layerName;
 
+            if (this.spaendingsniveau != null && this.spaendingsniveau?.Value > 30.0)
+                pline.ConstantWidth = 0.5;
+
             return pline.Id;
             #endregion
         }
@@ -575,4 +578,36 @@ namespace LERImporter.Schema
             throw new NotImplementedException();
         }
     }
+
+    #region Special treatment for LedningsTrace
+    public partial class LedningstraceType : ILerLedning
+    {
+
+        public Oid DrawEntity2D(Database database)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Oid DrawPline2D(Database database)
+        {
+            IPointParser parser = this.geometri.MultiCurve as IPointParser;
+
+            Point3d[] points = parser.GetPoints();
+            Polyline polyline = new Polyline(points.Length);
+
+            for (int i = 0; i < points.Length; i++)
+                polyline.AddVertexAt(polyline.NumberOfVertices, points[i].To2D(), 0, 0, 0);
+
+            Oid oid = polyline.AddEntityToDbModelSpace(database);
+
+            return oid;
+        }
+
+
+        public Oid DrawEntity3D(Database database)
+        {
+            throw new NotImplementedException();
+        }
+    }
+    #endregion
 }

@@ -13420,8 +13420,8 @@ namespace IntersectUtilities
                     //**************************************
                     //Change name of line type to create new and text value
                     //**************************************
-                    string ltName = "BIPS_TEXT_CU";
-                    string text = "CU";
+                    string ltName = "BIPS_TEXT_50_kV";
+                    string text = "50kV";
                     string textStyleName = "Standard";
                     prdDbg($"Remember to create text style: {textStyleName}!!!");
 
@@ -13460,10 +13460,10 @@ namespace IntersectUtilities
                     // Dash #1
                     lttr.SetDashLengthAt(0, 7);
                     // Dash #2
-                    lttr.SetDashLengthAt(1, -2.5);
+                    lttr.SetDashLengthAt(1, -3.1);
                     lttr.SetShapeStyleAt(1, tt[textStyleName]);
                     lttr.SetShapeNumberAt(1, 0);
-                    lttr.SetShapeOffsetAt(1, new Vector2d(-2.2, -0.5));
+                    lttr.SetShapeOffsetAt(1, new Vector2d(-3.0, -0.5));
                     lttr.SetShapeScaleAt(1, 0.9);
                     lttr.SetShapeIsUcsOrientedAt(1, false);
                     lttr.SetShapeRotationAt(1, 0);
@@ -13471,10 +13471,10 @@ namespace IntersectUtilities
                     // Dash #3
                     lttr.SetDashLengthAt(2, 7);
                     // Dash #4
-                    lttr.SetDashLengthAt(3, -2.5);
+                    lttr.SetDashLengthAt(3, -3.0);
                     lttr.SetShapeStyleAt(3, tt[textStyleName]);
                     lttr.SetShapeNumberAt(3, 0);
-                    lttr.SetShapeOffsetAt(3, new Vector2d(-0.3, 0.5));
+                    lttr.SetShapeOffsetAt(3, new Vector2d(-0.1, 0.5));
                     lttr.SetShapeScaleAt(3, 0.9);
                     lttr.SetShapeIsUcsOrientedAt(3, false);
                     lttr.SetShapeRotationAt(3, Math.PI);
