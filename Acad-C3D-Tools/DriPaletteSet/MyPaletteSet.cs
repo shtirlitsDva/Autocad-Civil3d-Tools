@@ -11,7 +11,7 @@ namespace DriPaletteSet
     public class MyPaletteSet : PaletteSet
     {
         private TwinPalette _first = null;
-        private SecondPalette _second = null;
+        private EnkeltPalette _second = null;
         public MyPaletteSet() : base("", "", new Guid("87374E16-C0DB-4F3F-9271-7A71ED921226"))
         {
             MinimumSize = new System.Drawing.Size(300, 300);
@@ -22,10 +22,11 @@ namespace DriPaletteSet
             _first = new TwinPalette();
             Add("Twin", _first);
 
-            _second = new SecondPalette();
+            _second = new EnkeltPalette();
             Add("Enkelt", _second);
 
             _first.BackColor = System.Drawing.Color.FromArgb(59, 68, 83);
+            _second.BackColor = System.Drawing.Color.FromArgb(59, 68, 83);
         }
     }
 }

@@ -427,7 +427,8 @@ namespace IntersectUtilities
         internal enum PipeTypeEnum
         {
             Twin,
-            Enkelt
+            Frem,
+            Retur
         }
         public enum PipeSeriesEnum
         {

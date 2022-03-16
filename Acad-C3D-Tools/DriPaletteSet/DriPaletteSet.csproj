@@ -96,6 +96,9 @@
     <Compile Include="..\IntersectUtilities\PipeSchedule.cs">
       <Link>PipeSchedule.cs</Link>
     </Compile>
+    <Compile Include="..\IntersectUtilities\PropertySetManager.cs">
+      <Link>PropertySetManager.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\UtilsCommon.cs">
       <Link>UtilsCommon.cs</Link>
     </Compile>
@@ -109,16 +112,16 @@
     <Compile Include="MyCommands.cs" />
     <Compile Include="MyPaletteSet.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SecondPalette.cs">
+    <Compile Include="EnkeltPalette.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="SecondPalette.Designer.cs">
-      <DependentUpon>SecondPalette.cs</DependentUpon>
+    <Compile Include="EnkeltPalette.Designer.cs">
+      <DependentUpon>EnkeltPalette.cs</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="SecondPalette.resx">
-      <DependentUpon>SecondPalette.cs</DependentUpon>
+    <EmbeddedResource Include="EnkeltPalette.resx">
+      <DependentUpon>EnkeltPalette.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="TwinPalette.resx">
       <DependentUpon>TwinPalette.cs</DependentUpon>

@@ -20,12 +20,12 @@ using static IntersectUtilities.PipeSchedule;
 
 namespace DriPaletteSet
 {
-    public partial class TwinPalette : System.Windows.Forms.UserControl
+    public partial class EnkeltPalette : UserControl
     {
         HashSet<CheckBox> dnButtons = new HashSet<CheckBox>();
         HashSet<CheckBox> seriesButtons = new HashSet<CheckBox>();
-
-        public TwinPalette()
+        HashSet<CheckBox> fremReturButtons = new HashSet<CheckBox> { };
+        public EnkeltPalette()
         {
             InitializeComponent();
 
@@ -45,6 +45,11 @@ namespace DriPaletteSet
             checkBox13.Appearance = System.Windows.Forms.Appearance.Button;
             checkBox14.Appearance = System.Windows.Forms.Appearance.Button;
             checkBox15.Appearance = System.Windows.Forms.Appearance.Button;
+            checkBox16.Appearance = System.Windows.Forms.Appearance.Button;
+            checkBox17.Appearance = System.Windows.Forms.Appearance.Button;
+            checkBox18.Appearance = System.Windows.Forms.Appearance.Button;
+            checkBox19.Appearance = System.Windows.Forms.Appearance.Button;
+            checkBox20.Appearance = System.Windows.Forms.Appearance.Button;
             #endregion
 
             #region Add dn buttons to buttons collection
@@ -60,17 +65,21 @@ namespace DriPaletteSet
             dnButtons.Add(checkBox10);
             dnButtons.Add(checkBox11);
             dnButtons.Add(checkBox12);
+            dnButtons.Add(checkBox13);
+            dnButtons.Add(checkBox14);
+            dnButtons.Add(checkBox15);
+            dnButtons.Add(checkBox16);
+            dnButtons.Add(checkBox17);
+            dnButtons.Add(checkBox18);
             #endregion
 
-            #region Add series buttons to series buttons collection
-            seriesButtons.Add(checkBox13);
-            seriesButtons.Add(checkBox14);
-            seriesButtons.Add(checkBox15);
+            #region Add frem/retur buttons to fr collection
+            fremReturButtons.Add(checkBox19);
+            fremReturButtons.Add(checkBox20);
             #endregion
 
-            //Initialize series settings
-            checkBox15.Checked = true;
-            PaletteUtils.CurrentSeries = PipeSeriesEnum.S3;
+            //Init frem check box
+            checkBox19.Checked = true;
         }
 
         private void dnButtonCheckBox_Click(object sender, EventArgs e)
@@ -87,34 +96,25 @@ namespace DriPaletteSet
             string dn = string.Concat(cb.Text.Where(c => !char.IsWhiteSpace(c)));
             PipeDnEnum pipeDn = (PipeDnEnum)Enum.Parse(typeof(PipeDnEnum), dn);
 
-            ActivateLayer(PipeTypeEnum.Twin, pipeDn);
+            PipeTypeEnum fr = PipeTypeEnum.Frem;
+            foreach (var frb in fremReturButtons)
+            {
+                if (frb.Checked) fr = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum), frb.Text);
+            }
+
+            ActivateLayer(fr, pipeDn);
         }
 
-        private void seriesButtonCheckBox_Click(object sender, EventArgs e)
+        private void frButtonCheckBox_Click(object sender, EventArgs e)
         {
             CheckBox cb = (CheckBox)sender;
-            foreach (CheckBox checkBox in seriesButtons)
+            foreach (CheckBox checkBox in fremReturButtons)
             {
                 if (checkBox.Checked && cb.Name != checkBox.Name)
                 {
                     checkBox.Checked = false;
                 }
             }
-
-            PipeSeriesEnum pipeSeriesEnum = 
-                (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum), cb.Text);
-
-            PaletteUtils.CurrentSeries = pipeSeriesEnum;
-        }
-
-        private void button1_Click(object sender, EventArgs e)
-        {
-            PaletteUtils.UpdateWidths();
-        }
-
-        private void button2_Click(object sender, EventArgs e)
-        {
-            PaletteUtils.labelpipe();
         }
     }
 }
