@@ -45,8 +45,6 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Line = Autodesk.AutoCAD.DatabaseServices.Line;
-using JsonConvert = Newtonsoft.Json.JsonConvert;
-using Newtonsoft.Json;
 
 namespace IntersectUtilities.Dimensionering
 {
@@ -59,12 +57,11 @@ namespace IntersectUtilities.Dimensionering
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
-            doc.Editor.WriteMessage("\n-> Select objects by type and area: DIMSELECTOBJ");
-            doc.Editor.WriteMessage("\n-> Connect building to multiple addresses: DIMCONNECTHUSNR");
-            doc.Editor.WriteMessage("\n-> Populate property data based on geometry: DIMPOPULATEGRAPH");
             doc.Editor.WriteMessage("\n-> Dump all addresses to file: DIMADRESSERDUMP");
+            doc.Editor.WriteMessage("\n-> Populate property data based on geometry: DIMPOPULATEGRAPH");
+            doc.Editor.WriteMessage("\n-> Dump graph to text file: DIMDUMPGRAPH");
+            doc.Editor.WriteMessage("\n-> Write graph to DOT (Graphviz) file: DIMWRITEGRAPH");
             doc.Editor.WriteMessage("\n-> Write data to excel: -> DIMWRITEEXCEL");
-            doc.Editor.WriteMessage("\n-> 1) Husnr 2) Populate 3) Dump adresser 4) Write excel");
         }
 
         public void Terminate()
@@ -75,322 +72,31 @@ namespace IntersectUtilities.Dimensionering
         [CommandMethod("DIMADRESSERDUMP")]
         public void dimadresserdump()
         {
-            Dimensionering.dimadressedump();
+            Dimensionering.dimadressedump(Dimensionering.CurrentEtapeName);
         }
 
         [CommandMethod("DIMPOPULATEGRAPH")]
         public void dimpopulategraph()
         {
-            Dimensionering.dimpopulategraph();
-        }
-        [CommandMethod("DIMCONNECTHUSNR")]
-        public void dimconnecthusnr()
-        {
-            Dimensionering.dimconnecthusnr();
+            Dimensionering.dimpopulategraph(Dimensionering.CurrentEtapeName);
         }
 
-        //[CommandMethod("DIMDUMPGRAPH")]
+        [CommandMethod("DIMDUMPGRAPH")]
         public void dimdumpgraph()
         {
-            Dimensionering.dimdumpgraph();
+            Dimensionering.dimdumpgraph(Dimensionering.CurrentEtapeName);
         }
 
-        //[CommandMethod("DIMWRITEGRAPH")]
+        [CommandMethod("DIMWRITEGRAPH")]
         public void dimwritegraph()
         {
-            Dimensionering.dimwritegraph();
+            Dimensionering.dimwritegraph(Dimensionering.CurrentEtapeName);
         }
 
         [CommandMethod("DIMWRITEEXCEL")]
         public void dimwriteexcel()
         {
-            Dimensionering.dimwriteexcel();
-        }
-
-        [CommandMethod("DIMSELECTOBJS")]
-        public void dimselectobjs()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            #region Ask for region name
-            string curEtapeName = "";
-            PromptStringOptions pStrOpts = new PromptStringOptions("\nOmråde navn: ");
-            pStrOpts.AllowSpaces = true;
-            PromptResult pStrRes = editor.GetString(pStrOpts);
-            if (pStrRes.Status != PromptStatus.OK) return;
-            curEtapeName = pStrRes.StringResult;
-            #endregion
-
-            #region Ask for what type of objects
-            const string kwd1 = "Polylinjer";
-            const string kwd2 = "Blokke";
-            const string kwd3 = "Alt";
-
-            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
-            pKeyOpts.Message = "\nHvilken type objekter skal vælges? ";
-            pKeyOpts.Keywords.Add(kwd1);
-            pKeyOpts.Keywords.Add(kwd2);
-            pKeyOpts.Keywords.Add(kwd3);
-            pKeyOpts.AllowNone = true;
-            pKeyOpts.Keywords.Default = kwd3;
-            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
-            if (pKeyRes.Status != PromptStatus.OK) return;
-
-            string objectType = pKeyRes.StringResult;
-            #endregion
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    #region Find objekter or vælg dem
-                    HashSet<Entity> pds = new HashSet<Entity>();
-                    if (objectType != null && objectType == kwd3)
-                    {//Vælg alt
-                        AddBrs(pds);
-                        AddPlines(pds);
-                    }
-                    else if (objectType != null && objectType == kwd2)
-                    {//Vælg blokke
-                        AddBrs(pds);
-                    }
-                    else if (objectType != null && objectType == kwd1)
-                    {//Vælg polylinjer
-                        AddPlines(pds);
-                    }
-
-                    void AddBrs(HashSet<Entity> entsCol)
-                    {
-                        HashSet<Entity> brs = localDb.HashSetOfType<BlockReference>(tx, true)
-                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                            x, "BBR", "Distriktets_navn") == curEtapeName)
-                        .Where(x => Dimensionering.AcceptedBlockTypes.Contains(
-                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
-                        .Cast<Entity>()
-                        .ToHashSet();
-                        prdDbg("Nr. of blocks " + brs.Count().ToString());
-                        entsCol.UnionWith(brs);
-                    }
-
-                    void AddPlines(HashSet<Entity> entsCol)
-                    {
-                        HashSet<Entity> plines = localDb.HashSetOfType<Polyline>(tx, true)
-                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                            x, "FJV_fremtid", "Distriktets_navn") == curEtapeName)
-                        .Cast<Entity>()
-                        .ToHashSet();
-                        prdDbg("Nr. of plines " + plines.Count().ToString());
-                        entsCol.UnionWith(plines);
-                    }
-
-                    System.Windows.Forms.Application.DoEvents();
-                    editor.SetImpliedSelection(pds.Select(x => x.Id).ToArray());
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.ToString());
-                    return;
-                }
-                finally
-                {
-
-                }
-                tx.Commit();
-            }
-        }
-
-        [CommandMethod("DIMREMOVEHUSNR")]
-        public void dimremovehusnr()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-
-            string curEtapeName = "";
-
-            #region Dialog box for selecting the geojson file
-            FeatureCollection LoadHusNumre(string EtapeName)
-            {
-                string dbFilename = localDb.OriginalFileName;
-                string path = System.IO.Path.GetDirectoryName(dbFilename);
-                string nyHusnumreFilename = path + $"\\husnumre_{EtapeName}.geojson";
-                string husnumreStr;
-                if (File.Exists(nyHusnumreFilename))
-                {
-                    husnumreStr = File.ReadAllText(nyHusnumreFilename);
-                }
-                else
-                {
-                    string fileName = string.Empty;
-                    OpenFileDialog dialog = new OpenFileDialog()
-                    {
-                        Title = "Choose husnumre file:",
-                        DefaultExt = "geojson",
-                        Filter = "Geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
-                        FilterIndex = 0
-                    };
-                    if (dialog.ShowDialog() == DialogResult.OK)
-                    {
-                        fileName = dialog.FileName;
-                        husnumreStr = File.ReadAllText(fileName);
-                    }
-                    else { throw new System.Exception("Cannot find husnumre file!"); }
-                }
-
-                return JsonConvert.DeserializeObject<FeatureCollection>(husnumreStr);
-            }
-            FeatureCollection husnumre = default;
-            #endregion
-
-            while (true)
-            {
-                #region Select pline3d
-                const string kwdSave = "Save";
-                PromptEntityOptions peo1 = new PromptEntityOptions(
-                    "\nSelect husnummer block to remove or :");
-                peo1.SetRejectMessage("\n Not a block!");
-                peo1.AddAllowedClass(typeof(BlockReference), true);
-                peo1.Keywords.Add(kwdSave);
-                PromptEntityResult res = editor.GetEntity(peo1);
-                Oid pickedId = Oid.Null;
-
-                if (res.Status == PromptStatus.OK)
-                {
-                    prdDbg($"\nPicked entity: {res.ObjectId.ToString()}");
-                    pickedId = res.ObjectId;
-                }
-                else if (res.Status == PromptStatus.Keyword)
-                {
-                    prdDbg("Saving...");
-                    if (res.StringResult == kwdSave)
-                    {
-                        if (curEtapeName.IsNoE() && husnumre == null)
-                        {
-                            prdDbg("Ingen adresser fjernet endnu! Fortsætter.");
-                            continue;
-                        }
-
-                        //Build file name
-                        string dbFilename = localDb.OriginalFileName;
-                        string path = System.IO.Path.GetDirectoryName(dbFilename);
-                        string nyHusnumreFilename = path + $"\\husnumre_{curEtapeName}.geojson";
-
-                        JsonSerializerSettings settings = new JsonSerializerSettings();
-                        settings.NullValueHandling = NullValueHandling.Ignore;
-                        if (husnumre == default) return;
-                        string outputHusnr = JsonConvert.SerializeObject(husnumre, settings);
-
-                        Utils.ClrFile(nyHusnumreFilename);
-                        Utils.OutputWriter(nyHusnumreFilename, outputHusnr);
-                        return;
-                    }
-                    else
-                    {
-                        prdDbg("Wrong keyword, continuing...");
-                        continue;
-                    }
-                }
-                else
-                {
-                    prdDbg("\nInvalid pick or cancelled");
-                    return;
-                }
-
-                #endregion
-
-                using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                {
-                    PropertySetManager graphPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
-                    PSetDefs.DriDimGraph graphDef = new PSetDefs.DriDimGraph();
-
-                    HashSet<Line> husNrLines = localDb.ListOfType<Line>(tx)
-                        .Where(x => x.Layer == "0-HUSNUMMER_LINE")
-                        .ToHashSet();
-
-                    try
-                    {
-                        BlockReference selectedBlock = pickedId.Go<BlockReference>(tx);
-
-                        //Check if block is in correct layer
-                        if (selectedBlock.Layer != "0-HUSNUMMER_BLOCK")
-                        {
-                            prdDbg("Wrong block selected!");
-                            tx.Abort();
-                            continue;
-                        }
-
-                        string id_lokalId = PropertySetManager
-                            .ReadNonDefinedPropertySetString(selectedBlock, "BBR", "id_lokalId");
-                        
-                        Line husNrLine = husNrLines
-                            .Where(x => getFirstChild(x)
-                            .Handle == selectedBlock.Handle)
-                            .FirstOrDefault();
-
-                        if (husNrLine == default) throw new System.Exception(
-                            $"Cannot find husNr line for block {selectedBlock.Handle}!");
-
-                        //used to get the line by comparing line's child to block's handle
-                        Entity getFirstChild(Line line)
-                        {
-                            graphPsm.GetOrAttachPropertySet(line);
-                            string chStr = graphPsm.ReadPropertyString(graphDef.Children);
-                            string firstChild = chStr.Split(';')[0];
-                            if (firstChild.IsNoE()) throw new System.Exception(
-                                $"Line {line.Handle} does not have a child specified!");
-                            return localDb.Go<Entity>(firstChild);
-                        }
-
-                        //Get the original building block
-                        graphPsm.GetOrAttachPropertySet(husNrLine);
-                        string lineParentStr = graphPsm.ReadPropertyString(graphDef.Parent);
-                        BlockReference buildingBlock = localDb.Go<BlockReference>(lineParentStr);
-
-                        //Load the husnumre
-                        //Cache the current area name
-                        curEtapeName = PropertySetManager.ReadNonDefinedPropertySetString(
-                            buildingBlock, "BBR", "Distriktets_navn");
-
-                        if (husnumre == default) husnumre = LoadHusNumre(curEtapeName);
-
-                        //Remove the address from address list
-                        int removed = husnumre.features.RemoveAll(
-                            x => x.properties.id_lokalId.ToUpper() == id_lokalId.ToUpper());
-                        prdDbg($"Antal adresser fjernet: {removed}.");
-
-                        //Remove the reference to the connection line object
-                        string childrenStr = graphPsm.ReadPropertyString(graphDef.Children);
-                        var split = childrenStr.Split(';').ToList();
-                        split.RemoveAll(x => x == husNrLine.Handle.ToString().ToUpper());
-                        childrenStr = String.Join(";", split);
-                        graphPsm.WritePropertyString(graphDef.Children, childrenStr);
-                        
-                        //Erase line and husnr object
-                        husNrLine.CheckOrOpenForWrite();
-                        husNrLine.Erase(true);
-                        selectedBlock.CheckOrOpenForWrite();
-                        selectedBlock.Erase(true);
-                    }
-                    catch (System.Exception ex)
-                    {
-                        tx.Abort();
-                        editor.WriteMessage("\n" + ex.ToString());
-                        return;
-                    }
-                    finally
-                    {
-
-                    }
-                    tx.Commit();
-                }
-            }
+            Dimensionering.dimwriteexcel(Dimensionering.CurrentEtapeName);
         }
     }
 
@@ -426,22 +132,10 @@ namespace IntersectUtilities.Dimensionering
     }
     internal static class Dimensionering
     {
-        /// <summary>
-        /// 1) Husnr 2) Populate 3) Dump adresser 4) Write excel
-        /// Husnumre assigns husnr line as parent
-        /// Populate checks if building has any children
-        /// if it has overwrites husnumres parent to be that of the conline
-        /// </summary>
-
-        //Bruges til behandling af husnumre til forbindelse til bygninger
-        internal static HashSet<string> AcceptedAnvCodes =
-            new HashSet<string>() { "130" };
-        internal static string HusnrSuffix = "-Husnr";
+        internal static string CurrentEtapeName = "Etape 1.3";
         internal static GlobalSheetCount GlobalSheetCount { get; set; }
         internal static readonly string PRef = "Pref:";
-        internal static HashSet<string> AcceptedBlockTypes =
-            new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet" };
-        internal static void dimadressedump()
+        internal static void dimadressedump(string curEtapeName)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -449,23 +143,17 @@ namespace IntersectUtilities.Dimensionering
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-            string curEtapeName = dimaskforarea();
-            if (curEtapeName.IsNoE()) return;
-
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
-                    PropertySetManager graphPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
-                    PSetDefs.DriDimGraph graphDef = new PSetDefs.DriDimGraph();
-
                     #region dump af adresser
+                    HashSet<string> acceptedTypes = new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet" };
+
                     HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
                     brs = brs
-                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                            x, "BBR", "Distriktets_navn") == curEtapeName)
-                        .Where(x => Dimensionering.AcceptedBlockTypes.Contains(
-                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
+                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Distriktets_navn") == curEtapeName)
+                        .Where(x => acceptedTypes.Contains(PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
                         .ToHashSet();
 
                     StringBuilder sb = new StringBuilder();
@@ -475,46 +163,16 @@ namespace IntersectUtilities.Dimensionering
                     {
                         string vejnavn = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
                         string husnummer = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
-                        string estVarmeForbrug = (PropertySetManager.ReadNonDefinedPropertySetDouble(
-                            br, "BBR", "EstimeretVarmeForbrug") * 1000).ToString("0.##");
+                        string estVarmeForbrug = (PropertySetManager.ReadNonDefinedPropertySetDouble(br, "BBR", "EstimeretVarmeForbrug") * 1000).ToString("0.##");
                         string antalEjendomme = "1";
                         string antalBoligerOsv = "1";
 
-                        //If building has connected addresses dump them instead
-                        graphPsm.GetOrAttachPropertySet(br);
-                        string childrenString = graphPsm.ReadPropertyString(graphDef.Children);
-                        if (childrenString.IsNotNoE())
-                        {//Case: building has address children
-                            HashSet<Entity> children = new HashSet<Entity>();
-                            GatherChildren(br, localDb, graphPsm, children);
+                        string handleString = PropertySetManager.ReadNonDefinedPropertySetString(br, "DriDimGraph", "Parent");
+                        Handle parent = new Handle(Convert.ToInt64(handleString, 16));
+                        Line line = parent.Go<Line>(localDb);
+                        string stikLængde = line.Length.ToString("0.##");
 
-                            foreach (Entity ent in children)
-                            {
-                                if (ent == null && !(ent is BlockReference)) continue;
-
-                                graphPsm.GetOrAttachPropertySet(ent);
-                                string handleString = graphPsm.ReadPropertyString(graphDef.Parent);
-
-                                Handle parent = new Handle(Convert.ToInt64(handleString, 16));
-                                Line line = parent.Go<Line>(localDb);
-                                string stikLængde = line.Length.ToString("0.##");
-                                string adresse = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Adresse");
-                                string estVarmeForbrugHusnr = (PropertySetManager.ReadNonDefinedPropertySetDouble(
-                                    br, "BBR", "EstimeretVarmeForbrug") * 1000).ToString("0.##");
-
-                                sb.AppendLine($"{adresse};{estVarmeForbrugHusnr};{antalEjendomme};{antalBoligerOsv};{stikLængde}");
-                            }
-                        }
-                        else
-                        {
-                            graphPsm.GetOrAttachPropertySet(br);
-                            string handleString = graphPsm.ReadPropertyString(graphDef.Parent);
-                            Handle parent = new Handle(Convert.ToInt64(handleString, 16));
-                            Line line = parent.Go<Line>(localDb);
-                            string stikLængde = line.Length.ToString("0.##");
-
-                            sb.AppendLine($"{vejnavn} {husnummer};{estVarmeForbrug};{antalEjendomme};{antalBoligerOsv};{stikLængde}");
-                        }
+                        sb.AppendLine($"{vejnavn} {husnummer};{estVarmeForbrug};{antalEjendomme};{antalBoligerOsv};{stikLængde}");
                     }
 
                     //Build file name
@@ -542,16 +200,13 @@ namespace IntersectUtilities.Dimensionering
                 tx.Commit();
             }
         }
-        internal static void dimpopulategraph()
+        internal static void dimpopulategraph(string curEtapeName)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            string curEtapeName = dimaskforarea();
-            if (curEtapeName.IsNoE()) return;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -563,6 +218,70 @@ namespace IntersectUtilities.Dimensionering
 
                 try
                 {
+                    #region Gather elements
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
+                    plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
+                    prdDbg("Nr. of plines " + plines.Count().ToString());
+
+                    HashSet<string> acceptedTypes = new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet" };
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
+                    brs = brs
+                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Distriktets_navn") == curEtapeName)
+                        .Where(x => acceptedTypes.Contains(PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
+                        .ToHashSet();
+                    prdDbg("Nr. of blocks " + brs.Count().ToString());
+
+                    HashSet<Line> lines = localDb.HashSetOfType<Line>(tx, true);
+                    plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
+                    prdDbg("Nr. of lines " + lines.Count().ToString());
+
+                    HashSet<Line> noCross = localDb.HashSetOfType<Line>(tx, true)
+                        .Where(x => x.Layer == "0-NOCROSS_LINE")
+                        .ToHashSet();
+                    #endregion
+
+                    #region Clear previous data
+                    HashSet<Entity> entities = new HashSet<Entity>();
+                    entities.UnionWith(plines);
+                    entities.UnionWith(brs);
+                    entities.UnionWith(lines);
+                    #endregion
+
+                    #region Clear previous data
+                    foreach (Entity entity in entities)
+                    {
+                        graphPsm.GetOrAttachPropertySet(entity);
+                        graphPsm.WritePropertyString(graphDef.Parent, "");
+                        graphPsm.WritePropertyString(graphDef.Children, "");
+                    }
+                    #endregion
+
+                    #region Manage layer for labels
+                    string labelLayerName = $"0-FJV_Strækning_label_{curEtapeName}";
+                    localDb.CheckOrCreateLayer(labelLayerName);
+                    #endregion
+
+                    #region Delete old labels
+                    var labels = localDb
+                        .HashSetOfType<DBText>(tx)
+                        .Where(x => x.Layer == labelLayerName);
+
+                    foreach (DBText label in labels)
+                    {
+                        label.CheckOrOpenForWrite();
+                        label.Erase(true);
+                    }
+                    #endregion
+
+                    #region Delete old debug plines
+                    foreach (Polyline pline in localDb.ListOfType<Polyline>(tx))
+                    {
+                        if (pline.Layer != "0-FJV_Debug") continue;
+                        pline.CheckOrOpenForWrite();
+                        pline.Erase(true);
+                    }
+                    #endregion
+
                     #region Manage layer to contain connection lines
                     LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
 
@@ -597,77 +316,6 @@ namespace IntersectUtilities.Dimensionering
                         tx.AddNewlyCreatedDBObject(ltr, true);
                     }
 
-                    #endregion
-
-                    #region Gather elements
-                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
-                    plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                        x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
-                    prdDbg("Nr. of plines " + plines.Count().ToString());
-
-                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
-                    brs = brs
-                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                            x, "BBR", "Distriktets_navn") == curEtapeName)
-                        .Where(x => Dimensionering.AcceptedBlockTypes.Contains(
-                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
-                        .ToHashSet();
-                    prdDbg("Nr. of blocks " + brs.Count().ToString());
-
-                    HashSet<Line> lines = localDb.HashSetOfType<Line>(tx, true);
-                    lines = lines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                        x, "FJV_fremtid", "Distriktets_navn") == curEtapeName)
-                        .Where(x => x.Layer == conLayName)
-                        .ToHashSet();
-                    prdDbg("Nr. of lines " + lines.Count().ToString());
-
-                    HashSet<Line> noCross = localDb.HashSetOfType<Line>(tx, true)
-                        .Where(x => x.Layer == "0-NOCROSS_LINE")
-                        .ToHashSet();
-                    #endregion
-
-                    #region Clear previous data
-                    HashSet<Entity> entities = new HashSet<Entity>();
-                    entities.UnionWith(plines);
-                    entities.UnionWith(brs);
-                    entities.UnionWith(lines);
-                    #endregion
-
-                    #region Clear previous data
-                    foreach (Entity entity in entities)
-                    {
-                        graphPsm.GetOrAttachPropertySet(entity);
-                        graphPsm.WritePropertyString(graphDef.Parent, "");
-                        //Protect children written in husnr connection
-                        if (entity is BlockReference) continue;
-                        graphPsm.WritePropertyString(graphDef.Children, "");
-                    }
-                    #endregion
-
-                    #region Manage layer for labels
-                    string labelLayerName = $"0-FJV_Strækning_label_{curEtapeName}";
-                    localDb.CheckOrCreateLayer(labelLayerName);
-                    #endregion
-
-                    #region Delete old labels
-                    var labels = localDb
-                        .HashSetOfType<DBText>(tx)
-                        .Where(x => x.Layer == labelLayerName);
-
-                    foreach (DBText label in labels)
-                    {
-                        label.CheckOrOpenForWrite();
-                        label.Erase(true);
-                    }
-                    #endregion
-
-                    #region Delete old debug plines
-                    foreach (Polyline pline in localDb.ListOfType<Polyline>(tx))
-                    {
-                        if (pline.Layer != "0-FJV_Debug") continue;
-                        pline.CheckOrOpenForWrite();
-                        pline.Erase(true);
-                    }
                     #endregion
 
                     #region Delete previous stiks
@@ -751,38 +399,8 @@ namespace IntersectUtilities.Dimensionering
                         #endregion
 
                         #region Find clients for this strækning
-                        //Use stack to get all the stik
-                        //Because we need to push husnr objects in to collection
-                        //And ingore their "Parent" buildings
-                        Stack<BlockReference> buildings = new Stack<BlockReference>();
-                        foreach (var br in brs) buildings.Push(br);
-
-                        while (buildings.Count > 0)
+                        foreach (BlockReference br in brs)
                         {
-                            BlockReference building = buildings.Pop();
-
-                            graphPsm.GetOrAttachPropertySet(building);
-                            string children = graphPsm.ReadPropertyString(graphDef.Children);
-                            var split = children.Split(';');
-                            //It is assumed that blocks with children only occur
-                            //When they are connected to husnumre
-                            //And thus should not be considered as a building
-                            if (split[0].IsNotNoE())
-                            {
-                                HashSet<Entity> husnrChildren = new HashSet<Entity>();
-                                GatherChildren(building, localDb, graphPsm, husnrChildren);
-                                foreach (Entity child in husnrChildren)
-                                {
-                                    if (child is BlockReference block)
-                                    {
-                                        buildings.Push(block);
-                                    }
-                                }
-                                //Continue here and do not add the parent block to the executing collection
-                                continue;
-                            }
-
-                            BlockReference br = building;
                             List<Stik> res = new List<Stik>();
                             foreach (Polyline pline in plines)
                             {
@@ -826,6 +444,15 @@ namespace IntersectUtilities.Dimensionering
                         #endregion
 
                         var ordered = nodes.OrderBy(x => x.PartNumber);
+
+                        #region Reorder nodes, doesn't make sense
+                        //int newNumber = 0;
+                        //foreach (var node in ordered)
+                        //{
+                        //    newNumber++;
+                        //    node.PartNumber = newNumber;
+                        //}
+                        #endregion
 
                         #region Write node data
                         foreach (Node nd in ordered)
@@ -935,16 +562,13 @@ namespace IntersectUtilities.Dimensionering
                 tx.Commit();
             }
         }
-        internal static void dimdumpgraph()
+        internal static void dimdumpgraph(string curEtapeName)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            string curEtapeName = dimaskforarea();
-            if (curEtapeName.IsNoE()) return;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -1118,16 +742,13 @@ namespace IntersectUtilities.Dimensionering
                 tx.Commit();
             }
         }
-        internal static void dimwritegraph()
+        internal static void dimwritegraph(string curEtapeName)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            string curEtapeName = dimaskforarea();
-            if (curEtapeName.IsNoE()) return;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -1276,251 +897,6 @@ namespace IntersectUtilities.Dimensionering
                 tx.Commit();
             }
         }
-        internal static void dimconnecthusnr()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            string curEtapeName = dimaskforarea();
-            if (curEtapeName.IsNoE()) return;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                //Settings
-                PropertySetManager fjvFremPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
-                PSetDefs.FJV_fremtid fjvFremDef = new PSetDefs.FJV_fremtid();
-
-                PropertySetManager graphPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
-                PSetDefs.DriDimGraph graphDef = new PSetDefs.DriDimGraph();
-
-                try
-                {
-                    #region Manage Husnummer line layer
-                    string husNrLineLayerName = "0-HUSNUMMER_LINE";
-                    localDb.CheckOrCreateLayer(husNrLineLayerName, 90);
-
-                    string husNrBlockLayerName = "0-HUSNUMMER_BLOCK";
-                    localDb.CheckOrCreateLayer(husNrBlockLayerName, 90);
-                    #endregion
-
-                    #region Delete previous blocks and lines
-                    HashSet<Line> linesToDelete = localDb.ListOfType<Line>(tx)
-                        .Where(x => x.Layer == husNrLineLayerName)
-                        .ToHashSet();
-                    foreach (Line line in linesToDelete)
-                    {
-                        fjvFremPsm.GetOrAttachPropertySet(line);
-                        if (fjvFremPsm.ReadPropertyString(fjvFremDef.Distriktets_navn) == $"{curEtapeName}{HusnrSuffix}")
-                        {
-                            line.CheckOrOpenForWrite();
-                            line.Erase(true);
-                        }
-                    }
-
-                    HashSet<BlockReference> blocksToDelete = localDb.ListOfType<BlockReference>(tx)
-                        .Where(x => x.Layer == husNrBlockLayerName).ToHashSet();
-                    foreach (BlockReference br in blocksToDelete)
-                    {
-                        string område = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Distriktets_navn");
-                        if (område == $"{curEtapeName}{HusnrSuffix}")
-                        {
-                            br.CheckOrOpenForWrite();
-                            br.Erase(true);
-                        }
-
-                    }
-                    #endregion
-
-                    #region Dialog box for selecting the geojson file
-                    string dbFilename = localDb.OriginalFileName;
-                    string path = System.IO.Path.GetDirectoryName(dbFilename);
-                    string nyHusnumreFilename = path + $"\\husnumre_{curEtapeName}.geojson";
-                    string husnumreStr;
-                    if (File.Exists(nyHusnumreFilename))
-                    {
-                        husnumreStr = File.ReadAllText(nyHusnumreFilename);
-                    }
-                    else
-                    {
-                        string fileName = string.Empty;
-                        OpenFileDialog dialog = new OpenFileDialog()
-                        {
-                            Title = "Choose husnumre file:",
-                            DefaultExt = "geojson",
-                            Filter = "Geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
-                            FilterIndex = 0
-                        };
-                        if (dialog.ShowDialog() == DialogResult.OK)
-                        {
-                            fileName = dialog.FileName;
-                            husnumreStr = File.ReadAllText(fileName);
-                        }
-                        else { throw new System.Exception("Cannot find husnumre file!"); }
-                    }
-
-                    FeatureCollection husnumre = JsonConvert.DeserializeObject<FeatureCollection>(husnumreStr);
-                    #endregion
-
-                    #region Connect bygning to husnumre
-                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
-                    brs = brs
-                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                            x, "BBR", "Distriktets_navn") == curEtapeName)
-                        .Where(x => Dimensionering.AcceptedBlockTypes.Contains(
-                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
-                        .ToHashSet();
-
-                    prdDbg($"Number of bygninger: {brs.Count}.");
-
-                    #region Join husnumre with bygninger
-                    //First filter bygninger til kun at indeholde ønskede anvendelseskoder
-                    brs = brs.Where(x => AnvFilter(x)).ToHashSet();
-
-                    bool AnvFilter(BlockReference block)
-                    {
-                        string anvKode = PropertySetManager.ReadNonDefinedPropertySetString(
-                            block, "BBR", "BygningsAnvendelseNyKode");
-                        return Dimensionering.AcceptedAnvCodes.Contains(anvKode);
-                    }
-
-                    //Then filter husnumre til kun at indeholde dem der henviser til brs
-                    //var filteredHusnumre = husnumre.features.Where(x => brs
-                    //    .Any(y => x?.properties?.adgangTilBygning?.ToUpper() == GetIdLokalId(y)));
-
-                    var join = husnumre.features.Join(
-                        brs,
-                        nr => nr?.properties?.adgangTilBygning?.ToUpper(),
-                        br => GetIdLokalId(br),
-                        (nr, br) => nr);
-
-                    string GetIdLokalId(BlockReference block)
-                    {
-                        string id = PropertySetManager.ReadNonDefinedPropertySetString(
-                            block, "BBR", "id_lokalId").ToUpper();
-                        return id;
-                    }
-
-                    var groupedHusnumre = join.GroupBy(x => x.properties.adgangTilBygning.ToUpper());
-
-                    foreach (var group in groupedHusnumre)
-                    {
-                        if (group.Count() < 2) continue;
-                        BlockReference buildingBlock = brs.Where(x => GetIdLokalId(x) == group.Key).FirstOrDefault();
-
-                        //Reset children for the bygblock
-                        graphPsm.GetOrAttachPropertySet(buildingBlock);
-                        graphPsm.WritePropertyString(graphDef.Children, "");
-
-                        //Draw lines
-                        foreach (Feature husnr in group)
-                        {
-                            Point3d husNrLocation = new Point3d(
-                                husnr.geometry.coordinates[0], husnr.geometry.coordinates[1], 0.0);
-
-                            //Create block for husnr
-                            BlockReference husNrBlock = localDb
-                                .CreateBlockWithAttributes(buildingBlock.RealName(), husNrLocation);
-                            husNrBlock.ScaleFactors = new Scale3d(0.4);
-                            husNrBlock.Layer = husNrBlockLayerName;
-
-                            //Create line to connect byg and husnr
-                            Line conLine = new Line(buildingBlock.Position, husNrLocation);
-                            conLine.Layer = husNrLineLayerName;
-                            conLine.AddEntityToDbModelSpace(localDb);
-
-                            //Populate graph values of objects
-                            //Write values to parent block
-                            graphPsm.GetOrAttachPropertySet(buildingBlock);
-                            string children = graphPsm.ReadPropertyString(graphDef.Children);
-                            children += conLine.Handle.ToString() + ";";
-                            graphPsm.WritePropertyString(graphDef.Children, children);
-                            //Prepare values to write to husnr block
-                            double estimeretForbrug = PropertySetManager
-                                .ReadNonDefinedPropertySetDouble(buildingBlock, "BBR", "EstimeretVarmeForbrug") /
-                                group.Count();
-                            string id_localId = PropertySetManager
-                                .ReadNonDefinedPropertySetString(buildingBlock, "BBR", "id_lokalId").ToUpper();
-
-                            //Write graph values for connection line
-                            graphPsm.GetOrAttachPropertySet(conLine);
-                            graphPsm.WritePropertyString(graphDef.Parent, buildingBlock.Handle.ToString());
-                            graphPsm.WritePropertyString(graphDef.Children, husNrBlock.Handle.ToString() + ";");
-                            //Write area values for connection line
-                            fjvFremPsm.GetOrAttachPropertySet(conLine);
-                            fjvFremPsm.WritePropertyString(fjvFremDef.Distriktets_navn, $"{curEtapeName}{HusnrSuffix}");
-                            fjvFremPsm.WritePropertyString(fjvFremDef.Bemærkninger, "Husnr forbindelse");
-                            //Write values to husnr block
-                            graphPsm.GetOrAttachPropertySet(husNrBlock);
-                            graphPsm.WritePropertyString(graphDef.Parent, conLine.Handle.ToString());
-                            PropertySetManager.AttachNonDefinedPropertySet(localDb, husNrBlock, "BBR");
-                            PropertySetManager.WriteNonDefinedPropertySetDouble(
-                                husNrBlock, "BBR", "EstimeretVarmeForbrug", estimeretForbrug);
-                            PropertySetManager.WriteNonDefinedPropertySetString(
-                                husNrBlock, "BBR", "Adresse", husnr.properties.adresse);
-                            PropertySetManager.WriteNonDefinedPropertySetString(
-                                husNrBlock, "BBR", "Distriktets_navn", $"{curEtapeName}{HusnrSuffix}");
-                            PropertySetManager.WriteNonDefinedPropertySetString(
-                                husNrBlock, "BBR", "id_lokalId", husnr.properties.id_lokalId);
-                        }
-                    }
-                    #endregion
-
-                    #region Write graph to file
-                    //Build file name
-                    //if (!Directory.Exists(@"C:\Temp\"))
-                    //    Directory.CreateDirectory(@"C:\Temp\");
-
-                    ////Write the collected graphs to one file
-                    //using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\AutoDimGraph.dot"))
-                    //{
-                    //    file.WriteLine(sb.ToString()); // "sb" is the StringBuilder
-                    //}
-
-                    //System.Diagnostics.Process cmd = new System.Diagnostics.Process();
-                    //cmd.StartInfo.FileName = "cmd.exe";
-                    //cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
-                    //cmd.StartInfo.Arguments = @"/c ""dot -Tpdf AutoDimGraph.dot > AutoDimGraph.pdf""";
-                    //cmd.Start();
-                    #endregion
-
-                    System.Windows.Forms.Application.DoEvents();
-                    #endregion
-                }
-                #region Catch and finally
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.ToString());
-                    return;
-                }
-                finally
-                {
-
-                }
-                tx.Commit();
-                #endregion
-            }
-        }
-        private static string dimaskforarea()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-
-            #region Ask for region name
-            string curEtapeName = "";
-            PromptStringOptions pStrOpts = new PromptStringOptions("\nOmråde navn: ");
-            pStrOpts.AllowSpaces = true;
-            PromptResult pStrRes = editor.GetString(pStrOpts);
-            if (pStrRes.Status != PromptStatus.OK) return "";
-            curEtapeName = pStrRes.StringResult;
-            return curEtapeName;
-            #endregion
-        }
         private static void TraversePath(ExcelNode node, int pathId)
         {
             node.PathId = pathId;
@@ -1550,16 +926,13 @@ namespace IntersectUtilities.Dimensionering
         /// <summary>
         /// Obsolete
         /// </summary>
-        internal static void dimstikautogen()
+        internal static void dimstikautogen(string curEtapeName)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            string curEtapeName = dimaskforarea();
-            if (curEtapeName.IsNoE()) return;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -1821,16 +1194,13 @@ namespace IntersectUtilities.Dimensionering
                 node.ClientChildren.Add(child);
             }
         }
-        internal static void dimwriteexcel()
+        internal static void dimwriteexcel(string curEtapeName)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            string curEtapeName = dimaskforarea();
-            if (curEtapeName.IsNoE()) return;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -1988,22 +1358,31 @@ namespace IntersectUtilities.Dimensionering
                         #region Populate excel file
                         foreach (ExcelSheet sheet in orderedSheets)
                         {
-                            prdDbg($"Writing sheet: {sheet.SheetNumber}");
-                            System.Windows.Forms.Application.DoEvents();
-
-                            ws = (Worksheet)wb.Worksheets[sheet.SheetNumber.ToString()];
-                            //Write addresses
                             int row = 60; int col = 5;
-                            for (int i = 0; i < sheet.Adresser.Count; i++)
+                            try
                             {
-                                ws.Cells[row, col] = sheet.Adresser[i];
-                                row++;
+                                prdDbg($"Writing sheet: {sheet.SheetNumber}");
+                                System.Windows.Forms.Application.DoEvents();
+
+                                ws = (Worksheet)wb.Worksheets[sheet.SheetNumber.ToString()];
+                                //Write addresses
+                                
+                                for (int i = 0; i < sheet.Adresser.Count; i++)
+                                {
+                                    ws.Cells[row, col] = sheet.Adresser[i];
+                                    row++;
+                                }
+                                row = 60; col = 17;
+                                for (int i = 0; i < sheet.Længder.Count; i++)
+                                {
+                                    ws.Cells[row, col] = sheet.Længder[i];
+                                    row++;
+                                }
                             }
-                            row = 60; col = 17;
-                            for (int i = 0; i < sheet.Længder.Count; i++)
+                            catch (System.Exception)
                             {
-                                ws.Cells[row, col] = sheet.Længder[i];
-                                row++;
+                                prdDbg($"Fejl: {sheet.SheetNumber}, R:{row}, C:{col}");
+                                throw;
                             }
                         }
                         #endregion
