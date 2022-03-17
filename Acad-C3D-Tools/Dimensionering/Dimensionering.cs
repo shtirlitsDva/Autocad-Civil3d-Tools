@@ -45,6 +45,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Line = Autodesk.AutoCAD.DatabaseServices.Line;
+using JsonConvert = Newtonsoft.Json.JsonConvert;
 
 namespace IntersectUtilities.Dimensionering
 {
@@ -79,6 +80,11 @@ namespace IntersectUtilities.Dimensionering
         public void dimpopulategraph()
         {
             Dimensionering.dimpopulategraph(Dimensionering.CurrentEtapeName);
+        }
+        [CommandMethod("DIMCONNECTHUSNR")]
+        public void dimconnecthusnr()
+        {
+            Dimensionering.dimconnecthusnr(Dimensionering.CurrentEtapeName);
         }
 
         [CommandMethod("DIMDUMPGRAPH")]
@@ -132,9 +138,13 @@ namespace IntersectUtilities.Dimensionering
     }
     internal static class Dimensionering
     {
-        internal static string CurrentEtapeName = "Etape 9.3";
+        internal static string CurrentEtapeName = "Etape 1.3";
+        internal static HashSet<string> AcceptedAnvCodes =
+            new HashSet<string>() { "130" };
         internal static GlobalSheetCount GlobalSheetCount { get; set; }
         internal static readonly string PRef = "Pref:";
+        internal static HashSet<string> AcceptedBlockTypes =
+            new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet" };
         internal static void dimadressedump(string curEtapeName)
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -148,12 +158,12 @@ namespace IntersectUtilities.Dimensionering
                 try
                 {
                     #region dump af adresser
-                    HashSet<string> acceptedTypes = new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet" };
-
                     HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
                     brs = brs
-                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Distriktets_navn") == curEtapeName)
-                        .Where(x => acceptedTypes.Contains(PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
+                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                            x, "BBR", "Distriktets_navn") == curEtapeName)
+                        .Where(x => Dimensionering.AcceptedBlockTypes.Contains(
+                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
                         .ToHashSet();
 
                     StringBuilder sb = new StringBuilder();
@@ -163,7 +173,8 @@ namespace IntersectUtilities.Dimensionering
                     {
                         string vejnavn = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
                         string husnummer = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
-                        string estVarmeForbrug = (PropertySetManager.ReadNonDefinedPropertySetDouble(br, "BBR", "EstimeretVarmeForbrug") * 1000).ToString("0.##");
+                        string estVarmeForbrug = (PropertySetManager.ReadNonDefinedPropertySetDouble(
+                            br, "BBR", "EstimeretVarmeForbrug") * 1000).ToString("0.##");
                         string antalEjendomme = "1";
                         string antalBoligerOsv = "1";
 
@@ -895,6 +906,194 @@ namespace IntersectUtilities.Dimensionering
 
                 }
                 tx.Commit();
+            }
+        }
+        internal static void dimconnecthusnr(string curEtapeName)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                //Settings
+                PropertySetManager fjvFremPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
+                PSetDefs.FJV_fremtid fjvFremDef = new PSetDefs.FJV_fremtid();
+
+                PropertySetManager graphPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
+                PSetDefs.DriDimGraph graphDef = new PSetDefs.DriDimGraph();
+
+                try
+                {
+                    #region Manage Husnummer line layer
+                    string husNrLineLayerName = "0-HUSNUMMER_LINE";
+                    localDb.CheckOrCreateLayer(husNrLineLayerName, 90);
+
+                    string husNrBlockLayerName = "0-HUSNUMMER_BLOCK";
+                    localDb.CheckOrCreateLayer(husNrBlockLayerName, 90);
+                    #endregion
+
+                    #region Delete previous blocks and lines
+                    HashSet<Line> linesToDelete = localDb.ListOfType<Line>(tx)
+                        .Where(x => x.Layer == husNrLineLayerName).ToHashSet();
+                    foreach (Line line in linesToDelete) line.Erase(true);
+
+                    HashSet<BlockReference> blocksToDelete = localDb.ListOfType<BlockReference>(tx)
+                        .Where(x => x.Layer == husNrBlockLayerName).ToHashSet();
+                    foreach (BlockReference br in blocksToDelete) br.Erase(true);
+                    #endregion
+
+                    //Temp
+                    string AreaName = "0159 Gladsaxe";
+                    string BasePath = @"X:\AutoCAD DRI - QGIS\BBR UDTRÆK";
+                    string pathToHusnumre = $"{BasePath}\\{AreaName}\\DAR_husnumre.geojson";
+                    string husnumreStr = File.ReadAllText(pathToHusnumre);
+
+                    FeatureCollection husnumre = JsonConvert.DeserializeObject<FeatureCollection>(husnumreStr);
+
+                    #region Dialog box for selecting the geojson file
+                    //string fileName = string.Empty;
+                    //OpenFileDialog dialog = new OpenFileDialog()
+                    //{
+                    //    Title = "Choose husnumre file:",
+                    //    DefaultExt = "geojson",
+                    //    Filter = "Geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
+                    //    FilterIndex = 0
+                    //};
+                    //if (dialog.ShowDialog() == DialogResult.OK)
+                    //{
+                    //    fileName = dialog.FileName;
+                    //}
+                    //else { tx.Abort(); return; }
+                    #endregion
+
+                    #region Connect bygning to husnumre
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
+                    brs = brs
+                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                            x, "BBR", "Distriktets_navn") == curEtapeName)
+                        .Where(x => Dimensionering.AcceptedBlockTypes.Contains(
+                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
+                        .ToHashSet();
+
+                    prdDbg($"Number of bygninger: {brs.Count}.");
+
+                    #region Join husnumre with bygninger
+                    //First filter bygninger til kun at indeholde ønskede anvendelseskoder
+                    brs = brs.Where(x => AnvFilter(x)).ToHashSet();
+
+                    bool AnvFilter(BlockReference block)
+                    {
+                        string anvKode = PropertySetManager.ReadNonDefinedPropertySetString(
+                            block, "BBR", "BygningsAnvendelseNyKode");
+                        return Dimensionering.AcceptedAnvCodes.Contains(anvKode);
+                    }
+
+                    //Then filter husnumre til kun at indeholde dem der henviser til brs
+                    var filteredHusnumre = husnumre.features.Where(x => brs
+                        .Any(y => x?.properties?.adgangTilBygning?.ToUpper() == GetIdLokalId(y)));
+
+                    var join = husnumre.features.Join(
+                        brs,
+                        nr => nr?.properties?.adgangTilBygning?.ToUpper(),
+                        br => GetIdLokalId(br),
+                        (nr, br) => nr);
+
+                    string GetIdLokalId(BlockReference block)
+                    {
+                        string id = PropertySetManager.ReadNonDefinedPropertySetString(
+                            block, "BBR", "id_lokalId").ToUpper();
+                        return id;
+                    }
+
+                    //var groupedHusnumre = filteredHusnumre.GroupBy(x => x.properties.adgangTilBygning.ToUpper());
+                    var groupedHusnumre = join.GroupBy(x => x.properties.adgangTilBygning.ToUpper());
+
+                    foreach (var group in groupedHusnumre)
+                    {
+                        if (group.Count() < 2) continue;
+                        BlockReference bygBlock = brs.Where(x => GetIdLokalId(x) == group.Key).FirstOrDefault();
+
+                        //Draw lines
+                        foreach (Feature husnr in group)
+                        {
+                            Point3d husNrLocation = new Point3d(
+                                husnr.geometry.coordinates[0], husnr.geometry.coordinates[1], 0.0);
+
+                            //Create block for husnr
+                            BlockReference br = localDb
+                                .CreateBlockWithAttributes(bygBlock.RealName(), husNrLocation);
+                            br.ScaleFactors = new Scale3d(0.5);
+                            br.Layer = husNrBlockLayerName;
+
+                            //Create line to connect byg and husnr
+                            Line conLine = new Line(bygBlock.Position, husNrLocation);
+                            conLine.Layer = husNrLineLayerName;
+                            conLine.AddEntityToDbModelSpace(localDb);
+
+                            //Populate graph values of objects
+                            //Write values to parent block
+                            graphPsm.GetOrAttachPropertySet(bygBlock);
+                            string children = graphPsm.ReadPropertyString(graphDef.Children);
+                            children += conLine.Handle.ToString() + ";";
+                            graphPsm.WritePropertyString(graphDef.Children, children);
+                            //Prepare values to write to husnr block
+                            double estimeretForbrug = PropertySetManager
+                                .ReadNonDefinedPropertySetDouble(bygBlock, "BBR", "EstimeretVarmeForbrug") /
+                                group.Count();
+
+                            //Write graph values for connection line
+                            graphPsm.GetOrAttachPropertySet(conLine);
+                            graphPsm.WritePropertyString(graphDef.Parent, bygBlock.Handle.ToString());
+                            graphPsm.WritePropertyString(graphDef.Children, br.Handle.ToString() + ";");
+                            //Write values to husnr block
+                            graphPsm.GetOrAttachPropertySet(br);
+                            graphPsm.WritePropertyString(graphDef.Parent, conLine.Handle.ToString());
+                            PropertySetManager.AttachNonDefinedPropertySet(localDb, br, "BBR");
+                            PropertySetManager.WriteNonDefinedPropertySetDouble(
+                                br, "BBR", "EstimeretVarmeForbrug", estimeretForbrug);
+                            PropertySetManager.WriteNonDefinedPropertySetString(
+                               br, "BBR", "Adresse", husnr.properties.adresse);
+                        }
+                    }
+                    #endregion
+
+                    #region Write graph to file
+                    //Build file name
+                    //if (!Directory.Exists(@"C:\Temp\"))
+                    //    Directory.CreateDirectory(@"C:\Temp\");
+
+                    ////Write the collected graphs to one file
+                    //using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\AutoDimGraph.dot"))
+                    //{
+                    //    file.WriteLine(sb.ToString()); // "sb" is the StringBuilder
+                    //}
+
+                    //System.Diagnostics.Process cmd = new System.Diagnostics.Process();
+                    //cmd.StartInfo.FileName = "cmd.exe";
+                    //cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
+                    //cmd.StartInfo.Arguments = @"/c ""dot -Tpdf AutoDimGraph.dot > AutoDimGraph.pdf""";
+                    //cmd.Start();
+                    #endregion
+
+                    System.Windows.Forms.Application.DoEvents();
+                    #endregion
+                }
+                #region Catch and finally
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+                #endregion
             }
         }
         private static void TraversePath(ExcelNode node, int pathId)

@@ -1391,7 +1391,7 @@ namespace IntersectUtilities.UtilsCommon
             tx.AddNewlyCreatedDBObject(entity, true);
             return id;
         }
-        public static bool CheckOrCreateLayer(this Database db, string layerName)
+        public static bool CheckOrCreateLayer(this Database db, string layerName, short colorIdx = -1)
         {
             Transaction txLag = db.TransactionManager.TopTransaction;
             LayerTable lt = txLag.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
@@ -1399,6 +1399,10 @@ namespace IntersectUtilities.UtilsCommon
             {
                 LayerTableRecord ltr = new LayerTableRecord();
                 ltr.Name = layerName;
+                if (colorIdx != -1)
+                {
+                    ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, colorIdx);
+                }
 
                 //Make layertable writable
                 lt.CheckOrOpenForWrite();

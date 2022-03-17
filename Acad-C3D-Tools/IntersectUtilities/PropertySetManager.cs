@@ -339,6 +339,10 @@ namespace IntersectUtilities
         {
             WriteNonDefinedPropertySetObject(ent, propertySetName, propertyName, value);
         }
+        public static void WriteNonDefinedPropertySetDouble(Entity ent, string propertySetName, string propertyName, double value)
+        {
+            WriteNonDefinedPropertySetObject(ent, propertySetName, propertyName, value);
+        }
         public static void AttachNonDefinedPropertySet(Database database, Entity ent, string propertySetName)
         {
             var dictPropSetDefs = new DictionaryPropertySetDefinitions(database);
