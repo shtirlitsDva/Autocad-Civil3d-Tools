@@ -279,7 +279,7 @@ namespace LERImporter.Schema
         private ForsyningsartEnum getForsyningsart(string[] forsyningsart)
         {
             if (forsyningsart.Length == 0) return ForsyningsartEnum.none;
-            if (forsyningsart.Length > 1) Log.log($"WARNING! Flere forsyningsarter på Føringsrør {this.id}.");
+            if (forsyningsart.Length > 1) Log.log($"WARNING! Flere forsyningsarter på Føringsrør {this.GMLTypeID}.");
             string art = forsyningsart[0];
             if (string.IsNullOrEmpty(art)) return ForsyningsartEnum.none;
             if (!forsyningsartDict.ContainsKey(art))
@@ -582,10 +582,109 @@ namespace LERImporter.Schema
     #region Special treatment for LedningsTrace
     public partial class LedningstraceType : ILerLedning
     {
+        [PsInclude]
+        public double Bredde { get => this.bredde?.Value ?? 0; }
+        [PsInclude]
+        public string Forsyningsart { get => getForsyningsart(this.forsyningsart).ToString(); }
+        [PsInclude]
+        public string IndeholdtLedning
+        {
+            get
+            {
+                if (this.indeholdtLedning == null) return "Ingen";
+                string s = "";
+                foreach (ReferenceType rt in this.indeholdtLedning)
+                {
+                    s += rt.owns.ToString() + " ";
+                    s += rt.remoteSchema.ToString();
+                }
+                return s;
+            }
+        }
+        private ForsyningsartEnum getForsyningsart(LedningstraceTypeForsyningsart[] forsyningsart)
+        {
+            if (forsyningsart.Length == 0) return ForsyningsartEnum.none;
+            if (forsyningsart.Length > 1) Log.log($"WARNING! Flere forsyningsarter på Føringsrør {this.GMLTypeID}.");
+            string art = forsyningsart[0].Value;
+            if (string.IsNullOrEmpty(art)) return ForsyningsartEnum.none;
+            if (!forsyningsartDict.ContainsKey(art))
+            {
+                Log.log($"WARNING! Ledning id {this.id} have undefined Forsyningsart: {art}!");
+                return ForsyningsartEnum.other;
+            }
+            
+            return forsyningsartDict[art];
+        }
+
+        private string DetermineLayerName(Database database)
+        {
+            #region Determine correct layer name
+            string layerName;
+            string suffix = "";
+
+            switch (this.driftsstatus.Value)
+            {
+                case DriftsstatusType.underetablering:
+                case DriftsstatusType.idrift:
+                    break;
+                case DriftsstatusType.permanentudeafdrift:
+                    suffix = "_UAD";
+                    break;
+                default:
+                    throw new System.Exception(
+                        $"Element id {this.id} has invalid driftsstatus: {Driftsstatus.ToString()}!");
+            }
+
+            switch (this.getForsyningsart(this.forsyningsart))
+            {
+                case ForsyningsartEnum.none:
+                    layerName = "0-ERROR-LedningstraceForsyningsArt-none";
+                    break;
+                case ForsyningsartEnum.other:
+                    layerName = "0-ERROR-LedningstraceForsyningsArt-other";
+                    break;
+                case ForsyningsartEnum.afløb:
+                    layerName = "Ledningstrace-Afløb";
+                    break;
+                case ForsyningsartEnum.el:
+                    layerName = "Ledningstrace-EL";
+                    break;
+                case ForsyningsartEnum.fjernvarmefjernkøling:
+                    layerName = "Ledningstrace-FJV-FKØL";
+                    break;
+                case ForsyningsartEnum.gas:
+                    layerName = "Ledningstrace-Gas";
+                    break;
+                case ForsyningsartEnum.olie:
+                    layerName = "Ledningstrace-Olie";
+                    break;
+                case ForsyningsartEnum.telekommunikation:
+                    layerName = "Ledningstrace-Telekommunikation";
+                    break;
+                case ForsyningsartEnum.vand:
+                    layerName = "Ledningstrace-Vand";
+                    break;
+                default:
+                    layerName = "0-ERROR-LedningstraceForsyningsArt-other";
+                    break;
+            }
+
+            layerName += suffix;
+            database.CheckOrCreateLayer(layerName);
+            return layerName;
+            #endregion
+        }
 
         public Oid DrawEntity2D(Database database)
         {
-            throw new NotImplementedException();
+            //Create new polyline in the base class
+            Polyline pline = DrawPline2D(database).Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            pline.Layer = DetermineLayerName(database);
+
+            pline.ConstantWidth = this.Bredde;
+
+            return pline.ObjectId;
         }
 
         public Oid DrawPline2D(Database database)
@@ -603,10 +702,32 @@ namespace LERImporter.Schema
             return oid;
         }
 
-
         public Oid DrawEntity3D(Database database)
         {
             throw new NotImplementedException();
+        }
+        private static Dictionary<string, ForsyningsartEnum> forsyningsartDict = new Dictionary<string, ForsyningsartEnum>()
+        {
+            {"",ForsyningsartEnum.none},
+            {"afløb",ForsyningsartEnum.afløb},
+            {"el",ForsyningsartEnum.el},
+            {"fjernvarme/fjernkøling",ForsyningsartEnum.fjernvarmefjernkøling},
+            {"gas",ForsyningsartEnum.gas},
+            {"olie",ForsyningsartEnum.olie},
+            {"telekommunikation",ForsyningsartEnum.telekommunikation},
+            {"vand",ForsyningsartEnum.vand}
+        };
+        public enum ForsyningsartEnum
+        {
+            none,
+            other,
+            afløb,
+            el,
+            fjernvarmefjernkøling,
+            gas,
+            olie,
+            telekommunikation,
+            vand
         }
     }
     #endregion

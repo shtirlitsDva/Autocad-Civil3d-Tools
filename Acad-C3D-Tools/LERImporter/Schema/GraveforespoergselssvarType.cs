@@ -94,6 +94,7 @@ namespace LERImporter.Schema
 
             //Create property sets
             HashSet<Type> allUniqueTypes = ledningMember.Select(x => x.Item.GetType()).Distinct().ToHashSet();
+            allUniqueTypes.UnionWith(ledningstraceMember.Select(x=> x.Ledningstrace.GetType()).Distinct().ToHashSet());
             allUniqueTypes.UnionWith(ledningskomponentMember.Select(x=> x.Item.GetType()).Distinct().ToHashSet());
             foreach (Type type in allUniqueTypes)
             {
@@ -205,14 +206,27 @@ namespace LERImporter.Schema
                 //names.Add(member.Item.ToString());
             }
 
-            foreach (GraveforespoergselssvarTypeLedningstraceMember item in ledningstraceMember)
+            foreach (GraveforespoergselssvarTypeLedningstraceMember member in ledningstraceMember)
             {
-                if (item.Ledningstrace == null)
+                if (member.Ledningstrace == null)
                 {
                     Log.log($"ledningstraceMember is null! Some enity has not been deserialized correct!");
                     continue;
                 }
-                item.Ledningstrace.
+
+                string psName = psDict[member.Ledningstrace.GetType().Name];
+                ILerLedning ledning = member.Ledningstrace as ILerLedning;
+                Oid entityId = ledning.DrawEntity2D(WorkingDatabase);
+                Entity ent = entityId.Go<Entity>(WorkingDatabase.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                layerNames.Add(ent.Layer);
+
+                //Attach the property set
+                PropertySetManager.AttachNonDefinedPropertySet(WorkingDatabase, ent, psName);
+
+                //Populate the property set
+                var psData = GmlToPropertySet.TranslateGmlToPs(member.Ledningstrace);
+                PropertySetManager.PopulateNonDefinedPropertySet(WorkingDatabase, ent, psName, psData);
+
                 //names.Add(item.Ledningstrace.ToString());
                 //prdDbg(ObjectDumper.Dump(item.Ledningstrace));
             }

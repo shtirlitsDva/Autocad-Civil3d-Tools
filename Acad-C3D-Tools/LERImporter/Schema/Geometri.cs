@@ -80,7 +80,35 @@ namespace LERImporter.Schema
         [XmlElementAttribute("OrientableCurve", typeof(OrientableCurveType))]
         public AbstractCurveType AbstractCurve { get; set; }
     }
+    [XmlRootAttribute("MultiCurve", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
+    public partial class MultiCurveType : AbstractGeometricAggregateType, IPointParser
+    {
+        public Point3d[] GetPoints()
+        {
+            Point3d[] points = new Point3d[0];
 
+            foreach (CurvePropertyType curveType in this.curveMember)
+            {
+                switch (curveType.AbstractCurve)
+                {
+                    case CompositeCurveType cct:
+                        throw new NotImplementedException();
+                    case CurveType ct:
+                        throw new NotImplementedException();
+                    case LineStringType lst:
+                        IPointParser pointParser = lst as IPointParser;
+                        points = points.ConcatAr(pointParser.GetPoints());
+                        break;
+                    case OrientableCurveType oct:
+                        throw new NotImplementedException();
+                    default:
+                        break;
+                }
+            }
+
+            return points;
+        }
+    }
 
     [XmlRootAttribute("LineString", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
     public partial class LineStringType : AbstractCurveType, IPointParser
