@@ -84,7 +84,19 @@ namespace LERImporter.Schema
         public string Niveau { get => this.niveau.GetXmlEnumAttributeValueFromEnum(); }
     }
     public partial class VandkomponentType : LedningskomponentType { }
-    public partial class TermiskKomponentType : LedningskomponentType { }
+    public partial class TermiskKomponentType : LedningskomponentType, ILerKomponent
+    {
+        [PsInclude]
+        public string KomponentType { get => GetTermiskKomponenttypeType().ToString(); }
+
+        public Oid DrawComponent(Database database)
+        {
+            IEntityCreator creator = this.geometri.Item as IEntityCreator;
+            return creator.CreateEntity(database);
+        }
+
+        public TermiskkomponenttypeType GetTermiskKomponenttypeType() => this.type;
+    }
     public partial class TelekommunikationskomponentType : LedningskomponentType, ILerKomponent
     {
         public string Telekommunikationskomponenttype { get => this.type.ToString(); }

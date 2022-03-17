@@ -13420,8 +13420,8 @@ namespace IntersectUtilities
                     //**************************************
                     //Change name of line type to create new and text value
                     //**************************************
-                    string ltName = "BIPS_TEXT_TELE";
-                    string text = "TELE";
+                    string ltName = "BIPS_TEXT_FJV-PROD";
+                    string text = "FJV-PROD";
                     string textStyleName = "Standard";
                     prdDbg($"Remember to create text style: {textStyleName}!!!");
 
@@ -13458,23 +13458,23 @@ namespace IntersectUtilities
                     lttr.IsScaledToFit = false;
                     lttr.NumDashes = 4;
                     // Dash #1
-                    lttr.SetDashLengthAt(0, 7);
+                    lttr.SetDashLengthAt(0, 15);
                     // Dash #2
-                    lttr.SetDashLengthAt(1, -3.1);
+                    lttr.SetDashLengthAt(1, -6.4);
                     lttr.SetShapeStyleAt(1, tt[textStyleName]);
                     lttr.SetShapeNumberAt(1, 0);
-                    lttr.SetShapeOffsetAt(1, new Vector2d(-3.2, -0.45));
+                    lttr.SetShapeOffsetAt(1, new Vector2d(-6.4, -0.45));
                     lttr.SetShapeScaleAt(1, 0.9);
                     lttr.SetShapeIsUcsOrientedAt(1, false);
                     lttr.SetShapeRotationAt(1, 0);
                     lttr.SetTextAt(1, text);
                     // Dash #3
-                    lttr.SetDashLengthAt(2, 7);
+                    lttr.SetDashLengthAt(2, 15);
                     // Dash #4
-                    lttr.SetDashLengthAt(3, -3.0);
+                    lttr.SetDashLengthAt(3, -6.4);
                     lttr.SetShapeStyleAt(3, tt[textStyleName]);
                     lttr.SetShapeNumberAt(3, 0);
-                    lttr.SetShapeOffsetAt(3, new Vector2d(0.2, 0.45));
+                    lttr.SetShapeOffsetAt(3, new Vector2d(0.0, 0.45));
                     lttr.SetShapeScaleAt(3, 0.9);
                     lttr.SetShapeIsUcsOrientedAt(3, false);
                     lttr.SetShapeRotationAt(3, Math.PI);

@@ -71,12 +71,34 @@ namespace LERImporter.Schema
             get
             {
                 string email = this.kontaktprofilTilTekniskeSpoergsmaal?.Kontaktprofil?.mailadresse;
-                return ReadStringParameterFromDataTable(email, EjerRegister, "Ejer", 1);
+                string ejer = ReadStringParameterFromDataTable(email, EjerRegister, "Ejer", 1);
+                if (ejer == default) throw new NotImplementedException($"Ejer {ejer} er ikke registreret!");
+                return ejer;
             }
         }
         public Database WorkingDatabase { get; set; }
         public void CreateLerData()
         {
+            #region Catch no pipelines
+            switch (this.type)
+            {
+                case GraveforespoergselssvartypeType.ingenledningerigraveområde:
+                    throw new System.Exception("INGEN ledninger i graveområde!");
+                case GraveforespoergselssvartypeType.ledningsoplysningerudleveresikke:
+                    throw new System.Exception("Leningsoplysninger udleveres ikke!");
+                case GraveforespoergselssvartypeType.ledningsoplysningerudleveret:
+                    break;
+                case GraveforespoergselssvartypeType.udtagettilmanuelbehandling:
+                    break;
+                case GraveforespoergselssvartypeType.udtagettilpåvisningledningsoplysningerudleveresikke:
+                    break;
+                case GraveforespoergselssvartypeType.udtagettilpåvisningledningsoplysningerudleveret:
+                    break;
+                default:
+                    break;
+            } 
+            #endregion
+
             if (this.ledningMember == null) this.ledningMember =
                     new GraveforespoergselssvarTypeLedningMember[0];
             if (this.ledningstraceMember == null) this.ledningstraceMember =

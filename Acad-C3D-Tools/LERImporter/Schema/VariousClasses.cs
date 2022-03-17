@@ -32,6 +32,7 @@ namespace LERImporter.Schema
                     case UnitsEnum.mm:
                         return this.Value / 1000;
                     case UnitsEnum.m:
+                    case UnitsEnum.bar:
                         return this.Value;
                     default:
                         throw new Exception($"Non defined units in MeasureType: uom = {this.uom}!");
@@ -47,7 +48,8 @@ namespace LERImporter.Schema
     {
         None,
         mm,
-        m
+        m,
+        bar
     }
     [XmlRootAttribute("AbstractGML", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
     public abstract partial class AbstractGMLType

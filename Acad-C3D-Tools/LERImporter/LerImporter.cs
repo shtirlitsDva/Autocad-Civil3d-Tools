@@ -212,7 +212,7 @@ namespace LERImporter
                                 FileOpenMode.OpenForReadAndAllShare, false, null);
                     //Build the new future file name of the drawing
                     string newFilename = $"{folderPath}{gf.Owner}_2D.dwg";
-                    Log.log($"Writing Ler 2D to new dwg file: {newFilename}.");
+                    Log.log($"Writing Ler 2D to new dwg file:\n" + $"{newFilename}.");
                     //ler2dDb.SaveAs(newFilename, true, DwgVersion.Newest, null);
 
                     using (Transaction ler2dTx = ler2dDb.TransactionManager.StartTransaction())

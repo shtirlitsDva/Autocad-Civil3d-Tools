@@ -6847,30 +6847,6 @@ namespace LERImporter.Schema
     }
 
     /// <summary>
-    /// inddeling af indhold i termiske ledninger
-    /// </summary>
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
-    [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    public enum TermiskledningsindholdstypeType
-    {
-        /// <summary>
-        /// varmt vand på dampform
-        /// </summary>
-        damp,
-        /// <summary>
-        /// vand til fjernkøling
-        /// </summary>
-        [XmlEnumAttribute("koldt vand")]
-        koldtvand,
-        /// <summary>
-        /// fjernvarmevand
-        /// </summary>
-        [XmlEnumAttribute("varmt vand")]
-        varmtvand,
-    }
-
-    /// <summary>
     /// inddeling af konstruktioner af termiske ledninger
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]

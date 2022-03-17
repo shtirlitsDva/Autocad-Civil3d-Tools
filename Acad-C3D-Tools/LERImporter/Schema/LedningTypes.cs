@@ -249,14 +249,119 @@ namespace LERImporter.Schema
     }
     public partial class TermiskLedningType : ILerLedning
     {
+        [PsInclude]
+        public string Termiskledningstype { get => GetTermiskledningType().ToString(); }
+        [PsInclude]
+        public string Indhold { get => GetTermiskledningsindholdstypeType().ToString(); }
+        [PsInclude]
+        public string Konstruktion { get => GetTermiskledningkonstruktiontypeType().ToString(); }
+        [PsInclude]
+        public string Temperatur { get => this.temperatur?.Value + this.temperatur?.uom ?? "Ukendt"; }
+        [PsInclude]
+        public string Tryk { get => this.tryk?.getValueInStdUnits() + this.tryk?.uom ?? "Ukendt"; }
+
+        TermiskledningstypeType GetTermiskledningType() => this.type?.Value ?? TermiskledningstypeType.produktionsledning;
+        TermiskledningsindholdstypeType GetTermiskledningsindholdstypeType() => this.indhold;
+        TermiskledningkonstruktiontypeType GetTermiskledningkonstruktiontypeType() => this.konstruktion;
+        private string DetermineLayerName(Database database)
+        {
+            #region Determine correct layer name
+            string layerName;
+            string driftsstatusSuffix = "";
+
+            switch (this.Driftsstatus2)
+            {
+                case DriftsstatusType.underetablering:
+                case DriftsstatusType.idrift:
+                    break;
+                case DriftsstatusType.permanentudeafdrift:
+                    driftsstatusSuffix = "_UAD";
+                    break;
+                default:
+                    throw new System.Exception(
+                        $"Element id {this.id} has invalid driftsstatus: {Driftsstatus.ToString()}!");
+            }
+
+            switch (GetTermiskledningsindholdstypeType())
+            {
+                case TermiskledningsindholdstypeType.damp:
+                    layerName = "Damp";
+                    break;
+                case TermiskledningsindholdstypeType.koldtvand:
+                    layerName = "Køl";
+                    break;
+                case TermiskledningsindholdstypeType.varmtvand:
+                    layerName = "Fjv";
+                    break;
+                default:
+                    layerName = "TermiskLedn";
+                    break;
+            }
+
+            switch (GetTermiskledningType())
+            {
+                case TermiskledningstypeType.produktionsledning:
+                    layerName += "-Prod";
+                    break;
+                case TermiskledningstypeType.transmissionsledning:
+                    layerName += "-Trans";
+                    break;
+                case TermiskledningstypeType.distributionsledning:
+                    layerName += "-Distr";
+                    break;
+                case TermiskledningstypeType.stikledning:
+                    layerName += "-Stik";
+                    break;
+                default:
+                    layerName += "-Ukendt";
+                    break;
+            }
+
+            layerName += driftsstatusSuffix;
+
+            database.CheckOrCreateLayer(layerName);
+            return layerName;
+            #endregion
+        }
         public Oid DrawEntity2D(Database database)
         {
-            throw new NotImplementedException();
+            //Create new polyline in the base class
+            Polyline pline = DrawPline2D(database).Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            pline.Layer = DetermineLayerName(database);
+
+            pline.ConstantWidth = this.UdvendigDiameter;
+
+            return pline.ObjectId;
         }
 
         public Oid DrawEntity3D(Database database)
         {
             throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// inddeling af indhold i termiske ledninger
+        /// </summary>
+        [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
+        [Serializable]
+        [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+        public enum TermiskledningsindholdstypeType
+        {
+            /// <summary>
+            /// fjernvarmevand
+            /// </summary>
+            [XmlEnumAttribute("varmt vand")]
+            varmtvand,
+            /// <summary>
+            /// varmt vand på dampform
+            /// </summary>
+            damp,
+            /// <summary>
+            /// vand til fjernkøling
+            /// </summary>
+            [XmlEnumAttribute("koldt vand")]
+            koldtvand
         }
     }
     public partial class GasledningType : ILerLedning
@@ -612,7 +717,7 @@ namespace LERImporter.Schema
                 Log.log($"WARNING! Ledning id {this.id} have undefined Forsyningsart: {art}!");
                 return ForsyningsartEnum.other;
             }
-            
+
             return forsyningsartDict[art];
         }
 
