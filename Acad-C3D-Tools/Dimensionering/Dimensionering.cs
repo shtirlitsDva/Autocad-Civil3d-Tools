@@ -1145,28 +1145,28 @@ namespace IntersectUtilities.Dimensionering
                     }
                     #endregion
 
+                    #region Dialog box for selecting the geojson file
+                    string fileName = string.Empty;
+                    OpenFileDialog dialog = new OpenFileDialog()
+                    {
+                        Title = "Choose husnumre file:",
+                        DefaultExt = "geojson",
+                        Filter = "Geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
+                        FilterIndex = 0
+                    };
+                    if (dialog.ShowDialog() == DialogResult.OK)
+                    {
+                        fileName = dialog.FileName;
+                    }
+                    else { tx.Abort(); return; }
+
                     //Temp
-                    string AreaName = "0159 Gladsaxe";
-                    string BasePath = @"X:\AutoCAD DRI - QGIS\BBR UDTRÆK";
-                    string pathToHusnumre = $"{BasePath}\\{AreaName}\\DAR_husnumre.geojson";
-                    string husnumreStr = File.ReadAllText(pathToHusnumre);
+                    //string AreaName = "0159 Gladsaxe";
+                    //string BasePath = @"X:\AutoCAD DRI - QGIS\BBR UDTRÆK";
+                    //string pathToHusnumre = $"{BasePath}\\{AreaName}\\DAR_husnumre.geojson";
+                    string husnumreStr = File.ReadAllText(fileName);
 
                     FeatureCollection husnumre = JsonConvert.DeserializeObject<FeatureCollection>(husnumreStr);
-
-                    #region Dialog box for selecting the geojson file
-                    //string fileName = string.Empty;
-                    //OpenFileDialog dialog = new OpenFileDialog()
-                    //{
-                    //    Title = "Choose husnumre file:",
-                    //    DefaultExt = "geojson",
-                    //    Filter = "Geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
-                    //    FilterIndex = 0
-                    //};
-                    //if (dialog.ShowDialog() == DialogResult.OK)
-                    //{
-                    //    fileName = dialog.FileName;
-                    //}
-                    //else { tx.Abort(); return; }
                     #endregion
 
                     #region Connect bygning to husnumre
