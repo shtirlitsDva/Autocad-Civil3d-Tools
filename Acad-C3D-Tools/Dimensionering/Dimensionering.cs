@@ -213,33 +213,40 @@ namespace IntersectUtilities.Dimensionering
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
 
-            PropertySetManager graphPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
-            PSetDefs.DriDimGraph graphDef = new PSetDefs.DriDimGraph();
-
             string curEtapeName = "";
 
             #region Dialog box for selecting the geojson file
-            string fileName = string.Empty;
-            OpenFileDialog dialog = new OpenFileDialog()
+            FeatureCollection LoadHusNumre(string EtapeName)
             {
-                Title = "Choose husnumre file:",
-                DefaultExt = "geojson",
-                Filter = "Geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
-                FilterIndex = 0
-            };
-            if (dialog.ShowDialog() == DialogResult.OK)
-            {
-                fileName = dialog.FileName;
+                string dbFilename = localDb.OriginalFileName;
+                string path = System.IO.Path.GetDirectoryName(dbFilename);
+                string nyHusnumreFilename = path + $"\\husnumre_{EtapeName}.geojson";
+                string husnumreStr;
+                if (File.Exists(nyHusnumreFilename))
+                {
+                    husnumreStr = File.ReadAllText(nyHusnumreFilename);
+                }
+                else
+                {
+                    string fileName = string.Empty;
+                    OpenFileDialog dialog = new OpenFileDialog()
+                    {
+                        Title = "Choose husnumre file:",
+                        DefaultExt = "geojson",
+                        Filter = "Geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
+                        FilterIndex = 0
+                    };
+                    if (dialog.ShowDialog() == DialogResult.OK)
+                    {
+                        fileName = dialog.FileName;
+                        husnumreStr = File.ReadAllText(fileName);
+                    }
+                    else { throw new System.Exception("Cannot find husnumre file!"); }
+                }
+
+                return JsonConvert.DeserializeObject<FeatureCollection>(husnumreStr);
             }
-            else { return; }
-
-            //Temp
-            //string AreaName = "0159 Gladsaxe";
-            //string BasePath = @"X:\AutoCAD DRI - QGIS\BBR UDTRÆK";
-            //string pathToHusnumre = $"{BasePath}\\{AreaName}\\DAR_husnumre.geojson";
-            string husnumreStr = File.ReadAllText(fileName);
-
-            FeatureCollection husnumre = JsonConvert.DeserializeObject<FeatureCollection>(husnumreStr);
+            FeatureCollection husnumre = default;
             #endregion
 
             while (true)
@@ -247,7 +254,7 @@ namespace IntersectUtilities.Dimensionering
                 #region Select pline3d
                 const string kwdSave = "Save";
                 PromptEntityOptions peo1 = new PromptEntityOptions(
-                    "\nSelect husnummer block to remove or [Save]:");
+                    "\nSelect husnummer block to remove or :");
                 peo1.SetRejectMessage("\n Not a block!");
                 peo1.AddAllowedClass(typeof(BlockReference), true);
                 peo1.Keywords.Add(kwdSave);
@@ -264,7 +271,7 @@ namespace IntersectUtilities.Dimensionering
                     prdDbg("Saving...");
                     if (res.StringResult == kwdSave)
                     {
-                        if (curEtapeName.IsNoE())
+                        if (curEtapeName.IsNoE() && husnumre == null)
                         {
                             prdDbg("Ingen adresser fjernet endnu! Fortsætter.");
                             continue;
@@ -277,6 +284,7 @@ namespace IntersectUtilities.Dimensionering
 
                         JsonSerializerSettings settings = new JsonSerializerSettings();
                         settings.NullValueHandling = NullValueHandling.Ignore;
+                        if (husnumre == default) return;
                         string outputHusnr = JsonConvert.SerializeObject(husnumre, settings);
 
                         Utils.ClrFile(nyHusnumreFilename);
@@ -299,6 +307,9 @@ namespace IntersectUtilities.Dimensionering
 
                 using (Transaction tx = localDb.TransactionManager.StartTransaction())
                 {
+                    PropertySetManager graphPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
+                    PSetDefs.DriDimGraph graphDef = new PSetDefs.DriDimGraph();
+
                     HashSet<Line> husNrLines = localDb.ListOfType<Line>(tx)
                         .Where(x => x.Layer == "0-HUSNUMMER_LINE")
                         .ToHashSet();
@@ -308,10 +319,7 @@ namespace IntersectUtilities.Dimensionering
                         BlockReference selectedBlock = pickedId.Go<BlockReference>(tx);
                         string id_lokalId = PropertySetManager
                             .ReadNonDefinedPropertySetString(selectedBlock, "BBR", "id_lokalId");
-                        //Remove the address from address list
-                        int removed = husnumre.features.RemoveAll(x => x.properties.id_lokalId == id_lokalId);
-                        prdDbg($"Antal adresser fjernet: {removed}.");
-
+                        
                         Line husNrLine = husNrLines
                             .Where(x => getFirstChild(x)
                             .Handle == selectedBlock.Handle)
@@ -335,15 +343,25 @@ namespace IntersectUtilities.Dimensionering
                         graphPsm.GetOrAttachPropertySet(husNrLine);
                         string lineParentStr = graphPsm.ReadPropertyString(graphDef.Parent);
                         BlockReference buildingBlock = localDb.Go<BlockReference>(lineParentStr);
+
+                        //Load the husnumre
+                        //Cache the current area name
+                        curEtapeName = PropertySetManager.ReadNonDefinedPropertySetString(
+                            buildingBlock, "BBR", "Distriktets_navn");
+
+                        if (husnumre == default) husnumre = LoadHusNumre(curEtapeName);
+
+                        //Remove the address from address list
+                        int removed = husnumre.features.RemoveAll(
+                            x => x.properties.id_lokalId.ToUpper() == id_lokalId.ToUpper());
+                        prdDbg($"Antal adresser fjernet: {removed}.");
+
                         //Remove the reference to the connection line object
                         string childrenStr = graphPsm.ReadPropertyString(graphDef.Children);
                         var split = childrenStr.Split(';').ToList();
                         split.RemoveAll(x => x == husNrLine.Handle.ToString().ToUpper());
                         childrenStr = String.Join(";", split);
                         graphPsm.WritePropertyString(graphDef.Children, childrenStr);
-                        //Cache the current area name
-                        curEtapeName = PropertySetManager.ReadNonDefinedPropertySetString(
-                            buildingBlock, "BBR", "Distriktets_navn");
                         
                         //Erase line and husnr object
                         husNrLine.CheckOrOpenForWrite();
@@ -1308,25 +1326,31 @@ namespace IntersectUtilities.Dimensionering
                     #endregion
 
                     #region Dialog box for selecting the geojson file
-                    string fileName = string.Empty;
-                    OpenFileDialog dialog = new OpenFileDialog()
+                    string dbFilename = localDb.OriginalFileName;
+                    string path = System.IO.Path.GetDirectoryName(dbFilename);
+                    string nyHusnumreFilename = path + $"\\husnumre_{curEtapeName}.geojson";
+                    string husnumreStr;
+                    if (File.Exists(nyHusnumreFilename))
                     {
-                        Title = "Choose husnumre file:",
-                        DefaultExt = "geojson",
-                        Filter = "Geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
-                        FilterIndex = 0
-                    };
-                    if (dialog.ShowDialog() == DialogResult.OK)
-                    {
-                        fileName = dialog.FileName;
+                        husnumreStr = File.ReadAllText(nyHusnumreFilename);
                     }
-                    else { tx.Abort(); return; }
-
-                    //Temp
-                    //string AreaName = "0159 Gladsaxe";
-                    //string BasePath = @"X:\AutoCAD DRI - QGIS\BBR UDTRÆK";
-                    //string pathToHusnumre = $"{BasePath}\\{AreaName}\\DAR_husnumre.geojson";
-                    string husnumreStr = File.ReadAllText(fileName);
+                    else
+                    {
+                        string fileName = string.Empty;
+                        OpenFileDialog dialog = new OpenFileDialog()
+                        {
+                            Title = "Choose husnumre file:",
+                            DefaultExt = "geojson",
+                            Filter = "Geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
+                            FilterIndex = 0
+                        };
+                        if (dialog.ShowDialog() == DialogResult.OK)
+                        {
+                            fileName = dialog.FileName;
+                            husnumreStr = File.ReadAllText(fileName);
+                        }
+                        else { throw new System.Exception("Cannot find husnumre file!"); }
+                    }
 
                     FeatureCollection husnumre = JsonConvert.DeserializeObject<FeatureCollection>(husnumreStr);
                     #endregion
@@ -1430,7 +1454,7 @@ namespace IntersectUtilities.Dimensionering
                             PropertySetManager.WriteNonDefinedPropertySetString(
                                 husNrBlock, "BBR", "Distriktets_navn", $"{curEtapeName}{HusnrSuffix}");
                             PropertySetManager.WriteNonDefinedPropertySetString(
-                                husNrBlock, "BBR", "id_lokalId", id_localId);
+                                husNrBlock, "BBR", "id_lokalId", husnr.properties.id_lokalId);
                         }
                     }
                     #endregion
