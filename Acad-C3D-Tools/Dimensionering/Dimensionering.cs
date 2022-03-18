@@ -46,6 +46,7 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Line = Autodesk.AutoCAD.DatabaseServices.Line;
 using JsonConvert = Newtonsoft.Json.JsonConvert;
+using Newtonsoft.Json;
 
 namespace IntersectUtilities.Dimensionering
 {
@@ -130,7 +131,7 @@ namespace IntersectUtilities.Dimensionering
             const string kwd3 = "Alt";
 
             PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
-            pKeyOpts.Message = "\nHvilken block skal indsættes i stedet? ";
+            pKeyOpts.Message = "\nHvilken type objekter skal vælges? ";
             pKeyOpts.Keywords.Add(kwd1);
             pKeyOpts.Keywords.Add(kwd2);
             pKeyOpts.Keywords.Add(kwd3);
@@ -201,6 +202,167 @@ namespace IntersectUtilities.Dimensionering
 
                 }
                 tx.Commit();
+            }
+        }
+
+        [CommandMethod("DIMREMOVEHUSNR")]
+        public void dimremovehusnr()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            PropertySetManager graphPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
+            PSetDefs.DriDimGraph graphDef = new PSetDefs.DriDimGraph();
+
+            string curEtapeName = "";
+
+            #region Dialog box for selecting the geojson file
+            string fileName = string.Empty;
+            OpenFileDialog dialog = new OpenFileDialog()
+            {
+                Title = "Choose husnumre file:",
+                DefaultExt = "geojson",
+                Filter = "Geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
+                FilterIndex = 0
+            };
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                fileName = dialog.FileName;
+            }
+            else { return; }
+
+            //Temp
+            //string AreaName = "0159 Gladsaxe";
+            //string BasePath = @"X:\AutoCAD DRI - QGIS\BBR UDTRÆK";
+            //string pathToHusnumre = $"{BasePath}\\{AreaName}\\DAR_husnumre.geojson";
+            string husnumreStr = File.ReadAllText(fileName);
+
+            FeatureCollection husnumre = JsonConvert.DeserializeObject<FeatureCollection>(husnumreStr);
+            #endregion
+
+            while (true)
+            {
+                #region Select pline3d
+                const string kwdSave = "Save";
+                PromptEntityOptions peo1 = new PromptEntityOptions(
+                    "\nSelect husnummer block to remove or [Save]:");
+                peo1.SetRejectMessage("\n Not a block!");
+                peo1.AddAllowedClass(typeof(BlockReference), true);
+                peo1.Keywords.Add(kwdSave);
+                PromptEntityResult res = editor.GetEntity(peo1);
+                Oid pickedId = Oid.Null;
+
+                if (res.Status == PromptStatus.OK)
+                {
+                    prdDbg($"\nPicked entity: {res.ObjectId.ToString()}");
+                    pickedId = res.ObjectId;
+                }
+                else if (res.Status == PromptStatus.Keyword)
+                {
+                    prdDbg("Saving...");
+                    if (res.StringResult == kwdSave)
+                    {
+                        if (curEtapeName.IsNoE())
+                        {
+                            prdDbg("Ingen adresser fjernet endnu! Fortsætter.");
+                            continue;
+                        }
+
+                        //Build file name
+                        string dbFilename = localDb.OriginalFileName;
+                        string path = System.IO.Path.GetDirectoryName(dbFilename);
+                        string nyHusnumreFilename = path + $"\\husnumre_{curEtapeName}.geojson";
+
+                        JsonSerializerSettings settings = new JsonSerializerSettings();
+                        settings.NullValueHandling = NullValueHandling.Ignore;
+                        string outputHusnr = JsonConvert.SerializeObject(husnumre, settings);
+
+                        Utils.ClrFile(nyHusnumreFilename);
+                        Utils.OutputWriter(nyHusnumreFilename, outputHusnr);
+                        return;
+                    }
+                    else
+                    {
+                        prdDbg("Wrong keyword, continuing...");
+                        continue;
+                    }
+                }
+                else
+                {
+                    prdDbg("\nInvalid pick or cancelled");
+                    return;
+                }
+
+                #endregion
+
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    HashSet<Line> husNrLines = localDb.ListOfType<Line>(tx)
+                        .Where(x => x.Layer == "0-HUSNUMMER_LINE")
+                        .ToHashSet();
+
+                    try
+                    {
+                        BlockReference selectedBlock = pickedId.Go<BlockReference>(tx);
+                        string id_lokalId = PropertySetManager
+                            .ReadNonDefinedPropertySetString(selectedBlock, "BBR", "id_lokalId");
+                        //Remove the address from address list
+                        int removed = husnumre.features.RemoveAll(x => x.properties.id_lokalId == id_lokalId);
+                        prdDbg($"Antal adresser fjernet: {removed}.");
+
+                        Line husNrLine = husNrLines
+                            .Where(x => getFirstChild(x)
+                            .Handle == selectedBlock.Handle)
+                            .FirstOrDefault();
+
+                        if (husNrLine == default) throw new System.Exception(
+                            $"Cannot find husNr line for block {selectedBlock.Handle}!");
+
+                        //used to get the line by comparing line's child to block's handle
+                        Entity getFirstChild(Line line)
+                        {
+                            graphPsm.GetOrAttachPropertySet(line);
+                            string chStr = graphPsm.ReadPropertyString(graphDef.Children);
+                            string firstChild = chStr.Split(';')[0];
+                            if (firstChild.IsNoE()) throw new System.Exception(
+                                $"Line {line.Handle} does not have a child specified!");
+                            return localDb.Go<Entity>(firstChild);
+                        }
+
+                        //Get the original building block
+                        graphPsm.GetOrAttachPropertySet(husNrLine);
+                        string lineParentStr = graphPsm.ReadPropertyString(graphDef.Parent);
+                        BlockReference buildingBlock = localDb.Go<BlockReference>(lineParentStr);
+                        //Remove the reference to the connection line object
+                        string childrenStr = graphPsm.ReadPropertyString(graphDef.Children);
+                        var split = childrenStr.Split(';').ToList();
+                        split.RemoveAll(x => x == husNrLine.Handle.ToString().ToUpper());
+                        childrenStr = String.Join(";", split);
+                        graphPsm.WritePropertyString(graphDef.Children, childrenStr);
+                        //Cache the current area name
+                        curEtapeName = PropertySetManager.ReadNonDefinedPropertySetString(
+                            buildingBlock, "BBR", "Distriktets_navn");
+                        
+                        //Erase line and husnr object
+                        husNrLine.CheckOrOpenForWrite();
+                        husNrLine.Erase(true);
+                        selectedBlock.CheckOrOpenForWrite();
+                        selectedBlock.Erase(true);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        editor.WriteMessage("\n" + ex.ToString());
+                        return;
+                    }
+                    finally
+                    {
+
+                    }
+                    tx.Commit();
+                }
             }
         }
     }
@@ -592,7 +754,7 @@ namespace IntersectUtilities.Dimensionering
                                 //Continue here and do not add the parent block to the executing collection
                                 continue;
                             }
-                            
+
                             BlockReference br = building;
                             List<Stik> res = new List<Stik>();
                             foreach (Polyline pline in plines)
@@ -1246,6 +1408,8 @@ namespace IntersectUtilities.Dimensionering
                             double estimeretForbrug = PropertySetManager
                                 .ReadNonDefinedPropertySetDouble(buildingBlock, "BBR", "EstimeretVarmeForbrug") /
                                 group.Count();
+                            string id_localId = PropertySetManager
+                                .ReadNonDefinedPropertySetString(buildingBlock, "BBR", "id_lokalId").ToUpper();
 
                             //Write graph values for connection line
                             graphPsm.GetOrAttachPropertySet(conLine);
@@ -1262,9 +1426,11 @@ namespace IntersectUtilities.Dimensionering
                             PropertySetManager.WriteNonDefinedPropertySetDouble(
                                 husNrBlock, "BBR", "EstimeretVarmeForbrug", estimeretForbrug);
                             PropertySetManager.WriteNonDefinedPropertySetString(
-                               husNrBlock, "BBR", "Adresse", husnr.properties.adresse);
+                                husNrBlock, "BBR", "Adresse", husnr.properties.adresse);
                             PropertySetManager.WriteNonDefinedPropertySetString(
                                 husNrBlock, "BBR", "Distriktets_navn", $"{curEtapeName}{HusnrSuffix}");
+                            PropertySetManager.WriteNonDefinedPropertySetString(
+                                husNrBlock, "BBR", "id_lokalId", id_localId);
                         }
                     }
                     #endregion
