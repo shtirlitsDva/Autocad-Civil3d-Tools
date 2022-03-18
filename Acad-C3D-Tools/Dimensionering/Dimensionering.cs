@@ -317,6 +317,15 @@ namespace IntersectUtilities.Dimensionering
                     try
                     {
                         BlockReference selectedBlock = pickedId.Go<BlockReference>(tx);
+
+                        //Check if block is in correct layer
+                        if (selectedBlock.Layer != "0-HUSNUMMER_BLOCK")
+                        {
+                            prdDbg("Wrong block selected!");
+                            tx.Abort();
+                            continue;
+                        }
+
                         string id_lokalId = PropertySetManager
                             .ReadNonDefinedPropertySetString(selectedBlock, "BBR", "id_lokalId");
                         
