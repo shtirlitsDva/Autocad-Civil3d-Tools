@@ -132,7 +132,7 @@ namespace IntersectUtilities.Dimensionering
     }
     internal static class Dimensionering
     {
-        internal static string CurrentEtapeName = "Etape 1.3";
+        internal static string CurrentEtapeName = "Etape 9.3";
         internal static GlobalSheetCount GlobalSheetCount { get; set; }
         internal static readonly string PRef = "Pref:";
         internal static void dimadressedump(string curEtapeName)
@@ -1358,31 +1358,22 @@ namespace IntersectUtilities.Dimensionering
                         #region Populate excel file
                         foreach (ExcelSheet sheet in orderedSheets)
                         {
-                            int row = 60; int col = 5;
-                            try
-                            {
-                                prdDbg($"Writing sheet: {sheet.SheetNumber}");
-                                System.Windows.Forms.Application.DoEvents();
+                            prdDbg($"Writing sheet: {sheet.SheetNumber}");
+                            System.Windows.Forms.Application.DoEvents();
 
-                                ws = (Worksheet)wb.Worksheets[sheet.SheetNumber.ToString()];
-                                //Write addresses
-                                
-                                for (int i = 0; i < sheet.Adresser.Count; i++)
-                                {
-                                    ws.Cells[row, col] = sheet.Adresser[i];
-                                    row++;
-                                }
-                                row = 60; col = 17;
-                                for (int i = 0; i < sheet.Længder.Count; i++)
-                                {
-                                    ws.Cells[row, col] = sheet.Længder[i];
-                                    row++;
-                                }
-                            }
-                            catch (System.Exception)
+                            ws = (Worksheet)wb.Worksheets[sheet.SheetNumber.ToString()];
+                            //Write addresses
+                            int row = 60; int col = 5;
+                            for (int i = 0; i < sheet.Adresser.Count; i++)
                             {
-                                prdDbg($"Fejl: {sheet.SheetNumber}, R:{row}, C:{col}");
-                                throw;
+                                ws.Cells[row, col] = sheet.Adresser[i];
+                                row++;
+                            }
+                            row = 60; col = 17;
+                            for (int i = 0; i < sheet.Længder.Count; i++)
+                            {
+                                ws.Cells[row, col] = sheet.Længder[i];
+                                row++;
                             }
                         }
                         #endregion
