@@ -471,26 +471,26 @@ namespace IntersectUtilities.Dimensionering
                     StringBuilder sb = new StringBuilder();
                     sb.AppendLine("Adresse;Energiforbrug;Antal ejendomme;Antal boliger med varmtvandsforbrug;Stik længde (tracé) [m]");
 
-                    foreach (BlockReference br in brs)
+                    foreach (BlockReference building in brs)
                     {
-                        string vejnavn = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
-                        string husnummer = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
+                        string vejnavn = PropertySetManager.ReadNonDefinedPropertySetString(building, "BBR", "Vejnavn");
+                        string husnummer = PropertySetManager.ReadNonDefinedPropertySetString(building, "BBR", "Husnummer");
                         string estVarmeForbrug = (PropertySetManager.ReadNonDefinedPropertySetDouble(
-                            br, "BBR", "EstimeretVarmeForbrug") * 1000).ToString("0.##");
+                            building, "BBR", "EstimeretVarmeForbrug") * 1000).ToString("0.##");
                         string antalEjendomme = "1";
                         string antalBoligerOsv = "1";
 
                         //If building has connected addresses dump them instead
-                        graphPsm.GetOrAttachPropertySet(br);
+                        graphPsm.GetOrAttachPropertySet(building);
                         string childrenString = graphPsm.ReadPropertyString(graphDef.Children);
                         if (childrenString.IsNotNoE())
                         {//Case: building has address children
                             HashSet<Entity> children = new HashSet<Entity>();
-                            GatherChildren(br, localDb, graphPsm, children);
+                            GatherChildren(building, localDb, graphPsm, children);
 
                             foreach (Entity ent in children)
                             {
-                                if (ent == null && !(ent is BlockReference)) continue;
+                                if (ent == null || !(ent is BlockReference)) continue;
 
                                 graphPsm.GetOrAttachPropertySet(ent);
                                 string handleString = graphPsm.ReadPropertyString(graphDef.Parent);
@@ -498,16 +498,16 @@ namespace IntersectUtilities.Dimensionering
                                 Handle parent = new Handle(Convert.ToInt64(handleString, 16));
                                 Line line = parent.Go<Line>(localDb);
                                 string stikLængde = line.Length.ToString("0.##");
-                                string adresse = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Adresse");
+                                string adresse = PropertySetManager.ReadNonDefinedPropertySetString(ent, "BBR", "Adresse");
                                 string estVarmeForbrugHusnr = (PropertySetManager.ReadNonDefinedPropertySetDouble(
-                                    br, "BBR", "EstimeretVarmeForbrug") * 1000).ToString("0.##");
+                                    ent, "BBR", "EstimeretVarmeForbrug") * 1000).ToString("0.##");
 
                                 sb.AppendLine($"{adresse};{estVarmeForbrugHusnr};{antalEjendomme};{antalBoligerOsv};{stikLængde}");
                             }
                         }
                         else
                         {
-                            graphPsm.GetOrAttachPropertySet(br);
+                            graphPsm.GetOrAttachPropertySet(building);
                             string handleString = graphPsm.ReadPropertyString(graphDef.Parent);
                             Handle parent = new Handle(Convert.ToInt64(handleString, 16));
                             Line line = parent.Go<Line>(localDb);
@@ -1459,7 +1459,7 @@ namespace IntersectUtilities.Dimensionering
                             PropertySetManager.WriteNonDefinedPropertySetDouble(
                                 husNrBlock, "BBR", "EstimeretVarmeForbrug", estimeretForbrug);
                             PropertySetManager.WriteNonDefinedPropertySetString(
-                                husNrBlock, "BBR", "Adresse", husnr.properties.adresse);
+                                husNrBlock, "BBR", "Adresse", husnr.properties.Adresse);
                             PropertySetManager.WriteNonDefinedPropertySetString(
                                 husNrBlock, "BBR", "Distriktets_navn", $"{curEtapeName}{HusnrSuffix}");
                             PropertySetManager.WriteNonDefinedPropertySetString(
@@ -2156,11 +2156,8 @@ namespace IntersectUtilities.Dimensionering
                         for (int i = 0; i < sortedClients.Count - 1; i++)
                         {
                             BlockReference br = sortedClients[i];
-                            string vejnavn = PropertySetManager
-                                .ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
-                            string husnummer = PropertySetManager
-                                .ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
-                            part.Adresser.Add($"{vejnavn} {husnummer}");
+                            string adresse = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Adresse");
+                            part.Adresser.Add(adresse);
 
                             double currentDist = node.Self.GetDistAtPoint(
                                 node.Self.GetClosestPointTo(br.Position, false));
@@ -2173,11 +2170,9 @@ namespace IntersectUtilities.Dimensionering
                             if (i == sortedClients.Count - 2)
                             {
                                 br = sortedClients[i + 1];
-                                vejnavn = PropertySetManager
-                                .ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
-                                husnummer = PropertySetManager
-                                    .ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
-                                part.Adresser.Add($"{vejnavn} {husnummer}");
+                                adresse = PropertySetManager
+                                    .ReadNonDefinedPropertySetString(br, "BBR", "Adresse");
+                                part.Adresser.Add(adresse);
 
                                 currentDist = node.Self.GetDistAtPoint(
                                     node.Self.GetClosestPointTo(br.Position, false));

@@ -48,7 +48,7 @@ namespace IntersectUtilities.Dimensionering
         public DateTime virkningFra { get; set; }
         public string placeretPåForeløbigtJordstykke { get; set; }
         public string adgangTilTekniskAnlæg { get; set; }
-        public string adresse 
+        public string Adresse 
         { 
             get
             {
