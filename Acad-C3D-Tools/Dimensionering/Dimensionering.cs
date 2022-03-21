@@ -2217,7 +2217,6 @@ namespace IntersectUtilities.Dimensionering
                     this.Sheets.Add(excelSheet);
                     if (this.Sheets.Count > 1)
                     {
-                        Dimensionering.GlobalSheetCount.IncrementOffset();
                         excelSheet.Adresser.Insert(0, (excelSheet.SheetNumber - 1).ToString());
                         excelSheet.Længder.Insert(0, 0.0);
                     }
@@ -2234,7 +2233,6 @@ namespace IntersectUtilities.Dimensionering
             this.Sheets.Add(lastSheet);
             if (this.Sheets.Count > 1)
             {
-                Dimensionering.GlobalSheetCount.IncrementOffset();
                 lastSheet.Adresser.Insert(0, (lastSheet.SheetNumber - 1).ToString());
                 lastSheet.Længder.Insert(0, 0.0);
             }
@@ -2286,12 +2284,6 @@ namespace IntersectUtilities.Dimensionering
             return CurrentSheetNumber;
         }
         internal int SheetOffset { get; private set; } = 0;
-        internal int IncrementOffset()
-        {
-            SheetOffset++;
-            TestValidity();
-            return SheetOffset;
-        }
         private void TestValidity()
         {
             if ((CurrentSheetNumber + SheetOffset) > 58)
