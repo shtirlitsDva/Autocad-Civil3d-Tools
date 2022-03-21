@@ -2170,8 +2170,7 @@ namespace IntersectUtilities.Dimensionering
                             if (i == sortedClients.Count - 2)
                             {
                                 br = sortedClients[i + 1];
-                                adresse = PropertySetManager
-                                    .ReadNonDefinedPropertySetString(br, "BBR", "Adresse");
+                                adresse = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Adresse");
                                 part.Adresser.Add(adresse);
 
                                 currentDist = node.Self.GetDistAtPoint(
