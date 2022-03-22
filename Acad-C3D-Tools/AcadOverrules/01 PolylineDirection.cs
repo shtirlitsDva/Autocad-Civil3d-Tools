@@ -48,14 +48,17 @@ namespace AcadOverrules
         //Settings
         private const double labelDist = 7.5;
         private const double arrowSideL = 1.5;
+
+
         public override bool IsApplicable(RXObject overruledSubject)
         {
             if (overruledSubject == null) return false;
             if (overruledSubject is Polyline pline)
             {
                 if (pline.Database == null) return false;
-                if (pline.Layer != "0-FJV_fremtid") return false;
+                if (pline.Layer.StartsWith("0-FJV_fremtid")) return false;
                 if (pline.NumberOfVertices < 2) return false;
+                if (pline.Length < .1) return false;
                 return true;
             }
             else return false;
