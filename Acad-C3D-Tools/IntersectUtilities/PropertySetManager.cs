@@ -407,7 +407,8 @@ namespace IntersectUtilities
             DriComponentsGisData,
             DriGraph,
             DriDimGraph,
-            FJV_fremtid
+            FJV_fremtid,
+            DriBBR
         }
         public class FJV_fremtid
         {
@@ -600,6 +601,154 @@ namespace IntersectUtilities
                     RXClass.GetClass(typeof(BlockReference)).Name
                 };
         }
+        public class DriBBR : PSetDef
+        {
+            public DefinedSets SetName { get; } = DefinedSets.DriBBR;
+            public Property id_lokalId { get; } = new Property(
+                "id_lokalId",
+                "id_lokalId",
+                PsDataType.Text,
+                "");
+            public Property id_husnummerid { get; } = new Property(
+                "id_husnummerid",
+                "id_husnummerid",
+                PsDataType.Text,
+                "");
+            public Property Name { get; } = new Property(
+                "Name",
+                "Name",
+                PsDataType.Text,
+                "");
+            public Property Bygningsnummer { get; } = new Property(
+                "Bygningsnummer",
+                "Bygningsnummer",
+                PsDataType.Integer,
+                0);
+            public Property BygningsAnvendelseNyTekst { get; } = new Property(
+                "BygningsAnvendelseNyTekst",
+                "BygningsAnvendelseNyTekst",
+                PsDataType.Text,
+                "");
+            public Property BygningsAnvendelseNyKode { get; } = new Property(
+                "BygningsAnvendelseNyKode",
+                "BygningsAnvendelseNyKode",
+                PsDataType.Text,
+                "");
+            public Property BygningsAnvendelseGlTekst { get; } = new Property(
+                "BygningsAnvendelseGlTekst",
+                "BygningsAnvendelseGlTekst",
+                PsDataType.Text,
+                "");
+            public Property BygningsAnvendelseGlKode { get; } = new Property(
+                "BygningsAnvendelseGlKode",
+                "BygningsAnvendelseGlKode",
+                PsDataType.Text,
+                "");
+            public Property Opførelsesår { get; } = new Property(
+                "Opførelsesår",
+                "Opførelsesår",
+                PsDataType.Integer,
+                0);
+            public Property SamletBygningsareal { get; } = new Property(
+                "SamletBygningsareal",
+                "SamletBygningsareal",
+                PsDataType.Integer,
+                0);
+            public Property SamletBoligareal { get; } = new Property(
+                "SamletBoligareal",
+                "SamletBoligareal",
+                PsDataType.Integer,
+                0);
+            public Property SamletErhvervsareal { get; } = new Property(
+                "SamletErhvervsareal",
+                "SamletErhvervsareal",
+                PsDataType.Integer,
+                0);
+            public Property BebyggetAreal { get; } = new Property(
+                "BebyggetAreal",
+                "BebyggetAreal",
+                PsDataType.Integer,
+                0);
+            public Property KælderAreal { get; } = new Property(
+                "KælderAreal",
+                "KælderAreal",
+                PsDataType.Integer,
+                0);
+            public Property VarmeInstallation { get; } = new Property(
+                "VarmeInstallation",
+                "VarmeInstallation",
+                PsDataType.Text,
+                "");
+            public Property OpvarmningsMiddel { get; } = new Property(
+                "OpvarmningsMiddel",
+                "OpvarmningsMiddel",
+                PsDataType.Text,
+                "");
+            public Property Status { get; } = new Property(
+                "Status",
+                "Status",
+                PsDataType.Text,
+                "");
+            public Property Vejnavn { get; } = new Property(
+                "Vejnavn",
+                "Vejnavn",
+                PsDataType.Text,
+                "");
+            public Property Husnummer { get; } = new Property(
+                "Husnummer",
+                "Husnummer",
+                PsDataType.Text,
+                "");
+            public Property Postnr { get; } = new Property(
+                "Postnr",
+                "Postnr",
+                PsDataType.Text,
+                "");
+            public Property By { get; } = new Property(
+                "By",
+                "By",
+                PsDataType.Text,
+                "");
+            public Property Beholdes { get; } = new Property(
+                "Beholdes",
+                "Beholdes",
+                PsDataType.TrueFalse,
+                true);
+            public Property SpecifikVarmeForbrug { get; } = new Property(
+                "SpecifikVarmeForbrug",
+                "SpecifikVarmeForbrug",
+                PsDataType.Real,
+                0.0);
+            public Property EstimeretVarmeForbrug { get; } = new Property(
+                "EstimeretVarmeForbrug",
+                "EstimeretVarmeForbrug",
+                PsDataType.Real,
+                0.0);
+            public Property Adresse { get; } = new Property(
+                "Adresse",
+                "Adresse",
+                PsDataType.Text,
+                "");
+            public Property InstallationOgBrændsel { get; } = new Property(
+                "InstallationOgBrændsel",
+                "InstallationOgBrændsel",
+                PsDataType.Text,
+                "");
+            public Property Type { get; } = new Property(
+                "Type",
+                "Type",
+                PsDataType.Text,
+                "");
+            public Property DistriktetsNavn { get; } = new Property(
+                "Distriktets_navn",
+                "Distriktets_navn",
+                PsDataType.Text,
+                "");
+            public StringCollection AppliesTo { get; } = new StringCollection()
+                {
+                    RXClass.GetClass(typeof(BlockReference)).Name
+                };
+        }
         public class PSetDef
         {
             public List<Property> ListOfProperties()
@@ -611,6 +760,7 @@ namespace IntersectUtilities
 
                 return list;
             }
+            //public Property GetPropertyByName(string propertyName) 
             public Dictionary<string, object> ToPropertyDictionary()
             {
                 var dictionary = new Dictionary<string, object>();

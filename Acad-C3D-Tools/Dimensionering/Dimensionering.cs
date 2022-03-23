@@ -22,6 +22,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Data;
+using System.Reflection;
 using MoreLinq;
 using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
@@ -71,6 +72,151 @@ namespace IntersectUtilities.Dimensionering
         {
         }
         #endregion
+        [CommandMethod("DIMIMPORTBBRBLOCKS")]
+        public void dimimportbbrblocks()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            #region Dialog box for selecting the geojson file
+            string dbFilename = localDb.OriginalFileName;
+            string path = System.IO.Path.GetDirectoryName(dbFilename);
+            string fileName = string.Empty;
+            string bbrString = "";
+            OpenFileDialog dialog = new OpenFileDialog()
+            {
+                Title = "Choose BBR file:",
+                DefaultExt = "geojson",
+                Filter = "Geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
+                FilterIndex = 0
+            };
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                fileName = dialog.FileName;
+                bbrString = File.ReadAllText(fileName);
+            }
+            else { throw new System.Exception("Cannot find BBR file!"); }
+
+            ImportFraBBR.FeatureCollection BBR = JsonConvert.DeserializeObject<ImportFraBBR.FeatureCollection>(bbrString);
+            #endregion
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriBBR);
+                PSetDefs.DriBBR bbrDef = new PSetDefs.DriBBR();
+
+                try
+                {
+                    int j = 0;
+                    foreach (ImportFraBBR.Feature feature in BBR.features)
+                    {
+                        var source = feature.geometry.coordinates as IEnumerable;
+                        double[] coords = new double[2];
+                        int i = 0;
+                        if (source != null)
+                        {
+                            foreach (double d in source)
+                            {
+                                if (i == 0) coords[0] = d;
+                                else coords[1] = d;
+                                i++; 
+                            }
+                        }
+
+                        Point3d position = new Point3d(coords[0], coords[1], 0);
+
+                        BlockReference bbrBlock = null;
+                        try
+                        {
+                            bbrBlock = localDb.CreateBlockWithAttributes(feature.properties.Type, position);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            if (ex.Message == "eKeyNotFound") prdDbg("Tegningen mangler BBR blokke!");
+                            tx.Abort();
+                            return;
+                        }
+
+                        var properties = feature.properties.GetType().GetRuntimeProperties()
+                            .Where(p => p.GetMethod != null && p.GetMethod.IsPublic && p.GetMethod.IsStatic == false)
+                            .ToList();
+
+                        #region Debug
+                        //j++;
+                        //if (j != 1) { tx.Abort(); return; }
+                        //foreach (var property in properties)
+                        //{
+                        //    var value = TryGetValue(property, feature.properties);
+
+                        //    prdDbg($"{property.Name} -> {value} -> {value.GetType().Name}");
+                        //}
+                        #endregion
+
+                        var dict = bbrDef.ToPropertyDictionary();
+                        bbrPsm.GetOrAttachPropertySet(bbrBlock);
+                        foreach (PropertyInfo pinfo in properties)
+                        {
+                            if (dict.ContainsKey(pinfo.Name))
+                            {
+                                var value = TryGetValue(pinfo, feature.properties);
+                                bbrPsm.WritePropertyObject(dict[pinfo.Name] as PSetDefs.Property, value);
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+
+        }
+
+        internal static object TryGetValue(PropertyInfo property, object element)
+        {
+            object value;
+            try
+            {
+                value = property.GetValue(element);
+
+                if (value == null)
+                {
+                    switch (property.PropertyType.Name)
+                    {
+                        case nameof(String):
+                            value = "";
+                            break;
+                        case nameof(Boolean):
+                            value = false;
+                            break;
+                        case nameof(Double):
+                            value = 0.0;
+                            break;
+                        case nameof(Int32):
+                            value = 0;
+                            break;
+                        default:
+                            value = "";
+                            break;
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                value = $"{{{ex.Message}}}";
+            }
+
+            return value;
+        }
 
         [CommandMethod("DIMADRESSERDUMP")]
         public void dimadresserdump()
