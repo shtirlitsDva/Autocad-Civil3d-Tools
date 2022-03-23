@@ -104,8 +104,8 @@ namespace IntersectUtilities.Dimensionering
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriBBR);
-                PSetDefs.DriBBR bbrDef = new PSetDefs.DriBBR();
+                PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                PSetDefs.BBR bbrDef = new PSetDefs.BBR();
 
                 try
                 {

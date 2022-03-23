@@ -408,7 +408,7 @@ namespace IntersectUtilities
             DriGraph,
             DriDimGraph,
             FJV_fremtid,
-            DriBBR
+            BBR
         }
         public class FJV_fremtid
         {
@@ -601,9 +601,9 @@ namespace IntersectUtilities
                     RXClass.GetClass(typeof(BlockReference)).Name
                 };
         }
-        public class DriBBR : PSetDef
+        public class BBR : PSetDef
         {
-            public DefinedSets SetName { get; } = DefinedSets.DriBBR;
+            public DefinedSets SetName { get; } = DefinedSets.BBR;
             public Property id_lokalId { get; } = new Property(
                 "id_lokalId",
                 "id_lokalId",
