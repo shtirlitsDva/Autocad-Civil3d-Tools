@@ -408,9 +408,23 @@ namespace IntersectUtilities
             DriGraph,
             DriDimGraph,
             FJV_fremtid,
+            FJV_område,
             BBR
         }
-        public class FJV_fremtid
+        public class FJV_område : PSetDef
+        {
+            public DefinedSets SetName { get; } = DefinedSets.FJV_område;
+            public Property OmrådeNavn { get; } = new Property(
+                "OmrådeNavn",
+                "Navnet på det område polylinjen omgrænser",
+                PsDataType.Text,
+                "");
+            public StringCollection AppliesTo { get; } = new StringCollection()
+                {
+                    RXClass.GetClass(typeof(Polyline)).Name
+                };
+        }
+        public class FJV_fremtid : PSetDef
         {
             public DefinedSets SetName { get; } = DefinedSets.FJV_fremtid;
             public Property Bemærkninger { get; } = new Property(

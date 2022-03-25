@@ -121,7 +121,7 @@ namespace IntersectUtilities.Dimensionering
                             {
                                 if (i == 0) coords[0] = d;
                                 else coords[1] = d;
-                                i++; 
+                                i++;
                             }
                         }
 
@@ -474,7 +474,7 @@ namespace IntersectUtilities.Dimensionering
 
                         string id_lokalId = PropertySetManager
                             .ReadNonDefinedPropertySetString(selectedBlock, "BBR", "id_lokalId");
-                        
+
                         Line husNrLine = husNrLines
                             .Where(x => getFirstChild(x)
                             .Handle == selectedBlock.Handle)
@@ -517,7 +517,7 @@ namespace IntersectUtilities.Dimensionering
                         split.RemoveAll(x => x == husNrLine.Handle.ToString().ToUpper());
                         childrenStr = String.Join(";", split);
                         graphPsm.WritePropertyString(graphDef.Children, childrenStr);
-                        
+
                         //Erase line and husnr object
                         husNrLine.CheckOrOpenForWrite();
                         husNrLine.Erase(true);
@@ -536,6 +536,68 @@ namespace IntersectUtilities.Dimensionering
                     }
                     tx.Commit();
                 }
+            }
+        }
+
+        [CommandMethod("DIMPREPAREDWG")]
+        public void dimpreparedwg()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                PropertySetManager graphPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
+                PropertySetManager fjvFremPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
+                PropertySetManager fjvOmrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_område);
+
+                try
+                {
+                    #region Import building blocks if missing
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    var nonExistingBlocks = Dimensionering.AllBlockTypes.ExceptWhere(x => bt.Has(x));
+
+                    if (nonExistingBlocks.Count() > 0)
+                    {
+                        ObjectIdCollection idsToClone = new ObjectIdCollection();
+
+                        Database blockDb = new Database(false, true);
+                        blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
+                            FileOpenMode.OpenForReadAndAllShare, false, null);
+                        Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+
+                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+
+                        BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                        foreach (string blockName in nonExistingBlocks)
+                        {
+                            prdDbg($"Importing block {blockName}.");
+                            idsToClone.Add(sourceBt[blockName]);
+                        }
+
+                        IdMapping mapping = new IdMapping();
+                        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                        blockTx.Commit();
+                        blockTx.Dispose();
+                        blockDb.Dispose();
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
             }
         }
     }
@@ -587,6 +649,8 @@ namespace IntersectUtilities.Dimensionering
         internal static readonly string PRef = "Pref:";
         internal static HashSet<string> AcceptedBlockTypes =
             new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet" };
+        internal static HashSet<string> AllBlockTypes =
+            new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet", "Fjernvarme", "Ingen", "UDGÅR" };
         internal static void dimadressedump()
         {
             DocumentCollection docCol = Application.DocumentManager;
