@@ -1,4 +1,5 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.ApplicationServices.Core;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -60,12 +61,22 @@ namespace IntersectUtilities.Dimensionering
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
+            if (doc != null)
+            {
+                SystemObjects.DynamicLinker.LoadModule(
+                    "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
+            }
+
+            doc.Editor.WriteMessage("\n-> Import SYMBOL blocks ved opstart på ny tegning: DIMPREPAREDWG");
+            doc.Editor.WriteMessage("\n-> Import BBR data to blocks: DIMIMPORTBBRBLOCKS");
+            doc.Editor.WriteMessage("\n-> Assign areas to BBR blocks and delete the rest: DIMINTERSECTAREAS");
             doc.Editor.WriteMessage("\n-> Select objects by type and area: DIMSELECTOBJ");
             doc.Editor.WriteMessage("\n-> Connect building to multiple addresses: DIMCONNECTHUSNR");
+            doc.Editor.WriteMessage("\n-> Remove unwanted husnr blocks from database: DIMREMOVEHUSNR");
             doc.Editor.WriteMessage("\n-> Populate property data based on geometry: DIMPOPULATEGRAPH");
             doc.Editor.WriteMessage("\n-> Dump all addresses to file: DIMADRESSERDUMP");
-            doc.Editor.WriteMessage("\n-> Write data to excel: -> DIMWRITEEXCEL");
-            doc.Editor.WriteMessage("\n-> 1) Husnr 2) Populate 3) Dump adresser 4) Write excel");
+            doc.Editor.WriteMessage("\n-> Write data to excel: DIMWRITEEXCEL");
+            doc.Editor.WriteMessage("\n-> 1) Prepare 2) Import BBR 3) Intersect 4) Husnr 5) Populate 6) Dump adresser 7) Write excel");
         }
 
         public void Terminate()
@@ -135,6 +146,7 @@ namespace IntersectUtilities.Dimensionering
                         catch (System.Exception ex)
                         {
                             if (ex.Message == "eKeyNotFound") prdDbg("Tegningen mangler BBR blokke!");
+                            else prdDbg("Failed block name: " + feature.properties.Type + "\n" + ex.ToString());
                             tx.Abort();
                             return;
                         }
@@ -179,6 +191,85 @@ namespace IntersectUtilities.Dimensionering
                 tx.Commit();
             }
 
+        }
+
+        [CommandMethod("DIMINTERSECTAREAS")]
+        public void dimintersectareas()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            string psName = Dimensionering.dimaskforpropertysetname();
+            string pName = Dimensionering.dimaskforpropertyname();
+
+            if (psName.IsNoE() || pName.IsNoE()) return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                try
+                {
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
+                    plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                        x, psName, pName).IsNotNoE()).ToHashSet();
+                    prdDbg("Nr. of plines " + plines.Count().ToString());
+
+                    if (plines.Count() == 0) { tx.Abort(); return; }
+
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
+                    brs = brs
+                        .Where(x => Dimensionering.AllBlockTypes.Contains(x.RealName()))
+                        .ToHashSet();
+                    prdDbg("Nr. of blocks " + brs.Count().ToString());
+
+                    ObjectIdCollection claimedIds = new ObjectIdCollection();
+
+                    foreach (Polyline pline in plines)
+                    {
+                        string etapeName = PropertySetManager.ReadNonDefinedPropertySetString(pline, psName, pName);
+
+                        double tolerance = Tolerance.Global.EqualPoint;
+                        using (MPolygon mpg = new MPolygon())
+                        {
+                            mpg.AppendLoopFromBoundary(pline, true, tolerance);
+
+                            if (pline.Closed == false) { prdDbg($"Pline {pline.Handle} is not closed!"); continue; }
+                            var query = brs.Where(x => mpg.IsPointInsideMPolygon(x.Position, tolerance).Count == 1);
+                            if (query.Count() == 0) continue;
+                            foreach (BlockReference br in query)
+                            {
+                                //Protect against erasure
+                                claimedIds.Add(br.Id);
+                                //Write area name
+                                bbrPsm.GetOrAttachPropertySet(br);
+                                bbrPsm.WritePropertyString(bbrDef.DistriktetsNavn, etapeName);
+                            }
+                        }
+                    }
+
+                    //Now delete all non-claimed blocks
+                    foreach (var item in brs.ExceptWhere(x => claimedIds.Contains(x.Id)))
+                    {
+                        item.CheckOrOpenForWrite();
+                        item.Erase(true);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
         }
 
         internal static object TryGetValue(PropertyInfo property, object element)
@@ -1731,6 +1822,40 @@ namespace IntersectUtilities.Dimensionering
             return curEtapeName;
             #endregion
         }
+        internal static string dimaskforpropertysetname()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            #region Ask for property set name
+            string curEtapeName = "";
+            PromptStringOptions pStrOpts = new PromptStringOptions("\nProperty set navn: ");
+            pStrOpts.AllowSpaces = true;
+            PromptResult pStrRes = editor.GetString(pStrOpts);
+            if (pStrRes.Status != PromptStatus.OK) return "";
+            curEtapeName = pStrRes.StringResult;
+            return curEtapeName;
+            #endregion
+        }
+        internal static string dimaskforpropertyname()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            #region Ask for property name
+            string curEtapeName = "";
+            PromptStringOptions pStrOpts = new PromptStringOptions("\nProperty navn: ");
+            pStrOpts.AllowSpaces = true;
+            PromptResult pStrRes = editor.GetString(pStrOpts);
+            if (pStrRes.Status != PromptStatus.OK) return "";
+            curEtapeName = pStrRes.StringResult;
+            return curEtapeName;
+            #endregion
+        }
         private static void TraversePath(ExcelNode node, int pathId)
         {
             node.PathId = pathId;
@@ -2287,6 +2412,15 @@ namespace IntersectUtilities.Dimensionering
                 }
                 tx.Commit();
                 #endregion
+            }
+        }
+        public static bool IsPointInside(this Polyline pline, Point3d point)
+        {
+            double tolerance = Tolerance.Global.EqualPoint;
+            using (MPolygon mpg = new MPolygon())
+            {
+                mpg.AppendLoopFromBoundary(pline, true, tolerance);
+                return mpg.IsPointInsideMPolygon(point, tolerance).Count == 1;
             }
         }
     }

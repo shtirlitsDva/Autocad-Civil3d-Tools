@@ -43,6 +43,10 @@
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\acmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="AcMPolygonMGD">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\AcMPolygonMGD.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="AecBaseMgd">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\AecBaseMgd.dll</HintPath>
       <Private>False</Private>
