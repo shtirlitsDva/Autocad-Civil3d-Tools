@@ -13342,7 +13342,7 @@ namespace IntersectUtilities
                     double tol = 0;
 
                     PromptDoubleResult result = ed.GetDouble("\nEnter tolerance in meters:");
-                    if (((PromptResult)result).Status != PromptStatus.OK) return;
+                    if (((PromptResult)result).Status != PromptStatus.OK) { tx.Abort(); return; }
                     tol = result.Value;
 
                     HashSet<DBText> dBTexts = localDb.HashSetOfType<DBText>(tx);

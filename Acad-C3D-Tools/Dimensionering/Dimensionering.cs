@@ -643,7 +643,7 @@ namespace IntersectUtilities.Dimensionering
 
                                 Handle parent = new Handle(Convert.ToInt64(handleString, 16));
                                 Line line = parent.Go<Line>(localDb);
-                                string stikLængde = line.Length.ToString("0.##");
+                                string stikLængde = line.GetHorizontalLength().ToString("0.##");
                                 string adresse = PropertySetManager.ReadNonDefinedPropertySetString(ent, "BBR", "Adresse");
                                 string estVarmeForbrugHusnr = (PropertySetManager.ReadNonDefinedPropertySetDouble(
                                     ent, "BBR", "EstimeretVarmeForbrug") * 1000).ToString("0.##");

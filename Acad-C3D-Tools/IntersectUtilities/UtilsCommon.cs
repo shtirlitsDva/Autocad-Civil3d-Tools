@@ -924,6 +924,7 @@ namespace IntersectUtilities.UtilsCommon
             }
             return totalLength;
         }
+        public static double GetHorizontalLength(this Line line) => line.StartPoint.DistanceHorizontalTo(line.EndPoint);
         public static double GetHorizontalLengthBetweenIdxs(this Polyline3d poly3d, int startIdx, int endIdx)
         {
             Transaction tx = poly3d.Database.TransactionManager.TopTransaction;
