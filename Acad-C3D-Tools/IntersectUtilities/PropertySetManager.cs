@@ -414,8 +414,8 @@ namespace IntersectUtilities
         public class FJV_område : PSetDef
         {
             public DefinedSets SetName { get; } = DefinedSets.FJV_område;
-            public Property OmrådeNavn { get; } = new Property(
-                "OmrådeNavn",
+            public Property Område { get; } = new Property(
+                "Område",
                 "Navnet på det område polylinjen omgrænser",
                 PsDataType.Text,
                 "");

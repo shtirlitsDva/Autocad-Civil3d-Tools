@@ -49,6 +49,8 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Line = Autodesk.AutoCAD.DatabaseServices.Line;
 using JsonConvert = Newtonsoft.Json.JsonConvert;
 using Newtonsoft.Json;
+using Autodesk.Gis.Map;
+using Autodesk.Gis.Map.ObjectData;
 
 namespace IntersectUtilities.Dimensionering
 {
@@ -195,6 +197,13 @@ namespace IntersectUtilities.Dimensionering
 
         }
 
+        //[CommandMethod("TESTRXCLASS")]
+        public void testrxclass()
+        {
+            prdDbg(RXClass.GetClass(typeof(Polyline)).Name);
+            prdDbg(RXClass.GetClass(typeof(MPolygon)).Name);
+        }
+
         [CommandMethod("DIMINTERSECTAREAS")]
         public void dimintersectareas()
         {
@@ -202,6 +211,18 @@ namespace IntersectUtilities.Dimensionering
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
+            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+            
+            #region Select sample object
+            PromptEntityOptions peo1 = new PromptEntityOptions(
+                "\nVælg objekt som repræsenterer udklipsobjekter (skal være POLYLINE eller MPOLYGON): ");
+            peo1.SetRejectMessage("\n Ikke en POLYLINE eller MPOLYGON!");
+            peo1.AddAllowedClass(typeof(Polyline), true);
+            peo1.AddAllowedClass(typeof(MPolygon), true);
+            PromptEntityResult res = editor.GetEntity(peo1);
+            if (res.Status != PromptStatus.OK) return;
+            Oid pickedId = res.ObjectId;
+            #endregion
 
             #region Ask for what type of data storage
             const string kwd1 = "Od";
@@ -219,17 +240,6 @@ namespace IntersectUtilities.Dimensionering
             string dataType = pKeyRes.StringResult;
             #endregion
 
-            #region Select sample object
-            PromptEntityOptions peo1 = new PromptEntityOptions(
-                "\nVælg objekt som repræsenterer udklipsobjekter: ");
-            peo1.SetRejectMessage("\n Ikke en polylinje eller mpolygon!");
-            peo1.AddAllowedClass(typeof(Polyline), true);
-            peo1.AddAllowedClass(typeof(MPolygon), true);
-            PromptEntityResult res = editor.GetEntity(peo1);
-            if (res.Status != PromptStatus.OK) return;
-            Oid pickedId = res.ObjectId;
-            #region
-
             string psName = Dimensionering.dimaskforpropertysetname();
             string pName = Dimensionering.dimaskforpropertyname();
 
@@ -240,17 +250,53 @@ namespace IntersectUtilities.Dimensionering
                 PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
                 PSetDefs.BBR bbrDef = new PSetDefs.BBR();
 
+                PropertySetManager omrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_område);
+                PSetDefs.FJV_område omrDef = new PSetDefs.FJV_område();
+
                 try
                 {
-                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
-                    plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                        x, psName, pName).IsNotNoE()).ToHashSet();
-                    prdDbg("Nr. of plines " + plines.Count().ToString());
+                    HashSet<Entity> entities = new HashSet<Entity>();
 
-                    HashSet<MPolygon> polygons = localDb.HashSetOfType<MPolygon>(tx, true);
+                    switch (pickedId.ObjectClass.Name)
+                    {
+                        case "AcDbPolyline":
+                            HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
+                            plines = plines.Where(x => IsDataNotNoE(x)).ToHashSet();
+                            prdDbg("Nr. of plines " + plines.Count().ToString());
+                            entities.UnionWith(plines);
+                            break;
+                        case "AcDbMPolygon":
+                            HashSet<MPolygon> polygons = localDb.HashSetOfType<MPolygon>(tx, true);
+                            polygons = polygons.Where(x => IsDataNotNoE(x)).ToHashSet();
+                            prdDbg("Nr. of polygons " + polygons.Count().ToString());
+                            entities.UnionWith(polygons);
+                            break;
+                        default:
+                            tx.Abort();
+                            prdDbg("Non defined object type received!");
+                            return;
+                    }
 
+                    bool IsDataNotNoE(Entity ent)
+                    {
+                        string value = "";
 
-                    if (plines.Count() == 0) { tx.Abort(); return; }
+                        switch (dataType)
+                        {
+                            case kwd1: //ObjectData
+                                value = ReadStringPropertyValue(tables, ent.Id, psName, pName);
+                                break;
+                            case kwd2: //PSet
+                                value = PropertySetManager.ReadNonDefinedPropertySetString(ent, psName, pName);
+                                break;
+                            default:
+                                break;
+                        }
+
+                        return value.IsNotNoE();
+                    }
+
+                    if (entities.Count() == 0) { tx.Abort(); prdDbg("No entities found!"); return; }
 
                     HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
                     brs = brs
@@ -260,27 +306,75 @@ namespace IntersectUtilities.Dimensionering
 
                     ObjectIdCollection claimedIds = new ObjectIdCollection();
 
-                    foreach (Polyline pline in plines)
+                    foreach (Entity ent in entities)
                     {
-                        string etapeName = PropertySetManager.ReadNonDefinedPropertySetString(pline, psName, pName);
+                        string etapeName = "";
+
+                        switch (dataType)
+                        {
+                            case kwd1: //ObjectData
+                                etapeName = ReadStringPropertyValue(tables, ent.Id, psName, pName);
+                                break;
+                            case kwd2: //PSet
+                                etapeName = PropertySetManager.ReadNonDefinedPropertySetString(ent, psName, pName);
+                                break;
+                            default:
+                                break;
+                        }
 
                         double tolerance = Tolerance.Global.EqualPoint;
-                        using (MPolygon mpg = new MPolygon())
-                        {
-                            mpg.AppendLoopFromBoundary(pline, true, tolerance);
 
-                            if (pline.Closed == false) { prdDbg($"Pline {pline.Handle} is not closed!"); continue; }
-                            var query = brs.Where(x => mpg.IsPointInsideMPolygon(x.Position, tolerance).Count == 1);
-                            if (query.Count() == 0) continue;
-                            foreach (BlockReference br in query)
-                            {
-                                //Protect against erasure
-                                claimedIds.Add(br.Id);
-                                //Write area name
-                                bbrPsm.GetOrAttachPropertySet(br);
-                                bbrPsm.WritePropertyString(bbrDef.DistriktetsNavn, etapeName);
-                            }
+                        switch (ent)
+                        {
+                            case Polyline pline:
+                                if (pline.Closed == false) { prdDbg($"Pline {pline.Handle} is not closed!"); continue; }
+                                using (MPolygon mpg = new MPolygon())
+                                {
+                                    mpg.AppendLoopFromBoundary(pline, true, tolerance);
+                                    var query = brs.Where(x => mpg.IsPointInsideMPolygon(x.Position, tolerance).Count == 1);
+                                    if (query.Count() == 0) continue;
+                                    foreach (BlockReference br in query)
+                                    {
+                                        //Protect against erasure
+                                        claimedIds.Add(br.Id);
+                                        //Write area name
+                                        bbrPsm.GetOrAttachPropertySet(br);
+                                        bbrPsm.WritePropertyString(bbrDef.DistriktetsNavn, etapeName);
+                                    }
+                                }
+                                break;
+                            case MPolygon mpg:
+                                {
+                                    var query = brs.Where(x => mpg.IsPointInsideMPolygon(x.Position, tolerance).Count == 1);
+                                    if (query.Count() == 0) continue;
+                                    foreach (BlockReference br in query)
+                                    {
+                                        //Protect against erasure
+                                        claimedIds.Add(br.Id);
+                                        //Write area name
+                                        bbrPsm.GetOrAttachPropertySet(br);
+                                        bbrPsm.WritePropertyString(bbrDef.DistriktetsNavn, etapeName);
+                                    }
+
+                                    DBObjectCollection objs = new DBObjectCollection();
+                                    mpg.Explode(objs);
+                                    Oid id = Oid.Null;
+                                    foreach (DBObject obj in objs)
+                                        if (obj is Polyline pline) id = pline.AddEntityToDbModelSpace(localDb);
+
+                                    mpg.CheckOrOpenForWrite();
+                                    mpg.Erase(true);
+
+                                    if (id == Oid.Null) continue;
+                                    Polyline newPline = id.Go<Polyline>(tx);
+                                    omrPsm.GetOrAttachPropertySet(newPline);
+                                    omrPsm.WritePropertyString(omrDef.Område, etapeName);
+                                }
+                                break;
+                            default:
+                                break;
                         }
+                        
                     }
 
                     //Now delete all non-claimed blocks
@@ -1863,7 +1957,7 @@ namespace IntersectUtilities.Dimensionering
 
             #region Ask for property set name
             string curEtapeName = "";
-            PromptStringOptions pStrOpts = new PromptStringOptions("\nProperty set navn: ");
+            PromptStringOptions pStrOpts = new PromptStringOptions("\nProperty set (Ps) eller table (Od) navn: ");
             pStrOpts.AllowSpaces = true;
             PromptResult pStrRes = editor.GetString(pStrOpts);
             if (pStrRes.Status != PromptStatus.OK) return "";
