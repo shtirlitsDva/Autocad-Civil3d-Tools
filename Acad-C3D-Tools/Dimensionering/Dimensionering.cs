@@ -191,6 +191,8 @@ namespace IntersectUtilities.Dimensionering
                 tx.Commit();
             }
 
+            prdDbg("Finished!");
+
         }
 
         [CommandMethod("DIMINTERSECTAREAS")]
@@ -200,6 +202,33 @@ namespace IntersectUtilities.Dimensionering
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
+
+            #region Ask for what type of data storage
+            const string kwd1 = "Od";
+            const string kwd2 = "Ps";
+
+            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
+            pKeyOpts.Message = "\nHvilken type data opslag skal bruges? ";
+            pKeyOpts.Keywords.Add(kwd1);
+            pKeyOpts.Keywords.Add(kwd2);
+            pKeyOpts.AllowNone = true;
+            pKeyOpts.Keywords.Default = kwd1;
+            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+            if (pKeyRes.Status != PromptStatus.OK) return;
+
+            string dataType = pKeyRes.StringResult;
+            #endregion
+
+            #region Select sample object
+            PromptEntityOptions peo1 = new PromptEntityOptions(
+                "\nVælg objekt som repræsenterer udklipsobjekter: ");
+            peo1.SetRejectMessage("\n Ikke en polylinje eller mpolygon!");
+            peo1.AddAllowedClass(typeof(Polyline), true);
+            peo1.AddAllowedClass(typeof(MPolygon), true);
+            PromptEntityResult res = editor.GetEntity(peo1);
+            if (res.Status != PromptStatus.OK) return;
+            Oid pickedId = res.ObjectId;
+            #region
 
             string psName = Dimensionering.dimaskforpropertysetname();
             string pName = Dimensionering.dimaskforpropertyname();
@@ -217,6 +246,9 @@ namespace IntersectUtilities.Dimensionering
                     plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
                         x, psName, pName).IsNotNoE()).ToHashSet();
                     prdDbg("Nr. of plines " + plines.Count().ToString());
+
+                    HashSet<MPolygon> polygons = localDb.HashSetOfType<MPolygon>(tx, true);
+
 
                     if (plines.Count() == 0) { tx.Abort(); return; }
 
