@@ -15049,5 +15049,11 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        [CommandMethod("WRITEISOGENATTRIBUTESTODWG")]
+        public void writeisogenattributestodwg()
+        {
+            IntersectUtilities.IsogenPopulateAttributes.WriteIsogenAttrubutesToDwg();
+        }
     }
 }
