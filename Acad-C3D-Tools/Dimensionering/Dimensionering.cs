@@ -175,7 +175,15 @@ namespace IntersectUtilities.Dimensionering
                             if (dict.ContainsKey(pinfo.Name))
                             {
                                 var value = TryGetValue(pinfo, feature.properties);
-                                bbrPsm.WritePropertyObject(dict[pinfo.Name] as PSetDefs.Property, value);
+                                try
+                                {
+                                    bbrPsm.WritePropertyObject(dict[pinfo.Name] as PSetDefs.Property, value);
+                                }
+                                catch (System.Exception)
+                                {
+                                    prdDbg($"Property not found: {(dict[pinfo.Name] as PSetDefs.Property).Name}");
+                                    throw;
+                                }
                             }
                         }
                     }
