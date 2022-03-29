@@ -56,7 +56,8 @@ namespace AcadOverrules
             if (overruledSubject is Polyline pline)
             {
                 if (pline.Database == null) return false;
-                if (!pline.Layer.StartsWith("0-FJV_fremtid")) return false;
+                if (!(pline.Layer.StartsWith("0-FJV_fremtid") ||
+                      pline.Layer.StartsWith("0-FJV_eks_dim"))) return false;
                 if (pline.NumberOfVertices < 2) return false;
                 if (pline.Length < .1) return false;
                 return true;
