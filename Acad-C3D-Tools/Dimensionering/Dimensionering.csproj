@@ -127,8 +127,8 @@
     <PostBuildEvent>In the post-build events textbox add the following:
 IF NOT ($(ConfigurationName)) == (Debug) GOTO END
 cd $(ProjectDir)
-copy /y bin\debug\*.dll C:\Temp
-copy /y bin\debug\*.pdb C:\Temp
+copy /y bin\debug\*.dll C:\Temp\DBG
+copy /y bin\debug\*.pdb C:\Temp\DBG
 :END</PostBuildEvent>
   </PropertyGroup>
 </Project>
