@@ -1374,7 +1374,7 @@ namespace IntersectUtilities.UtilsCommon
         public static T Go<T>(this Handle handle, Database database) where T : Autodesk.AutoCAD.DatabaseServices.DBObject
         {
             Oid id = database.GetObjectId(false, handle, 0);
-            if (database.TransactionManager.TopTransaction == null) 
+            if (database.TransactionManager.TopTransaction == null)
                 throw new System.Exception("Handle.Go<DBObject> -> no top transaction found! Call inside transaction.");
             return id.Go<T>(database.TransactionManager.TopTransaction);
         }
@@ -1385,12 +1385,36 @@ namespace IntersectUtilities.UtilsCommon
         }
         public static Oid AddEntityToDbModelSpace<T>(this T entity, Database db) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
-            Transaction tx = db.TransactionManager.TopTransaction;
+            if (db.TransactionManager.TopTransaction == null)
+            {
+                using (Transaction tx = db.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
 
-            BlockTableRecord modelSpace = db.GetModelspaceForWrite();
-            Oid id = modelSpace.AppendEntity(entity);
-            tx.AddNewlyCreatedDBObject(entity, true);
-            return id;
+                        BlockTableRecord modelSpace = db.GetModelspaceForWrite();
+                        Oid id = modelSpace.AppendEntity(entity);
+                        tx.AddNewlyCreatedDBObject(entity, true);
+                        tx.Commit();
+                        return id;
+                    }
+                    catch (System.Exception)
+                    {
+                        prdDbg("Adding element to database failed!");
+                        tx.Abort();
+                        return Oid.Null;
+                    }
+                }
+            }
+            else
+            {
+                Transaction tx = db.TransactionManager.TopTransaction;
+
+                BlockTableRecord modelSpace = db.GetModelspaceForWrite();
+                Oid id = modelSpace.AppendEntity(entity);
+                tx.AddNewlyCreatedDBObject(entity, true);
+                return id;
+            }
         }
         public static bool CheckOrCreateLayer(this Database db, string layerName, short colorIdx = -1)
         {
@@ -1570,7 +1594,7 @@ namespace IntersectUtilities.UtilsCommon
         public static double ToRadians(this double degrees) => (Math.PI / 180) * degrees;
     }
 
-    
+
     public class PointDBHorizontalComparer : IEqualityComparer<DBPoint>
     {
         double Tol;
