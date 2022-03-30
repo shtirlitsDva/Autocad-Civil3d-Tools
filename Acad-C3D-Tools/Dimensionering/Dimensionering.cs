@@ -175,7 +175,15 @@ namespace IntersectUtilities.Dimensionering
                             if (dict.ContainsKey(pinfo.Name))
                             {
                                 var value = TryGetValue(pinfo, feature.properties);
-                                bbrPsm.WritePropertyObject(dict[pinfo.Name] as PSetDefs.Property, value);
+                                try
+                                {
+                                    bbrPsm.WritePropertyObject(dict[pinfo.Name] as PSetDefs.Property, value);
+                                }
+                                catch (System.Exception)
+                                {
+                                    prdDbg($"Property not found: {(dict[pinfo.Name] as PSetDefs.Property).Name}");
+                                    throw;
+                                }
                             }
                         }
                     }
@@ -868,6 +876,12 @@ namespace IntersectUtilities.Dimensionering
             new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet" };
         internal static HashSet<string> AllBlockTypes =
             new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet", "Fjernvarme", "Ingen", "UDGÅR" };
+        internal static HashSet<string> AcceptedLayerNamesForFJV =
+            new HashSet<string>() { "0-FJV_fremtid", "0-FJV_eks_dim" };
+        internal static bool isLayerAcceptedInFjv(string s)
+        {
+            return (AcceptedLayerNamesForFJV.Contains(s) || AcceptedLayerNamesForFJV.Any(x => s.StartsWith(x)));
+        }
         internal static void dimadressedump()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -1028,7 +1042,9 @@ namespace IntersectUtilities.Dimensionering
 
                     #region Gather elements
                     HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
-                    plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                    plines = plines
+                        .Where(x => isLayerAcceptedInFjv(x.Layer))
+                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
                         x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
                     prdDbg("Nr. of plines " + plines.Count().ToString());
 
@@ -2336,7 +2352,9 @@ namespace IntersectUtilities.Dimensionering
 
                     #region Traverse system and build graph
                     HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
-                    plines = plines.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                    plines = plines
+                        .Where(x => isLayerAcceptedInFjv(x.Layer))
+                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
                         x, "FJV_fremtid", "Distriktets_navn") == curEtapeName).ToHashSet();
                     prdDbg("Nr. of plines " + plines.Count().ToString());
 
