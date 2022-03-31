@@ -2720,7 +2720,6 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(LineStringSegmentType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractCurveSegmentType
@@ -2749,7 +2748,6 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(GeodesicType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class GeodesicStringType : AbstractCurveSegmentType
@@ -2778,7 +2776,6 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class DirectPositionListType
