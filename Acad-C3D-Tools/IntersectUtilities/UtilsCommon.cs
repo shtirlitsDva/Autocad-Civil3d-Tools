@@ -1472,7 +1472,13 @@ namespace IntersectUtilities.UtilsCommon
                 txLag.AddNewlyCreatedDBObject(ltr, true);
                 return true;
             }
-            else return true;
+            else
+            {
+                LayerTableRecord ltr = lt[layerName].Go<LayerTableRecord>(txLag, OpenMode.ForWrite);
+                if (ltr.Color.ColorIndex != colorIdx)
+                    ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, colorIdx);
+                return true;
+            }
         }
         public static string Layer(this Oid oid)
         {
