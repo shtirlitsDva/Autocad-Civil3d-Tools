@@ -2774,7 +2774,7 @@ namespace IntersectUtilities.Dimensionering
         internal int SheetOffset { get; private set; } = 0;
         private void TestValidity()
         {
-            if ((CurrentSheetNumber + SheetOffset) > 58)
+            if ((CurrentSheetNumber + SheetOffset) > 100)
                 throw new System.Exception("Total number of sheets needed has exceeded 58!");
         }
     }
