@@ -1160,6 +1160,39 @@ namespace IntersectUtilities.UtilsCommon
             return "";
         }
         /// <summary>
+        /// Requires active transaction!
+        /// </summary>
+        public static void CheckOrImportBlockRecord(this Database db, string blockName)
+        {
+            Transaction tx = db.TransactionManager.TopTransaction;
+            if (tx == null) throw new System.Exception("CheckOrImportBlockRecord requires active Transaction!");
+            BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+            if (!bt.Has(blockName))
+            {
+                ObjectIdCollection idsToClone = new ObjectIdCollection();
+
+                Database blockDb = new Database(false, true);
+                blockDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg",
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
+                Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+
+                Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(db);
+
+                BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                prdDbg($"Importing block {blockName}.");
+                idsToClone.Add(sourceBt[blockName]);
+
+                IdMapping mapping = new IdMapping();
+                blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                blockTx.Commit();
+                blockTx.Dispose();
+                blockDb.Dispose();
+            }
+        }
+        /// <summary>
         /// Remember to check for existence of BlockTableRecord!
         /// </summary>
         public static BlockReference CreateBlockWithAttributes(this Database db, string blockName, Point3d position, double rotation = 0)
