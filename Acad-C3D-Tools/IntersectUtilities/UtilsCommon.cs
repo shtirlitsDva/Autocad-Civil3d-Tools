@@ -1162,7 +1162,7 @@ namespace IntersectUtilities.UtilsCommon
         /// <summary>
         /// Requires active transaction!
         /// </summary>
-        public static void CheckOrImportBlockRecord(this Database db, string blockName)
+        public static void CheckOrImportBlockRecord(this Database db, string pathToLibrary, string blockName)
         {
             Transaction tx = db.TransactionManager.TopTransaction;
             if (tx == null) throw new System.Exception("CheckOrImportBlockRecord requires active Transaction!");
@@ -1173,7 +1173,7 @@ namespace IntersectUtilities.UtilsCommon
                 ObjectIdCollection idsToClone = new ObjectIdCollection();
 
                 Database blockDb = new Database(false, true);
-                blockDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg",
+                blockDb.ReadDwgFile(pathToLibrary,
                     FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction blockTx = blockDb.TransactionManager.StartTransaction();
 
