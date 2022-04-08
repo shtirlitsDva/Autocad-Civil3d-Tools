@@ -127,12 +127,14 @@
     <Compile Include="ObjectDumper\ObjectDumper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Schema\1.0_ler.Designer.cs" />
+    <Compile Include="Schema\Consolidated.cs" />
     <Compile Include="Schema\Geometri.cs" />
     <Compile Include="Schema\GraveforespoergselssvarType.cs" />
     <Compile Include="Schema\GraveforespoergselssvarTypeLedningMember.cs" />
     <Compile Include="Schema\Ledningskomponenter.cs" />
     <Compile Include="Schema\LedningTypes.cs" />
     <Compile Include="Schema\VariousClasses.cs" />
+    <Compile Include="Schema\wfs.Designer.cs" />
     <Compile Include="Visualizer.cs" />
   </ItemGroup>
   <ItemGroup>
