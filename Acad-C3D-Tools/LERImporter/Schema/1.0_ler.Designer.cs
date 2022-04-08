@@ -4845,7 +4845,6 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class FeatureCollectionType : AbstractFeatureCollectionType
@@ -7179,7 +7178,6 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(DynamicFeatureMemberType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractFeatureMemberType
