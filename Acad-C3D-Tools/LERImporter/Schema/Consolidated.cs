@@ -46,21 +46,65 @@ namespace LERImporter.Schema
         [XmlElement("Foeringsroer", typeof(FoeringsroerType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
         [XmlElement("Afloebsledning", typeof(AfloebsledningType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
         [XmlElement("Roerledning", typeof(RoerledningType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement(typeof(Graveforesp), Namespace = "http://data.gov.dk/schemas/LER/1/gml", ElementName = "Graveforesp")]
+        [XmlElement(typeof(Graveforesp), Namespace = "http://www.ler.dk/ler", ElementName = "Graveforesp")]
         [XmlElement(typeof(Kontaktprofil), Namespace = "http://data.gov.dk/schemas/LER/1/gml", ElementName = "Kontaktprofil")]
         [XmlElement(typeof(UtilityPackageInfo), Namespace = "http://data.gov.dk/schemas/LER/1/gml", ElementName = "UtilityPackageInfo")]
         [XmlElement(typeof(UtilityOwner), Namespace = "http://data.gov.dk/schemas/LER/1/gml", ElementName = "UtilityOwner")]
+        [XmlElement(typeof(Informationsressource), Namespace = "http://data.gov.dk/schemas/LER/1/gml", ElementName = "Informationsressource")]
         public AbstractGMLType item { get; set; }
     }
 
+    [XmlInclude(typeof(Informationsressource))]
     [XmlInclude(typeof(Graveforesp))]
     [XmlInclude(typeof(Kontaktprofil))]
     [XmlInclude(typeof(UtilityPackageInfo))]
     [XmlInclude(typeof(UtilityOwner))]
     public abstract partial class AbstractGMLType
     {
-
+        [XmlElement("objectType", Namespace = "")]
+        public string objectType { get; set; }
+        [XmlElement("ledningsejer", Namespace = "")]
+        public uint ledningsejer { get; set; }
+        [XmlElement("indberetningsNr", Namespace = "")]
+        public string indberetningsNr { get; set; }
+        [PsInclude]
+        public string LedningsEjersNavn { get; set; }
     }
+
+    /// <remarks/>
+    [System.SerializableAttribute()]
+    [System.ComponentModel.DesignerCategoryAttribute("code")]
+    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    public partial class Informationsressource : AbstractGMLType
+    {
+        //[System.Xml.Serialization.XmlElementAttribute(Namespace = "http://purl.org/dc/terms/")]
+        //public object title { get; set; }
+        //public InformationsressourceFormat format { get; set; }
+        //public string sti { get; set; }
+        //public InformationsressourceGeometri geometri { get; set; }
+    }
+
+    [System.SerializableAttribute()]
+    [System.ComponentModel.DesignerCategoryAttribute("code")]
+    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    public partial class InformationsressourceFormat
+    {
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        public string type { get; set; }
+        [System.Xml.Serialization.XmlTextAttribute()]
+        public string Value { get; set; }
+    }
+    
+    [System.SerializableAttribute()]
+    [System.ComponentModel.DesignerCategoryAttribute("code")]
+    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    public partial class InformationsressourceGeometri
+    {
+        [System.Xml.Serialization.XmlElementAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
+        public Point Point { get; set; }
+    }
+
 
     [System.SerializableAttribute()]
     [System.ComponentModel.DesignerCategoryAttribute("code")]
@@ -68,12 +112,6 @@ namespace LERImporter.Schema
     [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
     public partial class Kontaktprofil : AbstractGMLType
     {
-        [System.Xml.Serialization.XmlElementAttribute(Namespace = "")]
-        public string objectType { get; set; }
-        [System.Xml.Serialization.XmlElementAttribute(Namespace = "")]
-        public uint indberetningsNr { get; set; }
-        [System.Xml.Serialization.XmlElementAttribute(Namespace = "")]
-        public uint ledningsejer { get; set; }
         public string navn { get; set; }
         public string telefonnummer { get; set; }
         public string mailadresse { get; set; }
@@ -86,12 +124,6 @@ namespace LERImporter.Schema
     public partial class UtilityPackageInfo : AbstractGMLType
     {
 
-        [System.Xml.Serialization.XmlElementAttribute(Namespace = "")]
-        public string objectType { get; set; }
-        [System.Xml.Serialization.XmlElementAttribute(Namespace = "")]
-        public uint indberetningsNr { get; set; }
-        [System.Xml.Serialization.XmlElementAttribute(Namespace = "")]
-        public uint ledningsejer { get; set; }
         [System.Xml.Serialization.XmlElementAttribute(Namespace = "")]
         public string gyldigTil { get; set; }
         [System.Xml.Serialization.XmlElementAttribute(Namespace = "")]
@@ -107,11 +139,6 @@ namespace LERImporter.Schema
     [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
     public partial class UtilityOwner : AbstractGMLType
     {
-        [System.Xml.Serialization.XmlElementAttribute(Namespace = "")]
-        public string objectType { get; set; }
-        [System.Xml.Serialization.XmlElementAttribute(Namespace = "")]
-        public uint ledningsejer { get; set; }
-        [System.Xml.Serialization.XmlElementAttribute(Namespace = "")]
         public uint cvr { get; set; }
         [System.Xml.Serialization.XmlElementAttribute(Namespace = "")]
         public string companyName { get; set; }
@@ -125,8 +152,6 @@ namespace LERImporter.Schema
     [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://www.ler.dk/ler", IsNullable = false)]
     public partial class Graveforesp : AbstractGMLType
     {
-        [System.Xml.Serialization.XmlElementAttribute(Namespace = "")]
-        public string objectType { get; set; }
         public byte fid { get; set; }
         public string graveart_id { get; set; }
         [System.Xml.Serialization.XmlElementAttribute(DataType = "date")]

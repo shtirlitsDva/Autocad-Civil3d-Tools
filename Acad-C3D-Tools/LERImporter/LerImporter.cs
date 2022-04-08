@@ -295,9 +295,7 @@ namespace LERImporter
                     {
                         try
                         {
-                            //gf.WorkingDatabase = ler2dDb;
-                            //gf.CreateLerData();
-                            //gf.WorkingDatabase = null;
+                            LERImporter.ConsolidatedCreator.CreateLerData(ler2dDb, gf);
                         }
                         catch (System.Exception ex)
                         {

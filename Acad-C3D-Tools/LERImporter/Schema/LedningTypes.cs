@@ -64,8 +64,8 @@ namespace LERImporter.Schema
     public partial class LedningEllerLedningstraceType
     {
         [PsInclude]
-        public string Driftsstatus { get => this.driftsstatus.Value.GetXmlEnumAttributeValueFromEnum(); }
-        public DriftsstatusType Driftsstatus2 { get => this.driftsstatus.Value; }
+        public string Driftsstatus { get => this.driftsstatus?.Value.GetXmlEnumAttributeValueFromEnum() ?? "i drift"; }
+        public DriftsstatusType Driftsstatus2 { get => this.driftsstatus?.Value ?? DriftsstatusType.idrift; }
         [PsInclude]
         public string EtableringsTidspunkt { get => this.etableringstidspunkt?.Value; }
         [PsInclude]
@@ -237,9 +237,41 @@ namespace LERImporter.Schema
     }
     public partial class VandledningType : ILerLedning
     {
+        private string DetermineLayerName(Database database)
+        {
+            #region Determine correct layer name
+            string layerName = "Vandledning_L2";
+            string driftsstatusSuffix = "";
+
+            switch (this.Driftsstatus2)
+            {
+                case DriftsstatusType.underetablering:
+                case DriftsstatusType.idrift:
+                    break;
+                case DriftsstatusType.permanentudeafdrift:
+                    driftsstatusSuffix = "_UAD";
+                    break;
+                default:
+                    Log.log($"Vandledning {this.id} har driftsstatus lig med null! Sætter til \"i drift\".");
+                    break;
+            }
+
+            layerName += driftsstatusSuffix;
+
+            database.CheckOrCreateLayer(layerName);
+            return layerName;
+            #endregion
+        }
         public Oid DrawEntity2D(Database database)
         {
-            throw new NotImplementedException();
+            //Create new polyline in the base class
+            Polyline pline = DrawPline2D(database).Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            pline.Layer = DetermineLayerName(database);
+
+            pline.ConstantWidth = this.UdvendigDiameter;
+
+            return pline.ObjectId;
         }
 
         public Oid DrawEntity3D(Database database)

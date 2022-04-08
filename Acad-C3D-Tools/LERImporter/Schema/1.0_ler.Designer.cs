@@ -19,7 +19,6 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
     [XmlRootAttribute("Afloebskomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
@@ -4714,7 +4713,6 @@ namespace LERImporter.Schema
     [XmlInclude(typeof(GraveforespoergselssvarType))]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public abstract partial class AbstractFeatureType : AbstractGMLType
