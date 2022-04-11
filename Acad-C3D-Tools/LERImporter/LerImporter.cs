@@ -56,7 +56,7 @@ namespace LERImporter
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             doc.Editor.WriteMessage("\nLER Import Application indlæst.");
-            doc.Editor.WriteMessage("\nKommando til LER 2.0 -> IMPORTGMLLERDATA.");
+            doc.Editor.WriteMessage("\nKommando til LER 2.0 -> IMPORTCONSOLIDATEDGML.");
         }
 
         public void Terminate()
@@ -172,7 +172,7 @@ namespace LERImporter
                 tx.Commit();
             }
         }
-        [CommandMethod("IMPORTGMLLERDATA")]
+        //[CommandMethod("IMPORTGMLLERDATA")]
         public void importgmllerdata()
         {
             try
@@ -248,7 +248,7 @@ namespace LERImporter
             }
         }
         
-        [CommandMethod("IMPORTCONSOLIDATED")]
+        [CommandMethod("IMPORTCONSOLIDATEDGML")]
         public void importconsolidated()
         {
             try

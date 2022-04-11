@@ -528,7 +528,8 @@ namespace LERImporter.Schema
         [PsInclude]
         public bool HarFod { get => this.harFod?.Value ?? false; }
         [PsInclude]
-        public LedningstransporttypeType? LedningstransportType { get => this.ledningstransporttype?.Value; }
+        public string LedningstransportType { get => this.ledningstransporttype?.Value.ToString() ?? ""; }
+        public LedningstransporttypeType? ledningstransportType { get => this.ledningstransporttype?.Value; }
         private string DetermineLayerName(Database database)
         {
             string layerName = "Afløbsledning";

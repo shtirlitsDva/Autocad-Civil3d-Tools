@@ -58,7 +58,7 @@ namespace LERImporter.Schema
     public abstract partial class LedningskomponentType
     {
         [PsInclude]
-        public string Driftsstatus { get => this.driftsstatus.Value.GetXmlEnumAttributeValueFromEnum(); }
+        public string Driftsstatus { get => this.driftsstatus?.Value.GetXmlEnumAttributeValueFromEnum() ?? "i drift"; }
         [PsInclude]
         public string EtableringsTidspunkt { get => this.etableringstidspunkt?.Value; }
         [PsInclude]
@@ -134,5 +134,26 @@ namespace LERImporter.Schema
             return creator.CreateEntity(database);
         }
     }
-    public partial class AfloebskomponentType : LedningskomponentType { }
+    public partial class AfloebskomponentType : LedningskomponentType, ILerKomponent
+    {
+        #region Properties to include
+        [PsInclude]
+        public string Type { get => this.type.GetXmlEnumAttributeValueFromEnum(); }
+        [PsInclude]
+        public string Brøndform { get => this.broendform?.Value.ToString() ?? ""; }
+        [PsInclude]
+        public double Bunddiameterbredde { get => this.bunddiameterbredde?.getValueInStdUnits() ?? 0.0; }
+        [PsInclude]
+        public double Bundlængde { get => this.bundlaengde?.getValueInStdUnits() ?? 0.0; }
+        [PsInclude]
+        public double Bundkote { get => this.bundkote?.GetDouble() ?? 0.0; }
+        [PsInclude]
+        public double Topkote { get => this.topkote?.GetDouble() ?? 0.0; } 
+        #endregion
+        public ObjectId DrawComponent(Database database)
+        {
+            IEntityCreator creator = this.geometri.Item as IEntityCreator;
+            return creator.CreateEntity(database);
+        }
+    }
 }

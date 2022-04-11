@@ -164,7 +164,11 @@ namespace LERImporter.Schema
     {
         [XmlTextAttribute]
         public string Text { get; set; }
-
+        /// <summary>
+        /// Can only be used when Text contains only one number
+        /// for example in bundkote for afløbskomponenter
+        /// </summary>
+        public double GetDouble() => Convert.ToDouble(Text);
         public Point3d[] GetPoints()
         {
             //This class only has one point
