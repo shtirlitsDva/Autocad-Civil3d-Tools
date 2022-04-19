@@ -2737,6 +2737,7 @@ namespace IntersectUtilities.Dimensionering
 
                     wb.Save();
                     wb.Close();
+                    oXL.Quit();
 
                     System.Windows.Forms.Application.DoEvents();
                     #endregion
