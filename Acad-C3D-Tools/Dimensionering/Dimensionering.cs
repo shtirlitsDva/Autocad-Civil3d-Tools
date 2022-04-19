@@ -220,7 +220,7 @@ namespace IntersectUtilities.Dimensionering
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-            
+
             #region Select sample object
             PromptEntityOptions peo1 = new PromptEntityOptions(
                 "\nVælg objekt som repræsenterer udklipsobjekter (skal være POLYLINE eller MPOLYGON): ");
@@ -382,7 +382,7 @@ namespace IntersectUtilities.Dimensionering
                             default:
                                 break;
                         }
-                        
+
                     }
 
                     //Now delete all non-claimed blocks
@@ -810,6 +810,205 @@ namespace IntersectUtilities.Dimensionering
                         blockTx.Dispose();
                         blockDb.Dispose();
                     }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("LISTANVENDELSEALL")]
+        public void listanvendelseall()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            //string curEtapeName = Dimensionering.dimaskforarea();
+            //if (curEtapeName.IsNoE()) return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                    PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                    #region dump af anvendelseskoder
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
+                    brs = brs
+                        .Where(x => Dimensionering.AcceptedBlockTypes.Contains(
+                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
+                        .ToHashSet();
+
+                    var anvendelsesKoder = new HashSet<(string kode, string tekst)>();
+
+                    foreach (BlockReference building in brs)
+                    {
+                        bbrPsm.GetOrAttachPropertySet(building);
+                        string anvendelsesTekst = bbrPsm.ReadPropertyString(bbrDef.BygningsAnvendelseNyTekst);
+                        string anvendelsesKode = bbrPsm.ReadPropertyString(bbrDef.BygningsAnvendelseNyKode);
+                        anvendelsesKoder.Add((anvendelsesKode, anvendelsesTekst));
+                    }
+
+                    //Build file name
+                    string dbFilename = localDb.OriginalFileName;
+                    string path = System.IO.Path.GetDirectoryName(dbFilename);
+                    string dumpExportFileName = path + "\\anvendelsedump.txt";
+
+                    Utils.ClrFile(dumpExportFileName);
+                    Utils.OutputWriter(dumpExportFileName, string.Join(Environment.NewLine, anvendelsesKoder.Select(x => $"{x.kode}; {x.tekst}")));
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("ANVENDELSESSTATS")]
+        public void anvendelsesstats()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            //string curEtapeName = Dimensionering.dimaskforarea();
+            //if (curEtapeName.IsNoE()) return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - QGIS\CSV TIL REST HENTER\AnvendelsesKoderPrivatErhverv.csv", "PrivatErhverv");
+
+                    PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                    PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                    #region dump af anvendelseskoder
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
+                    brs = brs
+                        //.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                        //    x, "BBR", "Distriktets_navn") == curEtapeName)
+                        .Where(x => Dimensionering.AcceptedBlockTypes.Contains(
+                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
+                        .Where(x => ReadStringParameterFromDataTable(
+                            PropertySetManager.ReadNonDefinedPropertySetString(
+                                x, "BBR", "BygningsAnvendelseNyKode"), dt, "Type", 0) == "Erhverv")
+                        .ToHashSet();
+
+                    var dict = new Dictionary<string, int>();
+
+                    foreach (BlockReference br in brs)
+                    {
+                        bbrPsm.GetOrAttachPropertySet(br);
+                        string anvendelse = bbrPsm.ReadPropertyString(bbrDef.BygningsAnvendelseNyTekst);
+
+                        if (dict.ContainsKey(anvendelse))
+                        {
+                            int curCount = dict[anvendelse];
+                            curCount++;
+                            dict[anvendelse] = curCount;
+                        }
+                        else
+                        {
+                            dict.Add(anvendelse, 1);
+                        }
+                    }
+
+                    //Build file name
+                    string dbFilename = localDb.OriginalFileName;
+                    string path = System.IO.Path.GetDirectoryName(dbFilename);
+                    string dumpExportFileName = path + "\\anvendelsesstats.txt";
+
+                    Utils.ClrFile(dumpExportFileName);
+                    Utils.OutputWriter(dumpExportFileName, string.Join(Environment.NewLine, dict.Select(x => x.Key + ";" + x.Value.ToString())));
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("ANVENDELSETILADRESSER")]
+        public void anvendelsetiladresser()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            string curEtapeName = Dimensionering.dimaskforarea();
+            if (curEtapeName.IsNoE()) return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - QGIS\CSV TIL REST HENTER\AnvendelsesKoderPrivatErhverv.csv", "PrivatErhverv");
+
+                    PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                    PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                    string husnumreStr = File.ReadAllText(nyHusnumreFilename);
+
+                    #region dump af anvendelseskoder
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
+                    brs = brs
+                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                            x, "BBR", "Distriktets_navn") == curEtapeName)
+                        .Where(x => Dimensionering.AcceptedBlockTypes.Contains(
+                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
+                        .Where(x => ReadStringParameterFromDataTable(
+                            PropertySetManager.ReadNonDefinedPropertySetString(
+                                x, "BBR", "BygningsAnvendelseNyKode"), dt, "Type", 0) == "Erhverv")
+                        .ToHashSet();
+
+                    foreach (BlockReference br in brs)
+                    {
+                        
+                    }
+
+                    //Build file name
+                    string dbFilename = localDb.OriginalFileName;
+                    string path = System.IO.Path.GetDirectoryName(dbFilename);
+                    string dumpExportFileName = path + "\\anvendelsesstats.txt";
+
+                    Utils.ClrFile(dumpExportFileName);
+                    Utils.OutputWriter(dumpExportFileName, string.Join(Environment.NewLine, dict.Select(x => x.Key + ";" + x.Value.ToString())));
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -1947,7 +2146,7 @@ namespace IntersectUtilities.Dimensionering
                 #endregion
             }
         }
-        private static string dimaskforarea()
+        internal static string dimaskforarea()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
