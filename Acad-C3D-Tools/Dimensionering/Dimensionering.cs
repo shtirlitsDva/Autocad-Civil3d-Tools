@@ -983,7 +983,7 @@ namespace IntersectUtilities.Dimensionering
                     PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
                     PSetDefs.BBR bbrDef = new PSetDefs.BBR();
 
-                    string husnumreStr = File.ReadAllText(nyHusnumreFilename);
+                    //string husnumreStr = File.ReadAllText(nyHusnumreFilename);
 
                     #region dump af anvendelseskoder
                     HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
@@ -1008,7 +1008,7 @@ namespace IntersectUtilities.Dimensionering
                     string dumpExportFileName = path + "\\anvendelsesstats.txt";
 
                     Utils.ClrFile(dumpExportFileName);
-                    Utils.OutputWriter(dumpExportFileName, string.Join(Environment.NewLine, dict.Select(x => x.Key + ";" + x.Value.ToString())));
+                    //Utils.OutputWriter(dumpExportFileName, string.Join(Environment.NewLine, dict.Select(x => x.Key + ";" + x.Value.ToString())));
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -1149,7 +1149,16 @@ namespace IntersectUtilities.Dimensionering
                         {
                             graphPsm.GetOrAttachPropertySet(building);
                             string handleString = graphPsm.ReadPropertyString(graphDef.Parent);
-                            Handle parent = new Handle(Convert.ToInt64(handleString, 16));
+                            Handle parent;
+                            try
+                            {
+                                parent = new Handle(Convert.ToInt64(handleString, 16));
+                            }
+                            catch (System.Exception)
+                            {
+                                prdDbg($"Reading parent handle failed for block: {building.Handle}");
+                                throw;
+                            }
                             Line line = parent.Go<Line>(localDb);
                             string stikLængde = line.Length.ToString("0.##");
 
