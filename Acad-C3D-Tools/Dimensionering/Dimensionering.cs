@@ -29,6 +29,8 @@ using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
 using Microsoft.Office.Interop.Excel;
 using ChunkedEnumerator;
+using Schema;
+using BBRtoAddress;
 
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
@@ -826,7 +828,7 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
-        [CommandMethod("LISTANVENDELSEALL")]
+        //[CommandMethod("LISTANVENDELSEALL")]
         public void listanvendelseall()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -885,7 +887,7 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
-        [CommandMethod("ANVENDELSESSTATS")]
+        //[CommandMethod("ANVENDELSESSTATS")]
         public void anvendelsesstats()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -961,8 +963,8 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
-        [CommandMethod("ANVENDELSETILADRESSER")]
-        public void anvendelsetiladresser()
+        [CommandMethod("GASDATAUPDATE")]
+        public void gasdataupdate()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -970,45 +972,94 @@ namespace IntersectUtilities.Dimensionering
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-            string curEtapeName = Dimensionering.dimaskforarea();
-            if (curEtapeName.IsNoE()) return;
+            //string curEtapeName = Dimensionering.dimaskforarea();
+            //if (curEtapeName.IsNoE()) return;
+
+            string AreaName = "0240 Egedal";
+            string BasePath = @"X:\AutoCAD DRI - QGIS\BBR UDTRÆK";
+            string husnummerPath = $"{BasePath}\\{AreaName}\\DAR_husnummer.json";
+            string baseDARHusnumre = File.ReadAllText(husnummerPath);
+            List<DARHusnummer> husnumre = JsonConvert.DeserializeObject<List<DARHusnummer>>(baseDARHusnumre);
+
+            string gasdataPath = @"X:\022-1245 - Dimensionering af alle etaper - Dokumenter\01 Intern\04 Projektering\" +
+                                 @"02 Forbrugsdata + sammenligning\Forbrugsdata\CSV\gasdata.json";
+            string baseGasdata = File.ReadAllText(gasdataPath);
+            var gasdatas = JsonConvert.DeserializeObject<List<GasData>>(baseGasdata)
+                .Where(x => x.ConflictResolution != GasData.ConflictResolutionEnum.Ignore);
+            var groupedGdsAdr = gasdatas.GroupBy(x => x.HusnummerId);
+
+            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
+                @"X:\AutoCAD DRI - QGIS\CSV TIL REST HENTER\AnvendelsesKoderPrivatErhverv.csv", "PrivatErhverv");
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
-                    System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
-                        @"X:\AutoCAD DRI - QGIS\CSV TIL REST HENTER\AnvendelsesKoderPrivatErhverv.csv", "PrivatErhverv");
-
                     PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
                     PSetDefs.BBR bbrDef = new PSetDefs.BBR();
-
-                    //string husnumreStr = File.ReadAllText(nyHusnumreFilename);
 
                     #region dump af anvendelseskoder
                     HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
                     brs = brs
-                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                            x, "BBR", "Distriktets_navn") == curEtapeName)
+                        //.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                        //    x, "BBR", "Distriktets_navn") == curEtapeName)
                         .Where(x => Dimensionering.AcceptedBlockTypes.Contains(
                             PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
-                        .Where(x => ReadStringParameterFromDataTable(
-                            PropertySetManager.ReadNonDefinedPropertySetString(
-                                x, "BBR", "BygningsAnvendelseNyKode"), dt, "Type", 0) == "Erhverv")
+                        //.Where(x => ReadStringParameterFromDataTable(
+                        //    PropertySetManager.ReadNonDefinedPropertySetString(
+                        //        x, "BBR", "BygningsAnvendelseNyKode"),
+                        //    dt, "Type", 0) == "Erhverv")
                         .ToHashSet();
 
-                    foreach (BlockReference br in brs)
-                    {
-                        
-                    }
+                    var joinedGroups = groupedGdsAdr.GroupJoin(brs,
+                        ggd => ggd.Key,
+                        br => PropertySetManager.ReadNonDefinedPropertySetString(
+                            br, "BBR", "id_husnummerid"),
+                        (ggd, bygningsList) => new
+                        {
+                            ggd = ggd,
+                            bygninger = bygningsList.Select(x => x)
+                        });
+
+                    prdDbg($"Number of groups: {groupedGdsAdr.Count()}.");
+                    prdDbg($"Number of all joins: {joinedGroups.Count()}");
+                    prdDbg($"Number of joins with buildings: {joinedGroups.Count(x => x.bygninger.Count() > 0)}");
+
+                    var noBuildings = joinedGroups.Where(x => x.bygninger.Count() == 0);
+                    var withBuildings = joinedGroups.Where(x => x.bygninger.Count() > 0);
+
+                    //try to join the remaining gds
+                    var nonJoinedGdList = noBuildings.SelectMany(x => x.ggd);
+                    var husNrJoin = nonJoinedGdList.Join(husnumre,
+                        gd => gd.HusnummerId,
+                        husNr => husNr.id_lokalId,
+                        (gd, husNr) => new
+                        {
+                            gasData = gd,
+                            husnummer = husNr
+                        });
+
+                    
+
+                    //var nonJoinedGas = noBuildings.SelectMany(x => x.ggd);
+                    //string nonJoinedGasDataPath = @"X:\022-1245 - Dimensionering af alle etaper - Dokumenter\01 Intern\04 Projektering\" +
+                    //                     @"02 Forbrugsdata + sammenligning\Forbrugsdata\CSV\nonJoinedGasData.json";
+                    //JsonSerializerSettings options = new JsonSerializerSettings()
+                    //{
+                    //    NullValueHandling = NullValueHandling.Ignore,
+                    //    Formatting = Formatting.Indented
+                    //};
+                    //string gdString = JsonConvert.SerializeObject(nonJoinedGas.OrderBy(x => x.Adresse), options);
+                    //Utils.OutputWriter(nonJoinedGasDataPath, gdString, true);
 
                     //Build file name
-                    string dbFilename = localDb.OriginalFileName;
-                    string path = System.IO.Path.GetDirectoryName(dbFilename);
-                    string dumpExportFileName = path + "\\anvendelsesstats.txt";
+                    //string dbFilename = localDb.OriginalFileName;
+                    //string path = System.IO.Path.GetDirectoryName(dbFilename);
+                    //string dumpExportFileName = path + "\\anvendelsesstats.txt";
 
-                    Utils.ClrFile(dumpExportFileName);
+                    //Utils.ClrFile(dumpExportFileName);
                     //Utils.OutputWriter(dumpExportFileName, string.Join(Environment.NewLine, dict.Select(x => x.Key + ";" + x.Value.ToString())));
+
                     #endregion
                 }
                 catch (System.Exception ex)

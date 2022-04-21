@@ -79,10 +79,9 @@ namespace IntersectUtilities
             //Clear the output file
             System.IO.File.WriteAllBytes(fullPathAndName, new byte[0]);
         }
-        public static void OutputWriter(string fullPathAndName, string sr)
+        public static void OutputWriter(string fullPathAndName, string sr, bool clearFile = false)
         {
-            //Create filename
-            //string filename = fullpathand;
+            if (clearFile) System.IO.File.WriteAllBytes(fullPathAndName, new byte[0]);
 
             // Write to output file
             using (StreamWriter w = new StreamWriter(fullPathAndName, true, Encoding.UTF8))
