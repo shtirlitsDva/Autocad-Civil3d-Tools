@@ -963,8 +963,8 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
-        [CommandMethod("GASDATAUPDATE")]
-        public void gasdataupdate()
+        [CommandMethod("GASDATAANALYZE")]
+        public void gasdataanalyze()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -975,18 +975,19 @@ namespace IntersectUtilities.Dimensionering
             //string curEtapeName = Dimensionering.dimaskforarea();
             //if (curEtapeName.IsNoE()) return;
 
+            string basePath = @"X:\022-1245 - Dimensionering af alle etaper - Dokumenter\01 Intern\04 Projektering\" +
+                                      @"02 Forbrugsdata + sammenligning\Forbrugsdata\CSV\";
+
             string AreaName = "0240 Egedal";
             string BasePath = @"X:\AutoCAD DRI - QGIS\BBR UDTRÆK";
             string husnummerPath = $"{BasePath}\\{AreaName}\\DAR_husnummer.json";
             string baseDARHusnumre = File.ReadAllText(husnummerPath);
             List<DARHusnummer> husnumre = JsonConvert.DeserializeObject<List<DARHusnummer>>(baseDARHusnumre);
 
-            string gasdataPath = @"X:\022-1245 - Dimensionering af alle etaper - Dokumenter\01 Intern\04 Projektering\" +
-                                 @"02 Forbrugsdata + sammenligning\Forbrugsdata\CSV\gasdata.json";
+            string gasdataPath = basePath + "gasdata.json";
             string baseGasdata = File.ReadAllText(gasdataPath);
             var gasdatas = JsonConvert.DeserializeObject<List<GasData>>(baseGasdata)
                 .Where(x => x.ConflictResolution != GasData.ConflictResolutionEnum.Ignore);
-            var groupedGdsAdr = gasdatas.GroupBy(x => x.HusnummerId);
 
             System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
                 @"X:\AutoCAD DRI - QGIS\CSV TIL REST HENTER\AnvendelsesKoderPrivatErhverv.csv", "PrivatErhverv");
@@ -1011,35 +1012,79 @@ namespace IntersectUtilities.Dimensionering
                         //    dt, "Type", 0) == "Erhverv")
                         .ToHashSet();
 
-                    var joinedGroups = groupedGdsAdr.GroupJoin(brs,
-                        ggd => ggd.Key,
-                        br => PropertySetManager.ReadNonDefinedPropertySetString(
-                            br, "BBR", "id_husnummerid"),
-                        (ggd, bygningsList) => new
-                        {
-                            ggd = ggd,
-                            bygninger = bygningsList.Select(x => x)
-                        });
+                    var groupedGasDatasByHusnr = gasdatas.GroupBy(x => x.HusnummerId);
 
-                    prdDbg($"Number of groups: {groupedGdsAdr.Count()}.");
-                    prdDbg($"Number of all joins: {joinedGroups.Count()}");
-                    prdDbg($"Number of joins with buildings: {joinedGroups.Count(x => x.bygninger.Count() > 0)}");
-
-                    var noBuildings = joinedGroups.Where(x => x.bygninger.Count() == 0);
-                    var withBuildings = joinedGroups.Where(x => x.bygninger.Count() > 0);
-
-                    //try to join the remaining gds
-                    var nonJoinedGdList = noBuildings.SelectMany(x => x.ggd);
-                    var husNrJoin = nonJoinedGdList.Join(husnumre,
-                        gd => gd.HusnummerId,
+                    var husNrJoin = groupedGasDatasByHusnr.Join(husnumre,
+                        gd => gd.Key,
                         husNr => husNr.id_lokalId,
-                        (gd, husNr) => new
+                        (a, b) => new
                         {
-                            gasData = gd,
-                            husnummer = husNr
+                            GasData = a,
+                            Husnummer = b
                         });
 
-                    
+                    //the husnrjoingroup can be retreived by adgangtilbygning key
+                    var husNrJoinGroupedByAdgangTilBygning = husNrJoin.GroupBy(x => x.Husnummer.adgangTilBygning);
+
+                    var manyToMany = new HashSet<(HashSet<GasData> GasData, HashSet<Handle> BR)>();
+
+                    int count = 0;
+                    foreach (var item in husNrJoinGroupedByAdgangTilBygning)
+                    {
+                        count++;
+                        if (count % 200 == 0) { prdDbg($"Iteration: {count}"); System.Windows.Forms.Application.DoEvents(); }
+
+                        HashSet<GasData> gasDatas = new HashSet<GasData>();
+                        foreach (var group in item) gasDatas.UnionWith(group.GasData.ToHashSet());
+
+                        HashSet<Handle> BRs = new HashSet<Handle>();
+                        BlockReference direct = brs.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                            x, "BBR", "id_lokalId") == item.Key).FirstOrDefault();
+                        if (direct != null) BRs.Add(direct.Handle);
+
+                        //Now add references from the other grouped husnr
+                        foreach (var group in item)
+                        {
+                            var additional = brs.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                                x, "BBR", "id_husnummerid") == group.Husnummer.id_lokalId);
+                            foreach (var byg in additional) BRs.Add(byg.Handle);
+                        }
+
+                        manyToMany.Add((gasDatas, BRs));
+                    }
+
+                    prdDbg($"Count: {manyToMany.Count} after {count} loop(s).");
+
+                    JsonSerializerSettings options = new JsonSerializerSettings()
+                    {
+                        NullValueHandling = NullValueHandling.Ignore,
+                        Formatting = Formatting.Indented
+                    };
+                    string manyToManyString = JsonConvert.SerializeObject(manyToMany, options);
+                    Utils.OutputWriter(basePath + "manyToManyResult.json", manyToManyString, true);
+
+                    #region To find the last missing joins
+                    //var atLastJoinedList = missingBuildingJoin.SelectMany(x => x.gasdata);
+
+                    //var findMissingJoin = noBuildings.GroupJoin(atLastJoinedList,
+                    //    nob => nob.ggd.Key,
+                    //    last => last.HusnummerId,
+                    //    (a, b) => new
+                    //    {
+                    //        GasDataGroup = a,
+                    //        LastJoinedGd = b.Select(x => x)
+                    //    }); 
+                    #endregion
+
+                    //StringBuilder sb = new StringBuilder();
+
+                    //prdDbg($"Test last join: {findMissingJoin.Count(x => x.LastJoinedGd.Count() == 0)}");
+                    //foreach (var item in findMissingJoin.Where(x => x.LastJoinedGd.Count() == 0))
+                    //{
+                    //    prdDbg(item.GasDataGroup.ggd.Key);
+                    //}
+
+                    //Utils.OutputWriter(basePath + "missingJoin.txt", sb.ToString(), true);
 
                     //var nonJoinedGas = noBuildings.SelectMany(x => x.ggd);
                     //string nonJoinedGasDataPath = @"X:\022-1245 - Dimensionering af alle etaper - Dokumenter\01 Intern\04 Projektering\" +
@@ -1059,6 +1104,76 @@ namespace IntersectUtilities.Dimensionering
 
                     //Utils.ClrFile(dumpExportFileName);
                     //Utils.OutputWriter(dumpExportFileName, string.Join(Environment.NewLine, dict.Select(x => x.Key + ";" + x.Value.ToString())));
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("GASDATAUPDATE")]
+        public void gasdataupdate()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            //string curEtapeName = Dimensionering.dimaskforarea();
+            //if (curEtapeName.IsNoE()) return;
+
+            string basePath = @"X:\022-1245 - Dimensionering af alle etaper - Dokumenter\01 Intern\04 Projektering\" +
+                                      @"02 Forbrugsdata + sammenligning\Forbrugsdata\CSV\";
+            string baseResultdata = File.ReadAllText(basePath + "manyToManyResult.json");
+            List<ManyToManyResult> result = JsonConvert.DeserializeObject<List<ManyToManyResult>>(baseResultdata);
+
+            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
+                @"X:\AutoCAD DRI - QGIS\CSV TIL REST HENTER\AnvendelsesKoderPrivatErhverv.csv", "PrivatErhverv");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                    PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                    #region update af gasdata
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
+                    brs = brs
+                        //.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                        //    x, "BBR", "Distriktets_navn") == curEtapeName)
+                        .Where(x => Dimensionering.AcceptedBlockTypes.Contains(
+                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
+                        //.Where(x => ReadStringParameterFromDataTable(
+                        //    PropertySetManager.ReadNonDefinedPropertySetString(
+                        //        x, "BBR", "BygningsAnvendelseNyKode"),
+                        //    dt, "Type", 0) == "Erhverv")
+                        .ToHashSet();
+
+                    prdDbg($"Antal resultater: {result.Count}");
+                    var first = result.First();
+                    var second = first.Result.First();
+
+                    prdDbg($"{second.Item1.First()}\n{second.Item2.First()}");
+
+                    //JsonSerializerSettings options = new JsonSerializerSettings()
+                    //{
+                    //    NullValueHandling = NullValueHandling.Ignore,
+                    //    Formatting = Formatting.Indented
+                    //};
+                    //string manyToManyString = JsonConvert.SerializeObject(manyToMany, options);
+                    //Utils.OutputWriter(basePath + "manyToManyResult.json", manyToManyString, true);
 
                     #endregion
                 }
