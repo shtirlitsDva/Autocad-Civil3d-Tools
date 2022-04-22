@@ -1076,6 +1076,7 @@ namespace IntersectUtilities.Dimensionering
                     //    }); 
                     #endregion
 
+                    #region Old code
                     //StringBuilder sb = new StringBuilder();
 
                     //prdDbg($"Test last join: {findMissingJoin.Count(x => x.LastJoinedGd.Count() == 0)}");
@@ -1103,7 +1104,8 @@ namespace IntersectUtilities.Dimensionering
                     //string dumpExportFileName = path + "\\anvendelsesstats.txt";
 
                     //Utils.ClrFile(dumpExportFileName);
-                    //Utils.OutputWriter(dumpExportFileName, string.Join(Environment.NewLine, dict.Select(x => x.Key + ";" + x.Value.ToString())));
+                    //Utils.OutputWriter(dumpExportFileName, string.Join(Environment.NewLine, dict.Select(x => x.Key + ";" + x.Value.ToString()))); 
+                    #endregion
 
                     #endregion
                 }
@@ -1136,7 +1138,9 @@ namespace IntersectUtilities.Dimensionering
             string basePath = @"X:\022-1245 - Dimensionering af alle etaper - Dokumenter\01 Intern\04 Projektering\" +
                                       @"02 Forbrugsdata + sammenligning\Forbrugsdata\CSV\";
             string baseResultdata = File.ReadAllText(basePath + "manyToManyResult.json");
-            List<ManyToManyResult> result = JsonConvert.DeserializeObject<List<ManyToManyResult>>(baseResultdata);
+            List<(List<GasData>, List<Handle>)> result =
+                JsonConvert.DeserializeObject<List<(List<GasData>, List<Handle>)>>(baseResultdata);
+            //List<ManyToManyResult> result = JsonConvert.DeserializeObject<List<ManyToManyResult>>(baseResultdata);0
 
             System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
                 @"X:\AutoCAD DRI - QGIS\CSV TIL REST HENTER\AnvendelsesKoderPrivatErhverv.csv", "PrivatErhverv");
@@ -1162,10 +1166,41 @@ namespace IntersectUtilities.Dimensionering
                         .ToHashSet();
 
                     prdDbg($"Antal resultater: {result.Count}");
-                    var first = result.First();
-                    var second = first.Result.First();
 
-                    prdDbg($"{second.Item1.First()}\n{second.Item2.First()}");
+                    foreach ((List<GasData> GasData, List<Handle> BR) tuple in result)
+                    {
+                        var numUniques = 1;
+                        var sameResoultion = tuple.GasData
+                            .Select(x => x.ConflictResolution)
+                            .Distinct()
+                            .Count() == numUniques;
+
+                        if (!sameResoultion)
+                        {
+                            prdDbg($"Different conflict resolution!\nSkipping iteration.\n{tuple.GasData.First()}");
+                            continue;
+                        }
+                        else
+                        {
+                            GasData.ConflictResolutionEnum cr = tuple.GasData.First().ConflictResolution;
+                            switch (cr)
+                            {
+                                case GasData.ConflictResolutionEnum.None:
+                                case GasData.ConflictResolutionEnum.GasDataCombined:
+                                    break;
+                                case GasData.ConflictResolutionEnum.Manual:
+                                    break;
+                                case GasData.ConflictResolutionEnum.Ignore:
+                                    break;
+                                case GasData.ConflictResolutionEnum.Distribute:
+                                    break;
+                                default:
+                                    throw new System.Exception("Unexpected ConflictResolutionEnum!");
+                            }
+                        }
+
+                    }
+
 
                     //JsonSerializerSettings options = new JsonSerializerSettings()
                     //{
