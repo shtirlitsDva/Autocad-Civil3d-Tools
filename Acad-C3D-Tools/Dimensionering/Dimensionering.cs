@@ -23,6 +23,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Data;
+using System.Data.SqlClient;
 using System.Reflection;
 using MoreLinq;
 using GroupByCluster;
@@ -1166,8 +1167,10 @@ namespace IntersectUtilities.Dimensionering
                         .ToHashSet();
 
                     prdDbg($"Antal resultater: {result.Count}");
-
-                    foreach ((List<GasData> GasData, List<Handle> BR) tuple in result)
+                    StringBuilder sb = new StringBuilder();
+                    double eks = 0;
+                    double frem = 0;
+                    foreach ((List<GasData> GasData, List<Handle> BRhandles) tuple in result)
                     {
                         var numUniques = 1;
                         var sameResoultion = tuple.GasData
@@ -1187,20 +1190,100 @@ namespace IntersectUtilities.Dimensionering
                             {
                                 case GasData.ConflictResolutionEnum.None:
                                 case GasData.ConflictResolutionEnum.GasDataCombined:
+                                    var BRs = GetBrs(localDb, tuple.BRhandles);
+                                    var anvKoder = BRs.Select(x =>
+                                        PropertySetManager.ReadNonDefinedPropertySetString(
+                                            x, "BBR", "BygningsAnvendelseNyKode"));
+                                    if (anvKoder.Distinct().Count() == 1)
+                                    {
+                                        if (ReadStringParameterFromDataTable(
+                                                PropertySetManager.ReadNonDefinedPropertySetString(
+                                                    BRs.First(), "BBR", "BygningsAnvendelseNyKode"),
+                                                dt, "Type", 0) == "Erhverv")
+                                        {
+                                            double newConsumption = tuple.GasData.Sum(x => x.ForbrugOmregnet);
+                                            double originalConsumption = BRs.Sum(x =>
+                                                PropertySetManager.ReadNonDefinedPropertySetDouble(
+                                                x, "BBR", "EstimeretVarmeForbrug"));
+                                            string adresse = tuple.GasData.First().Adresse;
+                                            sb.AppendLine($"{adresse}: {originalConsumption} -> {newConsumption}");
+
+                                            frem += newConsumption;
+                                            eks += originalConsumption;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        //Filter out any non-erhvervsbygninger, if any left dump
+                                        //all gas on these
+                                        var erhverv = BRs.Where(x => ReadStringParameterFromDataTable(
+                                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "BygningsAnvendelseNyKode"),
+                                                dt, "Type", 0) == "Erhverv").ToList();
+                                        if (erhverv.Count == 0) continue;
+                                        double newConsumption = tuple.GasData.Sum(x => x.ForbrugOmregnet);
+                                        double originalConsumption = erhverv.Sum(x =>
+                                            PropertySetManager.ReadNonDefinedPropertySetDouble(
+                                                x, "BBR", "EstimeretVarmeForbrug"));
+                                        string adresse = tuple.GasData.First().Adresse;
+                                        sb.AppendLine($"{adresse}: {originalConsumption} -> {newConsumption}");
+
+                                        frem += newConsumption;
+                                        eks += originalConsumption;
+                                    }
                                     break;
                                 case GasData.ConflictResolutionEnum.Manual:
+                                    foreach (GasData gasData in tuple.GasData)
+                                    {
+                                        string targetBygId = gasData.BygId;
+                                        BlockReference targetByg = brs.FirstOrDefault(
+                                            x => PropertySetManager.ReadNonDefinedPropertySetString(
+                                                x, "BBR", "id_lokalId") == targetBygId);
+                                        double originalConsumption = PropertySetManager
+                                            .ReadNonDefinedPropertySetDouble(
+                                                targetByg, "BBR", "EstimeretVarmeForbrug");
+                                        double newConsumption = gasData.ForbrugOmregnet;
+                                        string adresse = gasData.Adresse;
+                                        sb.AppendLine($"{adresse}: {originalConsumption} -> {newConsumption}");
+
+                                        frem += newConsumption;
+                                        eks += originalConsumption;
+                                    }
                                     break;
                                 case GasData.ConflictResolutionEnum.Ignore:
                                     break;
                                 case GasData.ConflictResolutionEnum.Distribute:
+                                    var BRs2 = GetBrs(localDb, tuple.BRhandles);
+                                    var erhverv2 = BRs2.Where(x => ReadStringParameterFromDataTable(
+                                        PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "BygningsAnvendelseNyKode"),
+                                            dt, "Type", 0) == "Erhverv").ToList();
+                                    if (erhverv2.Count == 0) continue;
+                                    double newConsumption2 = tuple.GasData.Sum(x => x.ForbrugOmregnet);
+                                    double originalConsumption2 = erhverv2.Sum(x =>
+                                        PropertySetManager.ReadNonDefinedPropertySetDouble(
+                                            x, "BBR", "EstimeretVarmeForbrug"));
+                                    string adresse2 = tuple.GasData.First().Adresse;
+                                    sb.AppendLine($"{adresse2}: {originalConsumption2} -> {newConsumption2}");
+
+                                    frem += newConsumption2;
+                                    eks += originalConsumption2;
                                     break;
                                 default:
                                     throw new System.Exception("Unexpected ConflictResolutionEnum!");
                             }
                         }
 
+                        List<BlockReference> GetBrs(Database database, List<Handle> handles)
+                        {
+                            List<BlockReference> newList = new List<BlockReference>();
+                            foreach (var handle in handles)
+                                newList.Add(handle.Go<BlockReference>(database));
+                            return newList;
+                        }
                     }
 
+                    prdDbg($"Eks: {eks}, Frem: {frem}");
+
+                    Utils.OutputWriter(basePath + "updateResults.txt", sb.ToString(), true);
 
                     //JsonSerializerSettings options = new JsonSerializerSettings()
                     //{
