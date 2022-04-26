@@ -1168,7 +1168,6 @@ namespace IntersectUtilities.Dimensionering
 
                     double energiforbrugFørOpdatering = brs.Sum(
                         x => PropertySetManager.ReadNonDefinedPropertySetDouble(x, "BBR", "EstimeretVarmeForbrug"));
-                    prdDbg($"Total estimeret energiforbrug før opdatering: {energiforbrugFørOpdatering}");
 
                     prdDbg($"Antal resultater: {result.Count}");
                     StringBuilder sb = new StringBuilder();
@@ -1210,10 +1209,9 @@ namespace IntersectUtilities.Dimensionering
                                             double originalConsumption = BRs.Sum(x =>
                                                 PropertySetManager.ReadNonDefinedPropertySetDouble(
                                                 x, "BBR", "EstimeretVarmeForbrug"));
-                                            string adresse = tuple.GasData.First().Adresse;
 
                                             int antalBygninger = BRs.Count;
-                                            double perBygning = originalConsumption / (double)antalBygninger;
+                                            double perBygning = newConsumption / (double)antalBygninger;
 
                                             foreach (BlockReference br in BRs)
                                             {
@@ -1244,10 +1242,9 @@ namespace IntersectUtilities.Dimensionering
                                         double originalConsumption = erhverv.Sum(x =>
                                             PropertySetManager.ReadNonDefinedPropertySetDouble(
                                                 x, "BBR", "EstimeretVarmeForbrug"));
-                                        string adresse = tuple.GasData.First().Adresse;
 
                                         int antalBygninger = erhverv.Count;
-                                        double perBygning = originalConsumption / (double)antalBygninger;
+                                        double perBygning = newConsumption / (double)antalBygninger;
 
                                         foreach (BlockReference br in erhverv)
                                         {
@@ -1277,7 +1274,6 @@ namespace IntersectUtilities.Dimensionering
                                             .ReadNonDefinedPropertySetDouble(
                                                 targetByg, "BBR", "EstimeretVarmeForbrug");
                                         double newConsumption = gasData.ForbrugOmregnet;
-                                        string adresse = gasData.Adresse;
 
                                         bbrPsm.GetOrAttachPropertySet(targetByg);
                                         string area = bbrPsm.ReadPropertyString(bbrDef.DistriktetsNavn);
@@ -1296,19 +1292,37 @@ namespace IntersectUtilities.Dimensionering
                                 case GasData.ConflictResolutionEnum.Ignore:
                                     break;
                                 case GasData.ConflictResolutionEnum.Distribute:
-                                    var BRs2 = GetBrs(localDb, tuple.BRhandles);
-                                    var erhverv2 = BRs2.Where(x => ReadStringParameterFromDataTable(
-                                        PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "BygningsAnvendelseNyKode"),
+                                    {
+                                        var BRs2 = GetBrs(localDb, tuple.BRhandles);
+                                        var erhverv2 = BRs2.Where(x => ReadStringParameterFromDataTable(
+                                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR",
+                                                "BygningsAnvendelseNyKode"),
                                             dt, "Type", 0) == "Erhverv").ToList();
-                                    if (erhverv2.Count == 0) continue;
-                                    double newConsumption2 = tuple.GasData.Sum(x => x.ForbrugOmregnet);
-                                    double originalConsumption2 = erhverv2.Sum(x =>
-                                        PropertySetManager.ReadNonDefinedPropertySetDouble(
-                                            x, "BBR", "EstimeretVarmeForbrug"));
-                                    string adresse2 = tuple.GasData.First().Adresse;
+                                        if (erhverv2.Count == 0) continue;
+                                        double newConsumption2 = tuple.GasData.Sum(x => x.ForbrugOmregnet);
+                                        double originalConsumption2 = erhverv2.Sum(x =>
+                                            PropertySetManager.ReadNonDefinedPropertySetDouble(
+                                                x, "BBR", "EstimeretVarmeForbrug"));
 
-                                    frem += newConsumption2;
-                                    eks += originalConsumption2;
+                                        int antalBygninger = erhverv2.Count;
+                                        double perBygning = newConsumption2 / (double)antalBygninger;
+
+                                        foreach (BlockReference br in BRs2)
+                                        {
+                                            bbrPsm.GetOrAttachPropertySet(br);
+                                            string area = bbrPsm.ReadPropertyString(bbrDef.DistriktetsNavn);
+
+                                            if (!dictAreaCons.ContainsKey(area)) dictAreaCons.Add(area, 0.0);
+                                            double temp = dictAreaCons[area];
+                                            temp += perBygning;
+                                            dictAreaCons[area] = temp;
+
+                                            bbrPsm.WritePropertyObject(bbrDef.EstimeretVarmeForbrug, perBygning);
+                                        }
+
+                                        frem += newConsumption2;
+                                        eks += originalConsumption2;
+                                    }
                                     break;
                                 default:
                                     throw new System.Exception("Unexpected ConflictResolutionEnum!");
@@ -1328,8 +1342,17 @@ namespace IntersectUtilities.Dimensionering
 
                     double energiforbrugEfterOpdatering = brs.Sum(
                         x => PropertySetManager.ReadNonDefinedPropertySetDouble(x, "BBR", "EstimeretVarmeForbrug"));
+                    prdDbg($"Total estimeret energiforbrug før opdatering: {energiforbrugFørOpdatering}");
                     prdDbg($"Total energiforbrug efter opdatering: {energiforbrugEfterOpdatering}");
-                    prdDbg($"Total forskel mellem før og efter opdatering: {energiforbrugFørOpdatering - energiforbrugEfterOpdatering}");
+                    prdDbg($"Total forskel mellem før og efter opdatering: {energiforbrugEfterOpdatering - energiforbrugFørOpdatering}");
+
+                    sb.AppendLine("Område;Erhvervsforbrug");
+                    foreach (var kvp in dictAreaCons.OrderBy(x => x.Key))
+                    {
+                        sb.AppendLine($"{kvp.Key};{kvp.Value}");
+                    }
+
+                    sb.AppendLine($"Alle;{dictAreaCons.Sum(x => x.Value)}");
 
                     Utils.OutputWriter(basePath + "UpdateErhverv.txt", sb.ToString(), true);
 
