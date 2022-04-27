@@ -3061,7 +3061,7 @@ namespace IntersectUtilities.Dimensionering
                             string strækninger = string.Join(
                                 "|", sheet.SheetParts.Select(x => x.Name).ToArray());
 
-                            Regex regex = new Regex(@"^\d{1,2}");
+                            Regex regex = new Regex(@"^\d{1,3}");
                             foreach (string s in sheet.Adresser)
                             {
                                 if (regex.IsMatch(s)) sb.AppendLine(
