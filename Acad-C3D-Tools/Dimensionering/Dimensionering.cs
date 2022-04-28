@@ -1498,7 +1498,7 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
-        [CommandMethod("ANALYZEDUPLICATEADDR")]
+        [CommandMethod("DIMANALYZEDUPLICATEADDR")]
         public void analyzeduplicateaddr()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -2759,8 +2759,7 @@ namespace IntersectUtilities.Dimensionering
                         BlockReference buildingBlock = brs.Where(x => GetIdLokalId(x) == group.Key).FirstOrDefault();
 
                         //Reset children for the bygblock
-                        graphPsm.GetOrAttachPropertySet(buildingBlock);
-                        graphPsm.WritePropertyString(graphDef.Children, "");
+                        graphPsm.WritePropertyString(buildingBlock, graphDef.Children, "");
 
                         //Draw lines
                         foreach (Feature husnr in group)
@@ -2791,6 +2790,8 @@ namespace IntersectUtilities.Dimensionering
                                 group.Count();
                             string id_localId = PropertySetManager
                                 .ReadNonDefinedPropertySetString(buildingBlock, "BBR", "id_lokalId").ToUpper();
+                            string type = PropertySetManager
+                                .ReadNonDefinedPropertySetString(buildingBlock, "BBR", "Type");
 
                             //Write graph values for connection line
                             graphPsm.GetOrAttachPropertySet(conLine);
@@ -2812,6 +2813,8 @@ namespace IntersectUtilities.Dimensionering
                                 husNrBlock, "BBR", "Distriktets_navn", $"{curEtapeName}{HusnrSuffix}");
                             PropertySetManager.WriteNonDefinedPropertySetString(
                                 husNrBlock, "BBR", "id_lokalId", husnr.properties.id_lokalId);
+                            PropertySetManager.WriteNonDefinedPropertySetString(
+                                husNrBlock, "BBR", "Type", type);
                         }
                     }
                     #endregion
