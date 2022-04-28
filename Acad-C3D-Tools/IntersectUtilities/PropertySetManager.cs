@@ -440,6 +440,9 @@ namespace IntersectUtilities
         }
         public static void UpdatePropertySetDefinition(Database db, PSetDefs.DefinedSets propertySetName)
         {
+            if (db.TransactionManager.TopTransaction != null) throw new System.Exception(
+                "UpdatePropertySetDefinition must not run inside another Transaction!");
+
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
                 var DictionaryPropertySetDefinitions = new DictionaryPropertySetDefinitions(db);
