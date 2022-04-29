@@ -3451,10 +3451,10 @@ namespace IntersectUtilities.Dimensionering
                     oXL = new Microsoft.Office.Interop.Excel.Application();
                     oXL.Visible = false;
                     oXL.DisplayAlerts = false;
-                    oXL.Calculation = XlCalculation.xlCalculationManual;
                     wb = oXL.Workbooks.Open(fileName,
                         0, false, 5, "", "", false, XlPlatform.xlWindows, "", true, false,
                         0, false, false, XlCorruptLoad.xlNormalLoad);
+                    oXL.Calculation = XlCalculation.xlCalculationManual;
                     #endregion
 
                     #region Traverse system and build graph
