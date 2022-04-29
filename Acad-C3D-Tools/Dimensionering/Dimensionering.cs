@@ -1051,7 +1051,7 @@ namespace IntersectUtilities.Dimensionering
                     oXL = new Microsoft.Office.Interop.Excel.Application();
                     oXL.Visible = false;
                     oXL.DisplayAlerts = false;
-                    oXL.Calculation = XlCalculation.xlCalculationManual;
+                    oXL.ScreenUpdating = false;
                     #endregion
 
                     var fileNameDict = new Dictionary<string, string>();
@@ -1064,6 +1064,10 @@ namespace IntersectUtilities.Dimensionering
                         .Select(x => x.Key)
                         .Distinct();
 
+                    //Prepare dicts and lookups for processing
+                    var brDict = brs.ToDictionary(x => da(x));
+                    //TODO: Create group lookup based on current area
+
                     foreach (var areaName in areaNames.OrderBy(x => x))
                     {
                         if (!fileNameDict.ContainsKey(areaName)) continue;
@@ -1072,11 +1076,12 @@ namespace IntersectUtilities.Dimensionering
 
                         #region Open workbook
                         wb = oXL.Workbooks.Open(fileNameDict[areaName],
-                                        0, false, 5, "", "", false, XlPlatform.xlWindows, "", true, false,
+                                        0, true, 5, "", "", false, XlPlatform.xlWindows, "", true, false,
                                         0, false, false, XlCorruptLoad.xlNormalLoad);
+                        oXL.Calculation = XlCalculation.xlCalculationManual;
                         #endregion
 
-
+                        Dimensionering.dimimportdim(wb, dimDb, areaName, brs);
 
                         #region Close workbook
                         wb.Close();
@@ -1085,6 +1090,14 @@ namespace IntersectUtilities.Dimensionering
 
                     //Quit excel application
                     oXL.Quit();
+
+                    string da(BlockReference br)
+                    {
+                        string adresse = bbrPsm.ReadPropertyString(br, bbrDef.Adresse);
+                        int duplicateNr = bbrPsm.ReadPropertyInt(br, bbrDef.AdresseDuplikatNr);
+                        string duplicateNrString = duplicateNr == 0 ? "" : " " + duplicateNr.ToString();
+                        return adresse + duplicateNrString;
+                    }
                 }
                 catch (System.Exception ex)
                 {
@@ -1097,7 +1110,7 @@ namespace IntersectUtilities.Dimensionering
 
                 }
                 tx.Commit();
-                dimDb.SaveAs(dbFilename, DwgVersion.Current);
+                //dimDb.SaveAs(dbFilename, DwgVersion.Current);
             }
         }
 
@@ -3876,25 +3889,44 @@ namespace IntersectUtilities.Dimensionering
 
                 void wr(string inp) => editor.WriteMessage(inp);
 
+                StringBuilder sb = new StringBuilder();
+
                 try
                 {
+                    #region Read excel workbook data into a list: dimList<(string Name, int Dim)>
                     Worksheet ws;
                     IEnumerable<int> sheetRange = Enumerable.Range(1, 100);
                     prdDbg("");
+                    var dimList = new List<(string Name, int Dim)>();
                     foreach (int sheetNumber in sheetRange)
                     {
-                        ws = wb.Sheets[sheetNumber];
+                        ws = wb.Sheets[sheetNumber.ToString()];
                         wr(" " + sheetNumber.ToString());
 
-                        var nameRowRange = Enumerable.Range(60, 109);
-                        var dimRowRange = Enumerable.Range(4, 53);
+                        var namesArray = (System.Array)ws.Range["E60:E109"].Cells.Value;
+                        var dimsArray = (System.Array)ws.Range["U4:U53"].Cells.Value;
 
-                        var zip = nameRowRange.Zip(dimRowRange, (x, y) => new
+                        var namesList = new List<string>();
+                        var dimsList = new List<int>();
+
+                        foreach (var item in namesArray)
                         {
-                            nameRow = x,
-                            dimRow = y,
-                        });
-                    }
+                            if (item == null || item.ToString().IsNoE() || item.ToString() == "-") continue;
+                            namesList.Add(item.ToString());
+                        }
+
+                        foreach (var item in dimsArray)
+                        {
+                            if (item == null || item.ToString().IsNoE() || item.ToString() == "-") continue;
+                            dimsList.Add(Convert.ToInt32(item.ToString().Remove(0, 2)));
+                        }
+
+                        var zip = namesList.Zip(dimsList, (x, y) => new { name = x, dim = y });
+                        foreach (var item in zip) dimList.Add((item.name, item.dim));
+                    } 
+                    #endregion
+
+
                 }
                 #region Catch and finally
                 catch (System.Exception ex)
@@ -3906,7 +3938,7 @@ namespace IntersectUtilities.Dimensionering
                 }
                 finally
                 {
-                    
+
                 }
                 tx.Commit();
                 dimTx.Commit();
