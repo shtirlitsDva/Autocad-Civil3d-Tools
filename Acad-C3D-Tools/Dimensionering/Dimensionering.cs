@@ -1768,6 +1768,50 @@ namespace IntersectUtilities.Dimensionering
                 tx.Commit();
             }
         }
+
+        [CommandMethod("FINDSTRAY")]
+        public void findstray()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            //string curEtapeName = Dimensionering.dimaskforarea();
+            //if (curEtapeName.IsNoE()) return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var plines = localDb.HashSetOfType<Polyline>(tx);
+
+                    PropertySetManager fjvPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
+                    PSetDefs.FJV_fremtid fjvDef = new PSetDefs.FJV_fremtid();
+
+                    var find = plines
+                        .Where(x => fjvPsm.ReadPropertyString(x, fjvDef.Distriktets_navn) == "Område 4")
+                        .Where(x => fjvPsm.ReadPropertyString(x, fjvDef.Bemærkninger) == "Strækning 1.1")
+                        ;
+
+                    prdDbg(find.Count().ToString());
+
+                    editor.SetImpliedSelection(find.Select(x => x.Id).ToArray());
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+        }
     }
 
     internal class Stik
