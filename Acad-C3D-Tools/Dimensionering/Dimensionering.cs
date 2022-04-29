@@ -32,6 +32,7 @@ using Microsoft.Office.Interop.Excel;
 using ChunkedEnumerator;
 using Schema;
 using BBRtoAddress;
+using FolderSelect;
 
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
@@ -204,7 +205,7 @@ namespace IntersectUtilities.Dimensionering
                 tx.Commit();
             }
 
-            analyzeduplicateaddr();
+            dimanalyzeduplicateaddr();
 
             prdDbg("Finished!");
 
@@ -947,6 +948,159 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
+        [CommandMethod("DIMIMPORTDIMS")]
+        public void dimimportdims()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
+            #region Choose one or all
+            const string kwd1 = "Enkelt";
+            const string kwd2 = "Alle";
+
+            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
+            pKeyOpts.Message = "\nVælg at importere ét område eller alle på én gang: ";
+            pKeyOpts.Keywords.Add(kwd1);
+            pKeyOpts.Keywords.Add(kwd2);
+            pKeyOpts.AllowNone = true;
+            pKeyOpts.Keywords.Default = kwd1;
+            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+            string workingDrawing = pKeyRes.StringResult;
+            #endregion
+
+            #region Get file paths
+            HashSet<string> fileNames = new HashSet<string>();
+
+            switch (workingDrawing)
+            {
+                case kwd1: //Enkelt
+                    OpenFileDialog dialog = new OpenFileDialog()
+                    {
+                        Title = "Choose excel file to import dimensions:",
+                        DefaultExt = "xlsm",
+                        Filter = "Excel files (*.xlsm)|*.xlsm|All files (*.*)|*.*",
+                        FilterIndex = 0
+                    };
+                    if (dialog.ShowDialog() == DialogResult.OK)
+                    {
+                        if (dialog.FileName.IsNoE()) return;
+                        fileNames.Add(dialog.FileName);
+                    }
+                    else return;
+                    break;
+                case kwd2: //Alle
+                    FolderSelectDialog fsd = new FolderSelectDialog()
+                    {
+                        Title = "Choose folder with excel workbooks to import:",
+                        InitialDirectory = @"c:\"
+                    };
+                    if (fsd.ShowDialog(IntPtr.Zero))
+                    {
+                        string folder = fsd.FileName;
+                        if (string.IsNullOrEmpty(folder)) return;
+                        var files = Directory.EnumerateFiles(folder, "*.xlsm");
+                        fileNames.UnionWith(files);
+                    }
+                    else return;
+                    break;
+                default:
+                    break;
+            }
+            #endregion
+
+            #region Build base path
+            //Build base path
+            string dbFilename = localDb.OriginalFileName;
+            string basePath = System.IO.Path.GetDirectoryName(dbFilename);
+            basePath += "\\"; //Modify basepath to include backslash
+            string dimDbFilename = basePath + "Fjernvarme Fremtidig.dwg";
+            #endregion
+
+            using (Database dimDb = new Database(false, true))
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Prepare sideloaded database
+                    dimDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Templates\acadiso.dwt",
+                            FileOpenMode.OpenForReadAndAllShare, false, null);
+                    #endregion
+
+                    #region Prepare BlockReferences and group by area: groups
+                    PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                    PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                    HashSet<BlockReference> brs =
+                        localDb
+                        .HashSetOfType<BlockReference>(tx)
+                        .Where(x => Dimensionering.AcceptedBlockTypes.Contains(bbrPsm.ReadPropertyString(x, bbrDef.Type)))
+                        .Where(x => bbrPsm.ReadPropertyString(x, bbrDef.DistriktetsNavn).IsNotNoE())
+                        .ToHashSet();
+                    #endregion
+
+                    #region Preapare Excel objects
+                    Workbook wb;
+                    Sheets wss;
+                    Worksheet ws;
+                    Microsoft.Office.Interop.Excel.Application oXL;
+                    object misValue = System.Reflection.Missing.Value;
+                    oXL = new Microsoft.Office.Interop.Excel.Application();
+                    oXL.Visible = false;
+                    oXL.DisplayAlerts = false;
+                    oXL.Calculation = XlCalculation.xlCalculationManual;
+                    #endregion
+
+                    var fileNameDict = new Dictionary<string, string>();
+
+                    foreach (string fileName in fileNames)
+                        fileNameDict.Add(System.IO.Path.GetFileNameWithoutExtension(fileName), fileName);
+
+                    var areaNames = brs
+                        .GroupBy(x => bbrPsm.ReadPropertyString(x, bbrDef.DistriktetsNavn))
+                        .Select(x => x.Key)
+                        .Distinct();
+
+                    foreach (var areaName in areaNames.OrderBy(x => x))
+                    {
+                        if (!fileNameDict.ContainsKey(areaName)) continue;
+
+                        prdDbg($"Importing area: {areaName}");
+
+                        #region Open workbook
+                        wb = oXL.Workbooks.Open(fileNameDict[areaName],
+                                        0, false, 5, "", "", false, XlPlatform.xlWindows, "", true, false,
+                                        0, false, false, XlCorruptLoad.xlNormalLoad);
+                        #endregion
+
+
+
+                        #region Close workbook
+                        wb.Close();
+                        #endregion
+                    }
+
+                    //Quit excel application
+                    oXL.Quit();
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+                dimDb.SaveAs(dbFilename, DwgVersion.Current);
+            }
+        }
+
         //[CommandMethod("LISTANVENDELSEALL")]
         public void listanvendelseall()
         {
@@ -1499,7 +1653,7 @@ namespace IntersectUtilities.Dimensionering
         }
 
         [CommandMethod("DIMANALYZEDUPLICATEADDR")]
-        public void analyzeduplicateaddr()
+        public void dimanalyzeduplicateaddr()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -1859,7 +2013,7 @@ namespace IntersectUtilities.Dimensionering
                             building, bbrDef.EstimeretVarmeForbrug) * 1000.0);
 
                         //Write row
-                        
+
                         forbrugerRow++;
                         ws1.Cells[forbrugerRow, 1] = adresse + duplicateNrString;
                         ws1.Cells[forbrugerRow, 2] = estVarmeForbrugHusnr;
@@ -3253,6 +3407,7 @@ namespace IntersectUtilities.Dimensionering
                     oXL = new Microsoft.Office.Interop.Excel.Application();
                     oXL.Visible = false;
                     oXL.DisplayAlerts = false;
+                    oXL.Calculation = XlCalculation.xlCalculationManual;
                     wb = oXL.Workbooks.Open(fileName,
                         0, false, 5, "", "", false, XlPlatform.xlWindows, "", true, false,
                         0, false, false, XlCorruptLoad.xlNormalLoad);
@@ -3444,6 +3599,7 @@ namespace IntersectUtilities.Dimensionering
                     cmd.Start();
                     #endregion
 
+                    oXL.Calculation = XlCalculation.xlCalculationAutomatic;
                     wb.Save();
                     wb.Close();
                     oXL.Quit();
@@ -3697,7 +3853,7 @@ namespace IntersectUtilities.Dimensionering
                 #endregion
             }
         }
-        internal static void dimimportdim()
+        internal static void dimimportdim(Workbook wb, Database dimDb, string areaName, HashSet<BlockReference> brs)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -3705,9 +3861,7 @@ namespace IntersectUtilities.Dimensionering
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-            //string curEtapeName = dimaskforarea();
-            //if (curEtapeName.IsNoE()) return;
-
+            using (Transaction dimTx = dimDb.TransactionManager.StartTransaction())
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 //Settings
@@ -3720,245 +3874,42 @@ namespace IntersectUtilities.Dimensionering
                 PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
                 PSetDefs.BBR bbrDef = new PSetDefs.BBR();
 
+                void wr(string inp) => editor.WriteMessage(inp);
+
                 try
                 {
-                    #region Init excel objects
-                    #region Dialog box for selecting the excel file
-                    string fileName = string.Empty;
-                    OpenFileDialog dialog = new OpenFileDialog()
-                    {
-                        Title = "Choose excel file:",
-                        DefaultExt = "xlsm",
-                        Filter = "Excel files (*.xlsm)|*.xlsm|All files (*.*)|*.*",
-                        FilterIndex = 0
-                    };
-                    if (dialog.ShowDialog() == DialogResult.OK)
-                    {
-                        fileName = dialog.FileName;
-                    }
-                    else { tx.Abort(); return; }
-                    #endregion
-
-                    Workbook wb;
-                    Sheets wss;
                     Worksheet ws;
-                    Microsoft.Office.Interop.Excel.Application oXL;
-                    object misValue = System.Reflection.Missing.Value;
-                    oXL = new Microsoft.Office.Interop.Excel.Application();
-                    oXL.Visible = false;
-                    oXL.DisplayAlerts = false;
-                    wb = oXL.Workbooks.Open(fileName,
-                        0, false, 5, "", "", false, XlPlatform.xlWindows, "", true, false,
-                        0, false, false, XlCorruptLoad.xlNormalLoad);
-                    #endregion
-
-                    #region Traverse system and build graph
-                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
-                    plines = plines
-                        .Where(x => isLayerAcceptedInFjv(x.Layer))
-                        //.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                        //x, "FJV_fremtid", "Distriktets_navn") == curEtapeName)
-                        .ToHashSet();
-                    prdDbg("Nr. of plines " + plines.Count().ToString());
-
-                    var entryElements = plines.Where(x => graphPsm.FilterPropetyString(
-                        x, graphDef.Parent, "Entry"));
-                    prdDbg($"Nr. of entry elements: {entryElements.Count()}");
-
-                    Dimensionering.GlobalSheetCount = new GlobalSheetCount();
-
-                    //Write graph docs
-                    StringBuilder sb = new StringBuilder();
-                    sb.AppendLine("digraph G {");
-
-                    foreach (Polyline entryElement in entryElements)
+                    IEnumerable<int> sheetRange = Enumerable.Range(1, 100);
+                    prdDbg("");
+                    foreach (int sheetNumber in sheetRange)
                     {
-                        #region Build graph nodes
-                        HashSet<ExcelNode> nodes = new HashSet<ExcelNode>();
-                        ExcelNode seedNode = new ExcelNode();
-                        seedNode.Self = entryElement;
-                        seedNode.NodeLevel = 1;
+                        ws = wb.Sheets[sheetNumber];
+                        wr(" " + sheetNumber.ToString());
 
-                        //Using stack traversing strategy
-                        Stack<ExcelNode> stack = new Stack<ExcelNode>();
-                        stack.Push(seedNode);
-                        while (stack.Count > 0)
+                        var nameRowRange = Enumerable.Range(60, 109);
+                        var dimRowRange = Enumerable.Range(4, 53);
+
+                        var zip = nameRowRange.Zip(dimRowRange, (x, y) => new
                         {
-                            ExcelNode node = stack.Pop();
-                            nodes.Add(node);
-
-                            //Write group and subgroup numbers
-                            fjvFremPsm.GetOrAttachPropertySet(node.Self);
-                            string strNrString = fjvFremPsm.ReadPropertyString(fjvFremDef.Bemærkninger);
-                            node.SetGroupAndPartNumbers(strNrString);
-
-                            //Get the children
-                            Dimensionering.GatherChildren(node, localDb);
-
-                            //First print connections
-                            foreach (ExcelNode child in node.ConnectionChildren)
-                            {
-                                child.Parent = node;
-                                child.NodeLevel = node.NodeLevel + 1;
-
-                                //Push the childExcelNode in to stack to continue iterating
-                                stack.Push(child);
-                            }
-                        }
-                        #endregion
-
-                        #region Find paths
-                        int pathId = 0;
-                        while (nodes.Any(x => x.PathId == 0))
-                        {
-                            pathId++;
-                            var curNode = nodes
-                                .Where(x => x.PathId == 0)
-                                .MaxBy(x => x.NodeLevel)
-                                .FirstOrDefault();
-                            TraversePath(curNode, pathId);
-                        }
-
-                        //Organize paths
-                        //Order is important -> using a list
-                        List<Path> paths = new List<Path>();
-                        var groups = nodes.GroupBy(x => x.PathId).OrderBy(x => x.Key);
-                        foreach (var group in groups)
-                        {
-                            var ordered = group.OrderByDescending(x => x.NodeLevel);
-                            prdDbg(string.Join("->", ordered.Select(x => x.Name.Replace("ækning", ""))));
-                            Path path = new Path();
-                            paths.Add(path);
-                            path.PathNumber = group.Key;
-                            path.NodesOnPath = ordered.ToList();
-                        }
-                        #endregion
-
-                        #region Populate path with sheet data
-                        foreach (Path path in paths) path.PopulateSheets();
-                        #endregion
-
-                        #region Replace path references with sheet numbers
-                        List<ExcelSheet> sheets = new List<ExcelSheet>();
-                        foreach (Path path in paths) sheets.AddRange(path.Sheets);
-                        var orderedSheets = sheets.OrderBy(x => x.SheetNumber);
-                        prdDbg($"Number of sheets total: {sheets.Count}");
-
-                        foreach (ExcelSheet sheet in sheets)
-                        {
-                            for (int i = 0; i < sheet.Adresser.Count; i++)
-                            {
-                                string current = sheet.Adresser[i];
-                                if (current.Contains(PRef))
-                                {
-                                    current = current.Replace(PRef, "");
-                                    int pathRef = Convert.ToInt32(current);
-
-                                    Path refPath = paths
-                                        .Where(x => x.PathNumber == pathRef)
-                                        .FirstOrDefault();
-
-                                    ExcelSheet refSheet = refPath.Sheets.Last();
-
-                                    sheet.Adresser[i] =
-                                        (refSheet.SheetNumber).ToString();
-                                }
-                            }
-                        }
-                        #endregion
-
-                        #region Populate excel file
-                        foreach (ExcelSheet sheet in orderedSheets)
-                        {
-                            prdDbg($"Writing sheet: {sheet.SheetNumber}");
-                            System.Windows.Forms.Application.DoEvents();
-
-                            ws = (Worksheet)wb.Worksheets[sheet.SheetNumber.ToString()];
-                            //Write addresses
-                            int row = 60; int col = 5;
-                            for (int i = 0; i < sheet.Adresser.Count; i++)
-                            {
-                                ws.Cells[row, col] = sheet.Adresser[i];
-                                row++;
-                            }
-                            row = 60; col = 17;
-                            for (int i = 0; i < sheet.Længder.Count; i++)
-                            {
-                                ws.Cells[row, col] = sheet.Længder[i];
-                                row++;
-                            }
-                        }
-                        #endregion
-
-                        #region Write graph documentation
-                        int subGraphNr = paths.Select(x => x.NodesOnPath.First().GroupNumber).First();
-                        sb.AppendLine(
-                            $"subgraph G_{subGraphNr} {{");
-                        sb.AppendLine("node [shape=record]");
-
-                        foreach (ExcelSheet sheet in orderedSheets)
-                        {
-                            string strækninger = string.Join(
-                                "|", sheet.SheetParts.Select(x => x.Name).ToArray());
-
-                            Regex regex = new Regex(@"^\d{1,3}");
-                            foreach (string s in sheet.Adresser)
-                            {
-                                if (regex.IsMatch(s)) sb.AppendLine(
-                                    $"\"{sheet.SheetNumber}\" -> \"{s}\"");
-                            }
-
-                            sb.AppendLine(
-                                $"\"{sheet.SheetNumber}\" " +
-                                $"[label = \"{{{sheet.SheetNumber}|{strækninger}}}\"]; ");
-                        }
-
-                        //close subgraph
-                        sb.AppendLine("}");
-                        #endregion
+                            nameRow = x,
+                            dimRow = y,
+                        });
                     }
-
-                    //close graph
-                    sb.AppendLine("}");
-
-                    #region Write graph to file
-                    //Build file name
-                    if (!Directory.Exists(@"C:\Temp\"))
-                        Directory.CreateDirectory(@"C:\Temp\");
-
-                    //Write the collected graphs to one file
-                    using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\AutoDimGraph.dot"))
-                    {
-                        file.WriteLine(sb.ToString()); // "sb" is the StringBuilder
-                    }
-
-                    System.Diagnostics.Process cmd = new System.Diagnostics.Process();
-                    cmd.StartInfo.FileName = "cmd.exe";
-                    cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
-                    cmd.StartInfo.Arguments = @"/c ""dot -Tpdf AutoDimGraph.dot > AutoDimGraph.pdf""";
-                    cmd.Start();
-                    #endregion
-
-                    wb.Save();
-                    wb.Close();
-                    oXL.Quit();
-
-                    System.Windows.Forms.Application.DoEvents();
-                    #endregion
                 }
                 #region Catch and finally
                 catch (System.Exception ex)
                 {
                     tx.Abort();
+                    dimTx.Abort();
                     editor.WriteMessage("\n" + ex.ToString());
                     return;
                 }
                 finally
                 {
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
+                    
                 }
                 tx.Commit();
+                dimTx.Commit();
                 #endregion
             }
         }
