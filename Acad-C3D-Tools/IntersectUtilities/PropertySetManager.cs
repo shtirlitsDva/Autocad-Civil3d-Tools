@@ -111,12 +111,12 @@ namespace IntersectUtilities
             string setName = propertySetName.ToString();
             if (DictionaryPropertySetDefinitions.Has(setName, Db.TransactionManager.TopTransaction))
             {
-                prdDbg($"Property Set {setName} already defined.");
+                //prdDbg($"Property Set {setName} already defined.");
                 return true;
             }
             else
             {
-                prdDbg($"Property Set {setName} is not defined.");
+                prdDbg($"Property Set {setName} is not defined. Creating...");
                 return false;
             }
         }

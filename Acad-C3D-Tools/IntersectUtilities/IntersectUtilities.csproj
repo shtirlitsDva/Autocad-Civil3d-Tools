@@ -148,6 +148,7 @@
     <Compile Include="DataQAClass.cs" />
     <Compile Include="DouglasPeuckerReduction.cs" />
     <Compile Include="DynamicBlockPropertyReader.cs" />
+    <Compile Include="FolderSelectDialog.cs" />
     <Compile Include="GroupByCluster.cs" />
     <Compile Include="IsogenPopulateAttributes.cs" />
     <Compile Include="MyGraph.cs" />
@@ -160,6 +161,7 @@
     <Compile Include="PolylineCurvingDev.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PropertySetManager.cs" />
+    <Compile Include="Reflector.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="UtilsCommon.cs" />
   </ItemGroup>
