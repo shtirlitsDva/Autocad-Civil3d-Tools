@@ -2041,7 +2041,7 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
-                    editor.WriteMessage("\n" + ex.Message);
+                    editor.WriteMessage("\n" + ex.ToString());
                     return;
                 }
                 tx.Commit();
@@ -15054,6 +15054,64 @@ namespace IntersectUtilities
         public void writeisogenattributestodwg()
         {
             IntersectUtilities.IsogenPopulateAttributes.WriteIsogenAttrubutesToDwg();
+        }
+
+        [CommandMethod("SELECTBYPS")]
+        public void selectbyps()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            PromptStringOptions opts1 = new PromptStringOptions("\nEnter name of Property Set: ");
+            opts1.AllowSpaces = true;
+            PromptResult pr1 = editor.GetString(opts1);
+            string propertySetName = "";
+            if (pr1.Status != PromptStatus.OK) return;
+            else propertySetName = pr1.StringResult;
+
+            PromptStringOptions opts2 = new PromptStringOptions("\nEnter name of Property: ");
+            opts2.AllowSpaces = true;
+            PromptResult pr2 = editor.GetString(opts2);
+            string propertyName = "";
+            if (pr2.Status != PromptStatus.OK) return;
+            else propertyName = pr2.StringResult;
+
+            PromptStringOptions opts3 = new PromptStringOptions("\nEnter data to search: ");
+            opts3.AllowSpaces = true;
+            PromptResult pr3 = editor.GetString(opts3);
+            string data = "";
+            if (pr3.Status != PromptStatus.OK) return;
+            else data = pr3.StringResult;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    prdDbg("Frozen entities are discarded!");
+                    var ents = localDb
+                        .ListOfType<Entity>(tx, true)
+                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                            x, propertySetName, propertyName) == data);
+                        
+                    editor.SetImpliedSelection(ents.Select(x => x.Id).ToArray());
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        void ExitGracefully(Transaction tx, string msg)
+        {
+            tx.Abort();
+            prdDbg(msg);
         }
     }
 }

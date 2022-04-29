@@ -22,7 +22,7 @@ namespace IntersectUtilities
     public class PropertySetManager
     {
         private Database Db { get; }
-        private DictionaryPropertySetDefinitions DictionaryPropertySetDefinitions { get; }
+        private DictionaryPropertySetDefinitions DictionaryPropertySetDefinitions { get; set; }
         private PropertySetDefinition propertySetDefinition;
         private PropertySetDefinition PropertySetDefinition
         {
@@ -57,7 +57,13 @@ namespace IntersectUtilities
         {
             if (PropertySetDefinitionExists(propertySetName))
             {
-                return GetPropertySetDefinition(propertySetName);
+                //List<PSetDefs.Property> missingProperties = CheckPropertySetDefinition(propertySetName);
+                //if (missingProperties.Count == 0) return GetPropertySetDefinition(propertySetName);
+                //else
+                //{
+                //    UpdatePropertySetDefinition(propertySetName, missingProperties);
+                    return GetPropertySetDefinition(propertySetName);
+                //}
             }
             else return CreatePropertySetDefinition(propertySetName);
         }
@@ -114,11 +120,11 @@ namespace IntersectUtilities
                 return false;
             }
         }
-        private PropertySetDefinition GetPropertySetDefinition(PSetDefs.DefinedSets propertySetName)
+        private PropertySetDefinition GetPropertySetDefinition(PSetDefs.DefinedSets propertySetName, Transaction tx = null)
         {
             return DictionaryPropertySetDefinitions
                 .GetAt(propertySetName.ToString())
-                .Go<PropertySetDefinition>(Db.TransactionManager.TopTransaction);
+                .Go<PropertySetDefinition>(tx ?? Db.TransactionManager.TopTransaction);
         }
         public void GetOrAttachPropertySet(Entity ent)
         {
@@ -155,8 +161,32 @@ namespace IntersectUtilities
             if (value == null) return "";
             else return value.ToString();
         }
+        public string ReadPropertyString(Entity ent, PSetDefs.Property property)
+        {
+            GetOrAttachPropertySet(ent);
+            int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
+            object value = this.CurrentPropertySet.GetAt(propertyId);
+            if (value == null) return "";
+            else return value.ToString();
+        }
+        public double ReadPropertyDouble(Entity ent, PSetDefs.Property property)
+        {
+            GetOrAttachPropertySet(ent);
+            int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
+            object value = this.CurrentPropertySet.GetAt(propertyId);
+            if (value == null) return 0.0;
+            else return Convert.ToDouble(value);
+        }
         public int ReadPropertyInt(PSetDefs.Property property)
         {
+            int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
+            object value = this.CurrentPropertySet.GetAt(propertyId);
+            if (value == null) return 0;
+            else return (int)value;
+        }
+        public int ReadPropertyInt(Entity ent, PSetDefs.Property property)
+        {
+            GetOrAttachPropertySet(ent);
             int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
             object value = this.CurrentPropertySet.GetAt(propertyId);
             if (value == null) return 0;
@@ -169,8 +199,24 @@ namespace IntersectUtilities
             this.CurrentPropertySet.SetAt(propertyId, value);
             this.CurrentPropertySet.DowngradeOpen();
         }
+        public void WritePropertyString(Entity ent, PSetDefs.Property property, string value)
+        {
+            GetOrAttachPropertySet(ent);
+            int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
+            this.CurrentPropertySet.CheckOrOpenForWrite();
+            this.CurrentPropertySet.SetAt(propertyId, value);
+            this.CurrentPropertySet.DowngradeOpen();
+        }
         public void WritePropertyObject(PSetDefs.Property property, object value)
         {
+            int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
+            this.CurrentPropertySet.CheckOrOpenForWrite();
+            this.CurrentPropertySet.SetAt(propertyId, value);
+            this.CurrentPropertySet.DowngradeOpen();
+        }
+        public void WritePropertyObject(Entity ent, PSetDefs.Property property, object value)
+        {
+            GetOrAttachPropertySet(ent);
             int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
             this.CurrentPropertySet.CheckOrOpenForWrite();
             this.CurrentPropertySet.SetAt(propertyId, value);
@@ -390,6 +436,50 @@ namespace IntersectUtilities
                 }
                 //Property set not attached
                 throw new System.Exception($"Property set {propertySetName} could not been found attached to entity!");
+            }
+        }
+        public static void UpdatePropertySetDefinition(Database db, PSetDefs.DefinedSets propertySetName)
+        {
+            if (db.TransactionManager.TopTransaction != null) throw new System.Exception(
+                "UpdatePropertySetDefinition must not run inside another Transaction!");
+
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                var DictionaryPropertySetDefinitions = new DictionaryPropertySetDefinitions(db);
+
+                PropertySetDefinition propSetDef =
+                    DictionaryPropertySetDefinitions.GetAt(propertySetName.ToString()).Go<PropertySetDefinition>(tx);
+
+                List<PSetDefs.Property> missingProperties = new List<PSetDefs.Property>();
+                PropertyDefinitionCollection col = propSetDef.Definitions;
+
+                PSetDefs defs = new PSetDefs();
+                var setDef = defs.GetRequestedDef(propertySetName);
+                var propDict = setDef.ToPropertyDictionary();
+                List<string> propDefNames = new List<string>();
+                foreach (PropertyDefinition propDef in col) propDefNames.Add(propDef.Name);
+                foreach (KeyValuePair<string, object> kvp in propDict)
+                    if (kvp.Value is PSetDefs.Property prop)
+                        if (!propDefNames.Contains(prop.Name))
+                            missingProperties.Add(prop);
+
+                if (missingProperties.Count == 0) return;
+
+                foreach (PSetDefs.Property property in missingProperties)
+                {
+                    var propDefManual = new PropertyDefinition();
+                    propDefManual.SetToStandard(db);
+                    propDefManual.SubSetDatabaseDefaults(db);
+
+                    propDefManual.Name = property.Name;
+                    propDefManual.Description = property.Description;
+                    propDefManual.DataType = property.DataType;
+                    propDefManual.DefaultData = property.DefaultValue;
+
+                    propSetDef.CheckOrOpenForWrite();
+                    propSetDef.Definitions.Add(propDefManual);
+                }
+                tx.Commit();
             }
         }
     }
@@ -743,6 +833,11 @@ namespace IntersectUtilities
                 "Adresse",
                 PsDataType.Text,
                 "");
+            public Property AdresseDuplikatNr { get; } = new Property(
+                "AdresseDuplikatNr",
+                "AdresseDuplikatNr",
+                PsDataType.Integer,
+                0);
             public Property InstallationOgBrændsel { get; } = new Property(
                 "InstallationOgBrændsel",
                 "InstallationOgBrændsel",

@@ -23,12 +23,15 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Data;
+using System.Data.SqlClient;
 using System.Reflection;
 using MoreLinq;
 using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
 using Microsoft.Office.Interop.Excel;
 using ChunkedEnumerator;
+using Schema;
+using BBRtoAddress;
 
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
@@ -200,6 +203,8 @@ namespace IntersectUtilities.Dimensionering
                 }
                 tx.Commit();
             }
+
+            analyzeduplicateaddr();
 
             prdDbg("Finished!");
 
@@ -826,7 +831,123 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
-        [CommandMethod("LISTANVENDELSEALL")]
+        [CommandMethod("DIMWRITEALL")]
+        public void dimwriteall()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
+            #region Dialog box for selecting the excel file
+            string fileName = string.Empty;
+            OpenFileDialog dialog = new OpenFileDialog()
+            {
+                Title = "Choose excel template file:",
+                DefaultExt = "xlsm",
+                Filter = "Excel files (*.xlsm)|*.xlsm|All files (*.*)|*.*",
+                FilterIndex = 0
+            };
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                fileName = dialog.FileName;
+            }
+            else { return; }
+            if (fileName.IsNoE()) return;
+            #endregion
+
+            #region Build base path
+            //Build base path
+            string dbFilename = localDb.OriginalFileName;
+            string basePath = System.IO.Path.GetDirectoryName(dbFilename);
+            Directory.CreateDirectory(basePath + "\\DIM");
+            basePath += "\\DIM\\"; //Modify basepath to include subfolder 
+            #endregion
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Prepare BlockReferences and group by area: groups
+                    PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                    PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                    HashSet<BlockReference> brs =
+                        localDb
+                        .HashSetOfType<BlockReference>(tx)
+                        .Where(x => Dimensionering.AcceptedBlockTypes.Contains(bbrPsm.ReadPropertyString(x, bbrDef.Type)))
+                        .Where(x => bbrPsm.ReadPropertyString(x, bbrDef.DistriktetsNavn).IsNotNoE())
+                        .ToHashSet();
+
+                    var groups = brs.GroupBy(x => bbrPsm.ReadPropertyString(x, bbrDef.DistriktetsNavn));
+                    #endregion
+
+                    #region Get dimensionerende afkøling
+                    PromptIntegerResult result = editor.GetInteger("\nAngiv dimensionerende afkøling: ");
+                    if (((PromptResult)result).Status != PromptStatus.OK) return;
+                    int dimAfkøling = result.Value;
+                    #endregion
+
+                    #region Preapare Excel objects
+                    Workbook wb;
+                    Sheets wss;
+                    Worksheet ws;
+                    Microsoft.Office.Interop.Excel.Application oXL;
+                    object misValue = System.Reflection.Missing.Value;
+                    oXL = new Microsoft.Office.Interop.Excel.Application();
+                    oXL.Visible = false;
+                    oXL.DisplayAlerts = false;
+                    #endregion
+
+                    //int count = 0;
+                    foreach (IGrouping<string, BlockReference> group in groups.OrderBy(x => x.Key))
+                    {
+                        //count++;
+                        //if (count != 1) continue;
+                        prdDbg($"Writing to Excel area: {group.Key}");
+
+                        //Copy the template to destination
+                        string newFileName = basePath + group.Key + ".xlsm";
+                        File.Copy(fileName, newFileName, true);
+
+                        #region Open workbook
+                        wb = oXL.Workbooks.Open(newFileName,
+                                        0, false, 5, "", "", false, XlPlatform.xlWindows, "", true, false,
+                                        0, false, false, XlCorruptLoad.xlNormalLoad);
+                        oXL.Calculation = XlCalculation.xlCalculationManual;
+                        #endregion
+
+                        Dimensionering.dimadressedumptoexcel(wb, group, dimAfkøling);
+
+                        Dimensionering.dimwriteallexcel(wb, group.Key, basePath);
+
+                        #region Close workbook
+                        oXL.Calculation = XlCalculation.xlCalculationAutomatic;
+                        wb.Save();
+                        wb.Close();
+                        #endregion
+                    }
+
+                    //Quit excel application
+                    oXL.Quit();
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+        }
+
+        //[CommandMethod("LISTANVENDELSEALL")]
         public void listanvendelseall()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -885,7 +1006,7 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
-        [CommandMethod("ANVENDELSESSTATS")]
+        //[CommandMethod("ANVENDELSESSTATS")]
         public void anvendelsesstats()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -961,8 +1082,8 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
-        [CommandMethod("ANVENDELSETILADRESSER")]
-        public void anvendelsetiladresser()
+        [CommandMethod("GASDATAANALYZE")]
+        public void gasdataanalyze()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -970,46 +1091,515 @@ namespace IntersectUtilities.Dimensionering
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-            string curEtapeName = Dimensionering.dimaskforarea();
-            if (curEtapeName.IsNoE()) return;
+            //string curEtapeName = Dimensionering.dimaskforarea();
+            //if (curEtapeName.IsNoE()) return;
+
+            string basePath = @"X:\022-1245 - Dimensionering af alle etaper - Dokumenter\01 Intern\04 Projektering\" +
+                                      @"02 Forbrugsdata + sammenligning\Forbrugsdata\CSV\";
+
+            string AreaName = "0240 Egedal";
+            string BasePath = @"X:\AutoCAD DRI - QGIS\BBR UDTRÆK";
+            string husnummerPath = $"{BasePath}\\{AreaName}\\DAR_husnummer.json";
+            string baseDARHusnumre = File.ReadAllText(husnummerPath);
+            List<DARHusnummer> husnumre = JsonConvert.DeserializeObject<List<DARHusnummer>>(baseDARHusnumre);
+
+            string gasdataPath = basePath + "gasdata.json";
+            string baseGasdata = File.ReadAllText(gasdataPath);
+            var gasdatas = JsonConvert.DeserializeObject<List<GasData>>(baseGasdata)
+                .Where(x => x.ConflictResolution != GasData.ConflictResolutionEnum.Ignore);
+
+            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
+                @"X:\AutoCAD DRI - QGIS\CSV TIL REST HENTER\AnvendelsesKoderPrivatErhverv.csv", "PrivatErhverv");
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
-                    System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
-                        @"X:\AutoCAD DRI - QGIS\CSV TIL REST HENTER\AnvendelsesKoderPrivatErhverv.csv", "PrivatErhverv");
-
                     PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
                     PSetDefs.BBR bbrDef = new PSetDefs.BBR();
-
-                    //string husnumreStr = File.ReadAllText(nyHusnumreFilename);
 
                     #region dump af anvendelseskoder
                     HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
                     brs = brs
-                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                            x, "BBR", "Distriktets_navn") == curEtapeName)
+                        //.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                        //    x, "BBR", "Distriktets_navn") == curEtapeName)
                         .Where(x => Dimensionering.AcceptedBlockTypes.Contains(
                             PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
-                        .Where(x => ReadStringParameterFromDataTable(
-                            PropertySetManager.ReadNonDefinedPropertySetString(
-                                x, "BBR", "BygningsAnvendelseNyKode"), dt, "Type", 0) == "Erhverv")
+                        //.Where(x => ReadStringParameterFromDataTable(
+                        //    PropertySetManager.ReadNonDefinedPropertySetString(
+                        //        x, "BBR", "BygningsAnvendelseNyKode"),
+                        //    dt, "Type", 0) == "Erhverv")
                         .ToHashSet();
 
-                    foreach (BlockReference br in brs)
+                    var groupedGasDatasByHusnr = gasdatas.GroupBy(x => x.HusnummerId);
+
+                    var husNrJoin = groupedGasDatasByHusnr.Join(husnumre,
+                        gd => gd.Key,
+                        husNr => husNr.id_lokalId,
+                        (a, b) => new
+                        {
+                            GasData = a,
+                            Husnummer = b
+                        });
+
+                    //the husnrjoingroup can be retreived by adgangtilbygning key
+                    var husNrJoinGroupedByAdgangTilBygning = husNrJoin.GroupBy(x => x.Husnummer.adgangTilBygning);
+
+                    var manyToMany = new HashSet<(HashSet<GasData> GasData, HashSet<Handle> BR)>();
+
+                    int count = 0;
+                    foreach (var item in husNrJoinGroupedByAdgangTilBygning)
                     {
-                        
+                        count++;
+                        if (count % 200 == 0) { prdDbg($"Iteration: {count}"); System.Windows.Forms.Application.DoEvents(); }
+
+                        HashSet<GasData> gasDatas = new HashSet<GasData>();
+                        foreach (var group in item) gasDatas.UnionWith(group.GasData.ToHashSet());
+
+                        HashSet<Handle> BRs = new HashSet<Handle>();
+                        BlockReference direct = brs.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                            x, "BBR", "id_lokalId") == item.Key).FirstOrDefault();
+                        if (direct != null) BRs.Add(direct.Handle);
+
+                        //Now add references from the other grouped husnr
+                        foreach (var group in item)
+                        {
+                            var additional = brs.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                                x, "BBR", "id_husnummerid") == group.Husnummer.id_lokalId);
+                            foreach (var byg in additional) BRs.Add(byg.Handle);
+                        }
+
+                        manyToMany.Add((gasDatas, BRs));
+                    }
+
+                    prdDbg($"Count: {manyToMany.Count} after {count} loop(s).");
+
+                    JsonSerializerSettings options = new JsonSerializerSettings()
+                    {
+                        NullValueHandling = NullValueHandling.Ignore,
+                        Formatting = Formatting.Indented
+                    };
+                    string manyToManyString = JsonConvert.SerializeObject(manyToMany, options);
+                    Utils.OutputWriter(basePath + "manyToManyResult.json", manyToManyString, true);
+
+                    #region To find the last missing joins
+                    //var atLastJoinedList = missingBuildingJoin.SelectMany(x => x.gasdata);
+
+                    //var findMissingJoin = noBuildings.GroupJoin(atLastJoinedList,
+                    //    nob => nob.ggd.Key,
+                    //    last => last.HusnummerId,
+                    //    (a, b) => new
+                    //    {
+                    //        GasDataGroup = a,
+                    //        LastJoinedGd = b.Select(x => x)
+                    //    }); 
+                    #endregion
+
+                    #region Old code
+                    //StringBuilder sb = new StringBuilder();
+
+                    //prdDbg($"Test last join: {findMissingJoin.Count(x => x.LastJoinedGd.Count() == 0)}");
+                    //foreach (var item in findMissingJoin.Where(x => x.LastJoinedGd.Count() == 0))
+                    //{
+                    //    prdDbg(item.GasDataGroup.ggd.Key);
+                    //}
+
+                    //Utils.OutputWriter(basePath + "missingJoin.txt", sb.ToString(), true);
+
+                    //var nonJoinedGas = noBuildings.SelectMany(x => x.ggd);
+                    //string nonJoinedGasDataPath = @"X:\022-1245 - Dimensionering af alle etaper - Dokumenter\01 Intern\04 Projektering\" +
+                    //                     @"02 Forbrugsdata + sammenligning\Forbrugsdata\CSV\nonJoinedGasData.json";
+                    //JsonSerializerSettings options = new JsonSerializerSettings()
+                    //{
+                    //    NullValueHandling = NullValueHandling.Ignore,
+                    //    Formatting = Formatting.Indented
+                    //};
+                    //string gdString = JsonConvert.SerializeObject(nonJoinedGas.OrderBy(x => x.Adresse), options);
+                    //Utils.OutputWriter(nonJoinedGasDataPath, gdString, true);
+
+                    //Build file name
+                    //string dbFilename = localDb.OriginalFileName;
+                    //string path = System.IO.Path.GetDirectoryName(dbFilename);
+                    //string dumpExportFileName = path + "\\anvendelsesstats.txt";
+
+                    //Utils.ClrFile(dumpExportFileName);
+                    //Utils.OutputWriter(dumpExportFileName, string.Join(Environment.NewLine, dict.Select(x => x.Key + ";" + x.Value.ToString()))); 
+                    #endregion
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("GASDATAUPDATE")]
+        public void gasdataupdate()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            //string curEtapeName = Dimensionering.dimaskforarea();
+            //if (curEtapeName.IsNoE()) return;
+
+            string basePath = @"X:\022-1245 - Dimensionering af alle etaper - Dokumenter\01 Intern\04 Projektering\" +
+                                      @"02 Forbrugsdata + sammenligning\Forbrugsdata\CSV\";
+            string baseResultdata = File.ReadAllText(basePath + "manyToManyResult.json");
+            List<(List<GasData>, List<Handle>)> result =
+                JsonConvert.DeserializeObject<List<(List<GasData>, List<Handle>)>>(baseResultdata);
+            //List<ManyToManyResult> result = JsonConvert.DeserializeObject<List<ManyToManyResult>>(baseResultdata);0
+
+            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
+                @"X:\AutoCAD DRI - QGIS\CSV TIL REST HENTER\AnvendelsesKoderPrivatErhverv.csv", "PrivatErhverv");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                    PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                    #region update af gasdata
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
+                    brs = brs
+                        //.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                        //    x, "BBR", "Distriktets_navn") == curEtapeName)
+                        .Where(x => Dimensionering.AcceptedBlockTypes.Contains(
+                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
+                        //.Where(x => ReadStringParameterFromDataTable(
+                        //    PropertySetManager.ReadNonDefinedPropertySetString(
+                        //        x, "BBR", "BygningsAnvendelseNyKode"),
+                        //    dt, "Type", 0) == "Erhverv")
+                        .ToHashSet();
+
+                    double energiforbrugFørOpdatering = brs.Sum(
+                        x => PropertySetManager.ReadNonDefinedPropertySetDouble(x, "BBR", "EstimeretVarmeForbrug"));
+
+                    prdDbg($"Antal resultater: {result.Count}");
+                    StringBuilder sb = new StringBuilder();
+                    double eks = 0;
+                    double frem = 0;
+                    Dictionary<string, double> dictAreaCons = new Dictionary<string, double>();
+                    foreach ((List<GasData> GasData, List<Handle> BRhandles) tuple in result)
+                    {
+                        var numUniques = 1;
+                        var sameResoultion = tuple.GasData
+                            .Select(x => x.ConflictResolution)
+                            .Distinct()
+                            .Count() == numUniques;
+
+                        if (!sameResoultion)
+                        {
+                            prdDbg($"Different conflict resolution!\nSkipping iteration.\n{tuple.GasData.First()}");
+                            continue;
+                        }
+                        else
+                        {
+                            GasData.ConflictResolutionEnum cr = tuple.GasData.First().ConflictResolution;
+                            switch (cr)
+                            {
+                                case GasData.ConflictResolutionEnum.None:
+                                case GasData.ConflictResolutionEnum.GasDataCombined:
+                                    var BRs = GetBrs(localDb, tuple.BRhandles);
+                                    var anvKoder = BRs.Select(x =>
+                                        PropertySetManager.ReadNonDefinedPropertySetString(
+                                            x, "BBR", "BygningsAnvendelseNyKode"));
+                                    if (anvKoder.Distinct().Count() == 1)
+                                    {
+                                        if (ReadStringParameterFromDataTable(
+                                                PropertySetManager.ReadNonDefinedPropertySetString(
+                                                    BRs.First(), "BBR", "BygningsAnvendelseNyKode"),
+                                                dt, "Type", 0) == "Erhverv")
+                                        {
+                                            double newConsumption = tuple.GasData.Sum(x => x.ForbrugOmregnet);
+                                            double originalConsumption = BRs.Sum(x =>
+                                                PropertySetManager.ReadNonDefinedPropertySetDouble(
+                                                x, "BBR", "EstimeretVarmeForbrug"));
+
+                                            int antalBygninger = BRs.Count;
+                                            double perBygning = newConsumption / (double)antalBygninger;
+
+                                            foreach (BlockReference br in BRs)
+                                            {
+                                                bbrPsm.GetOrAttachPropertySet(br);
+                                                string area = bbrPsm.ReadPropertyString(bbrDef.DistriktetsNavn);
+
+                                                if (!dictAreaCons.ContainsKey(area)) dictAreaCons.Add(area, 0.0);
+                                                double temp = dictAreaCons[area];
+                                                temp += perBygning;
+                                                dictAreaCons[area] = temp;
+
+                                                bbrPsm.WritePropertyObject(bbrDef.EstimeretVarmeForbrug, perBygning);
+                                            }
+
+                                            frem += newConsumption;
+                                            eks += originalConsumption;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        //Filter out any non-erhvervsbygninger, if any left dump
+                                        //all gas on these
+                                        var erhverv = BRs.Where(x => ReadStringParameterFromDataTable(
+                                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "BygningsAnvendelseNyKode"),
+                                                dt, "Type", 0) == "Erhverv").ToList();
+                                        if (erhverv.Count == 0) continue;
+                                        double newConsumption = tuple.GasData.Sum(x => x.ForbrugOmregnet);
+                                        double originalConsumption = erhverv.Sum(x =>
+                                            PropertySetManager.ReadNonDefinedPropertySetDouble(
+                                                x, "BBR", "EstimeretVarmeForbrug"));
+
+                                        int antalBygninger = erhverv.Count;
+                                        double perBygning = newConsumption / (double)antalBygninger;
+
+                                        foreach (BlockReference br in erhverv)
+                                        {
+                                            bbrPsm.GetOrAttachPropertySet(br);
+                                            string area = bbrPsm.ReadPropertyString(bbrDef.DistriktetsNavn);
+
+                                            if (!dictAreaCons.ContainsKey(area)) dictAreaCons.Add(area, 0.0);
+                                            double temp = dictAreaCons[area];
+                                            temp += perBygning;
+                                            dictAreaCons[area] = temp;
+
+                                            bbrPsm.WritePropertyObject(bbrDef.EstimeretVarmeForbrug, perBygning);
+                                        }
+
+                                        frem += newConsumption;
+                                        eks += originalConsumption;
+                                    }
+                                    break;
+                                case GasData.ConflictResolutionEnum.Manual:
+                                    foreach (GasData gasData in tuple.GasData)
+                                    {
+                                        string targetBygId = gasData.BygId;
+                                        BlockReference targetByg = brs.FirstOrDefault(
+                                            x => PropertySetManager.ReadNonDefinedPropertySetString(
+                                                x, "BBR", "id_lokalId") == targetBygId);
+                                        double originalConsumption = PropertySetManager
+                                            .ReadNonDefinedPropertySetDouble(
+                                                targetByg, "BBR", "EstimeretVarmeForbrug");
+                                        double newConsumption = gasData.ForbrugOmregnet;
+
+                                        bbrPsm.GetOrAttachPropertySet(targetByg);
+                                        string area = bbrPsm.ReadPropertyString(bbrDef.DistriktetsNavn);
+
+                                        if (!dictAreaCons.ContainsKey(area)) dictAreaCons.Add(area, 0.0);
+                                        double temp = dictAreaCons[area];
+                                        temp += newConsumption;
+                                        dictAreaCons[area] = temp;
+
+                                        bbrPsm.WritePropertyObject(bbrDef.EstimeretVarmeForbrug, newConsumption);
+
+                                        frem += newConsumption;
+                                        eks += originalConsumption;
+                                    }
+                                    break;
+                                case GasData.ConflictResolutionEnum.Ignore:
+                                    break;
+                                case GasData.ConflictResolutionEnum.Distribute:
+                                    {
+                                        var BRs2 = GetBrs(localDb, tuple.BRhandles);
+                                        var erhverv2 = BRs2.Where(x => ReadStringParameterFromDataTable(
+                                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR",
+                                                "BygningsAnvendelseNyKode"),
+                                            dt, "Type", 0) == "Erhverv").ToList();
+                                        if (erhverv2.Count == 0) continue;
+                                        double newConsumption2 = tuple.GasData.Sum(x => x.ForbrugOmregnet);
+                                        double originalConsumption2 = erhverv2.Sum(x =>
+                                            PropertySetManager.ReadNonDefinedPropertySetDouble(
+                                                x, "BBR", "EstimeretVarmeForbrug"));
+
+                                        int antalBygninger = erhverv2.Count;
+                                        double perBygning = newConsumption2 / (double)antalBygninger;
+
+                                        foreach (BlockReference br in BRs2)
+                                        {
+                                            bbrPsm.GetOrAttachPropertySet(br);
+                                            string area = bbrPsm.ReadPropertyString(bbrDef.DistriktetsNavn);
+
+                                            if (!dictAreaCons.ContainsKey(area)) dictAreaCons.Add(area, 0.0);
+                                            double temp = dictAreaCons[area];
+                                            temp += perBygning;
+                                            dictAreaCons[area] = temp;
+
+                                            bbrPsm.WritePropertyObject(bbrDef.EstimeretVarmeForbrug, perBygning);
+                                        }
+
+                                        frem += newConsumption2;
+                                        eks += originalConsumption2;
+                                    }
+                                    break;
+                                default:
+                                    throw new System.Exception("Unexpected ConflictResolutionEnum!");
+                            }
+                        }
+
+                        List<BlockReference> GetBrs(Database database, List<Handle> handles)
+                        {
+                            List<BlockReference> newList = new List<BlockReference>();
+                            foreach (var handle in handles)
+                                newList.Add(handle.Go<BlockReference>(database));
+                            return newList;
+                        }
+                    }
+
+                    prdDbg($"Eks: {eks}, Fremtid: {frem}, Forskel: {frem - eks}");
+
+                    double energiforbrugEfterOpdatering = brs.Sum(
+                        x => PropertySetManager.ReadNonDefinedPropertySetDouble(x, "BBR", "EstimeretVarmeForbrug"));
+                    prdDbg($"Total estimeret energiforbrug før opdatering: {energiforbrugFørOpdatering}");
+                    prdDbg($"Total energiforbrug efter opdatering: {energiforbrugEfterOpdatering}");
+                    prdDbg($"Total forskel mellem før og efter opdatering: {energiforbrugEfterOpdatering - energiforbrugFørOpdatering}");
+
+                    sb.AppendLine("Område;Erhvervsforbrug");
+                    foreach (var kvp in dictAreaCons.OrderBy(x => x.Key))
+                    {
+                        sb.AppendLine($"{kvp.Key};{kvp.Value}");
+                    }
+
+                    sb.AppendLine($"Alle;{dictAreaCons.Sum(x => x.Value)}");
+
+                    Utils.OutputWriter(basePath + "UpdateErhverv.txt", sb.ToString(), true);
+
+                    //JsonSerializerSettings options = new JsonSerializerSettings()
+                    //{
+                    //    NullValueHandling = NullValueHandling.Ignore,
+                    //    Formatting = Formatting.Indented
+                    //};
+                    //string manyToManyString = JsonConvert.SerializeObject(manyToMany, options);
+                    //Utils.OutputWriter(basePath + "manyToManyResult.json", manyToManyString, true);
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("DIMANALYZEDUPLICATEADDR")]
+        public void analyzeduplicateaddr()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                    PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                    HashSet<BlockReference> brs =
+                        localDb
+                        .HashSetOfType<BlockReference>(tx)
+                        .Where(x => Dimensionering.AcceptedBlockTypes.Contains(bbrPsm.ReadPropertyString(x, bbrDef.Type)))
+                        .ToHashSet();
+
+                    var groups = brs.GroupBy(x => bbrPsm.ReadPropertyString(x, bbrDef.Adresse))
+                        .Where(x => x.Count() > 1);
+
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine("Adresse;Område;Forbrug;Ny adresse");
+
+                    foreach (var group in groups)
+                    {
+                        //Handle a case where a building is added with same address after an analyzis have already been carried out
+                        if (group.All(x => bbrPsm.ReadPropertyInt(x, bbrDef.AdresseDuplikatNr) == 0))
+                        {
+                            int count = 0;
+                            foreach (var br in group.OrderBy(x => x.Position.X).ThenBy(x => x.Position.Y))
+                            {
+                                count++;
+                                sb.AppendLine(
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.Adresse)};" +
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.DistriktetsNavn)};" +
+                                    $"{bbrPsm.ReadPropertyDouble(br, bbrDef.EstimeretVarmeForbrug)};" +
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.Adresse)} {count}");
+
+                                bbrPsm.WritePropertyObject(br, bbrDef.AdresseDuplikatNr, count);
+                            }
+                        }
+                        else if (group.All(x => bbrPsm.ReadPropertyInt(x, bbrDef.AdresseDuplikatNr) != 0))
+                        {
+                            foreach (var br in group.OrderBy(x => x.Position.X).ThenBy(x => x.Position.Y))
+                            {
+                                sb.AppendLine(
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.Adresse)};" +
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.DistriktetsNavn)};" +
+                                    $"{bbrPsm.ReadPropertyDouble(br, bbrDef.EstimeretVarmeForbrug)};" +
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.Adresse)} {bbrPsm.ReadPropertyInt(br, bbrDef.AdresseDuplikatNr)}");
+                            }
+                        }
+                        else if (group.Any(x => bbrPsm.ReadPropertyInt(x, bbrDef.AdresseDuplikatNr) != 0))
+                        {
+                            List<int> existingNumbers =
+                                group.Select(x => bbrPsm.ReadPropertyInt(x, bbrDef.AdresseDuplikatNr))
+                                .OrderBy(x => x).ToList();
+
+                            foreach (var br in group
+                                .Where(x => bbrPsm.ReadPropertyInt(x, bbrDef.AdresseDuplikatNr) == 0)
+                                .OrderBy(x => x.Position.X).ThenBy(x => x.Position.Y))
+                            {
+                                int nextNumber = 0;
+                                var missing = FindMissing(existingNumbers);
+                                if (missing.Count() > 0) nextNumber = missing.Min();
+                                else nextNumber = existingNumbers.Max() + 1;
+                                existingNumbers.Add(nextNumber);
+
+                                bbrPsm.WritePropertyObject(br, bbrDef.AdresseDuplikatNr, nextNumber);
+                            }
+
+                            foreach (var br in group.OrderBy(x => bbrPsm.ReadPropertyInt(x, bbrDef.AdresseDuplikatNr)))
+                            {
+                                sb.AppendLine(
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.Adresse)};" +
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.DistriktetsNavn)};" +
+                                    $"{bbrPsm.ReadPropertyDouble(br, bbrDef.EstimeretVarmeForbrug)};" +
+                                    $"{bbrPsm.ReadPropertyString(br, bbrDef.Adresse)} {bbrPsm.ReadPropertyInt(br, bbrDef.AdresseDuplikatNr)}");
+                            }
+                        }
+                        sb.AppendLine();
+                    }
+
+                    IEnumerable<int> FindMissing(IEnumerable<int> values)
+                    {
+                        HashSet<int> myRange = new HashSet<int>(Enumerable.Range(values.Min(), values.Max()));
+                        myRange.ExceptWith(values);
+                        return myRange;
                     }
 
                     //Build file name
                     string dbFilename = localDb.OriginalFileName;
                     string path = System.IO.Path.GetDirectoryName(dbFilename);
-                    string dumpExportFileName = path + "\\anvendelsesstats.txt";
+                    string dumpExportFileName = path + "\\duplikater.csv";
 
-                    Utils.ClrFile(dumpExportFileName);
-                    //Utils.OutputWriter(dumpExportFileName, string.Join(Environment.NewLine, dict.Select(x => x.Key + ";" + x.Value.ToString())));
-                    #endregion
+                    Utils.OutputWriter(dumpExportFileName, sb.ToString(), true);
                 }
                 catch (System.Exception ex)
                 {
@@ -1092,6 +1682,8 @@ namespace IntersectUtilities.Dimensionering
             string curEtapeName = dimaskforarea();
             if (curEtapeName.IsNoE()) return;
 
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -1099,71 +1691,68 @@ namespace IntersectUtilities.Dimensionering
                     PropertySetManager graphPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
                     PSetDefs.DriDimGraph graphDef = new PSetDefs.DriDimGraph();
 
+                    PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                    PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
                     #region dump af adresser
                     HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
                     brs = brs
-                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                            x, "BBR", "Distriktets_navn") == curEtapeName)
+                        .Where(x => bbrPsm.ReadPropertyString(x, bbrDef.DistriktetsNavn) == curEtapeName)
                         .Where(x => Dimensionering.AcceptedBlockTypes.Contains(
-                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
+                            bbrPsm.ReadPropertyString(x, bbrDef.Type)))
                         .ToHashSet();
 
-                    StringBuilder sb = new StringBuilder();
-                    sb.AppendLine("Adresse;Energiforbrug;Antal ejendomme;Antal boliger med varmtvandsforbrug;Stik længde (tracé) [m]");
-
-                    foreach (BlockReference building in brs)
+                    List<BlockReference> allBrs = new List<BlockReference>();
+                    foreach (BlockReference br in brs)
                     {
-                        string vejnavn = PropertySetManager.ReadNonDefinedPropertySetString(building, "BBR", "Vejnavn");
-                        string husnummer = PropertySetManager.ReadNonDefinedPropertySetString(building, "BBR", "Husnummer");
-                        string estVarmeForbrug = (PropertySetManager.ReadNonDefinedPropertySetDouble(
-                            building, "BBR", "EstimeretVarmeForbrug") * 1000).ToString("0.##");
-                        string antalEjendomme = "1";
-                        string antalBoligerOsv = "1";
-
-                        //If building has connected addresses dump them instead
-                        graphPsm.GetOrAttachPropertySet(building);
-                        string childrenString = graphPsm.ReadPropertyString(graphDef.Children);
-                        if (childrenString.IsNotNoE())
-                        {//Case: building has address children
-                            HashSet<Entity> children = new HashSet<Entity>();
-                            GatherChildren(building, localDb, graphPsm, children);
-
-                            foreach (Entity ent in children)
-                            {
-                                if (ent == null || !(ent is BlockReference)) continue;
-
-                                graphPsm.GetOrAttachPropertySet(ent);
-                                string handleString = graphPsm.ReadPropertyString(graphDef.Parent);
-
-                                Handle parent = new Handle(Convert.ToInt64(handleString, 16));
-                                Line line = parent.Go<Line>(localDb);
-                                string stikLængde = line.GetHorizontalLength().ToString("0.##");
-                                string adresse = PropertySetManager.ReadNonDefinedPropertySetString(ent, "BBR", "Adresse");
-                                string estVarmeForbrugHusnr = (PropertySetManager.ReadNonDefinedPropertySetDouble(
-                                    ent, "BBR", "EstimeretVarmeForbrug") * 1000).ToString("0.##");
-
-                                sb.AppendLine($"{adresse};{estVarmeForbrugHusnr};{antalEjendomme};{antalBoligerOsv};{stikLængde}");
-                            }
-                        }
+                        string childrenString = graphPsm.ReadPropertyString(br, graphDef.Children);
+                        if (childrenString.IsNoE()) allBrs.Add(br);
                         else
                         {
-                            graphPsm.GetOrAttachPropertySet(building);
-                            string handleString = graphPsm.ReadPropertyString(graphDef.Parent);
-                            Handle parent;
-                            try
-                            {
-                                parent = new Handle(Convert.ToInt64(handleString, 16));
-                            }
-                            catch (System.Exception)
-                            {
-                                prdDbg($"Reading parent handle failed for block: {building.Handle}");
-                                throw;
-                            }
-                            Line line = parent.Go<Line>(localDb);
-                            string stikLængde = line.Length.ToString("0.##");
-
-                            sb.AppendLine($"{vejnavn} {husnummer};{estVarmeForbrug};{antalEjendomme};{antalBoligerOsv};{stikLængde}");
+                            HashSet<Entity> children = new HashSet<Entity>();
+                            GatherChildren(br, localDb, graphPsm, children);
+                            allBrs.AddRange(children.Where(x => x is BlockReference).Cast<BlockReference>());
                         }
+                    }
+
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine("Adresse;Energiforbrug;Antal ejendomme;Antal boliger med varmtvandsforbrug;Stik længde (tracé) [m];Dim. afkøling");
+
+                    string antalEjendomme = "1";
+                    string antalBoligerOsv = "1";
+                    string dimAfkøling = "35";
+
+                    string ds(BlockReference br)
+                    {
+                        string adresse = bbrPsm.ReadPropertyString(br, bbrDef.Adresse);
+                        int duplicateNr = bbrPsm.ReadPropertyInt(br, bbrDef.AdresseDuplikatNr);
+                        string duplicateNrString = duplicateNr == 0 ? "" : " " + duplicateNr.ToString();
+                        return adresse + duplicateNrString;
+                    }
+
+                    foreach (BlockReference building in allBrs.OrderByAlphaNumeric(x => ds(x)))
+                    {
+                        string handleString = graphPsm.ReadPropertyString(building, graphDef.Parent);
+                        Handle parent;
+                        try
+                        {
+                            parent = new Handle(Convert.ToInt64(handleString, 16));
+                        }
+                        catch (System.Exception)
+                        {
+                            prdDbg($"Reading parent handle failed for block: {building.Handle}");
+                            throw;
+                        }
+                        Line line = parent.Go<Line>(localDb);
+
+                        string stikLængde = line.GetHorizontalLength().ToString("0.##");
+                        string adresse = bbrPsm.ReadPropertyString(building, bbrDef.Adresse);
+                        int duplicateNr = bbrPsm.ReadPropertyInt(building, bbrDef.AdresseDuplikatNr);
+                        string duplicateNrString = duplicateNr == 0 ? "" : " " + duplicateNr.ToString();
+                        string estVarmeForbrug = (bbrPsm.ReadPropertyDouble(
+                            building, bbrDef.EstimeretVarmeForbrug) * 1000.0).ToString("0.##");
+
+                        sb.AppendLine($"{adresse + duplicateNrString};{estVarmeForbrug};{antalEjendomme};{antalBoligerOsv};{stikLængde};{dimAfkøling}");
                     }
 
                     //Build file name
@@ -1176,6 +1765,114 @@ namespace IntersectUtilities.Dimensionering
 
                     System.Windows.Forms.Application.DoEvents();
 
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+        }
+        internal static void dimadressedumptoexcel(Workbook wb, IGrouping<string, BlockReference> group, int dimAfkøling)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PropertySetManager graphPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
+                    PSetDefs.DriDimGraph graphDef = new PSetDefs.DriDimGraph();
+
+                    PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                    PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                    #region dump af adresser
+                    int antalEjendomme = 1;
+                    int antalBoligerOsv = 1;
+
+                    Worksheet ws1 = (Worksheet)wb.Worksheets["Forbrugeroversigt"];
+                    Worksheet ws2 = (Worksheet)wb.Worksheets["Stikledninger"];
+                    int forbrugerRow = 101;
+                    int stikRow = 4;
+
+                    //Columns:
+                    //1: Adresse + number
+                    //2: Energiforbrug
+                    //3: Antal ejendomme
+                    //4: Antal boliger med varmtvandsforbrug
+                    //5: Stik længde i m
+                    //6: Dim afkøling = 35
+
+                    string ds(BlockReference br)
+                    {
+                        string adresse = bbrPsm.ReadPropertyString(br, bbrDef.Adresse);
+                        int duplicateNr = bbrPsm.ReadPropertyInt(br, bbrDef.AdresseDuplikatNr);
+                        string duplicateNrString = duplicateNr == 0 ? "" : " " + duplicateNr.ToString();
+                        return adresse + duplicateNrString;
+                    }
+
+                    List<BlockReference> allBrs = new List<BlockReference>();
+                    foreach (BlockReference br in group)
+                    {
+                        string childrenString = graphPsm.ReadPropertyString(br, graphDef.Children);
+                        if (childrenString.IsNoE()) allBrs.Add(br);
+                        else
+                        {
+                            HashSet<Entity> children = new HashSet<Entity>();
+                            GatherChildren(br, localDb, graphPsm, children);
+                            allBrs.AddRange(children.Where(x => x is BlockReference).Cast<BlockReference>());
+                        }
+                    }
+
+                    foreach (BlockReference building in allBrs.OrderByAlphaNumeric(x => ds(x)))
+                    {
+                        string handleString = graphPsm.ReadPropertyString(building, graphDef.Parent);
+                        Handle parent;
+                        try
+                        {
+                            parent = new Handle(Convert.ToInt64(handleString, 16));
+                        }
+                        catch (System.Exception)
+                        {
+                            prdDbg($"Reading parent handle failed for block: {building.Handle}");
+                            throw;
+                        }
+                        Line line = parent.Go<Line>(localDb);
+
+                        double stikLængde = line.GetHorizontalLength();
+                        string adresse = bbrPsm.ReadPropertyString(building, bbrDef.Adresse);
+                        int duplicateNr = bbrPsm.ReadPropertyInt(building, bbrDef.AdresseDuplikatNr);
+                        string duplicateNrString = duplicateNr == 0 ? "" : " " + duplicateNr.ToString();
+                        double estVarmeForbrugHusnr = (bbrPsm.ReadPropertyDouble(
+                            building, bbrDef.EstimeretVarmeForbrug) * 1000.0);
+
+                        //Write row
+                        
+                        forbrugerRow++;
+                        ws1.Cells[forbrugerRow, 1] = adresse + duplicateNrString;
+                        ws1.Cells[forbrugerRow, 2] = estVarmeForbrugHusnr;
+                        ws1.Cells[forbrugerRow, 3] = antalEjendomme;
+                        ws1.Cells[forbrugerRow, 4] = antalBoligerOsv;
+                        ws1.Cells[forbrugerRow, 5] = stikLængde;
+                        ws1.Cells[forbrugerRow, 6] = dimAfkøling;
+
+                        stikRow++;
+                        ws2.Cells[stikRow, 5] = adresse + duplicateNrString;
+                    }
+
+                    System.Windows.Forms.Application.DoEvents();
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -2062,8 +2759,7 @@ namespace IntersectUtilities.Dimensionering
                         BlockReference buildingBlock = brs.Where(x => GetIdLokalId(x) == group.Key).FirstOrDefault();
 
                         //Reset children for the bygblock
-                        graphPsm.GetOrAttachPropertySet(buildingBlock);
-                        graphPsm.WritePropertyString(graphDef.Children, "");
+                        graphPsm.WritePropertyString(buildingBlock, graphDef.Children, "");
 
                         //Draw lines
                         foreach (Feature husnr in group)
@@ -2094,6 +2790,8 @@ namespace IntersectUtilities.Dimensionering
                                 group.Count();
                             string id_localId = PropertySetManager
                                 .ReadNonDefinedPropertySetString(buildingBlock, "BBR", "id_lokalId").ToUpper();
+                            string type = PropertySetManager
+                                .ReadNonDefinedPropertySetString(buildingBlock, "BBR", "Type");
 
                             //Write graph values for connection line
                             graphPsm.GetOrAttachPropertySet(conLine);
@@ -2115,6 +2813,8 @@ namespace IntersectUtilities.Dimensionering
                                 husNrBlock, "BBR", "Distriktets_navn", $"{curEtapeName}{HusnrSuffix}");
                             PropertySetManager.WriteNonDefinedPropertySetString(
                                 husNrBlock, "BBR", "id_lokalId", husnr.properties.id_lokalId);
+                            PropertySetManager.WriteNonDefinedPropertySetString(
+                                husNrBlock, "BBR", "Type", type);
                         }
                     }
                     #endregion
@@ -2706,7 +3406,502 @@ namespace IntersectUtilities.Dimensionering
                             string strækninger = string.Join(
                                 "|", sheet.SheetParts.Select(x => x.Name).ToArray());
 
-                            Regex regex = new Regex(@"^\d{1,2}");
+                            Regex regex = new Regex(@"^\d{1,3}");
+                            foreach (string s in sheet.Adresser)
+                            {
+                                if (regex.IsMatch(s)) sb.AppendLine(
+                                    $"\"{sheet.SheetNumber}\" -> \"{s}\"");
+                            }
+
+                            sb.AppendLine(
+                                $"\"{sheet.SheetNumber}\" " +
+                                $"[label = \"{{{sheet.SheetNumber}|{strækninger}}}\"]; ");
+                        }
+
+                        //close subgraph
+                        sb.AppendLine("}");
+                        #endregion
+                    }
+
+                    //close graph
+                    sb.AppendLine("}");
+
+                    #region Write graph to file
+                    //Build file name
+                    if (!Directory.Exists(@"C:\Temp\"))
+                        Directory.CreateDirectory(@"C:\Temp\");
+
+                    //Write the collected graphs to one file
+                    using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\AutoDimGraph.dot"))
+                    {
+                        file.WriteLine(sb.ToString()); // "sb" is the StringBuilder
+                    }
+
+                    System.Diagnostics.Process cmd = new System.Diagnostics.Process();
+                    cmd.StartInfo.FileName = "cmd.exe";
+                    cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
+                    cmd.StartInfo.Arguments = @"/c ""dot -Tpdf AutoDimGraph.dot > AutoDimGraph.pdf""";
+                    cmd.Start();
+                    #endregion
+
+                    wb.Save();
+                    wb.Close();
+                    oXL.Quit();
+
+                    System.Windows.Forms.Application.DoEvents();
+                    #endregion
+                }
+                #region Catch and finally
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                }
+                tx.Commit();
+                #endregion
+            }
+        }
+        internal static void dimwriteallexcel(Workbook wb, string curEtapeName, string basePath)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                //Settings
+                PropertySetManager fjvFremPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
+                PSetDefs.FJV_fremtid fjvFremDef = new PSetDefs.FJV_fremtid();
+
+                PropertySetManager graphPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
+                PSetDefs.DriDimGraph graphDef = new PSetDefs.DriDimGraph();
+
+                try
+                {
+                    #region Init excel objects
+                    Worksheet ws;
+                    #endregion
+
+                    #region Traverse system and build graph
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
+                    plines = plines
+                        .Where(x => isLayerAcceptedInFjv(x.Layer))
+                        .Where(x => fjvFremPsm.ReadPropertyString(x, fjvFremDef.Distriktets_navn) == curEtapeName)
+                        .ToHashSet();
+                    prdDbg("Nr. of plines " + plines.Count().ToString());
+
+                    var entryElements = plines.Where(x => graphPsm.FilterPropetyString(
+                        x, graphDef.Parent, "Entry"));
+                    prdDbg($"Nr. of entry elements: {entryElements.Count()}");
+
+                    Dimensionering.GlobalSheetCount = new GlobalSheetCount();
+
+                    //Write graph docs
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine("digraph G {");
+
+                    foreach (Polyline entryElement in entryElements)
+                    {
+                        #region Build graph nodes
+                        HashSet<ExcelNode> nodes = new HashSet<ExcelNode>();
+                        ExcelNode seedNode = new ExcelNode();
+                        seedNode.Self = entryElement;
+                        seedNode.NodeLevel = 1;
+
+                        //Using stack traversing strategy
+                        Stack<ExcelNode> stack = new Stack<ExcelNode>();
+                        stack.Push(seedNode);
+                        while (stack.Count > 0)
+                        {
+                            ExcelNode node = stack.Pop();
+                            nodes.Add(node);
+
+                            //Write group and subgroup numbers
+                            string strNrString = fjvFremPsm.ReadPropertyString(node.Self, fjvFremDef.Bemærkninger);
+                            node.SetGroupAndPartNumbers(strNrString);
+
+                            //Get the children
+                            Dimensionering.GatherChildren(node, localDb);
+
+                            //First print connections
+                            foreach (ExcelNode child in node.ConnectionChildren)
+                            {
+                                child.Parent = node;
+                                child.NodeLevel = node.NodeLevel + 1;
+
+                                //Push the childExcelNode in to stack to continue iterating
+                                stack.Push(child);
+                            }
+                        }
+                        #endregion
+
+                        #region Find paths
+                        int pathId = 0;
+                        while (nodes.Any(x => x.PathId == 0))
+                        {
+                            pathId++;
+                            var curNode = nodes
+                                .Where(x => x.PathId == 0)
+                                .MaxBy(x => x.NodeLevel)
+                                .FirstOrDefault();
+                            TraversePath(curNode, pathId);
+                        }
+
+                        //Organize paths
+                        //Order is important -> using a list
+                        List<Path> paths = new List<Path>();
+                        var groups = nodes.GroupBy(x => x.PathId).OrderBy(x => x.Key);
+                        foreach (var group in groups)
+                        {
+                            var ordered = group.OrderByDescending(x => x.NodeLevel);
+                            //prdDbg(string.Join("->", ordered.Select(x => x.Name.Replace("ækning", ""))));
+                            Path path = new Path();
+                            paths.Add(path);
+                            path.PathNumber = group.Key;
+                            path.NodesOnPath = ordered.ToList();
+                        }
+                        #endregion
+
+                        #region Populate path with sheet data
+                        foreach (Path path in paths) path.PopulateSheets();
+                        #endregion
+
+                        #region Replace path references with sheet numbers
+                        List<ExcelSheet> sheets = new List<ExcelSheet>();
+                        foreach (Path path in paths) sheets.AddRange(path.Sheets);
+                        var orderedSheets = sheets.OrderBy(x => x.SheetNumber);
+                        prdDbg($"Number of sheets total: {sheets.Count}");
+
+                        foreach (ExcelSheet sheet in sheets)
+                        {
+                            for (int i = 0; i < sheet.Adresser.Count; i++)
+                            {
+                                string current = sheet.Adresser[i];
+                                if (current.Contains(PRef))
+                                {
+                                    current = current.Replace(PRef, "");
+                                    int pathRef = Convert.ToInt32(current);
+
+                                    Path refPath = paths
+                                        .Where(x => x.PathNumber == pathRef)
+                                        .FirstOrDefault();
+
+                                    ExcelSheet refSheet = refPath.Sheets.Last();
+
+                                    sheet.Adresser[i] =
+                                        (refSheet.SheetNumber).ToString();
+                                }
+                            }
+                        }
+                        #endregion
+
+                        #region Populate excel file
+                        foreach (ExcelSheet sheet in orderedSheets)
+                        {
+                            prdDbg($"Writing sheet: {sheet.SheetNumber}");
+                            System.Windows.Forms.Application.DoEvents();
+
+                            ws = (Worksheet)wb.Worksheets[sheet.SheetNumber.ToString()];
+                            //Write addresses
+                            int row = 60; int col = 5;
+                            for (int i = 0; i < sheet.Adresser.Count; i++)
+                            {
+                                ws.Cells[row, col] = sheet.Adresser[i];
+                                row++;
+                            }
+                            row = 60; col = 17;
+                            for (int i = 0; i < sheet.Længder.Count; i++)
+                            {
+                                ws.Cells[row, col] = sheet.Længder[i];
+                                row++;
+                            }
+                        }
+                        #endregion
+
+                        #region Write graph documentation
+                        int subGraphNr = paths.Select(x => x.NodesOnPath.First().GroupNumber).First();
+                        sb.AppendLine(
+                            $"subgraph G_{subGraphNr} {{");
+                        sb.AppendLine("node [shape=record]");
+
+                        foreach (ExcelSheet sheet in orderedSheets)
+                        {
+                            string strækninger = string.Join(
+                                "|", sheet.SheetParts.Select(x => x.Name).ToArray());
+
+                            Regex regex = new Regex(@"^\d{1,3}");
+                            foreach (string s in sheet.Adresser)
+                            {
+                                if (regex.IsMatch(s)) sb.AppendLine(
+                                    $"\"{sheet.SheetNumber}\" -> \"{s}\"");
+                            }
+
+                            sb.AppendLine(
+                                $"\"{sheet.SheetNumber}\" " +
+                                $"[label = \"{{{sheet.SheetNumber}|{strækninger}}}\"]; ");
+                        }
+
+                        //close subgraph
+                        sb.AppendLine("}");
+                        #endregion
+                    }
+
+                    //close graph
+                    sb.AppendLine("}");
+
+                    #region Write graph to file
+                    //Build file name
+                    if (!Directory.Exists(@"C:\Temp\"))
+                        Directory.CreateDirectory(@"C:\Temp\");
+
+                    //Write the collected graphs to one file
+                    using (System.IO.StreamWriter file = new System.IO.StreamWriter($"C:\\Temp\\AutoDimGraph.dot"))
+                    {
+                        file.WriteLine(sb.ToString()); // "sb" is the StringBuilder
+                    }
+
+                    System.Diagnostics.Process cmd = new System.Diagnostics.Process();
+                    cmd.StartInfo.FileName = "cmd.exe";
+                    cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
+                    cmd.StartInfo.Arguments = @"/c ""dot -Tpdf AutoDimGraph.dot > AutoDimGraph.pdf""";
+                    cmd.Start();
+                    cmd.WaitForExit();
+
+                    File.Move("C:\\Temp\\AutoDimGraph.pdf", basePath + curEtapeName + ".pdf");
+                    #endregion
+
+                    System.Windows.Forms.Application.DoEvents();
+                    #endregion
+                }
+                #region Catch and finally
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                finally
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                }
+                tx.Commit();
+                #endregion
+            }
+        }
+        internal static void dimimportdim()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            //string curEtapeName = dimaskforarea();
+            //if (curEtapeName.IsNoE()) return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                //Settings
+                PropertySetManager fjvFremPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
+                PSetDefs.FJV_fremtid fjvFremDef = new PSetDefs.FJV_fremtid();
+
+                PropertySetManager graphPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriDimGraph);
+                PSetDefs.DriDimGraph graphDef = new PSetDefs.DriDimGraph();
+
+                PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                try
+                {
+                    #region Init excel objects
+                    #region Dialog box for selecting the excel file
+                    string fileName = string.Empty;
+                    OpenFileDialog dialog = new OpenFileDialog()
+                    {
+                        Title = "Choose excel file:",
+                        DefaultExt = "xlsm",
+                        Filter = "Excel files (*.xlsm)|*.xlsm|All files (*.*)|*.*",
+                        FilterIndex = 0
+                    };
+                    if (dialog.ShowDialog() == DialogResult.OK)
+                    {
+                        fileName = dialog.FileName;
+                    }
+                    else { tx.Abort(); return; }
+                    #endregion
+
+                    Workbook wb;
+                    Sheets wss;
+                    Worksheet ws;
+                    Microsoft.Office.Interop.Excel.Application oXL;
+                    object misValue = System.Reflection.Missing.Value;
+                    oXL = new Microsoft.Office.Interop.Excel.Application();
+                    oXL.Visible = false;
+                    oXL.DisplayAlerts = false;
+                    wb = oXL.Workbooks.Open(fileName,
+                        0, false, 5, "", "", false, XlPlatform.xlWindows, "", true, false,
+                        0, false, false, XlCorruptLoad.xlNormalLoad);
+                    #endregion
+
+                    #region Traverse system and build graph
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
+                    plines = plines
+                        .Where(x => isLayerAcceptedInFjv(x.Layer))
+                        //.Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                        //x, "FJV_fremtid", "Distriktets_navn") == curEtapeName)
+                        .ToHashSet();
+                    prdDbg("Nr. of plines " + plines.Count().ToString());
+
+                    var entryElements = plines.Where(x => graphPsm.FilterPropetyString(
+                        x, graphDef.Parent, "Entry"));
+                    prdDbg($"Nr. of entry elements: {entryElements.Count()}");
+
+                    Dimensionering.GlobalSheetCount = new GlobalSheetCount();
+
+                    //Write graph docs
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine("digraph G {");
+
+                    foreach (Polyline entryElement in entryElements)
+                    {
+                        #region Build graph nodes
+                        HashSet<ExcelNode> nodes = new HashSet<ExcelNode>();
+                        ExcelNode seedNode = new ExcelNode();
+                        seedNode.Self = entryElement;
+                        seedNode.NodeLevel = 1;
+
+                        //Using stack traversing strategy
+                        Stack<ExcelNode> stack = new Stack<ExcelNode>();
+                        stack.Push(seedNode);
+                        while (stack.Count > 0)
+                        {
+                            ExcelNode node = stack.Pop();
+                            nodes.Add(node);
+
+                            //Write group and subgroup numbers
+                            fjvFremPsm.GetOrAttachPropertySet(node.Self);
+                            string strNrString = fjvFremPsm.ReadPropertyString(fjvFremDef.Bemærkninger);
+                            node.SetGroupAndPartNumbers(strNrString);
+
+                            //Get the children
+                            Dimensionering.GatherChildren(node, localDb);
+
+                            //First print connections
+                            foreach (ExcelNode child in node.ConnectionChildren)
+                            {
+                                child.Parent = node;
+                                child.NodeLevel = node.NodeLevel + 1;
+
+                                //Push the childExcelNode in to stack to continue iterating
+                                stack.Push(child);
+                            }
+                        }
+                        #endregion
+
+                        #region Find paths
+                        int pathId = 0;
+                        while (nodes.Any(x => x.PathId == 0))
+                        {
+                            pathId++;
+                            var curNode = nodes
+                                .Where(x => x.PathId == 0)
+                                .MaxBy(x => x.NodeLevel)
+                                .FirstOrDefault();
+                            TraversePath(curNode, pathId);
+                        }
+
+                        //Organize paths
+                        //Order is important -> using a list
+                        List<Path> paths = new List<Path>();
+                        var groups = nodes.GroupBy(x => x.PathId).OrderBy(x => x.Key);
+                        foreach (var group in groups)
+                        {
+                            var ordered = group.OrderByDescending(x => x.NodeLevel);
+                            prdDbg(string.Join("->", ordered.Select(x => x.Name.Replace("ækning", ""))));
+                            Path path = new Path();
+                            paths.Add(path);
+                            path.PathNumber = group.Key;
+                            path.NodesOnPath = ordered.ToList();
+                        }
+                        #endregion
+
+                        #region Populate path with sheet data
+                        foreach (Path path in paths) path.PopulateSheets();
+                        #endregion
+
+                        #region Replace path references with sheet numbers
+                        List<ExcelSheet> sheets = new List<ExcelSheet>();
+                        foreach (Path path in paths) sheets.AddRange(path.Sheets);
+                        var orderedSheets = sheets.OrderBy(x => x.SheetNumber);
+                        prdDbg($"Number of sheets total: {sheets.Count}");
+
+                        foreach (ExcelSheet sheet in sheets)
+                        {
+                            for (int i = 0; i < sheet.Adresser.Count; i++)
+                            {
+                                string current = sheet.Adresser[i];
+                                if (current.Contains(PRef))
+                                {
+                                    current = current.Replace(PRef, "");
+                                    int pathRef = Convert.ToInt32(current);
+
+                                    Path refPath = paths
+                                        .Where(x => x.PathNumber == pathRef)
+                                        .FirstOrDefault();
+
+                                    ExcelSheet refSheet = refPath.Sheets.Last();
+
+                                    sheet.Adresser[i] =
+                                        (refSheet.SheetNumber).ToString();
+                                }
+                            }
+                        }
+                        #endregion
+
+                        #region Populate excel file
+                        foreach (ExcelSheet sheet in orderedSheets)
+                        {
+                            prdDbg($"Writing sheet: {sheet.SheetNumber}");
+                            System.Windows.Forms.Application.DoEvents();
+
+                            ws = (Worksheet)wb.Worksheets[sheet.SheetNumber.ToString()];
+                            //Write addresses
+                            int row = 60; int col = 5;
+                            for (int i = 0; i < sheet.Adresser.Count; i++)
+                            {
+                                ws.Cells[row, col] = sheet.Adresser[i];
+                                row++;
+                            }
+                            row = 60; col = 17;
+                            for (int i = 0; i < sheet.Længder.Count; i++)
+                            {
+                                ws.Cells[row, col] = sheet.Længder[i];
+                                row++;
+                            }
+                        }
+                        #endregion
+
+                        #region Write graph documentation
+                        int subGraphNr = paths.Select(x => x.NodesOnPath.First().GroupNumber).First();
+                        sb.AppendLine(
+                            $"subgraph G_{subGraphNr} {{");
+                        sb.AppendLine("node [shape=record]");
+
+                        foreach (ExcelSheet sheet in orderedSheets)
+                        {
+                            string strækninger = string.Join(
+                                "|", sheet.SheetParts.Select(x => x.Name).ToArray());
+
+                            Regex regex = new Regex(@"^\d{1,3}");
                             foreach (string s in sheet.Adresser)
                             {
                                 if (regex.IsMatch(s)) sb.AppendLine(
@@ -2853,7 +4048,7 @@ namespace IntersectUtilities.Dimensionering
                         for (int i = 0; i < sortedClients.Count - 1; i++)
                         {
                             BlockReference br = sortedClients[i];
-                            string adresse = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Adresse");
+                            string adresse = AddrWithDup(br);
                             part.Adresser.Add(adresse);
 
                             double currentDist = node.Self.GetDistAtPoint(
@@ -2867,7 +4062,7 @@ namespace IntersectUtilities.Dimensionering
                             if (i == sortedClients.Count - 2)
                             {
                                 br = sortedClients[i + 1];
-                                adresse = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Adresse");
+                                adresse = AddrWithDup(br);
                                 part.Adresser.Add(adresse);
 
                                 currentDist = node.Self.GetDistAtPoint(
@@ -2880,11 +4075,7 @@ namespace IntersectUtilities.Dimensionering
                     else
                     {
                         BlockReference br = sortedClients.First();
-                        string vejnavn = PropertySetManager
-                            .ReadNonDefinedPropertySetString(br, "BBR", "Vejnavn");
-                        string husnummer = PropertySetManager
-                            .ReadNonDefinedPropertySetString(br, "BBR", "Husnummer");
-                        part.Adresser.Add($"{vejnavn} {husnummer}");
+                        part.Adresser.Add(AddrWithDup(br));
 
                         double currentDist = node.Self.GetDistAtPoint(
                             node.Self.GetClosestPointTo(br.Position, false));
@@ -2892,6 +4083,14 @@ namespace IntersectUtilities.Dimensionering
                         part.Distancer.Add(currentDist);
                     }
                 }
+            }
+
+            string AddrWithDup(BlockReference br)
+            {
+                string adresse = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Adresse");
+                int duplicateNr = PropertySetManager.ReadNonDefinedPropertySetInt(br, "BBR", "AdresseDuplikatNr");
+                string duplicateNrString = duplicateNr == 0 ? "" : " " + duplicateNr.ToString();
+                return adresse + duplicateNrString;
             }
 
             //Split sheets and write them
