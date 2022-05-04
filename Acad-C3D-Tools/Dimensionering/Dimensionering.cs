@@ -1069,7 +1069,7 @@ namespace IntersectUtilities.Dimensionering
 
                     //Prepare dicts and lookups for processing
                     var brDict = brs.ToDictionary(x => da(x));
-                    ILookup<string, IGrouping<string, BlockReference>> brGroupLookup = groups.ToLookup(x => x.Key); 
+                    ILookup<string, IGrouping<string, BlockReference>> brGroupLookup = groups.ToLookup(x => x.Key);
                     #endregion
 
                     foreach (var areaName in areaNames.OrderBy(x => x))
@@ -3955,6 +3955,7 @@ namespace IntersectUtilities.Dimensionering
                     {
                         ws = wb.Sheets[sheetNumber.ToString()];
                         wr(" " + sheetNumber.ToString());
+                        System.Windows.Forms.Application.DoEvents();
 
                         Array namesArray = (System.Array)ws.Range["E60:E109"].Cells.Value;
                         Array dimsArray = (System.Array)ws.Range["U4:U53"].Cells.Value;
@@ -4005,12 +4006,55 @@ namespace IntersectUtilities.Dimensionering
                     #endregion
 
                     #region Draw new polylines with dimensions
+                    //Guard against references
+                    Regex regex = new Regex(@"^\d{1,3}");
+
                     var pipeGroups = dimList.GroupBy(x => x.Pipe);
 
                     foreach (var group in pipeGroups)
                     {
                         Polyline originalPipe = group.Key.Go<Polyline>(localDb);
+                        foreach (var dim in dimList)
+                        {
+                            try
+                            {
+                                if (regex.IsMatch(dim.Name)) continue;
+                                dim.Station = DistToStart(brDict[dim.Name], originalPipe);
+                            }
+                            catch (System.Exception)
+                            {
+                                prdDbg(dim.Name);
+                                throw;
+                            }
+                        }
 
+                        List<SizeEntry> sizes = new List<SizeEntry>();
+                        IOrderedEnumerable<IGrouping<int, DimEntry>> dims = group.GroupBy(x => x.Dim).OrderByDescending(x => x.Key);
+                        IGrouping<int, DimEntry>[] dimAr = dims.ToArray();
+                        for (int i = 0; i < dimAr.Length; i++)
+                        {
+                            int dn = dimAr[i].Key;
+                            double start = 0.0;
+                            double end = 0.0;
+                            double kod = 0.0;
+                            //Determine start
+                            if (i != 0) start = dimAr[i].MinBy(x => x.Station).First().Station;
+                            //Determine end
+                            if (i != dimAr.Length - 1) end = dimAr[i + 1].MinBy(x => x.Station).First().Station;
+                            else end = originalPipe.Length;
+                            sizes.Add(new SizeEntry(dn, start, end, kod));
+                        }
+
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(sizes.ToArray());
+                        prdDbg($"{fjvFremPsm.ReadPropertyString(originalPipe, fjvFremDef.Bemærkninger)}:");
+                        prdDbg(sizeArray.ToString());
+                        System.Windows.Forms.Application.DoEvents();
+                    }
+
+                    double DistToStart(BlockReference br, Polyline pline)
+                    {
+                        Point3d closestPt = pline.GetClosestPointTo(br.Position, false);
+                        return pline.GetDistAtPoint(closestPt);
                     }
                     #endregion
                 }
@@ -4037,6 +4081,7 @@ namespace IntersectUtilities.Dimensionering
             public string Name { get; set; }
             public int Dim { get; set; }
             public Handle Pipe { get; set; }
+            public double Station { get; set; }
             public DimEntry(string name, int dim) { Name = name; Dim = dim; }
         }
 

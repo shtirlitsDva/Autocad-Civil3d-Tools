@@ -1564,7 +1564,7 @@ namespace IntersectUtilities
                 SizeArray = ConstructWithCurves(al, curves);
             else SizeArray = ConstructWithBlocks(al, brs, dynBlocks);
         }
-        private PipelineSizeArray(SizeEntry[] sizeArray) { SizeArray = sizeArray; }
+        public PipelineSizeArray(SizeEntry[] sizeArray) { SizeArray = sizeArray; }
         public PipelineSizeArray GetPartialSizeArrayForPV(ProfileView pv)
         {
             var list = this.GetIndexesOfSizesAppearingInProfileView(pv.StationStart, pv.StationEnd);
