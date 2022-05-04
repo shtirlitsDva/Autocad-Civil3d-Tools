@@ -70,7 +70,7 @@ namespace IntersectUtilities.ODDataConverter
                     appliedTo.Add("AcDbSpline");
                     appliedTo.Add("AcDbPolyline");
                     appliedTo.Add("AcDb3dPolyline");
-                    //appliedTo.Add(RXClass.GetClass(typeof(BlockReference)).Name);
+                    appliedTo.Add(RXClass.GetClass(typeof(BlockReference)).Name);
                     propSetDef.SetAppliesToFilter(appliedTo, isStyle);
 
                     FieldDefinitions defs = curTable.FieldDefinitions;
@@ -142,14 +142,13 @@ namespace IntersectUtilities.ODDataConverter
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                //I need to work with 3d polylines
                 //Change here to add other types of objects
                 HashSet<Entity> ents = new HashSet<Entity>();
                 ents.UnionWith(localDb.HashSetOfType<Line>(tx));
                 ents.UnionWith(localDb.HashSetOfType<Spline>(tx));
                 ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
                 ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
-                //ents.UnionWith(localDb.HashSetOfType<BlockReference>(tx));
+                ents.UnionWith(localDb.HashSetOfType<BlockReference>(tx));
                 //ents = ents.Where(x => x.Layer == "0-FJV_fremtid").ToHashSet();
 
                 foreach (Entity ent in ents)
@@ -207,7 +206,7 @@ namespace IntersectUtilities.ODDataConverter
                     ents.UnionWith(localDb.HashSetOfType<Spline>(tx));
                     ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
                     ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
-                    //ents.UnionWith(localDb.HashSetOfType<BlockReference>(tx));
+                    ents.UnionWith(localDb.HashSetOfType<BlockReference>(tx));
                     //ents = ents.Where(x => x.Layer == "0-FJV_fremtid").ToHashSet();
 
                     foreach (Entity ent in ents)
@@ -313,7 +312,7 @@ namespace IntersectUtilities.ODDataConverter
                 case DataType.Integer:
                     return 0;
                 case DataType.Real:
-                    return 0;
+                    return 0.0;
                 case DataType.Character:
                     return "";
                 case DataType.Point:
