@@ -1059,14 +1059,18 @@ namespace IntersectUtilities.Dimensionering
                     foreach (string fileName in fileNames)
                         fileNameDict.Add(System.IO.Path.GetFileNameWithoutExtension(fileName), fileName);
 
-                    var areaNames = brs
-                        .GroupBy(x => bbrPsm.ReadPropertyString(x, bbrDef.DistriktetsNavn))
+                    #region Data preparation
+                    var groups = brs
+                        .GroupBy(x => bbrPsm.ReadPropertyString(x, bbrDef.DistriktetsNavn));
+
+                    var areaNames = groups
                         .Select(x => x.Key)
                         .Distinct();
 
                     //Prepare dicts and lookups for processing
                     var brDict = brs.ToDictionary(x => da(x));
-                    //TODO: Create group lookup based on current area
+                    ILookup<string, IGrouping<string, BlockReference>> brGroupLookup = groups.ToLookup(x => x.Key); 
+                    #endregion
 
                     foreach (var areaName in areaNames.OrderBy(x => x))
                     {
@@ -1081,7 +1085,7 @@ namespace IntersectUtilities.Dimensionering
                         oXL.Calculation = XlCalculation.xlCalculationManual;
                         #endregion
 
-                        Dimensionering.dimimportdim(wb, dimDb, areaName, brs);
+                        Dimensionering.dimimportdim(wb, dimDb, areaName, brDict, brGroupLookup);
 
                         #region Close workbook
                         wb.Close();
@@ -3319,8 +3323,7 @@ namespace IntersectUtilities.Dimensionering
         {
             PSetDefs.DriDimGraph defGraph = new PSetDefs.DriDimGraph();
 
-            psmGraph.GetOrAttachPropertySet(ent);
-            string childrenString = psmGraph.ReadPropertyString(defGraph.Children);
+            string childrenString = psmGraph.ReadPropertyString(ent, defGraph.Children);
 
             var splitArray = childrenString.Split(';');
 
@@ -3910,7 +3913,12 @@ namespace IntersectUtilities.Dimensionering
                 #endregion
             }
         }
-        internal static void dimimportdim(Workbook wb, Database dimDb, string areaName, HashSet<BlockReference> brs)
+        internal static void dimimportdim(
+            Workbook wb,
+            Database dimDb,
+            string areaName,
+            Dictionary<string, BlockReference> brDict,
+            ILookup<string, IGrouping<string, BlockReference>> brGroupLookup)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -3941,14 +3949,15 @@ namespace IntersectUtilities.Dimensionering
                     Worksheet ws;
                     IEnumerable<int> sheetRange = Enumerable.Range(1, 100);
                     prdDbg("");
-                    var dimList = new List<(string Name, int Dim)>();
+                    Handle zeroHandle = new Handle(0);
+                    var dimList = new List<DimEntry>();
                     foreach (int sheetNumber in sheetRange)
                     {
                         ws = wb.Sheets[sheetNumber.ToString()];
                         wr(" " + sheetNumber.ToString());
 
-                        var namesArray = (System.Array)ws.Range["E60:E109"].Cells.Value;
-                        var dimsArray = (System.Array)ws.Range["U4:U53"].Cells.Value;
+                        Array namesArray = (System.Array)ws.Range["E60:E109"].Cells.Value;
+                        Array dimsArray = (System.Array)ws.Range["U4:U53"].Cells.Value;
 
                         var namesList = new List<string>();
                         var dimsList = new List<int>();
@@ -3966,11 +3975,44 @@ namespace IntersectUtilities.Dimensionering
                         }
 
                         var zip = namesList.Zip(dimsList, (x, y) => new { name = x, dim = y });
-                        foreach (var item in zip) dimList.Add((item.name, item.dim));
-                    } 
+                        foreach (var item in zip) dimList.Add(new DimEntry(item.name, item.dim));
+                    }
                     #endregion
 
+                    #region Find pipes that the buildings belong to
+                    foreach (var item in dimList)
+                    {
+                        if (!brDict.ContainsKey(item.Name))
+                        {
+                            prdDbg($"WARNING! Entry {item.Name} could not find corresponding BlockReference!");
+                            continue;
+                        }
+                        var br = brDict[item.Name];
 
+                        #region Use parent connection to traverse through stik line to corresponding path
+                        //Get con line
+                        string lineHandle = graphPsm.ReadPropertyString(br, graphDef.Parent);
+                        if (lineHandle.IsNoE()) { prdDbg($"WARNING! Parent Handle for entry {item.Name} is NoE!"); continue; }
+                        var conLine = localDb.Go<Line>(lineHandle);
+                        //Get pipe
+                        string pipeHandle = graphPsm.ReadPropertyString(conLine, graphDef.Parent);
+                        if (lineHandle.IsNoE()) { prdDbg($"WARNING! Parent Handle for conLine {conLine.Handle} is NoE!"); continue; }
+                        var pipe = localDb.Go<Polyline>(pipeHandle);
+                        //Store pipe handle in dim tuple
+                        item.Pipe = pipe.Handle;
+                        #endregion
+                    }
+                    #endregion
+
+                    #region Draw new polylines with dimensions
+                    var pipeGroups = dimList.GroupBy(x => x.Pipe);
+
+                    foreach (var group in pipeGroups)
+                    {
+                        Polyline originalPipe = group.Key.Go<Polyline>(localDb);
+
+                    }
+                    #endregion
                 }
                 #region Catch and finally
                 catch (System.Exception ex)
@@ -3989,6 +4031,15 @@ namespace IntersectUtilities.Dimensionering
                 #endregion
             }
         }
+
+        private class DimEntry
+        {
+            public string Name { get; set; }
+            public int Dim { get; set; }
+            public Handle Pipe { get; set; }
+            public DimEntry(string name, int dim) { Name = name; Dim = dim; }
+        }
+
         public static bool IsPointInside(this Polyline pline, Point3d point)
         {
             double tolerance = Tolerance.Global.EqualPoint;
