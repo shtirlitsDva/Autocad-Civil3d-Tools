@@ -1230,6 +1230,23 @@ namespace IntersectUtilities.UtilsCommon
             }
             return br;
         }
+        public static List<string> ListLayers(this Database db)
+        {
+            List<string> lstlay = new List<string>();
+
+            LayerTableRecord layer;
+            using (Transaction tr = db.TransactionManager.StartOpenCloseTransaction())
+            {
+                LayerTable lt = tr.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
+                foreach (ObjectId layerId in lt)
+                {
+                    layer = tr.GetObject(layerId, OpenMode.ForWrite) as LayerTableRecord;
+                    lstlay.Add(layer.Name);
+                }
+
+            }
+            return lstlay;
+        }
         public static Point2d GetPoint2dAtStaAndEl(this ProfileView pv, double station, double elevation)
         {
             double x = 0, y = 0;

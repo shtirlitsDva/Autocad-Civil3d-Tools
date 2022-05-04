@@ -12107,6 +12107,28 @@ namespace IntersectUtilities
                             else prdDbg("No match!");
                         }
                     }
+
+                    List<string> localLayers = localDb.ListLayers();
+
+                    foreach (string name in localLayers.Where(x => x.IsNotNoE()).OrderBy(x => x))
+                    {
+                        if (lt.Has(name))
+                        {
+                            string colorString = ReadStringParameterFromDataTable(name, dtKrydsninger, "Farve", 0);
+                            if (colorString.IsNotNoE() && regex.IsMatch(colorString))
+                            {
+                                Match match = regex.Match(colorString);
+                                byte R = Convert.ToByte(int.Parse(match.Groups["R"].Value));
+                                byte G = Convert.ToByte(int.Parse(match.Groups["G"].Value));
+                                byte B = Convert.ToByte(int.Parse(match.Groups["B"].Value));
+                                prdDbg($"Set layer {name} to color: R: {R.ToString()}, G: {G.ToString()}, B: {B.ToString()}");
+                                LayerTableRecord ltr = lt[name].Go<LayerTableRecord>(selectedDB.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                                ltr.Color = Color.FromRgb(R, G, B);
+                                ltr.LineWeight = LineWeight.LineWeight013;
+                            }
+                            else prdDbg("No match!");
+                        }
+                    }
                 }
                 catch (System.Exception ex)
                 {
@@ -14889,19 +14911,19 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("CREATEPROPERTYSETSFROMODTABLES")]
+        //[CommandMethod("CREATEPROPERTYSETSFROMODTABLES")]
         public void createpropertysetsfromodtables()
         {
             IntersectUtilities.ODDataConverter.ODDataConverter.oddatacreatepropertysetsdefs();
         }
 
-        [CommandMethod("ATTACHODTABLEPROPERTYSETS")]
+        //[CommandMethod("ATTACHODTABLEPROPERTYSETS")]
         public void attachodtablepropertysets()
         {
             IntersectUtilities.ODDataConverter.ODDataConverter.attachpropertysetstoobjects();
         }
 
-        [CommandMethod("POPULATEPROPERTYSETSWITHODDATA")]
+        //[CommandMethod("POPULATEPROPERTYSETSWITHODDATA")]
         public void populatepropertysetswithoddata()
         {
             IntersectUtilities.ODDataConverter.ODDataConverter.populatepropertysetswithoddata();

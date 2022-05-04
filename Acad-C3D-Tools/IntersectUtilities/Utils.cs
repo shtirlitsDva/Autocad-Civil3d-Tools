@@ -262,7 +262,7 @@ namespace IntersectUtilities
         /// </summary>
         public static (string setName, string propertyName) FindPropertySetParts(string input)
         {
-            Regex regex = new Regex(@"({[a-zæøåA-ZÆØÅ_:-]*})");
+            Regex regex = new Regex(@"({[0-9a-zæøåA-ZÆØÅ_:-]*})");
 
             if (regex.IsMatch(input))
             {
