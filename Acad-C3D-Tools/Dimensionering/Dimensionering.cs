@@ -1966,8 +1966,9 @@ namespace IntersectUtilities.Dimensionering
                         string duplicateNrString = duplicateNr == 0 ? "" : " " + duplicateNr.ToString();
                         string estVarmeForbrug = (bbrPsm.ReadPropertyDouble(
                             building, bbrDef.EstimeretVarmeForbrug) * 1000.0).ToString("0.##");
+                        string anvKodeTekst = bbrPsm.ReadPropertyString(building, bbrDef.BygningsAnvendelseNyTekst);
 
-                        sb.AppendLine($"{adresse + duplicateNrString};{estVarmeForbrug};{antalEjendomme};{antalBoligerOsv};{stikLængde};{dimAfkøling}");
+                        sb.AppendLine($"{adresse + duplicateNrString};{estVarmeForbrug};{antalEjendomme};{antalBoligerOsv};{stikLængde};{dimAfkøling};;{anvKodeTekst}");
                     }
 
                     //Build file name
@@ -2072,6 +2073,7 @@ namespace IntersectUtilities.Dimensionering
                         string duplicateNrString = duplicateNr == 0 ? "" : " " + duplicateNr.ToString();
                         double estVarmeForbrugHusnr = (bbrPsm.ReadPropertyDouble(
                             building, bbrDef.EstimeretVarmeForbrug) * 1000.0);
+                        string anvKodeTekst = bbrPsm.ReadPropertyString(building, bbrDef.BygningsAnvendelseNyTekst);
 
                         //Write row
 
@@ -2082,6 +2084,7 @@ namespace IntersectUtilities.Dimensionering
                         ws1.Cells[forbrugerRow, 4] = antalBoligerOsv;
                         ws1.Cells[forbrugerRow, 5] = stikLængde;
                         ws1.Cells[forbrugerRow, 6] = dimAfkøling;
+                        ws1.Cells[forbrugerRow, 8] = anvKodeTekst;
 
                         stikRow++;
                         ws2.Cells[stikRow, 5] = adresse + duplicateNrString;
