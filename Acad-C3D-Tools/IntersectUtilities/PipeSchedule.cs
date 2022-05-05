@@ -122,6 +122,7 @@ namespace IntersectUtilities
         public static int GetPipeDN(Entity ent)
         {
             string layer = ent.Layer;
+            if (layer.Contains("|")) layer = layer.Split('|').Last();
             switch (layer)
             {
                 case "FJV-TWIN-DN20":
@@ -201,6 +202,7 @@ namespace IntersectUtilities
         public static string GetPipeSystem(Entity ent)
         {
             string layer = ent.Layer;
+            if (layer.Contains("|")) layer = layer.Split('|').Last();
             switch (layer)
             {
                 case "FJV-TWIN-DN20":
@@ -311,12 +313,32 @@ namespace IntersectUtilities
                     return 0;
             }
         }
+        public static double GetTwinPipeKOd(int dn, PipeSeriesEnum pipeSeries)
+        {
+            switch (pipeSeries)
+            {
+                case PipeSeriesEnum.S1:
+                    if (kOdsS1Twin.ContainsKey(dn)) return kOdsS1Twin[dn];
+                    else return 0;
+                case PipeSeriesEnum.S2:
+                    if (kOdsS2Twin.ContainsKey(dn)) return kOdsS2Twin[dn];
+                    else return 0;
+                case PipeSeriesEnum.S3:
+                    if (kOdsS3Twin.ContainsKey(dn)) return kOdsS3Twin[dn];
+                    else return 0;
+                default:
+                    return 0;
+            }
+        }
         public static double GetTwinPipeKOd(Entity ent)
         {
             int DN = GetPipeDN(ent);
             if (kOdsS3Twin.ContainsKey(DN)) return kOdsS3Twin[DN];
             return 0;
         }
+        /// <summary>
+        /// WARNING! S3 only.
+        /// </summary>
         public static double GetTwinPipeKOd(int DN)
         {
             if (kOdsS3Twin.ContainsKey(DN)) return kOdsS3Twin[DN];
@@ -328,6 +350,24 @@ namespace IntersectUtilities
         public static double GetBondedPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
+            switch (pipeSeries)
+            {
+                case PipeSeriesEnum.S1:
+                    if (kOdsS1Bonded.ContainsKey(dn)) return kOdsS1Bonded[dn];
+                    break;
+                case PipeSeriesEnum.S2:
+                    if (kOdsS2Bonded.ContainsKey(dn)) return kOdsS2Bonded[dn];
+                    break;
+                case PipeSeriesEnum.S3:
+                    if (kOdsS3Bonded.ContainsKey(dn)) return kOdsS3Bonded[dn];
+                    break;
+                default:
+                    return 0;
+            }
+            return 0;
+        }
+        public static double GetBondedPipeKOd(int dn, PipeSeriesEnum pipeSeries)
+        {
             switch (pipeSeries)
             {
                 case PipeSeriesEnum.S1:

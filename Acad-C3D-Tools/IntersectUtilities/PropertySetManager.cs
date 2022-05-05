@@ -587,6 +587,11 @@ namespace IntersectUtilities
                 "Name of the alignment the component branches off to.",
                 PsDataType.Text,
                 "");
+            public Property EtapeNavn { get; } = new Property(
+                "EtapeNavn",
+                "Name of the area the pipe belongs to.",
+                PsDataType.Text,
+                "");
             public StringCollection AppliesTo { get; } = new StringCollection()
                 {
                     RXClass.GetClass(typeof(Polyline)).Name,

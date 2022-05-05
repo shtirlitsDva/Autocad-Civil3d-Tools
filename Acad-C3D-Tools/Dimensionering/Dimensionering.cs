@@ -969,7 +969,27 @@ namespace IntersectUtilities.Dimensionering
             pKeyOpts.AllowNone = true;
             pKeyOpts.Keywords.Default = kwd1;
             PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+            if (pKeyRes.Status != PromptStatus.OK) return;
             string workingDrawing = pKeyRes.StringResult;
+            #endregion
+
+            #region Choose series in which to draw pipes
+            const string ser1 = "S1";
+            const string ser2 = "S2";
+            const string ser3 = "S3";
+
+            PromptKeywordOptions pKeyOpts2 = new PromptKeywordOptions("");
+            pKeyOpts2.Message = "\nVælg serie for rør: ";
+            pKeyOpts2.Keywords.Add(ser1);
+            pKeyOpts2.Keywords.Add(ser2);
+            pKeyOpts2.Keywords.Add(ser3);
+            pKeyOpts2.AllowNone = true;
+            pKeyOpts2.Keywords.Default = ser3;
+            PromptResult pKeyRes2 = editor.GetKeywords(pKeyOpts2);
+            if (pKeyRes2.Status != PromptStatus.OK) return;
+            string series = pKeyRes2.StringResult;
+            PipeSchedule.PipeSeriesEnum pipeSeries =
+                (PipeSchedule.PipeSeriesEnum)Enum.Parse(typeof(PipeSchedule.PipeSeriesEnum), series);
             #endregion
 
             #region Get file paths
@@ -1069,7 +1089,7 @@ namespace IntersectUtilities.Dimensionering
 
                     //Prepare dicts and lookups for processing
                     var brDict = brs.ToDictionary(x => da(x));
-                    ILookup<string, IGrouping<string, BlockReference>> brGroupLookup = groups.ToLookup(x => x.Key);
+                    //ILookup<string, IGrouping<string, BlockReference>> brGroupLookup = groups.ToLookup(x => x.Key);
                     #endregion
 
                     foreach (var areaName in areaNames.OrderBy(x => x))
@@ -1085,7 +1105,7 @@ namespace IntersectUtilities.Dimensionering
                         oXL.Calculation = XlCalculation.xlCalculationManual;
                         #endregion
 
-                        Dimensionering.dimimportdim(wb, dimDb, areaName, brDict, brGroupLookup);
+                        Dimensionering.dimimportdim(wb, dimDb, areaName, brDict, pipeSeries);
 
                         #region Close workbook
                         wb.Close();
@@ -1114,7 +1134,7 @@ namespace IntersectUtilities.Dimensionering
 
                 }
                 tx.Commit();
-                //dimDb.SaveAs(dbFilename, DwgVersion.Current);
+                dimDb.SaveAs(dimDbFilename, DwgVersion.Current);
             }
         }
 
@@ -3921,7 +3941,8 @@ namespace IntersectUtilities.Dimensionering
             Database dimDb,
             string areaName,
             Dictionary<string, BlockReference> brDict,
-            ILookup<string, IGrouping<string, BlockReference>> brGroupLookup)
+            PipeSchedule.PipeSeriesEnum pipeSeries
+            )
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -3942,6 +3963,9 @@ namespace IntersectUtilities.Dimensionering
                 PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
                 PSetDefs.BBR bbrDef = new PSetDefs.BBR();
 
+                PropertySetManager piplPsm = new PropertySetManager(dimDb, PSetDefs.DefinedSets.DriPipelineData);
+                PSetDefs.DriPipelineData piplDef = new PSetDefs.DriPipelineData();
+
                 void wr(string inp) => editor.WriteMessage(inp);
 
                 StringBuilder sb = new StringBuilder();
@@ -3951,6 +3975,7 @@ namespace IntersectUtilities.Dimensionering
                     #region Read excel workbook data into a list: dimList<(string Name, int Dim)>
                     Worksheet ws;
                     IEnumerable<int> sheetRange = Enumerable.Range(1, 100);
+                    Handle zeroHandle = new Handle(Convert.ToInt64("0", 16));
                     var dimList = new List<DimEntry>();
                     foreach (int sheetNumber in sheetRange)
                     {
@@ -3998,31 +4023,33 @@ namespace IntersectUtilities.Dimensionering
                         var conLine = localDb.Go<Line>(lineHandle);
                         //Get pipe
                         string pipeHandle = graphPsm.ReadPropertyString(conLine, graphDef.Parent);
-                        if (lineHandle.IsNoE()) { prdDbg($"WARNING! Parent Handle for conLine {conLine.Handle} is NoE!"); continue; }
-                        var pipe = localDb.Go<Polyline>(pipeHandle);
+                        if (pipeHandle.IsNoE()) { prdDbg($"WARNING! Parent Handle for conLine {conLine.Handle} is NoE!"); continue; }
                         //Store pipe handle in dim tuple
-                        item.Pipe = pipe.Handle;
+                        item.Pipe = new Handle(Convert.ToInt64(pipeHandle, 16));
                         #endregion
                     }
                     #endregion
 
                     #region Draw new polylines with dimensions
+                    #region Built sizeArray for the pipeline
                     //Guard against references
                     Regex sheetNumberRegex = new Regex(@"^\d{1,3}");
 
-                    var pipeGroups = dimList.GroupBy(x => x.Pipe.ToString());
+                    var pipeGroups = dimList.GroupBy(x => x.Pipe);
 
+                    //This foreach and next are split in two to make sorting by
+                    //Strækning possible
                     foreach (var group in pipeGroups)
                     {
-                        if (group.Key == default) continue;
-                        if (group.Key.IsNoE()) continue;
-                        Polyline originalPipe = localDb.Go<Polyline>(group.Key);
-                        foreach (var dim in dimList)
+                        if (group.Key == default || group.Key == zeroHandle) continue;
+                        Polyline originalPipe = group.Key.Go<Polyline>(localDb);
+                        foreach (var dim in group)
                         {
                             try
                             {
                                 if (sheetNumberRegex.IsMatch(dim.Name)) continue;
                                 dim.Station = DistToStart(brDict[dim.Name], originalPipe);
+                                dim.Strækning = fjvFremPsm.ReadPropertyString(originalPipe, fjvFremDef.Bemærkninger);
                             }
                             catch (System.Exception)
                             {
@@ -4031,27 +4058,158 @@ namespace IntersectUtilities.Dimensionering
                                 throw;
                             }
                         }
+                    }
 
+                    foreach (var group in pipeGroups.OrderByAlphaNumeric(x => x.First().Strækning))
+                    {
+                        if (group.Key == default || group.Key == zeroHandle) continue;
+                        Polyline originalPipe = group.Key.Go<Polyline>(localDb);
                         List<SizeEntry> sizes = new List<SizeEntry>();
                         IOrderedEnumerable<IGrouping<int, DimEntry>> dims = group.GroupBy(x => x.Dim).OrderByDescending(x => x.Key);
                         IGrouping<int, DimEntry>[] dimAr = dims.ToArray();
                         for (int i = 0; i < dimAr.Length; i++)
                         {
                             int dn = dimAr[i].Key;
-                            double start = 0.0;
-                            double end = 0.0;
-                            double kod = 0.0;
+                            double start = 0.0; double end = 0.0;
+                            double kod = dn < 250 ?
+                                PipeSchedule.GetTwinPipeKOd(dn, pipeSeries) :
+                                PipeSchedule.GetBondedPipeKOd(dn, pipeSeries);
                             //Determine start
-                            if (i != 0) start = dimAr[i].MinBy(x => x.Station).First().Station;
+                            if (i != 0) start = dimAr[i - 1].MaxBy(x => x.Station).First().Station;
                             //Determine end
-                            if (i != dimAr.Length - 1) end = dimAr[i + 1].MinBy(x => x.Station).First().Station;
+                            if (i != dimAr.Length - 1) end = dimAr[i].MaxBy(x => x.Station).First().Station;
                             else end = originalPipe.Length;
                             sizes.Add(new SizeEntry(dn, start, end, kod));
                         }
 
+                        //Consolidate sizes -> ie. remove sizes with 0 length
+                        List<int> idxToRemove = new List<int>();
+                        for (int i = 0; i < sizes.Count; i++)
+                            if (sizes[i].EndStation - sizes[i].StartStation < 0.000001) idxToRemove.Add(i);
+                        //Reverse to avoid mixing up indici and removing wrong ones
+                        idxToRemove.Reverse();
+                        foreach (int idx in idxToRemove) sizes.RemoveAt(idx);
+
+                        //Create sizeArray
                         PipelineSizeArray sizeArray = new PipelineSizeArray(sizes.ToArray());
-                        prdDbg($"{fjvFremPsm.ReadPropertyString(originalPipe, fjvFremDef.Bemærkninger)}:");
-                        prdDbg(sizeArray.ToString());
+                        //prdDbg($"{fjvFremPsm.ReadPropertyString(originalPipe, fjvFremDef.Bemærkninger)}:");
+                        //prdDbg(sizeArray.ToString()); 
+                        #endregion
+
+                        #region Create pipes in sideloaded db
+                        Polyline newPipe;
+                        if (sizeArray.Length == 1)
+                        {
+                            newPipe = new Polyline(originalPipe.NumberOfVertices);
+                            newPipe.SetDatabaseDefaults(dimDb);
+                            newPipe.AddEntityToDbModelSpace(dimDb);
+                            for (int i = 0; i < originalPipe.NumberOfVertices; i++)
+                                newPipe.AddVertexAt(newPipe.NumberOfVertices, originalPipe.GetPoint2dAt(i), 0, 0, 0);
+
+                            PipeSchedule.PipeTypeEnum pipeType =
+                                sizeArray[0].DN < 250 ?
+                                PipeSchedule.PipeTypeEnum.Twin :
+                                PipeSchedule.PipeTypeEnum.Frem;
+
+                            //Determine layer
+                            string layerName = string.Concat(
+                                "FJV-", pipeType.ToString(), "-", "DN" + sizeArray[0].DN.ToString()).ToUpper();
+
+                            CheckOrCreateLayerForPipe(dimDb, layerName, pipeType);
+
+                            newPipe.Layer = layerName;
+                            newPipe.ConstantWidth = sizeArray[0].Kod / 1000.0;
+
+                            piplPsm.WritePropertyString(newPipe, piplDef.EtapeNavn, areaName);
+                        }
+                        else if (sizeArray.Length == 0) continue;
+                        else
+                        {
+                            List<double> splitPts = new List<double>();
+                            for (int i = 0; i < sizeArray.Length - 1; i++)
+                                splitPts.Add(originalPipe.GetParameterAtDistance(sizeArray[i].EndStation));
+                            if (splitPts.Count == 0) throw new System.Exception("Getting split points failed!");
+                            splitPts.Sort();
+                            try
+                            {
+                                DBObjectCollection objs = originalPipe
+                                    .GetSplitCurves(new DoubleCollection(splitPts.ToArray()));
+
+                                for (int i = 0; i < objs.Count; i++)
+                                {
+                                    SizeEntry curSize = sizeArray[i];
+                                    Polyline curChunk = objs[i] as Polyline;
+
+                                    newPipe = new Polyline(curChunk.NumberOfVertices);
+                                    newPipe.SetDatabaseDefaults(dimDb);
+                                    newPipe.AddEntityToDbModelSpace(dimDb);
+                                    for (int j = 0; j < curChunk.NumberOfVertices; j++)
+                                        newPipe.AddVertexAt(newPipe.NumberOfVertices, curChunk.GetPoint2dAt(j), 0, 0, 0);
+
+                                    PipeSchedule.PipeTypeEnum pipeType =
+                                        sizeArray[i].DN < 250 ?
+                                        PipeSchedule.PipeTypeEnum.Twin :
+                                        PipeSchedule.PipeTypeEnum.Frem;
+
+                                    //Determine layer
+                                    string layerName = string.Concat(
+                                        "FJV-", pipeType.ToString(), "-", "DN" + sizeArray[i].DN.ToString()).ToUpper();
+
+                                    CheckOrCreateLayerForPipe(dimDb, layerName, pipeType);
+
+                                    newPipe.Layer = layerName;
+                                    newPipe.ConstantWidth = sizeArray[i].Kod / 1000.0;
+
+                                    piplPsm.WritePropertyString(newPipe, piplDef.EtapeNavn, areaName);
+                                }
+                            }
+                            catch (Autodesk.AutoCAD.Runtime.Exception ex)
+                            {
+                                Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
+                                throw new System.Exception("Splitting of pline failed!");
+                            }
+                        }
+                        #endregion
+
+                        void CheckOrCreateLayerForPipe(Database db, string layerName, PipeSchedule.PipeTypeEnum pipeType)
+                        {
+                            Transaction localTx = db.TransactionManager.TopTransaction;
+                            LayerTable lt = db.LayerTableId.Go<LayerTable>(localTx);
+                            Oid ltId;
+                            if (!lt.Has(layerName))
+                            {
+                                LinetypeTable ltt = db.LinetypeTableId.Go<LinetypeTable>(localTx);
+
+                                LayerTableRecord ltr = new LayerTableRecord();
+                                ltr.Name = layerName;
+                                switch (pipeType)
+                                {
+                                    case PipeSchedule.PipeTypeEnum.Twin:
+                                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
+                                        break;
+                                    case PipeSchedule.PipeTypeEnum.Frem:
+                                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                                        break;
+                                    case PipeSchedule.PipeTypeEnum.Retur:
+                                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 5);
+                                        break;
+                                    default:
+                                        break;
+                                }
+                                Oid continuous = ltt["Continuous"];
+                                ltr.LinetypeObjectId = continuous;
+                                ltr.LineWeight = LineWeight.ByLineWeightDefault;
+
+                                //Make layertable writable
+                                lt.CheckOrOpenForWrite();
+
+                                //Add the new layer to layer table
+                                ltId = lt.Add(ltr);
+                                localTx.AddNewlyCreatedDBObject(ltr, true);
+                            }
+                            else ltId = lt[layerName];
+                        }
+
                         System.Windows.Forms.Application.DoEvents();
                     }
 
@@ -4084,8 +4242,9 @@ namespace IntersectUtilities.Dimensionering
         {
             public string Name { get; set; }
             public int Dim { get; set; }
-            public Handle Pipe { get; set; } = default;
+            public Handle Pipe { get; set; } = new Handle(Convert.ToInt64("0", 16));
             public double Station { get; set; }
+            public string Strækning { get; set; } = "";
             public DimEntry(string name, int dim) { Name = name; Dim = dim; }
         }
 
