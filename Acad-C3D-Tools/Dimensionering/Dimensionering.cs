@@ -3948,8 +3948,6 @@ namespace IntersectUtilities.Dimensionering
                     #region Read excel workbook data into a list: dimList<(string Name, int Dim)>
                     Worksheet ws;
                     IEnumerable<int> sheetRange = Enumerable.Range(1, 100);
-                    prdDbg("");
-                    Handle zeroHandle = new Handle(0);
                     var dimList = new List<DimEntry>();
                     foreach (int sheetNumber in sheetRange)
                     {
@@ -4007,23 +4005,26 @@ namespace IntersectUtilities.Dimensionering
 
                     #region Draw new polylines with dimensions
                     //Guard against references
-                    Regex regex = new Regex(@"^\d{1,3}");
+                    Regex sheetNumberRegex = new Regex(@"^\d{1,3}");
 
-                    var pipeGroups = dimList.GroupBy(x => x.Pipe);
+                    var pipeGroups = dimList.GroupBy(x => x.Pipe.ToString());
 
                     foreach (var group in pipeGroups)
                     {
-                        Polyline originalPipe = group.Key.Go<Polyline>(localDb);
+                        if (group.Key == default) continue;
+                        if (group.Key.IsNoE()) continue;
+                        Polyline originalPipe = localDb.Go<Polyline>(group.Key);
                         foreach (var dim in dimList)
                         {
                             try
                             {
-                                if (regex.IsMatch(dim.Name)) continue;
+                                if (sheetNumberRegex.IsMatch(dim.Name)) continue;
                                 dim.Station = DistToStart(brDict[dim.Name], originalPipe);
                             }
                             catch (System.Exception)
                             {
                                 prdDbg(dim.Name);
+                                prdDbg(originalPipe.Handle.ToString());
                                 throw;
                             }
                         }
@@ -4080,7 +4081,7 @@ namespace IntersectUtilities.Dimensionering
         {
             public string Name { get; set; }
             public int Dim { get; set; }
-            public Handle Pipe { get; set; }
+            public Handle Pipe { get; set; } = default;
             public double Station { get; set; }
             public DimEntry(string name, int dim) { Name = name; Dim = dim; }
         }
