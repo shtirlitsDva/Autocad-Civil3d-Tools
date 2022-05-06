@@ -842,6 +842,30 @@ namespace IntersectUtilities.Dimensionering
 
             PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
 
+            #region Choose one or all : NOT WORKING YET
+            const string kwd1 = "Enkelt";
+            const string kwd2 = "Alle";
+
+            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
+            pKeyOpts.Message = "\nVælg at udskrive ét område eller alle på én gang: ";
+            pKeyOpts.Keywords.Add(kwd1);
+            pKeyOpts.Keywords.Add(kwd2);
+            pKeyOpts.AllowNone = true;
+            pKeyOpts.Keywords.Default = kwd1;
+            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+            if (pKeyRes.Status != PromptStatus.OK) return;
+            string workingDrawing = pKeyRes.StringResult;
+            #endregion
+
+            #region Enter area name if Enkelt
+            string curEtapeName = "";
+            if (workingDrawing == kwd1)
+            {
+                curEtapeName = Dimensionering.dimaskforarea();
+                if (curEtapeName.IsNoE()) return;
+            }
+            #endregion
+
             #region Dialog box for selecting the excel file
             string fileName = string.Empty;
             OpenFileDialog dialog = new OpenFileDialog()
@@ -857,6 +881,12 @@ namespace IntersectUtilities.Dimensionering
             }
             else { return; }
             if (fileName.IsNoE()) return;
+            #endregion
+
+            #region Get dimensionerende afkøling
+            PromptIntegerResult result = editor.GetInteger("\nAngiv dimensionerende afkøling: ");
+            if (((PromptResult)result).Status != PromptStatus.OK) return;
+            int dimAfkøling = result.Value;
             #endregion
 
             #region Build base path
@@ -885,10 +915,17 @@ namespace IntersectUtilities.Dimensionering
                     var groups = brs.GroupBy(x => bbrPsm.ReadPropertyString(x, bbrDef.DistriktetsNavn));
                     #endregion
 
-                    #region Get dimensionerende afkøling
-                    PromptIntegerResult result = editor.GetInteger("\nAngiv dimensionerende afkøling: ");
-                    if (((PromptResult)result).Status != PromptStatus.OK) return;
-                    int dimAfkøling = result.Value;
+                    #region Prepare polylines and group by area and make a lookup
+                    PropertySetManager fjvFremPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
+                    PSetDefs.FJV_fremtid fjvFremDef = new PSetDefs.FJV_fremtid();
+
+                    var polies =
+                        localDb
+                        .ListOfType<Polyline>(tx)
+                        .Where(x => Dimensionering.isLayerAcceptedInFjv(x.Layer))
+                        .GroupBy(x => fjvFremPsm.ReadPropertyString(x, fjvFremDef.Distriktets_navn));
+
+                    var plLookup = polies.ToLookup(x => x.Key);
                     #endregion
 
                     #region Preapare Excel objects
@@ -902,15 +939,15 @@ namespace IntersectUtilities.Dimensionering
                     oXL.DisplayAlerts = false;
                     #endregion
 
-                    //int count = 0;
                     foreach (IGrouping<string, BlockReference> group in groups.OrderBy(x => x.Key))
                     {
-                        //count++;
-                        //if (count != 1) continue;
+                        if (workingDrawing == kwd1) if (group.Key != curEtapeName) continue;
                         prdDbg($"Writing to Excel area: {group.Key}");
 
                         //Copy the template to destination
                         string newFileName = basePath + group.Key + ".xlsm";
+                        if (File.Exists(newFileName))
+                            File.Delete(newFileName);
                         File.Copy(fileName, newFileName, true);
 
                         #region Open workbook
@@ -920,7 +957,7 @@ namespace IntersectUtilities.Dimensionering
                         oXL.Calculation = XlCalculation.xlCalculationManual;
                         #endregion
 
-                        Dimensionering.dimadressedumptoexcel(wb, group, dimAfkøling);
+                        Dimensionering.dimadressedumptoexcel(wb, group, plLookup[group.Key], dimAfkøling);
 
                         Dimensionering.dimwriteallexcel(wb, group.Key, basePath);
 
@@ -1062,6 +1099,19 @@ namespace IntersectUtilities.Dimensionering
                         .ToHashSet();
                     #endregion
 
+                    #region Prepare polylines and group by area and make a lookup
+                    PropertySetManager fjvFremPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
+                    PSetDefs.FJV_fremtid fjvFremDef = new PSetDefs.FJV_fremtid();
+
+                    var polies =
+                        localDb
+                        .ListOfType<Polyline>(tx)
+                        .Where(x => Dimensionering.isLayerAcceptedInFjv(x.Layer))
+                        .GroupBy(x => fjvFremPsm.ReadPropertyString(x, fjvFremDef.Distriktets_navn));
+
+                    var plLookup = polies.ToLookup(x => x.Key);
+                    #endregion
+
                     #region Preapare Excel objects
                     Workbook wb;
                     Sheets wss;
@@ -1089,7 +1139,6 @@ namespace IntersectUtilities.Dimensionering
 
                     //Prepare dicts and lookups for processing
                     var brDict = brs.ToDictionary(x => da(x));
-                    //ILookup<string, IGrouping<string, BlockReference>> brGroupLookup = groups.ToLookup(x => x.Key);
                     #endregion
 
                     foreach (var areaName in areaNames.OrderBy(x => x))
@@ -1105,7 +1154,7 @@ namespace IntersectUtilities.Dimensionering
                         oXL.Calculation = XlCalculation.xlCalculationManual;
                         #endregion
 
-                        Dimensionering.dimimportdim(wb, dimDb, areaName, brDict, pipeSeries);
+                        Dimensionering.dimimportdim(wb, dimDb, areaName, brDict, plLookup, pipeSeries);
 
                         #region Close workbook
                         wb.Close();
@@ -2016,7 +2065,11 @@ namespace IntersectUtilities.Dimensionering
                 tx.Commit();
             }
         }
-        internal static void dimadressedumptoexcel(Workbook wb, IGrouping<string, BlockReference> group, int dimAfkøling)
+        internal static void dimadressedumptoexcel(
+            Workbook wb,
+            IGrouping<string, BlockReference> group,
+            IEnumerable<IGrouping<string, Polyline>> plinesGroup,
+            int dimAfkøling)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -2033,6 +2086,9 @@ namespace IntersectUtilities.Dimensionering
 
                     PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
                     PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                    PropertySetManager fjvFremPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
+                    PSetDefs.FJV_fremtid fjvFremDef = new PSetDefs.FJV_fremtid();
 
                     #region dump af adresser
                     int antalEjendomme = 1;
@@ -2108,6 +2164,62 @@ namespace IntersectUtilities.Dimensionering
 
                         stikRow++;
                         ws2.Cells[stikRow, 5] = adresse + duplicateNrString;
+                    }
+
+                    HashSet<Polyline> toAddPlines = new HashSet<Polyline>();
+
+                    //Determine if polyline has no clients
+                    foreach (Polyline pline in plinesGroup.First())
+                    {
+                        //Determine if the pline has no client children
+                        //It is achieved by looking if the poly
+                        //Has any Line children
+
+                        string childrenString = graphPsm.ReadPropertyString(pline, graphDef.Children);
+                        //Takes care of plines with no children -> seldom case -> wrong setup in drawing
+                        if (childrenString.IsNoE()) { toAddPlines.Add(pline); continue; }
+                        var splitArray = childrenString.Split(';');
+                        bool toAdd = true;
+                        foreach (var childString in splitArray)
+                        {
+                            if (childString.IsNoE()) continue;
+                            Entity child = localDb.Go<Entity>(childString);
+                            switch (child)
+                            {
+                                case Polyline pl:
+                                    break;
+                                case BlockReference br:
+                                    toAdd = false;
+                                    break;
+                                case Line line:
+                                    toAdd = false;
+                                    break;
+                                default:
+                                    throw new System.Exception($"Unexpected type {child.GetType().Name}!");
+                            }
+                        }
+                        if (toAdd) toAddPlines.Add(pline);
+                    }
+
+                    //Write polylines with no clients to excel
+                    foreach (Polyline pline in toAddPlines)
+                    {
+                        double stikLængde = 0.0;
+                        string adresse = fjvFremPsm.ReadPropertyString(pline, fjvFremDef.Bemærkninger);
+                        if (adresse.IsNoE()) continue;
+                        double estVarmeForbrugHusnr = 0.0;
+
+                        //Write row
+                        forbrugerRow++;
+                        ws1.Cells[forbrugerRow, 1] = adresse;
+                        ws1.Cells[forbrugerRow, 2] = estVarmeForbrugHusnr;
+                        ws1.Cells[forbrugerRow, 3] = 0;
+                        ws1.Cells[forbrugerRow, 4] = 0;
+                        ws1.Cells[forbrugerRow, 5] = stikLængde;
+                        ws1.Cells[forbrugerRow, 6] = dimAfkøling;
+
+                        //stikRow++;
+                        //ws2.Cells[stikRow, 5] = adresse + duplicateNrString;
                     }
 
                     System.Windows.Forms.Application.DoEvents();
@@ -3914,6 +4026,8 @@ namespace IntersectUtilities.Dimensionering
                     cmd.Start();
                     cmd.WaitForExit();
 
+                    if (File.Exists(basePath + curEtapeName + ".pdf"))
+                        File.Delete(basePath + curEtapeName + ".pdf");
                     File.Move("C:\\Temp\\AutoDimGraph.pdf", basePath + curEtapeName + ".pdf");
                     #endregion
 
@@ -3941,6 +4055,7 @@ namespace IntersectUtilities.Dimensionering
             Database dimDb,
             string areaName,
             Dictionary<string, BlockReference> brDict,
+            ILookup<string, IGrouping<string, Polyline>> plLookup,
             PipeSchedule.PipeSeriesEnum pipeSeries
             )
         {
@@ -3969,6 +4084,9 @@ namespace IntersectUtilities.Dimensionering
                 void wr(string inp) => editor.WriteMessage(inp);
 
                 StringBuilder sb = new StringBuilder();
+
+                //Collection to store pipes that were succesfully identified
+                HashSet<Handle> seenHandles = new HashSet<Handle>();
 
                 try
                 {
@@ -4011,7 +4129,7 @@ namespace IntersectUtilities.Dimensionering
                     {
                         if (!brDict.ContainsKey(item.Name))
                         {
-                            prdDbg($"WARNING! Entry {item.Name} could not find corresponding BlockReference!");
+                            //prdDbg($"WARNING! Entry {item.Name} could not find corresponding BlockReference!");
                             continue;
                         }
                         var br = brDict[item.Name];
@@ -4026,6 +4144,8 @@ namespace IntersectUtilities.Dimensionering
                         if (pipeHandle.IsNoE()) { prdDbg($"WARNING! Parent Handle for conLine {conLine.Handle} is NoE!"); continue; }
                         //Store pipe handle in dim tuple
                         item.Pipe = new Handle(Convert.ToInt64(pipeHandle, 16));
+                        //Add handle to seen handles list
+                        seenHandles.Add(item.Pipe);
                         #endregion
                     }
                     #endregion
@@ -4082,6 +4202,7 @@ namespace IntersectUtilities.Dimensionering
                             sizes.Add(new SizeEntry(dn, start, end, kod));
                         }
 
+                        #region Consolidate sizes -> remove 0 length sizes
                         //Consolidate sizes -> ie. remove sizes with 0 length
                         List<int> idxToRemove = new List<int>();
                         for (int i = 0; i < sizes.Count; i++)
@@ -4089,6 +4210,7 @@ namespace IntersectUtilities.Dimensionering
                         //Reverse to avoid mixing up indici and removing wrong ones
                         idxToRemove.Reverse();
                         foreach (int idx in idxToRemove) sizes.RemoveAt(idx);
+                        #endregion
 
                         //Create sizeArray
                         PipelineSizeArray sizeArray = new PipelineSizeArray(sizes.ToArray());
@@ -4171,6 +4293,9 @@ namespace IntersectUtilities.Dimensionering
                         }
                         #endregion
 
+                        #region Local method to create correct Pipe layer
+                        //Avoid side effects with local methods!
+                        //Use only passed arguments, do not operate on variables out of method's scope
                         void CheckOrCreateLayerForPipe(Database db, string layerName, PipeSchedule.PipeTypeEnum pipeType)
                         {
                             Transaction localTx = db.TransactionManager.TopTransaction;
@@ -4209,6 +4334,17 @@ namespace IntersectUtilities.Dimensionering
                             }
                             else ltId = lt[layerName];
                         }
+                        #endregion
+
+                        #region Determine and find missing parts
+                        //Network parts with no clients cannot be detected by reading the excel
+                        //To find such missing parts, spatial analysis must be performed
+                        //Try to locate polies at ends of successfully found plines
+                        //And draw them also, if found
+
+
+
+                        #endregion
 
                         System.Windows.Forms.Application.DoEvents();
                     }
@@ -4280,8 +4416,11 @@ namespace IntersectUtilities.Dimensionering
 
             //Write data
             //Assume nodes in list sorted descending (max to min) by node level
-            foreach (ExcelNode node in NodesOnPath)
+            //foreach (ExcelNode node in NodesOnPath)
+            for (int nodeIdx = 0; nodeIdx < NodesOnPath.Count; nodeIdx++)
             {
+                ExcelNode node = NodesOnPath[nodeIdx];
+
                 SheetPart part = new SheetPart();
                 part.Name = node.Name;
                 parts.Enqueue(part);
@@ -4312,7 +4451,28 @@ namespace IntersectUtilities.Dimensionering
                             //two cases: client children present or not
                             if (sortedClients == null)
                             {
-                                part.Distancer.Add(node.Self.Length);
+                                //Code to gather consequent strækninger
+                                //Collection to hold found strækninger
+                                List<Polyline> strækninger = new List<Polyline>();
+
+                                //Gather length of all Strækninger
+                                int lookForwardIdx = nodeIdx;
+                                while (true)    
+                                {
+                                    lookForwardIdx++;
+                                    if (lookForwardIdx == NodesOnPath.Count) { break; }
+
+                                    ExcelNode nextNode = NodesOnPath[lookForwardIdx];
+                                    if (nextNode.ClientChildren.Count == 0 && nextNode.ConnectionChildren.Count == 1)
+                                        strækninger.Add(nextNode.Self);
+                                    else break;
+                                }
+
+                                double dist = 0.0;
+                                dist += node.Self.Length;
+                                foreach (var item in strækninger) dist += item.Length;
+                                part.Distancer.Add(dist);
+                                //part.Distancer.Add(node.Self.Length);
                             }
                             else
                             {
@@ -4368,6 +4528,13 @@ namespace IntersectUtilities.Dimensionering
 
                         part.Distancer.Add(currentDist);
                     }
+                }
+                //If the node does not have any client children
+                //Then write a reference to zeronode
+                else
+                {
+                    part.Adresser.Add(node.Name);
+                    part.Distancer.Add(0.0);
                 }
             }
 
