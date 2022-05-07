@@ -4085,9 +4085,6 @@ namespace IntersectUtilities.Dimensionering
 
                 StringBuilder sb = new StringBuilder();
 
-                //Collection to store pipes that were succesfully identified
-                //HashSet<Handle> seenHandles = new HashSet<Handle>();
-
                 try
                 {
                     #region Read excel workbook data into a list: dimList<(string Name, int Dim)>
@@ -4148,8 +4145,6 @@ namespace IntersectUtilities.Dimensionering
                         if (pipeHandle.IsNoE()) { prdDbg($"WARNING! Parent Handle for conLine {conLine.Handle} is NoE!"); continue; }
                         //Store pipe handle in dim tuple
                         item.Pipe = new Handle(Convert.ToInt64(pipeHandle, 16));
-                        //Add handle to seen handles list
-                        seenHandles.Add(item.Pipe);
                         #endregion
                     }
                     #endregion
