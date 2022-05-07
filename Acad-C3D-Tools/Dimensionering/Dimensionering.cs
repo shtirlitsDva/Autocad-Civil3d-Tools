@@ -4086,7 +4086,7 @@ namespace IntersectUtilities.Dimensionering
                 StringBuilder sb = new StringBuilder();
 
                 //Collection to store pipes that were succesfully identified
-                HashSet<Handle> seenHandles = new HashSet<Handle>();
+                //HashSet<Handle> seenHandles = new HashSet<Handle>();
 
                 try
                 {
@@ -4129,6 +4129,10 @@ namespace IntersectUtilities.Dimensionering
                     {
                         if (!brDict.ContainsKey(item.Name))
                         {
+                            if (item.Name.StartsWith("Strækning"))
+                            {
+
+                            }
                             //prdDbg($"WARNING! Entry {item.Name} could not find corresponding BlockReference!");
                             continue;
                         }
