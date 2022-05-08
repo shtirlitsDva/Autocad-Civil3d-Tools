@@ -842,7 +842,7 @@ namespace IntersectUtilities.Dimensionering
 
             PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
 
-            #region Choose one or all : NOT WORKING YET
+            #region Choose one or all
             const string kwd1 = "Enkelt";
             const string kwd2 = "Alle";
 
@@ -963,6 +963,7 @@ namespace IntersectUtilities.Dimensionering
 
                         #region Close workbook
                         oXL.Calculation = XlCalculation.xlCalculationAutomatic;
+                        oXL.Calculate();
                         wb.Save();
                         wb.Close();
                         #endregion
@@ -4122,15 +4123,25 @@ namespace IntersectUtilities.Dimensionering
                     #endregion
 
                     #region Find pipes that the buildings belong to
-                    foreach (var item in dimList)
+                    //Prepare area polylines
+                    IGrouping<string, Polyline> plines = plLookup[areaName].First();
+                    var strækningDict = plines.ToDictionary(x =>
+                        fjvFremPsm.ReadPropertyString(x, fjvFremDef.Bemærkninger));
+
+                    foreach (DimEntry item in dimList)
                     {
+                        //Junction that takes care of non-building elements
+                        //Skips sheet and wb references
+                        //Populates strækninger items
                         if (!brDict.ContainsKey(item.Name))
                         {
+                            //Find strækninger which are not buildings
                             if (item.Name.StartsWith("Strækning"))
                             {
-
+                                item.Pipe = strækningDict[item.Name].Handle;
+                                item.Strækning = item.Name;
                             }
-                            //prdDbg($"WARNING! Entry {item.Name} could not find corresponding BlockReference!");
+                                
                             continue;
                         }
                         var br = brDict[item.Name];
@@ -4162,11 +4173,12 @@ namespace IntersectUtilities.Dimensionering
                     {
                         if (group.Key == default || group.Key == zeroHandle) continue;
                         Polyline originalPipe = group.Key.Go<Polyline>(localDb);
-                        foreach (var dim in group)
+                        foreach (DimEntry dim in group)
                         {
                             try
                             {
                                 if (sheetNumberRegex.IsMatch(dim.Name)) continue;
+                                if (dim.Name.StartsWith("Strækning")) continue;
                                 dim.Station = DistToStart(brDict[dim.Name], originalPipe);
                                 dim.Strækning = fjvFremPsm.ReadPropertyString(originalPipe, fjvFremDef.Bemærkninger);
                             }
@@ -4333,16 +4345,6 @@ namespace IntersectUtilities.Dimensionering
                             }
                             else ltId = lt[layerName];
                         }
-                        #endregion
-
-                        #region Determine and find missing parts
-                        //Network parts with no clients cannot be detected by reading the excel
-                        //To find such missing parts, spatial analysis must be performed
-                        //Try to locate polies at ends of successfully found plines
-                        //And draw them also, if found
-
-
-
                         #endregion
 
                         System.Windows.Forms.Application.DoEvents();
