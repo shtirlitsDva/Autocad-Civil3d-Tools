@@ -4103,22 +4103,24 @@ namespace IntersectUtilities.Dimensionering
                         Array dimsArray = (System.Array)ws.Range["U4:U53"].Cells.Value;
 
                         var namesList = new List<string>();
-                        var dimsList = new List<int>();
+                        var dimsList = new List<string>();
 
-                        foreach (var item in namesArray)
-                        {
-                            if (item == null || item.ToString().IsNoE() || item.ToString() == "-") continue;
-                            namesList.Add(item.ToString());
-                        }
-
-                        foreach (var item in dimsArray)
-                        {
-                            if (item == null || item.ToString().IsNoE() || item.ToString() == "-") continue;
-                            dimsList.Add(Convert.ToInt32(item.ToString().Remove(0, 2)));
-                        }
+                        foreach (var item in namesArray) namesList.Add(item?.ToString() ?? "");
+                        foreach (var item in dimsArray) dimsList.Add(item?.ToString() ?? "");
 
                         var zip = namesList.Zip(dimsList, (x, y) => new { name = x, dim = y });
-                        foreach (var item in zip) dimList.Add(new DimEntry(item.name, item.dim));
+                        foreach (var item in zip)
+                        {
+                            if (item.name.IsNotNoE())
+                            {
+                                int dim;
+                                if (item.dim == "-") dim = 25;
+                                else dim = Convert.ToInt32(item.dim.Remove(0, 2));
+
+                                dimList.Add(new DimEntry(item.name, dim));
+                            }
+                            
+                        }
                     }
                     #endregion
 
@@ -4141,7 +4143,7 @@ namespace IntersectUtilities.Dimensionering
                                 item.Pipe = strækningDict[item.Name].Handle;
                                 item.Strækning = item.Name;
                             }
-                                
+
                             continue;
                         }
                         var br = brDict[item.Name];
@@ -4458,7 +4460,7 @@ namespace IntersectUtilities.Dimensionering
 
                                 //Gather length of all Strækninger
                                 int lookForwardIdx = nodeIdx;
-                                while (true)    
+                                while (true)
                                 {
                                     lookForwardIdx++;
                                     if (lookForwardIdx == NodesOnPath.Count) { break; }
