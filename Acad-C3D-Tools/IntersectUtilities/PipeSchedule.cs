@@ -198,6 +198,84 @@ namespace IntersectUtilities
                     return 999;
             }
         }
+        public static int GetPipeDN(string layer)
+        {
+            if (layer.Contains("|")) layer = layer.Split('|').Last();
+            switch (layer)
+            {
+                case "FJV-TWIN-DN20":
+                case "FJV-FREM-DN20":
+                case "FJV-RETUR-DN20":
+                    return 20;
+                case "FJV-TWIN-DN25":
+                case "FJV-FREM-DN25":
+                case "FJV-RETUR-DN25":
+                    return 25;
+                case "FJV-TWIN-DN32":
+                case "FJV-FREM-DN32":
+                case "FJV-RETUR-DN32":
+                    return 32;
+                case "FJV-TWIN-DN40":
+                case "FJV-FREM-DN40":
+                case "FJV-RETUR-DN40":
+                    return 40;
+                case "FJV-TWIN-DN50":
+                case "FJV-FREM-DN50":
+                case "FJV-RETUR-DN50":
+                    return 50;
+                case "FJV-TWIN-DN65":
+                case "FJV-FREM-DN65":
+                case "FJV-RETUR-DN65":
+                    return 65;
+                case "FJV-TWIN-DN80":
+                case "FJV-FREM-DN80":
+                case "FJV-RETUR-DN80":
+                    return 80;
+                case "FJV-TWIN-DN100":
+                case "FJV-FREM-DN100":
+                case "FJV-RETUR-DN100":
+                    return 100;
+                case "FJV-TWIN-DN125":
+                case "FJV-FREM-DN125":
+                case "FJV-RETUR-DN125":
+                    return 125;
+                case "FJV-TWIN-DN150":
+                case "FJV-FREM-DN150":
+                case "FJV-RETUR-DN150":
+                    return 150;
+                case "FJV-TWIN-DN200":
+                case "FJV-FREM-DN200":
+                case "FJV-RETUR-DN200":
+                    return 200;
+                case "FJV-TWIN-DN250":
+                case "FJV-FREM-DN250":
+                case "FJV-RETUR-DN250":
+                    return 250;
+                case "FJV-FREM-DN300":
+                case "FJV-RETUR-DN300":
+                    return 300;
+                case "FJV-FREM-DN350":
+                case "FJV-RETUR-DN350":
+                    return 350;
+                case "FJV-FREM-DN400":
+                case "FJV-RETUR-DN400":
+                    return 400;
+                case "FJV-FREM-DN450":
+                case "FJV-RETUR-DN450":
+                    return 450;
+                case "FJV-FREM-DN500":
+                case "FJV-RETUR-DN500":
+                    return 500;
+                case "FJV-FREM-DN600":
+                case "FJV-RETUR-DN600":
+                    return 600;
+                default:
+                    DocumentCollection docCol = Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager;
+                    Editor editor = docCol.MdiActiveDocument.Editor;
+                    editor.WriteMessage("\nFor layer named: " + layer + " no pipe dimension could be determined!");
+                    return 999;
+            }
+        }
         /// <returns>"Twin" or "Enkelt", null if fail.</returns>
         public static string GetPipeSystem(Entity ent)
         {
@@ -259,6 +337,68 @@ namespace IntersectUtilities
                     DocumentCollection docCol = Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager;
                     Editor editor = docCol.MdiActiveDocument.Editor;
                     editor.WriteMessage("\nFor entity: " + ent.Handle.ToString() + " no system could be determined!");
+                    return null;
+            }
+        }
+        public static string GetPipeSystem(string layer)
+        {
+            if (layer.Contains("|")) layer = layer.Split('|').Last();
+            switch (layer)
+            {
+                case "FJV-TWIN-DN20":
+                case "FJV-TWIN-DN25":
+                case "FJV-TWIN-DN32":
+                case "FJV-TWIN-DN40":
+                case "FJV-TWIN-DN50":
+                case "FJV-TWIN-DN65":
+                case "FJV-TWIN-DN80":
+                case "FJV-TWIN-DN100":
+                case "FJV-TWIN-DN125":
+                case "FJV-TWIN-DN150":
+                case "FJV-TWIN-DN200":
+                case "FJV-TWIN-DN250":
+                    return "Twin";
+                case "FJV-FREM-DN20":
+                case "FJV-RETUR-DN20":
+                case "FJV-FREM-DN25":
+                case "FJV-RETUR-DN25":
+                case "FJV-FREM-DN32":
+                case "FJV-RETUR-DN32":
+                case "FJV-FREM-DN40":
+                case "FJV-RETUR-DN40":
+                case "FJV-FREM-DN50":
+                case "FJV-RETUR-DN50":
+                case "FJV-FREM-DN65":
+                case "FJV-RETUR-DN65":
+                case "FJV-FREM-DN80":
+                case "FJV-RETUR-DN80":
+                case "FJV-FREM-DN100":
+                case "FJV-RETUR-DN100":
+                case "FJV-FREM-DN125":
+                case "FJV-RETUR-DN125":
+                case "FJV-FREM-DN150":
+                case "FJV-RETUR-DN150":
+                case "FJV-FREM-DN200":
+                case "FJV-RETUR-DN200":
+                case "FJV-FREM-DN250":
+                case "FJV-RETUR-DN250":
+                case "FJV-FREM-DN300":
+                case "FJV-RETUR-DN300":
+                case "FJV-FREM-DN350":
+                case "FJV-RETUR-DN350":
+                case "FJV-FREM-DN400":
+                case "FJV-RETUR-DN400":
+                case "FJV-FREM-DN450":
+                case "FJV-RETUR-DN450":
+                case "FJV-FREM-DN500":
+                case "FJV-RETUR-DN500":
+                case "FJV-FREM-DN600":
+                case "FJV-RETUR-DN600":
+                    return "Enkelt";
+                default:
+                    DocumentCollection docCol = Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager;
+                    Editor editor = docCol.MdiActiveDocument.Editor;
+                    editor.WriteMessage("\nFor layer name: " + layer + " no system could be determined!");
                     return null;
             }
         }
