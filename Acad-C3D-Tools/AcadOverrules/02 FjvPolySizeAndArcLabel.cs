@@ -46,9 +46,9 @@ namespace AcadOverrules
         }
 
         //Settings
-        private const double labelDist = 10;
+        private const double labelDist = 25;
         private const double labelOffset = 1.2;
-        private const double labelHeight = 1.25;
+        private const double labelHeight = 2.25;
         //public bool Enabled { get; set; } = false;
         public override bool IsApplicable(RXObject overruledSubject)
         {
@@ -89,7 +89,7 @@ namespace AcadOverrules
                 string system =
                     IntersectUtilities.PipeSchedule.GetPipeSystem(pline) == "Twin" ?
                     "T" : "E";
-                string label = $"{system}{dn}";
+                string label = $"DN{dn}-{system}";
 
                 Vector3d deriv = pline.GetFirstDerivative(pt);
                 deriv = deriv.GetNormal();
