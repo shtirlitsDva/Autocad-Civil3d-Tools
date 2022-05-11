@@ -4498,8 +4498,7 @@ namespace IntersectUtilities
                             SetDynBlockProperty(wpBr, "Type", wp.DN.ToString());
                             SetDynBlockProperty(wpBr, "System", wp.System);
 
-                            psm.GetOrAttachPropertySet(wpBr);
-                            psm.WritePropertyString(driPipelineData.BelongsToAlignment, wp.Alignment.Name);
+                            psm.WritePropertyString(wpBr, driPipelineData.BelongsToAlignment, wp.Alignment.Name);
 
                             wpBr.RecordGraphicsModified(true);
 
