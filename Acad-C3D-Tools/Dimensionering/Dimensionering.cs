@@ -817,6 +817,14 @@ namespace IntersectUtilities.Dimensionering
                         blockDb.Dispose();
                     }
                     #endregion
+
+                    #region Create layer for dim plines
+                    string layerName = "0-FJV_fremtid";
+                    localDb.CheckOrCreateLayer(layerName, 6);
+
+                    string noCrossLayName = "0-NOCROSS_LINE";
+                    localDb.CheckOrCreateLayer(noCrossLayName, 1);
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
