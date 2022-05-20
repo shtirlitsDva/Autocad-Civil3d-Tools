@@ -478,7 +478,7 @@ namespace IntersectUtilities.Dimensionering
             Dimensionering.dimwritegraph();
         }
 
-        [CommandMethod("DIMWRITEEXCEL")]
+        //[CommandMethod("DIMWRITEEXCEL")]
         public void dimwriteexcel()
         {
             Dimensionering.dimwriteexcel();
@@ -832,7 +832,7 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
-        [CommandMethod("DIMWRITEALL")]
+        [CommandMethod("DIMWRITEEXCEL")]
         public void dimwriteall()
         {
             DocumentCollection docCol = Application.DocumentManager;
