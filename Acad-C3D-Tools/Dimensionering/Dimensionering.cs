@@ -2130,8 +2130,8 @@ namespace IntersectUtilities.Dimensionering
                     }
 
                     //Check if count of clients does not exceed 1500
-                    if (allBrs.Count > 1500) throw new System.Exception(
-                        $"FEJL! Antallet af kunder for etape {group.Key} er mere end 1500 ({allBrs.Count})!\nSplit etapen i flere dele.");
+                    if (allBrs.Count > 5000) throw new System.Exception(
+                        $"FEJL! Antallet af kunder for etape {group.Key} er mere end 5.000 ({allBrs.Count})!\nOpdel etapen i flere dele.");
 
                     foreach (BlockReference building in allBrs.OrderByAlphaNumeric(x => ds(x)))
                     {
