@@ -478,7 +478,7 @@ namespace IntersectUtilities.Dimensionering
             Dimensionering.dimwritegraph();
         }
 
-        [CommandMethod("DIMWRITEEXCEL")]
+        //[CommandMethod("DIMWRITEEXCEL")]
         public void dimwriteexcel()
         {
             Dimensionering.dimwriteexcel();
@@ -817,6 +817,14 @@ namespace IntersectUtilities.Dimensionering
                         blockDb.Dispose();
                     }
                     #endregion
+
+                    #region Create layer for dim plines
+                    string layerName = "0-FJV_fremtid";
+                    localDb.CheckOrCreateLayer(layerName, 6);
+
+                    string noCrossLayName = "0-NOCROSS_LINE";
+                    localDb.CheckOrCreateLayer(noCrossLayName, 1);
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
@@ -832,7 +840,7 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
-        [CommandMethod("DIMWRITEALL")]
+        [CommandMethod("DIMWRITEEXCEL")]
         public void dimwriteall()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -2128,6 +2136,10 @@ namespace IntersectUtilities.Dimensionering
                             allBrs.AddRange(children.Where(x => x is BlockReference).Cast<BlockReference>());
                         }
                     }
+
+                    //Check if count of clients does not exceed 1500
+                    if (allBrs.Count > 5000) throw new System.Exception(
+                        $"FEJL! Antallet af kunder for etape {group.Key} er mere end 5.000 ({allBrs.Count})!\nOpdel etapen i flere dele.");
 
                     foreach (BlockReference building in allBrs.OrderByAlphaNumeric(x => ds(x)))
                     {

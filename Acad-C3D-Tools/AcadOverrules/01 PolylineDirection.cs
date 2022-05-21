@@ -113,7 +113,8 @@ namespace AcadOverrules
             }
             #endregion
 
-            Point3d p = pline.StartPoint;
+            #region End cirkel
+            Point3d p = pline.EndPoint;
 
             int nrOfPoints = 16;
             double phiDelta = 2 * Math.PI / nrOfPoints;
@@ -128,8 +129,9 @@ namespace AcadOverrules
             }
 
             //wd.SubEntityTraits.FillType = Autodesk.AutoCAD.GraphicsInterface.FillType.FillAlways;
-            wd.Geometry.Polygon(points);
-            
+            wd.Geometry.Polygon(points); 
+            #endregion
+
             //Start and End labels
 
             //Point3d p = pline.StartPoint;
