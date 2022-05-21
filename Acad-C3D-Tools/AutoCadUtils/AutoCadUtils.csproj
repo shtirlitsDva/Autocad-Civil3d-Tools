@@ -111,65 +111,13 @@ exclude: packages.config
 source: ..\..\..\AutoCADCodePack\AutoCADCommands\AutoCADCommands.csproj-->
   <!--Linked from ..\..\..\autocadcodepack\autocadcommands\autocadcommands.csproj-->
   <ItemGroup>
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\Internal\CustomDictionary.cs">
-      <Link>Internal\CustomDictionary.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\GUIs\DictionaryViewer.xaml.cs">
-      <DependentUpon>DictionaryViewer.xaml</DependentUpon>
-      <Link>GUIs\DictionaryViewer.xaml.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\GUIs\InputBox.xaml.cs">
-      <DependentUpon>InputBox.xaml</DependentUpon>
-      <Link>GUIs\InputBox.xaml.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\GUIs\TaskProgressWindow.xaml.cs">
-      <DependentUpon>TaskProgressWindow.xaml</DependentUpon>
-      <Link>GUIs\TaskProgressWindow.xaml.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\Internal\JigDrag.cs">
-      <Link>Internal\JigDrag.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\GUIs\MultiInputs.xaml.cs">
-      <DependentUpon>MultiInputs.xaml</DependentUpon>
-      <Link>GUIs\MultiInputs.xaml.cs</Link>
-    </Compile>
-    <!--<Compile Include="..\..\..\autocadcodepack\autocadcommands\Properties\AssemblyInfo.cs">
-      <Link>Properties\AssemblyInfo.cs</Link>
-    </Compile>-->
-    <Compile Include="..\..\..\autocadcodepack\autocadcommands\GUIs\TextReport.xaml.cs">
-      <DependentUpon>TextReport.xaml</DependentUpon>
-      <Link>GUIs\TextReport.xaml.cs</Link>
-    </Compile>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Include="..\..\..\autocadcodepack\autocadcommands\GUIs\DictionaryViewer.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-      <Link>GUIs\DictionaryViewer.xaml</Link>
-    </Page>
-    <Page Include="..\..\..\autocadcodepack\autocadcommands\GUIs\InputBox.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-      <Link>GUIs\InputBox.xaml</Link>
-    </Page>
-    <Page Include="..\..\..\autocadcodepack\autocadcommands\GUIs\MultiInputs.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-      <Link>GUIs\MultiInputs.xaml</Link>
-    </Page>
-    <Page Include="..\..\..\autocadcodepack\autocadcommands\GUIs\TaskProgressWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-      <Link>GUIs\TaskProgressWindow.xaml</Link>
-    </Page>
-    <Page Include="..\..\..\autocadcodepack\autocadcommands\GUIs\TextReport.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-      <Link>GUIs\TextReport.xaml</Link>
-    </Page>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AutoCADCommands\AutoCADCommands.csproj">
+      <Project>{c5f6c326-952b-43e8-9830-311f190bab11}</Project>
+      <Name>AutoCADCommands</Name>
+    </ProjectReference>
   </ItemGroup>
   <!--End Link from ..\..\..\autocadcodepack\autocadcommands\autocadcommands.csproj
 Linked 25 codez.-->
