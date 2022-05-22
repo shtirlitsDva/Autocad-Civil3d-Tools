@@ -678,6 +678,7 @@ namespace Dreambuild.AutoCAD
                     block.AppendEntity(copy);
                 }
 
+                blockTable.UpgradeOpen();
                 var result = blockTable.Add(block);
                 trans.AddNewlyCreatedDBObject(block, true);
                 trans.Commit();

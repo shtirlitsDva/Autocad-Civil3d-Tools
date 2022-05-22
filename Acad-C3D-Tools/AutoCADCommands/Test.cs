@@ -750,28 +750,13 @@ namespace Dreambuild.AutoCAD
         public void TestGraph()
         {
             var option = new GraphOption { xDelta = 20, yDelta = 0.5, yRatio = 0.5, SampleCount = 500 };
-            Interaction.WriteLine("1");
-            System.Windows.Forms.Application.DoEvents();
             var graphPlotter = new GraphPlotter(option);
-            graphPlotter.Plot(Math.Sin, new Interv(5, 102));
-            Interaction.WriteLine("2");
-            System.Windows.Forms.Application.DoEvents();
+            graphPlotter.Plot(Math.Tanh, new Interv(5, 102));
             graphPlotter.Plot(x => Math.Cos(x) + 1, new Interv(10, 90), 3);
-            Interaction.WriteLine("3");
-            System.Windows.Forms.Application.DoEvents();
             var graph = graphPlotter.GetGraphBlock();
-            Interaction.WriteLine("4");
-            System.Windows.Forms.Application.DoEvents();
             var blockReference = new BlockReference(Point3d.Origin, graph);
-            Interaction.WriteLine("5");
-            System.Windows.Forms.Application.DoEvents();
             var first = Interaction.GetPoint("\nSpecify extent point 1");
-            Interaction.WriteLine("6");
-            System.Windows.Forms.Application.DoEvents();
-            Interaction.InsertScalingEntity(blockReference, first, "\nSpecify extent point 2");
-            Interaction.WriteLine("7");
-            System.Windows.Forms.Application.DoEvents();
-            //Interaction.ZoomObjects(new ObjectId[] { blockReference.Id });
+            Interaction.InsertScalingEntity(blockReference, first, "\nSpecify extent point 2")
         }
 
         [CommandMethod("TestJigDrag")]
