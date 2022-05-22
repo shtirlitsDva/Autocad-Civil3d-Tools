@@ -756,7 +756,7 @@ namespace Dreambuild.AutoCAD
             var graph = graphPlotter.GetGraphBlock();
             var blockReference = new BlockReference(Point3d.Origin, graph);
             var first = Interaction.GetPoint("\nSpecify extent point 1");
-            Interaction.InsertScalingEntity(blockReference, first, "\nSpecify extent point 2")
+            Interaction.InsertScalingEntity(blockReference, first, "\nSpecify extent point 2");
         }
 
         [CommandMethod("TestJigDrag")]
