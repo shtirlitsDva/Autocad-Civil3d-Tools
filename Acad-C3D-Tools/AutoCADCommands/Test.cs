@@ -13,8 +13,18 @@ namespace Dreambuild.AutoCAD
     /// <summary>
     /// Tests and samples
     /// </summary>
-    public class CodePackTest
+    public class CodePackTest : IExtensionApplication
     {
+        public void Initialize()
+        {
+
+        }
+
+        public void Terminate()
+        {
+
+        }
+
         #region Commands that you can provide out of the box in your application
 
         /// <summary>
@@ -741,7 +751,7 @@ namespace Dreambuild.AutoCAD
         {
             var option = new GraphOption { xDelta = 20, yDelta = 0.5, yRatio = 0.5, SampleCount = 500 };
             var graphPlotter = new GraphPlotter(option);
-            graphPlotter.Plot(Math.Sin, new Interv(5, 102));
+            graphPlotter.Plot(Math.Tanh, new Interv(5, 102));
             graphPlotter.Plot(x => Math.Cos(x) + 1, new Interv(10, 90), 3);
             var graph = graphPlotter.GetGraphBlock();
             var blockReference = new BlockReference(Point3d.Origin, graph);

@@ -264,7 +264,9 @@ namespace Dreambuild.AutoCAD
             // Curves
             foreach (var curve in this.Curves)
             {
-                var plineId = Draw.Pline(curve.Item1.OrderBy(point => point.X).Select(point => new Point3d(point.X, this.RealRatio * point.Y, 0)));
+                var plineId = Draw
+                    .Pline(curve.Item1.OrderBy(point => point.X)
+                    .Select(point => new Point3d(point.X, this.RealRatio * point.Y, 0)));
                 int color1 = curve.Item2 == -1 ? this.Option.CurveColor : curve.Item2;
                 plineId.QOpenForWrite<Entity>(pline => pline.ColorIndex = color1);
                 entIds.Add(plineId);
