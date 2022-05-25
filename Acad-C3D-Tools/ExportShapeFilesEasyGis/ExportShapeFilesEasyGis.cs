@@ -11,6 +11,8 @@ using Autodesk.AutoCAD.Geometry;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using IntersectUtilities;
 using IntersectUtilities.UtilsCommon;
+using FolderSelect;
+using Dreambuild.AutoCAD;
 
 using static IntersectUtilities.PipeSchedule;
 using static IntersectUtilities.ComponentSchedule;
@@ -72,8 +74,8 @@ namespace ExportShapeFiles
             }
         }
         public void exportshapefilesmethod(
-            string exportDir, 
-            string shapeBaseName, 
+            string exportDir,
+            string shapeBaseName,
             string polylineSuffix,
             string blockSuffix,
             Database database = null)
@@ -415,7 +417,7 @@ namespace ExportShapeFiles
                 tx.Abort();
             }
         }
-        
+
         [CommandMethod("EXPORTSHAPEFILESBATCH")]
         public void exportshapefilesbatch()
         {
@@ -425,7 +427,18 @@ namespace ExportShapeFiles
 
             System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\Stier.csv", "Stier");
 
-            string exportDir = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\02 Ekstern\01 Gældende tegninger\01 GIS input\02 Trace shape\Staging\";
+            string exportDir;
+            FolderSelectDialog fsd = new FolderSelectDialog()
+            {
+                Title = "Choose folder where to export shapefiles:",
+                InitialDirectory = @"c:\"
+            };
+            if (fsd.ShowDialog(IntPtr.Zero))
+            {
+                exportDir = fsd.FileName;
+                if (string.IsNullOrEmpty(exportDir)) return;
+            }
+            else return;
 
             if (dt == null)
             {
@@ -442,9 +455,18 @@ namespace ExportShapeFiles
                 Log.log($"Datatable created with {dt.Rows.Count} record(s).");
             }
 
+            var projectList = dt.AsEnumerable()
+                .Select(x => x["PrjId"].ToString()).Distinct().OrderByAlphaNumeric(x => x);
+
+            string projectName =
+                Interaction.GetKeywords("Vælg projekt til eksport: ", projectList.ToArray());
+            if (projectName.IsNoE()) return;
+
             List<string> list = dt.AsEnumerable()
-                .Where(x => x["PrjId"].ToString() == "GENTOFTE1158")
+                .Where(x => x["PrjId"].ToString() == projectName)
                 .Select(x => x["Fremtid"].ToString()).ToList();
+
+            Log.log($"Phases found: {list.Count}.");
 
             List<string> faulty = new List<string>();
 
@@ -473,6 +495,8 @@ namespace ExportShapeFiles
                 Log.log($"Processing " + Path.GetFileName(fileName));
                 count++;
 
+                string phaseNumber = ReadStringParameterFromDataTable(fileName, dt, "Etape", 5);
+
                 using (Database extDb = new Database(false, true))
                 {
                     extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
@@ -480,22 +504,26 @@ namespace ExportShapeFiles
                     {
                         try
                         {
-                            string phaseNumber = "";
+                            #region Old phase detection routine
+                            //string phaseNumber = "";
 
-                            Regex regex = new Regex(@"(?<number>\d.\d)(?<extension>\.[^.]*$)");
+                            //Regex regex = new Regex(@"(?<number>\d.\d)(?<extension>\.[^.]*$)");
 
-                            if (regex.IsMatch(fileName))
-                            {
-                                Match match = regex.Match(fileName);
-                                phaseNumber = match.Groups["number"].Value;
-                                phaseNumber = phaseNumber.Replace(".", "");
-                                Log.log($"{DateTime.Now}: Phase number detected: <{phaseNumber}>.");
-                            }
-                            else
-                            {
-                                Log.log($"Detection of phase from filename failed! Using project name and incremental.");
-                                phaseNumber = $"GENTOFTE1158_{count}";
-                            }
+                            //if (regex.IsMatch(fileName))
+                            //{
+                            //    Match match = regex.Match(fileName);
+                            //    phaseNumber = match.Groups["number"].Value;
+                            //    phaseNumber = phaseNumber.Replace(".", "");
+                            //    Log.log($"{DateTime.Now}: Phase number detected: <{phaseNumber}>.");
+                            //}
+                            //else
+                            //{
+                            //    Log.log($"Detection of phase from filename failed! Using project name and incremental.");
+                            //    phaseNumber = $"GENTOFTE1158_{count}";
+                            //} 
+                            #endregion
+
+                            //prdDbg($"{phaseNumber} -> {fileName}");
 
                             exportshapefilesmethod(exportDir, phaseNumber, "", "-komponenter", extDb);
                         }

@@ -117,7 +117,7 @@ namespace Dreambuild.AutoCAD
         /// <param name="message">The message.</param>
         /// <param name="keywords">The keywords.</param>
         /// <param name="defaultIndex">The default index.</param>
-        /// <returns>The keyword result.</returns>
+        /// <returns>The keyword result or null on else than OK.</returns>
         public static string GetKeywords(string message, string[] keywords, int defaultIndex = 0)
         {
             var ed = Application.DocumentManager.MdiActiveDocument.Editor;
