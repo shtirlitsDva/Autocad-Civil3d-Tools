@@ -405,7 +405,7 @@ namespace IntersectUtilities
                     {
                         case Polyline pline:
                             int dn = PipeSchedule.GetPipeDN(pline);
-                            string system = GetPipeSystem(pline);
+                            string system = GetPipeType(pline);
                             sb.AppendLine($"[label=\"{{{handle}|Rør L{pline.Length.ToString("0.##")}}}|{system}\\n{dn}\"];");
                             break;
                         case BlockReference br:

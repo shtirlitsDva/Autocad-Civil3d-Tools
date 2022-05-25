@@ -87,7 +87,7 @@ namespace AcadOverrules
                 Point3d pt = pline.GetPointAtDist(dist);
                 int dn = IntersectUtilities.PipeSchedule.GetPipeDN(pline);
                 string system =
-                    IntersectUtilities.PipeSchedule.GetPipeSystem(pline) == "Twin" ?
+                    IntersectUtilities.PipeSchedule.GetPipeType(pline) == "Twin" ?
                     "T" : "E";
                 string label = $"DN{dn}-{system}";
 

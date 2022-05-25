@@ -181,7 +181,7 @@ namespace DriPaletteSet
                         tx.Abort();
                         return;
                     }
-                    string system = GetPipeSystem(ent);
+                    string system = GetPipeType(ent);
                     if (system == null)
                     {
                         prdDbg("Kunne ikke finde systemet på valgte rør! Kontroller lag!");

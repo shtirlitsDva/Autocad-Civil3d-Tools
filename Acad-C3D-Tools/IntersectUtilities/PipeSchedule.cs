@@ -119,90 +119,92 @@ namespace IntersectUtilities
                 { 500, 900.0 },
                 { 600, 1000.0 }
             };
-        public static int GetPipeDN(Entity ent)
+        private static readonly Dictionary<int, double> kOdsS1CuTwin = new Dictionary<int, double>
+            {
+                {22,90.0},
+                {28,90.0},
+            };
+        private static readonly Dictionary<int, double> kOdsS2CuTwin = new Dictionary<int, double>
+            {
+                {22,110.0},
+                {28,110.0}
+            };
+        private static readonly Dictionary<int, double> kOdsS1CuEnkelt = new Dictionary<int, double>
+            {
+                {22,65.0},
+                {28,75.0},
+            };
+        private static readonly Dictionary<int, double> kOdsS2CuEnkelt = new Dictionary<int, double>
+            {
+                {22,75.0},
+                {28,90.0}
+            };
+        private static readonly Dictionary<int, double> OdsSteel = new Dictionary<int, double>()
+            {
+                { 10, 17.2 },
+                { 15, 21.3 },
+                { 20, 26.9 },
+                { 25, 33.7 },
+                { 32, 42.4 },
+                { 40, 48.3 },
+                { 50, 60.3 },
+                { 65, 76.1 },
+                { 80, 88.9 },
+                { 100, 114.3 },
+                { 125, 139.7 },
+                { 150, 168.3 },
+                { 200, 219.1 },
+                { 250, 273.0 },
+                { 300, 323.9 },
+                { 350, 355.6 },
+                { 400, 406.4 },
+                { 450, 457.0 },
+                { 500, 508.0 },
+                { 600, 610.0 },
+            };
+        private static readonly Dictionary<int, double> OdsCu = new Dictionary<int, double>()
+            {
+                { 15, 15.0 },
+                { 18, 18.0 },
+                { 22, 22.0 },
+                { 28, 28.0 }
+            };
+        private static string ExtractLayerName(Entity ent)
         {
             string layer = ent.Layer;
-            if (layer.Contains("|")) layer = layer.Split('|').Last();
-            switch (layer)
-            {
-                case "FJV-TWIN-DN20":
-                case "FJV-FREM-DN20":
-                case "FJV-RETUR-DN20":
-                    return 20;
-                case "FJV-TWIN-DN25":
-                case "FJV-FREM-DN25":
-                case "FJV-RETUR-DN25":
-                    return 25;
-                case "FJV-TWIN-DN32":
-                case "FJV-FREM-DN32":
-                case "FJV-RETUR-DN32":
-                    return 32;
-                case "FJV-TWIN-DN40":
-                case "FJV-FREM-DN40":
-                case "FJV-RETUR-DN40":
-                    return 40;
-                case "FJV-TWIN-DN50":
-                case "FJV-FREM-DN50":
-                case "FJV-RETUR-DN50":
-                    return 50;
-                case "FJV-TWIN-DN65":
-                case "FJV-FREM-DN65":
-                case "FJV-RETUR-DN65":
-                    return 65;
-                case "FJV-TWIN-DN80":
-                case "FJV-FREM-DN80":
-                case "FJV-RETUR-DN80":
-                    return 80;
-                case "FJV-TWIN-DN100":
-                case "FJV-FREM-DN100":
-                case "FJV-RETUR-DN100":
-                    return 100;
-                case "FJV-TWIN-DN125":
-                case "FJV-FREM-DN125":
-                case "FJV-RETUR-DN125":
-                    return 125;
-                case "FJV-TWIN-DN150":
-                case "FJV-FREM-DN150":
-                case "FJV-RETUR-DN150":
-                    return 150;
-                case "FJV-TWIN-DN200":
-                case "FJV-FREM-DN200":
-                case "FJV-RETUR-DN200":
-                    return 200;
-                case "FJV-TWIN-DN250":
-                case "FJV-FREM-DN250":
-                case "FJV-RETUR-DN250":
-                    return 250;
-                case "FJV-FREM-DN300":
-                case "FJV-RETUR-DN300":
-                    return 300;
-                case "FJV-FREM-DN350":
-                case "FJV-RETUR-DN350":
-                    return 350;
-                case "FJV-FREM-DN400":
-                case "FJV-RETUR-DN400":
-                    return 400;
-                case "FJV-FREM-DN450":
-                case "FJV-RETUR-DN450":
-                    return 450;
-                case "FJV-FREM-DN500":
-                case "FJV-RETUR-DN500":
-                    return 500;
-                case "FJV-FREM-DN600":
-                case "FJV-RETUR-DN600":
-                    return 600;
-                default:
-                    DocumentCollection docCol = Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager;
-                    Editor editor = docCol.MdiActiveDocument.Editor;
-                    editor.WriteMessage("\nFor entity: " + ent.Handle.ToString() + " no pipe dimension could be determined!");
-                    return 999;
-            }
+            if (layer.Contains("|")) return layer.Split('|').Last();
+            else return layer;
+        }
+        private static string ExtractLayerName(string layer)
+        {
+            if (layer.Contains("|")) return layer.Split('|').Last();
+            else return layer;
+        }
+        public static int GetPipeDN(Entity ent)
+        {
+            return GetPipeDN(ExtractLayerName(ent));
         }
         public static int GetPipeDN(string layer)
         {
-            if (layer.Contains("|")) layer = layer.Split('|').Last();
+            layer = ExtractLayerName(layer);
             switch (layer)
             {
+                case "FJV-TWIN-CU15":
+                case "FJV-FREM-CU15":
+                case "FJV-RETUR-CU15":
+                    return 15;
+                case "FJV-TWIN-CU18":
+                case "FJV-FREM-CU18":
+                case "FJV-RETUR-CU18":
+                    return 18;
+                case "FJV-TWIN-CU22":
+                case "FJV-FREM-CU22":
+                case "FJV-RETUR-CU22":
+                    return 22;
+                case "FJV-TWIN-CU28":
+                case "FJV-FREM-CU28":
+                case "FJV-RETUR-CU28":
+                    return 28;
                 case "FJV-TWIN-DN20":
                 case "FJV-FREM-DN20":
                 case "FJV-RETUR-DN20":
@@ -276,75 +278,21 @@ namespace IntersectUtilities
                     return 999;
             }
         }
-        /// <returns>"Twin" or "Enkelt", null if fail.</returns>
-        public static string GetPipeSystem(Entity ent)
+        /// <returns>"Twin", "Enkelt", null if fail.</returns>
+        public static PipeTypeEnum GetPipeType(Entity ent)
         {
-            string layer = ent.Layer;
-            if (layer.Contains("|")) layer = layer.Split('|').Last();
-            switch (layer)
-            {
-                case "FJV-TWIN-DN20":
-                case "FJV-TWIN-DN25":
-                case "FJV-TWIN-DN32":
-                case "FJV-TWIN-DN40":
-                case "FJV-TWIN-DN50":
-                case "FJV-TWIN-DN65":
-                case "FJV-TWIN-DN80":
-                case "FJV-TWIN-DN100":
-                case "FJV-TWIN-DN125":
-                case "FJV-TWIN-DN150":
-                case "FJV-TWIN-DN200":
-                case "FJV-TWIN-DN250":
-                    return "Twin";
-                case "FJV-FREM-DN20":
-                case "FJV-RETUR-DN20":
-                case "FJV-FREM-DN25":
-                case "FJV-RETUR-DN25":
-                case "FJV-FREM-DN32":
-                case "FJV-RETUR-DN32":
-                case "FJV-FREM-DN40":
-                case "FJV-RETUR-DN40":
-                case "FJV-FREM-DN50":
-                case "FJV-RETUR-DN50":
-                case "FJV-FREM-DN65":
-                case "FJV-RETUR-DN65":
-                case "FJV-FREM-DN80":
-                case "FJV-RETUR-DN80":
-                case "FJV-FREM-DN100":
-                case "FJV-RETUR-DN100":
-                case "FJV-FREM-DN125":
-                case "FJV-RETUR-DN125":
-                case "FJV-FREM-DN150":
-                case "FJV-RETUR-DN150":
-                case "FJV-FREM-DN200":
-                case "FJV-RETUR-DN200":
-                case "FJV-FREM-DN250":
-                case "FJV-RETUR-DN250":
-                case "FJV-FREM-DN300":
-                case "FJV-RETUR-DN300":
-                case "FJV-FREM-DN350":
-                case "FJV-RETUR-DN350":
-                case "FJV-FREM-DN400":
-                case "FJV-RETUR-DN400":
-                case "FJV-FREM-DN450":
-                case "FJV-RETUR-DN450":
-                case "FJV-FREM-DN500":
-                case "FJV-RETUR-DN500":
-                case "FJV-FREM-DN600":
-                case "FJV-RETUR-DN600":
-                    return "Enkelt";
-                default:
-                    DocumentCollection docCol = Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager;
-                    Editor editor = docCol.MdiActiveDocument.Editor;
-                    editor.WriteMessage("\nFor entity: " + ent.Handle.ToString() + " no system could be determined!");
-                    return null;
-            }
+            return GetPipeType(ExtractLayerName(ent));
         }
-        public static string GetPipeSystem(string layer)
+        /// <returns>"Twin", "Enkelt", null if fail.</returns>
+        public static PipeTypeEnum GetPipeType(string layer)
         {
-            if (layer.Contains("|")) layer = layer.Split('|').Last();
+            layer = ExtractLayerName(layer);
             switch (layer)
             {
+                case "FJV-TWIN-CU15":
+                case "FJV-TWIN-CU18":
+                case "FJV-TWIN-CU22":
+                case "FJV-TWIN-CU28":
                 case "FJV-TWIN-DN20":
                 case "FJV-TWIN-DN25":
                 case "FJV-TWIN-DN32":
@@ -357,84 +305,153 @@ namespace IntersectUtilities
                 case "FJV-TWIN-DN150":
                 case "FJV-TWIN-DN200":
                 case "FJV-TWIN-DN250":
-                    return "Twin";
+                    return PipeTypeEnum.Twin;
+                case "FJV-FREM-CU15":
+                case "FJV-FREM-CU18":
+                case "FJV-FREM-CU22":
+                case "FJV-FREM-CU28":
                 case "FJV-FREM-DN20":
-                case "FJV-RETUR-DN20":
                 case "FJV-FREM-DN25":
-                case "FJV-RETUR-DN25":
                 case "FJV-FREM-DN32":
-                case "FJV-RETUR-DN32":
                 case "FJV-FREM-DN40":
-                case "FJV-RETUR-DN40":
                 case "FJV-FREM-DN50":
-                case "FJV-RETUR-DN50":
                 case "FJV-FREM-DN65":
-                case "FJV-RETUR-DN65":
                 case "FJV-FREM-DN80":
-                case "FJV-RETUR-DN80":
                 case "FJV-FREM-DN100":
-                case "FJV-RETUR-DN100":
                 case "FJV-FREM-DN125":
-                case "FJV-RETUR-DN125":
                 case "FJV-FREM-DN150":
-                case "FJV-RETUR-DN150":
                 case "FJV-FREM-DN200":
-                case "FJV-RETUR-DN200":
                 case "FJV-FREM-DN250":
-                case "FJV-RETUR-DN250":
                 case "FJV-FREM-DN300":
-                case "FJV-RETUR-DN300":
                 case "FJV-FREM-DN350":
-                case "FJV-RETUR-DN350":
                 case "FJV-FREM-DN400":
-                case "FJV-RETUR-DN400":
                 case "FJV-FREM-DN450":
-                case "FJV-RETUR-DN450":
                 case "FJV-FREM-DN500":
-                case "FJV-RETUR-DN500":
                 case "FJV-FREM-DN600":
+                    return PipeTypeEnum.Frem;
+                case "FJV-RETUR-CU15":
+                case "FJV-RETUR-CU18":
+                case "FJV-RETUR-CU22":
+                case "FJV-RETUR-CU28":
+                case "FJV-RETUR-DN20":
+                case "FJV-RETUR-DN25":
+                case "FJV-RETUR-DN32":
+                case "FJV-RETUR-DN40":
+                case "FJV-RETUR-DN50":
+                case "FJV-RETUR-DN65":
+                case "FJV-RETUR-DN80":
+                case "FJV-RETUR-DN100":
+                case "FJV-RETUR-DN125":
+                case "FJV-RETUR-DN150":
+                case "FJV-RETUR-DN200":
+                case "FJV-RETUR-DN250":
+                case "FJV-RETUR-DN300":
+                case "FJV-RETUR-DN350":
+                case "FJV-RETUR-DN400":
+                case "FJV-RETUR-DN450":
+                case "FJV-RETUR-DN500":
                 case "FJV-RETUR-DN600":
-                    return "Enkelt";
+                    return PipeTypeEnum.Retur;
                 default:
                     DocumentCollection docCol = Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager;
                     Editor editor = docCol.MdiActiveDocument.Editor;
                     editor.WriteMessage("\nFor layer name: " + layer + " no system could be determined!");
-                    return null;
+                    return PipeTypeEnum.Ukendt;
             }
         }
         public static double GetPipeOd(Entity ent)
         {
-            Dictionary<int, double> Ods = new Dictionary<int, double>()
-            {
-                { 10, 17.2 },
-                { 15, 21.3 },
-                { 20, 26.9 },
-                { 25, 33.7 },
-                { 32, 42.4 },
-                { 40, 48.3 },
-                { 50, 60.3 },
-                { 65, 76.1 },
-                { 80, 88.9 },
-                { 100, 114.3 },
-                { 125, 139.7 },
-                { 150, 168.3 },
-                { 200, 219.1 },
-                { 250, 273.0 },
-                { 300, 323.9 },
-                { 350, 355.6 },
-                { 400, 406.4 },
-                { 450, 457.0 },
-                { 500, 508.0 },
-                { 600, 610.0 },
-            };
-
             int dn = GetPipeDN(ent);
-            if (Ods.ContainsKey(dn)) return Ods[dn];
-            return 0;
+            PipeSystemEnum system = GetPipeSystem(ent);
+            switch (system)
+            {
+                case PipeSystemEnum.Ukendt:
+                    return 0;
+                case PipeSystemEnum.Stål:
+                    if (OdsSteel.ContainsKey(dn)) return OdsSteel[dn];
+                    else return 0;
+                case PipeSystemEnum.Kobberflex:
+                    if (OdsCu.ContainsKey(dn)) return OdsCu[dn];
+                    else return 0;
+                default:
+                    return 0;
+            }
+            
         }
-        /// <summary>
-        /// WARNING! Currently Series 3 only.
-        /// </summary>
+        internal static PipeSystemEnum GetPipeSystem(Entity ent)
+        {
+            string layer = ExtractLayerName(ent);
+            switch (layer)
+            {
+                case "FJV-FREM-DN20":
+                case "FJV-RETUR-DN20":
+                case "FJV-FREM-DN25":
+                case "FJV-RETUR-DN25":
+                case "FJV-FREM-DN32":
+                case "FJV-RETUR-DN32":
+                case "FJV-FREM-DN40":
+                case "FJV-RETUR-DN40":
+                case "FJV-FREM-DN50":
+                case "FJV-RETUR-DN50":
+                case "FJV-FREM-DN65":
+                case "FJV-RETUR-DN65":
+                case "FJV-FREM-DN80":
+                case "FJV-RETUR-DN80":
+                case "FJV-FREM-DN100":
+                case "FJV-RETUR-DN100":
+                case "FJV-FREM-DN125":
+                case "FJV-RETUR-DN125":
+                case "FJV-FREM-DN150":
+                case "FJV-RETUR-DN150":
+                case "FJV-FREM-DN200":
+                case "FJV-RETUR-DN200":
+                case "FJV-FREM-DN250":
+                case "FJV-RETUR-DN250":
+                case "FJV-FREM-DN300":
+                case "FJV-RETUR-DN300":
+                case "FJV-FREM-DN350":
+                case "FJV-RETUR-DN350":
+                case "FJV-FREM-DN400":
+                case "FJV-RETUR-DN400":
+                case "FJV-FREM-DN450":
+                case "FJV-RETUR-DN450":
+                case "FJV-FREM-DN500":
+                case "FJV-RETUR-DN500":
+                case "FJV-FREM-DN600":
+                case "FJV-RETUR-DN600":
+                case "FJV-TWIN-DN20":
+                case "FJV-TWIN-DN25":
+                case "FJV-TWIN-DN32":
+                case "FJV-TWIN-DN40":
+                case "FJV-TWIN-DN50":
+                case "FJV-TWIN-DN65":
+                case "FJV-TWIN-DN80":
+                case "FJV-TWIN-DN100":
+                case "FJV-TWIN-DN125":
+                case "FJV-TWIN-DN150":
+                case "FJV-TWIN-DN200":
+                case "FJV-TWIN-DN250":
+                    return PipeSystemEnum.Stål;
+                case "FJV-FREM-CU15":
+                case "FJV-RETUR-CU15":
+                case "FJV-FREM-CU18":
+                case "FJV-RETUR-CU18":
+                case "FJV-FREM-CU22":
+                case "FJV-RETUR-CU22":
+                case "FJV-FREM-CU28":
+                case "FJV-RETUR-CU28":
+                case "FJV-TWIN-CU15":
+                case "FJV-TWIN-CU18":
+                case "FJV-TWIN-CU22":
+                case "FJV-TWIN-CU28":
+                    return PipeSystemEnum.Kobberflex;
+                default:
+                    DocumentCollection docCol = Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager;
+                    Editor editor = docCol.MdiActiveDocument.Editor;
+                    editor.WriteMessage("\nFor layer name: " + layer + " no system could be determined!");
+                    return PipeSystemEnum.Ukendt;
+            }
+        }
         public static double GetTwinPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
@@ -476,17 +493,11 @@ namespace IntersectUtilities
             if (kOdsS3Twin.ContainsKey(DN)) return kOdsS3Twin[DN];
             return 0;
         }
-        /// <summary>
-        /// WARNING! S3 only.
-        /// </summary>
         public static double GetTwinPipeKOd(int DN)
         {
             if (kOdsS3Twin.ContainsKey(DN)) return kOdsS3Twin[DN];
             return 0;
         }
-        /// <summary>
-        /// WARNING! Currently S3 only.
-        /// </summary>
         public static double GetBondedPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
@@ -502,9 +513,41 @@ namespace IntersectUtilities
                     if (kOdsS3Bonded.ContainsKey(dn)) return kOdsS3Bonded[dn];
                     break;
                 default:
-                    return 0;
+                    return 0.0;
             }
-            return 0;
+            return 0.0;
+        }
+        public static double GetCuEnkeltPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
+        {
+            int dn = GetPipeDN(ent);
+            switch (pipeSeries)
+            {
+                case PipeSeriesEnum.S1:
+                    if (kOdsS1CuEnkelt.ContainsKey(dn)) return kOdsS1CuEnkelt[dn];
+                    break;
+                case PipeSeriesEnum.S2:
+                    if (kOdsS2CuEnkelt.ContainsKey(dn)) return kOdsS2CuEnkelt[dn];
+                    break;
+                default:
+                    return 0.0;
+            }
+            return 0.0;
+        }
+        public static double GetCuTwinPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
+        {
+            int dn = GetPipeDN(ent);
+            switch (pipeSeries)
+            {
+                case PipeSeriesEnum.S1:
+                    if (kOdsS1CuTwin.ContainsKey(dn)) return kOdsS1CuTwin[dn];
+                    break;
+                case PipeSeriesEnum.S2:
+                    if (kOdsS2CuTwin.ContainsKey(dn)) return kOdsS2CuTwin[dn];
+                    break;
+                default:
+                    return 0.0;
+            }
+            return 0.0;
         }
         public static double GetBondedPipeKOd(int dn, PipeSeriesEnum pipeSeries)
         {
@@ -535,21 +578,71 @@ namespace IntersectUtilities
             if (kOdsS3Bonded.ContainsKey(DN)) return kOdsS3Bonded[DN];
             return 0;
         }
-        public static double GetPipeKOd(Entity ent, PipeSeriesEnum pipeSeries) =>
-            GetPipeSystem(ent) == "Twin" ?
-            GetTwinPipeKOd(ent, pipeSeries) : GetBondedPipeKOd(ent, pipeSeries);
+        public static double GetPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
+        {
+            PipeTypeEnum pipeType = GetPipeType(ent);
+            PipeSystemEnum pipeSystem = GetPipeSystem(ent);
+            switch (pipeType)
+            {
+                case PipeTypeEnum.Ukendt:
+                    return 0.0;
+                case PipeTypeEnum.Twin:
+                    switch (pipeSystem)
+                    {
+                        case PipeSystemEnum.Ukendt:
+                            return 0.0;
+                        case PipeSystemEnum.Stål:
+                            return GetTwinPipeKOd(ent, pipeSeries);
+                        case PipeSystemEnum.Kobberflex:
+                            return GetCuTwinPipeKOd(ent, pipeSeries);
+                        default:
+                            return 0.0;
+                    }
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
+                    switch (pipeSystem)
+                    {
+                        case PipeSystemEnum.Ukendt:
+                            return 0.0;
+                        case PipeSystemEnum.Stål:
+                            return GetBondedPipeKOd(ent, pipeSeries);
+                        case PipeSystemEnum.Kobberflex:
+                            return GetCuEnkeltPipeKOd(ent, pipeSeries);
+                        default:
+                            return 0.0;
+                    }
+                default:
+                    return 0.0;
+            }
+             
+        }
         public static double GetPipeKOd(Entity ent) =>
-            GetPipeSystem(ent) == "Twin" ? GetTwinPipeKOd(ent) : GetBondedPipeKOd(ent);
+            GetPipeType(ent) == "Twin" ? GetTwinPipeKOd(ent) : GetBondedPipeKOd(ent);
         public static string GetPipeSeries(Entity ent) => "S3";
         public static PipeSeriesEnum GetPipeSeriesV2(Entity ent)
         {
             double realKod = ((Polyline)ent).ConstantWidth;
-            double kod = GetPipeKOd(ent, PipeSeriesEnum.S3) / 1000;
-            if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S3;
-            kod = GetPipeKOd(ent, PipeSeriesEnum.S2) / 1000;
-            if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S2;
-            kod = GetPipeKOd(ent, PipeSeriesEnum.S1) / 1000;
-            if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S1;
+            PipeSystemEnum pipeSystem = GetPipeSystem(ent);
+            double kod;
+            switch (pipeSystem)
+            {
+                case PipeSystemEnum.Ukendt:
+                    break;
+                case PipeSystemEnum.Stål:
+                    kod = GetPipeKOd(ent, PipeSeriesEnum.S3) / 1000;
+                    if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S3;
+                    kod = GetPipeKOd(ent, PipeSeriesEnum.S2) / 1000;
+                    if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S2;
+                    kod = GetPipeKOd(ent, PipeSeriesEnum.S1) / 1000;
+                    if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S1;
+                    break;
+                case PipeSystemEnum.Kobberflex:
+                    break;
+                default:
+                    break;
+            }
+
+            
 
             bool Equalz(double x, double y, double eps)
             {
@@ -564,7 +657,7 @@ namespace IntersectUtilities
         public static double GetPipeStdLength(Entity ent) => GetPipeDN(ent) <= 80 ? 12 : 16;
         public static bool IsInSituBent(Entity ent)
         {
-            string system = GetPipeSystem(ent);
+            string system = GetPipeType(ent);
             switch (system)
             {
                 case "Twin":
@@ -604,8 +697,9 @@ namespace IntersectUtilities
             };
             return radii[GetPipeDN(ent)];
         }
-        internal enum PipeTypeEnum
+        public enum PipeTypeEnum
         {
+            Ukendt,
             Twin,
             Frem,
             Retur
@@ -636,6 +730,12 @@ namespace IntersectUtilities
             DN450,
             DN500,
             DN600
+        }
+        internal enum PipeSystemEnum
+        {
+            Ukendt,
+            Stål,
+            Kobberflex
         }
     }
 }

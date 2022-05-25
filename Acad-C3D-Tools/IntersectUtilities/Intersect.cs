@@ -4263,7 +4263,7 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = curve,
                                     DN = GetPipeDN(curve),
-                                    System = GetPipeSystem(curve)
+                                    System = GetPipeType(curve)
                                 });
                             }
 
@@ -4282,7 +4282,7 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = curve,
                                     DN = GetPipeDN(curve),
-                                    System = GetPipeSystem(curve)
+                                    System = GetPipeType(curve)
                                 });
 
 
@@ -4296,7 +4296,7 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = curve,
                                     DN = GetPipeDN(curve),
-                                    System = GetPipeSystem(curve)
+                                    System = GetPipeType(curve)
                                 });
                             }
                             #region Debug
@@ -13226,7 +13226,7 @@ namespace IntersectUtilities
                         tx.Abort();
                         return;
                     }
-                    string system = GetPipeSystem(ent);
+                    string system = GetPipeType(ent);
                     if (system == null)
                     {
                         prdDbg("Kunne ikke finde systemet på valgte rør! Kontroller lag!");
@@ -15234,7 +15234,7 @@ namespace IntersectUtilities
                         text.Color = color;
                         text.TextString =
                             $"DN{PipeSchedule.GetPipeDN(pair.layer.Name)} " +
-                            $"{PipeSchedule.GetPipeSystem(pair.layer.Name)}";
+                            $"{PipeSchedule.GetPipeType(pair.layer.Name)}";
 
                         i--;
                     }
@@ -15278,7 +15278,7 @@ namespace IntersectUtilities
                     foreach (var ltr in pipeLtrs)
                     {
                         ltr.CheckOrOpenForWrite();
-                        string system = PipeSchedule.GetPipeSystem(ltr.Name);
+                        string system = PipeSchedule.GetPipeType(ltr.Name);
 
                         switch (system)
                         {
