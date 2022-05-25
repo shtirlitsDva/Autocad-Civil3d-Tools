@@ -100,25 +100,13 @@ namespace IntersectUtilities
 
                     if (tb == null) { prdDbg("Title Block not found!"); tx.Abort(); return; }
 
+                    bsd.ParseData(pcf);
+
                     foreach (var item in bsd.AttributeMapping)
                     {
-                        string attributeName = item.OutputAttribute.Split('»')[1];
-
-                        string pcfAttribute = "    " + item.IsogenAttribute + " ";
-
-                        //prdDbg(pcfAttribute);
-
-                        foreach (string data in pcf)
-                        {
-                            if (data.StartsWith(pcfAttribute))
-                            {
-                                string input = data.Replace(pcfAttribute, "");
-
-                                tb.SetAttributeStringValue(attributeName, input);
-                            }
-                        }
-                        
-                        //prdDbg($"{item.IsogenAttribute} -> {attributeName}");
+                        if (item.FinalData.IsNoE()) continue;
+                        prdDbg($"{item.BlockAttribute} > {item.FinalData}");
+                        tb.SetAttributeStringValue(item.BlockAttribute, item.FinalData);
                     }
                 }
                 catch (System.Exception ex)
@@ -133,70 +121,43 @@ namespace IntersectUtilities
     }
 
 
-    // NOTE: Generated code may require at least .NET Framework 4.5 or .NET Core/Standard 2.0.
-    /// <remarks/>
     [System.SerializableAttribute()]
     [System.ComponentModel.DesignerCategoryAttribute("code")]
     [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true)]
     [System.Xml.Serialization.XmlRootAttribute(Namespace = "", IsNullable = false)]
     public partial class BackingSheetData
     {
-
-        private BackingSheetDataAttribute[] attributeMappingField;
-
-        /// <remarks/>
         [System.Xml.Serialization.XmlArrayItemAttribute("Attribute", IsNullable = false)]
-        public BackingSheetDataAttribute[] AttributeMapping
+        public BackingSheetDataAttribute[] AttributeMapping { get; set; }
+
+        internal void ParseData(string[] pcf)
         {
-            get
+            foreach (var attributeMap in AttributeMapping)
             {
-                return this.attributeMappingField;
-            }
-            set
-            {
-                this.attributeMappingField = value;
+                if (attributeMap.IsogenAttribute != "PIPELINE-REFERENCE")
+                    attributeMap.IsogenAttribute = "    " + attributeMap.IsogenAttribute + " ";
+                else attributeMap.IsogenAttribute += " ";
+
+                foreach (string data in pcf)
+                    if (data.StartsWith(attributeMap.IsogenAttribute))
+                        attributeMap.FinalData = data.Replace(attributeMap.IsogenAttribute, "");
             }
         }
     }
 
-    /// <remarks/>
     [System.SerializableAttribute()]
     [System.ComponentModel.DesignerCategoryAttribute("code")]
     [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true)]
     public partial class BackingSheetDataAttribute
     {
 
-        private string isogenAttributeField;
-
-        private string outputAttributeField;
-
-        /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string IsogenAttribute
-        {
-            get
-            {
-                return this.isogenAttributeField;
-            }
-            set
-            {
-                this.isogenAttributeField = value;
-            }
-        }
+        public string IsogenAttribute { get; set; }
 
-        /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string OutputAttribute
-        {
-            get
-            {
-                return this.outputAttributeField;
-            }
-            set
-            {
-                this.outputAttributeField = value;
-            }
-        }
+        public string OutputAttribute { get; set; }
+        public string BlockAttribute { get => OutputAttribute.Split('»')[1]; }
+        public string FinalData { get; set; }
     }
 
 
