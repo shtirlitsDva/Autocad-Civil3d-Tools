@@ -278,12 +278,10 @@ namespace IntersectUtilities
                     return 999;
             }
         }
-        /// <returns>"Twin", "Enkelt", null if fail.</returns>
         public static PipeTypeEnum GetPipeType(Entity ent)
         {
             return GetPipeType(ExtractLayerName(ent));
         }
-        /// <returns>"Twin", "Enkelt", null if fail.</returns>
         public static PipeTypeEnum GetPipeType(string layer)
         {
             layer = ExtractLayerName(layer);

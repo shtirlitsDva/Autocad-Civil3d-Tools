@@ -171,7 +171,7 @@ namespace ExportShapeFiles
 
                             string[] attributes = new string[3];
                             attributes[0] = GetPipeDN(pline).ToString();
-                            attributes[1] = GetPipeType(pline);
+                            attributes[1] = GetPipeType(pline).ToString();
                             attributes[2] = GetPipeSeries(pline);
 
                             writer.AddRecord(shapePoints, shapePoints.Length, attributes);

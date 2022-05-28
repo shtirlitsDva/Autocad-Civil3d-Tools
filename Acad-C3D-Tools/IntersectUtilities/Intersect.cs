@@ -4263,7 +4263,7 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = curve,
                                     DN = GetPipeDN(curve),
-                                    System = GetPipeType(curve)
+                                    System = GetPipeType(curve).ToString()
                                 });
                             }
 
@@ -4282,7 +4282,7 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = curve,
                                     DN = GetPipeDN(curve),
-                                    System = GetPipeType(curve)
+                                    System = GetPipeType(curve).ToString()
                                 });
 
 
@@ -4296,7 +4296,7 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = curve,
                                     DN = GetPipeDN(curve),
-                                    System = GetPipeType(curve)
+                                    System = GetPipeType(curve).ToString()
                                 });
                             }
                             #region Debug
@@ -13226,8 +13226,8 @@ namespace IntersectUtilities
                         tx.Abort();
                         return;
                     }
-                    string system = GetPipeType(ent);
-                    if (system == null)
+                    PipeTypeEnum system = GetPipeType(ent);
+                    if (system == PipeTypeEnum.Ukendt)
                     {
                         prdDbg("Kunne ikke finde systemet på valgte rør! Kontroller lag!");
                         tx.Abort();
@@ -13246,17 +13246,9 @@ namespace IntersectUtilities
                     double kOd = 0;
                     switch (system)
                     {
-                        case "Enkelt":
-                            kOd = GetBondedPipeKOd(ent);
-                            if (kOd < 1.0)
-                            {
-                                prdDbg("Kunne ikke finde kappedimensionen på valgte rør! Kontroller lag!");
-                                tx.Abort();
-                                return;
-                            }
-                            labelText = $"DN{DN}-ø{od.ToString("N1")}/{kOd.ToString("N0")}";
+                        case PipeTypeEnum.Ukendt:
                             break;
-                        case "Twin":
+                        case PipeTypeEnum.Twin:
                             kOd = GetTwinPipeKOd(ent);
                             if (kOd < 1.0)
                             {
@@ -13265,6 +13257,17 @@ namespace IntersectUtilities
                                 return;
                             }
                             labelText = $"DN{DN}-ø{od.ToString("N1")}+ø{od.ToString("N1")}/{kOd.ToString("N0")}";
+                            break;
+                        case PipeTypeEnum.Frem:
+                        case PipeTypeEnum.Retur:
+                            kOd = GetBondedPipeKOd(ent);
+                            if (kOd < 1.0)
+                            {
+                                prdDbg("Kunne ikke finde kappedimensionen på valgte rør! Kontroller lag!");
+                                tx.Abort();
+                                return;
+                            }
+                            labelText = $"DN{DN}-ø{od.ToString("N1")}/{kOd.ToString("N0")}";
                             break;
                         default:
                             break;
@@ -15278,18 +15281,21 @@ namespace IntersectUtilities
                     foreach (var ltr in pipeLtrs)
                     {
                         ltr.CheckOrOpenForWrite();
-                        string system = PipeSchedule.GetPipeType(ltr.Name);
+                        PipeTypeEnum type = PipeSchedule.GetPipeType(ltr.Name);
 
-                        switch (system)
+                        switch (type)
                         {
-                            case "Twin":
+                            case PipeTypeEnum.Ukendt:
+                                throw new System.Exception($"Unexpected type {type}!");
+                            case PipeTypeEnum.Twin:
                                 ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
                                 break;
-                            case "Enkelt":
+                            case PipeTypeEnum.Frem:
+                            case PipeTypeEnum.Retur:
                                 ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
                                 break;
                             default:
-                                throw new System.Exception($"Unexpected system {system}!");
+                                throw new System.Exception($"Unexpected type {type}!");
                         }
                     }
                 }
