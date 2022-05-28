@@ -34,8 +34,8 @@ namespace DriPaletteSet
             // If you want the PaletteSet to be shown in certain way whenever it is be created the first time
             if (firstShow)
             {
-                _myPs.Dock = Autodesk.AutoCAD.Windows.DockSides.None;
-                _myPs.Size = new System.Drawing.Size(500, 1000);
+                _myPs.Dock = Autodesk.AutoCAD.Windows.DockSides.Right;
+                _myPs.Size = new System.Drawing.Size(300, 1000);
             }
         }
     }

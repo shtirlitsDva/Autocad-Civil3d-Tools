@@ -45,6 +45,8 @@ namespace DriPaletteSet
             checkBox13.Appearance = System.Windows.Forms.Appearance.Button;
             checkBox14.Appearance = System.Windows.Forms.Appearance.Button;
             checkBox15.Appearance = System.Windows.Forms.Appearance.Button;
+            checkBox16.Appearance = System.Windows.Forms.Appearance.Button;
+            checkBox17.Appearance = System.Windows.Forms.Appearance.Button;
             #endregion
 
             #region Add dn buttons to buttons collection
@@ -60,6 +62,8 @@ namespace DriPaletteSet
             dnButtons.Add(checkBox10);
             dnButtons.Add(checkBox11);
             dnButtons.Add(checkBox12);
+            dnButtons.Add(checkBox16);
+            dnButtons.Add(checkBox17);
             #endregion
 
             #region Add series buttons to series buttons collection

@@ -1628,10 +1628,11 @@ namespace IntersectUtilities
                 {
                     //if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
                     Point3d closestPoint = curve.GetClosestPointTo(curSamplePoint, false);
+                    var pipeSeries = PipeSchedule.GetPipeSeriesV2(curve);
                     if (closestPoint != default)
                         curveDistTuples.Add(
                             (curve, curSamplePoint.DistanceHorizontalTo(closestPoint),
-                                PipeSchedule.GetPipeKOd(curve)));
+                                PipeSchedule.GetPipeKOd(curve, pipeSeries)));
                 }
                 var result = curveDistTuples.MinBy(x => x.dist).FirstOrDefault();
                 //Detect current dn

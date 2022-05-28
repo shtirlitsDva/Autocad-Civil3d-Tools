@@ -181,8 +181,8 @@ namespace DriPaletteSet
                         tx.Abort();
                         return;
                     }
-                    string system = GetPipeType(ent);
-                    if (system == null)
+                    var type = GetPipeType(ent);
+                    if (type == PipeTypeEnum.Ukendt)
                     {
                         prdDbg("Kunne ikke finde systemet på valgte rør! Kontroller lag!");
                         tx.Abort();
@@ -200,19 +200,12 @@ namespace DriPaletteSet
                     string labelText = "";
                     double kOd = 0;
                     PipeSeriesEnum series = GetPipeSeriesV2(ent);
-                    switch (system)
+
+                    switch (type)
                     {
-                        case "Enkelt":
-                            kOd = GetBondedPipeKOd(ent, series);
-                            if (kOd < 1.0)
-                            {
-                                prdDbg("Kunne ikke finde kappedimensionen på valgte rør! Kontroller lag!");
-                                tx.Abort();
-                                return;
-                            }
-                            labelText = $"DN{DN}-ø{od.ToString("N1")}/{kOd.ToString("N0")}";
+                        case PipeTypeEnum.Ukendt:
                             break;
-                        case "Twin":
+                        case PipeTypeEnum.Twin:
                             kOd = GetTwinPipeKOd(ent);
                             if (kOd < 1.0)
                             {
@@ -221,6 +214,17 @@ namespace DriPaletteSet
                                 return;
                             }
                             labelText = $"DN{DN}-ø{od.ToString("N1")}+ø{od.ToString("N1")}/{kOd.ToString("N0")}";
+                            break;
+                        case PipeTypeEnum.Frem:
+                        case PipeTypeEnum.Retur:
+                            kOd = GetBondedPipeKOd(ent, series);
+                            if (kOd < 1.0)
+                            {
+                                prdDbg("Kunne ikke finde kappedimensionen på valgte rør! Kontroller lag!");
+                                tx.Abort();
+                                return;
+                            }
+                            labelText = $"DN{DN}-ø{od.ToString("N1")}/{kOd.ToString("N0")}";
                             break;
                         default:
                             break;

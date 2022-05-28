@@ -616,8 +616,6 @@ namespace IntersectUtilities
             }
              
         }
-        public static double GetPipeKOd(Entity ent) =>
-            GetPipeType(ent) == "Twin" ? GetTwinPipeKOd(ent) : GetBondedPipeKOd(ent);
         public static string GetPipeSeries(Entity ent) => "S3";
         public static PipeSeriesEnum GetPipeSeriesV2(Entity ent)
         {
@@ -637,12 +635,14 @@ namespace IntersectUtilities
                     if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S1;
                     break;
                 case PipeSystemEnum.Kobberflex:
+                    kod = GetPipeKOd(ent, PipeSeriesEnum.S2) / 1000;
+                    if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S2;
+                    kod = GetPipeKOd(ent, PipeSeriesEnum.S1) / 1000;
+                    if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S1;
                     break;
                 default:
                     break;
             }
-
-            
 
             bool Equalz(double x, double y, double eps)
             {
@@ -657,18 +657,24 @@ namespace IntersectUtilities
         public static double GetPipeStdLength(Entity ent) => GetPipeDN(ent) <= 80 ? 12 : 16;
         public static bool IsInSituBent(Entity ent)
         {
-            string system = GetPipeType(ent);
-            switch (system)
+            PipeTypeEnum type = GetPipeType(ent);
+            PipeSystemEnum system = GetPipeSystem(ent);
+            if (system == PipeSystemEnum.Kobberflex) return true;
+            switch (type)
             {
-                case "Twin":
+                case PipeTypeEnum.Ukendt:
+                    throw new Exception(
+                        $"IsInSituBent -> Entity handle {ent.Handle} has invalid layer!");
+                case PipeTypeEnum.Twin:
                     if (GetPipeDN(ent) < 65) return true;
                     break;
-                case "Enkelt":
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
                     if (GetPipeDN(ent) < 100) return true;
                     break;
                 default:
                     throw new Exception(
-                        $"Entity handle {ent.Handle} has invalid layer!");
+                        $"IsInSituBent -> Entity handle {ent.Handle} has invalid layer!");
             }
             return false;
         }
@@ -712,6 +718,8 @@ namespace IntersectUtilities
         }
         internal enum PipeDnEnum
         {
+            CU22,
+            CU28,
             DN20,
             DN25,
             DN32,

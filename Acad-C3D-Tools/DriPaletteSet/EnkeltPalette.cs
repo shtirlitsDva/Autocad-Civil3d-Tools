@@ -50,6 +50,8 @@ namespace DriPaletteSet
             checkBox18.Appearance = System.Windows.Forms.Appearance.Button;
             checkBox19.Appearance = System.Windows.Forms.Appearance.Button;
             checkBox20.Appearance = System.Windows.Forms.Appearance.Button;
+            checkBox21.Appearance = System.Windows.Forms.Appearance.Button;
+            checkBox22.Appearance = System.Windows.Forms.Appearance.Button;
             #endregion
 
             #region Add dn buttons to buttons collection
@@ -71,6 +73,8 @@ namespace DriPaletteSet
             dnButtons.Add(checkBox16);
             dnButtons.Add(checkBox17);
             dnButtons.Add(checkBox18);
+            dnButtons.Add(checkBox21);
+            dnButtons.Add(checkBox22);
             #endregion
 
             #region Add frem/retur buttons to fr collection
