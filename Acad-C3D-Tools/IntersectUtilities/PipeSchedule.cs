@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities
 {
@@ -700,6 +701,80 @@ namespace IntersectUtilities
                 { 999, 0.0 }
             };
             return radii[GetPipeDN(ent)];
+        }
+        public static string GetLabel(Entity ent)
+        {
+            //Test to see if the polyline resides in the correct layer
+            int DN = GetPipeDN(ent);
+            if (DN == 999)
+            {
+                prdDbg("Kunne ikke finde dimension på valgte rør! Kontroller lag!");
+                return "";
+            }
+            var type = GetPipeType(ent);
+            if (type == PipeTypeEnum.Ukendt)
+            {
+                prdDbg("Kunne ikke finde systemet på valgte rør! Kontroller lag!");
+                return "";
+            }
+            double od = GetPipeOd(ent);
+            if (od < 1.0)
+            {
+                prdDbg("Kunne ikke finde rørdimensionen på valgte rør! Kontroller lag!");
+                return "";
+            }
+            PipeSystemEnum system = GetPipeSystem(ent);
+            if (system == PipeSystemEnum.Ukendt)
+            {
+                prdDbg("Kunne ikke finde system på valgte rør! Kontroller lag!");
+                return "";
+            }
+
+
+            //Build label
+            string labelText = "";
+            double kOd = 0;
+            PipeSeriesEnum series = GetPipeSeriesV2(ent);
+            kOd = GetPipeKOd(ent, series);
+            if (kOd < 1.0)
+            {
+                prdDbg("Kunne ikke finde kappedimensionen på valgte rør! Kontroller lag!");
+                return "";
+            }
+
+            switch (type)
+            {
+                case PipeTypeEnum.Twin:
+                    switch (system)
+                    {
+                        case PipeSystemEnum.Stål:
+                            labelText = $"DN{DN}-ø{od.ToString("N1")}+ø{od.ToString("N1")}/{kOd.ToString("N0")}";
+                            break;
+                        case PipeSystemEnum.Kobberflex:
+                            labelText = $"CU{DN}-ø{od.ToString("N0")}+ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
+                    switch (system)
+                    {
+                        case PipeSystemEnum.Stål:
+                            labelText = $"DN{DN}-ø{od.ToString("N1")}/{kOd.ToString("N0")}";
+                            break;
+                        case PipeSystemEnum.Kobberflex:
+                            labelText = $"CU{DN}-ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                default:
+                    break;
+            }
+            return labelText;
         }
         public enum PipeTypeEnum
         {

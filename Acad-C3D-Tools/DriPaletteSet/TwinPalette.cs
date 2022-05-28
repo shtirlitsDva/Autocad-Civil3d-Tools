@@ -89,7 +89,9 @@ namespace DriPaletteSet
             }
 
             string dn = string.Concat(cb.Text.Where(c => !char.IsWhiteSpace(c)));
+            prdDbg(dn + "\n");
             PipeDnEnum pipeDn = (PipeDnEnum)Enum.Parse(typeof(PipeDnEnum), dn);
+            prdDbg(pipeDn.ToString() + "\n");
 
             ActivateLayer(PipeTypeEnum.Twin, pipeDn);
         }

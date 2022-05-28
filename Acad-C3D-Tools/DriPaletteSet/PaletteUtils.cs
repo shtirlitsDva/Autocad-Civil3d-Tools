@@ -136,6 +136,7 @@ namespace DriPaletteSet
                     foreach (Polyline pipe in pipes)
                     {
                         double kappeOd = GetPipeKOd(pipe, CurrentSeries);
+                        if (kappeOd < 0.1) continue;
                         pipe.CheckOrOpenForWrite();
                         pipe.ConstantWidth = kappeOd / 1000;
                     }
@@ -173,62 +174,7 @@ namespace DriPaletteSet
                     Oid plineId = entity1.ObjectId;
                     Entity ent = plineId.Go<Entity>(tx);
 
-                    //Test to see if the polyline resides in the correct layer
-                    int DN = GetPipeDN(ent);
-                    if (DN == 999)
-                    {
-                        prdDbg("Kunne ikke finde dimension på valgte rør! Kontroller lag!");
-                        tx.Abort();
-                        return;
-                    }
-                    var type = GetPipeType(ent);
-                    if (type == PipeTypeEnum.Ukendt)
-                    {
-                        prdDbg("Kunne ikke finde systemet på valgte rør! Kontroller lag!");
-                        tx.Abort();
-                        return;
-                    }
-                    double od = GetPipeOd(ent);
-                    if (od < 1.0)
-                    {
-                        prdDbg("Kunne ikke finde rørdimensionen på valgte rør! Kontroller lag!");
-                        tx.Abort();
-                        return;
-                    }
-
-                    //Build label
-                    string labelText = "";
-                    double kOd = 0;
-                    PipeSeriesEnum series = GetPipeSeriesV2(ent);
-
-                    switch (type)
-                    {
-                        case PipeTypeEnum.Ukendt:
-                            break;
-                        case PipeTypeEnum.Twin:
-                            kOd = GetTwinPipeKOd(ent);
-                            if (kOd < 1.0)
-                            {
-                                prdDbg("Kunne ikke finde kappedimensionen på valgte rør! Kontroller lag!");
-                                tx.Abort();
-                                return;
-                            }
-                            labelText = $"DN{DN}-ø{od.ToString("N1")}+ø{od.ToString("N1")}/{kOd.ToString("N0")}";
-                            break;
-                        case PipeTypeEnum.Frem:
-                        case PipeTypeEnum.Retur:
-                            kOd = GetBondedPipeKOd(ent, series);
-                            if (kOd < 1.0)
-                            {
-                                prdDbg("Kunne ikke finde kappedimensionen på valgte rør! Kontroller lag!");
-                                tx.Abort();
-                                return;
-                            }
-                            labelText = $"DN{DN}-ø{od.ToString("N1")}/{kOd.ToString("N0")}";
-                            break;
-                        default:
-                            break;
-                    }
+                    string labelText = PipeSchedule.GetLabel(ent);
 
                     PromptPointOptions pPtOpts = new PromptPointOptions("\nChoose location of label: ");
                     PromptPointResult pPtRes = ed.GetPoint(pPtOpts);
