@@ -449,7 +449,7 @@ namespace IntersectUtilities.Dimensionering
             return value;
         }
 
-        [CommandMethod("DIMADRESSERDUMP")]
+        //[CommandMethod("DIMADRESSERDUMP")]
         public void dimadresserdump()
         {
             Dimensionering.dimadressedump();
@@ -464,6 +464,7 @@ namespace IntersectUtilities.Dimensionering
         public void dimconnecthusnr()
         {
             Dimensionering.dimconnecthusnr();
+            dimanalyzeduplicateaddr();
         }
 
         //[CommandMethod("DIMDUMPGRAPH")]
@@ -2137,7 +2138,7 @@ namespace IntersectUtilities.Dimensionering
                         }
                     }
 
-                    //Check if count of clients does not exceed 1500
+                    //Check if count of clients does not exceed 5000
                     if (allBrs.Count > 5000) throw new System.Exception(
                         $"FEJL! Antallet af kunder for etape {group.Key} er mere end 5.000 ({allBrs.Count})!\nOpdel etapen i flere dele.");
 
