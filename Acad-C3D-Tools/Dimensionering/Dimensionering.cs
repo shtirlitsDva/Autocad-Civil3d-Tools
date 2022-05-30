@@ -921,7 +921,8 @@ namespace IntersectUtilities.Dimensionering
                         .Where(x => bbrPsm.ReadPropertyString(x, bbrDef.DistriktetsNavn).IsNotNoE())
                         .ToHashSet();
 
-                    var groups = brs.GroupBy(x => bbrPsm.ReadPropertyString(x, bbrDef.DistriktetsNavn));
+                    var groups = brs.GroupBy(x => bbrPsm.ReadPropertyString(x, bbrDef.DistriktetsNavn))
+                        .Where(x => !x.Key.EndsWith(Dimensionering.HusnrSuffix));
                     #endregion
 
                     #region Prepare polylines and group by area and make a lookup
@@ -3840,6 +3841,8 @@ namespace IntersectUtilities.Dimensionering
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            void wr(string inp) => editor.WriteMessage(inp);
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 //Settings
@@ -3969,9 +3972,10 @@ namespace IntersectUtilities.Dimensionering
                         #endregion
 
                         #region Populate excel file
+                        prdDbg("Writing sheet: ");
                         foreach (ExcelSheet sheet in orderedSheets)
                         {
-                            prdDbg($"Writing sheet: {sheet.SheetNumber}");
+                            wr($" {sheet.SheetNumber}");
                             System.Windows.Forms.Application.DoEvents();
 
                             ws = (Worksheet)wb.Worksheets[sheet.SheetNumber.ToString()];
