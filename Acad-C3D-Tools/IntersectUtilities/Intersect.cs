@@ -28,6 +28,7 @@ using System.Data;
 using MoreLinq;
 using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
+using Dreambuild.AutoCAD;
 
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
@@ -13834,6 +13835,30 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Create points at vertices
+                    var meter = new ProgressMeter();
+
+                    string pointLayer = "0-MARKER-POINT";
+                    localDb.CheckOrCreateLayer(pointLayer);
+
+                    meter.Start("Gathering elements...");
+                    var ids = QuickSelection.SelectAll("LWPOLYLINE")
+                        .QWhere(x => x.Layer.Contains("Etape"));
+                    meter.SetLimit(ids.Count());
+                    ids.QForEach(x =>
+                    {
+                        var pline = x as Polyline;
+                        var vertNumber = pline.NumberOfVertices;
+                        for (int i = 0; i < vertNumber; i++)
+                        {
+                            Point3d vertLocation = pline.GetPoint3dAt(i);
+                            DBPoint point = new DBPoint(vertLocation);
+                            point.AddEntityToDbModelSpace(localDb);
+                            point.Layer = pointLayer;
+                        }
+                    });
+                    #endregion
+
                     #region Test clean 3d poly
                     //PromptEntityOptions peo = new PromptEntityOptions("\nSelect pline 3d: ");
                     //peo.SetRejectMessage("\nNot a Polyline3d!");

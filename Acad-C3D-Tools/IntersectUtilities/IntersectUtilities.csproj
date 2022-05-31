@@ -98,6 +98,9 @@
       <HintPath>..\packages\AutoCAD.NET.24.1.51000\lib\net47\AdUiPalettes.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="AdWindows">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\AdWindows.dll</HintPath>
+    </Reference>
     <Reference Include="AecBaseMgd">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\ACA\AecBaseMgd.dll</HintPath>
       <Private>False</Private>
@@ -125,6 +128,8 @@
       <EmbedInteropTypes>True</EmbedInteropTypes>
     </Reference>
     <Reference Include="Microsoft.VisualBasic" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
@@ -134,14 +139,72 @@
     </Reference>
     <Reference Include="System.Web" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xaml" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
+    <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\AutoCADCommands\Algorithms.cs">
+      <Link>ACC\Algorithms.cs</Link>
+    </Compile>
+    <Compile Include="..\AutoCADCommands\App.cs">
+      <Link>ACC\App.cs</Link>
+    </Compile>
+    <Compile Include="..\AutoCADCommands\Commands.cs">
+      <Link>ACC\Commands.cs</Link>
+    </Compile>
+    <Compile Include="..\AutoCADCommands\DbHelper.cs">
+      <Link>ACC\DbHelper.cs</Link>
+    </Compile>
+    <Compile Include="..\AutoCADCommands\FlexDataStore.cs">
+      <Link>ACC\FlexDataStore.cs</Link>
+    </Compile>
+    <Compile Include="..\AutoCADCommands\Gui.cs">
+      <Link>ACC\Gui.cs</Link>
+    </Compile>
+    <Compile Include="..\AutoCADCommands\GUIs\DictionaryViewer.xaml.cs">
+      <Link>ACC\GUIs\DictionaryViewer.xaml.cs</Link>
+      <DependentUpon>DictionaryViewer.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="..\AutoCADCommands\GUIs\InputBox.xaml.cs">
+      <Link>ACC\GUIs\InputBox.xaml.cs</Link>
+      <DependentUpon>InputBox.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="..\AutoCADCommands\GUIs\MultiInputs.xaml.cs">
+      <Link>ACC\GUIs\MultiInputs.xaml.cs</Link>
+      <DependentUpon>MultiInputs.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="..\AutoCADCommands\GUIs\TaskProgressWindow.xaml.cs">
+      <Link>ACC\GUIs\TaskProgressWindow.xaml.cs</Link>
+      <DependentUpon>TaskProgressWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="..\AutoCADCommands\GUIs\TextReport.xaml.cs">
+      <Link>ACC\GUIs\TextReport.xaml.cs</Link>
+      <DependentUpon>TextReport.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="..\AutoCADCommands\Interaction.cs">
+      <Link>ACC\Interaction.cs</Link>
+    </Compile>
+    <Compile Include="..\AutoCADCommands\Internal\CustomDictionary.cs">
+      <Link>ACC\Internal\CustomDictionary.cs</Link>
+    </Compile>
+    <Compile Include="..\AutoCADCommands\Internal\JigDrag.cs">
+      <Link>ACC\Internal\JigDrag.cs</Link>
+    </Compile>
+    <Compile Include="..\AutoCADCommands\Layouts.cs">
+      <Link>ACC\Layouts.cs</Link>
+    </Compile>
+    <Compile Include="..\AutoCADCommands\QuickSelection.cs">
+      <Link>ACC\QuickSelection.cs</Link>
+    </Compile>
+    <Compile Include="..\AutoCADCommands\SymbolPack.cs">
+      <Link>ACC\SymbolPack.cs</Link>
+    </Compile>
     <Compile Include="ColorUtils.cs" />
     <Compile Include="ComponentSchedule.cs" />
     <Compile Include="CreateGisData.cs" />
@@ -171,6 +234,33 @@
       <Link>.editorconfig</Link>
     </None>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="..\AutoCADCommands\GUIs\DictionaryViewer.xaml">
+      <Link>ACC\GUIs\DictionaryViewer.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\AutoCADCommands\GUIs\InputBox.xaml">
+      <Link>ACC\GUIs\InputBox.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\AutoCADCommands\GUIs\MultiInputs.xaml">
+      <Link>ACC\GUIs\MultiInputs.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\AutoCADCommands\GUIs\TaskProgressWindow.xaml">
+      <Link>ACC\GUIs\TaskProgressWindow.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="..\AutoCADCommands\GUIs\TextReport.xaml">
+      <Link>ACC\GUIs\TextReport.xaml</Link>
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
