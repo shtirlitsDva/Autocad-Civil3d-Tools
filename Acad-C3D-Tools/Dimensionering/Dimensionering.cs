@@ -449,7 +449,7 @@ namespace IntersectUtilities.Dimensionering
             return value;
         }
 
-        //[CommandMethod("DIMADRESSERDUMP")]
+        [CommandMethod("DIMADRESSERDUMP")]
         public void dimadresserdump()
         {
             Dimensionering.dimadressedump();
@@ -1993,8 +1993,7 @@ namespace IntersectUtilities.Dimensionering
                     HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
                     brs = brs
                         .Where(x => bbrPsm.ReadPropertyString(x, bbrDef.DistriktetsNavn) == curEtapeName)
-                        .Where(x => Dimensionering.AcceptedBlockTypes.Contains(
-                            bbrPsm.ReadPropertyString(x, bbrDef.Type)))
+                        //.Where(x => Dimensionering.AcceptedBlockTypes.Contains(bbrPsm.ReadPropertyString(x, bbrDef.Type)))
                         .ToHashSet();
 
                     List<BlockReference> allBrs = new List<BlockReference>();
@@ -2011,7 +2010,7 @@ namespace IntersectUtilities.Dimensionering
                     }
 
                     StringBuilder sb = new StringBuilder();
-                    sb.AppendLine("Adresse;Energiforbrug;Antal ejendomme;Antal boliger med varmtvandsforbrug;Stik længde (tracé) [m];Dim. afkøling");
+                    sb.AppendLine("Adresse;DuplicateNr;Energiforbrug;Antal ejendomme;Antal boliger med varmtvandsforbrug;Dim. afkøling;Anvendelseskode;Opvarmningsmiddel;Type;Installation");
 
                     string antalEjendomme = "1";
                     string antalBoligerOsv = "1";
@@ -2027,28 +2026,31 @@ namespace IntersectUtilities.Dimensionering
 
                     foreach (BlockReference building in allBrs.OrderByAlphaNumeric(x => ds(x)))
                     {
-                        string handleString = graphPsm.ReadPropertyString(building, graphDef.Parent);
-                        Handle parent;
-                        try
-                        {
-                            parent = new Handle(Convert.ToInt64(handleString, 16));
-                        }
-                        catch (System.Exception)
-                        {
-                            prdDbg($"Reading parent handle failed for block: {building.Handle}");
-                            throw;
-                        }
-                        Line line = parent.Go<Line>(localDb);
+                        //string handleString = graphPsm.ReadPropertyString(building, graphDef.Parent);
+                        //Handle parent;
+                        //try
+                        //{
+                        //    parent = new Handle(Convert.ToInt64(handleString, 16));
+                        //}
+                        //catch (System.Exception)
+                        //{
+                        //    prdDbg($"Reading parent handle failed for block: {building.Handle}");
+                        //    throw;
+                        //}
+                        //Line line = parent.Go<Line>(localDb);
 
-                        string stikLængde = line.GetHorizontalLength().ToString("0.##");
+                        //string stikLængde = line.GetHorizontalLength().ToString("0.##");
                         string adresse = bbrPsm.ReadPropertyString(building, bbrDef.Adresse);
                         int duplicateNr = bbrPsm.ReadPropertyInt(building, bbrDef.AdresseDuplikatNr);
                         string duplicateNrString = duplicateNr == 0 ? "" : " " + duplicateNr.ToString();
                         string estVarmeForbrug = (bbrPsm.ReadPropertyDouble(
                             building, bbrDef.EstimeretVarmeForbrug) * 1000.0).ToString("0.##");
                         string anvKodeTekst = bbrPsm.ReadPropertyString(building, bbrDef.BygningsAnvendelseNyTekst);
+                        string opvarmningsmiddel = bbrPsm.ReadPropertyString(building, bbrDef.OpvarmningsMiddel);
+                        string type = bbrPsm.ReadPropertyString(building, bbrDef.Type);
+                        string varmeinstallation = bbrPsm.ReadPropertyString(building, bbrDef.VarmeInstallation);
 
-                        sb.AppendLine($"{adresse + duplicateNrString};{estVarmeForbrug};{antalEjendomme};{antalBoligerOsv};{stikLængde};{dimAfkøling};;{anvKodeTekst}");
+                        sb.AppendLine($"{adresse};{duplicateNrString};{estVarmeForbrug};{antalEjendomme};{antalBoligerOsv};{dimAfkøling};{anvKodeTekst};{opvarmningsmiddel};{type};{varmeinstallation}");
                     }
 
                     //Build file name
@@ -4656,7 +4658,7 @@ namespace IntersectUtilities.Dimensionering
         private void TestValidity()
         {
             if ((CurrentSheetNumber + SheetOffset) > 100)
-                throw new System.Exception("Total number of sheets needed has exceeded 58!");
+                throw new System.Exception("Total number of sheets needed has exceeded 100!");
         }
     }
     internal class Node
