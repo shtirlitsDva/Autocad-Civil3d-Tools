@@ -15104,6 +15104,54 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("DIVIDEPLINE")]
+        public void dividepline()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            Oid pId = Interaction.GetEntity("Select pline to divide: ", typeof(Polyline));
+            int nrOfSegments = Interaction.GetInteger("Enter number of segments to create: ");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Polyline originalPline = pId.Go<Polyline>(tx);
+                    double length = originalPline.Length;
+
+                    double segmentLength = length / nrOfSegments;
+
+                    for (int i = 0; i < nrOfSegments; i++)
+                    {
+                        double startLength = i * segmentLength;
+                        double endLength = (i + 1) * segmentLength;
+                        Polyline newPline = new Polyline(2);
+                        newPline.AddVertexAt(0, 
+                            originalPline.GetPointAtDist(startLength).To2D(), 0, 0, 0);
+                        newPline.AddVertexAt(1,
+                            originalPline.GetPointAtDist(endLength).To2D(), 0, 0, 0);
+                        newPline.AddEntityToDbModelSpace(localDb);
+                        newPline.Layer = originalPline.Layer;
+                        //PropertySetManager.CopyAllProperties(originalPline, newPline);
+                    }
+
+                    originalPline.CheckOrOpenForWrite();
+                    originalPline.Erase(true);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("PIPELAYERSCOLOURSET")]
         public void pipelayerscolourset()
         {
