@@ -15152,6 +15152,50 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("COUNTENTS")]
+        public void countents()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var blockTable = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForRead);
+
+                    // Get the model space block table record
+                    var modelSpace = (BlockTableRecord)tx.GetObject(
+                        blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+
+                    RXClass theClass = RXObject.GetClass(typeof(Entity));
+
+                    int count = 0;
+
+                    // Loop through the entities in model space
+                    foreach (Oid objectId in modelSpace)
+                    {
+                        // Look for entities of the correct type
+                        if (objectId.ObjectClass.IsDerivedFrom(theClass))
+                        {
+                            count++;
+                        }
+                    }
+                    prdDbg($"Total number of Entities in DWG: {count}");
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("PIPELAYERSCOLOURSET")]
         public void pipelayerscolourset()
         {
