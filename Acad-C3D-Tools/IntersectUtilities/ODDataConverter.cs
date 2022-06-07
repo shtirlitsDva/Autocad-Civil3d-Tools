@@ -71,6 +71,7 @@ namespace IntersectUtilities.ODDataConverter
                     appliedTo.Add("AcDbPolyline");
                     appliedTo.Add("AcDb3dPolyline");
                     appliedTo.Add(RXClass.GetClass(typeof(BlockReference)).Name);
+                    appliedTo.Add(RXClass.GetClass(typeof(DBPoint)).Name);
                     propSetDef.SetAppliesToFilter(appliedTo, isStyle);
 
                     FieldDefinitions defs = curTable.FieldDefinitions;
@@ -146,6 +147,7 @@ namespace IntersectUtilities.ODDataConverter
                 HashSet<Entity> ents = new HashSet<Entity>();
                 ents.UnionWith(localDb.HashSetOfType<Line>(tx));
                 ents.UnionWith(localDb.HashSetOfType<Spline>(tx));
+                ents.UnionWith(localDb.HashSetOfType<DBPoint>(tx));
                 ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
                 ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
                 ents.UnionWith(localDb.HashSetOfType<BlockReference>(tx));
@@ -204,6 +206,7 @@ namespace IntersectUtilities.ODDataConverter
                     HashSet<Entity> ents = new HashSet<Entity>();
                     ents.UnionWith(localDb.HashSetOfType<Line>(tx));
                     ents.UnionWith(localDb.HashSetOfType<Spline>(tx));
+                    ents.UnionWith(localDb.HashSetOfType<DBPoint>(tx));
                     ents.UnionWith(localDb.HashSetOfType<Polyline>(tx));
                     ents.UnionWith(localDb.HashSetOfType<Polyline3d>(tx));
                     ents.UnionWith(localDb.HashSetOfType<BlockReference>(tx));

@@ -1797,6 +1797,87 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("gasibrug")]
+        [CommandMethod("cf")]
+        public void gasibrug()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            while (true)
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                        #region Select pline3d
+                        PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                            "\nSelect (poly)line(3d) to modify:");
+                        promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
+                        promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
+                        promptEntityOptions1.AddAllowedClass(typeof(Line), true);
+                        promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                        PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                        if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
+                        Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
+                        Entity ent = entId.Go<Entity>(tx, OpenMode.ForWrite);
+                        #endregion
+
+                        #region Property set manager
+                        PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGasDimOgMat);
+                        PSetDefs.DriGasDimOgMat driGasDimOgMat = new PSetDefs.DriGasDimOgMat();
+
+                        psm.GetOrAttachPropertySet(ent);
+                        psm.WritePropertyString(driGasDimOgMat.Bemærk, "");
+
+                        editor.WriteMessage($"\nUpdating color and layer properties!");
+
+                        Dictionary<string, int> layerNames = new Dictionary<string, int>()
+                        {
+                            {"GAS-Stikrør", 30 },
+                            {"GAS-Stikrør-2D",30},
+                            {"GAS-Fordelingsrør",30},
+                            {"GAS-Fordelingsrør-2D",30},
+                            {"GAS-Distributionsrør",30},
+                            {"GAS-Distributionsrør-2D",30},
+                            {"GAS-ude af drift",221},
+                            {"GAS-ude af drift-2D",221}
+                        };
+
+                        foreach (KeyValuePair<string, int> entry in layerNames)
+                        {
+                            localDb.CheckOrCreateLayer(entry.Key, (short)entry.Value);
+                        }
+
+                        int FNO = PropertySetManager.ReadNonDefinedPropertySetInt(
+                            ent,
+                            "PIPE",
+                            "G3E_FNO");
+
+                        if (FNO == 113) ent.Layer = "GAS-Stikrør";
+                        else if (FNO == 112) ent.Layer = "GAS-Distributionsrør";
+                        else if (FNO == 111) ent.Layer = "GAS-Fordelingsrør";
+
+                        if (FNO == 0) ent.ColorIndex = 2;
+                        else ent.ColorIndex = 1;
+                        #endregion
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        editor.WriteMessage("\n" + ex.Message);
+                        return;
+                    }
+                    tx.Commit();
+                }
+            }
+        }
+
         [CommandMethod("COPYODGAS")]
         [CommandMethod("CD")]
         public void copyodgas()
@@ -10246,6 +10327,7 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("COPYPSFROMENTTOENT")]
+        [CommandMethod("CPYPS")]
         public void copypsfromenttoent()
         {
 
@@ -10263,7 +10345,7 @@ namespace IntersectUtilities
                     PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
                         "\nSelect entity FROM where to copy OD:");
                     promptEntityOptions1.SetRejectMessage("\n Not an entity!");
-                    promptEntityOptions1.AddAllowedClass(typeof(Entity), true);
+                    promptEntityOptions1.AddAllowedClass(typeof(Entity), false);
                     PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
                     if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
                     Autodesk.AutoCAD.DatabaseServices.ObjectId sourceId = entity1.ObjectId;
@@ -10272,7 +10354,7 @@ namespace IntersectUtilities
                     PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
                         "\nSelect entity where to copy OD TO:");
                     promptEntityOptions2.SetRejectMessage("\n Not an entity!");
-                    promptEntityOptions2.AddAllowedClass(typeof(Entity), true);
+                    promptEntityOptions2.AddAllowedClass(typeof(Entity), false);
                     PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
                     if (((PromptResult)entity2).Status != PromptStatus.OK) { tx.Abort(); return; }
                     Autodesk.AutoCAD.DatabaseServices.ObjectId targetId = entity2.ObjectId;
@@ -10886,7 +10968,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
+                    editor.WriteMessage("\n" + ex.ToString());
                     return;
                 }
                 tx.Commit();
@@ -15130,7 +15212,7 @@ namespace IntersectUtilities
                         double startLength = i * segmentLength;
                         double endLength = (i + 1) * segmentLength;
                         Polyline newPline = new Polyline(2);
-                        newPline.AddVertexAt(0, 
+                        newPline.AddVertexAt(0,
                             originalPline.GetPointAtDist(startLength).To2D(), 0, 0, 0);
                         newPline.AddVertexAt(1,
                             originalPline.GetPointAtDist(endLength).To2D(), 0, 0, 0);

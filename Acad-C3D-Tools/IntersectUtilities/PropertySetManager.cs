@@ -362,6 +362,7 @@ namespace IntersectUtilities
             int number = 0;
             try
             {
+                if (value == null) return number;
                 if (value.ToString().IsNoE()) return number;
                 number = Convert.ToInt32(value);
             }
