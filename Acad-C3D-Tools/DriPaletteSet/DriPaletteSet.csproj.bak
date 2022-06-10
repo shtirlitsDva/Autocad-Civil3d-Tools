@@ -1,17 +1,17 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{18969DC7-12E7-48D7-BD42-6FCA06B3B03D}</ProjectGuid>
+    <ProjectGuid>{0F92C1BB-FADB-4DF2-8FF8-F28391C1ED3C}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>ExportShapeFiles</RootNamespace>
-    <AssemblyName>ExportShapeFiles</AssemblyName>
+    <RootNamespace>DriPaletteSet</RootNamespace>
+    <AssemblyName>DriPaletteSet</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <Deterministic>true</Deterministic>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -50,54 +50,37 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="accoremgd, Version=24.1.0.0, Culture=neutral, processorArchitecture=AMD64">
-      <HintPath>..\packages\Speckle.AutoCAD.API.2022.0.0.3\lib\net47\accoremgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\accoremgd.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
       <Private>False</Private>
     </Reference>
-    <Reference Include="AcCui, Version=24.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Speckle.AutoCAD.API.2022.0.0.3\lib\net47\AcCui.dll</HintPath>
+    <Reference Include="acdbmgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\acdbmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="acdbmgd, Version=24.1.0.0, Culture=neutral, processorArchitecture=AMD64">
-      <HintPath>..\packages\Speckle.AutoCAD.API.2022.0.0.3\lib\net47\acdbmgd.dll</HintPath>
+    <Reference Include="acmgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\acmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="acdbmgdbrep, Version=24.1.0.0, Culture=neutral, processorArchitecture=AMD64">
-      <HintPath>..\packages\Speckle.AutoCAD.API.2022.0.0.3\lib\net47\acdbmgdbrep.dll</HintPath>
+    <Reference Include="AecBaseMgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\AecBaseMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="acmgd, Version=24.1.0.0, Culture=neutral, processorArchitecture=AMD64">
-      <HintPath>..\packages\Speckle.AutoCAD.API.2022.0.0.3\lib\net47\acmgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AdWindows, Version=3.1.4.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Speckle.AutoCAD.API.2022.0.0.3\lib\net47\AdWindows.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AecBaseMgd, Version=8.4.49.0, Culture=neutral, processorArchitecture=AMD64">
-      <HintPath>..\packages\Speckle.Civil3D.API.2022.0.0.3\lib\net47\AecBaseMgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AeccDbMgd, Version=13.4.214.0, Culture=neutral, processorArchitecture=AMD64">
-      <HintPath>..\packages\Speckle.Civil3D.API.2022.0.0.3\lib\net47\AeccDbMgd.dll</HintPath>
+    <Reference Include="AeccDbMgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\C3D\AeccDbMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="AecPropDataMgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\ACA\AecPropDataMgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\ACA\AecPropDataMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="ManagedMapApi">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\Map\ManagedMapApi.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\Map\ManagedMapApi.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Microsoft.Office.Interop.Excel, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
-      <EmbedInteropTypes>True</EmbedInteropTypes>
-    </Reference>
-    <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.ValueTuple.4.5.0\lib\net47\System.ValueTuple.dll</HintPath>
-    </Reference>
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -107,29 +90,45 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\IntersectUtilities\CreateGisData.cs">
-      <Link>CreateGisData.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\CsvReader.cs">
-      <Link>CsvReader.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\DataQAClass.cs">
-      <Link>DataQAClass.cs</Link>
-    </Compile>
     <Compile Include="..\IntersectUtilities\MoreLinq.cs">
       <Link>MoreLinq.cs</Link>
     </Compile>
-    <Compile Include="..\IntersectUtilities\ODDataReader.cs">
-      <Link>ODDataReader.cs</Link>
+    <Compile Include="..\IntersectUtilities\PipeSchedule.cs">
+      <Link>PipeSchedule.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\PropertySetManager.cs">
+      <Link>PropertySetManager.cs</Link>
     </Compile>
     <Compile Include="..\IntersectUtilities\UtilsCommon.cs">
       <Link>UtilsCommon.cs</Link>
     </Compile>
-    <Compile Include="ExportShapeFiles.cs" />
+    <Compile Include="PaletteUtils.cs" />
+    <Compile Include="TwinPalette.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="TwinPalette.Designer.cs">
+      <DependentUpon>TwinPalette.cs</DependentUpon>
+    </Compile>
+    <Compile Include="MyCommands.cs" />
+    <Compile Include="MyPaletteSet.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="EnkeltPalette.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="EnkeltPalette.Designer.cs">
+      <DependentUpon>EnkeltPalette.cs</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <EmbeddedResource Include="EnkeltPalette.resx">
+      <DependentUpon>EnkeltPalette.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="TwinPalette.resx">
+      <DependentUpon>TwinPalette.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="loadNet.scr" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
