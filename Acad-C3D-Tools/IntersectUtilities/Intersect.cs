@@ -11060,7 +11060,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        
+
         [CommandMethod("GASLISTALLPSDATA")]
         public void gaslistallpsdata()
         {
@@ -11293,6 +11293,83 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("NOVAFOSCHANGELAYERFOR2D")]
+        public void novafoschangelayerfor2d()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Change layer
+                    ///////////////////////////
+                    double moveThreshold = 1;
+                    ///////////////////////////
+
+                    #region Create layers
+                    Dictionary<string, short> layerNames = new Dictionary<string, short>()
+                    {   {"AFL_ikke_ibrug-2D", 92 },
+                        {"AFL_ledning_draen-2D", 92 },
+                        {"AFL_ledning_faelles-2D", 140 },
+                        {"AFL_ledning_regn-2D", 191 },
+                        {"AFL_ledning_spild-2D", 140 }
+                    };
+                    LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    foreach (KeyValuePair<string, short> kvp in layerNames)
+                    {
+                        if (!lt.Has(kvp.Key))
+                        {
+                            LayerTableRecord ltr = new LayerTableRecord();
+                            ltr.Name = kvp.Key;
+                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, kvp.Value);
+
+                            //Make layertable writable
+                            lt.CheckOrOpenForWrite();
+
+                            //Add the new layer to layer table
+                            Oid ltId = lt.Add(ltr);
+                            tx.AddNewlyCreatedDBObject(ltr, true);
+                        }
+                    }
+                    #endregion
+
+                    HashSet<Polyline3d> p3ds = localDb.HashSetOfType<Polyline3d>(tx, true);
+                    foreach (Polyline3d p3d in p3ds)
+                    {
+                        bool didNotFindAboveThreshold = true;
+                        PolylineVertex3d[] vertices = p3d.GetVertices(tx);
+                        for (int i = 0; i < vertices.Length; i++)
+                        {
+                            if (vertices[i].Position.Z > 1.0) didNotFindAboveThreshold = false;
+                        }
+
+                        if (didNotFindAboveThreshold)
+                        {
+                            string curLayer = p3d.Layer;
+                            string layer2d = curLayer + "-2D";
+                            if (!lt.Has(layer2d)) throw new System.Exception($"2D layer for layer {curLayer} not found!");
+                            p3d.CheckOrOpenForWrite();
+                            p3d.Layer = layer2d;
+                        }
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("P3DRESETVERTICESEXCEPTENDS")]
         public void p3dresetverticesexceptends()
         {
@@ -11433,7 +11510,7 @@ namespace IntersectUtilities
 
                     Oid id = Interaction.GetEntity("Select Polyline3d to flatten: ", typeof(Polyline3d));
                     Polyline3d p3d = id.Go<Polyline3d>(tx, OpenMode.ForWrite);
-                    
+
                     PolylineVertex3d[] vertices = p3d.GetVertices(tx);
 
                     for (int i = 0; i < vertices.Length; i++)
