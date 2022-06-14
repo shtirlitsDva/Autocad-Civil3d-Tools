@@ -11060,6 +11060,58 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        
+        [CommandMethod("GASLISTALLPSDATA")]
+        public void gaslistallpsdata()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region GatherObjects
+                    HashSet<Polyline> allPlines = localDb.HashSetOfType<Polyline>(tx);
+                    #endregion
+
+                    #region Property Set Manager
+                    PropertySetManager gasPsm = new PropertySetManager(
+                        localDb, PSetDefs.DefinedSets.DriGasDimOgMat);
+                    PSetDefs.DriGasDimOgMat gasDef = new PSetDefs.DriGasDimOgMat();
+                    #endregion
+
+                    #region QA data
+                    HashSet<string> allLabels = new HashSet<string>();
+
+                    foreach (Polyline polyline in allPlines)
+                    {
+                        int dim = gasPsm.ReadPropertyInt(polyline, gasDef.Dimension);
+                        string mat = gasPsm.ReadPropertyString(polyline, gasDef.Material);
+
+                        allLabels.Add(dim.ToString() + " " + mat);
+                    }
+
+                    allLabels.OrderBy(x => x).ToList().ForEach(x => prdDbg(x));
+
+                    var query = allPlines.Where(x => gasPsm.FilterPropetyString(x, gasDef.Material, "relinet"));
+
+                    foreach (var item in query) prdDbg(item.Handle.ToString());
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
 
         //Used to move 3d polylines of gas to elevation points
         [CommandMethod("movep3dverticestopoints")]
@@ -11367,6 +11419,42 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("FLATTENPL3D")]
+        public void flattenpl3d()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Polylines 3d
+
+                    Oid id = Interaction.GetEntity("Select Polyline3d to flatten: ", typeof(Polyline3d));
+                    Polyline3d p3d = id.Go<Polyline3d>(tx, OpenMode.ForWrite);
+                    
+                    PolylineVertex3d[] vertices = p3d.GetVertices(tx);
+
+                    for (int i = 0; i < vertices.Length; i++)
+                    {
+                        vertices[i].CheckOrOpenForWrite();
+                        vertices[i].Position = new Point3d(
+                            vertices[i].Position.X, vertices[i].Position.Y, 0);
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+
+        }
+
         [CommandMethod("GASBEHANDLING")]
         public void gasbehandling()
         {
@@ -11381,30 +11469,6 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Lines
-                    //double lineThreshold = 1;
-                    //HashSet<Line> lines = localDb.HashSetOfType<Line>(tx, true);
-                    //foreach (Line line in lines)
-                    //{
-                    //    if (line.StartPoint.Z < lineThreshold)
-                    //    {
-                    //        Point3d point = line.EndPoint;
-
-                    //        line.UpgradeOpen();
-
-                    //        line.StartPoint = point;
-                    //    }
-                    //    else if (line.EndPoint.Z < lineThreshold)
-                    //    {
-                    //        Point3d point = line.StartPoint;
-
-                    //        line.UpgradeOpen();
-
-                    //        line.EndPoint = point;
-                    //    }
-                    //}
-                    #endregion
-
                     #region Polylines 3d
                     /////////////////////////////////
                     //Must not overlap
@@ -11695,7 +11759,7 @@ namespace IntersectUtilities
                         PolylineVertex3d[] vertices = line.GetVertices(tx);
                         for (int i = 0; i < vertices.Length; i++)
                         {
-                            if (vertices[i].Position.Z > 1) didNotFindAboveThreshold = false;
+                            if (vertices[i].Position.Z > 1.0) didNotFindAboveThreshold = false;
                         }
 
                         if (didNotFindAboveThreshold)
