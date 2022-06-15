@@ -214,7 +214,7 @@ namespace Dreambuild.AutoCAD
         /// Gets point.
         /// </summary>
         /// <param name="message">The message.</param>
-        /// <returns>The point.</returns>
+        /// <returns>The point. Algorithms.NullPoint3d on error or cancel.</returns>
         public static Point3d GetPoint(string message)
         {
             var ed = Application.DocumentManager.MdiActiveDocument.Editor;
@@ -320,7 +320,7 @@ namespace Dreambuild.AutoCAD
         /// <param name="message">The message.</param>
         /// <param name="allowedType">The allowed entity type.</param>
         /// <param name="exactMatch">Use exact match.</param>
-        /// <returns>The entity ID.</returns>
+        /// <returns>The entity ID. ObjectId.Null on error or cancel.</returns>
         public static ObjectId GetEntity(string message, Type allowedType, bool exactMatch = true) // newly 20130514
         {
             var ed = Application.DocumentManager.MdiActiveDocument.Editor;

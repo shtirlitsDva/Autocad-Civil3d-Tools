@@ -13702,8 +13702,8 @@ namespace IntersectUtilities
             Document doc = Application.DocumentManager.MdiActiveDocument;
             Database db = doc.Database;
             Editor ed = doc.Editor;
-            Transaction tx = db.TransactionManager.StartTransaction();
-            using (tx)
+            
+            using (Transaction tx = db.TransactionManager.StartTransaction())
             {
                 try
                 {
@@ -13716,9 +13716,17 @@ namespace IntersectUtilities
                     double startX = 0; double Y = 0; double delta = 5;
                     double endX = 100;
 
+                    var dict = new Dictionary<string, Oid>();
+
                     foreach (Oid lttrOid in ltt)
                     {
                         LinetypeTableRecord lttr = lttrOid.Go<LinetypeTableRecord>(tx);
+                        dict.Add(lttr.Name, lttrOid);
+                    }
+
+                    foreach (var kvp in dict.OrderBy(x => x.Key))
+                    {
+                        LinetypeTableRecord lttr = kvp.Value.Go<LinetypeTableRecord>(tx);
 
                         string layerName = "00LT-" + lttr.Name;
 
@@ -13731,7 +13739,7 @@ namespace IntersectUtilities
 
                         LayerTableRecord ltr = ltrId.Go<LayerTableRecord>(tx, OpenMode.ForWrite);
 
-                        ltr.LinetypeObjectId = lttrOid;
+                        ltr.LinetypeObjectId = kvp.Value;
 
                         Polyline pline = new Polyline(2);
 
@@ -13753,6 +13761,42 @@ namespace IntersectUtilities
                 {
                     tx.Abort();
                     prdDbg(ex.ToString());
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("PLACEOBJLAYCOLOR")]
+        public void placeobjlaycolor()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            Oid oid = Interaction.GetEntity("Select object to write color of: ", typeof(Entity), false);
+            if (oid == Oid.Null) return;
+
+            Point3d location = Interaction.GetPoint("Select where to place the text: ");
+            if (location == Algorithms.NullPoint3d) return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Entity ent = oid.Go<Entity>(tx);
+                    LayerTableRecord ltr = ent.LayerId.Go<LayerTableRecord>(tx);
+                    LinetypeTableRecord lttr = ltr.LinetypeObjectId.Go<LinetypeTableRecord>(tx);
+
+                    DBText text = new DBText();
+                    text.Position = location;
+                    text.TextString = $"{ltr.Color} {lttr.Name}";
+                    text.Height = 0.5;
+                    text.AddEntityToDbModelSpace(localDb);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
                 }
                 tx.Commit();
             }
@@ -15596,7 +15640,26 @@ namespace IntersectUtilities
             }
         }
 
-        void ExitGracefully(Transaction tx, string msg)
+        //[CommandMethod("CLEANLAGFILE")]
+        public void cleanlagfile()
+        {
+            System.Data.DataTable dupes = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\Lag-duplicates.csv", "LagDupes");
+
+            var list = new HashSet<string>();
+
+            //hashset will not allow duplicate strings to be added thus effectively making the list distinct
+            foreach (DataRow row in dupes.Rows) list.Add($"{row[0]};{row[1]};{row[2]}");
+
+            OutputWriter(@"X:\AutoCAD DRI - 01 Civil 3D\Lag.csv", string.Join("\n", list.ToArray()), true);
+        }
+
+        [CommandMethod("CREATELERDWG")]
+        public void createlerdwg()
+        {
+
+        }
+
+        void AbortGracefully(Transaction tx, string msg)
         {
             tx.Abort();
             prdDbg(msg);
