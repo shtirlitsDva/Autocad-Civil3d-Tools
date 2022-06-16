@@ -13702,7 +13702,7 @@ namespace IntersectUtilities
             Document doc = Application.DocumentManager.MdiActiveDocument;
             Database db = doc.Database;
             Editor ed = doc.Editor;
-            
+
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
                 try
@@ -15650,13 +15650,65 @@ namespace IntersectUtilities
             //hashset will not allow duplicate strings to be added thus effectively making the list distinct
             foreach (DataRow row in dupes.Rows) list.Add($"{row[0]};{row[1]};{row[2]}");
 
-            OutputWriter(@"X:\AutoCAD DRI - 01 Civil 3D\Lag.csv", string.Join("\n", list.ToArray()), true);
+            OutputWriter(@"X:\AutoCAD DRI - 01 Civil 3D\Lag-clean.csv", string.Join("\n", list.ToArray()), true);
         }
 
-        [CommandMethod("CREATELERDWG")]
-        public void createlerdwg()
+        [CommandMethod("FIXLERLAYERS")]
+        public void fixlerlayers()
         {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
 
+            string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+            string pathLag = "X:\\AutoCAD DRI - 01 Civil 3D\\Lag.csv";
+
+            System.Data.DataTable dtK = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+            System.Data.DataTable dtLag = CsvReader.ReadCsvToDataTable(pathLag, "Lag");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    LayerTable lt = localDb.LayerTableId.Go<LayerTable>(localDb.TransactionManager.TopTransaction);
+
+                    foreach (Oid oid in lt)
+                    {
+                        LayerTableRecord ltr = oid.Go<LayerTableRecord>(tx);
+                        string layerName = ltr.Name;
+
+                        if (!dtK.AsEnumerable().Any(row => row[0].ToString() == layerName))
+                        {
+                            prdDbg($"UNKNOWN LAYER: {ltr.Name}");
+                            continue;
+                        }
+
+                        string type = ReadStringParameterFromDataTable(layerName, dtK, "Type", 0);
+                        if (type == "IGNORE") { prdDbg($"Layer {layerName} IGNORED!"); continue; }
+                        string lerLayerName = ReadStringParameterFromDataTable(layerName, dtK, "Layer", 0);
+
+                        if (!dtLag.AsEnumerable().Any(row => row[0].ToString() == lerLayerName))
+                        {
+                            prdDbg($"Ler layer {lerLayerName} not found in Lag.csv! Tilføj laget i Lag.csv.");
+                            continue;
+                        }
+
+                        string farveString = ReadStringParameterFromDataTable(lerLayerName, dtLag, "Farve", 0);
+                        string lineTypeString = ReadStringParameterFromDataTable(lerLayerName, dtLag, "LineType", 0);
+
+                        prdDbg($"{lerLayerName} -> {farveString} : {lineTypeString}");
+
+                        
+
+
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
         }
 
         void AbortGracefully(Transaction tx, string msg)
