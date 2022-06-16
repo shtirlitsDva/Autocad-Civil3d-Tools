@@ -15671,11 +15671,59 @@ namespace IntersectUtilities
                 {
                     LayerTable lt = localDb.LayerTableId.Go<LayerTable>(localDb.TransactionManager.TopTransaction);
 
-                    foreach (Oid oid in lt)
-                    {
-                        LayerTableRecord ltr = oid.Go<LayerTableRecord>(tx);
-                        string layerName = ltr.Name;
+                    //Cache layers in memory
+                    HashSet<LayerTableRecord> layers = new HashSet<LayerTableRecord>();
+                    foreach (Oid lid in lt) layers.Add(lid.Go<LayerTableRecord>(tx));
 
+                    #region Prepare linetypes
+                    LinetypeTable ltt = (LinetypeTable)localDb.TransactionManager.TopTransaction
+                            .GetObject(localDb.LinetypeTableId, OpenMode.ForWrite);
+
+                    //Lookup linetype specification and link to layer name
+                    Dictionary<string, string> layerLineTypeMap = new Dictionary<string, string>();
+                    foreach (var layer in layers)
+                    {
+                        string targetLayerName = ReadStringParameterFromDataTable(layer.Name, dtK, "Layer", 0);
+                        string lineTypeName = ReadStringParameterFromDataTable(targetLayerName, dtLag, "LineType", 0);
+                        if (lineTypeName.IsNoE()) prdDbg($"LineTypeName is missing for {layer.Name}!");
+                        layerLineTypeMap.Add(layer.Name, lineTypeName);
+                    }
+
+                    //Check if all line types are present
+                    HashSet<string> missingLineTypes = new HashSet<string>();
+                    foreach (var layer in layers)
+                    {
+                        string lineTypeName = layerLineTypeMap[layer.Name];
+                        if (lineTypeName.IsNoE()) continue;
+                        if (!ltt.Has(lineTypeName)) missingLineTypes.Add(lineTypeName);
+                    }
+
+                    if (missingLineTypes.Count > 0)
+                    {
+                        Database ltDb = new Database(false, true);
+                        ltDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\Projection_styles.dwg",
+                            FileOpenMode.OpenForReadAndAllShare, false, null);
+                        Transaction ltTx = ltDb.TransactionManager.StartTransaction();
+
+                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+
+                        LinetypeTable sourceLtt = (LinetypeTable)ltDb.TransactionManager.TopTransaction
+                            .GetObject(ltDb.LinetypeTableId, OpenMode.ForRead);
+                        ObjectIdCollection idsToClone = new ObjectIdCollection();
+
+                        foreach (string missingName in missingLineTypes) idsToClone.Add(sourceLtt[missingName]);
+
+                        IdMapping mapping = new IdMapping();
+                        ltDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                        ltTx.Commit();
+                        ltTx.Dispose();
+                        ltDb.Dispose();
+                    }
+                    #endregion
+
+                    foreach (LayerTableRecord ltr in layers)
+                    {
+                        string layerName = ltr.Name;
                         if (!dtK.AsEnumerable().Any(row => row[0].ToString() == layerName))
                         {
                             prdDbg($"UNKNOWN LAYER: {ltr.Name}");
@@ -15693,13 +15741,35 @@ namespace IntersectUtilities
                         }
 
                         string farveString = ReadStringParameterFromDataTable(lerLayerName, dtLag, "Farve", 0);
-                        string lineTypeString = ReadStringParameterFromDataTable(lerLayerName, dtLag, "LineType", 0);
-
-                        prdDbg($"{lerLayerName} -> {farveString} : {lineTypeString}");
-
                         
+                        Color color = UtilsCommon.Utils.ParseColorString(farveString);
+                        if (color == null)
+                        {
+                            prdDbg($"Failed to read color for layer name {lerLayerName} with colorstring {farveString}. Skipping!");
+                            continue;
+                        }
 
+                        ltr.CheckOrOpenForWrite();
+                        ltr.Color = color;
 
+                        #region Read and assign layer's linetype
+                        Oid lineTypeId;
+
+                        string lineTypeName = layerLineTypeMap[layerName];
+                        if (lineTypeName.IsNoE())
+                        {
+                            prdDbg($"WARNING! Layer name {layerName} does not have a line type specified!.");
+                            //If linetype string is NoE -> CONTINUOUS linetype must be used
+                            lineTypeId = ltt["Continuous"];
+                        }
+                        else
+                        {
+                            //the presence of the linetype is assured in previous section.
+                            lineTypeId = ltt[lineTypeName];
+                        }
+                        
+                        ltr.LinetypeObjectId = lineTypeId;
+                        #endregion
                     }
                 }
                 catch (System.Exception ex)

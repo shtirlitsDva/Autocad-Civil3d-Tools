@@ -26,9 +26,9 @@ namespace LERImporter
     {
         public static void CreateLerData(Database db, FeatureCollection fc)
         {
-            string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-            DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
-            if (dtKrydsninger == null) throw new System.Exception("Krydsninger could not be read!");
+            string pathLag = "X:\\AutoCAD DRI - 01 Civil 3D\\Lag-Ler2.0.csv";
+            System.Data.DataTable dtLag = CsvReader.ReadCsvToDataTable(pathLag, "Lag");
+            if (dtLag == null) throw new System.Exception("Lag file could not be read!");
 
             HashSet<UtilityOwner> ownersRegister = new HashSet<UtilityOwner>();
             HashSet<LedningType> ledninger = new HashSet<LedningType>();
@@ -71,7 +71,7 @@ namespace LERImporter
                         prdDbg(fm.item.GMLTypeID);
                         throw new System.Exception($"Unexpected type encountered {fm.item.GetType().Name}!");
                 }
-            } 
+            }
             #endregion
 
             #region Populate Company Name
@@ -244,16 +244,13 @@ namespace LERImporter
             #endregion
 
             #region Read and assign layer's color
-            //Regex to parse the color information
-            Regex colorRegex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)");
-
             //Cache layer table
             LayerTable ltable = db.LayerTableId.Go<LayerTable>(db.TransactionManager.TopTransaction);
 
             //Set up all LER layers
             foreach (string layerName in layerNames)
             {
-                string colorString = ReadStringParameterFromDataTable(layerName, dtKrydsninger, "Farve", 0);
+                string colorString = ReadStringParameterFromDataTable(layerName, dtLag, "Farve", 0);
 
                 Color color;
                 if (colorString.IsNoE())
@@ -261,19 +258,14 @@ namespace LERImporter
                     Log.log($"Ledning with layer name {layerName} could not get a color!");
                     color = Color.FromColorIndex(ColorMethod.ByAci, 0);
                 }
-                else if (colorRegex.IsMatch(colorString))
-                {
-                    Match match = colorRegex.Match(colorString);
-                    byte R = Convert.ToByte(int.Parse(match.Groups["R"].Value));
-                    byte G = Convert.ToByte(int.Parse(match.Groups["G"].Value));
-                    byte B = Convert.ToByte(int.Parse(match.Groups["B"].Value));
-                    //prdDbg($"Set layer {name} to color: R: {R.ToString()}, G: {G.ToString()}, B: {B.ToString()}");
-                    color = Color.FromRgb(R, G, B);
-                }
                 else
                 {
-                    Log.log($"Ledning layer name {layerName} could not parse colorString {colorString}!");
-                    color = Color.FromColorIndex(ColorMethod.ByAci, 0);
+                    color = ParseColorString(colorString);
+                    if (color == null)
+                    {
+                        Log.log($"Ledning layer name {layerName} could not parse colorString {colorString}!");
+                        color = Color.FromColorIndex(ColorMethod.ByAci, 0);
+                    }
                 }
 
                 LayerTableRecord ltr = ltable[layerName]
@@ -291,7 +283,7 @@ namespace LERImporter
             HashSet<string> missingLineTypes = new HashSet<string>();
             foreach (string layerName in layerNames)
             {
-                string lineTypeName = ReadStringParameterFromDataTable(layerName, dtKrydsninger, "LineType", 0);
+                string lineTypeName = ReadStringParameterFromDataTable(layerName, dtLag, "LineType", 0);
                 if (lineTypeName.IsNoE()) continue;
                 else if (!ltt.Has(lineTypeName)) missingLineTypes.Add(lineTypeName);
             }
@@ -321,7 +313,7 @@ namespace LERImporter
             Oid lineTypeId;
             foreach (string layerName in layerNames)
             {
-                string lineTypeName = ReadStringParameterFromDataTable(layerName, dtKrydsninger, "LineType", 0);
+                string lineTypeName = ReadStringParameterFromDataTable(layerName, dtLag, "LineType", 0);
                 if (lineTypeName.IsNoE())
                 {
                     Log.log($"WARNING! Layer name {layerName} does not have a line type specified!.");

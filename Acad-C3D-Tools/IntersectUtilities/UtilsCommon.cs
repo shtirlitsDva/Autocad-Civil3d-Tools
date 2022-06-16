@@ -71,6 +71,60 @@ namespace IntersectUtilities.UtilsCommon
             Editor editor = docCol.MdiActiveDocument.Editor;
             editor.WriteMessage("\n" + msg);
         }
+
+        public static Dictionary<string, Color> AutocadStdColors = new Dictionary<string, Color>()
+        {
+            {"byblock", Color.FromColorIndex(ColorMethod.ByAci, 0) },
+            {"red", Color.FromColorIndex(ColorMethod.ByAci, 1) },
+            {"yellow", Color.FromColorIndex(ColorMethod.ByAci, 2) },
+            {"green", Color.FromColorIndex(ColorMethod.ByAci, 3) },
+            {"cyan", Color.FromColorIndex(ColorMethod.ByAci, 4) },
+            {"blue", Color.FromColorIndex(ColorMethod.ByAci, 5) },
+            {"magenta", Color.FromColorIndex(ColorMethod.ByAci, 6) },
+            {"white", Color.FromColorIndex(ColorMethod.ByAci, 7) },
+            {"grey", Color.FromColorIndex(ColorMethod.ByAci, 8) },
+            {"bylayer", Color.FromColorIndex(ColorMethod.ByAci, 256) },
+        };
+
+        /// <summary>
+        /// Parses one of the following patterns to an Autocad Color:
+        /// Index Color: ddd
+        /// RGB Color: ddd*ddd*ddd
+        /// Color name: [a-zA-Z]+
+        /// </summary>
+        /// <param name="colorString"></param>
+        /// <returns>Autocad Color, null on fail.</returns>
+        public static Color ParseColorString(string colorString)
+        {
+            if (colorString.IsNoE()) return null;
+            
+            Regex indexColorRegex = new Regex(@"^\d{1,3}");
+            Regex regex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)");
+            Regex nameRegex = new Regex(@"^[a-zA-Z]+");
+
+            if (indexColorRegex.IsMatch(colorString))
+            {
+                if (colorString == "0") return Color.FromColorIndex(ColorMethod.ByAci, 0);
+                short index = -1;
+                short.TryParse(colorString, out index);
+                if (index == 0) return null;
+                return Color.FromColorIndex(ColorMethod.ByAci, index);
+            }
+            if (regex.IsMatch(colorString))
+            {
+                Match match = regex.Match(colorString);
+                byte R = Convert.ToByte(int.Parse(match.Groups["R"].Value));
+                byte G = Convert.ToByte(int.Parse(match.Groups["G"].Value));
+                byte B = Convert.ToByte(int.Parse(match.Groups["B"].Value));
+                Color color = Color.FromRgb(R, G, B);
+                return color;
+            }
+            if (nameRegex.IsMatch(colorString))
+            {
+                return AutocadStdColors[colorString];
+            }
+            return null;
+        }
     }
     public static class UtilsDataTables
     {
