@@ -98,9 +98,9 @@ namespace IntersectUtilities.UtilsCommon
         {
             if (colorString.IsNoE()) return null;
             
-            Regex indexColorRegex = new Regex(@"^\d{1,3}");
-            Regex regex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)");
-            Regex nameRegex = new Regex(@"^[a-zA-Z]+");
+            Regex indexColorRegex = new Regex(@"^\d{1,3}$");
+            Regex rgbRegex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)$");
+            Regex nameRegex = new Regex(@"^[a-zA-Z]+$");
 
             if (indexColorRegex.IsMatch(colorString))
             {
@@ -110,9 +110,9 @@ namespace IntersectUtilities.UtilsCommon
                 if (index == 0) return null;
                 return Color.FromColorIndex(ColorMethod.ByAci, index);
             }
-            if (regex.IsMatch(colorString))
+            if (rgbRegex.IsMatch(colorString))
             {
-                Match match = regex.Match(colorString);
+                Match match = rgbRegex.Match(colorString);
                 byte R = Convert.ToByte(int.Parse(match.Groups["R"].Value));
                 byte G = Convert.ToByte(int.Parse(match.Groups["G"].Value));
                 byte B = Convert.ToByte(int.Parse(match.Groups["B"].Value));
@@ -123,6 +123,7 @@ namespace IntersectUtilities.UtilsCommon
             {
                 return AutocadStdColors[colorString];
             }
+            prdDbg($"Parsing of color string {colorString} failed!");
             return null;
         }
     }

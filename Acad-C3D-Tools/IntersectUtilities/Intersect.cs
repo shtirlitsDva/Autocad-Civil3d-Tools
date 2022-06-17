@@ -2859,6 +2859,137 @@ namespace IntersectUtilities
             }
         }
 
+        /// <summary>
+        /// Used to move 3d polylines of Novafos water data to elevation points
+        /// </summary>
+        [CommandMethod("detectknudepunkterforwater")]
+        public void detectknudepunkterfor()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            //Process all lines and detect with nodes at both ends
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Load linework from local db
+                    HashSet<Polyline3d> localPlines3d = localDb
+                        .HashSetOfType<Polyline3d>(tx)
+                        .Where(x => x.Layer == "VAND_ledning" ||
+                                    x.Layer == "VAND_ledning_ikke_i_brug")
+                        .ToHashSet();
+                    editor.WriteMessage($"\nNr. of vand 3D polies: {localPlines3d.Count}");
+                    #endregion
+
+                    #region Points and tables
+                    //Points to intersect
+                    HashSet<DBPoint> points = localDb.ListOfType<DBPoint>(tx)
+                        //.Where(x => x.Layer == "VAND_punkt").ToHashSet(new PointDBHorizontalComparer(0.1));
+                        .Where(x => x.Layer == "VAND_punkt").ToHashSet();
+                    editor.WriteMessage($"\nNr. of local points: {points.Count}");
+                    #endregion
+
+                    foreach (Polyline3d pline3d in localPlines3d)
+                    {
+                        var vertices = pline3d.GetVertices(tx);
+
+                        for (int i = 0; i < vertices.Length; i++)
+                        {
+                            DBPoint match = points.Where(x => x.Position.HorizontalEqualz(
+                                vertices[i].Position, 0.05)).FirstOrDefault();
+
+                            if (match != null)
+                            {
+                                double kote = PropertySetManager.ReadNonDefinedPropertySetDouble(
+                                match, "VAND_punkt", "Kote");
+
+                                vertices[i].UpgradeOpen();
+                                vertices[i].Position = new Point3d(
+                                    vertices[i].Position.X, vertices[i].Position.Y, kote);
+                                vertices[i].DowngradeOpen();
+                            }
+                        }
+                    }
+
+                    #region Second pass looking at end points
+                    //But only for vertices still at 0
+
+                    HashSet<Point3d> allEnds = new HashSet<Point3d>(new Point3dHorizontalComparer());
+
+                    foreach (Polyline3d pline3d in localPlines3d)
+                    {
+                        var vertices = pline3d.GetVertices(tx);
+                        int end = vertices.Length - 1;
+                        allEnds.Add(new Point3d(
+                            vertices[0].Position.X, vertices[0].Position.Y, vertices[0].Position.Z));
+                        allEnds.Add(new Point3d(
+                            vertices[end].Position.X, vertices[end].Position.Y, vertices[end].Position.Z));
+                    }
+
+                    foreach (Polyline3d pline3d in localPlines3d)
+                    {
+                        var vertices = pline3d.GetVertices(tx);
+
+                        for (int i = 0; i < vertices.Length; i++)
+                        {
+                            //Only change vertices still at zero
+                            if (vertices[i].Position.Z > 0.1) continue;
+
+                            Point3d match = allEnds.Where(x => x.HorizontalEqualz(
+                                vertices[i].Position, 0.05)).FirstOrDefault();
+                            if (match != null)
+                            {
+                                vertices[i].UpgradeOpen();
+                                vertices[i].Position = new Point3d(
+                                    vertices[i].Position.X, vertices[i].Position.Y, match.Z);
+                                vertices[i].DowngradeOpen();
+                            }
+                        }
+                    }
+
+                    //Try for lines with end points at zero, set them to previous vertice
+                    foreach (Polyline3d p3d in localPlines3d)
+                    {
+                        var vertices = p3d.GetVertices(tx);
+                        int lgt = vertices.Length;
+
+                        if (lgt == 0 || lgt == 1) continue;
+
+                        //Start vertice
+                        if (vertices[0].Position.Z < 0.2)
+                        {
+                            PolylineVertex3d vertice = vertices[0];
+                            double newKote = vertices[1].Position.Z;
+                            vertice.CheckOrOpenForWrite();
+                            var cur = vertice.Position;
+                            vertice.Position = new Point3d(cur.X, cur.Y, newKote);
+                        }
+
+                        //End vertice
+                        int lidx = lgt - 1;
+                        if (vertices[lidx].Position.Z < 0.2)
+                        {
+                            PolylineVertex3d vertice = vertices[lidx];
+                            double newKote = vertices[lidx - 1].Position.Z;
+                            vertice.CheckOrOpenForWrite();
+                            var cur = vertice.Position;
+                            vertice.Position = new Point3d(cur.X, cur.Y, newKote);
+                        }
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("editelevations")]
         public void editelevations()
         {
@@ -14102,28 +14233,48 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Create points at vertices
-                    var meter = new ProgressMeter();
-
-                    string pointLayer = "0-MARKER-POINT";
-                    localDb.CheckOrCreateLayer(pointLayer);
-
-                    meter.Start("Gathering elements...");
-                    var ids = QuickSelection.SelectAll("LWPOLYLINE")
-                        .QWhere(x => x.Layer.Contains("Etape"));
-                    meter.SetLimit(ids.Count());
-                    ids.QForEach(x =>
+                    #region test regex
+                    List<string> list = new List<string>()
                     {
-                        var pline = x as Polyline;
-                        var vertNumber = pline.NumberOfVertices;
-                        for (int i = 0; i < vertNumber; i++)
-                        {
-                            Point3d vertLocation = pline.GetPoint3dAt(i);
-                            DBPoint point = new DBPoint(vertLocation);
-                            point.AddEntityToDbModelSpace(localDb);
-                            point.Layer = pointLayer;
-                        }
-                    });
+                        "0*123*232",
+                        "234*12*0",
+                        "0*115*230",
+                        "000*115*230",
+                        "0*0*0",
+                        "255*255*255",
+                        "231*0*98"
+                    };
+
+                    foreach (string s in list)
+                    {
+                        var color = UtilsCommon.Utils.ParseColorString(s);
+                        if (color == null) prdDbg($"Parsing of string {s} failed!");
+                        else prdDbg($"Parsing of string {s} success!");
+                    }
+                    #endregion
+
+                    #region Create points at vertices
+                    //var meter = new ProgressMeter();
+
+                    //string pointLayer = "0-MARKER-POINT";
+                    //localDb.CheckOrCreateLayer(pointLayer);
+
+                    //meter.Start("Gathering elements...");
+                    //var ids = QuickSelection.SelectAll("LWPOLYLINE")
+                    //    .QWhere(x => x.Layer.Contains("Etape"));
+                    //meter.SetLimit(ids.Count());
+                    //ids.QForEach(x =>
+                    //{
+                    //    var pline = x as Polyline;
+                    //    var vertNumber = pline.NumberOfVertices;
+                    //    for (int i = 0; i < vertNumber; i++)
+                    //    {
+                    //        Point3d vertLocation = pline.GetPoint3dAt(i);
+                    //        DBPoint point = new DBPoint(vertLocation);
+                    //        point.AddEntityToDbModelSpace(localDb);
+                    //        point.Layer = pointLayer;
+                    //    }
+                    //});
                     #endregion
 
                     #region Test clean 3d poly
@@ -15741,7 +15892,7 @@ namespace IntersectUtilities
                         }
 
                         string farveString = ReadStringParameterFromDataTable(lerLayerName, dtLag, "Farve", 0);
-                        
+
                         Color color = UtilsCommon.Utils.ParseColorString(farveString);
                         if (color == null)
                         {
@@ -15767,7 +15918,7 @@ namespace IntersectUtilities
                             //the presence of the linetype is assured in previous section.
                             lineTypeId = ltt[lineTypeName];
                         }
-                        
+
                         ltr.LinetypeObjectId = lineTypeId;
                         #endregion
                     }
