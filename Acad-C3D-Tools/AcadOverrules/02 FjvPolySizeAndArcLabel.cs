@@ -40,15 +40,34 @@ namespace AcadOverrules
 {
     public class FjvPolylineLabel : Autodesk.AutoCAD.GraphicsInterface.DrawableOverrule
     {
+        //Settings
+        private const double labelDist = 25;
+        private const double labelOffset = 1.2;
+        private const double labelHeight = 1.0;
+
+        private Autodesk.AutoCAD.GraphicsInterface.TextStyle style =
+            new Autodesk.AutoCAD.GraphicsInterface.TextStyle
+            (
+                "Arial",
+                "Arial",
+                labelHeight,
+                0.0,
+                0.0,
+                0.0,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                "MyStd"
+                );
+
         public FjvPolylineLabel()
         {
             base.SetCustomFilter();
         }
 
-        //Settings
-        private const double labelDist = 25;
-        private const double labelOffset = 1.2;
-        private const double labelHeight = 2.25;
         //public bool Enabled { get; set; } = false;
         public override bool IsApplicable(RXObject overruledSubject)
         {
@@ -97,7 +116,11 @@ namespace AcadOverrules
                 Vector3d perp = deriv.GetPerpendicularVector();
 
                 wd.Geometry.Text(
-                    pt + perp * labelOffset, Vector3d.ZAxis, deriv, labelHeight, 1.0, 0.0, label);
+                    pt + perp * labelOffset, Vector3d.ZAxis, deriv, label, true, style);
+                //pt + perp * labelOffset, Vector3d.ZAxis, deriv, labelHeight, 1.0, 0.0, label);
+
+                //wd.Geometry.Text(
+                //    pt + perp * labelOffset, Vector3d.ZAxis, deriv, labelHeight, 1.0, 0.0, label);
                 #endregion
 
             }
@@ -170,8 +193,10 @@ namespace AcadOverrules
                 Vector3d perp = deriv.GetPerpendicularVector();
                 if (b > 0) perp = -perp;
 
+                //wd.Geometry.Text(
+                //    midPt + perp * (labelOffset + labelHeight + 0.7), Vector3d.ZAxis, deriv, labelHeight, 1.0, 0.0, label);
                 wd.Geometry.Text(
-                    midPt + perp * (labelOffset + labelHeight + 0.7), Vector3d.ZAxis, deriv, labelHeight, 1.0, 0.0, label);
+                    midPt + perp * (labelOffset + labelHeight + 0.7), Vector3d.ZAxis, deriv, label, true, style);
             }
             #endregion
 
