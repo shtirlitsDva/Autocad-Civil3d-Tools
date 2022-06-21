@@ -9025,7 +9025,18 @@ namespace IntersectUtilities
                                         else
                                         {
                                             //Determine if centre of arc is within view
-                                            CircularArc2d arcSegment2dAt = pline.GetArcSegment2dAt(i);
+                                            CircularArc2d arcSegment2dAt;
+                                            try
+                                            {
+                                                arcSegment2dAt = pline.GetArcSegment2dAt(i);
+                                            }
+                                            catch (System.Exception)
+                                            {
+                                                prdDbg($"Pline {pline.Handle} threw when accessing arc segment at {i}!");
+                                                prdDbg("Én af grundene kunne være, at ikke er alle plinjer blevet vendt om med strømmen.");
+                                                throw;
+                                            }
+                                                
                                             Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
                                             Point3d location = al.GetClosestPointTo(
                                                         new Point3d(samplePoint.X, samplePoint.Y, 0), false);
