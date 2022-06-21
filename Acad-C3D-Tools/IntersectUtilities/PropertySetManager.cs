@@ -154,6 +154,9 @@ namespace IntersectUtilities
             return PropertyDataServices.GetPropertySet(ent, this.PropertySetDefinition.Id)
                 .Go<PropertySet>(Db.TransactionManager.TopTransaction);
         }
+        /// <summary>
+        /// OBSOLETE!!!
+        /// </summary>
         public string ReadPropertyString(PSetDefs.Property property)
         {
             int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
@@ -224,6 +227,7 @@ namespace IntersectUtilities
         }
         public bool FilterPropetyString(Entity ent, PSetDefs.Property property, string value)
         {
+            GetOrAttachPropertySet(ent);
             ObjectIdCollection propertySetIds = PropertyDataServices.GetPropertySets(ent);
             PropertySet set = default;
 

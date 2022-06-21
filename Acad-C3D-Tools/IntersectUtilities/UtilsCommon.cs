@@ -1658,8 +1658,8 @@ namespace IntersectUtilities.UtilsCommon
 
             var rawPlines = db.ListOfType<Polyline>(tr, discardFrozen);
             entities = rawPlines.Where(pline => pline.Layer.Contains("FJV-TWIN") ||
-                                                      pline.Layer.Contains("FJV-FREM") ||
-                                                      pline.Layer.Contains("FJV-RETUR"))
+                                       pline.Layer.Contains("FJV-FREM") ||
+                                       pline.Layer.Contains("FJV-RETUR"))
                 .ToHashSet();
 
             return entities;

@@ -119,17 +119,19 @@ namespace IntersectUtilities
                                     new PropertySetManager(dB, PSetDefs.DefinedSets.DriPipelineData);
                                 PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
 
-                                psmPipeline.GetOrAttachPropertySet(br);
-                                string branchAlName = psmPipeline.ReadPropertyString(driPipelineData.BranchesOffToAlignment);
+                                string branchAlName = psmPipeline.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment);
+                                if (branchAlName.IsNoE())
+                                    prdDbg(
+                                        $"WARNING! Afgrstuds {br.Handle} has no BranchesOffToAlignment value.\n" +
+                                        $"This happens if there are objects with no alignment assigned.\n" +
+                                        $"To fix enter main alignment name in BranchesOffToAlignment field.");
 
                                 HashSet<Polyline> polylines = dB
-                                    .HashSetOfType<Polyline>(tx, true)
-                                    .Where(x =>
-                                    {
-                                        psmPipeline.GetOrAttachPropertySet(x);
-                                        return psmPipeline.FilterPropetyString
-                                            (x, driPipelineData.BelongsToAlignment, branchAlName);
-                                    }).ToHashSet();
+                                    .GetFjvPipes(tx, true)
+                                    //.HashSetOfType<Polyline>(tx, true)
+                                    .Where(x => psmPipeline.FilterPropetyString
+                                            (x, driPipelineData.BelongsToAlignment, branchAlName))
+                                    .ToHashSet();
 
                                 foreach (Polyline polyline in polylines)
                                 {
