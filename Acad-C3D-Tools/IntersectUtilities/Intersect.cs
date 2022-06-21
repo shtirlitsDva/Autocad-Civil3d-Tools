@@ -8404,8 +8404,7 @@ namespace IntersectUtilities
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             //Create crossing points first
-            DataReferencesOptions dro = new DataReferencesOptions(
-                "GLADSAXE1178", "1.2");
+            DataReferencesOptions dro = new DataReferencesOptions();
             createlerdatapssmethod(dro);
 
             //Populateprofileviews with crossing data
@@ -11443,8 +11442,16 @@ namespace IntersectUtilities
                     double moveThreshold = 1;
                     ///////////////////////////
 
+                    List<string> layerNames = new List<string>()
+                    {   "AFL_ikke_ibrug",
+                        "AFL_ledning_draen",
+                        "AFL_ledning_faelles",
+                        "AFL_ledning_regn",
+                        "AFL_ledning_spild"
+                    };
+
                     #region Create layers
-                    Dictionary<string, short> layerNames = new Dictionary<string, short>()
+                    Dictionary<string, short> layerColorMap = new Dictionary<string, short>()
                     {   {"AFL_ikke_ibrug-2D", 92 },
                         {"AFL_ledning_draen-2D", 92 },
                         {"AFL_ledning_faelles-2D", 140 },
@@ -11452,7 +11459,7 @@ namespace IntersectUtilities
                         {"AFL_ledning_spild-2D", 140 }
                     };
                     LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
-                    foreach (KeyValuePair<string, short> kvp in layerNames)
+                    foreach (KeyValuePair<string, short> kvp in layerColorMap)
                     {
                         if (!lt.Has(kvp.Key))
                         {
@@ -11471,7 +11478,8 @@ namespace IntersectUtilities
                     #endregion
 
                     HashSet<Polyline3d> p3ds = localDb.HashSetOfType<Polyline3d>(tx, true);
-                    foreach (Polyline3d p3d in p3ds)
+                    var query = p3ds.Where(x => layerNames.Contains(x.Layer));
+                    foreach (Polyline3d p3d in query)
                     {
                         bool didNotFindAboveThreshold = true;
                         PolylineVertex3d[] vertices = p3d.GetVertices(tx);
@@ -12433,56 +12441,53 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    string lagSti = "X:\\AutoCAD DRI - 01 Civil 3D\\Lag.csv";
+                    System.Data.DataTable dtLag = CsvReader.ReadCsvToDataTable(lagSti, "Lag");
 
                     LayerTable lt = selectedDB.LayerTableId.Go<LayerTable>(selectedDB.TransactionManager.TopTransaction);
 
                     Regex regex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)");
 
-                    HashSet<string> layerNames = dtKrydsninger.AsEnumerable().Select(x => x["Layer"].ToString()).ToHashSet();
+                    HashSet<string> layerNames = dtLag.AsEnumerable().Select(x => x["Layer"].ToString()).ToHashSet();
 
                     foreach (string name in layerNames.Where(x => x.IsNotNoE()).OrderBy(x => x))
                     {
                         if (lt.Has(name))
                         {
-                            string colorString = ReadStringParameterFromDataTable(name, dtKrydsninger, "Farve", 1);
-                            if (colorString.IsNotNoE() && regex.IsMatch(colorString))
+                            string colorString = ReadStringParameterFromDataTable(name, dtLag, "Farve", 0);
+                            if (colorString.IsNotNoE())
                             {
-                                Match match = regex.Match(colorString);
-                                byte R = Convert.ToByte(int.Parse(match.Groups["R"].Value));
-                                byte G = Convert.ToByte(int.Parse(match.Groups["G"].Value));
-                                byte B = Convert.ToByte(int.Parse(match.Groups["B"].Value));
-                                prdDbg($"Set layer {name} to color: R: {R.ToString()}, G: {G.ToString()}, B: {B.ToString()}");
+                                var color = UtilsCommon.Utils.ParseColorString(colorString);
+                                prdDbg($"Set layer {name} to color: {color}");
                                 LayerTableRecord ltr = lt[name].Go<LayerTableRecord>(selectedDB.TransactionManager.TopTransaction, OpenMode.ForWrite);
-                                ltr.Color = Color.FromRgb(R, G, B);
+                                ltr.Color = color;
                                 ltr.LineWeight = LineWeight.LineWeight013;
                             }
                             else prdDbg("No match!");
                         }
                     }
 
-                    List<string> localLayers = localDb.ListLayers();
+                    //List<string> localLayers = localDb.ListLayers();
 
-                    foreach (string name in localLayers.Where(x => x.IsNotNoE()).OrderBy(x => x))
-                    {
-                        if (lt.Has(name))
-                        {
-                            string colorString = ReadStringParameterFromDataTable(name, dtKrydsninger, "Farve", 0);
-                            if (colorString.IsNotNoE() && regex.IsMatch(colorString))
-                            {
-                                Match match = regex.Match(colorString);
-                                byte R = Convert.ToByte(int.Parse(match.Groups["R"].Value));
-                                byte G = Convert.ToByte(int.Parse(match.Groups["G"].Value));
-                                byte B = Convert.ToByte(int.Parse(match.Groups["B"].Value));
-                                prdDbg($"Set layer {name} to color: R: {R.ToString()}, G: {G.ToString()}, B: {B.ToString()}");
-                                LayerTableRecord ltr = lt[name].Go<LayerTableRecord>(selectedDB.TransactionManager.TopTransaction, OpenMode.ForWrite);
-                                ltr.Color = Color.FromRgb(R, G, B);
-                                ltr.LineWeight = LineWeight.LineWeight013;
-                            }
-                            else prdDbg("No match!");
-                        }
-                    }
+                    //foreach (string name in localLayers.Where(x => x.IsNotNoE()).OrderBy(x => x))
+                    //{
+                    //    if (lt.Has(name))
+                    //    {
+                    //        string colorString = ReadStringParameterFromDataTable(name, dtKrydsninger, "Farve", 0);
+                    //        if (colorString.IsNotNoE() && regex.IsMatch(colorString))
+                    //        {
+                    //            Match match = regex.Match(colorString);
+                    //            byte R = Convert.ToByte(int.Parse(match.Groups["R"].Value));
+                    //            byte G = Convert.ToByte(int.Parse(match.Groups["G"].Value));
+                    //            byte B = Convert.ToByte(int.Parse(match.Groups["B"].Value));
+                    //            prdDbg($"Set layer {name} to color: R: {R.ToString()}, G: {G.ToString()}, B: {B.ToString()}");
+                    //            LayerTableRecord ltr = lt[name].Go<LayerTableRecord>(selectedDB.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                    //            ltr.Color = Color.FromRgb(R, G, B);
+                    //            ltr.LineWeight = LineWeight.LineWeight013;
+                    //        }
+                    //        else prdDbg("No match!");
+                    //    }
+                    //}
                 }
                 catch (System.Exception ex)
                 {
