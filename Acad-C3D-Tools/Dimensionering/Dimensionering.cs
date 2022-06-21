@@ -2434,6 +2434,7 @@ namespace IntersectUtilities.Dimensionering
                         startNode.Self = entryPline;
                         stack.Push(startNode);
                         int subGroupCounter = 0;
+                        int dbgCount = 0;
                         while (stack.Count > 0)
                         {
                             subGroupCounter++;
@@ -2461,6 +2462,14 @@ namespace IntersectUtilities.Dimensionering
 
                                 //Push the child to stack for further processing
                                 stack.Push(childNode);
+                                //prdDbg(dbgCount++.ToString());
+                                //System.Windows.Forms.Application.DoEvents();
+                                dbgCount++;
+                                if (dbgCount > 10000)
+                                {
+                                    prdDbg($"Muligvis uendelig løkke for objekt: {curNode.Self.Handle}.");
+                                    throw new System.Exception("Muligvis uendelig løkke!");
+                                }
                             }
                         }
                         #endregion
