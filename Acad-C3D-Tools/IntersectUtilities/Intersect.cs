@@ -7097,6 +7097,8 @@ namespace IntersectUtilities
             string projectName = dro.ProjectName;
             string etapeName = dro.EtapeName;
 
+            prdDbg("Kører med antagelse, at alle flex rør er stikledninger.");
+
             // open the xref database
             Database alDb = new Database(false, true);
             alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
@@ -7111,7 +7113,7 @@ namespace IntersectUtilities
                         @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
                     HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
-                    HashSet<Curve> curves = localDb.HashSetOfType<Curve>(tx);
+                    HashSet<Polyline> allPipes = localDb.GetFjvPipes(tx);
                     HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
 
                     #region Initialize property set
@@ -7263,22 +7265,26 @@ namespace IntersectUtilities
                     }
                     #endregion
 
+                    #region Connection pipes
+                    HashSet<Polyline> mainPipes = allPipes
+                        .Where(x => GetPipeSystem(x) == PipeSystemEnum.Stål)
+                        .ToHashSet();
+                    HashSet<Polyline> conPipes = allPipes
+                        .Where(x => 
+                            GetPipeSystem(x) == PipeSystemEnum.AluPex ||
+                            GetPipeSystem(x) == PipeSystemEnum.Kobberflex
+                            )
+                        .ToHashSet();
+                    #endregion
+
                     #region Curves
-                    foreach (Curve curve in curves)
+                    foreach (Curve curve in mainPipes)
                     {
-                        if (!(curve.Layer.Contains("FREM") ||
-                            curve.Layer.Contains("RETUR") ||
-                            curve.Layer.Contains("TWIN"))) continue;
-
-                        //Check if a property set is attached
-                        //Attach if not
-                        psm.GetOrAttachPropertySet(curve);
-
                         //Skip if record already exists
                         if (!overwrite)
                         {
-                            if (psm.ReadPropertyString(driPipelineData.BelongsToAlignment).IsNotNoE() ||
-                                psm.ReadPropertyString(driPipelineData.BranchesOffToAlignment).IsNotNoE())
+                            if (psm.ReadPropertyString(curve, driPipelineData.BelongsToAlignment).IsNotNoE() ||
+                                psm.ReadPropertyString(curve, driPipelineData.BranchesOffToAlignment).IsNotNoE())
                                 continue;
                         }
 
