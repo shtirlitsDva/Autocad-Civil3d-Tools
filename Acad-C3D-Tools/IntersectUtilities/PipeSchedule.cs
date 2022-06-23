@@ -1,11 +1,13 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
 using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities
@@ -140,6 +142,30 @@ namespace IntersectUtilities
                 {22,75.0},
                 {28,90.0}
             };
+        private static readonly Dictionary<int, double> kOdsS1AluPexTwin = new Dictionary<int, double>
+            {
+                { 20, 90.0 },
+                { 25, 110.0 },
+                { 32, 125.0 },
+            };
+        private static readonly Dictionary<int, double> kOdsS2AluPexTwin = new Dictionary<int, double>
+            {
+                {16,110.0},
+                {20,125.0},
+                {25,125.0},
+                {32,140.0}
+            };
+        private static readonly Dictionary<int, double> kOdsS1AluPexEnkelt = new Dictionary<int, double>
+            {
+                {20,75.0},
+                {25,90.0},
+                {32,90.0},
+            };
+        private static readonly Dictionary<int, double> kOdsS2AluPexEnkelt = new Dictionary<int, double>
+            {
+                {20,90.0},
+                {32,110.0},
+            };
         private static readonly Dictionary<int, double> OdsSteel = new Dictionary<int, double>()
             {
                 { 10, 17.2 },
@@ -170,6 +196,14 @@ namespace IntersectUtilities
                 { 22, 22.0 },
                 { 28, 28.0 }
             };
+        private static readonly Dictionary<int, double> OdsAluPex = new Dictionary<int, double>()
+            {
+                { 16, 16.0 },
+                { 20, 20.0 },
+                { 25, 25.0 },
+                { 32, 32.0 }
+            };
+
         private static string ExtractLayerName(Entity ent)
         {
             string layer = ent.Layer;
@@ -190,6 +224,22 @@ namespace IntersectUtilities
             layer = ExtractLayerName(layer);
             switch (layer)
             {
+                case "FJV-TWIN-ALUPEX16":
+                case "FJV-FREM-ALUPEX16":
+                case "FJV-RETUR-ALUPEX16":
+                    return 15;
+                case "FJV-TWIN-ALUPEX20":
+                case "FJV-FREM-ALUPEX20":
+                case "FJV-RETUR-ALUPEX20":
+                    return 20;
+                case "FJV-TWIN-ALUPEX25":
+                case "FJV-FREM-ALUPEX25":
+                case "FJV-RETUR-ALUPEX25":
+                    return 25;
+                case "FJV-TWIN-ALUPEX32":
+                case "FJV-FREM-ALUPEX32":
+                case "FJV-RETUR-ALUPEX32":
+                    return 32;
                 case "FJV-TWIN-CU15":
                 case "FJV-FREM-CU15":
                 case "FJV-RETUR-CU15":
@@ -288,6 +338,10 @@ namespace IntersectUtilities
             layer = ExtractLayerName(layer);
             switch (layer)
             {
+                case "FJV-TWIN-ALUPEX16":
+                case "FJV-TWIN-ALUPEX20":
+                case "FJV-TWIN-ALUPEX25":
+                case "FJV-TWIN-ALUPEX32":
                 case "FJV-TWIN-CU15":
                 case "FJV-TWIN-CU18":
                 case "FJV-TWIN-CU22":
@@ -305,6 +359,10 @@ namespace IntersectUtilities
                 case "FJV-TWIN-DN200":
                 case "FJV-TWIN-DN250":
                     return PipeTypeEnum.Twin;
+                case "FJV-FREM-ALUPEX16":
+                case "FJV-FREM-ALUPEX20":
+                case "FJV-FREM-ALUPEX25":
+                case "FJV-FREM-ALUPEX32":
                 case "FJV-FREM-CU15":
                 case "FJV-FREM-CU18":
                 case "FJV-FREM-CU22":
@@ -328,6 +386,10 @@ namespace IntersectUtilities
                 case "FJV-FREM-DN500":
                 case "FJV-FREM-DN600":
                     return PipeTypeEnum.Frem;
+                case "FJV-RETUR-ALUPEX16":
+                case "FJV-RETUR-ALUPEX20":
+                case "FJV-RETUR-ALUPEX25":
+                case "FJV-RETUR-ALUPEX32":
                 case "FJV-RETUR-CU15":
                 case "FJV-RETUR-CU18":
                 case "FJV-RETUR-CU22":
@@ -372,10 +434,12 @@ namespace IntersectUtilities
                 case PipeSystemEnum.Kobberflex:
                     if (OdsCu.ContainsKey(dn)) return OdsCu[dn];
                     else return 0;
+                case PipeSystemEnum.AluPex:
+                    if (OdsAluPex.ContainsKey(dn)) return OdsAluPex[dn];
+                    else return 0;
                 default:
                     return 0;
             }
-            
         }
         internal static PipeSystemEnum GetPipeSystem(Entity ent)
         {
@@ -444,6 +508,19 @@ namespace IntersectUtilities
                 case "FJV-TWIN-CU22":
                 case "FJV-TWIN-CU28":
                     return PipeSystemEnum.Kobberflex;
+                case "FJV-TWIN-ALUPEX16":
+                case "FJV-FREM-ALUPEX16":
+                case "FJV-RETUR-ALUPEX16":
+                case "FJV-TWIN-ALUPEX20":
+                case "FJV-FREM-ALUPEX20":
+                case "FJV-RETUR-ALUPEX20":
+                case "FJV-TWIN-ALUPEX25":
+                case "FJV-FREM-ALUPEX25":
+                case "FJV-RETUR-ALUPEX25":
+                case "FJV-TWIN-ALUPEX32":
+                case "FJV-FREM-ALUPEX32":
+                case "FJV-RETUR-ALUPEX32":
+                    return PipeSystemEnum.AluPex;
                 default:
                     DocumentCollection docCol = Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager;
                     Editor editor = docCol.MdiActiveDocument.Editor;
@@ -548,6 +625,38 @@ namespace IntersectUtilities
             }
             return 0.0;
         }
+        public static double GetAluPexEnkeltPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
+        {
+            int dn = GetPipeDN(ent);
+            switch (pipeSeries)
+            {
+                case PipeSeriesEnum.S1:
+                    if (kOdsS1AluPexEnkelt.ContainsKey(dn)) return kOdsS1AluPexEnkelt[dn];
+                    break;
+                case PipeSeriesEnum.S2:
+                    if (kOdsS2AluPexEnkelt.ContainsKey(dn)) return kOdsS2AluPexEnkelt[dn];
+                    break;
+                default:
+                    return 0.0;
+            }
+            return 0.0;
+        }
+        public static double GetAluPexTwinPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
+        {
+            int dn = GetPipeDN(ent);
+            switch (pipeSeries)
+            {
+                case PipeSeriesEnum.S1:
+                    if (kOdsS1AluPexTwin.ContainsKey(dn)) return kOdsS1AluPexTwin[dn];
+                    break;
+                case PipeSeriesEnum.S2:
+                    if (kOdsS2AluPexTwin.ContainsKey(dn)) return kOdsS2AluPexTwin[dn];
+                    break;
+                default:
+                    return 0.0;
+            }
+            return 0.0;
+        }
         public static double GetBondedPipeKOd(int dn, PipeSeriesEnum pipeSeries)
         {
             switch (pipeSeries)
@@ -594,6 +703,8 @@ namespace IntersectUtilities
                             return GetTwinPipeKOd(ent, pipeSeries);
                         case PipeSystemEnum.Kobberflex:
                             return GetCuTwinPipeKOd(ent, pipeSeries);
+                        case PipeSystemEnum.AluPex:
+                            return GetAluPexTwinPipeKOd(ent, pipeSeries);
                         default:
                             return 0.0;
                     }
@@ -607,13 +718,15 @@ namespace IntersectUtilities
                             return GetBondedPipeKOd(ent, pipeSeries);
                         case PipeSystemEnum.Kobberflex:
                             return GetCuEnkeltPipeKOd(ent, pipeSeries);
+                        case PipeSystemEnum.AluPex:
+                            return GetAluPexEnkeltPipeKOd(ent, pipeSeries);
                         default:
                             return 0.0;
                     }
                 default:
                     return 0.0;
             }
-             
+
         }
         public static string GetPipeSeries(Entity ent) => "S3";
         public static PipeSeriesEnum GetPipeSeriesV2(Entity ent)
@@ -634,6 +747,7 @@ namespace IntersectUtilities
                     if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S1;
                     break;
                 case PipeSystemEnum.Kobberflex:
+                case PipeSystemEnum.AluPex:
                     kod = GetPipeKOd(ent, PipeSeriesEnum.S2) / 1000;
                     if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S2;
                     kod = GetPipeKOd(ent, PipeSeriesEnum.S1) / 1000;
@@ -657,7 +771,13 @@ namespace IntersectUtilities
         {
             PipeTypeEnum type = GetPipeType(ent);
             PipeSystemEnum system = GetPipeSystem(ent);
-            if (system == PipeSystemEnum.Kobberflex) return true;
+
+            //Flexrør er altid insitu bukkede
+            if (
+                system == PipeSystemEnum.Kobberflex ||
+                system == PipeSystemEnum.AluPex
+                ) return true;
+
             switch (type)
             {
                 case PipeTypeEnum.Ukendt:
@@ -704,9 +824,32 @@ namespace IntersectUtilities
                 { 22, 1.1 },
                 { 28, 1.1 },
             };
+            Dictionary<int, double> aluPexS1Enkelt = new Dictionary<int, double>
+            {
+                { 20, 0.7 },
+                { 25, 0.7 },
+                { 32, 0.7 },
+            };
+            Dictionary<int, double> aluPexS2Enkelt = new Dictionary<int, double>
+            {
+                { 20, 0.7 },
+                { 32, 0.9 },
+            };
+            Dictionary<int, double> aluPexS1Twin = new Dictionary<int, double>
+            {
+                { 20, 0.9 },
+                { 25, 0.9 },
+                { 32, 1.1 },
+            };
+            Dictionary<int, double> aluPexS2Twin = new Dictionary<int, double>
+            {
+                { 16, 0.9 },
+                { 20, 1.0 },
+                { 25, 1.0 },
+                { 32, 1.5 },
+            };
             Dictionary<int, double> steelRadii = new Dictionary<int, double>
             {
-                
                 { 20, 13.0 },
                 { 25, 17.0 },
                 { 32, 21.0 },
@@ -772,6 +915,43 @@ namespace IntersectUtilities
                         default:
                             return 0;
                     }
+                case PipeSystemEnum.AluPex:
+                    switch (pipeType)
+                    {
+                        case PipeTypeEnum.Ukendt:
+                            return 0;
+                        case PipeTypeEnum.Twin:
+                            switch (pipeSeries)
+                            {
+                                case PipeSeriesEnum.Undefined:
+                                    return 0;
+                                case PipeSeriesEnum.S1:
+                                    return aluPexS1Twin[GetPipeDN(ent)];
+                                case PipeSeriesEnum.S2:
+                                    return aluPexS2Twin[GetPipeDN(ent)];
+                                case PipeSeriesEnum.S3:
+                                    return 0;
+                                default:
+                                    return 0;
+                            }
+                        case PipeTypeEnum.Frem:
+                        case PipeTypeEnum.Retur:
+                            switch (pipeSeries)
+                            {
+                                case PipeSeriesEnum.Undefined:
+                                    return 0;
+                                case PipeSeriesEnum.S1:
+                                    return aluPexS1Enkelt[GetPipeDN(ent)];
+                                case PipeSeriesEnum.S2:
+                                    return aluPexS2Enkelt[GetPipeDN(ent)];
+                                case PipeSeriesEnum.S3:
+                                    return 0;
+                                default:
+                                    return 0;
+                            }
+                        default:
+                            return 0;
+                    }
                 default:
                     return 0;
             }
@@ -804,7 +984,6 @@ namespace IntersectUtilities
                 return "";
             }
 
-
             //Build label
             string labelText = "";
             double kOd = 0;
@@ -827,6 +1006,9 @@ namespace IntersectUtilities
                         case PipeSystemEnum.Kobberflex:
                             labelText = $"CU{DN}-ø{od.ToString("N0")}+ø{od.ToString("N0")}/{kOd.ToString("N0")}";
                             break;
+                        case PipeSystemEnum.AluPex:
+                            labelText = $"AluPex{DN}-ø{od.ToString("N0")}+ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                            break;
                         default:
                             break;
                     }
@@ -840,6 +1022,9 @@ namespace IntersectUtilities
                             break;
                         case PipeSystemEnum.Kobberflex:
                             labelText = $"CU{DN}-ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                            break;
+                        case PipeSystemEnum.AluPex:
+                            labelText = $"AluPex{DN}-ø{od.ToString("N0")}/{kOd.ToString("N0")}";
                             break;
                         default:
                             break;
@@ -891,7 +1076,8 @@ namespace IntersectUtilities
         {
             Ukendt,
             Stål,
-            Kobberflex
+            Kobberflex,
+            AluPex
         }
     }
 }
