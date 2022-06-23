@@ -94,9 +94,13 @@
     <Compile Include="..\IntersectUtilities\PipeSchedule.cs">
       <Link>PipeSchedule.cs</Link>
     </Compile>
+    <Compile Include="..\IntersectUtilities\PropertySetManager.cs">
+      <Link>PropertySetManager.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\UtilsCommon.cs">
       <Link>UtilsCommon.cs</Link>
     </Compile>
+    <Compile Include="03 GasPolySize.cs" />
     <Compile Include="02 FjvPolySizeAndArcLabel.cs" />
     <Compile Include="01 PolylineDirection.cs" />
     <Compile Include="AcadOverrules.cs" />

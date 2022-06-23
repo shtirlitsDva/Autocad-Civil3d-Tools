@@ -122,6 +122,9 @@ namespace IntersectUtilities
         }
         private PropertySetDefinition GetPropertySetDefinition(PSetDefs.DefinedSets propertySetName, Transaction tx = null)
         {
+            if (Db == null) throw new System.Exception("Database is null!");
+            if (tx == null && Db.TransactionManager.TopTransaction == null)
+                throw new System.Exception("GetPropertySetDefinition: Usage outside of transaction!");
             return DictionaryPropertySetDefinitions
                 .GetAt(propertySetName.ToString())
                 .Go<PropertySetDefinition>(tx ?? Db.TransactionManager.TopTransaction);
@@ -157,6 +160,7 @@ namespace IntersectUtilities
         /// <summary>
         /// OBSOLETE!!!
         /// </summary>
+        [Obsolete("Use ReadPropertyString(Entity ent, PSetDefs.Property property)")]
         public string ReadPropertyString(PSetDefs.Property property)
         {
             int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);

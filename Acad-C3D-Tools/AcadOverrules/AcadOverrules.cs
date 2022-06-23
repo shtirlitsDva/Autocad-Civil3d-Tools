@@ -58,6 +58,26 @@ namespace AcadOverrules
                 _fjvPolylineLabelOverrule = null;
             }
             Application.DocumentManager.MdiActiveDocument.Editor.Regen();
+        }                                                         
+        
+        private static GasPolylineLabel _GasPolylineLabelOverrule;
+
+        [CommandMethod("TOGGLEGASLABEL")]
+        public static void togglegaslabeloverrule()
+        {
+            if (_GasPolylineLabelOverrule == null)
+            {
+                _GasPolylineLabelOverrule = new GasPolylineLabel();
+                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), _GasPolylineLabelOverrule, false);
+                Overrule.Overruling = true;
+            }
+            else
+            {
+                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _GasPolylineLabelOverrule);
+                _GasPolylineLabelOverrule.Dispose();
+                _GasPolylineLabelOverrule = null;
+            }
+            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
         }
 
         private static PolylineDirection _polylineDirection;
