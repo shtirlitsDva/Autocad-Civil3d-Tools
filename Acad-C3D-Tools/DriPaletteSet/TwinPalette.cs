@@ -29,26 +29,6 @@ namespace DriPaletteSet
         {
             InitializeComponent();
 
-            #region Change appearance
-            checkBox1.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox2.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox3.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox4.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox5.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox6.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox7.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox8.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox9.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox10.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox11.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox12.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox13.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox14.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox15.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox16.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox17.Appearance = System.Windows.Forms.Appearance.Button;
-            #endregion
-
             #region Add dn buttons to buttons collection
             dnButtons.Add(checkBox1);
             dnButtons.Add(checkBox2);
@@ -64,6 +44,8 @@ namespace DriPaletteSet
             dnButtons.Add(checkBox12);
             dnButtons.Add(checkBox16);
             dnButtons.Add(checkBox17);
+            dnButtons.Add(checkBox18);
+            dnButtons.Add(checkBox19);
             #endregion
 
             #region Add series buttons to series buttons collection
@@ -71,6 +53,10 @@ namespace DriPaletteSet
             seriesButtons.Add(checkBox14);
             seriesButtons.Add(checkBox15);
             #endregion
+
+            //Change appearance to that of a button
+            foreach (var cb in dnButtons) cb.Appearance = Appearance.Button;
+            foreach (var cb in seriesButtons) cb.Appearance = Appearance.Button;
 
             //Initialize series settings
             checkBox15.Checked = true;

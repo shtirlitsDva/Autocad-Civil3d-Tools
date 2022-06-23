@@ -29,31 +29,6 @@ namespace DriPaletteSet
         {
             InitializeComponent();
 
-            #region Change appearance
-            checkBox1.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox2.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox3.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox4.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox5.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox6.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox7.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox8.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox9.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox10.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox11.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox12.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox13.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox14.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox15.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox16.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox17.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox18.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox19.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox20.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox21.Appearance = System.Windows.Forms.Appearance.Button;
-            checkBox22.Appearance = System.Windows.Forms.Appearance.Button;
-            #endregion
-
             #region Add dn buttons to buttons collection
             dnButtons.Add(checkBox1);
             dnButtons.Add(checkBox2);
@@ -75,12 +50,18 @@ namespace DriPaletteSet
             dnButtons.Add(checkBox18);
             dnButtons.Add(checkBox21);
             dnButtons.Add(checkBox22);
+            dnButtons.Add(checkBox23);
+            dnButtons.Add(checkBox24);
             #endregion
 
             #region Add frem/retur buttons to fr collection
             fremReturButtons.Add(checkBox19);
             fremReturButtons.Add(checkBox20);
             #endregion
+
+            //Change appearance to that of a button
+            foreach (var cb in dnButtons) cb.Appearance = Appearance.Button;
+            foreach (var cb in fremReturButtons) cb.Appearance = Appearance.Button;
 
             //Init frem check box
             checkBox19.Checked = true;

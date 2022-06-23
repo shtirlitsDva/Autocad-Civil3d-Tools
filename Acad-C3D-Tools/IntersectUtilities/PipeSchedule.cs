@@ -1051,6 +1051,8 @@ namespace IntersectUtilities
         }
         internal enum PipeDnEnum
         {
+            APx25,
+            APx32,
             CU22,
             CU28,
             DN20,

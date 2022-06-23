@@ -135,7 +135,27 @@ namespace DriPaletteSet
                     HashSet<Polyline> pipes = localDb.GetFjvPipes(tx);
                     foreach (Polyline pipe in pipes)
                     {
-                        double kappeOd = GetPipeKOd(pipe, CurrentSeries);
+                        PipeSystemEnum system = GetPipeSystem(pipe);
+                        PipeSeriesEnum tempSeries;
+                        //Work around the fact that flexible pipes only have 2 series
+                        switch (system)
+                        {
+                            case PipeSystemEnum.Ukendt:
+                                tempSeries = CurrentSeries;
+                                break;
+                            case PipeSystemEnum.Stål:
+                                tempSeries = CurrentSeries;
+                                break;
+                            case PipeSystemEnum.Kobberflex:
+                            case PipeSystemEnum.AluPex:
+                                if (CurrentSeries == PipeSeriesEnum.S3) tempSeries = PipeSeriesEnum.S2;
+                                else tempSeries = CurrentSeries;
+                                break;
+                            default:
+                                tempSeries = CurrentSeries;
+                                break;
+                        }
+                        double kappeOd = GetPipeKOd(pipe, tempSeries);
                         if (kappeOd < 0.1) continue;
                         pipe.CheckOrOpenForWrite();
                         pipe.ConstantWidth = kappeOd / 1000;
