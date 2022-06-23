@@ -649,8 +649,7 @@ namespace IntersectUtilities
                 else return false;
             }
 
-            throw new System.Exception(
-                $"Entity {ent.Handle.ToString()} does not have valid Constant Width!");
+            return PipeSeriesEnum.Undefined;
         }
         public static string GetPipeSeries(PipeSeriesEnum pipeSeries) => pipeSeries.ToString();
         public static double GetPipeStdLength(Entity ent) => GetPipeDN(ent) <= 80 ? 12 : 16;
@@ -681,8 +680,33 @@ namespace IntersectUtilities
         {
             if (considerInSituBending && IsInSituBent(ent)) return 0;
 
-            Dictionary<int, double> radii = new Dictionary<int, double>
+            Dictionary<int, double> cuS1Enkelt = new Dictionary<int, double>
             {
+                { 15, 0.6 },
+                { 18, 0.7 },
+                { 22, 0.8 },
+                { 28, 0.8 },
+            };
+            Dictionary<int, double> cuS2Enkelt = new Dictionary<int, double>
+            {
+                { 15, 0.8 },
+                { 18, 0.8 },
+                { 22, 0.8 },
+                { 28, 1.0 },
+            };
+            Dictionary<int, double> cuS1Twin = new Dictionary<int, double>
+            {
+                { 22, 0.9 },
+                { 28, 0.9 },
+            };
+            Dictionary<int, double> cuS2Twin = new Dictionary<int, double>
+            {
+                { 22, 1.1 },
+                { 28, 1.1 },
+            };
+            Dictionary<int, double> steelRadii = new Dictionary<int, double>
+            {
+                
                 { 20, 13.0 },
                 { 25, 17.0 },
                 { 32, 21.0 },
@@ -700,7 +724,57 @@ namespace IntersectUtilities
                 { 400, 203.0 },
                 { 999, 0.0 }
             };
-            return radii[GetPipeDN(ent)];
+
+            PipeTypeEnum pipeType = GetPipeType(ent);
+            PipeSeriesEnum pipeSeries = GetPipeSeriesV2(ent);
+            PipeSystemEnum pipeSystem = GetPipeSystem(ent);
+
+            switch (pipeSystem)
+            {
+                case PipeSystemEnum.Ukendt:
+                    return 0;
+                case PipeSystemEnum.Stål:
+                    return steelRadii[GetPipeDN(ent)];
+                case PipeSystemEnum.Kobberflex:
+                    switch (pipeType)
+                    {
+                        case PipeTypeEnum.Ukendt:
+                            return 0;
+                        case PipeTypeEnum.Twin:
+                            switch (pipeSeries)
+                            {
+                                case PipeSeriesEnum.Undefined:
+                                    return 0;
+                                case PipeSeriesEnum.S1:
+                                    return cuS1Twin[GetPipeDN(ent)];
+                                case PipeSeriesEnum.S2:
+                                    return cuS2Twin[GetPipeDN(ent)];
+                                case PipeSeriesEnum.S3:
+                                    return 0;
+                                default:
+                                    return 0;
+                            }
+                        case PipeTypeEnum.Frem:
+                        case PipeTypeEnum.Retur:
+                            switch (pipeSeries)
+                            {
+                                case PipeSeriesEnum.Undefined:
+                                    return 0;
+                                case PipeSeriesEnum.S1:
+                                    return cuS1Enkelt[GetPipeDN(ent)];
+                                case PipeSeriesEnum.S2:
+                                    return cuS2Enkelt[GetPipeDN(ent)];
+                                case PipeSeriesEnum.S3:
+                                    return 0;
+                                default:
+                                    return 0;
+                            }
+                        default:
+                            return 0;
+                    }
+                default:
+                    return 0;
+            }
         }
         public static string GetLabel(Entity ent)
         {
@@ -785,6 +859,7 @@ namespace IntersectUtilities
         }
         public enum PipeSeriesEnum
         {
+            Undefined,
             S1,
             S2,
             S3
