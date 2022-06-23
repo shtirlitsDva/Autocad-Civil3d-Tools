@@ -62,7 +62,7 @@ namespace AcadOverrules
         
         private static GasPolylineLabel _GasPolylineLabelOverrule;
 
-        [CommandMethod("TOGGLEGASLABEL")]
+        //[CommandMethod("TOGGLEGASLABEL")]
         public static void togglegaslabeloverrule()
         {
             if (_GasPolylineLabelOverrule == null)
