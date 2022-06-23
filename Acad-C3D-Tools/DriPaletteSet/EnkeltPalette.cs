@@ -100,6 +100,19 @@ namespace DriPaletteSet
                     checkBox.Checked = false;
                 }
             }
+
+            foreach (var btn in dnButtons)
+            {
+                if (btn.Checked)
+                {
+                    string dn = string.Concat(btn.Text.Where(c => !char.IsWhiteSpace(c)));
+                    PipeDnEnum pipeDn = (PipeDnEnum)Enum.Parse(typeof(PipeDnEnum), dn);
+
+                    PipeTypeEnum fr = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum), cb.Text);
+
+                    ActivateLayer(fr, pipeDn);
+                }
+            }
         }
     }
 }
