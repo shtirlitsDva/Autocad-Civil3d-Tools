@@ -161,7 +161,7 @@ namespace SheetCreationAutomation
                 };
                 if (fsd.ShowDialog(IntPtr.Zero))
                 {
-                    pathToFolderToSave = fsd.FileName;
+                    pathToFolderToSave = fsd.FileName + "\\";
                 }
                 else return;
 
