@@ -7270,7 +7270,7 @@ namespace IntersectUtilities
                         .Where(x => GetPipeSystem(x) == PipeSystemEnum.Stål)
                         .ToHashSet();
                     HashSet<Polyline> conPipes = allPipes
-                        .Where(x => 
+                        .Where(x =>
                             GetPipeSystem(x) == PipeSystemEnum.AluPex ||
                             GetPipeSystem(x) == PipeSystemEnum.Kobberflex
                             )
@@ -7313,7 +7313,7 @@ namespace IntersectUtilities
 
                         if (result.Count() == 0)
                         {
-                            psm.WritePropertyString(driPipelineData.BelongsToAlignment, "NA");
+                            psm.WritePropertyString(curve, driPipelineData.BelongsToAlignment, "NA");
                             //Yellow line means check result
                             //This is caught if no result found at ALL
                             Line line = new Line(new Point3d(), curve.GetPointAtParameter(curve.EndParam / 2));
@@ -7322,7 +7322,7 @@ namespace IntersectUtilities
                         }
                         else if (result.Count() == 1)
                         {
-                            psm.WritePropertyString(driPipelineData.BelongsToAlignment, result.First().al.Name);
+                            psm.WritePropertyString(curve, driPipelineData.BelongsToAlignment, result.First().al.Name);
                         }
                         else if (result.Count() > 1)
                         {
@@ -7369,7 +7369,7 @@ namespace IntersectUtilities
                                 distThreshold += distIncrement;
                             }
 
-                            psm.WritePropertyString(driPipelineData.BelongsToAlignment, detectedAl?.Name ?? "NA");
+                            psm.WritePropertyString(curve, driPipelineData.BelongsToAlignment, detectedAl?.Name ?? "NA");
 
                             //Red line means check result
                             //This is caught if multiple results
@@ -7377,6 +7377,83 @@ namespace IntersectUtilities
                             line.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
                             line.AddEntityToDbModelSpace(localDb);
                         }
+                    }
+                    #endregion
+
+                    #region Take care of stik
+                    //Exit gracefully if no stiks
+                    if (conPipes.Count == 0)
+                    {
+                        alTx.Abort();
+                        alTx.Dispose();
+                        alDb.Dispose();
+                        tx.Commit();
+                        return;
+                    }
+
+                    var grouping = conPipes.GroupByCluster((x, y) => areConnected(x, y), 0.5);
+
+                    int stikGruppeCount = 0;
+                    foreach (var group in grouping)
+                    {
+                        #region Debug connection of polylines
+                        //    //Determine maximum and minimum points
+                        //    HashSet<double> Xs = new HashSet<double>();
+                        //    HashSet<double> Ys = new HashSet<double>();
+
+                        //    foreach (var pl in group)
+                        //    {
+                        //        Extents3d bbox = pl.GeometricExtents;
+                        //        Xs.Add(bbox.MaxPoint.X);
+                        //        Xs.Add(bbox.MinPoint.X);
+                        //        Ys.Add(bbox.MaxPoint.Y);
+                        //        Ys.Add(bbox.MinPoint.Y);
+                        //    }
+
+                        //    double maxX = Xs.Max();
+                        //    double maxY = Ys.Max();
+                        //    double minX = Xs.Min();
+                        //    double minY = Ys.Min();
+
+                        //    List<Point2d> pts = new List<Point2d>();
+                        //    pts.Add(new Point2d(minX, minY));
+                        //    pts.Add(new Point2d(minX, maxY));
+                        //    pts.Add(new Point2d(maxX, maxY));
+                        //    pts.Add(new Point2d(maxX, minY));
+
+                        //    Polyline bboxPl = new Polyline();
+                        //    foreach (Point2d p2d in pts)
+                        //        bboxPl.AddVertexAt(bboxPl.NumberOfVertices, p2d, 0.0, 0.0, 0.0);
+                        //    bboxPl.Closed = true;
+                        //    bboxPl.AddEntityToDbModelSpace(localDb);
+                        //}
+                        #endregion
+                        stikGruppeCount++;
+                        foreach (Polyline pl in group)
+                            psm.WritePropertyString(pl, driPipelineData.BelongsToAlignment, $"Stik {stikGruppeCount}");
+                    }
+
+                    double areConnected(Polyline pl1, Polyline pl2)
+                    {
+                        if (IsPointOnCurve(pl2, pl1.StartPoint)) return 0.0;
+                        if (IsPointOnCurve(pl2, pl1.EndPoint)) return 0.0;
+                        if (IsPointOnCurve(pl1, pl2.StartPoint)) return 0.0;
+                        if (IsPointOnCurve(pl1, pl2.EndPoint)) return 0.0;
+                        return 1.0;
+                    }
+
+                    bool IsPointOnCurve(Curve cv, Point3d pt)
+                    {
+                        try
+                        {
+                            // Return true if operation succeeds
+                            Point3d p = cv.GetClosestPointTo(pt, false);
+                            //return (p - pt).Length <= Tolerance.Global.EqualPoint;
+                            return (p - pt).Length <= 0.025;
+                        }
+                        catch { }
+                        // Otherwise we return false
+                        return false;
                     }
                     #endregion
                 }
@@ -9042,7 +9119,7 @@ namespace IntersectUtilities
                                                 prdDbg("Én af grundene kunne være, at ikke er alle plinjer blevet vendt om med strømmen.");
                                                 throw;
                                             }
-                                                
+
                                             Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
                                             Point3d location = al.GetClosestPointTo(
                                                         new Point3d(samplePoint.X, samplePoint.Y, 0), false);

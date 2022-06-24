@@ -62,12 +62,14 @@ namespace IntersectUtilities
         PSetDefs.DriGraph DriGraph { get; } = new PSetDefs.DriGraph();
         PropertySetManager PSM { get; }
         Database dB { get; }
+        private HashSet<Polyline> allPipes;
         private System.Data.DataTable ComponentTable { get; }
         public Graph(Database database, PropertySetManager psm, System.Data.DataTable componentTable)
         {
             PSM = psm;
             ComponentTable = componentTable;
             dB = database;
+            allPipes = dB.GetFjvPipes(dB.TransactionManager.TopTransaction);
         }
         public class POI
         {
@@ -81,8 +83,7 @@ namespace IntersectUtilities
             public bool IsSameOwner(POI toCompare) => Owner.Id == toCompare.Owner.Id;
             internal void AddReference(POI connectedEntity)
             {
-                PSM.GetOrAttachPropertySet(Owner);
-                string value = PSM.ReadPropertyString(DriGraph.ConnectedEntities);
+                string value = PSM.ReadPropertyString(Owner, DriGraph.ConnectedEntities);
                 value += $"{(int)EndType}:{(int)connectedEntity.EndType}:{connectedEntity.Owner.Handle};";
                 PSM.WritePropertyString(DriGraph.ConnectedEntities, value);
             }
@@ -94,6 +95,27 @@ namespace IntersectUtilities
                 case Polyline pline:
                     POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.End, PSM, DriGraph));
                     POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.End, PSM, DriGraph));
+                    #region STIK
+                    if (GetPipeSystem(pline) == PipeSystemEnum.AluPex ||
+                        GetPipeSystem(pline) == PipeSystemEnum.Kobberflex)
+                    {
+                        Point3d pt = pline.StartPoint;
+                        var query = allPipes.Where(x => pt.IsOnCurve(x, 0.025) && pline.Handle != x.Handle);
+                        
+                        if (query.FirstOrDefault() != default)
+                        {
+                            Polyline parent = query.FirstOrDefault();
+                            POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2D(), EndType.Stik, PSM, DriGraph));
+                        }
+
+                        pt = pline.EndPoint;
+                        if (query.FirstOrDefault() != default)
+                        {
+                            Polyline parent = query.FirstOrDefault();
+                            POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2D(), EndType.Stik, PSM, DriGraph));
+                        }
+                    }
+                    #endregion
                     break;
                 case BlockReference br:
                     Transaction tx = br.Database.TransactionManager.TopTransaction;
@@ -126,12 +148,12 @@ namespace IntersectUtilities
                                         $"This happens if there are objects with no alignment assigned.\n" +
                                         $"To fix enter main alignment name in BranchesOffToAlignment field.");
 
-                                HashSet<Polyline> polylines = dB
-                                    .GetFjvPipes(tx, true)
+                                var polylines = allPipes
+                                    //.GetFjvPipes(tx, true)
                                     //.HashSetOfType<Polyline>(tx, true)
                                     .Where(x => psmPipeline.FilterPropetyString
-                                            (x, driPipelineData.BelongsToAlignment, branchAlName))
-                                    .ToHashSet();
+                                            (x, driPipelineData.BelongsToAlignment, branchAlName));
+                                    //.ToHashSet();
 
                                 foreach (Polyline polyline in polylines)
                                 {
@@ -156,7 +178,8 @@ namespace IntersectUtilities
             None,
             End, //For pipes
             Main, //For main run in components
-            Branch //For branches in components
+            Branch, //For branches in components
+            Stik //For stik directly connected to piperuns
         }
         public class GraphEntity
         {
@@ -170,8 +193,7 @@ namespace IntersectUtilities
                 Owner = entity;
                 OwnerHandle = Owner.Handle;
                 componentTable = ComponentTable;
-                psm.GetOrAttachPropertySet(entity);
-                string conString = psm.ReadPropertyString(driGraph.ConnectedEntities);
+                string conString = psm.ReadPropertyString(entity, driGraph.ConnectedEntities);
                 if (conString.IsNoE()) throw new System.Exception($"Malformend constring: {conString}, entity: {Owner.Handle}.");
                 Cons = parseConString(conString);
             }
@@ -258,6 +280,9 @@ namespace IntersectUtilities
                 //Currently only for one network
                 //Disjoined networks are not handled yet
                 GraphEntity ge = GraphEntities.Where(x => x.Cons.Length == 1).MaxBy(x => x.LargestDn()).FirstOrDefault();
+                prdDbg(
+                    $"{GraphEntities.Count}"
+                    );
                 //prdDbg(ge.OwnerHandle.ToString());
                 if (ge == null) throw new System.Exception("No entity found!");
 
@@ -288,8 +313,7 @@ namespace IntersectUtilities
                     GraphEntity current = stack.Pop();
                     
                     //Determine the subgraph it is part of
-                    psmPipeline.GetOrAttachPropertySet(current.Owner);
-                    string alName = psmPipeline.ReadPropertyString(driPipelineData.BelongsToAlignment);
+                    string alName = psmPipeline.ReadPropertyString(current.Owner, driPipelineData.BelongsToAlignment);
                     //Fetch or create new subgraph object
                     Subgraph subgraph;
                     if (subgraphs.ContainsKey(alName)) subgraph = subgraphs[alName];
