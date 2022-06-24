@@ -33,6 +33,7 @@ using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
+using FolderSelect;
 
 namespace SheetCreationAutomation
 {
@@ -147,14 +148,22 @@ namespace SheetCreationAutomation
 
             try
             {
-                #region
+                #region create drawings
                 int publishedCount = sm.GetPublishedItemsCount();
                 prdDbg($"publishedCount = {publishedCount}");
-                
-                /////////////////////////////////////////////////////////////////////////////////////////////
-                string pathToFolderToSave = @"X:\022-1226 Egedal - Krogholmvej, Etape 1 - Dokumenter\" +
-                                            @"01 Intern\02 Tegninger\01 Autocad\ViewFrames\";
-                /////////////////////////////////////////////////////////////////////////////////////////////
+
+                string pathToFolderToSave = @"C:\Temp";
+
+                FolderSelectDialog fsd = new FolderSelectDialog()
+                {
+                    Title = "Choose folder where to save view frame drawings:",
+                    InitialDirectory = @"x:\"
+                };
+                if (fsd.ShowDialog(IntPtr.Zero))
+                {
+                    pathToFolderToSave = fsd.FileName;
+                }
+                else return;
 
                 for (int i = 0; i < publishedCount; i++)
                 {
