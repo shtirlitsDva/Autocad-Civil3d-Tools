@@ -15526,7 +15526,7 @@ namespace IntersectUtilities
             }
         }
 
-        //[CommandMethod("GRAPHCLEAR")]
+        [CommandMethod("GRAPHCLEAR")]
         public void graphclear()
         {
             DocumentCollection docCol = Application.DocumentManager;

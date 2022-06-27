@@ -32,6 +32,7 @@ using Autodesk.Aec.PropertyData;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.Colors;
 using static IntersectUtilities.UtilsCommon.Utils;
+using static IntersectUtilities.PipeSchedule;
 
 using AcRx = Autodesk.AutoCAD.Runtime;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
@@ -1672,9 +1673,8 @@ namespace IntersectUtilities.UtilsCommon
             HashSet<Polyline> entities = new HashSet<Polyline>();
 
             var rawPlines = db.ListOfType<Polyline>(tr, discardFrozen);
-            entities = rawPlines.Where(pline => pline.Layer.Contains("FJV-TWIN") ||
-                                       pline.Layer.Contains("FJV-FREM") ||
-                                       pline.Layer.Contains("FJV-RETUR"))
+            entities = rawPlines
+                .Where(pline => GetPipeSystem(pline) != PipeSystemEnum.Ukendt)
                 .ToHashSet();
 
             return entities;

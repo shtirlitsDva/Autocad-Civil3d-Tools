@@ -175,11 +175,11 @@ namespace IntersectUtilities
         }
         public enum EndType
         {
-            None,
-            End, //For pipes
-            Main, //For main run in components
-            Branch, //For branches in components
-            Stik //For stik directly connected to piperuns
+            None,   //0:
+            End,    //1: For ends of pipes
+            Main,   //2: For main run in components
+            Branch, //3: For branches in components
+            Stik    //4: For stik directly connected to piperuns
         }
         public class GraphEntity
         {

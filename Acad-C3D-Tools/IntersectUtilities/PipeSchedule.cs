@@ -522,9 +522,7 @@ namespace IntersectUtilities
                 case "FJV-RETUR-ALUPEX32":
                     return PipeSystemEnum.AluPex;
                 default:
-                    DocumentCollection docCol = Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager;
-                    Editor editor = docCol.MdiActiveDocument.Editor;
-                    editor.WriteMessage("\nFor layer name: " + layer + " no system could be determined!");
+                    prdDbg("\nFor layer name: " + layer + " no system could be determined!");
                     return PipeSystemEnum.Ukendt;
             }
         }
