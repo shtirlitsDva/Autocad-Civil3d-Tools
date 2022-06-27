@@ -1446,7 +1446,6 @@ namespace IntersectUtilities.UtilsCommon
         }
         public static Point3d To3D(this Point2d p2d, double Z = 0.0) => new Point3d(p2d.X, p2d.Y, Z);
         public static Point2d To2D(this Point3d p3d) => new Point2d(p3d.X, p3d.Y);
-
         public static double PointTol = Tolerance.Global.EqualPoint;
         public static bool IsOnCurve(this Point3d pt, Curve cv, double tol)
         {
@@ -1459,6 +1458,12 @@ namespace IntersectUtilities.UtilsCommon
             }
             catch { }
             // Otherwise we return false
+            return false;
+        }
+        public static bool IsConnectedTo(this Polyline pl1, Polyline pl2)
+        {
+            if (pl1.StartPoint.IsOnCurve(pl2, PointTol)) return true;
+            if (pl1.EndPoint.IsOnCurve(pl2, PointTol)) return true;
             return false;
         }
         public static T[] ConcatAr<T>(this T[] x, T[] y)

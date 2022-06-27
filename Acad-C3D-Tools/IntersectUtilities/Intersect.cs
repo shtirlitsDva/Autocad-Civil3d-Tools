@@ -7397,6 +7397,7 @@ namespace IntersectUtilities
                     int stikGruppeCount = 0;
                     foreach (var group in grouping)
                     {
+                        stikGruppeCount++;
                         #region Debug connection of polylines
                         //    //Determine maximum and minimum points
                         //    HashSet<double> Xs = new HashSet<double>();
@@ -7430,18 +7431,34 @@ namespace IntersectUtilities
                         //}
                         #endregion
 
-                        #region Rearrange stik so that polylines always start at source
-                        #region First find the one connected to supply line
-                        Polyline root;
-                        foreach (Polyline poly in group)
-
-
-                        #endregion
-                        #endregion
-
-                        stikGruppeCount++;
+                        //Write stikgruppe to the ps
                         foreach (Polyline pl in group)
                             psm.WritePropertyString(pl, driPipelineData.BelongsToAlignment, $"Stik {stikGruppeCount}");
+
+                        #region Rearrange stik so that polylines always start at source
+                        #region First find the one connected to supply line
+                        HashSet<Oid> seen = new HashSet<Oid>();
+                        Polyline root = default;
+                        foreach (Polyline pline in group)
+                        {
+                            root = mainPipes.Where(x => pline.IsConnectedTo(x)).FirstOrDefault();
+                            if (root != default) break;
+                        }
+                        //Catch case where no connection exists between stik and supply pipe
+                        //Warn user about this to fix it
+                        if (root == default)
+                        {
+                            prdDbg($"Stikgruppe {stikGruppeCount} is not connected to a supply pipe!\nFix this before continuing!");
+                        }
+                        //Case: supply pipe is found
+                        //Go through the polylines reversing those that are against the "flow"
+                        //The flow is from the supply line to end connections (clients)
+                        else
+                        {
+
+                        }
+                        #endregion
+                        #endregion
                     }
 
                     double areConnected(Polyline pl1, Polyline pl2)
