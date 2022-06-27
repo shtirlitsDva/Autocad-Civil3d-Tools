@@ -62,7 +62,7 @@ namespace AcadOverrules
         
         private static GasPolylineLabel _GasPolylineLabelOverrule;
 
-        //[CommandMethod("TOGGLEGASLABEL")]
+        [CommandMethod("TOGGLEGASLABEL")]
         public static void togglegaslabeloverrule()
         {
             if (_GasPolylineLabelOverrule == null)
@@ -96,6 +96,26 @@ namespace AcadOverrules
                 Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _polylineDirection);
                 _polylineDirection.Dispose();
                 _polylineDirection = null;
+            }
+            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
+        }
+
+        private static PolylineDirFjv _polylineDirFjv;
+
+        [CommandMethod("TOGGLEFJVDIR")]
+        public static void togglefjvdiroverrule()
+        {
+            if (_polylineDirFjv == null)
+            {
+                _polylineDirFjv = new PolylineDirFjv();
+                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), _polylineDirFjv, false);
+                Overrule.Overruling = true;
+            }
+            else
+            {
+                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _polylineDirFjv);
+                _polylineDirFjv.Dispose();
+                _polylineDirFjv = null;
             }
             Application.DocumentManager.MdiActiveDocument.Editor.Regen();
         }

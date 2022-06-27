@@ -2072,6 +2072,7 @@ namespace IntersectUtilities
                         pline.AddEntityToDbModelSpace(localDb);
 
                         pline.Layer = line.Layer;
+                        pline.Color = line.Color;
 
                         PropertySetManager.CopyAllProperties(line, pline);
                     }
@@ -7097,7 +7098,7 @@ namespace IntersectUtilities
             string projectName = dro.ProjectName;
             string etapeName = dro.EtapeName;
 
-            prdDbg("Kører med antagelse, at alle flex rør er stikledninger.");
+            prdDbg("Kører med antagelse, at alle flex rør (CU, ALUPEX) er stikledninger.");
 
             // open the xref database
             Database alDb = new Database(false, true);
@@ -7428,6 +7429,16 @@ namespace IntersectUtilities
                         //    bboxPl.AddEntityToDbModelSpace(localDb);
                         //}
                         #endregion
+
+                        #region Rearrange stik so that polylines always start at source
+                        #region First find the one connected to supply line
+                        Polyline root;
+                        foreach (Polyline poly in group)
+
+
+                        #endregion
+                        #endregion
+
                         stikGruppeCount++;
                         foreach (Polyline pl in group)
                             psm.WritePropertyString(pl, driPipelineData.BelongsToAlignment, $"Stik {stikGruppeCount}");

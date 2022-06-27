@@ -311,23 +311,23 @@ namespace IntersectUtilities
         {
             ObjectIdCollection psIds = PropertyDataServices.GetPropertySets(ent);
             List<PropertySet> pss = new List<PropertySet>();
-            foreach (Oid oid in psIds) pss.Add(oid.Go<PropertySet>(ent.GetTopTx()));
 
-            foreach (PropertySet ps in pss)
+            using (OpenCloseTransaction tx = ent.Database.TransactionManager.StartOpenCloseTransaction())
             {
-                if (ps.PropertySetDefinitionName == propertySetName)
+                foreach (Oid oid in psIds) pss.Add(oid.Go<PropertySet>(tx));
+
+                foreach (PropertySet ps in pss)
                 {
-                    try
+                    if (ps.PropertySetDefinitionName == propertySetName)
                     {
-                        int id = ps.PropertyNameToId(propertyName);
-                        object value = ps.GetAt(id);
-                        return value;
-                    }
-                    catch (System.Exception)
-                    {
-                        return null;
+                            int id = ps.PropertyNameToId(propertyName);
+                            object value = ps.GetAt(id);
+                            tx.Commit();
+                            return value;
                     }
                 }
+
+                tx.Commit();
             }
             //Fall through
             //If no PS found return null
