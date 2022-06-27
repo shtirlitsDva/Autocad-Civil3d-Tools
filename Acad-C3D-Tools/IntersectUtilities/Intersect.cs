@@ -15464,9 +15464,12 @@ namespace IntersectUtilities
                         //Create reference to each other for each pair
                         foreach (var pair in pairs)
                         {
+                            if (pair.first.Owner.Handle == pair.second.Owner.Handle) continue;
                             pair.first.AddReference(pair.second);
                             pair.second.AddReference(pair.first);
                         }
+
+
                     }
                 }
                 catch (System.Exception ex)
@@ -15526,7 +15529,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("GRAPHCLEAR")]
+        //[CommandMethod("GRAPHCLEAR")]
         public void graphclear()
         {
             DocumentCollection docCol = Application.DocumentManager;

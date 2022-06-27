@@ -53,11 +53,14 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
+using csdot.Attributes.Types;
 
 namespace IntersectUtilities
 {
     public class Graph
     {
+        private static Regex regex = new Regex(@"(?<OwnEndType>\d):(?<ConEndType>\d):(?<Handle>\w*);");
+
         public HashSet<POI> POIs = new HashSet<POI>();
         PSetDefs.DriGraph DriGraph { get; } = new PSetDefs.DriGraph();
         PropertySetManager PSM { get; }
@@ -84,6 +87,16 @@ namespace IntersectUtilities
             internal void AddReference(POI connectedEntity)
             {
                 string value = PSM.ReadPropertyString(Owner, DriGraph.ConnectedEntities);
+
+                if (regex.IsMatch(value))
+{
+                    var matches = regex.Matches(value);
+                    foreach (Match match in matches)
+                        if (match.Groups["Handle"].Value == connectedEntity.Owner.Handle.ToString())
+                            //Do not add a reference if it already exists in the connection string
+                            return;
+                }
+
                 value += $"{(int)EndType}:{(int)connectedEntity.EndType}:{connectedEntity.Owner.Handle};";
                 PSM.WritePropertyString(DriGraph.ConnectedEntities, value);
             }
@@ -211,7 +224,7 @@ namespace IntersectUtilities
 
             private Con[] parseConString(string conString)
             {
-                Regex regex = new Regex(@"(?<OwnEndType>\d):(?<ConEndType>\d):(?<Handle>\w*);");
+                //Regex regex = new Regex(@"(?<OwnEndType>\d):(?<ConEndType>\d):(?<Handle>\w*);");
 
                 Con[] cons;
                 if (regex.IsMatch(conString))
