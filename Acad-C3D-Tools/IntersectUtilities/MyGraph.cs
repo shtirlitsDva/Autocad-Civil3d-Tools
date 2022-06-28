@@ -121,7 +121,10 @@ namespace IntersectUtilities
                         case PipeSystemEnum.AluPex:
                             #region STIK//Find forbindelse til forsyningsrøret
                             Point3d pt = pline.StartPoint;
-                            var query = allPipes.Where(x => pt.IsOnCurve(x, 0.025) && pline.Handle != x.Handle);
+                            var query = allPipes.Where(x => 
+                                pt.IsOnCurve(x, 0.025) && 
+                                pline.Handle != x.Handle &&
+                                GetPipeSystem(x) == PipeSystemEnum.Stål);
 
                             if (query.FirstOrDefault() != default)
                             {
@@ -232,7 +235,7 @@ namespace IntersectUtilities
                 { "End-StikStart", true },
                 { "End-StikEnd", false },
                 { "Main-Start", true },
-                { "Main-End", true },
+                { "Main-End", false },
                 { "Main-Main", true },
                 { "Main-Branch", true },
                 { "Main-StikAfgrening", false },
@@ -297,8 +300,6 @@ namespace IntersectUtilities
 
             private Con[] parseConString(string conString)
             {
-                //Regex regex = new Regex(@"(?<OwnEndType>\d):(?<ConEndType>\d):(?<Handle>\w*);");
-
                 Con[] cons;
                 if (regex.IsMatch(conString))
                 {
@@ -373,9 +374,33 @@ namespace IntersectUtilities
                 //Disjoined networks are not handled yet
                 
                 GraphEntity ge = GraphEntities.Where(x => x.Cons.Length == 1).MaxBy(x => x.LargestDn()).FirstOrDefault();
-                
+
                 //prdDbg(ge.OwnerHandle.ToString());
-                if (ge == null) throw new System.Exception("No entity found!");
+                if (ge == null)
+                {
+                    //throw new System.Exception("No entity found!");
+                    prdDbg("ERROR: Graph not complete!!!");
+                    foreach (var item in GraphEntities)
+                    {
+                        Entity owner = item.Owner;
+                        Line line = new Line();
+                        line.Layer = "0";
+                        line.StartPoint = new Point3d();
+                        switch (owner)
+                        {
+                            case Polyline pline:
+                                line.EndPoint = pline.GetPointAtDist(pline.Length / 2);
+                                break;
+                            case BlockReference br:
+                                line.EndPoint = br.Position;
+                                break;
+                            default:
+                                break;
+                        }
+                        line.AddEntityToDbModelSpace(Application.DocumentManager.MdiActiveDocument.Database);
+                    }
+                    break;
+                }
 
                 //Flag the entry point subgraph
                 isEntryPoint = true;
@@ -437,8 +462,12 @@ namespace IntersectUtilities
                         string key = ownEnd + "-" + conEnd;
                         if (allowedCombinations.ContainsKey(key))
                             if (!allowedCombinations[key]) continue;
+
+                        //Tries to prevent duplicate Main-Main edges by eliminating upstream Main-Main instance
+                        if (key == "Main-Main" && con.ConHandle == previousHandle) continue;
+
                         //Record the edge between nodes
-                        edges.Add(new Edge(current.OwnerHandle, child.OwnerHandle));
+                        edges.Add(new Edge(current.OwnerHandle, child.OwnerHandle));//, key));
                         //If this child node is in visited collection -> skip, so we don't ger circular referencing
                         if (visitedHandles.Contains(child.OwnerHandle)) continue;
                         //If the node has not been visited yet, then put it on the stack
@@ -555,13 +584,19 @@ namespace IntersectUtilities
         {
             internal Handle Id1 { get; }
             internal Handle Id2 { get; }
+            internal string Label { get; }
             internal Edge(Handle id1, Handle id2)
             {
                 Id1 = id1; Id2 = id2;
             }
+            internal Edge(Handle id1, Handle id2, string label)
+            {
+                Id1 = id1; Id2 = id2; Label = label;
+            }
             internal string ToString(string edgeSymbol)
             {
-                return $"\"{Id1}\" {edgeSymbol} \"{Id2}\"";
+                if (Label.IsNoE()) return $"\"{Id1}\" {edgeSymbol} \"{Id2}\"";
+                else return $"\"{Id1}\" {edgeSymbol} \"{Id2}\" [ label=\"{Label}\" ]";
             }
         }
     }
