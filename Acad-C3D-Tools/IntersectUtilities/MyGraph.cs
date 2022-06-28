@@ -460,14 +460,16 @@ namespace IntersectUtilities
                         string ownEnd = con.OwnEndType.ToString();
                         string conEnd = con.ConEndType.ToString();
                         string key = ownEnd + "-" + conEnd;
-                        if (allowedCombinations.ContainsKey(key))
-                            if (!allowedCombinations[key]) continue;
+                        if (!allowedCombinations[key]) continue;
 
                         //Tries to prevent duplicate Main-Main edges by eliminating upstream Main-Main instance
+                        //Doesn't work if recursion just returned from a branch, because previous is set the the
+                        //Last node on the branch
                         if (key == "Main-Main" && con.ConHandle == previousHandle) continue;
 
                         //Record the edge between nodes
-                        edges.Add(new Edge(current.OwnerHandle, child.OwnerHandle));//, key));
+                        edges.Add(new Edge(current.OwnerHandle, child.OwnerHandle));
+                        //edges.Add(new Edge(current.OwnerHandle, child.OwnerHandle, key));
                         //If this child node is in visited collection -> skip, so we don't ger circular referencing
                         if (visitedHandles.Contains(child.OwnerHandle)) continue;
                         //If the node has not been visited yet, then put it on the stack
