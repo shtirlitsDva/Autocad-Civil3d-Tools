@@ -88,14 +88,16 @@ namespace IntersectUtilities
             {
                 string value = PSM.ReadPropertyString(Owner, DriGraph.ConnectedEntities);
 
-                if (regex.IsMatch(value))
-{
-                    var matches = regex.Matches(value);
-                    foreach (Match match in matches)
-                        if (match.Groups["Handle"].Value == connectedEntity.Owner.Handle.ToString())
-                            //Do not add a reference if it already exists in the connection string
-                            return;
-                }
+                //Avoid duplicate connections on con strings
+                //Or filter the connections by their type
+                //if (regex.IsMatch(value))
+                //{
+                //    var matches = regex.Matches(value);
+                //    foreach (Match match in matches)
+                //        if (match.Groups["Handle"].Value == connectedEntity.Owner.Handle.ToString())
+                //            //Do not add a reference if it already exists in the connection string
+                //            return;
+                //}
 
                 value += $"{(int)EndType}:{(int)connectedEntity.EndType}:{connectedEntity.Owner.Handle};";
                 PSM.WritePropertyString(DriGraph.ConnectedEntities, value);
@@ -106,29 +108,44 @@ namespace IntersectUtilities
             switch (ent)
             {
                 case Polyline pline:
-                    POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.End, PSM, DriGraph));
-                    POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.End, PSM, DriGraph));
-                    #region STIK
-                    if (GetPipeSystem(pline) == PipeSystemEnum.AluPex ||
-                        GetPipeSystem(pline) == PipeSystemEnum.Kobberflex)
+                    switch (GetPipeSystem(pline))
                     {
-                        Point3d pt = pline.StartPoint;
-                        var query = allPipes.Where(x => pt.IsOnCurve(x, 0.025) && pline.Handle != x.Handle);
-                        
-                        if (query.FirstOrDefault() != default)
-                        {
-                            Polyline parent = query.FirstOrDefault();
-                            POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2D(), EndType.Stik, PSM, DriGraph));
-                        }
+                        case PipeSystemEnum.Ukendt:
+                            prdDbg($"Wrong type of pline supplied: {pline.Handle}");
+                            return;
+                        case PipeSystemEnum.Stål:
+                            POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.Start, PSM, DriGraph));
+                            POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.End, PSM, DriGraph));
+                            break;
+                        case PipeSystemEnum.Kobberflex:
+                        case PipeSystemEnum.AluPex:
+                            #region STIK//Find forbindelse til forsyningsrøret
+                            Point3d pt = pline.StartPoint;
+                            var query = allPipes.Where(x => pt.IsOnCurve(x, 0.025) && pline.Handle != x.Handle);
 
-                        pt = pline.EndPoint;
-                        if (query.FirstOrDefault() != default)
-                        {
-                            Polyline parent = query.FirstOrDefault();
-                            POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2D(), EndType.Stik, PSM, DriGraph));
-                        }
+                            if (query.FirstOrDefault() != default)
+                            {
+                                Polyline parent = query.FirstOrDefault();
+                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2D(), EndType.StikAfgrening, PSM, DriGraph));
+                            }
+
+                            pt = pline.EndPoint;
+                            if (query.FirstOrDefault() != default)
+                            {
+                                //This shouldn't happen now, because AssignPlinesAndBlocksToAlignments
+                                //guarantees that the end point is never on a supply pipe
+                                Polyline parent = query.FirstOrDefault();
+                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2D(), EndType.StikAfgrening, PSM, DriGraph));
+                            }
+                            #endregion
+
+                            //Tilføj almindelige ender til POIs
+                            POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.StikStart, PSM, DriGraph));
+                            POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.StikEnd, PSM, DriGraph));
+                            break;
+                        default:
+                            throw new System.Exception("Supplied a new PipeSystemEnum! Add to code kthxbai.");
                     }
-                    #endregion
                     break;
                 case BlockReference br:
                     Transaction tx = br.Database.TransactionManager.TopTransaction;
@@ -166,7 +183,7 @@ namespace IntersectUtilities
                                     //.HashSetOfType<Polyline>(tx, true)
                                     .Where(x => psmPipeline.FilterPropetyString
                                             (x, driPipelineData.BelongsToAlignment, branchAlName));
-                                    //.ToHashSet();
+                                //.ToHashSet();
 
                                 foreach (Polyline polyline in polylines)
                                 {
@@ -188,12 +205,68 @@ namespace IntersectUtilities
         }
         public enum EndType
         {
-            None,   //0:
-            End,    //1: For ends of pipes
-            Main,   //2: For main run in components
-            Branch, //3: For branches in components
-            Stik    //4: For stik directly connected to piperuns
+            None,            //0:
+            Start,           //1: For start of pipes
+            End,             //2: For ends of pipes
+            Main,            //3: For main run in components
+            Branch,          //4: For branches in components
+            StikAfgrening,   //5: For points where stik are connected to supply pipes
+            StikStart,       //5: For stik starts
+            StikEnd          //6: For stik ends
         }
+        public Dictionary<string, bool> allowedCombinations =
+            new Dictionary<string, bool>()
+            {
+                { "Start-Start", false },
+                { "Start-End", false },
+                { "Start-Main", false },
+                { "Start-Branch", false },
+                { "Start-StikAfgrening", false },
+                { "Start-StikStart", false },
+                { "Start-StikEnd", false },
+                { "End-Start", true },
+                { "End-End", true },
+                { "End-Main", true },
+                { "End-Branch", true },
+                { "End-StikAfgrening", false },
+                { "End-StikStart", true },
+                { "End-StikEnd", false },
+                { "Main-Start", true },
+                { "Main-End", true },
+                { "Main-Main", true },
+                { "Main-Branch", true },
+                { "Main-StikAfgrening", false },
+                { "Main-StikStart", true },
+                { "Main-StikEnd", false },
+                { "Branch-Start", true },
+                { "Branch-End", true },
+                { "Branch-Main", true },
+                { "Branch-Branch", true },
+                { "Branch-StikAfgrening", false },
+                { "Branch-StikStart", true },
+                { "Branch-StikEnd", true },
+                { "StikAfgrening-Start", false },
+                { "StikAfgrening-End", false },
+                { "StikAfgrening-Main", false },
+                { "StikAfgrening-Branch", false },
+                { "StikAfgrening-StikAfgrening", false },
+                { "StikAfgrening-StikStart", true },
+                { "StikAfgrening-StikEnd", false },
+                { "StikStart-Start", false },
+                { "StikStart-End", false },
+                { "StikStart-Main", false },
+                { "StikStart-Branch", false },
+                { "StikStart-StikAfgrening", false },
+                { "StikStart-StikStart", false },
+                { "StikStart-StikEnd", false },
+                { "StikEnd-Start", false },
+                { "StikEnd-End", false },
+                { "StikEnd-Main", false },
+                { "StikEnd-Branch", false },
+                { "StikEnd-StikAfgrening", false },
+                { "StikEnd-StikStart", true },
+                { "StikEnd-StikEnd", false },
+            };
         public class GraphEntity
         {
             public Entity Owner { get; }
@@ -270,6 +343,12 @@ namespace IntersectUtilities
         }
         public void CreateAndWriteGraph()
         {
+            //Instantiate property set manager necessary to gather alignment names
+            PropertySetManager psmPipeline = new PropertySetManager(
+                Application.DocumentManager.MdiActiveDocument.Database,
+                PSetDefs.DefinedSets.DriPipelineData);
+            PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
+
             //Counter to count all disjoined graphs
             int graphCount = 0;
             //Flag to signal the entry point subgraph
@@ -292,10 +371,9 @@ namespace IntersectUtilities
                 //Criteria: Only one child -> means an end node AND largest DN of all not visited
                 //Currently only for one network
                 //Disjoined networks are not handled yet
+                
                 GraphEntity ge = GraphEntities.Where(x => x.Cons.Length == 1).MaxBy(x => x.LargestDn()).FirstOrDefault();
-                prdDbg(
-                    $"{GraphEntities.Count}"
-                    );
+                
                 //prdDbg(ge.OwnerHandle.ToString());
                 if (ge == null) throw new System.Exception("No entity found!");
 
@@ -310,10 +388,6 @@ namespace IntersectUtilities
 
                 //Collection to collect the subgraphs
                 Dictionary<string, Subgraph> subgraphs = new Dictionary<string, Subgraph>();
-                //Instantiate property set manager necessary to gather alignment names
-                //It must be done after an element is found to get at the database
-                PropertySetManager psmPipeline = new PropertySetManager(ge.Owner.Database, PSetDefs.DefinedSets.DriPipelineData);
-                PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
 
                 //Using a stack traversing strategy
                 Stack<GraphEntity> stack = new Stack<GraphEntity>();
@@ -324,7 +398,7 @@ namespace IntersectUtilities
                 {
                     //Fetch the topmost entity on stack
                     GraphEntity current = stack.Pop();
-                    
+
                     //Determine the subgraph it is part of
                     string alName = psmPipeline.ReadPropertyString(current.Owner, driPipelineData.BelongsToAlignment);
                     //Fetch or create new subgraph object
@@ -356,6 +430,13 @@ namespace IntersectUtilities
                         //if (visitedHandles.Contains(child.OwnerHandle)) continue; <-- First solution
                         //Solution with caching of previous handle, it I don't think it works when backtracking to a branch -> there will be a double arrow
                         if (previousHandle != null && previousHandle == child.OwnerHandle) continue;
+                        //Try to control which cons get written by their type
+                        //Build string
+                        string ownEnd = con.OwnEndType.ToString();
+                        string conEnd = con.ConEndType.ToString();
+                        string key = ownEnd + "-" + conEnd;
+                        if (allowedCombinations.ContainsKey(key))
+                            if (!allowedCombinations[key]) continue;
                         //Record the edge between nodes
                         edges.Add(new Edge(current.OwnerHandle, child.OwnerHandle));
                         //If this child node is in visited collection -> skip, so we don't ger circular referencing
@@ -374,7 +455,7 @@ namespace IntersectUtilities
                 //This must be refactored when working with disjoined networks
                 StringBuilder sb = new StringBuilder();
                 sb.AppendLine($"subgraph G_{graphCount} {{"); //First line of file stating a graph
-                                              //Set the shape of the nodes for whole graph
+                                                              //Set the shape of the nodes for whole graph
                 sb.AppendLine("node [shape=record];");
 
                 //Write edges

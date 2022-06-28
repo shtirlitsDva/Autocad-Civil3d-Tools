@@ -522,7 +522,7 @@ namespace IntersectUtilities
                 case "FJV-RETUR-ALUPEX32":
                     return PipeSystemEnum.AluPex;
                 default:
-                    prdDbg("\nFor layer name: " + layer + " no system could be determined!");
+                    //prdDbg("\nFor layer name: " + layer + " no system could be determined!");
                     return PipeSystemEnum.Ukendt;
             }
         }

@@ -7276,6 +7276,7 @@ namespace IntersectUtilities
                             GetPipeSystem(x) == PipeSystemEnum.Kobberflex
                             )
                         .ToHashSet();
+                    prdDbg($"Conpipes: {conPipes.Count}");
                     #endregion
 
                     #region Curves
@@ -7392,6 +7393,14 @@ namespace IntersectUtilities
                         return;
                     }
 
+                    prdDbg(
+                        "**************************************************************" +
+                        "Projektet indeholder stikledninger!\n" +
+                        "ADVARSEL: Stikledninger SKAL være forbundet i et TRÆ-struktur!\n" +
+                        "Dvs. der må ikke være gennemgående polylinjer ved afgreninger.\n" +
+                        "Stikledninger forbundet til komponenter skal afklares manuelt.\n" +
+                        "**************************************************************");
+
                     var grouping = conPipes.GroupByCluster((x, y) => areConnected(x, y), 0.5);
 
                     int stikGruppeCount = 0;
@@ -7399,64 +7408,119 @@ namespace IntersectUtilities
                     {
                         stikGruppeCount++;
                         #region Debug connection of polylines
-                        //    //Determine maximum and minimum points
-                        //    HashSet<double> Xs = new HashSet<double>();
-                        //    HashSet<double> Ys = new HashSet<double>();
+                        ////Determine maximum and minimum points
+                        //HashSet<double> Xs = new HashSet<double>();
+                        //HashSet<double> Ys = new HashSet<double>();
 
-                        //    foreach (var pl in group)
-                        //    {
-                        //        Extents3d bbox = pl.GeometricExtents;
-                        //        Xs.Add(bbox.MaxPoint.X);
-                        //        Xs.Add(bbox.MinPoint.X);
-                        //        Ys.Add(bbox.MaxPoint.Y);
-                        //        Ys.Add(bbox.MinPoint.Y);
-                        //    }
-
-                        //    double maxX = Xs.Max();
-                        //    double maxY = Ys.Max();
-                        //    double minX = Xs.Min();
-                        //    double minY = Ys.Min();
-
-                        //    List<Point2d> pts = new List<Point2d>();
-                        //    pts.Add(new Point2d(minX, minY));
-                        //    pts.Add(new Point2d(minX, maxY));
-                        //    pts.Add(new Point2d(maxX, maxY));
-                        //    pts.Add(new Point2d(maxX, minY));
-
-                        //    Polyline bboxPl = new Polyline();
-                        //    foreach (Point2d p2d in pts)
-                        //        bboxPl.AddVertexAt(bboxPl.NumberOfVertices, p2d, 0.0, 0.0, 0.0);
-                        //    bboxPl.Closed = true;
-                        //    bboxPl.AddEntityToDbModelSpace(localDb);
+                        //foreach (var pl in group)
+                        //{
+                        //    Extents3d bbox = pl.GeometricExtents;
+                        //    Xs.Add(bbox.MaxPoint.X);
+                        //    Xs.Add(bbox.MinPoint.X);
+                        //    Ys.Add(bbox.MaxPoint.Y);
+                        //    Ys.Add(bbox.MinPoint.Y);
                         //}
-                        #endregion
 
+                        //double maxX = Xs.Max();
+                        //double maxY = Ys.Max();
+                        //double minX = Xs.Min();
+                        //double minY = Ys.Min();
+
+                        //List<Point2d> pts = new List<Point2d>();
+                        //pts.Add(new Point2d(minX, minY));
+                        //pts.Add(new Point2d(minX, maxY));
+                        //pts.Add(new Point2d(maxX, maxY));
+                        //pts.Add(new Point2d(maxX, minY));
+
+                        //Polyline bboxPl = new Polyline();
+                        //foreach (Point2d p2d in pts)
+                        //    bboxPl.AddVertexAt(bboxPl.NumberOfVertices, p2d, 0.0, 0.0, 0.0);
+                        //bboxPl.Closed = true;
+                        //bboxPl.AddEntityToDbModelSpace(localDb);
+                        #endregion
+                        //prdDbg($"Gruppe: {stikGruppeCount}, Antal: {group.Count()}");
                         //Write stikgruppe to the ps
                         foreach (Polyline pl in group)
                             psm.WritePropertyString(pl, driPipelineData.BelongsToAlignment, $"Stik {stikGruppeCount}");
-
+                            
                         #region Rearrange stik so that polylines always start at source
-                        #region First find the one connected to supply line
-                        HashSet<Oid> seen = new HashSet<Oid>();
+                        #region Find the one (root) connected to supply line
                         Polyline root = default;
+                        Polyline supply = default;
                         foreach (Polyline pline in group)
                         {
-                            root = mainPipes.Where(x => pline.IsConnectedTo(x)).FirstOrDefault();
-                            if (root != default) break;
+                            supply = mainPipes.Where(x => pline.IsConnectedTo(x)).FirstOrDefault();
+                            if (supply != default)
+                            {
+                                root = pline;
+                                break;
+                            }
                         }
+                        #endregion
+                        #region Recursive run through all connected pipes
                         //Catch case where no connection exists between stik and supply pipe
-                        //Warn user about this to fix it
+                        //Warn user about this to fix it and skip iteration
                         if (root == default)
                         {
                             prdDbg($"Stikgruppe {stikGruppeCount} is not connected to a supply pipe!\nFix this before continuing!");
+                            continue;
                         }
                         //Case: supply pipe is found
                         //Go through the polylines reversing those that are against the "flow"
                         //The flow is from the supply line to end connections (clients)
                         else
                         {
+                            //Give root preferential treatment because it is the first one
+                            if (root.EndPoint.IsOnCurve(supply, 0.022))
+                            {
+                                root.CheckOrOpenForWrite();
+                                root.ReverseCurve();
+                            }
 
+                            HashSet<Oid> seen = new HashSet<Oid>();
+                            Stack<Polyline> stack = new Stack<Polyline>();
+                            //Seed the stack with first element
+                            stack.Push(root);
+                            int loopGuard = 0;
+                            while (stack.Count > 0)
+                            {
+                                loopGuard++;
+                                Polyline parent = stack.Pop();
+                                //Add parent to seen collection to avoid double processing
+                                //AND to be able to check connectivity afterwards
+                                seen.Add(parent.Id);
+                                //Find connected lines
+                                var query = group.Where(x => parent.EndIsConnectedTo(x) && !seen.Contains(x.Id));
+
+                                //Check the direction and reverse if needed
+                                foreach (Polyline child in query)
+                                {
+                                    //Reverse polyline if it is reversed
+                                    if (child.EndPoint.IsOnCurve(parent, 0.025))
+                                    {
+                                        child.CheckOrOpenForWrite();
+                                        child.ReverseCurve();
+                                    }
+
+                                    stack.Push(child);
+                                }
+
+                                if (loopGuard > 500)
+                                {
+                                    prdDbg("Possibly infinite loop detected!");
+                                    prdDbg($"Check entity {parent.Handle}!");
+                                    break;
+                                }
+                            }
+
+                            //Check connectivity inside a stik group
+                            if (group.Any(x => !seen.Contains(x.Id)))
+                            {
+                                prdDbg($"Stikgruppe {stikGruppeCount} er ikke forbundet komplet!\nKontroller følgende handles:");
+                                foreach (var item in group.Where(x => !seen.Contains(x.Id))) prdDbg(item.Handle.ToString());
+                            }
                         }
+
                         #endregion
                         #endregion
                     }
@@ -7469,7 +7533,6 @@ namespace IntersectUtilities
                         if (IsPointOnCurve(pl1, pl2.EndPoint)) return 0.0;
                         return 1.0;
                     }
-
                     bool IsPointOnCurve(Curve cv, Point3d pt)
                     {
                         try
@@ -14360,24 +14423,45 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region test regex
-                    List<string> list = new List<string>()
+                    #region Test enum list
+                    StringBuilder sb = new StringBuilder();
+                    HashSet<int> nums = new HashSet<int>()
                     {
-                        "0*123*232",
-                        "234*12*0",
-                        "0*115*230",
-                        "000*115*230",
-                        "0*0*0",
-                        "255*255*255",
-                        "231*0*98"
+                        1, 2, 4, 8, 16, 32, 64
                     };
 
-                    foreach (string s in list)
+                    foreach (var num in nums)
                     {
-                        var color = UtilsCommon.Utils.ParseColorString(s);
-                        if (color == null) prdDbg($"Parsing of string {s} failed!");
-                        else prdDbg($"Parsing of string {s} success!");
+                        string f = ((Graph.EndType)num).ToString();
+                        foreach (var xum in nums)
+                        {
+                            string s = ((Graph.EndType)xum).ToString();
+
+                            sb.AppendLine($"{f}-{s}");
+                        }
                     }
+
+                    OutputWriter(@"C:\Temp\EntTypeEnum.txt", sb.ToString(), true);
+                    #endregion
+
+                    #region test regex
+                    //List<string> list = new List<string>()
+                    //{
+                    //    "0*123*232",
+                    //    "234*12*0",
+                    //    "0*115*230",
+                    //    "000*115*230",
+                    //    "0*0*0",
+                    //    "255*255*255",
+                    //    "231*0*98"
+                    //};
+
+                    //foreach (string s in list)
+                    //{
+                    //    var color = UtilsCommon.Utils.ParseColorString(s);
+                    //    if (color == null) prdDbg($"Parsing of string {s} failed!");
+                    //    else prdDbg($"Parsing of string {s} success!");
+                    //}
                     #endregion
 
                     #region Create points at vertices
@@ -15496,8 +15580,6 @@ namespace IntersectUtilities
                             pair.first.AddReference(pair.second);
                             pair.second.AddReference(pair.first);
                         }
-
-
                     }
                 }
                 catch (System.Exception ex)
@@ -16061,6 +16143,8 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+
 
         void AbortGracefully(Transaction tx, string msg)
         {

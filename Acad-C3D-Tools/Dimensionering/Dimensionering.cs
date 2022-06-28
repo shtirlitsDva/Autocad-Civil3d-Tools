@@ -2424,8 +2424,7 @@ namespace IntersectUtilities.Dimensionering
                         Polyline entryPline = entryPoint.Key.OwnerId.Go<Polyline>(tx);
 
                         //Mark the element as entry point
-                        graphPsm.GetOrAttachPropertySet(entryPline);
-                        graphPsm.WritePropertyString(graphDef.Parent, $"Entry");
+                        graphPsm.WritePropertyString(entryPline, graphDef.Parent, $"Entry");
 
                         #region Traverse system using stack
                         //Using stack traversing strategy
@@ -2485,8 +2484,7 @@ namespace IntersectUtilities.Dimensionering
                         {
                             BlockReference building = buildings.Pop();
 
-                            graphPsm.GetOrAttachPropertySet(building);
-                            string children = graphPsm.ReadPropertyString(graphDef.Children);
+                            string children = graphPsm.ReadPropertyString(building, graphDef.Children);
                             var split = children.Split(';');
                             //It is assumed that blocks with children only occur
                             //When they are connected to husnumre
