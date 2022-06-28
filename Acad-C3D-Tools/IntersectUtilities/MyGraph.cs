@@ -211,8 +211,8 @@ namespace IntersectUtilities
             Main,            //3: For main run in components
             Branch,          //4: For branches in components
             StikAfgrening,   //5: For points where stik are connected to supply pipes
-            StikStart,       //5: For stik starts
-            StikEnd          //6: For stik ends
+            StikStart,       //6: For stik starts
+            StikEnd          //7: For stik ends
         }
         public Dictionary<string, bool> allowedCombinations =
             new Dictionary<string, bool>()
