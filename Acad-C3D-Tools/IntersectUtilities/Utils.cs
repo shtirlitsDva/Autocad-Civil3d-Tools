@@ -927,6 +927,23 @@ namespace IntersectUtilities
                 }
             }
         }
+        public static void SetDynBlockPropertyObject(BlockReference br, string propertyName, object propertyValue)
+        {
+            if (br != null && br.IsDynamicBlock)
+            {
+                // Get the dynamic block's property collection
+                DynamicBlockReferencePropertyCollection pc = br.DynamicBlockReferencePropertyCollection;
+                // Loop through, getting the info for each property
+                foreach (DynamicBlockReferenceProperty prop in pc)
+                {
+                    if (prop.PropertyName == propertyName)
+                    {
+                        prop.Value = propertyValue;
+                        break;
+                    }
+                }
+            }
+        }
         /// <summary>
         /// Function returns a sorted queue of member Curves starting with largest DN.
         /// Curves are, if needed, reversed, so the first node is always first in the direction.
@@ -956,7 +973,25 @@ namespace IntersectUtilities
             int firstDn = PipeSchedule.GetPipeDN(firstEnd);
             int secondDn = PipeSchedule.GetPipeDN(secondEnd);
 
-            iterType = secondDn <= firstDn ? Enums.TypeOfIteration.Forward : Enums.TypeOfIteration.Backward;
+            if (firstDn == secondDn)
+            {
+                prdDbg(
+                    $"ADVARSEL: Alignment {al.Name} har samme størrelse i begge ender!\n" +
+                    $"ADVARSEL: Polyliner i denne alignment skal vendes manuelt i retning fra forsyning til kunder.\n" +
+                    $"ADVARSEL: Brug kommando \"TOGGLEFJVDIR\" fra AcadOverrules.dll til at kunne se retningen på linjerne.");
+
+                //Detect manual iteration type
+                double X = 0.0; double Y = 0.0;
+                al.PointLocation(0.0, 0.0, ref X, ref Y);
+
+                Point3d testPoint = new Point3d(X, Y, 0.0);
+
+                double startDist = firstEnd.StartPoint.DistanceHorizontalTo(testPoint);
+                double endDist = firstEnd.EndPoint.DistanceHorizontalTo(testPoint);
+
+                iterType = startDist < endDist ? Enums.TypeOfIteration.Forward : Enums.TypeOfIteration.Backward;
+            }
+            else iterType = secondDn < firstDn ? Enums.TypeOfIteration.Forward : Enums.TypeOfIteration.Backward;
 
             for (int i = 0; i < nrOfSteps + 1; i++)
             {

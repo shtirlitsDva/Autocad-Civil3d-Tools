@@ -1286,6 +1286,7 @@ namespace IntersectUtilities.UtilsCommon
             }
             return br;
         }
+
         public static List<string> ListLayers(this Database db)
         {
             List<string> lstlay = new List<string>();
@@ -1459,7 +1460,7 @@ namespace IntersectUtilities.UtilsCommon
             // Otherwise we return false
             return false;
         }
-        public static bool IsConnectedTo(this Polyline pl1, Polyline pl2, double tol = 0.25)
+        public static bool IsConnectedTo(this Polyline pl1, Polyline pl2, double tol = 0.025)
         {
             if (pl1.StartPoint.IsOnCurve(pl2, tol)) return true;
             if (pl1.EndPoint.IsOnCurve(pl2, tol)) return true;
@@ -1577,6 +1578,7 @@ namespace IntersectUtilities.UtilsCommon
             }
             else
             {
+                if (colorIdx == -1) return true;
                 LayerTableRecord ltr = lt[layerName].Go<LayerTableRecord>(txLag, OpenMode.ForWrite);
                 if (ltr.Color.ColorIndex != colorIdx)
                     ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, colorIdx);
@@ -1670,7 +1672,13 @@ namespace IntersectUtilities.UtilsCommon
             var rawBrefs = db.ListOfType<BlockReference>(tr, discardFrozen);
             var brQuery = rawBrefs.Where(x => UtilsDataTables.ReadStringParameterFromDataTable(
                             x.RealName(), fjvKomponenter, "Navn", 0) != default);
-            if (discardWelds) brQuery = brQuery.Where(x => x.RealName() != "SVEJSEPUNKT");
+
+            HashSet<string> forbiddenBlocks = new HashSet<string>()
+            {
+                "SVEJSEPUNKT", "SVEJSEPUNKT-NOTXT", "STIKAFGRENING", "STIKTEE"
+            };
+
+            if (discardWelds) brQuery = brQuery.Where(x => !forbiddenBlocks.Contains(x.RealName()));
 
             entities.UnionWith(brQuery);
             entities.UnionWith(plineQuery);

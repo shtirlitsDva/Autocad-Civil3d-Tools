@@ -4312,6 +4312,13 @@ namespace IntersectUtilities
                     br.CheckOrOpenForWrite();
                     br.Erase(true);
                 }
+                //Delete previous blocks
+                existingBlocks = localDb.GetBlockReferenceByName(blockName + "-NOTXT");
+                foreach (BlockReference br in existingBlocks)
+                {
+                    br.CheckOrOpenForWrite();
+                    br.Erase(true);
+                }
                 #endregion
                 tx.Commit();
             }
@@ -4326,6 +4333,12 @@ namespace IntersectUtilities
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            bool noNumbers = true;
+            string[] kwds = new string[] { "Uden nummer", "Med nummer" };
+            string blockChoice = Interaction.GetKeywords(
+                "Skal svejsepunkter være med nummer?", kwds);
+            if (blockChoice == "Med nummer") noNumbers = false;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -4344,7 +4357,7 @@ namespace IntersectUtilities
 
                 //////////////////////////////////////
                 string blockLayerName = "0-SVEJSEPKT";
-                string blockName = "SVEJSEPUNKT";
+                string blockName = noNumbers ? "SVEJSEPUNKT-NOTXT" : "SVEJSEPUNKT";
                 string textLayerName = "0-DEBUG-TXT";
                 //////////////////////////////////////
 
@@ -4706,7 +4719,8 @@ namespace IntersectUtilities
                                 tx.AddNewlyCreatedDBObject(atRef, true);
                             }
 
-                            wpBr.SetAttributeStringValue("NUMMER", currentPipelineNumber + "." + idx.ToString("D3"));
+                            if (!noNumbers)
+                                wpBr.SetAttributeStringValue("NUMMER", currentPipelineNumber + "." + idx.ToString("D3"));
 
                             //if (idx == 1) DisplayDynBlockProperties(editor, wpBr, wpBr.Name);
                             SetDynBlockProperty(wpBr, "Type", wp.DN.ToString());
@@ -4737,6 +4751,296 @@ namespace IntersectUtilities
                 alTx.Abort();
                 alTx.Dispose();
                 alDb.Dispose();
+                tx.Commit();
+            }
+        }
+        
+        [CommandMethod("CREATESTIKPOINTS")]
+        [CommandMethod("CSP")]
+        public void createstikpoints()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                //////////////////////////////////////
+                string blockLayerName = "0-STIKKOMPONENTER";
+                string stikAfgrBlockName = "STIKAFGRENING";
+                string stikTeeBlockName = "STIKTEE";
+                string textLayerName = "0-DEBUG-TXT";
+                //////////////////////////////////////
+
+                #region Initialize property set
+                PropertySetManager psm = new PropertySetManager(
+                    localDb,
+                    PSetDefs.DefinedSets.DriPipelineData);
+                PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
+                #endregion
+
+                #region Delete previous blocks
+                //Delete previous blocks
+                var existingBlocks = localDb.GetBlockReferenceByName(stikAfgrBlockName);
+                foreach (BlockReference br in existingBlocks)
+                {
+                    br.CheckOrOpenForWrite();
+                    br.Erase(true);
+                }
+                existingBlocks = localDb.GetBlockReferenceByName(stikTeeBlockName);
+                foreach (BlockReference br in existingBlocks)
+                {
+                    br.CheckOrOpenForWrite();
+                    br.Erase(true);
+                }
+                #endregion
+
+                try
+                {
+                    #region Create layer for weld blocks and
+                    localDb.CheckOrCreateLayer(blockLayerName);
+                    localDb.CheckOrCreateLayer(textLayerName);
+                    #endregion
+
+                    #region Read components file
+                    System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
+                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    #endregion
+
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                    #region Import stik blocks if missing
+                    if (!bt.Has(stikAfgrBlockName))
+                    {
+                        prdDbg("Block for stik branch is missing! Importing...");
+                        Database blockDb = new Database(false, true);
+                        blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
+                            FileOpenMode.OpenForReadAndAllShare, false, null);
+                        Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+
+                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+
+                        BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                        ObjectIdCollection idsToClone = new ObjectIdCollection();
+                        idsToClone.Add(sourceBt[stikAfgrBlockName]);
+
+                        IdMapping mapping = new IdMapping();
+                        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                        blockTx.Commit();
+                        blockTx.Dispose();
+                        blockDb.Dispose();
+                    }
+                    if (!bt.Has(stikTeeBlockName))
+                    {
+                        prdDbg("Block for stik tee is missing! Importing...");
+                        Database blockDb = new Database(false, true);
+                        blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
+                            FileOpenMode.OpenForReadAndAllShare, false, null);
+                        Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+
+                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+
+                        BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                        ObjectIdCollection idsToClone = new ObjectIdCollection();
+                        idsToClone.Add(sourceBt[stikAfgrBlockName]);
+
+                        IdMapping mapping = new IdMapping();
+                        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                        blockTx.Commit();
+                        blockTx.Dispose();
+                        blockDb.Dispose();
+                    }
+                    #endregion
+
+                    HashSet<Polyline> allPipes = localDb.GetFjvPipes(tx);
+                    var mainPipes = allPipes.Where(x => GetPipeSystem(x) == PipeSystemEnum.Stål);
+                    HashSet<PipeSystemEnum> stikSystems = 
+                        new HashSet<PipeSystemEnum>() { PipeSystemEnum.AluPex, PipeSystemEnum.Kobberflex };
+                    var stikPipes = allPipes.Where(x => stikSystems.Contains(GetPipeSystem(x)));
+
+                    #region Place stik branch blocks
+                    //First find all the main pipes which have at least one stik branch
+                    var mainPipesWithStikBranch = mainPipes.Where(x => stikPipes.Any(y => y.IsConnectedTo(x)));
+                    //Iterate over them and place blocks at branches
+                    foreach (Polyline mainPipe in mainPipesWithStikBranch)
+                    {
+                        //Iterate over all connected stik pipes
+                        foreach (Polyline stikPipe in stikPipes.Where(x => x.IsConnectedTo(mainPipe)))
+                        {
+                            //Determine the location of the connection
+                            Point3d location = mainPipe.GetClosestPointTo(stikPipe.StartPoint, false);
+
+                            //Determine rotation
+                            Vector3d deriv = mainPipe.GetFirstDerivative(location);
+                            double rotation = Math.Atan2(deriv.Y, deriv.X);
+
+                            //Determine if block needs to be rotated 180°
+                            Vector3d stikDeriv = stikPipe.GetFirstDerivative(stikPipe.StartPoint);
+                            if (deriv.CrossProduct(stikDeriv).Z > 0) rotation += Math.PI;
+
+                            //string stikName = psm.ReadPropertyString(stikPipe, driPipelineData.BelongsToAlignment);
+                            //prdDbg($"{stikName} -> {deriv.CrossProduct(stikDeriv).Z}");
+
+                            BlockReference br = localDb.CreateBlockWithAttributes(stikAfgrBlockName, location, rotation);
+
+                            int mainPipeDn = GetPipeDN(mainPipe);
+                            PipeTypeEnum type = GetPipeType(mainPipe);
+                            string pipeType = "Enkelt";
+                            switch (type)
+                            {
+                                case PipeTypeEnum.Ukendt:
+                                    pipeType = "Twin";
+                                    break;
+                                case PipeTypeEnum.Twin:
+                                    pipeType = "Twin";
+                                    break;
+                                case PipeTypeEnum.Frem:
+                                case PipeTypeEnum.Retur:
+                                    break;
+                                default:
+                                    break;
+                            }
+
+                            SetDynBlockPropertyObject(br, "Type", mainPipeDn < 50 ? "Type 1" : "Type 2");
+                            SetDynBlockPropertyObject(br, "DN1", mainPipeDn);
+                            SetDynBlockPropertyObject(br, "DN2", GetPipeDN(stikPipe));
+                            SetDynBlockPropertyObject(br, "System", pipeType);
+
+                            string alignmentName = psm.ReadPropertyString(mainPipe, driPipelineData.BelongsToAlignment);
+                            psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, alignmentName);
+                        }
+                    }
+                    #endregion
+
+                    #region Place stik tee blocks
+                    //Gather locations of points
+
+                    #endregion
+
+                    #region Place weldpoints
+                    ////Prepare modelspace
+                    //BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
+                    //modelSpace.CheckOrOpenForWrite();
+                    ////Prepare block table record
+                    //if (!bt.Has(blockName)) throw new System.Exception("Block for weld points is missing!");
+                    //Oid btrId = bt[blockName];
+                    //BlockTableRecord btrWp = btrId.Go<BlockTableRecord>(tx);
+                    //List<AttributeDefinition> attDefs = new List<AttributeDefinition>();
+                    //foreach (Oid arOid in btrWp)
+                    //{
+                    //    if (!arOid.IsDerivedFrom<AttributeDefinition>()) continue;
+                    //    AttributeDefinition at = arOid.Go<AttributeDefinition>(tx);
+                    //    if (!at.Constant) attDefs.Add(at);
+                    //}
+
+                    //foreach (var alGroup in groupedByAlignment.OrderBy(x => x.Key))
+                    //{
+                    //    prdDbg($"Placing welds for alignment: {alGroup.First().Alignment.Name}...");
+                    //    System.Windows.Forms.Application.DoEvents();
+                    //    IOrderedEnumerable<WeldPointData> orderedByDist;
+                    //    if (alGroup.First().IterationType == TypeOfIteration.Forward)
+                    //        orderedByDist = alGroup.OrderBy(x => x.Station);
+                    //    else orderedByDist = alGroup.OrderByDescending(x => x.Station);
+
+                    //    Regex regex = new Regex(@"(?<number>^\d\d)");
+                    //    string currentPipelineNumber = "";
+                    //    if (regex.IsMatch(alGroup.First().Alignment.Name))
+                    //    {
+                    //        Match match = regex.Match(alGroup.First().Alignment.Name);
+                    //        currentPipelineNumber = match.Groups["number"].Value;
+                    //    }
+
+                    //    int idx = 1;
+                    //    foreach (var wp in orderedByDist)
+                    //    {
+                    //        Polyline pline = wp.Alignment.GetPolyline().Go<Polyline>(alTx);
+                    //        Point3d temp = pline.GetClosestPointTo(wp.WeldPoint, false);
+                    //        double station = 0;
+                    //        double offset = 0;
+                    //        wp.Alignment.StationOffset(temp.X, temp.Y, ref station, ref offset);
+                    //        Vector3d deriv = pline.GetFirstDerivative(pline.GetClosestPointTo(wp.WeldPoint, false));
+                    //        double rotation = Math.Atan2(deriv.Y, deriv.X);
+                    //        //BlockReference wpBr = localDb.CreateBlockWithAttributes(blockName, wp.WeldPoint, rotation);
+                    //        var wpBr = new BlockReference(wp.WeldPoint, btrId);
+                    //        wpBr.Rotation = rotation;
+                    //        wpBr.Layer = blockLayerName;
+
+                    //        modelSpace.AppendEntity(wpBr);
+                    //        tx.AddNewlyCreatedDBObject(wpBr, true);
+
+                    //        foreach (AttributeDefinition attDef in attDefs)
+                    //        {
+                    //            AttributeReference atRef = new AttributeReference();
+                    //            atRef.SetAttributeFromBlock(attDef, wpBr.BlockTransform);
+                    //            atRef.Position = attDef.Position.TransformBy(wpBr.BlockTransform);
+                    //            atRef.TextString = attDef.getTextWithFieldCodes();
+                    //            wpBr.AttributeCollection.AppendAttribute(atRef);
+                    //            tx.AddNewlyCreatedDBObject(atRef, true);
+                    //        }
+
+                    //        if (!noNumbers)
+                    //            wpBr.SetAttributeStringValue("NUMMER", currentPipelineNumber + "." + idx.ToString("D3"));
+
+                    //        //if (idx == 1) DisplayDynBlockProperties(editor, wpBr, wpBr.Name);
+                    //        SetDynBlockProperty(wpBr, "Type", wp.DN.ToString());
+                    //        SetDynBlockProperty(wpBr, "System", wp.System);
+
+                    //        psm.WritePropertyString(wpBr, driPipelineData.BelongsToAlignment, wp.Alignment.Name);
+
+                    //        wpBr.RecordGraphicsModified(true);
+
+                    //        idx++;
+                    //   }
+                    //}
+                    #endregion
+
+                    //BlockTableRecord btr = bt[blockName].Go<BlockTableRecord>(tx);
+                    //btr.SynchronizeAttributes();
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ExceptionInfo());
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("DELETESTIKPOINTS")]
+        [CommandMethod("DSP")]
+        public void deletestikpoints()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                #region Delete previous blocks
+                //Delete previous blocks
+                var existingBlocks = localDb.GetBlockReferenceByName("STIKAFGRENING");
+                prdDbg(existingBlocks.Count.ToString());
+                foreach (BlockReference br in existingBlocks)
+                {
+                    br.CheckOrOpenForWrite();
+                    br.Erase(true);
+                }
+                //Delete previous blocks
+                existingBlocks = localDb.GetBlockReferenceByName("STIKTEE");
+                foreach (BlockReference br in existingBlocks)
+                {
+                    br.CheckOrOpenForWrite();
+                    br.Erase(true);
+                }
+                #endregion
                 tx.Commit();
             }
         }
@@ -7442,7 +7746,7 @@ namespace IntersectUtilities
                         //Write stikgruppe to the ps
                         foreach (Polyline pl in group)
                             psm.WritePropertyString(pl, driPipelineData.BelongsToAlignment, $"Stik {stikGruppeCount}");
-                            
+
                         #region Rearrange stik so that polylines always start at source
                         #region Find the one (root) connected to supply line
                         Polyline root = default;
@@ -14424,24 +14728,24 @@ namespace IntersectUtilities
                 try
                 {
                     #region Test enum list
-                    StringBuilder sb = new StringBuilder();
-                    HashSet<int> nums = new HashSet<int>()
-                    {
-                        1, 2, 4, 8, 16, 32, 64
-                    };
+                    //StringBuilder sb = new StringBuilder();
+                    //HashSet<int> nums = new HashSet<int>()
+                    //{
+                    //    1, 2, 4, 8, 16, 32, 64
+                    //};
 
-                    foreach (var num in nums)
-                    {
-                        string f = ((Graph.EndType)num).ToString();
-                        foreach (var xum in nums)
-                        {
-                            string s = ((Graph.EndType)xum).ToString();
+                    //foreach (var num in nums)
+                    //{
+                    //    string f = ((Graph.EndType)num).ToString();
+                    //    foreach (var xum in nums)
+                    //    {
+                    //        string s = ((Graph.EndType)xum).ToString();
 
-                            sb.AppendLine($"{f}-{s}");
-                        }
-                    }
+                    //        sb.AppendLine($"{f}-{s}");
+                    //    }
+                    //}
 
-                    OutputWriter(@"C:\Temp\EntTypeEnum.txt", sb.ToString(), true);
+                    //OutputWriter(@"C:\Temp\EntTypeEnum.txt", sb.ToString(), true);
                     #endregion
 
                     #region test regex
@@ -14576,13 +14880,15 @@ namespace IntersectUtilities
                     //PromptEntityResult per = editor.GetEntity(peo);
                     //BlockReference br = per.ObjectId.Go<BlockReference>(tx);
 
-                    //string stringToTry = "Buerør V{$Vinkel} R{$R} L{$L}";
-
-                    ////DynamicBlockReferencePropertyCollection props = br.DynamicBlockReferencePropertyCollection;
-                    ////foreach (DynamicBlockReferenceProperty property in props)
-                    ////{
-                    ////    prdDbg($"Name: {property.PropertyName}, Units: {property.UnitsType}, Value: {property.Value}");
-                    ////}
+                    //DynamicBlockReferencePropertyCollection props = br.DynamicBlockReferencePropertyCollection;
+                    //foreach (DynamicBlockReferenceProperty property in props)
+                    //{
+                    //    prdDbg($"Name: {property.PropertyName}, Units: {property.UnitsType}, Value: {property.Value}");
+                    //    if (property.PropertyName == "Type")
+                    //    {
+                    //        property.Value = "Type 2";
+                    //    }
+                    //}
 
                     ////Construct pattern which matches the parameter definition
                     //Regex variablePattern = new Regex(@"{\$(?<Parameter>[a-zæøåA-ZÆØÅ0-9_:-]*)}");
@@ -14611,7 +14917,7 @@ namespace IntersectUtilities
                     //        stringToProcess = ConstructStringByRegex(stringToProcess);
                     //    }
 
-                    //    return stringToProcess; 
+                    //    return stringToProcess;
                     //}
 
                     //string ReadDynamicPropertyValue(BlockReference block, string propertyName)
