@@ -938,6 +938,8 @@ namespace IntersectUtilities
                 {
                     if (prop.PropertyName == propertyName)
                     {
+                        //prdDbg(prop.Value.ToString());
+                        //prdDbg(prop.UnitsType.ToString());
                         prop.Value = propertyValue;
                         break;
                     }

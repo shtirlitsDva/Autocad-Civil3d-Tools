@@ -4765,15 +4765,83 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            //////////////////////////////////////
+            string blockLayerName = "0-STIKKOMPONENTER";
+            string stikAfgrBlockName = "STIKAFGRENING";
+            string stikTeeBlockName = "STIKTEE";
+            string textLayerName = "0-DEBUG-TXT";
+            //////////////////////////////////////
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                //////////////////////////////////////
-                string blockLayerName = "0-STIKKOMPONENTER";
-                string stikAfgrBlockName = "STIKAFGRENING";
-                string stikTeeBlockName = "STIKTEE";
-                string textLayerName = "0-DEBUG-TXT";
-                //////////////////////////////////////
+                try
+                {
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
 
+                    #region Import stik blocks if missing
+                    if (!bt.Has(stikAfgrBlockName))
+                    {
+                        prdDbg("Block for stik branch is missing! Importing...");
+                        Database blockDb = new Database(false, true);
+                        blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
+                        //blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Dev.dwg",
+                            FileOpenMode.OpenForReadAndAllShare, false, null);
+                        Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+
+                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+
+                        BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                        ObjectIdCollection idsToClone = new ObjectIdCollection();
+                        
+                        if (sourceBt.Has(stikAfgrBlockName))
+                        idsToClone.Add(sourceBt[stikAfgrBlockName]);
+
+                        IdMapping mapping = new IdMapping();
+                        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                        blockTx.Commit();
+                        blockTx.Dispose();
+                        blockDb.Dispose();
+                    }
+                    //if (!bt.Has(stikTeeBlockName))
+                    //{
+                    //    prdDbg("Block for stik tee is missing! Importing...");
+                    //    Database blockDb = new Database(false, true);
+                    //    blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
+                    //        FileOpenMode.OpenForReadAndAllShare, false, null);
+                    //    Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+
+                    //    Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                    //    Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+
+                    //    BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    //    ObjectIdCollection idsToClone = new ObjectIdCollection();
+
+                    //    if (sourceBt.Has(stikTeeBlockName))
+                    //    {
+                    //        idsToClone.Add(sourceBt[stikTeeBlockName]);
+                    //        IdMapping mapping = new IdMapping();
+                    //        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                    //    }    
+                    
+                    //    blockTx.Commit();
+                    //    blockTx.Dispose();
+                    //    blockDb.Dispose();
+                    //}
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ExceptionInfo());
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
                 #region Initialize property set
                 PropertySetManager psm = new PropertySetManager(
                     localDb,
@@ -4807,53 +4875,6 @@ namespace IntersectUtilities
                     #region Read components file
                     System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
                             @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-                    #endregion
-
-                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-
-                    #region Import stik blocks if missing
-                    if (!bt.Has(stikAfgrBlockName))
-                    {
-                        prdDbg("Block for stik branch is missing! Importing...");
-                        Database blockDb = new Database(false, true);
-                        blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
-                            FileOpenMode.OpenForReadAndAllShare, false, null);
-                        Transaction blockTx = blockDb.TransactionManager.StartTransaction();
-
-                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
-                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
-
-                        BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                        ObjectIdCollection idsToClone = new ObjectIdCollection();
-                        idsToClone.Add(sourceBt[stikAfgrBlockName]);
-
-                        IdMapping mapping = new IdMapping();
-                        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
-                        blockTx.Commit();
-                        blockTx.Dispose();
-                        blockDb.Dispose();
-                    }
-                    if (!bt.Has(stikTeeBlockName))
-                    {
-                        prdDbg("Block for stik tee is missing! Importing...");
-                        Database blockDb = new Database(false, true);
-                        blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
-                            FileOpenMode.OpenForReadAndAllShare, false, null);
-                        Transaction blockTx = blockDb.TransactionManager.StartTransaction();
-
-                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
-                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
-
-                        BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                        ObjectIdCollection idsToClone = new ObjectIdCollection();
-                        idsToClone.Add(sourceBt[stikAfgrBlockName]);
-
-                        IdMapping mapping = new IdMapping();
-                        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
-                        blockTx.Commit();
-                        blockTx.Dispose();
-                        blockDb.Dispose();
-                    }
                     #endregion
 
                     HashSet<Polyline> allPipes = localDb.GetFjvPipes(tx);
@@ -4905,10 +4926,10 @@ namespace IntersectUtilities
                                     break;
                             }
 
-                            SetDynBlockPropertyObject(br, "Type", mainPipeDn < 50 ? "Type 1" : "Type 2");
-                            SetDynBlockPropertyObject(br, "DN1", mainPipeDn);
-                            SetDynBlockPropertyObject(br, "DN2", GetPipeDN(stikPipe));
-                            SetDynBlockPropertyObject(br, "System", pipeType);
+                            Utils.SetDynBlockPropertyObject(br, "StikType", mainPipeDn < 50 ? "Type 1" : "Type 2");
+                            Utils.SetDynBlockPropertyObject(br, "DN1", (double)mainPipeDn);
+                            Utils.SetDynBlockPropertyObject(br, "DN2", (double)GetPipeDN(stikPipe));
+                            Utils.SetDynBlockPropertyObject(br, "System", pipeType);
 
                             string alignmentName = psm.ReadPropertyString(mainPipe, driPipelineData.BelongsToAlignment);
                             psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, alignmentName);
