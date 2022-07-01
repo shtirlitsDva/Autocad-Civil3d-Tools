@@ -448,7 +448,7 @@ namespace IntersectUtilities
                         //Find the child the con is referencing to
                         GraphEntity child = GraphEntities.Where(x => x.OwnerHandle == con.ConHandle).FirstOrDefault();
                         //if it is the con refering back to the parent -> skip it
-                        if (child.OwnerHandle == current.OwnerHandle) continue;
+                        if (child == default || child.OwnerHandle == current.OwnerHandle) continue;
                         //Also skip if child has already been visited
                         //This prevents from making circular graphs I think
                         //Comment next line out to test circular graphs

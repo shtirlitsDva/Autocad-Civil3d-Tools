@@ -4795,10 +4795,12 @@ namespace IntersectUtilities
                         ObjectIdCollection idsToClone = new ObjectIdCollection();
                         
                         if (sourceBt.Has(stikAfgrBlockName))
-                        idsToClone.Add(sourceBt[stikAfgrBlockName]);
-
-                        IdMapping mapping = new IdMapping();
-                        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                        {
+                            idsToClone.Add(sourceBt[stikAfgrBlockName]);
+                            IdMapping mapping = new IdMapping();
+                            blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                        }
+                        
                         blockTx.Commit();
                         blockTx.Dispose();
                         blockDb.Dispose();
