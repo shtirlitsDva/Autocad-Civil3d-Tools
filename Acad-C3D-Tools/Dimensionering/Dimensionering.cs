@@ -1148,6 +1148,18 @@ namespace IntersectUtilities.Dimensionering
                         .Select(x => x.Key)
                         .Distinct();
 
+                    //Check to see if any addresses are duplicates
+                    var dupQuery = brs.GroupBy(x => da(x));
+                    if (dupQuery.Any(x => x.Count() > 1))
+                    {
+                        prdDbg("ADVARSEL! Dublikatadresser fundet! Skal rettes før det virker.");
+                        foreach (var dupGroup in dupQuery.Where(x => x.Count() > 1))
+                        {
+                            prdDbg($"Dublikat: {dupGroup.Key}");
+                        }
+                        throw new System.Exception("Dublikatadresser!");
+                    }
+
                     //Prepare dicts and lookups for processing
                     var brDict = brs.ToDictionary(x => da(x));
                     #endregion
@@ -4145,7 +4157,7 @@ namespace IntersectUtilities.Dimensionering
 
                                 dimList.Add(new DimEntry(item.name, dim));
                             }
-                            
+
                         }
                     }
                     #endregion
