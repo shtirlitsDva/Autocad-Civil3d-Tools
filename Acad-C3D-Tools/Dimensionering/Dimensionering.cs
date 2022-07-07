@@ -967,9 +967,18 @@ namespace IntersectUtilities.Dimensionering
                         oXL.Calculation = XlCalculation.xlCalculationManual;
                         #endregion
 
-                        Dimensionering.dimadressedumptoexcel(wb, group, plLookup[group.Key], dimAfkøling);
+                        try
+                        {
+                            Dimensionering.dimadressedumptoexcel(wb, group, plLookup[group.Key], dimAfkøling);
 
-                        Dimensionering.dimwriteallexcel(wb, group.Key, basePath);
+                            Dimensionering.dimwriteallexcel(wb, group.Key, basePath);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            wb.Close();
+                            oXL.Quit();
+                            throw;
+                        }
 
                         #region Close workbook
                         oXL.Calculation = XlCalculation.xlCalculationAutomatic;
@@ -3967,7 +3976,11 @@ namespace IntersectUtilities.Dimensionering
                         List<ExcelSheet> sheets = new List<ExcelSheet>();
                         foreach (Path path in paths) sheets.AddRange(path.Sheets);
                         var orderedSheets = sheets.OrderBy(x => x.SheetNumber);
-                        prdDbg($"Number of sheets total: {sheets.Count}");
+                        if (sheets.Count > 100)
+                        {
+                            throw new System.Exception($"FEJL! For mange sheets: {sheets.Count}. Skal være mindre eller lig med 100.");
+                        }
+                        else prdDbg($"Number of sheets total: {sheets.Count}");
 
                         foreach (ExcelSheet sheet in sheets)
                         {
@@ -4670,7 +4683,7 @@ namespace IntersectUtilities.Dimensionering
         internal int GetNextNumber()
         {
             CurrentSheetNumber++;
-            TestValidity();
+            //TestValidity();
             return CurrentSheetNumber;
         }
         internal int SheetOffset { get; private set; } = 0;
