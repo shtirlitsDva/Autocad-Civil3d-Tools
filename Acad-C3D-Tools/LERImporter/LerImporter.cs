@@ -287,7 +287,15 @@ namespace LERImporter
                     ler2dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Templates\LerTemplate.dwt",
                                 FileOpenMode.OpenForReadAndAllShare, false, null);
                     //Build the new future file name of the drawing
-                    string newFilename = $"{folderPath}LER_2D.dwg";
+                    var query = gf.featureCollection.Where(x => x.item is Schema.Graveforesp);
+                    string bemaerkning = default;
+                    if (query.Count() > 0)
+                    {
+                        Schema.Graveforesp gfsp = query.First().item as Schema.Graveforesp;
+                        bemaerkning = gfsp.bemaerkning;
+                        if (bemaerkning.IsNotNoE()) bemaerkning += "_";
+                    }
+                    string newFilename = $"{folderPath}{bemaerkning ?? ""}LER_2D.dwg";
                     Log.log($"Writing Ler 2D to new dwg file:\n" + $"{newFilename}.");
                     //ler2dDb.SaveAs(newFilename, true, DwgVersion.Newest, null);
 

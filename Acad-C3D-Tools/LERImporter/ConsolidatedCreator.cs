@@ -38,7 +38,7 @@ namespace LERImporter
             #region Redirect objects to collections
             //Redirect objects to collections
             //int i = 0;
-            foreach (FeatureMember fm in fc.featureMember)
+            foreach (FeatureMember fm in fc.featureCollection)
             {
                 //i++; prdDbg($"Switching item {i}.");
                 System.Windows.Forms.Application.DoEvents();
