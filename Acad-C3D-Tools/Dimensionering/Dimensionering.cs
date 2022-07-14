@@ -126,7 +126,9 @@ namespace IntersectUtilities.Dimensionering
 
                 try
                 {
-                    int j = 0;
+                    var pm = new ProgressMeter();
+                    pm.Start("Importing BBR features...");
+                    pm.SetLimit(BBR.features.Count);
                     foreach (ImportFraBBR.Feature feature in BBR.features)
                     {
                         try
@@ -199,7 +201,10 @@ namespace IntersectUtilities.Dimensionering
                                 }
                             }
                         }
+
+                        pm.MeterProgress();
                     }
+                    pm.Stop();
                 }
                 catch (System.Exception ex)
                 {
