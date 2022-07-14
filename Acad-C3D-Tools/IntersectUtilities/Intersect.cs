@@ -4957,8 +4957,8 @@ namespace IntersectUtilities
                             Curve nextCurve = item.Owner as Curve;
                             Vector3d stikDeriv = nextCurve.GetFirstDerivative(nextCurve.StartPoint);
                             //First eliminate the parallel pipe
-                            if (Math.Abs(deriv.CrossProduct(stikDeriv).Z) > 1)
-                                if (deriv.CrossProduct(stikDeriv).Z > 0)
+                            if (Math.Abs(deriv.CrossProduct(stikDeriv).Z) > 1.0)
+                                if (deriv.CrossProduct(stikDeriv).Z > 0.0)
                                     rotation += Math.PI;
                         }
 
@@ -4989,7 +4989,7 @@ namespace IntersectUtilities
                         {
                             Curve nextCurve = x.Owner as Curve;
                             Vector3d stikDeriv = nextCurve.GetFirstDerivative(nextCurve.StartPoint);
-                            if (Math.Abs(deriv.CrossProduct(stikDeriv).Z) < 1) return true;
+                            if (Math.Abs(deriv.CrossProduct(stikDeriv).Z) < 1.0) return true;
                             else return false;
                         });
 
@@ -5001,7 +5001,7 @@ namespace IntersectUtilities
                         {
                             Curve nextCurve = x.Owner as Curve;
                             Vector3d stikDeriv = nextCurve.GetFirstDerivative(nextCurve.StartPoint);
-                            if (Math.Abs(deriv.CrossProduct(stikDeriv).Z) > 1) return true;
+                            if (Math.Abs(deriv.CrossProduct(stikDeriv).Z) > 1.0) return true;
                             else return false;
                         });
 
