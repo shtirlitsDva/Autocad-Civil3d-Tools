@@ -135,7 +135,7 @@ namespace IntersectUtilities.Dimensionering
                         }
                         catch (System.Exception ex)
                         {
-                            prdDbg("Feature " + feature.properties.id_lokalId + " mangler geometry!");
+                            prdDbg("Feature " + feature.properties.id_lokalId + " mangler geometry!1");
                             throw;
                         }
                         var source = feature.geometry.coordinates as IEnumerable;
