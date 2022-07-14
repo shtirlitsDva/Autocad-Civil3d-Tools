@@ -129,6 +129,15 @@ namespace IntersectUtilities.Dimensionering
                     int j = 0;
                     foreach (ImportFraBBR.Feature feature in BBR.features)
                     {
+                        try
+                        {
+                            var test = feature.geometry.coordinates as IEnumerable;
+                        }
+                        catch (System.Exception ex)
+                        {
+                            prdDbg("Feature " + feature.properties.id_lokalId + " mangler geometry!");
+                            throw;
+                        }
                         var source = feature.geometry.coordinates as IEnumerable;
                         double[] coords = new double[2];
                         int i = 0;
