@@ -10569,8 +10569,8 @@ namespace IntersectUtilities
                 try
                 {
                     #region Get the original source component block
-                    psmHandle.GetOrAttachPropertySet(detailingBr);
-                    string originalHandleString = psmHandle.ReadPropertyString(driSourceReference.SourceEntityHandle);
+                    string originalHandleString = psmHandle.ReadPropertyString(
+                        detailingBr, driSourceReference.SourceEntityHandle);
                     prdDbg(originalHandleString);
                     long ln = Convert.ToInt64(originalHandleString, 16);
                     Handle hn = new Handle(ln);
