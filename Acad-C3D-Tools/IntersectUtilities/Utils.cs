@@ -1651,7 +1651,8 @@ namespace IntersectUtilities
             int nrOfSteps = (int)(alLength / stepLength);
             int previousDn = 0;
             int currentDn = 0;
-
+            double previousKod = 0;
+            double currentKod = 0;
             for (int i = 0; i < nrOfSteps + 1; i++)
             {
                 double curStationBA = stepLength * i;
@@ -1666,16 +1667,16 @@ namespace IntersectUtilities
                 {
                     //if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
                     Point3d closestPoint = curve.GetClosestPointTo(curSamplePoint, false);
-                    var pipeSeries = PipeSchedule.GetPipeSeriesV2(curve);
                     if (closestPoint != default)
                         curveDistTuples.Add(
                             (curve, curSamplePoint.DistanceHorizontalTo(closestPoint),
-                                PipeSchedule.GetPipeKOd(curve, pipeSeries)));
+                                PipeSchedule.GetPipeKOd(curve)));
                 }
                 var result = curveDistTuples.MinBy(x => x.dist).FirstOrDefault();
-                //Detect current dn
+                //Detect current dn and kod
                 currentDn = PipeSchedule.GetPipeDN(result.curve);
-                if (currentDn != previousDn)
+                currentKod = result.kappeOd;
+                if (currentDn != previousDn || !currentKod.Equalz(previousKod, 1e-6))
                 {
                     //Set the previous segment end station unless there's 0 segments
                     if (sizes.Count != 0)
@@ -1690,7 +1691,7 @@ namespace IntersectUtilities
                 }
                 //Hand over DN to cache in "previous" variable
                 previousDn = currentDn;
-                //TODO: on the last iteration set the last segment distance
+                previousKod = currentKod;
                 if (i == nrOfSteps)
                 {
                     SizeEntry toUpdate = sizes[sizes.Count - 1];
