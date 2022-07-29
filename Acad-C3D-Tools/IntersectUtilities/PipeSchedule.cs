@@ -726,6 +726,10 @@ namespace IntersectUtilities
             }
 
         }
+        public static double GetPipeKOd(Entity ent)
+        {
+            return GetPipeKOd(ent, GetPipeSeriesV2(ent));
+        }
         public static string GetPipeSeries(Entity ent) => "S3";
         public static PipeSeriesEnum GetPipeSeriesV2(Entity ent)
         {

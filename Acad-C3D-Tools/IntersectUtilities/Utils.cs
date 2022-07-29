@@ -1651,6 +1651,7 @@ namespace IntersectUtilities
             int nrOfSteps = (int)(alLength / stepLength);
             int previousDn = 0;
             int currentDn = 0;
+
             for (int i = 0; i < nrOfSteps + 1; i++)
             {
                 double curStationBA = stepLength * i;
