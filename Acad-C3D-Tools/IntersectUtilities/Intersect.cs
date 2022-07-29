@@ -3339,12 +3339,74 @@ namespace IntersectUtilities
         public void decoratepolylines()
         {
             DocumentCollection docCol = Application.DocumentManager;
-            Database db = docCol.MdiActiveDocument.Database;
+            Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-            using (Transaction tx = db.TransactionManager.StartTransaction())
+            //////////////////////////////////////
+            string verticeArcName = "VerticeArc";
+            string verticeLineName = "VerticeLine";
+            //////////////////////////////////////
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                    #region Import vertice blocks
+                    if (!bt.Has(verticeArcName) || !bt.Has(verticeLineName))
+                    {
+                        Database blockDb = new Database(false, true);
+                        blockDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg",
+                            //blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Dev.dwg",
+                            FileOpenMode.OpenForReadAndAllShare, false, null);
+                        Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+
+                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                        Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+
+                        BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                        ObjectIdCollection idsToClone = new ObjectIdCollection();
+
+                        if (!bt.Has(verticeArcName))
+                            if (sourceBt.Has(verticeArcName))
+                            {
+                                prdDbg("Block for stik branch is missing! Importing...");
+                                idsToClone.Add(sourceBt[verticeArcName]);
+                            }
+
+                        if (!bt.Has(verticeLineName))
+                            if (sourceBt.Has(verticeLineName))
+                            {
+                                prdDbg("Block for stik tee is missing! Importing...");
+                                idsToClone.Add(sourceBt[verticeLineName]);
+                            }
+
+                        if (idsToClone.Count > 0)
+                        {
+                            IdMapping mapping = new IdMapping();
+                            blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                        }
+
+                        blockTx.Commit();
+                        blockTx.Dispose();
+                        blockDb.Dispose();
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ExceptionInfo());
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 Database xRefFjvDB = null;
                 Transaction xRefFjvTx = null;
@@ -3386,7 +3448,7 @@ namespace IntersectUtilities
                     string localLayerName = "0-PLDECORATOR";
                     bool localLayerExists = false;
 
-                    LayerTable lt = tx.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
                     if (lt.Has(localLayerName))
                     {
                         localLayerExists = true;
@@ -3423,8 +3485,8 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Decorate polyline vertices
-                    BlockTableRecord space = (BlockTableRecord)tx.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
-                    BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForWrite) as BlockTable;
+                    BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
 
                     #region Delete previous blocks
 
@@ -3432,7 +3494,7 @@ namespace IntersectUtilities
 
                     foreach (string name in blockNameList)
                     {
-                        var existingBlocks = db.GetBlockReferenceByName(name)
+                        var existingBlocks = localDb.GetBlockReferenceByName(name)
                             .Where(x => x.Layer == localLayerName)
                             .ToList();
                         editor.WriteMessage($"\n{existingBlocks.Count} existing blocks found of name {name}.");
