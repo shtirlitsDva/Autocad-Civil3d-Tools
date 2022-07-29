@@ -126,9 +126,20 @@ namespace IntersectUtilities.Dimensionering
 
                 try
                 {
-                    int j = 0;
+                    var pm = new ProgressMeter();
+                    pm.Start("Importing BBR features...");
+                    pm.SetLimit(BBR.features.Count);
                     foreach (ImportFraBBR.Feature feature in BBR.features)
                     {
+                        try
+                        {
+                            var test = feature.geometry.coordinates as IEnumerable;
+                        }
+                        catch (System.Exception ex)
+                        {
+                            prdDbg("Feature " + feature.properties.id_lokalId + " mangler geometry!1");
+                            throw;
+                        }
                         var source = feature.geometry.coordinates as IEnumerable;
                         double[] coords = new double[2];
                         int i = 0;
@@ -190,7 +201,10 @@ namespace IntersectUtilities.Dimensionering
                                 }
                             }
                         }
+
+                        pm.MeterProgress();
                     }
+                    pm.Stop();
                 }
                 catch (System.Exception ex)
                 {
@@ -967,9 +981,18 @@ namespace IntersectUtilities.Dimensionering
                         oXL.Calculation = XlCalculation.xlCalculationManual;
                         #endregion
 
-                        Dimensionering.dimadressedumptoexcel(wb, group, plLookup[group.Key], dimAfkøling);
+                        try
+                        {
+                            Dimensionering.dimadressedumptoexcel(wb, group, plLookup[group.Key], dimAfkøling);
 
-                        Dimensionering.dimwriteallexcel(wb, group.Key, basePath);
+                            Dimensionering.dimwriteallexcel(wb, group.Key, basePath);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            wb.Close();
+                            oXL.Quit();
+                            throw;
+                        }
 
                         #region Close workbook
                         oXL.Calculation = XlCalculation.xlCalculationAutomatic;
@@ -1147,6 +1170,18 @@ namespace IntersectUtilities.Dimensionering
                     var areaNames = groups
                         .Select(x => x.Key)
                         .Distinct();
+
+                    //Check to see if any addresses are duplicates
+                    var dupQuery = brs.GroupBy(x => da(x));
+                    if (dupQuery.Any(x => x.Count() > 1))
+                    {
+                        prdDbg("ADVARSEL! Dublikatadresser fundet! Skal rettes før det virker.");
+                        foreach (var dupGroup in dupQuery.Where(x => x.Count() > 1))
+                        {
+                            prdDbg($"Dublikat: {dupGroup.Key}");
+                        }
+                        throw new System.Exception("Dublikatadresser!");
+                    }
 
                     //Prepare dicts and lookups for processing
                     var brDict = brs.ToDictionary(x => da(x));
@@ -3955,7 +3990,11 @@ namespace IntersectUtilities.Dimensionering
                         List<ExcelSheet> sheets = new List<ExcelSheet>();
                         foreach (Path path in paths) sheets.AddRange(path.Sheets);
                         var orderedSheets = sheets.OrderBy(x => x.SheetNumber);
-                        prdDbg($"Number of sheets total: {sheets.Count}");
+                        if (sheets.Count > 100)
+                        {
+                            throw new System.Exception($"FEJL! For mange sheets: {sheets.Count}. Skal være mindre eller lig med 100.");
+                        }
+                        else prdDbg($"Number of sheets total: {sheets.Count}");
 
                         foreach (ExcelSheet sheet in sheets)
                         {
@@ -4145,7 +4184,7 @@ namespace IntersectUtilities.Dimensionering
 
                                 dimList.Add(new DimEntry(item.name, dim));
                             }
-                            
+
                         }
                     }
                     #endregion
@@ -4658,7 +4697,7 @@ namespace IntersectUtilities.Dimensionering
         internal int GetNextNumber()
         {
             CurrentSheetNumber++;
-            TestValidity();
+            //TestValidity();
             return CurrentSheetNumber;
         }
         internal int SheetOffset { get; private set; } = 0;

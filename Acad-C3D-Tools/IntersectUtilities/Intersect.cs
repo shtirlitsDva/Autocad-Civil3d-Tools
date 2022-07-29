@@ -48,6 +48,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
+using System.Windows.Documents;
 
 namespace IntersectUtilities
 {
@@ -4754,7 +4755,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        
+
         [CommandMethod("CREATESTIKPOINTS")]
         [CommandMethod("CSP")]
         public void createstikpoints()
@@ -4779,12 +4780,11 @@ namespace IntersectUtilities
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
 
                     #region Import stik blocks if missing
-                    if (!bt.Has(stikAfgrBlockName))
+                    if (!bt.Has(stikAfgrBlockName) || !bt.Has(stikTeeBlockName))
                     {
-                        prdDbg("Block for stik branch is missing! Importing...");
                         Database blockDb = new Database(false, true);
                         blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
-                        //blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Dev.dwg",
+                            //blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Dev.dwg",
                             FileOpenMode.OpenForReadAndAllShare, false, null);
                         Transaction blockTx = blockDb.TransactionManager.StartTransaction();
 
@@ -4793,43 +4793,31 @@ namespace IntersectUtilities
 
                         BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                         ObjectIdCollection idsToClone = new ObjectIdCollection();
-                        
-                        if (sourceBt.Has(stikAfgrBlockName))
+
+                        if (!bt.Has(stikAfgrBlockName))
+                            if (sourceBt.Has(stikAfgrBlockName))
+                            {
+                                prdDbg("Block for stik branch is missing! Importing...");
+                                idsToClone.Add(sourceBt[stikAfgrBlockName]);
+                            }
+
+                        if (!bt.Has(stikTeeBlockName))
+                            if (sourceBt.Has(stikTeeBlockName))
+                            {
+                                prdDbg("Block for stik tee is missing! Importing...");
+                                idsToClone.Add(sourceBt[stikTeeBlockName]);
+                            }
+
+                        if (idsToClone.Count > 0)
                         {
-                            idsToClone.Add(sourceBt[stikAfgrBlockName]);
                             IdMapping mapping = new IdMapping();
                             blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
                         }
-                        
+
                         blockTx.Commit();
                         blockTx.Dispose();
                         blockDb.Dispose();
                     }
-                    //if (!bt.Has(stikTeeBlockName))
-                    //{
-                    //    prdDbg("Block for stik tee is missing! Importing...");
-                    //    Database blockDb = new Database(false, true);
-                    //    blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
-                    //        FileOpenMode.OpenForReadAndAllShare, false, null);
-                    //    Transaction blockTx = blockDb.TransactionManager.StartTransaction();
-
-                    //    Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
-                    //    Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
-
-                    //    BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                    //    ObjectIdCollection idsToClone = new ObjectIdCollection();
-
-                    //    if (sourceBt.Has(stikTeeBlockName))
-                    //    {
-                    //        idsToClone.Add(sourceBt[stikTeeBlockName]);
-                    //        IdMapping mapping = new IdMapping();
-                    //        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
-                    //    }    
-                    
-                    //    blockTx.Commit();
-                    //    blockTx.Dispose();
-                    //    blockDb.Dispose();
-                    //}
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -4881,7 +4869,7 @@ namespace IntersectUtilities
 
                     HashSet<Polyline> allPipes = localDb.GetFjvPipes(tx);
                     var mainPipes = allPipes.Where(x => GetPipeSystem(x) == PipeSystemEnum.Stål);
-                    HashSet<PipeSystemEnum> stikSystems = 
+                    HashSet<PipeSystemEnum> stikSystems =
                         new HashSet<PipeSystemEnum>() { PipeSystemEnum.AluPex, PipeSystemEnum.Kobberflex };
                     var stikPipes = allPipes.Where(x => stikSystems.Contains(GetPipeSystem(x)));
 
@@ -4941,7 +4929,93 @@ namespace IntersectUtilities
 
                     #region Place stik tee blocks
                     //Gather locations of points
+                    HashSet<Graph.POI> pois = new HashSet<Graph.POI>();
+                    foreach (var stik in stikPipes)
+                    {
+                        pois.Add(new Graph.POI(stik, stik.StartPoint.To2D(), Graph.EndType.Start,
+                            null, null));
+                        pois.Add(new Graph.POI(stik, stik.EndPoint.To2D(), Graph.EndType.End,
+                            null, null));
+                    }
 
+                    var teeClusters = pois
+                        .GroupByCluster((x, y) => x.Point.GetDistanceTo(y.Point), 0.01)
+                        .Where(x => x.Count() > 2);
+
+                    foreach (var cluster in teeClusters)
+                    {
+                        Graph.POI end = cluster.FirstOrDefault(x => x.EndType == Graph.EndType.End);
+                        var starts = cluster.Where(x => x.EndType == Graph.EndType.Start);
+
+                        //Rotation of block on main stikpipe
+                        Curve curve = end.Owner as Curve;
+                        Vector3d deriv = curve.GetFirstDerivative(curve.EndPoint);
+                        double rotation = Math.Atan2(deriv.Y, deriv.X);
+
+                        foreach (var item in starts)
+                        {
+                            Curve nextCurve = item.Owner as Curve;
+                            Vector3d stikDeriv = nextCurve.GetFirstDerivative(nextCurve.StartPoint);
+                            //First eliminate the parallel pipe
+                            if (Math.Abs(deriv.CrossProduct(stikDeriv).Z) > 1.0)
+                                if (deriv.CrossProduct(stikDeriv).Z > 0.0)
+                                    rotation += Math.PI;
+                        }
+
+                        BlockReference br = localDb
+                            .CreateBlockWithAttributes(stikTeeBlockName, curve.EndPoint, rotation);
+
+                        int mainPipeDn = GetPipeDN(curve);
+                        PipeTypeEnum type = GetPipeType(curve);
+                        string pipeType = "Enkelt";
+                        switch (type)
+                        {
+                            case PipeTypeEnum.Ukendt:
+                                pipeType = "Twin";
+                                break;
+                            case PipeTypeEnum.Twin:
+                                pipeType = "Twin";
+                                break;
+                            case PipeTypeEnum.Frem:
+                            case PipeTypeEnum.Retur:
+                                break;
+                            default:
+                                break;
+                        }
+
+                        double DN2; double DN3;
+                        //First get DN of continuous pipe
+                        var parallelPipe = starts.FirstOrDefault(x =>
+                        {
+                            Curve nextCurve = x.Owner as Curve;
+                            Vector3d stikDeriv = nextCurve.GetFirstDerivative(nextCurve.StartPoint);
+                            if (Math.Abs(deriv.CrossProduct(stikDeriv).Z) < 1.0) return true;
+                            else return false;
+                        });
+
+                        if (parallelPipe != null) DN2 = GetPipeDN(parallelPipe.Owner);
+                        else DN2 = 0.0;
+
+                        //Then get DN of perpendicular pipe
+                        var perpendicularPipe = starts.FirstOrDefault(x =>
+                        {
+                            Curve nextCurve = x.Owner as Curve;
+                            Vector3d stikDeriv = nextCurve.GetFirstDerivative(nextCurve.StartPoint);
+                            if (Math.Abs(deriv.CrossProduct(stikDeriv).Z) > 1.0) return true;
+                            else return false;
+                        });
+
+                        if (perpendicularPipe != null) DN3 = GetPipeDN(perpendicularPipe.Owner);
+                        else DN3 = 0.0;
+
+                        Utils.SetDynBlockPropertyObject(br, "DN1", (double)mainPipeDn);
+                        Utils.SetDynBlockPropertyObject(br, "DN2", DN2);
+                        Utils.SetDynBlockPropertyObject(br, "DN3", DN3);
+                        Utils.SetDynBlockPropertyObject(br, "System", pipeType);
+
+                        string alignmentName = psm.ReadPropertyString(curve, driPipelineData.BelongsToAlignment);
+                        psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, alignmentName);
+                    }
                     #endregion
 
                     #region Place weldpoints
@@ -10495,8 +10569,8 @@ namespace IntersectUtilities
                 try
                 {
                     #region Get the original source component block
-                    psmHandle.GetOrAttachPropertySet(detailingBr);
-                    string originalHandleString = psmHandle.ReadPropertyString(driSourceReference.SourceEntityHandle);
+                    string originalHandleString = psmHandle.ReadPropertyString(
+                        detailingBr, driSourceReference.SourceEntityHandle);
                     prdDbg(originalHandleString);
                     long ln = Convert.ToInt64(originalHandleString, 16);
                     Handle hn = new Handle(ln);

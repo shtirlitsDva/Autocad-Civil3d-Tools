@@ -222,7 +222,7 @@ namespace IntersectUtilities
             {
                 { "Start-Start", false },
                 { "Start-End", false },
-                { "Start-Main", false },
+                { "Start-Main", true },
                 { "Start-Branch", false },
                 { "Start-StikAfgrening", false },
                 { "Start-StikStart", false },
@@ -235,7 +235,7 @@ namespace IntersectUtilities
                 { "End-StikStart", true },
                 { "End-StikEnd", false },
                 { "Main-Start", true },
-                { "Main-End", false },
+                { "Main-End", true },
                 { "Main-Main", true },
                 { "Main-Branch", true },
                 { "Main-StikAfgrening", false },
