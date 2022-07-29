@@ -1501,6 +1501,30 @@ namespace IntersectUtilities.UtilsCommon
 
             return source.OrderBy(i => Regex.Replace(selector(i), @"\d+", m => m.Value.PadLeft(max, '0')));
         }
+        public static double StationAtPoint(this Alignment al, Point3d p)
+        {
+            double station = 0.0;
+            double offset = 0.0;
+            Point3d cP = default;
+
+            try
+            {
+                cP = al.GetClosestPointTo(p, false);
+                al.StationOffset(cP.X, cP.Y, ref station, ref offset);
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg($"Alignment {al.Name} threw an exception when sampling station at point:\n" +
+                    $"Entity position: {p}\n" +
+                    $"Sampled position: {cP}");
+                prdDbg(ex.ToString());
+                throw;
+            }
+
+            return station;
+        }
+        public static double StationAtPoint(this Alignment al, BlockReference br)
+            => StationAtPoint(al, br.Position);
     }
     public static class ExtensionMethods
     {

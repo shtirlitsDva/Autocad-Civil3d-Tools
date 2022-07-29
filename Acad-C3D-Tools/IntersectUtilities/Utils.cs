@@ -1599,7 +1599,7 @@ namespace IntersectUtilities
             //Dispatcher constructor
             if (brs == default || brs.Count == 0 || Direction == PipelineSizesDirection.OneSize)
                 SizeArray = ConstructWithCurves(al, curves);
-            else SizeArray = ConstructWithBlocks(al, brs, dynBlocks);
+            else SizeArray = ConstructWithBlocks(al, curves, brs, dynBlocks);
         }
         public PipelineSizeArray(SizeEntry[] sizeArray) { SizeArray = sizeArray; }
         public PipelineSizeArray GetPartialSizeArrayForPV(ProfileView pv)
@@ -1701,14 +1701,27 @@ namespace IntersectUtilities
 
             return sizes.ToArray();
         }
-        private SizeEntry[] ConstructWithBlocks(Alignment al, HashSet<BlockReference> brs, System.Data.DataTable dt)
+        /// <summary>
+        /// Construct SizeArray based on blocks.
+        /// </summary>
+        /// <param name="al">Current alignment.</param>
+        /// <param name="curves">Curves are only here to provide sizes to F- and Y-Models.</param>
+        /// <param name="brs">Size changing blocks and transitions (F- and Y-Models).</param>
+        /// <param name="dt">Dynamic block datatable.</param>
+        /// <returns>SizeArray with sizes for current alignment.</returns>
+        private SizeEntry[] ConstructWithBlocks(Alignment al, HashSet<Curve> curves, HashSet<BlockReference> brs, System.Data.DataTable dt)
         {
             BlockReference[] brsArray = default;
-            if (Direction == PipelineSizesDirection.SmallToLargeAscending)
-                brsArray = brs.OrderBy(x => ReadComponentDN2Int(x, dt)).ToArray();
-            else if (Direction == PipelineSizesDirection.LargeToSmallDescending)
-                brsArray = brs.OrderByDescending(x => ReadComponentDN2Int(x, dt)).ToArray();
-            else brs.ToArray();
+            //Old ordering
+            //if (Direction == PipelineSizesDirection.SmallToLargeAscending)
+            //    brsArray = brs.OrderBy(x => ReadComponentDN2Int(x, dt)).ToArray();
+            //else if (Direction == PipelineSizesDirection.LargeToSmallDescending)
+            //    brsArray = brs.OrderByDescending(x => ReadComponentDN2Int(x, dt)).ToArray();
+            //else brs.ToArray();
+
+            //New ordering based on station on alignment
+            prdDbg("Using new SizeArray ordering method! Beware!");
+            brsArray = brs.OrderBy(x => al.StationAtPoint(x)).ToArray();
 
             List<SizeEntry> sizes = new List<SizeEntry>();
             double alLength = al.Length;
@@ -1755,8 +1768,9 @@ namespace IntersectUtilities
 
                     dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
                     start = end;
-                    Point3d p3d = al.GetClosestPointTo(nextBr.Position, false);
-                    al.StationOffset(p3d.X, p3d.Y, ref end, ref offset);
+                    //Point3d p3d = al.GetClosestPointTo(nextBr.Position, false);
+                    //al.StationOffset(p3d.X, p3d.Y, ref end, ref offset);
+                    end = al.StationAtPoint(nextBr);
                     kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
 
                     sizes.Add(new SizeEntry(dn, start, end, kod));
@@ -1832,7 +1846,14 @@ namespace IntersectUtilities
             if (type == null) throw new System.Exception($"Block with name {br.RealName()} does not exist " +
                 $"in Dynamiske Komponenter!");
 
-            return type == "Reduktion";
+            HashSet<string> transitionTypes = new HashSet<string>()
+            {
+                "Reduktion",
+                "Y-Model",
+                "F-Model"
+            };
+
+            return transitionTypes.Contains(type);
         }
         internal void Reverse()
         {
