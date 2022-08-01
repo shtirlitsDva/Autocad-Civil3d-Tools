@@ -1472,6 +1472,28 @@ namespace IntersectUtilities.UtilsCommon
             if (pl1.EndPoint.HorizontalEqualz(pl2.EndPoint, tol)) return true;
             return false;
         }
+        public static HashSet<Point3d> GetAllEndPoints(this BlockReference br)
+        {
+            HashSet<Point3d> result = new HashSet<Point3d>();
+
+            Transaction tx = GetTopTx(br);
+
+            BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+
+            foreach (Oid oid in btr)
+            {
+                if (!oid.IsDerivedFrom<BlockReference>()) continue;
+                BlockReference nestedBr = oid.Go<BlockReference>(tx);
+                if (!nestedBr.Name.Contains("MuffeIntern")) continue;
+
+                Point3d wPt = nestedBr.Position;
+                wPt = wPt.TransformBy(br.BlockTransform);
+
+                result.Add(wPt);
+            }
+
+            return result;
+        }
         public static T[] ConcatAr<T>(this T[] x, T[] y)
         {
             if (x == null) throw new ArgumentNullException("x");

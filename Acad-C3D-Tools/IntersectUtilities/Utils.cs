@@ -1594,7 +1594,10 @@ namespace IntersectUtilities
 
             //Filter brs
             if (brs != default)
-                brs = brs.Where(x => IsTransition(x, dynBlocks)).ToHashSet();
+                brs = brs.Where(x =>
+                    IsTransition(x, dynBlocks) ||
+                    IsXModel(x, dynBlocks)
+                    ).ToHashSet();
 
             //Dispatcher constructor
             if (brs == default || brs.Count == 0 || Direction == PipelineSizesDirection.OneSize)
@@ -1727,10 +1730,9 @@ namespace IntersectUtilities
             double alLength = al.Length;
 
             int dn = 0;
-            double start = 0;
-            double end = 0;
-            double kod = 0;
-            double offset = 0;
+            double start = 0.0;
+            double end = 0.0;
+            double kod = 0.0;
 
             for (int i = 0; i < brsArray.Length; i++)
             {
@@ -1738,22 +1740,62 @@ namespace IntersectUtilities
 
                 if (i == 0)
                 {
+                    start = 0.0;
+                    end = al.StationAtPoint(curBr);
+
                     //First iteration case
-                    dn = GetDirectionallyCorrectDn(curBr, Side.Left, dt);
-                    start = 0;
-                    Point3d p3d = al.GetClosestPointTo(curBr.Position, false);
-                    al.StationOffset(p3d.X, p3d.Y, ref end, ref offset);
-                    kod = GetDirectionallyCorrectKod(curBr, Side.Left, dt);
+                    if (PipelineSizeArray.IsTransition(curBr, dt))
+                    {
+                        dn = GetDirectionallyCorrectDn(curBr, Side.Left, dt);
+                        //Point3d p3d = al.GetClosestPointTo(curBr.Position, false);
+                        //al.StationOffset(p3d.X, p3d.Y, ref end, ref offset);
+                        kod = GetDirectionallyCorrectKod(curBr, Side.Left, dt); 
+                    }
+                    else
+                    {//F-Model og Y-Model
+                        var ends = curBr.GetAllEndPoints();
+                        //Determine connected curves
+                        var query = curves.Where(x => ends.Any(y => y.IsOnCurve(x, 0.005)));
+                        //Find the curves earlier up the alignment
+                        var minCurve = query.MinBy(
+                            x => al.StationAtPoint(
+                                x.GetPointAtDist(
+                                    x.GetDistAtPoint(x.EndPoint) / 2.0)))
+                            .FirstOrDefault();
+
+                        dn = PipeSchedule.GetPipeDN(minCurve);
+                        kod = PipeSchedule.GetPipeKOd(minCurve);
+                    }
 
                     sizes.Add(new SizeEntry(dn, start, end, kod));
 
+                    //Only one member array case
+                    //This is an edge case of first iteration
                     if (brsArray.Length == 1)
                     {
-                        //Only one member array case
-                        dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
                         start = end;
                         end = alLength;
-                        kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
+
+                        if (PipelineSizeArray.IsTransition(curBr, dt))
+                        {
+                            dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
+                            kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt); 
+                        }
+                        else
+                        {//F-Model og Y-Model
+                            var ends = curBr.GetAllEndPoints();
+                            //Determine connected curves
+                            var query = curves.Where(x => ends.Any(y => y.IsOnCurve(x, 0.005)));
+                            //Find the curves further down the alignment
+                            var maxCurve = query.MaxBy(
+                                x => al.StationAtPoint(
+                                    x.GetPointAtDist(
+                                        x.GetDistAtPoint(x.EndPoint) / 2.0)))
+                                .FirstOrDefault();
+
+                            dn = PipeSchedule.GetPipeDN(maxCurve);
+                            kod = PipeSchedule.GetPipeKOd(maxCurve);
+                        }
 
                         sizes.Add(new SizeEntry(dn, start, end, kod));
                         //This guards against executing further code
@@ -1761,17 +1803,35 @@ namespace IntersectUtilities
                     }
                 }
 
+                //General case
                 if (i != brsArray.Length - 1)
                 {
-                    //General case
                     BlockReference nextBr = brsArray[i + 1];
-
-                    dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
                     start = end;
-                    //Point3d p3d = al.GetClosestPointTo(nextBr.Position, false);
-                    //al.StationOffset(p3d.X, p3d.Y, ref end, ref offset);
                     end = al.StationAtPoint(nextBr);
-                    kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
+
+                    if (PipelineSizeArray.IsTransition(curBr, dt))
+                    {
+                        dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
+                        //Point3d p3d = al.GetClosestPointTo(nextBr.Position, false);
+                        //al.StationOffset(p3d.X, p3d.Y, ref end, ref offset);
+                        kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt); 
+                    }
+                    else
+                    {
+                        var ends = curBr.GetAllEndPoints();
+                        //Determine connected curves
+                        var query = curves.Where(x => ends.Any(y => y.IsOnCurve(x, 0.005)));
+                        //Find the curves further down the alignment
+                        var maxCurve = query.MaxBy(
+                            x => al.StationAtPoint(
+                                x.GetPointAtDist(
+                                    x.GetDistAtPoint(x.EndPoint) / 2.0)))
+                            .FirstOrDefault();
+
+                        dn = PipeSchedule.GetPipeDN(maxCurve);
+                        kod = PipeSchedule.GetPipeKOd(maxCurve);
+                    }
 
                     sizes.Add(new SizeEntry(dn, start, end, kod));
                     //This guards against executing further code
@@ -1779,10 +1839,29 @@ namespace IntersectUtilities
                 }
 
                 //And here ends the last iteration
-                dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
                 start = end;
                 end = alLength;
-                kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
+
+                if (PipelineSizeArray.IsTransition(curBr, dt))
+                {
+                    dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
+                    kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt); 
+                }
+                else
+                {
+                    var ends = curBr.GetAllEndPoints();
+                    //Determine connected curves
+                    var query = curves.Where(x => ends.Any(y => y.IsOnCurve(x, 0.005)));
+                    //Find the curves further down the alignment
+                    var maxCurve = query.MaxBy(
+                        x => al.StationAtPoint(
+                            x.GetPointAtDist(
+                                x.GetDistAtPoint(x.EndPoint) / 2.0)))
+                        .FirstOrDefault();
+
+                    dn = PipeSchedule.GetPipeDN(maxCurve);
+                    kod = PipeSchedule.GetPipeKOd(maxCurve);
+                }
 
                 sizes.Add(new SizeEntry(dn, start, end, kod));
             }
@@ -1839,7 +1918,17 @@ namespace IntersectUtilities
             }
             return 0;
         }
-        private bool IsTransition(BlockReference br, System.Data.DataTable dynBlocks)
+        private static bool IsTransition(BlockReference br, System.Data.DataTable dynBlocks)
+        {
+            string type = ReadStringParameterFromDataTable(br.RealName(), dynBlocks, "Type", 0);
+
+            if (type == null) throw new System.Exception($"Block with name {br.RealName()} does not exist " +
+                $"in Dynamiske Komponenter!");
+
+            return type == "Reduktion";
+        }
+        ///Determines whether the block is an F- or Y-Model
+        private static bool IsXModel(BlockReference br, System.Data.DataTable dynBlocks)
         {
             string type = ReadStringParameterFromDataTable(br.RealName(), dynBlocks, "Type", 0);
 
@@ -1848,7 +1937,6 @@ namespace IntersectUtilities
 
             HashSet<string> transitionTypes = new HashSet<string>()
             {
-                "Reduktion",
                 "Y-Model",
                 "F-Model"
             };
