@@ -9642,7 +9642,12 @@ namespace IntersectUtilities
                                 BlockReference brSign = localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
                                 brSign.SetAttributeStringValue("LEFTSIZE", type);
                                 psmPipeLineData.GetOrAttachPropertySet(br);
-                                if ((new[] { "Parallelafgrening", "Lige afgrening", "Afgrening med spring", "Påsvejsning" }).Contains(type))
+                                if ((new[] { 
+                                    "Parallelafgrening", 
+                                    "Lige afgrening", 
+                                    "Afgrening med spring",
+                                    "Afgrening, parallel",
+                                    "Afgreningsstuds" }).Contains(type))
                                     brSign.SetAttributeStringValue("RIGHTSIZE", psmPipeLineData.ReadPropertyString(driPipelineData.BranchesOffToAlignment));
                                 else brSign.SetAttributeStringValue("RIGHTSIZE", "");
                             }
