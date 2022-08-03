@@ -9493,6 +9493,17 @@ namespace IntersectUtilities
                             .Where(x => psmPipeLineData
                             .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                             .ToHashSet();
+
+                        HashSet<BlockReference> afgreningsStudse = allBrs
+                            .Where(x =>
+                                psmPipeLineData.FilterPropetyString(
+                                    x, driPipelineData.BranchesOffToAlignment, al.Name) &&
+                                x.RealName() == "AFGRSTUDS")
+                            .ToHashSet();
+
+                        //Tilføj afgreningsstudse til blokke
+                        brs.UnionWith(afgreningsStudse);
+
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                         #endregion
 
@@ -9641,14 +9652,14 @@ namespace IntersectUtilities
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
                                 BlockReference brSign = localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
                                 brSign.SetAttributeStringValue("LEFTSIZE", type);
-                                psmPipeLineData.GetOrAttachPropertySet(br);
-                                if ((new[] { 
-                                    "Parallelafgrening", 
-                                    "Lige afgrening", 
+                                if ((new[] {
+                                    "Parallelafgrening",
+                                    "Lige afgrening",
                                     "Afgrening med spring",
-                                    "Afgrening, parallel",
-                                    "Afgreningsstuds" }).Contains(type))
-                                    brSign.SetAttributeStringValue("RIGHTSIZE", psmPipeLineData.ReadPropertyString(driPipelineData.BranchesOffToAlignment));
+                                    "Afgrening, parallel" }).Contains(type))
+                                    brSign.SetAttributeStringValue("RIGHTSIZE", psmPipeLineData.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment));
+                                else if (type == "Afgreningsstuds")
+                                    brSign.SetAttributeStringValue("RIGHTSIZE", psmPipeLineData.ReadPropertyString(br, driPipelineData.BelongsToAlignment));
                                 else brSign.SetAttributeStringValue("RIGHTSIZE", "");
                             }
                             #endregion
