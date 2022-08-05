@@ -307,7 +307,7 @@ namespace IntersectUtilities
                 throw;
             }
         }
-        private static object ReadNonDefinedPropertySetObject(Entity ent, string propertySetName, string propertyName)
+        public static object ReadNonDefinedPropertySetObject(Entity ent, string propertySetName, string propertyName)
         {
             ObjectIdCollection psIds = PropertyDataServices.GetPropertySets(ent);
             List<PropertySet> pss = new List<PropertySet>();

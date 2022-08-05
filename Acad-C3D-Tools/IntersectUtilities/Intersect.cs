@@ -14902,6 +14902,28 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test distinct values PIPE gas
+                    //HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
+
+                    //ListAllUniqueValues("FeatId");
+                    //ListAllUniqueValues("G3E_CID");
+                    //ListAllUniqueValues("G3E_CNO");
+                    //ListAllUniqueValues("G3E_FID");
+                    //ListAllUniqueValues("G3E_FNO");
+                    //ListAllUniqueValues("G3E_ID");
+                    //ListAllUniqueValues("UDLEVER_ID");
+
+                    //void ListAllUniqueValues(string propertyName)
+                    //{
+                    //    var list = plines
+                    //        .Select(x =>
+                    //            PropertySetManager.ReadNonDefinedPropertySetObject(x, "PIPE", propertyName))
+                    //        .Distinct();
+                    //    prdDbg($"{propertyName}: {list.Count()}");
+                    //}
+
+                    #endregion
+
                     #region Test enum list
                     //StringBuilder sb = new StringBuilder();
                     //HashSet<int> nums = new HashSet<int>()
