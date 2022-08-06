@@ -373,6 +373,8 @@ namespace IntersectUtilities
                 //Currently only for one network
                 //Disjoined networks are not handled yet
                 
+                //Warning: this won't work if there's a connection to first pipe in system
+                //Warning: afgreningsstuds or stik pipe
                 GraphEntity ge = GraphEntities.Where(x => x.Cons.Length == 1).MaxBy(x => x.LargestDn()).FirstOrDefault();
 
                 //prdDbg(ge.OwnerHandle.ToString());
@@ -380,6 +382,9 @@ namespace IntersectUtilities
                 {
                     //throw new System.Exception("No entity found!");
                     prdDbg("ERROR: Graph not complete!!!");
+                    prdDbg(
+                        "Check if entry pipe has a connection (afgreningsstuds or stik.)" +
+                        "\nThis could prevent it from registering as entry element.");
                     foreach (var item in GraphEntities)
                     {
                         Entity owner = item.Owner;
