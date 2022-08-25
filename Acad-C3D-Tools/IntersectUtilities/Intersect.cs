@@ -15499,6 +15499,33 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test constant attribute, constant attr is attached to BlockTableRecord and not BR
+                    //PromptEntityOptions peo = new PromptEntityOptions("Select a BR: ");
+                    //PromptEntityResult per = editor.GetEntity(peo);
+                    //BlockReference br = per.ObjectId.Go<BlockReference>(tx);
+
+                    //prdDbg(br.GetAttributeStringValue("VERSION"));
+
+                    //foreach (Oid oid in br.AttributeCollection)
+                    //{
+                    //    AttributeReference ar = oid.Go<AttributeReference>(tx);
+                    //    prdDbg($"Name: {ar.Tag}, Text: {ar.TextString}");
+                    //}
+
+                    //BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+                    //foreach (Oid oid in btr)
+                    //{
+                    //    if (oid.IsDerivedFrom<AttributeDefinition>())
+                    //    {
+                    //        AttributeDefinition attDef = oid.Go<AttributeDefinition>(tx);
+                    //        if (attDef.Tag == "VERSION")
+                    //        {
+                    //            prdDbg($"Constant attribute > Name: {attDef.Tag}, Text: {attDef.TextString}");
+                    //        }
+                    //    }
+                    //}
+                    #endregion
+
                     #region Test distinct values PIPE gas
                     //HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
 
