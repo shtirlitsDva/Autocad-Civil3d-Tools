@@ -394,12 +394,10 @@ namespace ExportShapeFiles
 
                             string[] attributes = new string[4];
 
-                            psm.GetOrAttachPropertySet(pline);
-
-                            attributes[0] = psm.ReadPropertyString(driOmråder.Vejnavn);
-                            attributes[1] = psm.ReadPropertyString(driOmråder.Vejklasse);
-                            attributes[2] = psm.ReadPropertyString(driOmråder.Belægning);
-                            attributes[3] = psm.ReadPropertyString(driOmråder.Nummer);
+                            attributes[0] = psm.ReadPropertyString(pline, driOmråder.Vejnavn);
+                            attributes[1] = psm.ReadPropertyString(pline, driOmråder.Vejklasse);
+                            attributes[2] = psm.ReadPropertyString(pline, driOmråder.Belægning);
+                            attributes[3] = psm.ReadPropertyString(pline, driOmråder.Nummer);
 
                             writer.AddRecord(shapePoints, shapePoints.Length, attributes);
                         }

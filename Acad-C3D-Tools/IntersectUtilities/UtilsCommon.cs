@@ -1213,6 +1213,19 @@ namespace IntersectUtilities.UtilsCommon
                 }
             }
 
+            BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+            foreach (Oid oid in btr)
+            {
+                if (oid.IsDerivedFrom<AttributeDefinition>())
+                {
+                    AttributeDefinition attDef = oid.Go<AttributeDefinition>(tx);
+                    if (attDef.Constant && string.Equals(attDef.Tag, attributeName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return attDef.TextString;
+                    }
+                }
+            }
+
             return "";
         }
         /// <summary>
@@ -1470,6 +1483,14 @@ namespace IntersectUtilities.UtilsCommon
         {
             if (pl1.EndPoint.HorizontalEqualz(pl2.StartPoint, tol)) return true;
             if (pl1.EndPoint.HorizontalEqualz(pl2.EndPoint, tol)) return true;
+            return false;
+        }
+        public static bool BothEndsAreConnectedTo(this Polyline pl1, Polyline pl2, double tol = 0.025)
+        {
+            if (pl1.EndPoint.HorizontalEqualz(pl2.StartPoint, tol)) return true;
+            if (pl1.EndPoint.HorizontalEqualz(pl2.EndPoint, tol)) return true;
+            if (pl1.StartPoint.HorizontalEqualz(pl2.StartPoint, tol)) return true;
+            if (pl1.StartPoint.HorizontalEqualz(pl2.EndPoint, tol)) return true;
             return false;
         }
         public static HashSet<Point3d> GetAllEndPoints(this BlockReference br)

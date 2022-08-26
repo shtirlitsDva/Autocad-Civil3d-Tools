@@ -15499,6 +15499,122 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test joining polylines
+                    //bool stillConnectedPolylinesLeft = true;
+                    int iterations = 0;
+                    while (true)
+                    {
+                        using (Transaction tx2 = localDb.TransactionManager.StartTransaction())
+                        {
+                            try
+                            {
+                                var polylines = localDb.ListOfType<Polyline>(tx2)
+                                                       .Where(x => x.Layer == "Vandløbskant")
+                                                       .Where(x => !x.Closed);
+
+                                HashSet<Polyline> connectedPolylines = new HashSet<Polyline>();
+                                foreach (Polyline pline in polylines)
+                                {
+                                    var query = polylines.Where(
+                                        x => x.BothEndsAreConnectedTo(pline, 0.001) && x.Id != pline.Id);
+
+                                    if (query.Count() < 1) continue;
+                                    connectedPolylines.Add(pline);
+                                    foreach (var item in query) connectedPolylines.Add(item);
+                                }
+
+                                iterations++;
+                                prdDbg($"Running iteration: {iterations} with connected polylines: {connectedPolylines.Count()}");
+                                if (iterations > 99)
+                                {
+                                    prdDbg($"Reached {iterations} iterations! Looks like infinite loop!");
+                                    editor.SetImpliedSelection(connectedPolylines.Select(x => x.ObjectId).ToArray());
+                                    tx2.Abort();
+                                    break;
+                                }
+
+                                if (connectedPolylines.Count() < 1)
+                                {
+                                    //If no connected polylines left -> exit loop
+                                    tx2.Abort();
+                                    break;
+                                }
+
+                                HashSet<Oid> seenOids = new HashSet<Oid>();
+                                HashSet<Oid> oidsToDelete = new HashSet<Oid>();
+
+                                var pairs = connectedPolylines.SelectMany((value, index) => connectedPolylines.Skip(index + 1),
+                                                                         (first, second) => new { first, second });
+
+                                foreach (var pair in pairs)
+                                {
+                                    //make sure that none of the polylines have been operated on before
+                                    if (
+                                            (
+                                                !oidsToDelete.Contains(pair.first.Id) && !oidsToDelete.Contains(pair.second.Id)
+                                            ) &&
+                                            pair.first.BothEndsAreConnectedTo(pair.second, 0.001)
+                                        )
+                                    {
+                                        seenOids.Add(pair.first.Id);
+                                        seenOids.Add(pair.second.Id);
+
+                                        pair.first.UpgradeOpen();
+
+                                        pair.first.JoinEntity(pair.second);
+                                        oidsToDelete.Add(pair.second.Id);
+                                    }
+                                }
+
+                                foreach (Oid oid in oidsToDelete)
+                                {
+                                    Polyline pl = oid.Go<Polyline>(tx2, OpenMode.ForWrite);
+                                    pl.Erase(true);
+                                }
+                            }
+                            catch (System.Exception ex)
+                            {
+                                prdDbg(ex.ToString());
+                                tx2.Abort();
+                                throw;
+                            }
+
+                            tx2.Commit();
+                        }
+
+                    }
+
+                    {
+                        //Fix non-closed lines, but with coincident start and end
+                        var polylines = localDb.ListOfType<Polyline>(tx)
+                                            .Where(x => x.Layer == "Vandløbskant")
+                                            .Where(x => !x.Closed);
+
+                        foreach (var pline in polylines)
+                        {
+                            if (pline.StartPoint.IsEqualTo(pline.EndPoint))
+                            {
+                                pline.CheckOrOpenForWrite();
+                                pline.Closed = true;
+                            }
+                        }
+                    }
+
+                    {
+                        //Create hatches
+                        var polylines = localDb.ListOfType<Polyline>(tx)
+                                            .Where(x => x.Layer == "Vandløbskant")
+                                            .Where(x => x.Closed);
+
+                        foreach (Polyline polyline in polylines)
+                        {
+                            Hatch hatch = Draw.Hatch(polyline.GetPolyPoints()).Go<Hatch>(tx);
+                            hatch.Layer = polyline.Layer;
+                        }
+                    }
+
+                    #endregion
+
                     #region Test constant attribute, constant attr is attached to BlockTableRecord and not BR
                     //PromptEntityOptions peo = new PromptEntityOptions("Select a BR: ");
                     //PromptEntityResult per = editor.GetEntity(peo);
