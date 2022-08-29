@@ -72,7 +72,10 @@ namespace AcadOverrules
         public override bool IsApplicable(RXObject overruledSubject)
         {
             //Put a check of Enabled here if using that also
-            return ((Polyline)overruledSubject).NumberOfVertices > 1 && isFjvPline(overruledSubject);
+            return 
+                ((Polyline)overruledSubject).NumberOfVertices > 1 &&
+                ((Polyline)overruledSubject).Length > 0.1 &&
+                isFjvPline(overruledSubject);
         }
         private bool isFjvPline(RXObject overruledSubject)
         {
@@ -110,13 +113,22 @@ namespace AcadOverrules
                     "T" : "E";
                 string label = $"DN{dn}-{system}";
 
-                Vector3d deriv = pline.GetFirstDerivative(pt);
-                deriv = deriv.GetNormal();
+                try
+                {
+                    Vector3d deriv = pline.GetFirstDerivative(pt);
+                    deriv = deriv.GetNormal();
 
-                Vector3d perp = deriv.GetPerpendicularVector();
+                    Vector3d perp = deriv.GetPerpendicularVector();
 
-                wd.Geometry.Text(
-                    pt + perp * labelOffset, Vector3d.ZAxis, deriv, label, true, style);
+                    wd.Geometry.Text(
+                        pt + perp * labelOffset, Vector3d.ZAxis, deriv, label, true, style);
+                }
+                catch (System.Exception ex)
+                {
+                    Document doc = Application.DocumentManager.MdiActiveDocument;
+                    doc.Editor.WriteMessage($"Polyline handle {pline.Handle} fails!");
+                    //throw;
+                }
                 //pt + perp * labelOffset, Vector3d.ZAxis, deriv, labelHeight, 1.0, 0.0, label);
 
                 //wd.Geometry.Text(
