@@ -144,10 +144,10 @@ namespace DriPaletteSet
                                 tempSeries = CurrentSeries;
                                 break;
                             case PipeSystemEnum.Stål:
+                            case PipeSystemEnum.AluPex:
                                 tempSeries = CurrentSeries;
                                 break;
                             case PipeSystemEnum.Kobberflex:
-                            case PipeSystemEnum.AluPex:
                                 if (CurrentSeries == PipeSeriesEnum.S3) tempSeries = PipeSeriesEnum.S2;
                                 else tempSeries = CurrentSeries;
                                 break;
