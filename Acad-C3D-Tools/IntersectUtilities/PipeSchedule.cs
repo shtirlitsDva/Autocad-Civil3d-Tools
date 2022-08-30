@@ -124,47 +124,61 @@ namespace IntersectUtilities
             };
         private static readonly Dictionary<int, double> kOdsS1CuTwin = new Dictionary<int, double>
             {
-                {22,90.0},
-                {28,90.0},
+                {22, 90.0},
+                {28, 90.0},
             };
         private static readonly Dictionary<int, double> kOdsS2CuTwin = new Dictionary<int, double>
             {
-                {22,110.0},
-                {28,110.0}
+                {22, 110.0},
+                {28, 110.0}
             };
         private static readonly Dictionary<int, double> kOdsS1CuEnkelt = new Dictionary<int, double>
             {
-                {22,65.0},
-                {28,75.0},
+                {22, 65.0},
+                {28, 75.0},
             };
         private static readonly Dictionary<int, double> kOdsS2CuEnkelt = new Dictionary<int, double>
             {
-                {22,75.0},
-                {28,90.0}
+                {22, 75.0},
+                {28, 90.0}
             };
         private static readonly Dictionary<int, double> kOdsS1AluPexTwin = new Dictionary<int, double>
             {
                 { 20, 90.0 },
-                { 25, 110.0 },
+                { 26, 110.0 },
                 { 32, 125.0 },
             };
         private static readonly Dictionary<int, double> kOdsS2AluPexTwin = new Dictionary<int, double>
             {
-                {16,110.0},
-                {20,125.0},
-                {25,125.0},
-                {32,140.0}
+                {16, 110.0},
+                {20, 110.0},
+                {26, 125.0},
+                {32, 125.0}
+            };
+        private static readonly Dictionary<int, double> kOdsS3AluPexTwin = new Dictionary<int, double>
+            {
+                {16, 125.0},
+                {20, 125.0},
+                {26, 140.0},
+                {32, 140.0}
             };
         private static readonly Dictionary<int, double> kOdsS1AluPexEnkelt = new Dictionary<int, double>
             {
-                {20,75.0},
-                {25,90.0},
-                {32,90.0},
+                {20, 75.0},
+                {26, 90.0},
+                {32, 90.0},
             };
         private static readonly Dictionary<int, double> kOdsS2AluPexEnkelt = new Dictionary<int, double>
             {
-                {20,90.0},
-                {32,110.0},
+                {20, 90.0},
+                {26, 90.0},
+                {32, 110.0},
+            };
+        private static readonly Dictionary<int, double> kOdsS3AluPexEnkelt = new Dictionary<int, double>
+            {
+                {20, 110.0},
+                {26, 110.0},
+                {32, 125.0},
             };
         private static readonly Dictionary<int, double> OdsSteel = new Dictionary<int, double>()
             {
@@ -200,7 +214,7 @@ namespace IntersectUtilities
             {
                 { 16, 16.0 },
                 { 20, 20.0 },
-                { 25, 25.0 },
+                { 26, 26.0 },
                 { 32, 32.0 }
             };
 
@@ -232,10 +246,10 @@ namespace IntersectUtilities
                 case "FJV-FREM-ALUPEX20":
                 case "FJV-RETUR-ALUPEX20":
                     return 20;
-                case "FJV-TWIN-ALUPEX25":
-                case "FJV-FREM-ALUPEX25":
-                case "FJV-RETUR-ALUPEX25":
-                    return 25;
+                case "FJV-TWIN-ALUPEX26":
+                case "FJV-FREM-ALUPEX26":
+                case "FJV-RETUR-ALUPEX26":
+                    return 26;
                 case "FJV-TWIN-ALUPEX32":
                 case "FJV-FREM-ALUPEX32":
                 case "FJV-RETUR-ALUPEX32":
@@ -340,7 +354,7 @@ namespace IntersectUtilities
             {
                 case "FJV-TWIN-ALUPEX16":
                 case "FJV-TWIN-ALUPEX20":
-                case "FJV-TWIN-ALUPEX25":
+                case "FJV-TWIN-ALUPEX26":
                 case "FJV-TWIN-ALUPEX32":
                 case "FJV-TWIN-CU15":
                 case "FJV-TWIN-CU18":
@@ -361,7 +375,7 @@ namespace IntersectUtilities
                     return PipeTypeEnum.Twin;
                 case "FJV-FREM-ALUPEX16":
                 case "FJV-FREM-ALUPEX20":
-                case "FJV-FREM-ALUPEX25":
+                case "FJV-FREM-ALUPEX26":
                 case "FJV-FREM-ALUPEX32":
                 case "FJV-FREM-CU15":
                 case "FJV-FREM-CU18":
@@ -388,7 +402,7 @@ namespace IntersectUtilities
                     return PipeTypeEnum.Frem;
                 case "FJV-RETUR-ALUPEX16":
                 case "FJV-RETUR-ALUPEX20":
-                case "FJV-RETUR-ALUPEX25":
+                case "FJV-RETUR-ALUPEX26":
                 case "FJV-RETUR-ALUPEX32":
                 case "FJV-RETUR-CU15":
                 case "FJV-RETUR-CU18":
@@ -514,9 +528,9 @@ namespace IntersectUtilities
                 case "FJV-TWIN-ALUPEX20":
                 case "FJV-FREM-ALUPEX20":
                 case "FJV-RETUR-ALUPEX20":
-                case "FJV-TWIN-ALUPEX25":
-                case "FJV-FREM-ALUPEX25":
-                case "FJV-RETUR-ALUPEX25":
+                case "FJV-TWIN-ALUPEX26":
+                case "FJV-FREM-ALUPEX26":
+                case "FJV-RETUR-ALUPEX26":
                 case "FJV-TWIN-ALUPEX32":
                 case "FJV-FREM-ALUPEX32":
                 case "FJV-RETUR-ALUPEX32":
@@ -634,6 +648,9 @@ namespace IntersectUtilities
                 case PipeSeriesEnum.S2:
                     if (kOdsS2AluPexEnkelt.ContainsKey(dn)) return kOdsS2AluPexEnkelt[dn];
                     break;
+                case PipeSeriesEnum.S3:
+                    if (kOdsS3AluPexEnkelt.ContainsKey(dn)) return kOdsS3AluPexEnkelt[dn];
+                    break;
                 default:
                     return 0.0;
             }
@@ -649,6 +666,9 @@ namespace IntersectUtilities
                     break;
                 case PipeSeriesEnum.S2:
                     if (kOdsS2AluPexTwin.ContainsKey(dn)) return kOdsS2AluPexTwin[dn];
+                    break;
+                case PipeSeriesEnum.S3:
+                    if (kOdsS3AluPexTwin.ContainsKey(dn)) return kOdsS3AluPexTwin[dn];
                     break;
                 default:
                     return 0.0;
@@ -741,6 +761,7 @@ namespace IntersectUtilities
                 case PipeSystemEnum.Ukendt:
                     break;
                 case PipeSystemEnum.Stål:
+                case PipeSystemEnum.AluPex:
                     kod = GetPipeKOd(ent, PipeSeriesEnum.S3) / 1000;
                     if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S3;
                     kod = GetPipeKOd(ent, PipeSeriesEnum.S2) / 1000;
@@ -749,7 +770,6 @@ namespace IntersectUtilities
                     if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S1;
                     break;
                 case PipeSystemEnum.Kobberflex:
-                case PipeSystemEnum.AluPex:
                     kod = GetPipeKOd(ent, PipeSeriesEnum.S2) / 1000;
                     if (Equalz(kod, realKod, 0.0001)) return PipeSeriesEnum.S2;
                     kod = GetPipeKOd(ent, PipeSeriesEnum.S1) / 1000;
@@ -829,26 +849,40 @@ namespace IntersectUtilities
             Dictionary<int, double> aluPexS1Enkelt = new Dictionary<int, double>
             {
                 { 20, 0.7 },
-                { 25, 0.7 },
-                { 32, 0.7 },
+                { 26, 0.72 },
+                { 32, 0.72 },
             };
             Dictionary<int, double> aluPexS2Enkelt = new Dictionary<int, double>
             {
-                { 20, 0.7 },
+                { 20, 0.72 },
+                { 26, 0.72 },
                 { 32, 0.9 },
+            };
+            Dictionary<int, double> aluPexS3Enkelt = new Dictionary<int, double>
+            {
+                { 20, 0.9 },
+                { 26, 0.9 },
+                { 32, 1.0 },
             };
             Dictionary<int, double> aluPexS1Twin = new Dictionary<int, double>
             {
                 { 20, 0.9 },
-                { 25, 0.9 },
-                { 32, 1.1 },
+                { 26, 1.1 },
+                { 32, 1.25 },
             };
             Dictionary<int, double> aluPexS2Twin = new Dictionary<int, double>
             {
-                { 16, 0.9 },
-                { 20, 1.0 },
-                { 25, 1.0 },
-                { 32, 1.5 },
+                { 16, 1.1 },
+                { 20, 1.1 },
+                { 26, 1.25 },
+                { 32, 1.25 },
+            };
+            Dictionary<int, double> aluPexS3Twin = new Dictionary<int, double>
+            {
+                { 16, 1.25 },
+                { 20, 1.25 },
+                { 26, 1.40 },
+                { 32, 1.40 },
             };
             Dictionary<int, double> steelRadii = new Dictionary<int, double>
             {
@@ -932,7 +966,7 @@ namespace IntersectUtilities
                                 case PipeSeriesEnum.S2:
                                     return aluPexS2Twin[GetPipeDN(ent)];
                                 case PipeSeriesEnum.S3:
-                                    return 0;
+                                    return aluPexS3Twin[GetPipeDN(ent)];
                                 default:
                                     return 0;
                             }
@@ -947,7 +981,7 @@ namespace IntersectUtilities
                                 case PipeSeriesEnum.S2:
                                     return aluPexS2Enkelt[GetPipeDN(ent)];
                                 case PipeSeriesEnum.S3:
-                                    return 0;
+                                    return aluPexS3Enkelt[GetPipeDN(ent)];
                                 default:
                                     return 0;
                             }
@@ -1053,7 +1087,7 @@ namespace IntersectUtilities
         }
         internal enum PipeDnEnum
         {
-            ALUPEX25,
+            ALUPEX26,
             ALUPEX32,
             CU22,
             CU28,
