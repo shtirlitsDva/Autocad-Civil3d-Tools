@@ -17387,8 +17387,6 @@ namespace IntersectUtilities
             }
         }
 
-
-
         void AbortGracefully(Transaction tx, string msg)
         {
             tx.Abort();
