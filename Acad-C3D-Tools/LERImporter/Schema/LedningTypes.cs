@@ -82,6 +82,9 @@ namespace LERImporter.Schema
         [PsInclude]
         public string GmlId { get => this.GMLTypeID; }
         [PsInclude]
+        public string LerId { get => this.lerid; }
+        public string lerid { get; set; }
+        [PsInclude]
         public string IndtegningsMetode { get => this.indtegningsmetode.GetXmlEnumAttributeValueFromEnum(); }
         [PsInclude]
         public string Nøjagtighedsklasse
@@ -596,15 +599,6 @@ namespace LERImporter.Schema
     }
     public partial class ElledningType : ILerLedning
     {
-        [PsInclude]
-        public string LerId { get => this.lerid; }
-        [XmlAttribute(
-            Form = System.Xml.Schema.XmlSchemaForm.Qualified,
-            AttributeName = "id",
-            DataType = "ID",
-            Namespace = "http://data.gov.dk/schemas/LER/1/gml"
-            )]
-        public string lerid { get; set; }
         [PsInclude]
         public string Type { get => Type2.ToString(); }
         [PsInclude]

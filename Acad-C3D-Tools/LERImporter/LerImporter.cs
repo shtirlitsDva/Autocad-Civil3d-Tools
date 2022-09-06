@@ -264,18 +264,31 @@ namespace LERImporter
                 };
                 if (dialog.ShowDialog() == DialogResult.OK) pathToGml = dialog.FileName;
                 else return;
-
-                string folderPath = Path.GetDirectoryName(pathToGml) + "\\";
                 #endregion
+
+                string fileName = Path.GetFileNameWithoutExtension(pathToGml);
+                string extension = Path.GetExtension(pathToGml);
+                string folderPath = Path.GetDirectoryName(pathToGml) + "\\";
 
                 Log.LogFileName = folderPath + "LerImport.log";
                 Log.log($"Importing {pathToGml}");
+
+                #region Replace ler:id with ler:lerid
+                string str = File.ReadAllText(pathToGml);
+                str = str.Replace("<ler:id>", "<ler:lerid>");
+                str = str.Replace("</ler:id>", "</ler:lerid>");
+
+                string modifiedFileName =
+                    folderPath + "\\" + fileName + "_mod" + extension;
+
+                File.WriteAllText(modifiedFileName, str);
+                #endregion
 
                 #region Deserialize gml
                 var serializer = new XmlSerializer(typeof(Schema.FeatureCollection));
                 Schema.FeatureCollection gf;
 
-                using (var fileStream = new FileStream(pathToGml, FileMode.Open))
+                using (var fileStream = new FileStream(modifiedFileName, FileMode.Open))
                 {
                     gf = (Schema.FeatureCollection)serializer.Deserialize(fileStream);
                 }
@@ -347,7 +360,20 @@ namespace LERImporter
                 if (dialog.ShowDialog() == DialogResult.OK) pathToGml = dialog.FileName;
                 else return;
 
+                string fileName = Path.GetFileNameWithoutExtension(pathToGml);
+                string extension = Path.GetExtension(pathToGml);
                 string folderPath = Path.GetDirectoryName(pathToGml) + "\\";
+
+                #region Replace ler:id with ler:lerid
+                string str = File.ReadAllText(pathToGml);
+                str = str.Replace("<ler:id>", "<ler:lerid>");
+                str = str.Replace("</ler:id>", "</ler:lerid>");
+
+                string modifiedFileName = 
+                    folderPath + "\\" + fileName + "_mod" + extension;
+
+                File.WriteAllText(modifiedFileName, str);
+                #endregion
                 #endregion
 
                 Log.LogFileName = folderPath + "LerImport.log";
@@ -357,13 +383,13 @@ namespace LERImporter
                 var serializer = new XmlSerializer(typeof(Schema.FeatureCollection));
                 Schema.FeatureCollection gf;
 
-                using (var fileStream = new FileStream(pathToGml, FileMode.Open))
+                using (var fileStream = new FileStream(modifiedFileName, FileMode.Open))
                 {
                     gf = (Schema.FeatureCollection)serializer.Deserialize(fileStream);
                 }
                 #endregion
 
-                #region Create database for 2D ler
+                #region Test LER data
 
                 LERImporter.ConsolidatedCreator.TestLerData(gf);
 

@@ -430,71 +430,82 @@ namespace LERImporter
             }
             #endregion
 
-            prdDbg("Analyzing LedningType:");
+            #region Elevation data analysis
+            //prdDbg("Analyzing LedningType:");
+            //{
+            //    var elevations = new HashSet<(double, string)>();
+            //    foreach (var item in ledninger)
+            //    {
+            //        IPointParser parser = item.geometri.AbstractCurve as IPointParser;
+            //        var points = parser.Get3DPoints();
+            //        foreach (var point in points)
+            //        {
+            //            elevations.Add(
+            //                (Math.Round(point.Z, 2, MidpointRounding.AwayFromZero),
+            //                item.LedningsEjersNavn));
+            //        }
+            //    }
+
+            //    prdDbg($"Number of distinct elevations: {elevations.Count}");
+            //    foreach (var elev in elevations.OrderBy(x => x))
+            //    {
+            //        prdDbg(elev.ToString());
+            //    }
+            //}
+
+            //prdDbg("\nAnalyzing LedningstraceType:");
+            //{
+            //    var elevations = new HashSet<(double, string)>();
+            //    foreach (var item in ledningstrace)
+            //    {
+            //        IPointParser parser = item.geometri.MultiCurve as IPointParser;
+            //        var points = parser.Get3DPoints();
+            //        foreach (var point in points)
+            //        {
+            //            elevations.Add(
+            //                (Math.Round(point.Z, 2, MidpointRounding.AwayFromZero),
+            //                item.LedningsEjersNavn));
+            //        }
+            //    }
+
+            //    prdDbg($"Number of distinct elevations: {elevations.Count}");
+            //    foreach (var elev in elevations.OrderBy(x => x))
+            //    {
+            //        prdDbg(elev.ToString());
+            //    }
+            //}
+
+            //prdDbg("\nAnalyzing LedningskomponentType:");
+            //{
+            //    var elevations = new HashSet<(double, string)>();
+            //    foreach (var item in ledningskomponenter)
+            //    {
+            //        IPointParser parser = item.geometri.Item as IPointParser;
+            //        var points = parser.Get3DPoints();
+            //        foreach (var point in points)
+            //        {
+            //            elevations.Add(
+            //                (Math.Round(point.Z, 2, MidpointRounding.AwayFromZero),
+            //                item.LedningsEjersNavn));
+            //        }
+            //    }
+
+            //    prdDbg($"Number of distinct elevations: {elevations.Count}");
+            //    foreach (var elev in elevations.OrderBy(x => x))
+            //    {
+            //        prdDbg(elev.ToString());
+            //    }
+            //} 
+            #endregion
+
+            #region Id data retreival
+            var query = ledninger.Where(x => x.GmlId == "62761113.13998.LEDNING.1724");
+            var result = query.FirstOrDefault();
+            if (result != default)
             {
-                var elevations = new HashSet<(double, string)>();
-                foreach (var item in ledninger)
-                {
-                    IPointParser parser = item.geometri.AbstractCurve as IPointParser;
-                    var points = parser.Get3DPoints();
-                    foreach (var point in points)
-                    {
-                        elevations.Add(
-                            (Math.Round(point.Z, 2, MidpointRounding.AwayFromZero),
-                            item.LedningsEjersNavn));
-                    }
-                }
-
-                prdDbg($"Number of distinct elevations: {elevations.Count}");
-                foreach (var elev in elevations.OrderBy(x => x))
-                {
-                    prdDbg(elev.ToString());
-                }
+                prdDbg(ObjectDumper.Dump(result));
             }
-            
-            prdDbg("\nAnalyzing LedningstraceType:");
-            {
-                var elevations = new HashSet<(double, string)>();
-                foreach (var item in ledningstrace)
-                {
-                    IPointParser parser = item.geometri.MultiCurve as IPointParser;
-                    var points = parser.Get3DPoints();
-                    foreach (var point in points)
-                    {
-                        elevations.Add(
-                            (Math.Round(point.Z, 2, MidpointRounding.AwayFromZero),
-                            item.LedningsEjersNavn));
-                    }
-                }
-
-                prdDbg($"Number of distinct elevations: {elevations.Count}");
-                foreach (var elev in elevations.OrderBy(x => x))
-                {
-                    prdDbg(elev.ToString());
-                }
-            }
-
-            prdDbg("\nAnalyzing LedningskomponentType:");
-            {
-                var elevations = new HashSet<(double, string)>();
-                foreach (var item in ledningskomponenter)
-                {
-                    IPointParser parser = item.geometri.Item as IPointParser;
-                    var points = parser.Get3DPoints();
-                    foreach (var point in points)
-                    {
-                        elevations.Add(
-                            (Math.Round(point.Z, 2, MidpointRounding.AwayFromZero),
-                            item.LedningsEjersNavn));
-                    }
-                }
-
-                prdDbg($"Number of distinct elevations: {elevations.Count}");
-                foreach (var elev in elevations.OrderBy(x => x))
-                {
-                    prdDbg(elev.ToString());
-                }
-            }
+            #endregion
         }
     }
 }

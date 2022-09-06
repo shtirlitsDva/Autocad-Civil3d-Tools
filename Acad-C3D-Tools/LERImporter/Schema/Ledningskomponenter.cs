@@ -64,7 +64,8 @@ namespace LERImporter.Schema
         [PsInclude]
         public string Fareklasse { get => this.fareklasse?.Value.GetXmlEnumAttributeValueFromEnum() ?? "ukendt"; }
         [PsInclude]
-        public string Id { get => this.id; }
+        public string LerId { get => this.lerid; }
+        public string lerid { get; set; }
         [PsInclude]
         public string GmlId { get => this.GMLTypeID; }
         [PsInclude]
