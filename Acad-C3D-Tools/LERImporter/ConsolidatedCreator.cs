@@ -113,14 +113,14 @@ namespace LERImporter
             {
                 var owner = ownersRegister.FirstOrDefault(x => x.ledningsejer == ledning.ledningsejer);
                 //if (owner == default) throw new System.Exception($"Ledning {ledning.id} kan ikke finde ejer!");
-                if (owner == default) prdDbg($"Ledning {ledning.id} kan ikke finde ejer!");
+                if (owner == default) prdDbg($"Ledning {ledning.GmlId} kan ikke finde ejer!");
                 else ledning.LedningsEjersNavn = owner.companyName;
             }
             foreach (LedningstraceType trace in ledningstrace)
             {
                 var owner = ownersRegister.FirstOrDefault(x => x.ledningsejer == trace.ledningsejer);
                 //if (owner == default) throw new System.Exception($"Ledning {trace.id} kan ikke finde ejer!");
-                if (owner == default) prdDbg($"Ledning {trace.id} kan ikke finde ejer!");
+                if (owner == default) prdDbg($"Ledning {trace.GmlId} kan ikke finde ejer!");
                 else trace.LedningsEjersNavn = owner.companyName;
             }
             foreach (LedningskomponentType komp in ledningskomponenter)
@@ -229,7 +229,7 @@ namespace LERImporter
                 string psName = psDict[ledning.GetType().Name];
                 ILerLedning iLedning = ledning as ILerLedning;
                 if (iLedning == null)
-                    throw new System.Exception($"Ledning {ledning.id} har ikke implementeret ILerLedning!");
+                    throw new System.Exception($"Ledning {ledning.GmlId} har ikke implementeret ILerLedning!");
                 ObjectId entityId = iLedning.DrawEntity2D(db);
                 Entity ent = entityId.Go<Entity>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
                 layerNames.Add(ent.Layer);
@@ -246,7 +246,7 @@ namespace LERImporter
                 string psName = psDict[trace.GetType().Name];
                 ILerLedning ledning = trace as ILerLedning;
                 if (ledning == null)
-                    throw new System.Exception($"Trace {trace.id} har ikke implementeret ILerLedning!");
+                    throw new System.Exception($"Trace {trace.GmlId} har ikke implementeret ILerLedning!");
                 ObjectId entityId = ledning.DrawEntity2D(db);
                 Entity ent = entityId.Go<Entity>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
                 layerNames.Add(ent.Layer);
@@ -263,7 +263,7 @@ namespace LERImporter
                 string psName = psDict[komponent.GetType().Name];
                 ILerKomponent creator = komponent as ILerKomponent;
                 if (creator == null)
-                    throw new System.Exception($"Komponent {komponent.id} har ikke implementeret ILerKomponent!");
+                    throw new System.Exception($"Komponent {komponent.GmlId} har ikke implementeret ILerKomponent!");
                 Oid entityId = creator.DrawComponent(db);
                 Entity ent = entityId.Go<Entity>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
@@ -411,14 +411,14 @@ namespace LERImporter
             {
                 var owner = ownersRegister.FirstOrDefault(x => x.ledningsejer == ledning.ledningsejer);
                 //if (owner == default) throw new System.Exception($"Ledning {ledning.id} kan ikke finde ejer!");
-                if (owner == default) prdDbg($"Ledning {ledning.id} kan ikke finde ejer!");
+                if (owner == default) prdDbg($"Ledning {ledning.GmlId} kan ikke finde ejer!");
                 else ledning.LedningsEjersNavn = owner.companyName;
             }
             foreach (LedningstraceType trace in ledningstrace)
             {
                 var owner = ownersRegister.FirstOrDefault(x => x.ledningsejer == trace.ledningsejer);
                 //if (owner == default) throw new System.Exception($"Ledning {trace.id} kan ikke finde ejer!");
-                if (owner == default) prdDbg($"Ledning {trace.id} kan ikke finde ejer!");
+                if (owner == default) prdDbg($"Ledning {trace.GmlId} kan ikke finde ejer!");
                 else trace.LedningsEjersNavn = owner.companyName;
             }
             foreach (LedningskomponentType komp in ledningskomponenter)

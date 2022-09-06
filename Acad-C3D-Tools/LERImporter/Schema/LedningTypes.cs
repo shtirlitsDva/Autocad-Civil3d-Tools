@@ -70,8 +70,15 @@ namespace LERImporter.Schema
         public string EtableringsTidspunkt { get => this.etableringstidspunkt?.Value; }
         [PsInclude]
         public string Fareklasse { get => this.fareklasse?.Value.GetXmlEnumAttributeValueFromEnum() ?? ""; }
-        [PsInclude]
-        public string Id { get => this.id; }
+        //[PsInclude]
+        //public string LerId { get => this.lerid; }
+        //[XmlAttribute(
+        //    Form = System.Xml.Schema.XmlSchemaForm.Qualified,
+        //    AttributeName = "id",
+        //    DataType = "ID",
+        //    Namespace = "http://data.gov.dk/schemas/LER/1/gml"
+        //    )]
+        //public string lerid { get; set; }
         [PsInclude]
         public string GmlId { get => this.GMLTypeID; }
         [PsInclude]
@@ -252,7 +259,7 @@ namespace LERImporter.Schema
                     driftsstatusSuffix = "_UAD";
                     break;
                 default:
-                    Log.log($"Vandledning {this.id} har driftsstatus lig med null! Sætter til \"i drift\".");
+                    Log.log($"Vandledning {this.GmlId} har driftsstatus lig med null! Sætter til \"i drift\".");
                     break;
             }
 
@@ -311,7 +318,7 @@ namespace LERImporter.Schema
                     break;
                 default:
                     throw new System.Exception(
-                        $"Element id {this.id} has invalid driftsstatus: {Driftsstatus.ToString()}!");
+                        $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus.ToString()}!");
             }
 
             switch (GetTermiskledningsindholdstypeType())
@@ -421,7 +428,7 @@ namespace LERImporter.Schema
             if (string.IsNullOrEmpty(art)) return ForsyningsartEnum.none;
             if (!forsyningsartDict.ContainsKey(art))
             {
-                Log.log($"WARNING! Ledning id {this.id} have undefined Forsyningsart: {art}!");
+                Log.log($"WARNING! Ledning id {this.GmlId} have undefined Forsyningsart: {art}!");
                 return ForsyningsartEnum.other;
             }
             return forsyningsartDict[art];
@@ -453,7 +460,7 @@ namespace LERImporter.Schema
                     break;
                 default:
                     throw new System.Exception(
-                        $"Element id {this.id} has invalid driftsstatus: {Driftsstatus.ToString()}!");
+                        $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus.ToString()}!");
             }
 
             switch (this.getForsyningsart2)
@@ -545,7 +552,7 @@ namespace LERImporter.Schema
                     break;
                 default:
                     throw new System.Exception(
-                        $"Element id {this.id} has invalid driftsstatus: {Driftsstatus.ToString()}!");
+                        $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus.ToString()}!");
             }
 
             if (driftsstatusSuffix.IsNotNoE())
@@ -589,6 +596,15 @@ namespace LERImporter.Schema
     }
     public partial class ElledningType : ILerLedning
     {
+        [PsInclude]
+        public string LerId { get => this.lerid; }
+        [XmlAttribute(
+            Form = System.Xml.Schema.XmlSchemaForm.Qualified,
+            AttributeName = "id",
+            DataType = "ID",
+            Namespace = "http://data.gov.dk/schemas/LER/1/gml"
+            )]
+        public string lerid { get; set; }
         [PsInclude]
         public string Type { get => Type2.ToString(); }
         [PsInclude]
@@ -634,7 +650,7 @@ namespace LERImporter.Schema
                     break;
                 default:
                     throw new System.Exception(
-                        $"Element id {this.id} has invalid driftsstatus: {Driftsstatus.ToString()}!");
+                        $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus.ToString()}!");
             }
 
             switch (getElledningTypeType())
@@ -747,7 +763,7 @@ namespace LERImporter.Schema
             if (string.IsNullOrEmpty(art)) return ForsyningsartEnum.none;
             if (!forsyningsartDict.ContainsKey(art))
             {
-                Log.log($"WARNING! Ledning id {this.id} have undefined Forsyningsart: {art}!");
+                Log.log($"WARNING! Ledning id {this.GmlId} have undefined Forsyningsart: {art}!");
                 return ForsyningsartEnum.other;
             }
 
@@ -770,7 +786,7 @@ namespace LERImporter.Schema
                     break;
                 default:
                     throw new System.Exception(
-                        $"Element id {this.id} has invalid driftsstatus: {Driftsstatus.ToString()}!");
+                        $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus.ToString()}!");
             }
 
             switch (this.getForsyningsart(this.forsyningsart))
