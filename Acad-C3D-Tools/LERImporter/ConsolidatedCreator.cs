@@ -19,6 +19,7 @@ using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using DataTable = System.Data.DataTable;
 using static IntersectUtilities.UtilsCommon.Utils;
+using Autodesk.AutoCAD.Geometry;
 
 namespace LERImporter
 {
@@ -34,6 +35,7 @@ namespace LERImporter
             HashSet<LedningType> ledninger = new HashSet<LedningType>();
             HashSet<LedningstraceType> ledningstrace = new HashSet<LedningstraceType>();
             HashSet<LedningskomponentType> ledningskomponenter = new HashSet<LedningskomponentType>();
+            Graveforesp graveforesp = null;
 
             #region Redirect objects to collections
             //Redirect objects to collections
@@ -48,6 +50,7 @@ namespace LERImporter
                         ownersRegister.Add(uo);
                         break;
                     case Graveforesp gvfsp:
+                        graveforesp = gvfsp;
                         break;
                     case UtilityPackageInfo upi:
                         break;
@@ -74,20 +77,50 @@ namespace LERImporter
             }
             #endregion
 
+            #region Draw graveforesp polygon
+            db.CheckOrCreateLayer("GraveforespPolygon");
+
+            PolygonType polygon = graveforesp.polygonProperty.Item as PolygonType;
+            LinearRingType lrt = polygon.exterior.Item as LinearRingType;
+            DirectPositionListType dplt = lrt.Items[0] as DirectPositionListType;
+
+            var points = dplt.Get2DPoints();
+
+            Point2dCollection points2d = new Point2dCollection();
+            DoubleCollection dc = new DoubleCollection();
+            for (int i = 0; i < points.Length; i++)
+            {
+                points2d.Add(points[i]);
+                dc.Add(0.0);
+            }
+
+            Hatch hatch = new Hatch();
+            hatch.Normal = new Vector3d(0.0, 0.0, 1.0);
+            hatch.Elevation = 0.0;
+            hatch.PatternScale = 1.0;
+            hatch.SetHatchPattern(HatchPatternType.PreDefined, "SOLID");
+            Oid hatchId = hatch.AddEntityToDbModelSpace(db);
+
+            hatch.AppendLoop(HatchLoopTypes.Default, points2d, dc);
+            hatch.EvaluateHatch(true);
+
+            hatch.Layer = "GraveforespPolygon";
+            #endregion
+
             #region Populate Company Name
             //Populate Company Name
             foreach (LedningType ledning in ledninger)
             {
                 var owner = ownersRegister.FirstOrDefault(x => x.ledningsejer == ledning.ledningsejer);
                 //if (owner == default) throw new System.Exception($"Ledning {ledning.id} kan ikke finde ejer!");
-                if (owner == default) prdDbg($"Ledning {ledning.id} kan ikke finde ejer!");
+                if (owner == default) prdDbg($"Ledning {ledning.GmlId} kan ikke finde ejer!");
                 else ledning.LedningsEjersNavn = owner.companyName;
             }
             foreach (LedningstraceType trace in ledningstrace)
             {
                 var owner = ownersRegister.FirstOrDefault(x => x.ledningsejer == trace.ledningsejer);
                 //if (owner == default) throw new System.Exception($"Ledning {trace.id} kan ikke finde ejer!");
-                if (owner == default) prdDbg($"Ledning {trace.id} kan ikke finde ejer!");
+                if (owner == default) prdDbg($"Ledning {trace.GmlId} kan ikke finde ejer!");
                 else trace.LedningsEjersNavn = owner.companyName;
             }
             foreach (LedningskomponentType komp in ledningskomponenter)
@@ -196,7 +229,7 @@ namespace LERImporter
                 string psName = psDict[ledning.GetType().Name];
                 ILerLedning iLedning = ledning as ILerLedning;
                 if (iLedning == null)
-                    throw new System.Exception($"Ledning {ledning.id} har ikke implementeret ILerLedning!");
+                    throw new System.Exception($"Ledning {ledning.GmlId} har ikke implementeret ILerLedning!");
                 ObjectId entityId = iLedning.DrawEntity2D(db);
                 Entity ent = entityId.Go<Entity>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
                 layerNames.Add(ent.Layer);
@@ -213,7 +246,7 @@ namespace LERImporter
                 string psName = psDict[trace.GetType().Name];
                 ILerLedning ledning = trace as ILerLedning;
                 if (ledning == null)
-                    throw new System.Exception($"Trace {trace.id} har ikke implementeret ILerLedning!");
+                    throw new System.Exception($"Trace {trace.GmlId} har ikke implementeret ILerLedning!");
                 ObjectId entityId = ledning.DrawEntity2D(db);
                 Entity ent = entityId.Go<Entity>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
                 layerNames.Add(ent.Layer);
@@ -230,7 +263,7 @@ namespace LERImporter
                 string psName = psDict[komponent.GetType().Name];
                 ILerKomponent creator = komponent as ILerKomponent;
                 if (creator == null)
-                    throw new System.Exception($"Komponent {komponent.id} har ikke implementeret ILerKomponent!");
+                    throw new System.Exception($"Komponent {komponent.GmlId} har ikke implementeret ILerKomponent!");
                 Oid entityId = creator.DrawComponent(db);
                 Entity ent = entityId.Go<Entity>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
@@ -330,6 +363,138 @@ namespace LERImporter
                 ltr.LinetypeObjectId = lineTypeId;
             }
             #endregion
+        }
+
+        internal static void TestLerData(FeatureCollection gf)
+        {
+            #region Redirect objects to collections
+            HashSet<UtilityOwner> ownersRegister = new HashSet<UtilityOwner>();
+            HashSet<LedningType> ledninger = new HashSet<LedningType>();
+            HashSet<LedningstraceType> ledningstrace = new HashSet<LedningstraceType>();
+            HashSet<LedningskomponentType> ledningskomponenter = new HashSet<LedningskomponentType>();
+
+            foreach (FeatureMember fm in gf.featureCollection)
+            {
+                System.Windows.Forms.Application.DoEvents();
+                switch (fm.item)
+                {
+                    case UtilityOwner uo:
+                        ownersRegister.Add(uo);
+                        break;
+                    case Graveforesp gvfsp:
+                        break;
+                    case UtilityPackageInfo upi:
+                        break;
+                    case Kontaktprofil kp:
+                        break;
+                    case Informationsressource ir:
+                        break;
+                    case LedningType lt:
+                        ledninger.Add(lt);
+                        break;
+                    case LedningstraceType ltr:
+                        ledningstrace.Add(ltr);
+                        break;
+                    case LedningskomponentType lk:
+                        ledningskomponenter.Add(lk);
+                        break;
+                    default:
+                        prdDbg(fm.item.GMLTypeID);
+                        throw new System.Exception($"Unexpected type encountered {fm.item.GetType().Name}!");
+                }
+            }
+            #endregion
+
+            #region Populate Company Name
+            //Populate Company Name
+            foreach (LedningType ledning in ledninger)
+            {
+                var owner = ownersRegister.FirstOrDefault(x => x.ledningsejer == ledning.ledningsejer);
+                //if (owner == default) throw new System.Exception($"Ledning {ledning.id} kan ikke finde ejer!");
+                if (owner == default) prdDbg($"Ledning {ledning.GmlId} kan ikke finde ejer!");
+                else ledning.LedningsEjersNavn = owner.companyName;
+            }
+            foreach (LedningstraceType trace in ledningstrace)
+            {
+                var owner = ownersRegister.FirstOrDefault(x => x.ledningsejer == trace.ledningsejer);
+                //if (owner == default) throw new System.Exception($"Ledning {trace.id} kan ikke finde ejer!");
+                if (owner == default) prdDbg($"Ledning {trace.GmlId} kan ikke finde ejer!");
+                else trace.LedningsEjersNavn = owner.companyName;
+            }
+            foreach (LedningskomponentType komp in ledningskomponenter)
+            {
+                var owner = ownersRegister.FirstOrDefault(x => x.ledningsejer == komp.ledningsejer);
+                //if (owner == default) throw new System.Exception($"Ledning {komp.id} kan ikke finde ejer!");
+                if (owner == default) prdDbg($"Ledning {komp.id} kan ikke finde ejer!");
+                else komp.LedningsEjersNavn = owner.companyName;
+            }
+            #endregion
+
+            prdDbg("Analyzing LedningType:");
+            {
+                var elevations = new HashSet<(double, string)>();
+                foreach (var item in ledninger)
+                {
+                    IPointParser parser = item.geometri.AbstractCurve as IPointParser;
+                    var points = parser.Get3DPoints();
+                    foreach (var point in points)
+                    {
+                        elevations.Add(
+                            (Math.Round(point.Z, 2, MidpointRounding.AwayFromZero),
+                            item.LedningsEjersNavn));
+                    }
+                }
+
+                prdDbg($"Number of distinct elevations: {elevations.Count}");
+                foreach (var elev in elevations.OrderBy(x => x))
+                {
+                    prdDbg(elev.ToString());
+                }
+            }
+            
+            prdDbg("\nAnalyzing LedningstraceType:");
+            {
+                var elevations = new HashSet<(double, string)>();
+                foreach (var item in ledningstrace)
+                {
+                    IPointParser parser = item.geometri.MultiCurve as IPointParser;
+                    var points = parser.Get3DPoints();
+                    foreach (var point in points)
+                    {
+                        elevations.Add(
+                            (Math.Round(point.Z, 2, MidpointRounding.AwayFromZero),
+                            item.LedningsEjersNavn));
+                    }
+                }
+
+                prdDbg($"Number of distinct elevations: {elevations.Count}");
+                foreach (var elev in elevations.OrderBy(x => x))
+                {
+                    prdDbg(elev.ToString());
+                }
+            }
+
+            prdDbg("\nAnalyzing LedningskomponentType:");
+            {
+                var elevations = new HashSet<(double, string)>();
+                foreach (var item in ledningskomponenter)
+                {
+                    IPointParser parser = item.geometri.Item as IPointParser;
+                    var points = parser.Get3DPoints();
+                    foreach (var point in points)
+                    {
+                        elevations.Add(
+                            (Math.Round(point.Z, 2, MidpointRounding.AwayFromZero),
+                            item.LedningsEjersNavn));
+                    }
+                }
+
+                prdDbg($"Number of distinct elevations: {elevations.Count}");
+                foreach (var elev in elevations.OrderBy(x => x))
+                {
+                    prdDbg(elev.ToString());
+                }
+            }
         }
     }
 }

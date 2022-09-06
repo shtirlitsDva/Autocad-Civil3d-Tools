@@ -6303,7 +6303,7 @@ namespace LERImporter.Schema
         /// <summary>
         /// sproglig uafhængig rækkefølge af tegn der er egnet til unikt og permanent at identificere det som det er knyttet til
         /// </summary>
-        public string id { get; set; }
+        //public string id { get; set; }
         /// <summary>
         /// tidspunkt hvor registrering er foretaget
         /// </summary>

@@ -55,7 +55,7 @@ namespace LERImporter.Schema
 {
     public interface IPointParser
     {
-        Point3d[] GetPoints();
+        Point3d[] Get3DPoints();
     }
 
     public interface IEntityCreator
@@ -65,8 +65,11 @@ namespace LERImporter.Schema
 
     public static class Helper
     {
-        public static Regex pointParser =
+        public static Regex point3DParser =
             new Regex(@"(?<X>(-?(?:\d+)(?:\.(?:\d+)?)?))\s(?<Y>(-?(?:\d+)(?:\.(?:\d+)?)?))\s(?<Z>(-?(?:\d+)(?:\.(?:\d+)?)?))");
+
+        public static Regex point2DParser =
+            new Regex(@"(?<X>(-?(?:\d+)(?:\.(?:\d+)?)?))\s(?<Y>(-?(?:\d+)(?:\.(?:\d+)?)?))");
     }
 
     [XmlRootAttribute("AbstractCurve", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
@@ -83,7 +86,7 @@ namespace LERImporter.Schema
     [XmlRootAttribute("MultiCurve", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
     public partial class MultiCurveType : AbstractGeometricAggregateType, IPointParser
     {
-        public Point3d[] GetPoints()
+        public Point3d[] Get3DPoints()
         {
             Point3d[] points = new Point3d[0];
 
@@ -97,7 +100,7 @@ namespace LERImporter.Schema
                         throw new NotImplementedException();
                     case LineStringType lst:
                         IPointParser pointParser = lst as IPointParser;
-                        points = points.ConcatAr(pointParser.GetPoints());
+                        points = points.ConcatAr(pointParser.Get3DPoints());
                         break;
                     case OrientableCurveType oct:
                         throw new NotImplementedException();
@@ -113,10 +116,10 @@ namespace LERImporter.Schema
     [XmlRootAttribute("LineString", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
     public partial class LineStringType : AbstractCurveType, IPointParser
     {
-        public Point3d[] GetPoints()
+        public Point3d[] Get3DPoints()
         {
             Point3d[] points = new Point3d[0];
-            foreach (IPointParser pointParser in this.Items) points = points.ConcatAr(pointParser.GetPoints());
+            foreach (IPointParser pointParser in this.Items) points = points.ConcatAr(pointParser.Get3DPoints());
             return points;
         }
     }
@@ -131,13 +134,13 @@ namespace LERImporter.Schema
     {
         [XmlTextAttribute]
         public string Text { get; set; }
-        public Point3d[] GetPoints()
+        public Point3d[] Get3DPoints()
         {
             //Guard against badly formatted strings
-            if (!Helper.pointParser.IsMatch(Text))
-                throw new System.Exception($"Text string {Text} was not correctly formatted as a point!");
+            if (!Helper.point3DParser.IsMatch(Text))
+                throw new System.Exception($"Text string {Text} was not correctly formatted as a list of 3D points!");
 
-            MatchCollection matches = Helper.pointParser.Matches(Text);
+            MatchCollection matches = Helper.point3DParser.Matches(Text);
             Point3d[] points = new Point3d[matches.Count];
 
             for (int i = 0; i < matches.Count; i++)
@@ -147,6 +150,25 @@ namespace LERImporter.Schema
                 double Y = Convert.ToDouble(groups["Y"].Captures[0].Value);
                 double Z = Convert.ToDouble(groups["Z"].Captures[0].Value);
                 points[i] = new Point3d(X, Y, Z);
+            }
+            return points;
+        }
+
+        public Point2d[] Get2DPoints()
+        {
+            //Guard against badly formatted strings
+            if (!Helper.point2DParser.IsMatch(Text))
+                throw new System.Exception($"Text string {Text} was not correctly formatted as a list of 2D points!");
+
+            MatchCollection matches = Helper.point2DParser.Matches(Text);
+            Point2d[] points = new Point2d[matches.Count];
+
+            for (int i = 0; i < matches.Count; i++)
+            {
+                GroupCollection groups = matches[i].Groups;
+                double X = Convert.ToDouble(groups["X"].Captures[0].Value);
+                double Y = Convert.ToDouble(groups["Y"].Captures[0].Value);
+                points[i] = new Point2d(X, Y);
             }
             return points;
         }
@@ -169,15 +191,15 @@ namespace LERImporter.Schema
         /// for example in bundkote for afløbskomponenter
         /// </summary>
         public double GetDouble() => Convert.ToDouble(Text);
-        public Point3d[] GetPoints()
+        public Point3d[] Get3DPoints()
         {
             //This class only has one point
 
             //Guard against badly formatted strings
-            if (!Helper.pointParser.IsMatch(Text))
+            if (!Helper.point3DParser.IsMatch(Text))
                 throw new System.Exception($"Text string {Text} was not correctly formatted as a point!");
 
-            Match match = Helper.pointParser.Match(Text);
+            Match match = Helper.point3DParser.Match(Text);
             GroupCollection groups = match.Groups;
             double X = Convert.ToDouble(groups["X"].Captures[0].Value);
             double Y = Convert.ToDouble(groups["Y"].Captures[0].Value);
@@ -186,18 +208,31 @@ namespace LERImporter.Schema
         }
     }
     [XmlRootAttribute("Point", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
-    public partial class PointType : AbstractGeometricPrimitiveType, IEntityCreator
+    public partial class PointType : AbstractGeometricPrimitiveType, IEntityCreator, IPointParser
     {
         public Oid CreateEntity(Database database)
         {
             switch (this.Item)
             {
                 case DirectPositionType dpt:
-                    var point = dpt.GetPoints();
+                    var point = dpt.Get3DPoints();
                     DBPoint dBp = new DBPoint(point.First());
                     return dBp.AddEntityToDbModelSpace(database);
                 default:
                     throw new System.Exception($"Unexpected type in PointType.Item: {this.Item.GetType().Name}");
+            }
+        }
+
+        public Point3d[] Get3DPoints()
+        {
+            switch (this.Item)
+            {
+                case DirectPositionType dpt:
+                    return dpt.Get3DPoints();
+                default:
+                    throw new System.Exception(
+                        $"Unexpected type in PointType.Item: {this.Item.GetType().Name}" +
+                        $"GMLTypeID: {this.GMLTypeID}");
             }
         }
     }
@@ -211,7 +246,7 @@ namespace LERImporter.Schema
     [XmlRootAttribute("AbstractGeometry", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
     public partial class AbstractGeometryType { }
     [XmlRootAttribute("Polygon", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
-    public partial class PolygonType : IEntityCreator
+    public partial class PolygonType : IEntityCreator, IPointParser
     {
         public Oid CreateEntity(Database database)
         {
@@ -223,7 +258,7 @@ namespace LERImporter.Schema
                     DirectPositionListType dplt;
                     if ((dplt = lrt.Items[0] as DirectPositionListType) != null)
                     {
-                        var points = dplt.GetPoints();
+                        var points = dplt.Get3DPoints();
 
                         Point2dCollection points2d = new Point2dCollection();
                         DoubleCollection dc = new DoubleCollection();
@@ -252,6 +287,28 @@ namespace LERImporter.Schema
                         hatch.EvaluateHatch(true);
 
                         return hatchId;
+                    }
+                    else throw new System.Exception(
+                        $"Unexpected type in PolygonType.exterior.Item.Items[0]: {lrt.Items[0].GetType().Name}");
+                case RingType rt:
+                    throw new System.NotImplementedException();
+                default:
+                    throw new System.Exception($"Unexpected type in PolygonType.exterior.Item: {ringType.GetType().Name}");
+            }
+        }
+
+        public Point3d[] Get3DPoints()
+        {
+            var exterior = this.exterior;
+            var ringType = exterior.Item;
+
+            switch (ringType)
+            {
+                case LinearRingType lrt:
+                    DirectPositionListType dplt;
+                    if ((dplt = lrt.Items[0] as DirectPositionListType) != null)
+                    {
+                        return dplt.Get3DPoints();
                     }
                     else throw new System.Exception(
                         $"Unexpected type in PolygonType.exterior.Item.Items[0]: {lrt.Items[0].GetType().Name}");

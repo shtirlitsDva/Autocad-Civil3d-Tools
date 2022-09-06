@@ -247,7 +247,7 @@ namespace LERImporter
                 return;
             }
         }
-        
+
         [CommandMethod("IMPORTCONSOLIDATEDGML")]
         public void importconsolidated()
         {
@@ -320,6 +320,53 @@ namespace LERImporter
                     ler2dDb.SaveAs(newFilename, DwgVersion.Current);
                     //ler2dDb.Dispose();
                 }
+                #endregion
+
+            }
+            catch (System.Exception ex)
+            {
+                Log.log(ex.ToString());
+                return;
+            }
+        }
+
+        [CommandMethod("TESTLER3DDATA")]
+        public void testler3ddata()
+        {
+            try
+            {
+                #region Get file and folder of gml
+                string pathToGml = string.Empty;
+                OpenFileDialog dialog = new OpenFileDialog()
+                {
+                    Title = "Choose gml file:",
+                    DefaultExt = "gml",
+                    Filter = "gml files (*.gml)|*.gml|All files (*.*)|*.*",
+                    FilterIndex = 0
+                };
+                if (dialog.ShowDialog() == DialogResult.OK) pathToGml = dialog.FileName;
+                else return;
+
+                string folderPath = Path.GetDirectoryName(pathToGml) + "\\";
+                #endregion
+
+                Log.LogFileName = folderPath + "LerImport.log";
+                Log.log($"Importing {pathToGml}");
+
+                #region Deserialize gml
+                var serializer = new XmlSerializer(typeof(Schema.FeatureCollection));
+                Schema.FeatureCollection gf;
+
+                using (var fileStream = new FileStream(pathToGml, FileMode.Open))
+                {
+                    gf = (Schema.FeatureCollection)serializer.Deserialize(fileStream);
+                }
+                #endregion
+
+                #region Create database for 2D ler
+
+                LERImporter.ConsolidatedCreator.TestLerData(gf);
+
                 #endregion
 
             }

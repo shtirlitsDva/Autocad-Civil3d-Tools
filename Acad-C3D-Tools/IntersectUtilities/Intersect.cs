@@ -17267,6 +17267,15 @@ namespace IntersectUtilities
                         ltr.LinetypeObjectId = lineTypeId;
                         #endregion
                     }
+
+                    #region Set objects to byLayer
+                    var list = localDb.ListOfType<Entity>(tx);
+                    foreach (Entity item in list)
+                    {
+                        item.CheckOrOpenForWrite();
+                        item.Color = Color.FromColorIndex(ColorMethod.ByAci, 256);
+                    }
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
@@ -17276,8 +17285,6 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
-
 
         void AbortGracefully(Transaction tx, string msg)
         {
