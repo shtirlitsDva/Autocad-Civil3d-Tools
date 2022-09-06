@@ -108,7 +108,7 @@ namespace LERImporter.Schema
         {
             IPointParser parser = this.geometri.AbstractCurve as IPointParser;
 
-            Point3d[] points = parser.GetPoints();
+            Point3d[] points = parser.Get3DPoints();
             Polyline polyline = new Polyline(points.Length);
 
             for (int i = 0; i < points.Length; i++)
@@ -742,7 +742,7 @@ namespace LERImporter.Schema
         private ForsyningsartEnum getForsyningsart(LedningstraceTypeForsyningsart[] forsyningsart)
         {
             if (forsyningsart.Length == 0) return ForsyningsartEnum.none;
-            if (forsyningsart.Length > 1) Log.log($"WARNING! Flere forsyningsarter på Føringsrør {this.GMLTypeID}.");
+            if (forsyningsart.Length > 1) Log.log($"WARNING! Flere forsyningsarter på Ledningstrace {this.GMLTypeID}.");
             string art = forsyningsart[0].Value;
             if (string.IsNullOrEmpty(art)) return ForsyningsartEnum.none;
             if (!forsyningsartDict.ContainsKey(art))
@@ -829,7 +829,7 @@ namespace LERImporter.Schema
         {
             IPointParser parser = this.geometri.MultiCurve as IPointParser;
 
-            Point3d[] points = parser.GetPoints();
+            Point3d[] points = parser.Get3DPoints();
             Polyline polyline = new Polyline(points.Length);
 
             for (int i = 0; i < points.Length; i++)
