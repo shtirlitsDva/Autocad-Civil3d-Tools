@@ -405,16 +405,43 @@ namespace LERImporter
             }
             #endregion
 
+            #region Populate Company Name
+            //Populate Company Name
+            foreach (LedningType ledning in ledninger)
+            {
+                var owner = ownersRegister.FirstOrDefault(x => x.ledningsejer == ledning.ledningsejer);
+                //if (owner == default) throw new System.Exception($"Ledning {ledning.id} kan ikke finde ejer!");
+                if (owner == default) prdDbg($"Ledning {ledning.id} kan ikke finde ejer!");
+                else ledning.LedningsEjersNavn = owner.companyName;
+            }
+            foreach (LedningstraceType trace in ledningstrace)
+            {
+                var owner = ownersRegister.FirstOrDefault(x => x.ledningsejer == trace.ledningsejer);
+                //if (owner == default) throw new System.Exception($"Ledning {trace.id} kan ikke finde ejer!");
+                if (owner == default) prdDbg($"Ledning {trace.id} kan ikke finde ejer!");
+                else trace.LedningsEjersNavn = owner.companyName;
+            }
+            foreach (LedningskomponentType komp in ledningskomponenter)
+            {
+                var owner = ownersRegister.FirstOrDefault(x => x.ledningsejer == komp.ledningsejer);
+                //if (owner == default) throw new System.Exception($"Ledning {komp.id} kan ikke finde ejer!");
+                if (owner == default) prdDbg($"Ledning {komp.id} kan ikke finde ejer!");
+                else komp.LedningsEjersNavn = owner.companyName;
+            }
+            #endregion
+
             prdDbg("Analyzing LedningType:");
             {
-                HashSet<double> elevations = new HashSet<double>();
+                var elevations = new HashSet<(double, string)>();
                 foreach (var item in ledninger)
                 {
                     IPointParser parser = item.geometri.AbstractCurve as IPointParser;
                     var points = parser.Get3DPoints();
                     foreach (var point in points)
                     {
-                        elevations.Add(Math.Round(point.Z, 2, MidpointRounding.AwayFromZero));
+                        elevations.Add(
+                            (Math.Round(point.Z, 2, MidpointRounding.AwayFromZero),
+                            item.LedningsEjersNavn));
                     }
                 }
 
@@ -427,14 +454,16 @@ namespace LERImporter
             
             prdDbg("\nAnalyzing LedningstraceType:");
             {
-                HashSet<double> elevations = new HashSet<double>();
+                var elevations = new HashSet<(double, string)>();
                 foreach (var item in ledningstrace)
                 {
                     IPointParser parser = item.geometri.MultiCurve as IPointParser;
                     var points = parser.Get3DPoints();
                     foreach (var point in points)
                     {
-                        elevations.Add(Math.Round(point.Z, 2, MidpointRounding.AwayFromZero));
+                        elevations.Add(
+                            (Math.Round(point.Z, 2, MidpointRounding.AwayFromZero),
+                            item.LedningsEjersNavn));
                     }
                 }
 
@@ -447,14 +476,16 @@ namespace LERImporter
 
             prdDbg("\nAnalyzing LedningskomponentType:");
             {
-                HashSet<double> elevations = new HashSet<double>();
+                var elevations = new HashSet<(double, string)>();
                 foreach (var item in ledningskomponenter)
                 {
                     IPointParser parser = item.geometri.Item as IPointParser;
                     var points = parser.Get3DPoints();
                     foreach (var point in points)
                     {
-                        elevations.Add(Math.Round(point.Z, 2, MidpointRounding.AwayFromZero));
+                        elevations.Add(
+                            (Math.Round(point.Z, 2, MidpointRounding.AwayFromZero),
+                            item.LedningsEjersNavn));
                     }
                 }
 
