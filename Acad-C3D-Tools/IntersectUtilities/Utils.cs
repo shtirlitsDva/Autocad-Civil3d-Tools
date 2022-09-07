@@ -51,6 +51,7 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
+using Dreambuild.AutoCAD;
 
 namespace IntersectUtilities
 {
@@ -1342,6 +1343,72 @@ namespace IntersectUtilities
             pline.Closed = true;
             return pline;
         }
+        public static string ConstructStringFromPSByRecipe(Entity ent, string stringToProcess)
+        {
+            //Construct pattern which matches the parameter definition
+            Regex variablePattern = new Regex(@"{(?<psname>[a-zæøåA-ZÆØÅ0-9_-]*):(?<propname>[a-zæøåA-ZÆØÅ0-9_-]*)}");
+
+            //Test if a pattern matches in the input string
+            if (variablePattern.IsMatch(stringToProcess))
+            {
+                //Get the first match
+                Match match = variablePattern.Match(stringToProcess);
+                //Get the first capture, it needs to be replaced by the property value
+                string capture = match.Captures[0].Value;
+                //Retreive PS name and property name from match
+                string psName = match.Groups["psname"].Value;
+                string propName = match.Groups["propname"].Value;
+                //Read the value from PS
+                string parameterValue = PropertySetManager.ReadNonDefinedPropertySetString(ent, psName, propName);
+                //Replace the captured group in original string with the parameter value
+                stringToProcess = stringToProcess.Replace(capture, parameterValue);
+                //Recursively call current function
+                //It runs on the string until no more captures remain
+                //Then it returns
+                stringToProcess = ConstructStringFromPSByRecipe(ent, stringToProcess);
+            }
+
+            return stringToProcess;
+        }
+        /// <summary>
+        /// Assumes no bulges, eg. works only on plines without bulges.
+        /// </summary>
+        public static OverlapStatusEnum GetOverlapStatus(Polyline fP, Polyline sP)
+        {
+            var points1 = fP.GetPoints();
+            var points2 = sP.GetPoints();
+
+            var pointsOnLine1 = points1.Where(x => sP.GetDistToPoint(x) < Tolerance.Global.EqualPoint);
+            int numberOfPoints1 = pointsOnLine1.Count();
+            var pointsOnLine2 = points2.Where(x => fP.GetDistToPoint(x) < Tolerance.Global.EqualPoint);
+            int numberOfPoints2 = pointsOnLine2.Count();
+
+            //Case 1: No overlap detected
+            if (numberOfPoints1 == 0 && numberOfPoints2 == 0) return OverlapStatusEnum.None;
+            //Case 2: Partial overlap only by one segment
+            //Case 2: Needs testing to discern from end-to-end connection
+            if (numberOfPoints1 == 1 || numberOfPoints2 == 1)
+            {
+                var point1 = pointsOnLine1.First();
+                var point2 = pointsOnLine2.First();
+
+                if (point1.IsEqualTo(point2, Tolerance.Global)) return OverlapStatusEnum.None;
+                else return OverlapStatusEnum.Partial;
+            }
+            //Case 3: Full overlap (assumes that all vertices are equal)
+            if (points1.All(x => points2.Any(y => y.IsEqualTo(x, Tolerance.Global)))) return OverlapStatusEnum.Full;
+
+            //Case 4: Partial overlap
+            //Case 4: Reached by eliminating all other cases
+            return OverlapStatusEnum.Partial;
+        }
+        public enum OverlapStatusEnum
+        {
+            None,
+            Partial,
+            Full
+        }
+        public static Color ColorByName(string name) => UtilsCommon.Utils.AutocadStdColors[name];
     }
 
     public static class Enums

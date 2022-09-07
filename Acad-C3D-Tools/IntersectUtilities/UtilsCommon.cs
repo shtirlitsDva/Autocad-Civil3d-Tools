@@ -127,6 +127,13 @@ namespace IntersectUtilities.UtilsCommon
             prdDbg($"Parsing of color string {colorString} failed!");
             return null;
         }
+
+        public static double GetRotation(Vector3d vector, Vector3d normal)
+        {
+            var plane = new Plane();
+            var ocsXAxis = Vector3d.XAxis.TransformBy(Matrix3d.PlaneToWorld(plane));
+            return ocsXAxis.GetAngleTo(vector.ProjectTo(normal, normal), normal);
+        }
     }
     public static class UtilsDataTables
     {

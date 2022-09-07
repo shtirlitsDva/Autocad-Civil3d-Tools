@@ -12603,7 +12603,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        
+
         [CommandMethod("NOVAFOSCHANGELAYERFOR2DVER2")]
         public void novafoschangelayerfor2dver2()
         {
@@ -12624,13 +12624,13 @@ namespace IntersectUtilities
                     ///////////////////////////
 
                     List<string> layerNames = new List<string>()
-                    {   
+                    {
                         "Afløb_Ledninger"
                     };
 
                     #region Create layers
                     Dictionary<string, short> layerColorMap = new Dictionary<string, short>()
-                    {   
+                    {
                         {"Afløb_Ledninger-2D", 140 },
                     };
                     LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
@@ -12673,6 +12673,101 @@ namespace IntersectUtilities
                         }
                     }
                     #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("CREATELABELSFOR2D")]
+        public void createlabelsfor2d()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            //Settings
+            const double labelOffset = 1.2;
+            const double labelHeight = 0.75;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Read krydsninger
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    System.Data.DataTable dtK = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    if (dtK == null) throw new System.Exception("Failed to read Krydsninger.csv!");
+                    #endregion
+
+                    #region Create layer for labels
+                    string labelLayer = "0-LABELS";
+                    localDb.CheckOrCreateLayer(labelLayer);
+                    #endregion
+
+                    LayerTable lt = localDb.LayerTableId.Go<LayerTable>(tx);
+
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
+                    var layerGroups = plines.GroupBy(x => x.Layer);
+
+                    foreach (var group in layerGroups)
+                    {
+                        string layerName = group.Key;
+
+                        string labelRecipe =
+                            ReadStringParameterFromDataTable(layerName, dtK, "Label", 0);
+
+                        if (labelRecipe.IsNoE())
+                        {
+                            prdDbg($"Layer {layerName} does not have a recipe for labels defined! Skipping...");
+                            continue;
+                        }
+
+                        LayerTableRecord ltr = lt[layerName].Go<LayerTableRecord>(tx);
+
+                        //Create labels
+                        foreach (var pline in group)
+                        {
+                            //Filter plines to avoid overpopulation
+                            if (pline.Length < 5.0) continue;
+
+                            //Compose label
+                            string label = ConstructStringFromPSByRecipe(pline, labelRecipe);
+
+                            //Create text object
+                            DBText textEnt = new DBText();
+                            textEnt.Layer = labelLayer;
+                            textEnt.Color = ltr.Color;
+                            textEnt.TextString = label;
+                            textEnt.Height = labelHeight;
+
+                            //Manage position
+                            Point3d cen = pline.GetPointAtDist(pline.Length / 2);
+                            var deriv = pline.GetFirstDerivative(cen);
+                            var perp = deriv.GetPerpendicularVector();
+                            Point3d loc = cen + perp * labelOffset;
+
+                            Vector3d normal = new Vector3d(0.0, 0.0, 1.0);
+                            double rotation = UtilsCommon.Utils.GetRotation(deriv, normal);
+
+                            textEnt.HorizontalMode = TextHorizontalMode.TextCenter;
+                            textEnt.VerticalMode = TextVerticalMode.TextBottom;
+
+                            textEnt.Rotation = rotation;
+                            textEnt.AlignmentPoint = loc;
+
+                            textEnt.AddEntityToDbModelSpace(localDb);
+                        }
+                    }
+
                 }
                 catch (System.Exception ex)
                 {
@@ -15415,7 +15510,7 @@ namespace IntersectUtilities
                 {
                     #region Test joining polylines
                     //bool stillConnectedPolylinesLeft = true;
-                    
+
 
                     #endregion
 
@@ -17193,6 +17288,108 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+
+        [CommandMethod("COMPAREOVERLAPS")]
+        public void compareoverlaps()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Document doc = docCol.CurrentDocument;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor ed = docCol.CurrentDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select XREF to compare: ");
+                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
+                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
+                    PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) AbortGracefully(tx, "No input!");
+                    Oid blkObjId = entity1.ObjectId;
+                    BlockReference blkRef = tx.GetObject(blkObjId, OpenMode.ForRead, false) as BlockReference;
+
+                    BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                    if (!blockDef.IsFromExternalReference) AbortGracefully(tx, "Selected object is not an XREF!");
+
+                    // open the xref database
+                    Database xrefDb = new Database(false, true);
+                    prdDbg($"\nPathName of the blockDef -> {blockDef.PathName}");
+
+                    //Relative path handling
+                    string curPathName = blockDef.PathName;
+                    bool isFullPath = IsFullPath(curPathName);
+                    if (isFullPath == false)
+                    {
+                        string sourcePath = Path.GetDirectoryName(doc.Name);
+                        prdDbg($"\nSourcePath -> {sourcePath}");
+                        curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
+                        prdDbg($"\nTargetPath -> {curPathName}");
+                    }
+
+                    xrefDb.ReadDwgFile(curPathName, FileOpenMode.OpenForReadAndWriteNoShare, false, string.Empty);
+
+                    //Transaction from Database of the Xref
+                    using (Transaction xrefTx = xrefDb.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            var remotePlines = xrefDb.HashSetOfType<Polyline>(xrefTx);
+                            prdDbg($"Number of polylines in remote database: {remotePlines.Count}");
+
+                            var localPlines = localDb.HashSetOfType<Polyline>(tx);
+                            prdDbg($"Number of polylines in local database: {localPlines.Count}");
+
+                            foreach (var remotePline in remotePlines)
+                            {
+                                foreach (var localPline in localPlines)
+                                {
+                                    var overlap = GetOverlapStatus(remotePline, localPline);
+
+                                    switch (overlap)
+                                    {
+                                        case OverlapStatusEnum.None:
+                                            break;
+                                        case OverlapStatusEnum.Partial:
+                                            localPline.CheckOrOpenForWrite();
+                                            localPline.Color = ColorByName("yellow");
+                                            remotePline.CheckOrOpenForWrite();
+                                            remotePline.Color = ColorByName("yellow");
+                                            break;
+                                        case OverlapStatusEnum.Full:
+                                            localPline.CheckOrOpenForWrite();
+                                            localPline.Color = ColorByName("red");
+                                            remotePline.CheckOrOpenForWrite();
+                                            remotePline.Color = ColorByName("red");
+                                            break;
+                                        default:
+                                            break;
+                                    }
+                                }
+                            }
+                        }
+                        catch (System.Exception ex)
+                        {
+                            xrefTx.Abort();
+                            xrefDb.Dispose();
+                            throw;
+                        }
+                        xrefTx.Commit();
+                    }
+
+                    xrefDb.SaveAs(xrefDb.Filename, true, DwgVersion.Current, null);
+                    xrefDb.Dispose();
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
                     prdDbg(ex.ToString());
                     return;
                 }
