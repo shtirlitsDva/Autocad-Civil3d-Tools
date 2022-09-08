@@ -193,7 +193,7 @@ namespace IntersectUtilities
                                     Point3d nearest = polyline.GetClosestPointTo(wPt, false);
                                     if (nearest.DistanceHorizontalTo(wPt) < 0.01)
                                     {
-                                        POIs.Add(new POI(polyline, nearest.To2D(), EndType.Branch, PSM, DriGraph));
+                                        POIs.Add(new POI(polyline, nearest.To2D(), EndType.WeldOn, PSM, DriGraph));
                                         break;
                                     }
                                 }
@@ -215,7 +215,8 @@ namespace IntersectUtilities
             Branch,          //4: For branches in components
             StikAfgrening,   //5: For points where stik are connected to supply pipes
             StikStart,       //6: For stik starts
-            StikEnd          //7: For stik ends
+            StikEnd,         //7: For stik ends
+            WeldOn           //8: For elements welded directly on pipe without breaking it
         }
         public Dictionary<string, bool> allowedCombinations =
             new Dictionary<string, bool>()
@@ -269,6 +270,8 @@ namespace IntersectUtilities
                 { "StikEnd-StikAfgrening", false },
                 { "StikEnd-StikStart", true },
                 { "StikEnd-StikEnd", false },
+                { "WeldOn-Main", true },
+                { "Main-WeldOn", false }
             };
         public class GraphEntity
         {
@@ -375,7 +378,15 @@ namespace IntersectUtilities
                 
                 //Warning: this won't work if there's a connection to first pipe in system
                 //Warning: afgreningsstuds or stik pipe
-                GraphEntity ge = GraphEntities.Where(x => x.Cons.Length == 1).MaxBy(x => x.LargestDn()).FirstOrDefault();
+                //2022.09.08: Attempt to fix this by adding a new EndType: WeldOn
+                GraphEntity ge = GraphEntities
+                    .Where(x =>
+                    //Exclude WeldOn and StikAfgrening EndTypes from count
+                        x.Cons.Count(y => 
+                            y.OwnEndType != EndType.StikAfgrening &&
+                            y.OwnEndType != EndType.WeldOn) == 1
+                    )
+                    .MaxBy(x => x.LargestDn()).FirstOrDefault();
 
                 //prdDbg(ge.OwnerHandle.ToString());
                 if (ge == null)
@@ -465,7 +476,7 @@ namespace IntersectUtilities
                         string ownEnd = con.OwnEndType.ToString();
                         string conEnd = con.ConEndType.ToString();
                         string key = ownEnd + "-" + conEnd;
-                        if (!allowedCombinations[key]) continue;
+                        if (allowedCombinations.ContainsKey(key) && !allowedCombinations[key]) continue;
 
                         //Tries to prevent duplicate Main-Main edges by eliminating upstream Main-Main instance
                         //Doesn't work if recursion just returned from a branch, because previous is set the the
