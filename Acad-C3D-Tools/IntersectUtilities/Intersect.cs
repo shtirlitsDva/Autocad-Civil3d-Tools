@@ -17308,6 +17308,7 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Select xref and open database
                     PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select XREF to compare: ");
                     promptEntityOptions1.SetRejectMessage("\n Not a XREF");
                     promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
@@ -17334,7 +17335,8 @@ namespace IntersectUtilities
                         prdDbg($"\nTargetPath -> {curPathName}");
                     }
 
-                    xrefDb.ReadDwgFile(curPathName, FileOpenMode.OpenForReadAndWriteNoShare, false, string.Empty);
+                    xrefDb.ReadDwgFile(curPathName, FileOpenMode.OpenForReadAndWriteNoShare, false, string.Empty); 
+                    #endregion
 
                     //Transaction from Database of the Xref
                     using (Transaction xrefTx = xrefDb.TransactionManager.StartTransaction())
@@ -17345,6 +17347,12 @@ namespace IntersectUtilities
                             prdDbg($"Number of polylines in remote database: {remotePlines.Count}");
 
                             var localPlines = localDb.HashSetOfType<Polyline>(tx);
+                            prdDbg($"Number of polylines in local database: {localPlines.Count}");
+
+                            var remotePoints = xrefDb.HashSetOfType<DBPoint>(xrefTx);
+                            prdDbg($"Number of polylines in remote database: {remotePlines.Count}");
+
+                            var localPoints = localDb.HashSetOfType<DBPoint>(tx);
                             prdDbg($"Number of polylines in local database: {localPlines.Count}");
 
                             foreach (var remotePline in remotePlines)
@@ -17358,19 +17366,53 @@ namespace IntersectUtilities
                                         case OverlapStatusEnum.None:
                                             break;
                                         case OverlapStatusEnum.Partial:
-                                            localPline.CheckOrOpenForWrite();
-                                            localPline.Color = ColorByName("yellow");
                                             remotePline.CheckOrOpenForWrite();
                                             remotePline.Color = ColorByName("yellow");
                                             break;
                                         case OverlapStatusEnum.Full:
-                                            localPline.CheckOrOpenForWrite();
-                                            localPline.Color = ColorByName("red");
                                             remotePline.CheckOrOpenForWrite();
                                             remotePline.Color = ColorByName("red");
                                             break;
                                         default:
                                             break;
+                                    }
+                                }
+                            }
+
+                            foreach (var localPline in localPlines)
+                            {
+                                foreach (var remotePline in remotePlines)
+                                {
+                                    var overlap = GetOverlapStatus(localPline, remotePline);
+
+                                    switch (overlap)
+                                    {
+                                        case OverlapStatusEnum.None:
+                                            break;
+                                        case OverlapStatusEnum.Partial:
+                                            localPline.CheckOrOpenForWrite();
+                                            localPline.Color = ColorByName("yellow");
+                                            break;
+                                        case OverlapStatusEnum.Full:
+                                            localPline.CheckOrOpenForWrite();
+                                            localPline.Color = ColorByName("red");
+                                            break;
+                                        default:
+                                            break;
+                                    }
+                                }
+                            }
+
+                            foreach (var localPoint in localPoints)
+                            {
+                                foreach (var remotePoint in remotePoints)
+                                {
+                                    if (localPoint.Position.IsEqualTo(remotePoint.Position, Tolerance.Global))
+                                    {
+                                        localPoint.CheckOrOpenForWrite();
+                                        localPoint.Color = ColorByName("magenta");
+                                        remotePoint.CheckOrOpenForWrite();
+                                        remotePoint.Color = ColorByName("magenta");
                                     }
                                 }
                             }
