@@ -1375,12 +1375,14 @@ namespace IntersectUtilities
         /// </summary>
         public static OverlapStatusEnum GetOverlapStatus(Polyline fP, Polyline sP)
         {
+            Tolerance tol = new Tolerance(0.0001, 0.0001);
+
             var points1 = fP.GetPoints();
             var points2 = sP.GetPoints();
 
-            var pointsOnLine1 = points1.Where(x => sP.GetDistToPoint(x) < Tolerance.Global.EqualPoint);
+            var pointsOnLine1 = points1.Where(x => sP.GetDistToPoint(x) < tol.EqualPoint);
             int numberOfPoints1 = pointsOnLine1.Count();
-            var pointsOnLine2 = points2.Where(x => fP.GetDistToPoint(x) < Tolerance.Global.EqualPoint);
+            var pointsOnLine2 = points2.Where(x => fP.GetDistToPoint(x) < tol.EqualPoint);
             int numberOfPoints2 = pointsOnLine2.Count();
 
             //Case 1: No overlap detected
@@ -1392,11 +1394,11 @@ namespace IntersectUtilities
                 var point1 = pointsOnLine1.First();
                 var point2 = pointsOnLine2.First();
 
-                if (point1.IsEqualTo(point2, Tolerance.Global)) return OverlapStatusEnum.None;
+                if (point1.IsEqualTo(point2, tol)) return OverlapStatusEnum.None;
                 else return OverlapStatusEnum.Partial;
             }
             //Case 3: Full overlap (assumes that all vertices are equal)
-            if (points1.All(x => points2.Any(y => y.IsEqualTo(x, Tolerance.Global)))) return OverlapStatusEnum.Full;
+            if (points1.All(x => points2.Any(y => y.IsEqualTo(x, tol)))) return OverlapStatusEnum.Full;
 
             //Case 4: Partial overlap
             //Case 4: Reached by eliminating all other cases
