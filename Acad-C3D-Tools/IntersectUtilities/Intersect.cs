@@ -17296,8 +17296,8 @@ namespace IntersectUtilities
         }
 
 
-        [CommandMethod("COMPAREOVERLAPS")]
-        public void compareoverlaps()
+        [CommandMethod("OVERLAPCOMPARISON")]
+        public void overlapcomparison()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Document doc = docCol.CurrentDocument;
@@ -17345,15 +17345,18 @@ namespace IntersectUtilities
                         {
                             var remotePlines = xrefDb.HashSetOfType<Polyline>(xrefTx);
                             prdDbg($"Number of polylines in remote database: {remotePlines.Count}");
-
                             var localPlines = localDb.HashSetOfType<Polyline>(tx);
                             prdDbg($"Number of polylines in local database: {localPlines.Count}");
-
                             var remotePoints = xrefDb.HashSetOfType<DBPoint>(xrefTx);
-                            prdDbg($"Number of polylines in remote database: {remotePlines.Count}");
-
+                            prdDbg($"Number of points in remote database: {remotePoints.Count}");
                             var localPoints = localDb.HashSetOfType<DBPoint>(tx);
-                            prdDbg($"Number of polylines in local database: {localPlines.Count}");
+                            prdDbg($"Number of points in local database: {localPoints.Count}");
+
+                            int remotePartial = 0;
+                            int localPartial = 0;
+                            int remoteFull = 0;
+                            int localFull = 0;
+                            int duplicatePoints = 0;
 
                             foreach (var remotePline in remotePlines)
                             {
@@ -17368,10 +17371,12 @@ namespace IntersectUtilities
                                         case OverlapStatusEnum.Partial:
                                             remotePline.CheckOrOpenForWrite();
                                             remotePline.Color = ColorByName("yellow");
+                                            remotePartial++;
                                             break;
                                         case OverlapStatusEnum.Full:
                                             remotePline.CheckOrOpenForWrite();
                                             remotePline.Color = ColorByName("red");
+                                            remoteFull++;
                                             break;
                                         default:
                                             break;
@@ -17392,10 +17397,12 @@ namespace IntersectUtilities
                                         case OverlapStatusEnum.Partial:
                                             localPline.CheckOrOpenForWrite();
                                             localPline.Color = ColorByName("yellow");
+                                            localPartial++;
                                             break;
                                         case OverlapStatusEnum.Full:
                                             localPline.CheckOrOpenForWrite();
                                             localPline.Color = ColorByName("red");
+                                            localFull++;
                                             break;
                                         default:
                                             break;
@@ -17413,9 +17420,15 @@ namespace IntersectUtilities
                                         localPoint.Color = ColorByName("magenta");
                                         remotePoint.CheckOrOpenForWrite();
                                         remotePoint.Color = ColorByName("magenta");
+                                        duplicatePoints++;
                                     }
                                 }
                             }
+
+                            prdDbg(
+                                $"Remote -> Partial overlaps {remotePartial}, Full overlaps {remoteFull}\n" +
+                                $"Local -> Partial overlaps {localPartial}, Full overlaps {localFull}\n" +
+                                $"Points -> Duplicates {duplicatePoints}");
                         }
                         catch (System.Exception ex)
                         {
