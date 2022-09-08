@@ -15561,24 +15561,24 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Test enum list
-                    StringBuilder sb = new StringBuilder();
-                    HashSet<int> nums = new HashSet<int>()
-                    {
-                        1, 2, 3, 4, 5, 6, 7, 8
-                    };
+                    //StringBuilder sb = new StringBuilder();
+                    //HashSet<int> nums = new HashSet<int>()
+                    //{
+                    //    1, 2, 3, 4, 5, 6, 7, 8
+                    //};
 
-                    foreach (var num in nums)
-                    {
-                        string f = ((Graph.EndType)num).ToString();
-                        foreach (var xum in nums)
-                        {
-                            string s = ((Graph.EndType)xum).ToString();
+                    //foreach (var num in nums)
+                    //{
+                    //    string f = ((Graph.EndType)num).ToString();
+                    //    foreach (var xum in nums)
+                    //    {
+                    //        string s = ((Graph.EndType)xum).ToString();
 
-                            sb.AppendLine($"{f}-{s}");
-                        }
-                    }
+                    //        sb.AppendLine($"{f}-{s}");
+                    //    }
+                    //}
 
-                    OutputWriter(@"C:\Temp\EntTypeEnum.txt", sb.ToString(), true);
+                    //OutputWriter(@"C:\Temp\EntTypeEnum.txt", sb.ToString(), true);
                     #endregion
 
                     #region test regex
