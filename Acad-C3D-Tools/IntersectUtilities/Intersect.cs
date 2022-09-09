@@ -814,6 +814,44 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("DELETEALLCOGOPOINTS")]
+        public void deleteallcogopoints()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var allpoints = localDb.HashSetOfType<CogoPoint>(tx);
+                    foreach (var item in allpoints)
+                    {
+                        item.CheckOrOpenForWrite();
+                        item.Erase(true);
+                    }
+
+                    prdDbg(civilDoc.PointGroups.Count.ToString());
+
+                    civilDoc.PointGroups.UpdateAllPointGroups();
+
+                    foreach (var item in civilDoc.PointGroups)
+                    {
+                        //item.Go<PointGroup>(tx, OpenMode.ForWrite).Erase(true);
+                    }
+
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         #endregion
 
         [CommandMethod("chel")]
@@ -17057,7 +17095,7 @@ namespace IntersectUtilities
                         string description = ReadStringParameterFromDataTable(
                             layerName, dtKrydsninger, "Description", 0);
 
-                        prdDbg($"{layerName};{description}");
+                        if (description.IsNoE()) prdDbg($"{layerName};{description}");
                     }
 
                 }
