@@ -1388,6 +1388,1172 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        /// <summary>
+        /// Creates detailing based on SURFACE profile.
+        /// </summary>
+        [CommandMethod("CREATEDETAILINGPRELIMINARY")]
+        public void createdetailingpreliminary()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                #region Open fremtidig db
+                DataReferencesOptions dro = new DataReferencesOptions();
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
+
+                // open the xref database
+                Database fremDb = new Database(false, true);
+                fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
+                Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
+                HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                #endregion
+
+                #region Initialize PS for Alignment
+                PropertySetManager psmPipeLineData = new PropertySetManager(
+                    fremDb,
+                    PSetDefs.DefinedSets.DriPipelineData);
+                PSetDefs.DriPipelineData driPipelineData =
+                    new PSetDefs.DriPipelineData();
+                #endregion
+
+                //////////////////////////////////////
+                string komponentBlockName = "DRISizeChangeAnno";
+                string bueBlockName = "DRIPipeArcAnno";
+                //////////////////////////////////////
+
+                try
+                {
+                    #region Common variables
+                    BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    Plane plane = new Plane(); //For intersecting
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                    #endregion
+
+                    #region Import blocks if missing
+                    if (!bt.Has(komponentBlockName) ||
+                        !bt.Has(bueBlockName))
+                    {
+                        prdDbg("Some of the blocks for detailing are missing! Importing...");
+                        Database blockDb = new Database(false, true);
+                        blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
+                            FileOpenMode.OpenForReadAndAllShare, false, null);
+                        Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+
+                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                        //Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                        Oid destDbMsId = localDb.BlockTableId;
+
+                        BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                        ObjectIdCollection idsToClone = new ObjectIdCollection();
+                        if (!bt.Has(komponentBlockName)) idsToClone.Add(sourceBt[komponentBlockName]);
+                        if (!bt.Has(bueBlockName)) idsToClone.Add(sourceBt[bueBlockName]);
+
+                        IdMapping mapping = new IdMapping();
+                        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                        blockTx.Commit();
+                        blockTx.Dispose();
+                        blockDb.Dispose();
+                    }
+                    #endregion
+
+                    #region Delete previous blocks
+                    //Delete previous blocks
+                    deletedetailing();
+
+                    //var existingBlocks = localDb.GetBlockReferenceByName(komponentBlockName);
+                    //existingBlocks.UnionWith(localDb.GetBlockReferenceByName(bueBlockName));
+
+                    //foreach (BlockReference br in existingBlocks)
+                    //{
+                    //    br.CheckOrOpenForWrite();
+                    //    br.Erase(true);
+                    //}
+                    #endregion
+
+                    foreach (Alignment al in als)
+                    {
+                        prdDbg($"\nProcessing: {al.Name}...");
+                        #region If exist get surface profile and profile view
+                        ObjectIdCollection profileIds = al.GetProfileIds();
+                        ObjectIdCollection profileViewIds = al.GetProfileViewIds();
+                        ProfileViewCollection pvs = new ProfileViewCollection(profileViewIds);
+
+                        #region Fetch surface profile
+                        Profile surfaceProfile = null;
+                        foreach (Oid oid in profileIds)
+                        {
+                            Profile pTemp = oid.Go<Profile>(tx);
+                            if (pTemp.Name == $"{al.Name}_surface_P") surfaceProfile = pTemp;
+                        }
+                        if (surfaceProfile == null)
+                        {
+                            prdDbg($"No surface profile found for alignment: {al.Name}, skipping current alignment.");
+                            continue;
+                        }
+                        #endregion
+                        #endregion
+
+                        #region GetCurvesAndBRs from fremtidig
+                        HashSet<Curve> curves = allCurves
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                            .ToHashSet();
+
+                        HashSet<BlockReference> brs = allBrs
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                            .ToHashSet();
+
+                        HashSet<BlockReference> afgreningsStudse = allBrs
+                            .Where(x =>
+                                psmPipeLineData.FilterPropetyString(
+                                    x, driPipelineData.BranchesOffToAlignment, al.Name) &&
+                                x.RealName() == "AFGRSTUDS")
+                            .ToHashSet();
+
+                        //Tilføj afgreningsstudse til blokke
+                        brs.UnionWith(afgreningsStudse);
+
+                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                        #endregion
+
+                        prdDbg("Blocks:");
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        prdDbg(sizeArray.ToString());
+
+                        foreach (ProfileView pv in pvs)
+                        {
+                            prdDbg($"Processing PV {pv.Name}.");
+
+                            #region Variables and settings
+                            Point3d pvOrigin = pv.Location;
+                            double originX = pvOrigin.X;
+                            double originY = pvOrigin.Y;
+
+                            double pvStStart = pv.StationStart;
+                            double pvStEnd = pv.StationEnd;
+                            double pvElBottom = pv.ElevationMin;
+                            double pvElTop = pv.ElevationMax;
+                            double pvLength = pvStEnd - pvStStart;
+                            #endregion
+
+                            #region Determine what sizes appear in current PV
+                            var pvSizeArray = sizeArray.GetPartialSizeArrayForPV(pv);
+                            prdDbg(pvSizeArray.ToString());
+                            #endregion
+
+                            #region Prepare exaggeration handling
+                            ProfileViewStyle profileViewStyle = tx
+                                .GetObject(((Autodesk.Aec.DatabaseServices.Entity)pv)
+                                .StyleId, OpenMode.ForRead) as ProfileViewStyle;
+                            #endregion
+
+                            double curStationBL = 0;
+                            double sampledMidtElevation = 0;
+                            double curX = 0, curY = 0;
+
+                            #region Place size change blocks
+                            for (int i = 0; i < pvSizeArray.Length; i++)
+                            {   //Although look ahead is used, normal iteration is required
+                                //Or cases where sizearray is only 1 size will not run at all
+                                //In more general case the last iteration must be aborted
+                                if (pvSizeArray.Length != 1 && i != pvSizeArray.Length - 1)
+                                {
+                                    //General case
+                                    curStationBL = pvSizeArray[i].EndStation;
+                                    sampledMidtElevation = SampleProfile(surfaceProfile, curStationBL);
+                                    curX = originX + pvSizeArray[i].EndStation - pvStStart;
+                                    curY = originY + (sampledMidtElevation - pvElBottom) *
+                                        profileViewStyle.GraphStyle.VerticalExaggeration;
+                                    double deltaY = (sampledMidtElevation - pvElBottom) *
+                                        profileViewStyle.GraphStyle.VerticalExaggeration;
+                                    //prdDbg($"{originY} + ({sampledMidtElevation} - {pvElBottom}) * " +
+                                    //    $"{profileViewStyle.GraphStyle.VerticalExaggeration} = {deltaY}");
+                                    BlockReference brInt =
+                                        localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                                    brInt.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i].DN}");
+                                    brInt.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[i + 1].DN}");
+                                }
+                                //Special cases
+                                if (i == 0)
+                                {//First iteration
+                                    curStationBL = pvStStart;
+                                    sampledMidtElevation = SampleProfile(surfaceProfile, curStationBL);
+                                    curX = originX;
+                                    curY = originY + (sampledMidtElevation - pvElBottom) *
+                                        profileViewStyle.GraphStyle.VerticalExaggeration;
+                                    BlockReference brAt0 =
+                                        localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                                    brAt0.SetAttributeStringValue("LEFTSIZE", "");
+                                    brAt0.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[0].DN}");
+
+                                    if (pvSizeArray.Length == 1)
+                                    {//If only one size in the array also place block at end
+                                        curStationBL = pvStEnd;
+                                        sampledMidtElevation = SampleProfile(surfaceProfile, curStationBL - .1);
+                                        curX = originX + curStationBL - pvStStart;
+                                        curY = originY + (sampledMidtElevation - pvElBottom) *
+                                            profileViewStyle.GraphStyle.VerticalExaggeration;
+                                        BlockReference brAtEnd =
+                                            localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                                        brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[0].DN}");
+                                        brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
+                                    }
+                                }
+                                if (i == pvSizeArray.Length - 2)
+                                {//End of the iteration
+                                    curStationBL = pvStEnd;
+                                    sampledMidtElevation = SampleProfile(surfaceProfile, curStationBL - .1);
+                                    curX = originX + curStationBL - pvStStart;
+                                    curY = originY + (sampledMidtElevation - pvElBottom) *
+                                        profileViewStyle.GraphStyle.VerticalExaggeration;
+                                    BlockReference brAtEnd =
+                                        localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                                    brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i + 1].DN}");
+                                    brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
+                                }
+                            }
+                            #endregion
+
+                            #region Local method to sample profiles
+                            //Local method to sample profiles
+                            double SampleProfile(Profile profile, double station)
+                            {
+                                double sampledElevation = 0;
+                                try { sampledElevation = profile.ElevationAt(station); }
+                                catch (System.Exception)
+                                {
+                                    prdDbg($"Station {station} threw an exception when placing size change blocks! Skipping...");
+                                    return 0;
+                                }
+                                return sampledElevation;
+                            }
+                            #endregion
+
+                            #region Place component blocks
+                            System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                            foreach (BlockReference br in brs)
+                            {
+                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
+                                if (type == "Reduktion" || type == "Svejsning") continue;
+                                Point3d brLocation = al.GetClosestPointTo(br.Position, false);
+
+                                double station = 0;
+                                double offset = 0;
+                                try
+                                {
+                                    al.StationOffset(brLocation.X, brLocation.Y, ref station, ref offset);
+                                }
+                                catch (System.Exception)
+                                {
+                                    prdDbg(br.Position.ToString());
+                                    prdDbg(brLocation.ToString());
+                                    throw;
+                                }
+
+                                //Determine if blockref is within current PV
+                                //If within -> place block, else go to next iteration
+                                if (!(station > pvStStart && station < pvStEnd)) continue;
+
+                                sampledMidtElevation = SampleProfile(surfaceProfile, station);
+                                double X = originX + station - pvStStart;
+                                double Y = originY + (sampledMidtElevation - pvElBottom) *
+                                        profileViewStyle.GraphStyle.VerticalExaggeration;
+                                BlockReference brSign = localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
+                                brSign.SetAttributeStringValue("LEFTSIZE", type);
+                                if ((new[] {
+                                    "Parallelafgrening",
+                                    "Lige afgrening",
+                                    "Afgrening med spring",
+                                    "Afgrening, parallel" }).Contains(type))
+                                    brSign.SetAttributeStringValue("RIGHTSIZE", psmPipeLineData.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment));
+                                else if (type == "Afgreningsstuds")
+                                    brSign.SetAttributeStringValue("RIGHTSIZE", psmPipeLineData.ReadPropertyString(br, driPipelineData.BelongsToAlignment));
+                                else brSign.SetAttributeStringValue("RIGHTSIZE", "");
+                            }
+                            #endregion
+
+                            #region Find curves and annotate
+                            foreach (Curve curve in curves)
+                            {
+                                if (curve is Polyline pline)
+                                {
+                                    //Detect arcs and determine if it is a buerør or not
+                                    for (int i = 0; i < pline.NumberOfVertices; i++)
+                                    {
+                                        TypeOfSegment tos;
+                                        double bulge = pline.GetBulgeAt(i);
+                                        if (bulge == 0) tos = TypeOfSegment.Straight;
+                                        else
+                                        {
+                                            //Determine if centre of arc is within view
+                                            CircularArc2d arcSegment2dAt;
+                                            try
+                                            {
+                                                arcSegment2dAt = pline.GetArcSegment2dAt(i);
+                                            }
+                                            catch (System.Exception)
+                                            {
+                                                prdDbg($"Pline {pline.Handle} threw when accessing arc segment at {i}!");
+                                                prdDbg("Én af grundene kunne være, at ikke er alle plinjer blevet vendt om med strømmen.");
+                                                throw;
+                                            }
+
+                                            Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
+                                            Point3d location = al.GetClosestPointTo(
+                                                        new Point3d(samplePoint.X, samplePoint.Y, 0), false);
+                                            double centreStation = 0;
+                                            double centreOffset = 0;
+                                            al.StationOffset(location.X, location.Y, ref centreStation, ref centreOffset);
+
+                                            //If centre of arc is not within PV -> continue
+                                            if (!(centreStation > pvStStart && centreStation < pvStEnd)) continue;
+
+                                            //Calculate radius
+                                            double u = pline.GetPoint2dAt(i).GetDistanceTo(pline.GetPoint2dAt(i + 1));
+                                            double radius = u * ((1 + bulge.Pow(2)) / (4 * Math.Abs(bulge)));
+                                            double minRadius = GetPipeMinElasticRadius(pline);
+
+                                            if (radius < minRadius) tos = TypeOfSegment.CurvedPipe;
+                                            else tos = TypeOfSegment.ElasticArc;
+
+                                            //Acquire start and end stations
+                                            location = al.GetClosestPointTo(pline.GetPoint3dAt(i), false);
+                                            double curveStartStation = 0;
+                                            double offset = 0;
+                                            al.StationOffset(location.X, location.Y, ref curveStartStation, ref offset);
+
+                                            location = al.GetClosestPointTo(pline.GetPoint3dAt(i + 1), false);
+                                            double curveEndStation = 0;
+                                            al.StationOffset(location.X, location.Y, ref curveEndStation, ref offset);
+                                            double length = curveEndStation - curveStartStation;
+                                            //double midStation = curveStartStation + length / 2;
+
+                                            sampledMidtElevation = SampleProfile(surfaceProfile, centreStation);
+                                            curX = originX + centreStation - pvStStart;
+                                            curY = originY + (sampledMidtElevation - pvElBottom) *
+                                                    profileViewStyle.GraphStyle.VerticalExaggeration;
+                                            Point3d curvePt = new Point3d(curX, curY, 0);
+                                            BlockReference brCurve =
+                                                localDb.CreateBlockWithAttributes(bueBlockName, curvePt);
+
+                                            DynamicBlockReferencePropertyCollection dbrpc = brCurve.DynamicBlockReferencePropertyCollection;
+                                            foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
+                                            {
+                                                if (dbrp.PropertyName == "Length")
+                                                {
+                                                    //prdDbg(length.ToString());
+                                                    dbrp.Value = Math.Abs(length);
+                                                }
+                                            }
+
+                                            //Set length text
+                                            brCurve.SetAttributeStringValue("LGD", Math.Abs(length).ToString("0.0") + " m");
+
+                                            switch (tos)
+                                            {
+                                                case TypeOfSegment.ElasticArc:
+                                                    brCurve.SetAttributeStringValue("TEXT", $"Elastisk bue {radius.ToString("0.0")} m");
+                                                    break;
+                                                case TypeOfSegment.CurvedPipe:
+                                                    brCurve.SetAttributeStringValue("TEXT", $"Buerør {radius.ToString("0.0")} m");
+                                                    break;
+                                                default:
+                                                    break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            #endregion 
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    fremTx.Abort();
+                    fremTx.Dispose();
+                    fremDb.Dispose();
+                    tx.Abort();
+                    prdDbg(ex.ExceptionInfo());
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                fremTx.Abort();
+                fremTx.Dispose();
+                fremDb.Dispose();
+                tx.Commit();
+            }
+        }
+
+        /// <summary>
+        /// Creates detailing based on an existing MIDT profile
+        /// </summary>
+        [CommandMethod("CREATEDETAILING")]
+        public void createdetailing()
+        {
+            createdetailingmethod();
+        }
+        public void createdetailingmethod(DataReferencesOptions dataReferencesOptions = default, Database database = default)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database dB = database ?? docCol.MdiActiveDocument.Database;
+            Editor ed = docCol.MdiActiveDocument.Editor;
+
+            using (Transaction tx = dB.TransactionManager.StartTransaction())
+            {
+                #region Open fremtidig db
+                DataReferencesOptions dro = dataReferencesOptions ?? new DataReferencesOptions();
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
+
+                // open the xref database
+                Database fremDb = new Database(false, true);
+                fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
+                Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
+                HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                #endregion
+
+                //////////////////////////////////////
+                string komponentBlockName = "DRISizeChangeAnno";
+                string bueBlockName = "DRIPipeArcAnno";
+                string weldBlockName = "DRIWeldAnno";
+                string weldNumberBlockName = "DRIWeldAnnoText";
+                //////////////////////////////////////
+
+                try
+                {
+                    #region Common variables
+                    BlockTableRecord modelSpace = dB.GetModelspaceForWrite();
+                    BlockTable bt = tx.GetObject(dB.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    Plane plane = new Plane(); //For intersecting
+                    HashSet<Alignment> als = dB.HashSetOfType<Alignment>(tx);
+                    #endregion
+
+                    #region Initialize PS for source object reference
+                    PropertySetManager psmSource = new PropertySetManager(
+                        dB, PSetDefs.DefinedSets.DriSourceReference);
+                    PSetDefs.DriSourceReference driSourceReference =
+                        new PSetDefs.DriSourceReference();
+                    #endregion
+
+                    #region Initialize PS for Alignment
+                    PropertySetManager psmPipeLineData = new PropertySetManager(
+                        fremDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineData =
+                        new PSetDefs.DriPipelineData();
+                    #endregion
+
+                    #region Import blocks if missing
+                    if (!bt.Has(komponentBlockName) ||
+                        !bt.Has(bueBlockName) ||
+                        !bt.Has(weldBlockName) ||
+                        !bt.Has(weldNumberBlockName))
+                    {
+                        prdDbg("Some of the blocks for detailing are missing! Importing...");
+                        Database blockDb = new Database(false, true);
+                        blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
+                            FileOpenMode.OpenForReadAndAllShare, false, null);
+                        Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+
+                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                        //Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                        Oid destDbMsId = dB.BlockTableId;
+
+                        BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                        ObjectIdCollection idsToClone = new ObjectIdCollection();
+                        if (!bt.Has(komponentBlockName)) idsToClone.Add(sourceBt[komponentBlockName]);
+                        if (!bt.Has(bueBlockName)) idsToClone.Add(sourceBt[bueBlockName]);
+                        if (!bt.Has(weldBlockName)) idsToClone.Add(sourceBt[weldBlockName]);
+                        if (!bt.Has(weldNumberBlockName)) idsToClone.Add(sourceBt[weldNumberBlockName]);
+
+                        IdMapping mapping = new IdMapping();
+                        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                        blockTx.Commit();
+                        blockTx.Dispose();
+                        blockDb.Dispose();
+                    }
+                    #endregion
+
+                    #region Delete previous blocks
+                    deletedetailingmethod(dB);
+                    #endregion
+
+                    foreach (Alignment al in als.OrderBy(x => x.Name))
+                    {
+                        prdDbg($"\nProcessing: {al.Name}...");
+
+                        Polyline alPline = al.GetPolyline().Go<Polyline>(tx);
+
+                        #region If exist get surface profile and profile view
+                        ObjectIdCollection profileIds = al.GetProfileIds();
+                        ObjectIdCollection profileViewIds = al.GetProfileViewIds();
+                        ProfileViewCollection pvs = new ProfileViewCollection(profileViewIds);
+
+                        #region Fetch surface profile
+                        Profile surfaceProfile = null;
+                        foreach (Oid oid in profileIds)
+                        {
+                            Profile pTemp = oid.Go<Profile>(tx);
+                            if (pTemp.Name == $"{al.Name}_surface_P") surfaceProfile = pTemp;
+                        }
+                        if (surfaceProfile == null)
+                        {
+                            prdDbg($"No surface profile found for alignment: {al.Name}, skipping current alignment.");
+                            continue;
+                        }
+                        #endregion
+                        #region Fetch midt profile
+                        Profile midtProfile = null;
+                        foreach (Oid oid in profileIds)
+                        {
+                            Profile pTemp = oid.Go<Profile>(tx);
+                            if (pTemp.Name.Contains("MIDT")) midtProfile = pTemp;
+                        }
+                        if (midtProfile == null)
+                        {
+                            prdDbg($"No midt profile found for alignment: {al.Name}, skipping current alignment.");
+                            continue;
+                        }
+                        #endregion
+                        #endregion
+
+                        #region GetCurvesAndBRs from fremtidig
+                        HashSet<Curve> curves = allCurves
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                            .ToHashSet();
+
+                        HashSet<BlockReference> brs = allBrs
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                            .ToHashSet();
+
+                        HashSet<BlockReference> brsBranchesOffTo = allBrs
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BranchesOffToAlignment, al.Name))
+                            .ToHashSet();
+
+                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                        #endregion
+
+                        prdDbg("Blocks:");
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        prdDbg(sizeArray.ToString());
+
+                        #region Explode midt profile for later sampling
+                        DBObjectCollection objs = new DBObjectCollection();
+                        //First explode
+                        midtProfile.Explode(objs);
+                        //Explodes to 1 block
+                        prdDbg($"Profile exploded to number of items: {objs.Count}.");
+                        Entity firstExplode = (Entity)objs[0];
+
+                        //Second explode
+                        objs = new DBObjectCollection();
+                        firstExplode.Explode(objs);
+                        prdDbg($"Subsequent object exploded to number of items: {objs.Count}.");
+
+                        HashSet<Line> lines = new HashSet<Line>();
+                        foreach (DBObject obj in objs) lines.Add((Line)obj);
+
+                        Extents3d extentsPv = default;
+                        var isInsideQuery = lines
+                            .Where(line =>
+                            extentsPv.IsPointInsideXY(line.StartPoint) &&
+                            extentsPv.IsPointInsideXY(line.EndPoint));
+
+                        HashSet<Polyline> polylinesToGetDerivative = new HashSet<Polyline>();
+
+                        //Join the resulting lines
+                        foreach (ProfileView pv in pvs)
+                        {
+                            Extents3d te = pv.GeometricExtents;
+                            extentsPv = new Extents3d(
+                                new Point3d(te.MinPoint.X - 1, te.MinPoint.Y - 1, 0),
+                                new Point3d(te.MaxPoint.X + 1, te.MaxPoint.Y + 1, 0));
+
+                            var linesInside = isInsideQuery.ToList();
+
+                            Line seedLine = linesInside[0];
+                            linesInside.RemoveAt(0);
+
+                            Polyline pline = new Polyline();
+                            pline.AddVertexAt(0, new Point2d(seedLine.StartPoint.X, seedLine.StartPoint.Y), 0, 0, 0);
+                            pline.AddVertexAt(1, new Point2d(seedLine.EndPoint.X, seedLine.EndPoint.Y), 0, 0, 0);
+
+                            try
+                            {
+                                if (linesInside.Count != 0)
+                                    pline.JoinEntities(linesInside.Cast<Entity>().ToArray());
+                            }
+                            catch (System.Exception)
+                            {
+                                prdDbg($"Midt i {pv.Name} could not be joined!");
+                                throw;
+                            }
+                            polylinesToGetDerivative.Add(pline);
+
+                            //pline.AddEntityToDbModelSpace(localDb);
+                        }
+
+                        #endregion
+
+                        foreach (ProfileView pv in pvs)
+                        {
+                            prdDbg($"Processing PV {pv.Name}.");
+
+                            //Collection to hold component symbol blocks for overlap analysis
+                            List<BlockReference> allNewBrs = new List<BlockReference>();
+
+                            #region Variables and settings
+                            Point3d pvOrigin = pv.Location;
+                            double originX = pvOrigin.X;
+                            double originY = pvOrigin.Y;
+
+                            double pvStStart = pv.StationStart;
+                            double pvStEnd = pv.StationEnd;
+                            //This is needed because polyline gives slightly deviating
+                            //Station values at start and ends
+                            double extension = 0.01;
+                            double extendedPvStStart = pvStStart - extension;
+                            double extendedPvStEnd = pvStEnd + extension;
+
+                            double pvElBottom = pv.ElevationMin;
+                            double pvElTop = pv.ElevationMax;
+                            double pvLength = pvStEnd - pvStStart;
+                            #endregion
+
+                            #region Determine what sizes appear in current PV
+                            var pvSizeArray = sizeArray.GetPartialSizeArrayForPV(pv);
+                            prdDbg(pvSizeArray.ToString());
+                            #endregion
+
+                            #region Prepare exaggeration handling
+                            ProfileViewStyle profileViewStyle = tx
+                                .GetObject(((Autodesk.Aec.DatabaseServices.Entity)pv)
+                                .StyleId, OpenMode.ForRead) as ProfileViewStyle;
+                            #endregion
+
+                            double curStationBL = 0;
+                            double sampledMidtElevation = 0;
+                            double curX = 0, curY = 0;
+
+                            #region Place size change blocks
+                            for (int i = 0; i < pvSizeArray.Length; i++)
+                            {   //Although look ahead is used, normal iteration is required
+                                //Or cases where sizearray is only 1 size will not run at all
+                                //In more general case the last iteration must be aborted
+                                if (pvSizeArray.Length != 1 && i != pvSizeArray.Length - 1)
+                                {
+                                    //General case
+                                    curStationBL = pvSizeArray[i].EndStation;
+                                    sampledMidtElevation = SampleProfile(midtProfile, curStationBL);
+                                    curX = originX + pvSizeArray[i].EndStation - pvStStart;
+                                    curY = originY + (sampledMidtElevation - pvElBottom) *
+                                        profileViewStyle.GraphStyle.VerticalExaggeration;
+                                    double deltaY = (sampledMidtElevation - pvElBottom) *
+                                        profileViewStyle.GraphStyle.VerticalExaggeration;
+                                    //prdDbg($"{originY} + ({sampledMidtElevation} - {pvElBottom}) * " +
+                                    //    $"{profileViewStyle.GraphStyle.VerticalExaggeration} = {deltaY}");
+                                    BlockReference brInt =
+                                        dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                                    brInt.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i].DN}");
+                                    brInt.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[i + 1].DN}");
+
+                                    allNewBrs.Add(brInt);
+                                }
+                                //Special cases
+                                if (i == 0)
+                                {//First iteration
+                                    curStationBL = pvStStart;
+                                    sampledMidtElevation = SampleProfile(midtProfile, curStationBL);
+                                    curX = originX;
+                                    curY = originY + (sampledMidtElevation - pvElBottom) *
+                                        profileViewStyle.GraphStyle.VerticalExaggeration;
+                                    BlockReference brAt0 =
+                                        dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                                    brAt0.SetAttributeStringValue("LEFTSIZE", "");
+                                    brAt0.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[0].DN}");
+
+                                    allNewBrs.Add(brAt0);
+
+                                    if (pvSizeArray.Length == 1)
+                                    {//If only one size in the array also place block at end
+                                        curStationBL = pvStEnd;
+                                        sampledMidtElevation = SampleProfile(midtProfile, curStationBL - .1);
+                                        curX = originX + curStationBL - pvStStart;
+                                        curY = originY + (sampledMidtElevation - pvElBottom) *
+                                            profileViewStyle.GraphStyle.VerticalExaggeration;
+                                        BlockReference brAtEnd =
+                                            dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                                        brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[0].DN}");
+                                        brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
+
+                                        allNewBrs.Add(brAtEnd);
+                                    }
+                                }
+                                if (i == pvSizeArray.Length - 2)
+                                {//End of the iteration
+                                    curStationBL = pvStEnd;
+                                    sampledMidtElevation = SampleProfile(midtProfile, curStationBL - .1);
+                                    curX = originX + curStationBL - pvStStart;
+                                    curY = originY + (sampledMidtElevation - pvElBottom) *
+                                        profileViewStyle.GraphStyle.VerticalExaggeration;
+                                    BlockReference brAtEnd =
+                                        dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                                    brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i + 1].DN}");
+                                    brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
+
+                                    allNewBrs.Add(brAtEnd);
+                                }
+                            }
+                            #endregion
+
+                            #region Local method to sample profiles
+                            //Local method to sample profiles
+                            double SampleProfile(Profile profile, double station)
+                            {
+                                double sampledElevation = 0;
+                                try { sampledElevation = profile.ElevationAt(station); }
+                                catch (System.Exception)
+                                {
+                                    prdDbg($"Station {station} threw an exception when placing size change blocks! Skipping...");
+                                    return 0;
+                                }
+                                return sampledElevation;
+                            }
+                            #endregion
+
+                            #region Place component blocks
+                            System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                            foreach (BlockReference br in brs)
+                            {
+                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
+                                if (type == "Reduktion" || type == "Svejsning") continue;
+
+                                Point3d tpt = alPline.GetClosestPointTo(br.Position, false);
+
+                                double station = 0;
+                                double offset = 0;
+                                try
+                                {
+                                    al.StationOffset(tpt.X, tpt.Y, ref station, ref offset);
+                                }
+                                catch (System.Exception)
+                                {
+                                    prdDbg(br.RealName());
+                                    prdDbg(br.Handle.ToString());
+                                    prdDbg(br.Position.ToString());
+                                    throw;
+                                }
+
+                                //Determine if blockref is within current PV
+                                //If within -> place block, else go to next iteration
+
+                                if (!(station >= extendedPvStStart && station <= extendedPvStEnd)) continue;
+
+                                sampledMidtElevation = SampleProfile(midtProfile, station);
+                                double X = originX + station - pvStStart;
+                                double Y = originY + (sampledMidtElevation - pvElBottom) *
+                                        profileViewStyle.GraphStyle.VerticalExaggeration;
+                                BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
+                                brSign.SetAttributeStringValue("LEFTSIZE", type);
+
+                                psmPipeLineData.GetOrAttachPropertySet(br);
+                                if (psmPipeLineData.ReadPropertyString(driPipelineData.BranchesOffToAlignment)
+                                    .IsNotNoE())
+                                    brSign.SetAttributeStringValue("RIGHTSIZE",
+                                        psmPipeLineData.ReadPropertyString(driPipelineData.BranchesOffToAlignment));
+                                else brSign.SetAttributeStringValue("RIGHTSIZE", "");
+
+                                allNewBrs.Add(brSign);
+
+                                psmSource.GetOrAttachPropertySet(brSign);
+                                psmSource.WritePropertyString(
+                                    driSourceReference.SourceEntityHandle, br.Handle.ToString());
+                            }
+                            #endregion
+
+                            #region Place component blocks for branches belonging to other alignments
+                            foreach (BlockReference br in brsBranchesOffTo)
+                            {
+                                double station = 0;
+                                double offset = 0;
+                                try
+                                {
+                                    al.StationOffset(br.Position.X, br.Position.Y, ref station, ref offset);
+                                }
+                                catch (System.Exception)
+                                {
+                                    prdDbg(br.RealName());
+                                    prdDbg(br.Handle.ToString());
+                                    prdDbg(br.Position.ToString());
+                                    throw;
+                                }
+
+                                //Determine if blockref is within current PV
+                                //If within -> place block, else go to next iteration
+                                if (!(station >= extendedPvStStart && station <= extendedPvStEnd)) continue;
+
+                                sampledMidtElevation = SampleProfile(midtProfile, station);
+                                double X = originX + station - pvStStart;
+                                double Y = originY + (sampledMidtElevation - pvElBottom) *
+                                        profileViewStyle.GraphStyle.VerticalExaggeration;
+
+                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
+                                BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
+                                brSign.SetAttributeStringValue("LEFTSIZE", type);
+
+                                psmPipeLineData.GetOrAttachPropertySet(br);
+                                brSign.SetAttributeStringValue("RIGHTSIZE",
+                                        psmPipeLineData.ReadPropertyString(
+                                            driPipelineData.BelongsToAlignment));
+
+                                allNewBrs.Add(brSign);
+
+                                psmSource.GetOrAttachPropertySet(brSign);
+                                psmSource.WritePropertyString(
+                                    driSourceReference.SourceEntityHandle, br.Handle.ToString());
+                            }
+                            #endregion
+
+                            #region Sort overlapping component and size labels
+                            var clusters = allNewBrs.GroupByCluster((x, y) => Overlaps(x, y), 0.0001);
+
+                            foreach (IGrouping<BlockReference, BlockReference> cluster in clusters)
+                            {
+                                if (cluster.Count() < 2) continue;
+
+                                var xSorted = cluster.OrderBy(x => x.Position.X).ToArray();
+                                double deltaY = 0;
+                                for (int i = 0; i < xSorted.Length - 1; i++)
+                                {
+                                    Extents3d extents = xSorted[i].GeometricExtents;
+                                    deltaY = deltaY + (extents.MaxPoint.Y - xSorted[i].Position.Y) - 0.6156 + 0.1;
+
+                                    BlockReference nextBlock = xSorted[i + 1];
+                                    DynamicBlockReferencePropertyCollection dbrpc =
+                                        nextBlock.DynamicBlockReferencePropertyCollection;
+                                    foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
+                                    {
+                                        if (dbrp.PropertyName == "TOP_EXTENSION")
+                                        {
+                                            //prdDbg(length.ToString());
+                                            dbrp.Value = deltaY;
+                                        }
+                                    }
+                                }
+                            }
+
+                            #endregion
+
+                            #region Place weld blocks
+                            HashSet<BlockReference> newWeldNumberBlocks = new HashSet<BlockReference>();
+
+                            foreach (BlockReference br in brs)
+                            {
+                                #region Determine placement
+                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
+                                if (type != "Svejsning") continue;
+
+                                Point3d brLocation = alPline.GetClosestPointTo(br.Position, false);
+
+                                double station = 0;
+                                double offset = 0;
+                                al.StationOffset(brLocation.X, brLocation.Y, ref station, ref offset);
+
+                                //Determine if blockref is within current PV
+                                //If within -> place block, else go to next iteration
+                                if (!(station >= extendedPvStStart && station <= extendedPvStEnd)) continue;
+
+                                sampledMidtElevation = SampleProfile(midtProfile, station);
+                                double X = originX + station - pvStStart;
+                                double Y = originY + (sampledMidtElevation - pvElBottom) *
+                                        profileViewStyle.GraphStyle.VerticalExaggeration;
+
+                                Point3d wPt = new Point3d(X, Y, 0);
+
+                                BlockReference brWeld =
+                                    dB.CreateBlockWithAttributes(weldBlockName, wPt);
+
+                                BlockReference brWeldNumber =
+                                    dB.CreateBlockWithAttributes(weldNumberBlockName, wPt);
+
+                                //Gather new weld numebrs in a collection to be able to find overlaps
+                                newWeldNumberBlocks.Add(brWeldNumber);
+
+                                //Set attributes
+                                string nummer = br.GetAttributeStringValue("NUMMER");
+
+                                brWeldNumber.SetAttributeStringValue("NUMMER", nummer);
+
+                                psmSource.GetOrAttachPropertySet(brWeld);
+                                psmSource.WritePropertyString(
+                                    driSourceReference.SourceEntityHandle, br.Handle.ToString());
+                                #endregion
+
+                                #region Determine rotation
+                                //Get the nearest exploded profile polyline and sample first derivative
+                                HashSet<(Polyline pline, double dist)> ps = new HashSet<(Polyline pline, double dist)>();
+                                foreach (Polyline pline in polylinesToGetDerivative)
+                                {
+                                    Point3d distPt = pline.GetClosestPointTo(wPt, false);
+                                    ps.Add((pline, distPt.DistanceHorizontalTo(wPt)));
+                                }
+                                Polyline nearest = ps.MinBy(x => x.dist).FirstOrDefault().pline;
+
+                                Vector3d deriv = nearest.GetFirstDerivative(
+                                    nearest.GetClosestPointTo(wPt, false));
+
+                                double rotation = Math.Atan2(deriv.Y, deriv.X);
+                                brWeld.Rotation = rotation;
+                                #endregion
+
+                                #region Scale block to fit kappe
+                                SizeEntry curSize = sizeArray.GetSizeAtStation(station);
+                                brWeld.ScaleFactors = new Scale3d(1, curSize.Kod / 1000 *
+                                    profileViewStyle.GraphStyle.VerticalExaggeration, 1);
+                                #endregion
+                            }
+                            #endregion
+
+                            #region Overlaps function
+                            double Overlaps(BlockReference i, BlockReference j)
+                            {
+                                Extents3d extI = i.GeometricExtents;
+                                Extents3d extJ = j.GeometricExtents;
+
+                                double wI = extI.MaxPoint.X - extI.MinPoint.X;
+                                double wJ = extJ.MaxPoint.X - extJ.MinPoint.X;
+
+                                double threshold = wI / 2 + wJ / 2;
+
+                                double centreIX = extI.MinPoint.X + wI / 2;
+                                double centreJX = extJ.MinPoint.X + wJ / 2;
+
+                                double dist = Math.Abs(centreIX - centreJX);
+                                double result = dist - threshold;
+
+                                return result < 0 ? 0 : result;
+                            }
+                            #endregion
+
+                            #region Find overlapping weld labels and find a solution
+                            clusters = newWeldNumberBlocks.GroupByCluster((x, y) => Overlaps(x, y), 0.0001);
+
+                            foreach (IGrouping<BlockReference, BlockReference> cluster in clusters)
+                            {
+                                if (cluster.Count() < 2) continue;
+
+                                List<string> numbers = new List<string>();
+                                string prefix = "";
+                                foreach (BlockReference item in cluster)
+                                {
+                                    string number = item.GetAttributeStringValue("NUMMER");
+                                    var splits = number.Split('.');
+                                    prefix = splits[0];
+                                    numbers.Add(splits[1]);
+                                }
+
+                                List<int> convertedNumbers = new List<int>();
+                                foreach (string number in numbers)
+                                {
+                                    int result;
+                                    if (int.TryParse(number, out result)) convertedNumbers.Add(result);
+                                }
+
+                                convertedNumbers.Sort();
+
+                                string finalNumber = $"{prefix}.{convertedNumbers.First().ToString("000")}" +
+                                    $" - {convertedNumbers.Last().ToString("000")}";
+
+                                int i = 0;
+                                foreach (BlockReference item in cluster)
+                                {
+                                    if (i == 0) item.SetAttributeStringValue("NUMMER", finalNumber);
+                                    else { item.Erase(true); }
+                                    i++;
+                                }
+                            }
+                            #endregion
+
+                            #region Find curves and annotate
+                            foreach (Curve curve in curves)
+                            {
+                                if (curve is Polyline pline)
+                                {
+                                    //Detect arcs and determine if it is a buerør or not
+                                    for (int i = 0; i < pline.NumberOfVertices; i++)
+                                    {
+                                        TypeOfSegment tos;
+                                        double bulge = pline.GetBulgeAt(i);
+                                        if (bulge == 0) tos = TypeOfSegment.Straight;
+                                        else
+                                        {
+                                            //Determine if centre of arc is within view
+                                            CircularArc2d arcSegment2dAt = pline.GetArcSegment2dAt(i);
+                                            Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
+                                            Point3d location = al.GetClosestPointTo(
+                                                        new Point3d(samplePoint.X, samplePoint.Y, 0), false);
+                                            double centreStation = 0;
+                                            double centreOffset = 0;
+                                            al.StationOffset(location.X, location.Y, ref centreStation, ref centreOffset);
+
+                                            //If centre of arc is not within PV -> continue
+                                            if (!(centreStation > pvStStart && centreStation < pvStEnd)) continue;
+
+                                            //Calculate radius
+                                            double u = pline.GetPoint2dAt(i).GetDistanceTo(pline.GetPoint2dAt(i + 1));
+                                            double radius = u * ((1 + bulge.Pow(2)) / (4 * Math.Abs(bulge)));
+                                            double minRadius = GetPipeMinElasticRadius(pline);
+
+                                            if (radius < minRadius) tos = TypeOfSegment.CurvedPipe;
+                                            else tos = TypeOfSegment.ElasticArc;
+
+                                            //Acquire start and end stations
+                                            location = al.GetClosestPointTo(pline.GetPoint3dAt(i), false);
+                                            double curveStartStation = 0;
+                                            double offset = 0;
+                                            al.StationOffset(location.X, location.Y, ref curveStartStation, ref offset);
+
+                                            location = al.GetClosestPointTo(pline.GetPoint3dAt(i + 1), false);
+                                            double curveEndStation = 0;
+                                            al.StationOffset(location.X, location.Y, ref curveEndStation, ref offset);
+
+                                            double length = curveEndStation - curveStartStation;
+                                            //double midStation = curveStartStation + length / 2;
+
+                                            sampledMidtElevation = SampleProfile(midtProfile, centreStation);
+                                            curX = originX + centreStation - pvStStart;
+                                            curY = originY + (sampledMidtElevation - pvElBottom) *
+                                                    profileViewStyle.GraphStyle.VerticalExaggeration;
+                                            Point3d curvePt = new Point3d(curX, curY, 0);
+                                            BlockReference brCurve =
+                                                dB.CreateBlockWithAttributes(bueBlockName, curvePt);
+
+                                            DynamicBlockReferencePropertyCollection dbrpc = brCurve.DynamicBlockReferencePropertyCollection;
+                                            foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
+                                            {
+                                                if (dbrp.PropertyName == "Length")
+                                                {
+                                                    //prdDbg(length.ToString());
+                                                    dbrp.Value = Math.Abs(length);
+                                                }
+                                            }
+
+                                            //Set length text
+                                            brCurve.SetAttributeStringValue("LGD", "L=" + Math.Abs(length).ToString("0.0") + " m");
+
+                                            switch (tos)
+                                            {
+                                                case TypeOfSegment.ElasticArc:
+                                                    brCurve.SetAttributeStringValue("TEXT", $"Elastisk bue R={radius.ToString("0.0")} m");
+                                                    break;
+                                                case TypeOfSegment.CurvedPipe:
+                                                    brCurve.SetAttributeStringValue("TEXT", $"Buerør R={radius.ToString("0.0")} m");
+                                                    break;
+                                                default:
+                                                    break;
+                                            }
+
+                                            #region Determine rotation
+                                            //Get the nearest exploded profile polyline and sample first derivative
+                                            HashSet<(Polyline pline, double dist)> ps = new HashSet<(Polyline pline, double dist)>();
+                                            foreach (Polyline pline2 in polylinesToGetDerivative)
+                                            {
+                                                Point3d distPt = pline2.GetClosestPointTo(curvePt, false);
+                                                ps.Add((pline2, distPt.DistanceHorizontalTo(curvePt)));
+                                            }
+                                            Polyline nearest = ps.MinBy(x => x.dist).FirstOrDefault().pline;
+
+                                            Vector3d deriv = nearest.GetFirstDerivative(
+                                                nearest.GetClosestPointTo(curvePt, false));
+
+                                            double rotation = Math.Atan2(deriv.Y, deriv.X);
+                                            brCurve.Rotation = rotation;
+                                            #endregion
+                                        }
+                                    }
+                                }
+                            }
+                            #endregion 
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    fremTx.Abort();
+                    fremTx.Dispose();
+                    fremDb.Dispose();
+                    tx.Abort();
+                    prdDbg(ex.ExceptionInfo());
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                fremTx.Abort();
+                fremTx.Dispose();
+                fremDb.Dispose();
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("DELETEDETAILING")]
+        public void deletedetailing()
+        {
+            deletedetailingmethod();
+        }
+        public void deletedetailingmethod(Database db = default)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = db ?? docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                //////////////////////////////////////
+                List<string> names = new List<string>();
+                names.Add("DRISizeChangeAnno");
+                names.Add("DRIPipeArcAnno");
+                names.Add("DRIWeldAnno");
+                names.Add("DRIWeldAnnoText");
+                //////////////////////////////////////
+
+                #region Delete previous blocks
+                //Delete previous blocks
+                foreach (string name in names)
+                {
+                    var existingBlocks = localDb.HashSetOfType<BlockReference>(tx);
+                    //prdDbg(existingBlocks.Count.ToString());
+                    foreach (BlockReference br in existingBlocks)
+                    {
+                        if (br.RealName() == name)
+                        {
+                            br.CheckOrOpenForWrite();
+                            br.Erase(true);
+                        }
+                    }
+                }
+                #endregion
+                tx.Commit();
+            }
+        }
         #endregion
 
         [CommandMethod("chel")]
@@ -9666,1172 +10832,6 @@ namespace IntersectUtilities
                     ed.WriteMessage("\n" + ex.ToString());
                     return;
                 }
-                tx.Commit();
-            }
-        }
-
-        /// <summary>
-        /// Creates detailing based on SURFACE profile.
-        /// </summary>
-        [CommandMethod("CREATEDETAILINGPRELIMINARY")]
-        public void createdetailingpreliminary()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                #region Open fremtidig db
-                DataReferencesOptions dro = new DataReferencesOptions();
-                string projectName = dro.ProjectName;
-                string etapeName = dro.EtapeName;
-
-                // open the xref database
-                Database fremDb = new Database(false, true);
-                fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                    FileOpenMode.OpenForReadAndAllShare, false, null);
-                Transaction fremTx = fremDb.TransactionManager.StartTransaction();
-                HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
-                HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
-                #endregion
-
-                #region Initialize PS for Alignment
-                PropertySetManager psmPipeLineData = new PropertySetManager(
-                    fremDb,
-                    PSetDefs.DefinedSets.DriPipelineData);
-                PSetDefs.DriPipelineData driPipelineData =
-                    new PSetDefs.DriPipelineData();
-                #endregion
-
-                //////////////////////////////////////
-                string komponentBlockName = "DRISizeChangeAnno";
-                string bueBlockName = "DRIPipeArcAnno";
-                //////////////////////////////////////
-
-                try
-                {
-                    #region Common variables
-                    BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
-                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                    Plane plane = new Plane(); //For intersecting
-                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-                    #endregion
-
-                    #region Import blocks if missing
-                    if (!bt.Has(komponentBlockName) ||
-                        !bt.Has(bueBlockName))
-                    {
-                        prdDbg("Some of the blocks for detailing are missing! Importing...");
-                        Database blockDb = new Database(false, true);
-                        blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
-                            FileOpenMode.OpenForReadAndAllShare, false, null);
-                        Transaction blockTx = blockDb.TransactionManager.StartTransaction();
-
-                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
-                        //Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
-                        Oid destDbMsId = localDb.BlockTableId;
-
-                        BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                        ObjectIdCollection idsToClone = new ObjectIdCollection();
-                        if (!bt.Has(komponentBlockName)) idsToClone.Add(sourceBt[komponentBlockName]);
-                        if (!bt.Has(bueBlockName)) idsToClone.Add(sourceBt[bueBlockName]);
-
-                        IdMapping mapping = new IdMapping();
-                        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
-                        blockTx.Commit();
-                        blockTx.Dispose();
-                        blockDb.Dispose();
-                    }
-                    #endregion
-
-                    #region Delete previous blocks
-                    //Delete previous blocks
-                    deletedetailing();
-
-                    //var existingBlocks = localDb.GetBlockReferenceByName(komponentBlockName);
-                    //existingBlocks.UnionWith(localDb.GetBlockReferenceByName(bueBlockName));
-
-                    //foreach (BlockReference br in existingBlocks)
-                    //{
-                    //    br.CheckOrOpenForWrite();
-                    //    br.Erase(true);
-                    //}
-                    #endregion
-
-                    foreach (Alignment al in als)
-                    {
-                        prdDbg($"\nProcessing: {al.Name}...");
-                        #region If exist get surface profile and profile view
-                        ObjectIdCollection profileIds = al.GetProfileIds();
-                        ObjectIdCollection profileViewIds = al.GetProfileViewIds();
-                        ProfileViewCollection pvs = new ProfileViewCollection(profileViewIds);
-
-                        #region Fetch surface profile
-                        Profile surfaceProfile = null;
-                        foreach (Oid oid in profileIds)
-                        {
-                            Profile pTemp = oid.Go<Profile>(tx);
-                            if (pTemp.Name == $"{al.Name}_surface_P") surfaceProfile = pTemp;
-                        }
-                        if (surfaceProfile == null)
-                        {
-                            prdDbg($"No surface profile found for alignment: {al.Name}, skipping current alignment.");
-                            continue;
-                        }
-                        #endregion
-                        #endregion
-
-                        #region GetCurvesAndBRs from fremtidig
-                        HashSet<Curve> curves = allCurves
-                            .Where(x => psmPipeLineData
-                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
-                            .ToHashSet();
-
-                        HashSet<BlockReference> brs = allBrs
-                            .Where(x => psmPipeLineData
-                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
-                            .ToHashSet();
-
-                        HashSet<BlockReference> afgreningsStudse = allBrs
-                            .Where(x =>
-                                psmPipeLineData.FilterPropetyString(
-                                    x, driPipelineData.BranchesOffToAlignment, al.Name) &&
-                                x.RealName() == "AFGRSTUDS")
-                            .ToHashSet();
-
-                        //Tilføj afgreningsstudse til blokke
-                        brs.UnionWith(afgreningsStudse);
-
-                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
-                        #endregion
-
-                        prdDbg("Blocks:");
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
-                        prdDbg(sizeArray.ToString());
-
-                        foreach (ProfileView pv in pvs)
-                        {
-                            prdDbg($"Processing PV {pv.Name}.");
-
-                            #region Variables and settings
-                            Point3d pvOrigin = pv.Location;
-                            double originX = pvOrigin.X;
-                            double originY = pvOrigin.Y;
-
-                            double pvStStart = pv.StationStart;
-                            double pvStEnd = pv.StationEnd;
-                            double pvElBottom = pv.ElevationMin;
-                            double pvElTop = pv.ElevationMax;
-                            double pvLength = pvStEnd - pvStStart;
-                            #endregion
-
-                            #region Determine what sizes appear in current PV
-                            var pvSizeArray = sizeArray.GetPartialSizeArrayForPV(pv);
-                            prdDbg(pvSizeArray.ToString());
-                            #endregion
-
-                            #region Prepare exaggeration handling
-                            ProfileViewStyle profileViewStyle = tx
-                                .GetObject(((Autodesk.Aec.DatabaseServices.Entity)pv)
-                                .StyleId, OpenMode.ForRead) as ProfileViewStyle;
-                            #endregion
-
-                            double curStationBL = 0;
-                            double sampledMidtElevation = 0;
-                            double curX = 0, curY = 0;
-
-                            #region Place size change blocks
-                            for (int i = 0; i < pvSizeArray.Length; i++)
-                            {   //Although look ahead is used, normal iteration is required
-                                //Or cases where sizearray is only 1 size will not run at all
-                                //In more general case the last iteration must be aborted
-                                if (pvSizeArray.Length != 1 && i != pvSizeArray.Length - 1)
-                                {
-                                    //General case
-                                    curStationBL = pvSizeArray[i].EndStation;
-                                    sampledMidtElevation = SampleProfile(surfaceProfile, curStationBL);
-                                    curX = originX + pvSizeArray[i].EndStation - pvStStart;
-                                    curY = originY + (sampledMidtElevation - pvElBottom) *
-                                        profileViewStyle.GraphStyle.VerticalExaggeration;
-                                    double deltaY = (sampledMidtElevation - pvElBottom) *
-                                        profileViewStyle.GraphStyle.VerticalExaggeration;
-                                    //prdDbg($"{originY} + ({sampledMidtElevation} - {pvElBottom}) * " +
-                                    //    $"{profileViewStyle.GraphStyle.VerticalExaggeration} = {deltaY}");
-                                    BlockReference brInt =
-                                        localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                    brInt.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i].DN}");
-                                    brInt.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[i + 1].DN}");
-                                }
-                                //Special cases
-                                if (i == 0)
-                                {//First iteration
-                                    curStationBL = pvStStart;
-                                    sampledMidtElevation = SampleProfile(surfaceProfile, curStationBL);
-                                    curX = originX;
-                                    curY = originY + (sampledMidtElevation - pvElBottom) *
-                                        profileViewStyle.GraphStyle.VerticalExaggeration;
-                                    BlockReference brAt0 =
-                                        localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                    brAt0.SetAttributeStringValue("LEFTSIZE", "");
-                                    brAt0.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[0].DN}");
-
-                                    if (pvSizeArray.Length == 1)
-                                    {//If only one size in the array also place block at end
-                                        curStationBL = pvStEnd;
-                                        sampledMidtElevation = SampleProfile(surfaceProfile, curStationBL - .1);
-                                        curX = originX + curStationBL - pvStStart;
-                                        curY = originY + (sampledMidtElevation - pvElBottom) *
-                                            profileViewStyle.GraphStyle.VerticalExaggeration;
-                                        BlockReference brAtEnd =
-                                            localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                        brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[0].DN}");
-                                        brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
-                                    }
-                                }
-                                if (i == pvSizeArray.Length - 2)
-                                {//End of the iteration
-                                    curStationBL = pvStEnd;
-                                    sampledMidtElevation = SampleProfile(surfaceProfile, curStationBL - .1);
-                                    curX = originX + curStationBL - pvStStart;
-                                    curY = originY + (sampledMidtElevation - pvElBottom) *
-                                        profileViewStyle.GraphStyle.VerticalExaggeration;
-                                    BlockReference brAtEnd =
-                                        localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                    brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i + 1].DN}");
-                                    brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
-                                }
-                            }
-                            #endregion
-
-                            #region Local method to sample profiles
-                            //Local method to sample profiles
-                            double SampleProfile(Profile profile, double station)
-                            {
-                                double sampledElevation = 0;
-                                try { sampledElevation = profile.ElevationAt(station); }
-                                catch (System.Exception)
-                                {
-                                    prdDbg($"Station {station} threw an exception when placing size change blocks! Skipping...");
-                                    return 0;
-                                }
-                                return sampledElevation;
-                            }
-                            #endregion
-
-                            #region Place component blocks
-                            System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
-                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-                            foreach (BlockReference br in brs)
-                            {
-                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
-                                if (type == "Reduktion" || type == "Svejsning") continue;
-                                Point3d brLocation = al.GetClosestPointTo(br.Position, false);
-
-                                double station = 0;
-                                double offset = 0;
-                                try
-                                {
-                                    al.StationOffset(brLocation.X, brLocation.Y, ref station, ref offset);
-                                }
-                                catch (System.Exception)
-                                {
-                                    prdDbg(br.Position.ToString());
-                                    prdDbg(brLocation.ToString());
-                                    throw;
-                                }
-
-                                //Determine if blockref is within current PV
-                                //If within -> place block, else go to next iteration
-                                if (!(station > pvStStart && station < pvStEnd)) continue;
-
-                                sampledMidtElevation = SampleProfile(surfaceProfile, station);
-                                double X = originX + station - pvStStart;
-                                double Y = originY + (sampledMidtElevation - pvElBottom) *
-                                        profileViewStyle.GraphStyle.VerticalExaggeration;
-                                BlockReference brSign = localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
-                                brSign.SetAttributeStringValue("LEFTSIZE", type);
-                                if ((new[] {
-                                    "Parallelafgrening",
-                                    "Lige afgrening",
-                                    "Afgrening med spring",
-                                    "Afgrening, parallel" }).Contains(type))
-                                    brSign.SetAttributeStringValue("RIGHTSIZE", psmPipeLineData.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment));
-                                else if (type == "Afgreningsstuds")
-                                    brSign.SetAttributeStringValue("RIGHTSIZE", psmPipeLineData.ReadPropertyString(br, driPipelineData.BelongsToAlignment));
-                                else brSign.SetAttributeStringValue("RIGHTSIZE", "");
-                            }
-                            #endregion
-
-                            #region Find curves and annotate
-                            foreach (Curve curve in curves)
-                            {
-                                if (curve is Polyline pline)
-                                {
-                                    //Detect arcs and determine if it is a buerør or not
-                                    for (int i = 0; i < pline.NumberOfVertices; i++)
-                                    {
-                                        TypeOfSegment tos;
-                                        double bulge = pline.GetBulgeAt(i);
-                                        if (bulge == 0) tos = TypeOfSegment.Straight;
-                                        else
-                                        {
-                                            //Determine if centre of arc is within view
-                                            CircularArc2d arcSegment2dAt;
-                                            try
-                                            {
-                                                arcSegment2dAt = pline.GetArcSegment2dAt(i);
-                                            }
-                                            catch (System.Exception)
-                                            {
-                                                prdDbg($"Pline {pline.Handle} threw when accessing arc segment at {i}!");
-                                                prdDbg("Én af grundene kunne være, at ikke er alle plinjer blevet vendt om med strømmen.");
-                                                throw;
-                                            }
-
-                                            Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
-                                            Point3d location = al.GetClosestPointTo(
-                                                        new Point3d(samplePoint.X, samplePoint.Y, 0), false);
-                                            double centreStation = 0;
-                                            double centreOffset = 0;
-                                            al.StationOffset(location.X, location.Y, ref centreStation, ref centreOffset);
-
-                                            //If centre of arc is not within PV -> continue
-                                            if (!(centreStation > pvStStart && centreStation < pvStEnd)) continue;
-
-                                            //Calculate radius
-                                            double u = pline.GetPoint2dAt(i).GetDistanceTo(pline.GetPoint2dAt(i + 1));
-                                            double radius = u * ((1 + bulge.Pow(2)) / (4 * Math.Abs(bulge)));
-                                            double minRadius = GetPipeMinElasticRadius(pline);
-
-                                            if (radius < minRadius) tos = TypeOfSegment.CurvedPipe;
-                                            else tos = TypeOfSegment.ElasticArc;
-
-                                            //Acquire start and end stations
-                                            location = al.GetClosestPointTo(pline.GetPoint3dAt(i), false);
-                                            double curveStartStation = 0;
-                                            double offset = 0;
-                                            al.StationOffset(location.X, location.Y, ref curveStartStation, ref offset);
-
-                                            location = al.GetClosestPointTo(pline.GetPoint3dAt(i + 1), false);
-                                            double curveEndStation = 0;
-                                            al.StationOffset(location.X, location.Y, ref curveEndStation, ref offset);
-                                            double length = curveEndStation - curveStartStation;
-                                            //double midStation = curveStartStation + length / 2;
-
-                                            sampledMidtElevation = SampleProfile(surfaceProfile, centreStation);
-                                            curX = originX + centreStation - pvStStart;
-                                            curY = originY + (sampledMidtElevation - pvElBottom) *
-                                                    profileViewStyle.GraphStyle.VerticalExaggeration;
-                                            Point3d curvePt = new Point3d(curX, curY, 0);
-                                            BlockReference brCurve =
-                                                localDb.CreateBlockWithAttributes(bueBlockName, curvePt);
-
-                                            DynamicBlockReferencePropertyCollection dbrpc = brCurve.DynamicBlockReferencePropertyCollection;
-                                            foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
-                                            {
-                                                if (dbrp.PropertyName == "Length")
-                                                {
-                                                    //prdDbg(length.ToString());
-                                                    dbrp.Value = Math.Abs(length);
-                                                }
-                                            }
-
-                                            //Set length text
-                                            brCurve.SetAttributeStringValue("LGD", Math.Abs(length).ToString("0.0") + " m");
-
-                                            switch (tos)
-                                            {
-                                                case TypeOfSegment.ElasticArc:
-                                                    brCurve.SetAttributeStringValue("TEXT", $"Elastisk bue {radius.ToString("0.0")} m");
-                                                    break;
-                                                case TypeOfSegment.CurvedPipe:
-                                                    brCurve.SetAttributeStringValue("TEXT", $"Buerør {radius.ToString("0.0")} m");
-                                                    break;
-                                                default:
-                                                    break;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            #endregion 
-                        }
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    fremTx.Abort();
-                    fremTx.Dispose();
-                    fremDb.Dispose();
-                    tx.Abort();
-                    prdDbg(ex.ExceptionInfo());
-                    prdDbg(ex.ToString());
-                    return;
-                }
-                fremTx.Abort();
-                fremTx.Dispose();
-                fremDb.Dispose();
-                tx.Commit();
-            }
-        }
-
-        /// <summary>
-        /// Creates detailing based on an existing MIDT profile
-        /// </summary>
-        [CommandMethod("CREATEDETAILING")]
-        public void createdetailing()
-        {
-            createdetailingmethod();
-        }
-        public void createdetailingmethod(DataReferencesOptions dataReferencesOptions = default, Database database = default)
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database dB = database ?? docCol.MdiActiveDocument.Database;
-            Editor ed = docCol.MdiActiveDocument.Editor;
-
-            using (Transaction tx = dB.TransactionManager.StartTransaction())
-            {
-                #region Open fremtidig db
-                DataReferencesOptions dro = dataReferencesOptions ?? new DataReferencesOptions();
-                string projectName = dro.ProjectName;
-                string etapeName = dro.EtapeName;
-
-                // open the xref database
-                Database fremDb = new Database(false, true);
-                fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                    FileOpenMode.OpenForReadAndAllShare, false, null);
-                Transaction fremTx = fremDb.TransactionManager.StartTransaction();
-                HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
-                HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
-                #endregion
-
-                //////////////////////////////////////
-                string komponentBlockName = "DRISizeChangeAnno";
-                string bueBlockName = "DRIPipeArcAnno";
-                string weldBlockName = "DRIWeldAnno";
-                string weldNumberBlockName = "DRIWeldAnnoText";
-                //////////////////////////////////////
-
-                try
-                {
-                    #region Common variables
-                    BlockTableRecord modelSpace = dB.GetModelspaceForWrite();
-                    BlockTable bt = tx.GetObject(dB.BlockTableId, OpenMode.ForRead) as BlockTable;
-                    Plane plane = new Plane(); //For intersecting
-                    HashSet<Alignment> als = dB.HashSetOfType<Alignment>(tx);
-                    #endregion
-
-                    #region Initialize PS for source object reference
-                    PropertySetManager psmSource = new PropertySetManager(
-                        dB, PSetDefs.DefinedSets.DriSourceReference);
-                    PSetDefs.DriSourceReference driSourceReference =
-                        new PSetDefs.DriSourceReference();
-                    #endregion
-
-                    #region Initialize PS for Alignment
-                    PropertySetManager psmPipeLineData = new PropertySetManager(
-                        fremDb,
-                        PSetDefs.DefinedSets.DriPipelineData);
-                    PSetDefs.DriPipelineData driPipelineData =
-                        new PSetDefs.DriPipelineData();
-                    #endregion
-
-                    #region Import blocks if missing
-                    if (!bt.Has(komponentBlockName) ||
-                        !bt.Has(bueBlockName) ||
-                        !bt.Has(weldBlockName) ||
-                        !bt.Has(weldNumberBlockName))
-                    {
-                        prdDbg("Some of the blocks for detailing are missing! Importing...");
-                        Database blockDb = new Database(false, true);
-                        blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
-                            FileOpenMode.OpenForReadAndAllShare, false, null);
-                        Transaction blockTx = blockDb.TransactionManager.StartTransaction();
-
-                        Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
-                        //Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
-                        Oid destDbMsId = dB.BlockTableId;
-
-                        BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                        ObjectIdCollection idsToClone = new ObjectIdCollection();
-                        if (!bt.Has(komponentBlockName)) idsToClone.Add(sourceBt[komponentBlockName]);
-                        if (!bt.Has(bueBlockName)) idsToClone.Add(sourceBt[bueBlockName]);
-                        if (!bt.Has(weldBlockName)) idsToClone.Add(sourceBt[weldBlockName]);
-                        if (!bt.Has(weldNumberBlockName)) idsToClone.Add(sourceBt[weldNumberBlockName]);
-
-                        IdMapping mapping = new IdMapping();
-                        blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
-                        blockTx.Commit();
-                        blockTx.Dispose();
-                        blockDb.Dispose();
-                    }
-                    #endregion
-
-                    #region Delete previous blocks
-                    deletedetailingmethod(dB);
-                    #endregion
-
-                    foreach (Alignment al in als.OrderBy(x => x.Name))
-                    {
-                        prdDbg($"\nProcessing: {al.Name}...");
-
-                        Polyline alPline = al.GetPolyline().Go<Polyline>(tx);
-
-                        #region If exist get surface profile and profile view
-                        ObjectIdCollection profileIds = al.GetProfileIds();
-                        ObjectIdCollection profileViewIds = al.GetProfileViewIds();
-                        ProfileViewCollection pvs = new ProfileViewCollection(profileViewIds);
-
-                        #region Fetch surface profile
-                        Profile surfaceProfile = null;
-                        foreach (Oid oid in profileIds)
-                        {
-                            Profile pTemp = oid.Go<Profile>(tx);
-                            if (pTemp.Name == $"{al.Name}_surface_P") surfaceProfile = pTemp;
-                        }
-                        if (surfaceProfile == null)
-                        {
-                            prdDbg($"No surface profile found for alignment: {al.Name}, skipping current alignment.");
-                            continue;
-                        }
-                        #endregion
-                        #region Fetch midt profile
-                        Profile midtProfile = null;
-                        foreach (Oid oid in profileIds)
-                        {
-                            Profile pTemp = oid.Go<Profile>(tx);
-                            if (pTemp.Name.Contains("MIDT")) midtProfile = pTemp;
-                        }
-                        if (midtProfile == null)
-                        {
-                            prdDbg($"No midt profile found for alignment: {al.Name}, skipping current alignment.");
-                            continue;
-                        }
-                        #endregion
-                        #endregion
-
-                        #region GetCurvesAndBRs from fremtidig
-                        HashSet<Curve> curves = allCurves
-                            .Where(x => psmPipeLineData
-                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
-                            .ToHashSet();
-
-                        HashSet<BlockReference> brs = allBrs
-                            .Where(x => psmPipeLineData
-                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
-                            .ToHashSet();
-
-                        HashSet<BlockReference> brsBranchesOffTo = allBrs
-                            .Where(x => psmPipeLineData
-                            .FilterPropetyString(x, driPipelineData.BranchesOffToAlignment, al.Name))
-                            .ToHashSet();
-
-                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
-                        #endregion
-
-                        prdDbg("Blocks:");
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
-                        prdDbg(sizeArray.ToString());
-
-                        #region Explode midt profile for later sampling
-                        DBObjectCollection objs = new DBObjectCollection();
-                        //First explode
-                        midtProfile.Explode(objs);
-                        //Explodes to 1 block
-                        prdDbg($"Profile exploded to number of items: {objs.Count}.");
-                        Entity firstExplode = (Entity)objs[0];
-
-                        //Second explode
-                        objs = new DBObjectCollection();
-                        firstExplode.Explode(objs);
-                        prdDbg($"Subsequent object exploded to number of items: {objs.Count}.");
-
-                        HashSet<Line> lines = new HashSet<Line>();
-                        foreach (DBObject obj in objs) lines.Add((Line)obj);
-
-                        Extents3d extentsPv = default;
-                        var isInsideQuery = lines
-                            .Where(line =>
-                            extentsPv.IsPointInsideXY(line.StartPoint) &&
-                            extentsPv.IsPointInsideXY(line.EndPoint));
-
-                        HashSet<Polyline> polylinesToGetDerivative = new HashSet<Polyline>();
-
-                        //Join the resulting lines
-                        foreach (ProfileView pv in pvs)
-                        {
-                            Extents3d te = pv.GeometricExtents;
-                            extentsPv = new Extents3d(
-                                new Point3d(te.MinPoint.X - 1, te.MinPoint.Y - 1, 0),
-                                new Point3d(te.MaxPoint.X + 1, te.MaxPoint.Y + 1, 0));
-
-                            var linesInside = isInsideQuery.ToList();
-
-                            Line seedLine = linesInside[0];
-                            linesInside.RemoveAt(0);
-
-                            Polyline pline = new Polyline();
-                            pline.AddVertexAt(0, new Point2d(seedLine.StartPoint.X, seedLine.StartPoint.Y), 0, 0, 0);
-                            pline.AddVertexAt(1, new Point2d(seedLine.EndPoint.X, seedLine.EndPoint.Y), 0, 0, 0);
-
-                            try
-                            {
-                                if (linesInside.Count != 0)
-                                    pline.JoinEntities(linesInside.Cast<Entity>().ToArray());
-                            }
-                            catch (System.Exception)
-                            {
-                                prdDbg($"Midt i {pv.Name} could not be joined!");
-                                throw;
-                            }
-                            polylinesToGetDerivative.Add(pline);
-
-                            //pline.AddEntityToDbModelSpace(localDb);
-                        }
-
-                        #endregion
-
-                        foreach (ProfileView pv in pvs)
-                        {
-                            prdDbg($"Processing PV {pv.Name}.");
-
-                            //Collection to hold component symbol blocks for overlap analysis
-                            List<BlockReference> allNewBrs = new List<BlockReference>();
-
-                            #region Variables and settings
-                            Point3d pvOrigin = pv.Location;
-                            double originX = pvOrigin.X;
-                            double originY = pvOrigin.Y;
-
-                            double pvStStart = pv.StationStart;
-                            double pvStEnd = pv.StationEnd;
-                            //This is needed because polyline gives slightly deviating
-                            //Station values at start and ends
-                            double extension = 0.01;
-                            double extendedPvStStart = pvStStart - extension;
-                            double extendedPvStEnd = pvStEnd + extension;
-
-                            double pvElBottom = pv.ElevationMin;
-                            double pvElTop = pv.ElevationMax;
-                            double pvLength = pvStEnd - pvStStart;
-                            #endregion
-
-                            #region Determine what sizes appear in current PV
-                            var pvSizeArray = sizeArray.GetPartialSizeArrayForPV(pv);
-                            prdDbg(pvSizeArray.ToString());
-                            #endregion
-
-                            #region Prepare exaggeration handling
-                            ProfileViewStyle profileViewStyle = tx
-                                .GetObject(((Autodesk.Aec.DatabaseServices.Entity)pv)
-                                .StyleId, OpenMode.ForRead) as ProfileViewStyle;
-                            #endregion
-
-                            double curStationBL = 0;
-                            double sampledMidtElevation = 0;
-                            double curX = 0, curY = 0;
-
-                            #region Place size change blocks
-                            for (int i = 0; i < pvSizeArray.Length; i++)
-                            {   //Although look ahead is used, normal iteration is required
-                                //Or cases where sizearray is only 1 size will not run at all
-                                //In more general case the last iteration must be aborted
-                                if (pvSizeArray.Length != 1 && i != pvSizeArray.Length - 1)
-                                {
-                                    //General case
-                                    curStationBL = pvSizeArray[i].EndStation;
-                                    sampledMidtElevation = SampleProfile(midtProfile, curStationBL);
-                                    curX = originX + pvSizeArray[i].EndStation - pvStStart;
-                                    curY = originY + (sampledMidtElevation - pvElBottom) *
-                                        profileViewStyle.GraphStyle.VerticalExaggeration;
-                                    double deltaY = (sampledMidtElevation - pvElBottom) *
-                                        profileViewStyle.GraphStyle.VerticalExaggeration;
-                                    //prdDbg($"{originY} + ({sampledMidtElevation} - {pvElBottom}) * " +
-                                    //    $"{profileViewStyle.GraphStyle.VerticalExaggeration} = {deltaY}");
-                                    BlockReference brInt =
-                                        dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                    brInt.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i].DN}");
-                                    brInt.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[i + 1].DN}");
-
-                                    allNewBrs.Add(brInt);
-                                }
-                                //Special cases
-                                if (i == 0)
-                                {//First iteration
-                                    curStationBL = pvStStart;
-                                    sampledMidtElevation = SampleProfile(midtProfile, curStationBL);
-                                    curX = originX;
-                                    curY = originY + (sampledMidtElevation - pvElBottom) *
-                                        profileViewStyle.GraphStyle.VerticalExaggeration;
-                                    BlockReference brAt0 =
-                                        dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                    brAt0.SetAttributeStringValue("LEFTSIZE", "");
-                                    brAt0.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[0].DN}");
-
-                                    allNewBrs.Add(brAt0);
-
-                                    if (pvSizeArray.Length == 1)
-                                    {//If only one size in the array also place block at end
-                                        curStationBL = pvStEnd;
-                                        sampledMidtElevation = SampleProfile(midtProfile, curStationBL - .1);
-                                        curX = originX + curStationBL - pvStStart;
-                                        curY = originY + (sampledMidtElevation - pvElBottom) *
-                                            profileViewStyle.GraphStyle.VerticalExaggeration;
-                                        BlockReference brAtEnd =
-                                            dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                        brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[0].DN}");
-                                        brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
-
-                                        allNewBrs.Add(brAtEnd);
-                                    }
-                                }
-                                if (i == pvSizeArray.Length - 2)
-                                {//End of the iteration
-                                    curStationBL = pvStEnd;
-                                    sampledMidtElevation = SampleProfile(midtProfile, curStationBL - .1);
-                                    curX = originX + curStationBL - pvStStart;
-                                    curY = originY + (sampledMidtElevation - pvElBottom) *
-                                        profileViewStyle.GraphStyle.VerticalExaggeration;
-                                    BlockReference brAtEnd =
-                                        dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
-                                    brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i + 1].DN}");
-                                    brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
-
-                                    allNewBrs.Add(brAtEnd);
-                                }
-                            }
-                            #endregion
-
-                            #region Local method to sample profiles
-                            //Local method to sample profiles
-                            double SampleProfile(Profile profile, double station)
-                            {
-                                double sampledElevation = 0;
-                                try { sampledElevation = profile.ElevationAt(station); }
-                                catch (System.Exception)
-                                {
-                                    prdDbg($"Station {station} threw an exception when placing size change blocks! Skipping...");
-                                    return 0;
-                                }
-                                return sampledElevation;
-                            }
-                            #endregion
-
-                            #region Place component blocks
-                            System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
-                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-                            foreach (BlockReference br in brs)
-                            {
-                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
-                                if (type == "Reduktion" || type == "Svejsning") continue;
-
-                                Point3d tpt = alPline.GetClosestPointTo(br.Position, false);
-
-                                double station = 0;
-                                double offset = 0;
-                                try
-                                {
-                                    al.StationOffset(tpt.X, tpt.Y, ref station, ref offset);
-                                }
-                                catch (System.Exception)
-                                {
-                                    prdDbg(br.RealName());
-                                    prdDbg(br.Handle.ToString());
-                                    prdDbg(br.Position.ToString());
-                                    throw;
-                                }
-
-                                //Determine if blockref is within current PV
-                                //If within -> place block, else go to next iteration
-
-                                if (!(station >= extendedPvStStart && station <= extendedPvStEnd)) continue;
-
-                                sampledMidtElevation = SampleProfile(midtProfile, station);
-                                double X = originX + station - pvStStart;
-                                double Y = originY + (sampledMidtElevation - pvElBottom) *
-                                        profileViewStyle.GraphStyle.VerticalExaggeration;
-                                BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
-                                brSign.SetAttributeStringValue("LEFTSIZE", type);
-
-                                psmPipeLineData.GetOrAttachPropertySet(br);
-                                if (psmPipeLineData.ReadPropertyString(driPipelineData.BranchesOffToAlignment)
-                                    .IsNotNoE())
-                                    brSign.SetAttributeStringValue("RIGHTSIZE",
-                                        psmPipeLineData.ReadPropertyString(driPipelineData.BranchesOffToAlignment));
-                                else brSign.SetAttributeStringValue("RIGHTSIZE", "");
-
-                                allNewBrs.Add(brSign);
-
-                                psmSource.GetOrAttachPropertySet(brSign);
-                                psmSource.WritePropertyString(
-                                    driSourceReference.SourceEntityHandle, br.Handle.ToString());
-                            }
-                            #endregion
-
-                            #region Place component blocks for branches belonging to other alignments
-                            foreach (BlockReference br in brsBranchesOffTo)
-                            {
-                                double station = 0;
-                                double offset = 0;
-                                try
-                                {
-                                    al.StationOffset(br.Position.X, br.Position.Y, ref station, ref offset);
-                                }
-                                catch (System.Exception)
-                                {
-                                    prdDbg(br.RealName());
-                                    prdDbg(br.Handle.ToString());
-                                    prdDbg(br.Position.ToString());
-                                    throw;
-                                }
-
-                                //Determine if blockref is within current PV
-                                //If within -> place block, else go to next iteration
-                                if (!(station >= extendedPvStStart && station <= extendedPvStEnd)) continue;
-
-                                sampledMidtElevation = SampleProfile(midtProfile, station);
-                                double X = originX + station - pvStStart;
-                                double Y = originY + (sampledMidtElevation - pvElBottom) *
-                                        profileViewStyle.GraphStyle.VerticalExaggeration;
-
-                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
-                                BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
-                                brSign.SetAttributeStringValue("LEFTSIZE", type);
-
-                                psmPipeLineData.GetOrAttachPropertySet(br);
-                                brSign.SetAttributeStringValue("RIGHTSIZE",
-                                        psmPipeLineData.ReadPropertyString(
-                                            driPipelineData.BelongsToAlignment));
-
-                                allNewBrs.Add(brSign);
-
-                                psmSource.GetOrAttachPropertySet(brSign);
-                                psmSource.WritePropertyString(
-                                    driSourceReference.SourceEntityHandle, br.Handle.ToString());
-                            }
-                            #endregion
-
-                            #region Sort overlapping component and size labels
-                            var clusters = allNewBrs.GroupByCluster((x, y) => Overlaps(x, y), 0.0001);
-
-                            foreach (IGrouping<BlockReference, BlockReference> cluster in clusters)
-                            {
-                                if (cluster.Count() < 2) continue;
-
-                                var xSorted = cluster.OrderBy(x => x.Position.X).ToArray();
-                                double deltaY = 0;
-                                for (int i = 0; i < xSorted.Length - 1; i++)
-                                {
-                                    Extents3d extents = xSorted[i].GeometricExtents;
-                                    deltaY = deltaY + (extents.MaxPoint.Y - xSorted[i].Position.Y) - 0.6156 + 0.1;
-
-                                    BlockReference nextBlock = xSorted[i + 1];
-                                    DynamicBlockReferencePropertyCollection dbrpc =
-                                        nextBlock.DynamicBlockReferencePropertyCollection;
-                                    foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
-                                    {
-                                        if (dbrp.PropertyName == "TOP_EXTENSION")
-                                        {
-                                            //prdDbg(length.ToString());
-                                            dbrp.Value = deltaY;
-                                        }
-                                    }
-                                }
-                            }
-
-                            #endregion
-
-                            #region Place weld blocks
-                            HashSet<BlockReference> newWeldNumberBlocks = new HashSet<BlockReference>();
-
-                            foreach (BlockReference br in brs)
-                            {
-                                #region Determine placement
-                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
-                                if (type != "Svejsning") continue;
-
-                                Point3d brLocation = alPline.GetClosestPointTo(br.Position, false);
-
-                                double station = 0;
-                                double offset = 0;
-                                al.StationOffset(brLocation.X, brLocation.Y, ref station, ref offset);
-
-                                //Determine if blockref is within current PV
-                                //If within -> place block, else go to next iteration
-                                if (!(station >= extendedPvStStart && station <= extendedPvStEnd)) continue;
-
-                                sampledMidtElevation = SampleProfile(midtProfile, station);
-                                double X = originX + station - pvStStart;
-                                double Y = originY + (sampledMidtElevation - pvElBottom) *
-                                        profileViewStyle.GraphStyle.VerticalExaggeration;
-
-                                Point3d wPt = new Point3d(X, Y, 0);
-
-                                BlockReference brWeld =
-                                    dB.CreateBlockWithAttributes(weldBlockName, wPt);
-
-                                BlockReference brWeldNumber =
-                                    dB.CreateBlockWithAttributes(weldNumberBlockName, wPt);
-
-                                //Gather new weld numebrs in a collection to be able to find overlaps
-                                newWeldNumberBlocks.Add(brWeldNumber);
-
-                                //Set attributes
-                                string nummer = br.GetAttributeStringValue("NUMMER");
-
-                                brWeldNumber.SetAttributeStringValue("NUMMER", nummer);
-
-                                psmSource.GetOrAttachPropertySet(brWeld);
-                                psmSource.WritePropertyString(
-                                    driSourceReference.SourceEntityHandle, br.Handle.ToString());
-                                #endregion
-
-                                #region Determine rotation
-                                //Get the nearest exploded profile polyline and sample first derivative
-                                HashSet<(Polyline pline, double dist)> ps = new HashSet<(Polyline pline, double dist)>();
-                                foreach (Polyline pline in polylinesToGetDerivative)
-                                {
-                                    Point3d distPt = pline.GetClosestPointTo(wPt, false);
-                                    ps.Add((pline, distPt.DistanceHorizontalTo(wPt)));
-                                }
-                                Polyline nearest = ps.MinBy(x => x.dist).FirstOrDefault().pline;
-
-                                Vector3d deriv = nearest.GetFirstDerivative(
-                                    nearest.GetClosestPointTo(wPt, false));
-
-                                double rotation = Math.Atan2(deriv.Y, deriv.X);
-                                brWeld.Rotation = rotation;
-                                #endregion
-
-                                #region Scale block to fit kappe
-                                SizeEntry curSize = sizeArray.GetSizeAtStation(station);
-                                brWeld.ScaleFactors = new Scale3d(1, curSize.Kod / 1000 *
-                                    profileViewStyle.GraphStyle.VerticalExaggeration, 1);
-                                #endregion
-                            }
-                            #endregion
-
-                            #region Overlaps function
-                            double Overlaps(BlockReference i, BlockReference j)
-                            {
-                                Extents3d extI = i.GeometricExtents;
-                                Extents3d extJ = j.GeometricExtents;
-
-                                double wI = extI.MaxPoint.X - extI.MinPoint.X;
-                                double wJ = extJ.MaxPoint.X - extJ.MinPoint.X;
-
-                                double threshold = wI / 2 + wJ / 2;
-
-                                double centreIX = extI.MinPoint.X + wI / 2;
-                                double centreJX = extJ.MinPoint.X + wJ / 2;
-
-                                double dist = Math.Abs(centreIX - centreJX);
-                                double result = dist - threshold;
-
-                                return result < 0 ? 0 : result;
-                            }
-                            #endregion
-
-                            #region Find overlapping weld labels and find a solution
-                            clusters = newWeldNumberBlocks.GroupByCluster((x, y) => Overlaps(x, y), 0.0001);
-
-                            foreach (IGrouping<BlockReference, BlockReference> cluster in clusters)
-                            {
-                                if (cluster.Count() < 2) continue;
-
-                                List<string> numbers = new List<string>();
-                                string prefix = "";
-                                foreach (BlockReference item in cluster)
-                                {
-                                    string number = item.GetAttributeStringValue("NUMMER");
-                                    var splits = number.Split('.');
-                                    prefix = splits[0];
-                                    numbers.Add(splits[1]);
-                                }
-
-                                List<int> convertedNumbers = new List<int>();
-                                foreach (string number in numbers)
-                                {
-                                    int result;
-                                    if (int.TryParse(number, out result)) convertedNumbers.Add(result);
-                                }
-
-                                convertedNumbers.Sort();
-
-                                string finalNumber = $"{prefix}.{convertedNumbers.First().ToString("000")}" +
-                                    $" - {convertedNumbers.Last().ToString("000")}";
-
-                                int i = 0;
-                                foreach (BlockReference item in cluster)
-                                {
-                                    if (i == 0) item.SetAttributeStringValue("NUMMER", finalNumber);
-                                    else { item.Erase(true); }
-                                    i++;
-                                }
-                            }
-                            #endregion
-
-                            #region Find curves and annotate
-                            foreach (Curve curve in curves)
-                            {
-                                if (curve is Polyline pline)
-                                {
-                                    //Detect arcs and determine if it is a buerør or not
-                                    for (int i = 0; i < pline.NumberOfVertices; i++)
-                                    {
-                                        TypeOfSegment tos;
-                                        double bulge = pline.GetBulgeAt(i);
-                                        if (bulge == 0) tos = TypeOfSegment.Straight;
-                                        else
-                                        {
-                                            //Determine if centre of arc is within view
-                                            CircularArc2d arcSegment2dAt = pline.GetArcSegment2dAt(i);
-                                            Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
-                                            Point3d location = al.GetClosestPointTo(
-                                                        new Point3d(samplePoint.X, samplePoint.Y, 0), false);
-                                            double centreStation = 0;
-                                            double centreOffset = 0;
-                                            al.StationOffset(location.X, location.Y, ref centreStation, ref centreOffset);
-
-                                            //If centre of arc is not within PV -> continue
-                                            if (!(centreStation > pvStStart && centreStation < pvStEnd)) continue;
-
-                                            //Calculate radius
-                                            double u = pline.GetPoint2dAt(i).GetDistanceTo(pline.GetPoint2dAt(i + 1));
-                                            double radius = u * ((1 + bulge.Pow(2)) / (4 * Math.Abs(bulge)));
-                                            double minRadius = GetPipeMinElasticRadius(pline);
-
-                                            if (radius < minRadius) tos = TypeOfSegment.CurvedPipe;
-                                            else tos = TypeOfSegment.ElasticArc;
-
-                                            //Acquire start and end stations
-                                            location = al.GetClosestPointTo(pline.GetPoint3dAt(i), false);
-                                            double curveStartStation = 0;
-                                            double offset = 0;
-                                            al.StationOffset(location.X, location.Y, ref curveStartStation, ref offset);
-
-                                            location = al.GetClosestPointTo(pline.GetPoint3dAt(i + 1), false);
-                                            double curveEndStation = 0;
-                                            al.StationOffset(location.X, location.Y, ref curveEndStation, ref offset);
-
-                                            double length = curveEndStation - curveStartStation;
-                                            //double midStation = curveStartStation + length / 2;
-
-                                            sampledMidtElevation = SampleProfile(midtProfile, centreStation);
-                                            curX = originX + centreStation - pvStStart;
-                                            curY = originY + (sampledMidtElevation - pvElBottom) *
-                                                    profileViewStyle.GraphStyle.VerticalExaggeration;
-                                            Point3d curvePt = new Point3d(curX, curY, 0);
-                                            BlockReference brCurve =
-                                                dB.CreateBlockWithAttributes(bueBlockName, curvePt);
-
-                                            DynamicBlockReferencePropertyCollection dbrpc = brCurve.DynamicBlockReferencePropertyCollection;
-                                            foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
-                                            {
-                                                if (dbrp.PropertyName == "Length")
-                                                {
-                                                    //prdDbg(length.ToString());
-                                                    dbrp.Value = Math.Abs(length);
-                                                }
-                                            }
-
-                                            //Set length text
-                                            brCurve.SetAttributeStringValue("LGD", "L=" + Math.Abs(length).ToString("0.0") + " m");
-
-                                            switch (tos)
-                                            {
-                                                case TypeOfSegment.ElasticArc:
-                                                    brCurve.SetAttributeStringValue("TEXT", $"Elastisk bue R={radius.ToString("0.0")} m");
-                                                    break;
-                                                case TypeOfSegment.CurvedPipe:
-                                                    brCurve.SetAttributeStringValue("TEXT", $"Buerør R={radius.ToString("0.0")} m");
-                                                    break;
-                                                default:
-                                                    break;
-                                            }
-
-                                            #region Determine rotation
-                                            //Get the nearest exploded profile polyline and sample first derivative
-                                            HashSet<(Polyline pline, double dist)> ps = new HashSet<(Polyline pline, double dist)>();
-                                            foreach (Polyline pline2 in polylinesToGetDerivative)
-                                            {
-                                                Point3d distPt = pline2.GetClosestPointTo(curvePt, false);
-                                                ps.Add((pline2, distPt.DistanceHorizontalTo(curvePt)));
-                                            }
-                                            Polyline nearest = ps.MinBy(x => x.dist).FirstOrDefault().pline;
-
-                                            Vector3d deriv = nearest.GetFirstDerivative(
-                                                nearest.GetClosestPointTo(curvePt, false));
-
-                                            double rotation = Math.Atan2(deriv.Y, deriv.X);
-                                            brCurve.Rotation = rotation;
-                                            #endregion
-                                        }
-                                    }
-                                }
-                            }
-                            #endregion 
-                        }
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    fremTx.Abort();
-                    fremTx.Dispose();
-                    fremDb.Dispose();
-                    tx.Abort();
-                    prdDbg(ex.ExceptionInfo());
-                    prdDbg(ex.ToString());
-                    return;
-                }
-                fremTx.Abort();
-                fremTx.Dispose();
-                fremDb.Dispose();
-                tx.Commit();
-            }
-        }
-
-        [CommandMethod("DELETEDETAILING")]
-        public void deletedetailing()
-        {
-            deletedetailingmethod();
-        }
-        public void deletedetailingmethod(Database db = default)
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = db ?? docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                //////////////////////////////////////
-                List<string> names = new List<string>();
-                names.Add("DRISizeChangeAnno");
-                names.Add("DRIPipeArcAnno");
-                names.Add("DRIWeldAnno");
-                names.Add("DRIWeldAnnoText");
-                //////////////////////////////////////
-
-                #region Delete previous blocks
-                //Delete previous blocks
-                foreach (string name in names)
-                {
-                    var existingBlocks = localDb.HashSetOfType<BlockReference>(tx);
-                    //prdDbg(existingBlocks.Count.ToString());
-                    foreach (BlockReference br in existingBlocks)
-                    {
-                        if (br.RealName() == name)
-                        {
-                            br.CheckOrOpenForWrite();
-                            br.Erase(true);
-                        }
-                    }
-                }
-                #endregion
                 tx.Commit();
             }
         }
