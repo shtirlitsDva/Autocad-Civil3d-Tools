@@ -70,15 +70,6 @@ namespace LERImporter.Schema
         public string EtableringsTidspunkt { get => this.etableringstidspunkt?.Value; }
         [PsInclude]
         public string Fareklasse { get => this.fareklasse?.Value.GetXmlEnumAttributeValueFromEnum() ?? ""; }
-        //[PsInclude]
-        //public string LerId { get => this.lerid; }
-        //[XmlAttribute(
-        //    Form = System.Xml.Schema.XmlSchemaForm.Qualified,
-        //    AttributeName = "id",
-        //    DataType = "ID",
-        //    Namespace = "http://data.gov.dk/schemas/LER/1/gml"
-        //    )]
-        //public string lerid { get; set; }
         [PsInclude]
         public string GmlId { get => this.GMLTypeID; }
         [PsInclude]
@@ -110,6 +101,8 @@ namespace LERImporter.Schema
         public string LiggerILedning { get => this.liggerILedning == true ? "Sand" : "Falsk"; }
         [PsInclude]
         public double UdvendigDiameter { get => this.udvendigDiameter?.getValueInStdUnits() ?? default; }
+        [PsInclude]
+        public string UndvendigDiameterUnits { get => this.udvendigDiameter?.getMeasureUnitName() ?? default; }
         [PsInclude]
         public string UdvendigFarve { get => this.udvendigFarve != null ? string.Join(", ", this.udvendigFarve) : ""; }
         [PsInclude]

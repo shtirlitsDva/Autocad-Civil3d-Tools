@@ -516,6 +516,23 @@ namespace IntersectUtilities
                             string descrFromKrydsninger = ReadStringParameterFromDataTable(
                                 ent.Layer, dtKrydsninger, "Description", 0);
 
+                            //Guard against empty descriptions
+                            //All descriptions must contain some information
+                            //If it does not, then abort the whole thing
+                            //Do not allow to proceed
+                            //Force the user to keep descriptions up to date
+                            if (descrFromKrydsninger.IsNoE())
+                            {
+                                AbortGracefully(
+                                    new[] { xRefLerTx, xRefSurfaceTx },
+                                    new[] { xRefLerDB, xRefSurfaceDB },
+                                    $"Fejl: For lag {ent.Layer} mangler der en 'Description'!" +
+                                    $"Fejl: Kan ikke fortsætte før dette er rettet i Krydsninger.csv");
+
+                                tx.Abort();
+                                return;
+                            }
+
                             string description = ProcessDescription(ent, descrFromKrydsninger, dtKrydsninger);
                             #endregion
 
@@ -748,15 +765,12 @@ namespace IntersectUtilities
                             }
 
                             double maxEl = topElevs.Max();
-                            editor.WriteMessage($"\nMax elevation of {pv.Name} is {maxEl}.");
-
                             double profileMinEl = minElevs.Min();
-
                             double pointsMinEl = staPoints.Where(x => x.ProfileViewNumber == idx)
                                                     .Select(x => x.CogoPoint.Elevation)
                                                     .Min();
-
                             double minEl = profileMinEl > pointsMinEl ? pointsMinEl : profileMinEl;
+                            prdDbg($"\nElevations of PV {pv.Name}> Max: {Math.Round(maxEl, 2)} | Min: {Math.Round(minEl, 2)}");
                             #endregion
 
                             //Set the elevations
@@ -770,6 +784,7 @@ namespace IntersectUtilities
                                 .Where(x => x.ProfileViewNumber == idx)
                                 .Select(x => x.CogoPoint.ObjectId)
                                 .ToArray());
+                            prdDbg("");
                             editor.Command("_AeccProjectObjectsToProf", pv.ObjectId);
                         }
                         #endregion

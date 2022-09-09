@@ -43,6 +43,14 @@ namespace LERImporter.Schema
                 throw new Exception($"Non defined units in MeasureType: uom = {this.uom}!");
             }
         }
+        public string getMeasureUnitName()
+        {
+            if (string.IsNullOrEmpty(this.uom))
+            {
+                throw new Exception("No units specified in MeasureType: uom is NoE!");
+            }
+            return this.uom;
+        }
     }
     public enum UnitsEnum
     {
