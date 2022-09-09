@@ -852,6 +852,180 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("populateprofiles")]
+        public void populateprofiles()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Read Csv Data for Layers
+                    //Establish the pathnames to files
+                    //Files should be placed in a specific folder on desktop
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    #endregion
+
+                    BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+
+                    #region Pss manager
+                    PropertySetManager psm = new PropertySetManager(localDb,
+                        PSetDefs.DefinedSets.DriCrossingData);
+
+                    PSetDefs.DriCrossingData driCrossingData = new PSetDefs.DriCrossingData();
+                    #endregion
+
+                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
+
+                    foreach (ProfileView pv in pvs)
+                    {
+                        #region Create a block for profile view detailing
+                        //First, get the profile view
+
+                        if (pv == null)
+                        {
+                            editor.WriteMessage($"\nNo profile view found in document!");
+                            return;
+                        }
+
+                        pv.CheckOrOpenForWrite();
+                        double x = 0.0;
+                        double y = 0.0;
+                        if (pv.ElevationRangeMode == ElevationRangeType.Automatic)
+                        {
+                            pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+                            pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y);
+                        }
+                        else
+                            pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y);
+
+                        #region Erase existing detailing block if it exists
+                        if (bt.Has(pv.Name))
+                        {
+                            if (!EraseBlock(doc, pv.Name))
+                            {
+                                editor.WriteMessage($"\nFailed to erase block: {pv.Name}.");
+                                return;
+                            }
+                        }
+                        #endregion
+
+                        BlockTableRecord detailingBlock = new BlockTableRecord();
+                        detailingBlock.Name = pv.Name;
+                        detailingBlock.Origin = new Point3d(x, y, 0);
+
+                        bt.Add(detailingBlock);
+                        tx.AddNewlyCreatedDBObject(detailingBlock, true);
+                        #endregion
+
+                        #region Process labels
+                        LabelStyleCollection stc = civilDoc.Styles.LabelStyles
+                                                       .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
+
+                        Oid prStId = stc["PROFILE PROJEKTION MGO"];
+
+                        HashSet<Label> labels = localDb.HashSetOfType<Label>(tx);
+                        Extents3d extentsPv = pv.GeometricExtents;
+
+                        var pvLabels = labels.Where(l => extentsPv.IsPointInsideXY(l.LabelLocation));
+                        prdDbg($"Number of labels inside extents: {pvLabels.Count()}");
+
+                        foreach (Label label in pvLabels)
+                        {
+                            label.CheckOrOpenForWrite();
+                            label.StyleId = prStId;
+
+                            Oid fId = label.FeatureId;
+                            Entity fEnt = fId.Go<Entity>(tx);
+
+                            psm.GetOrAttachPropertySet(fEnt);
+                            var diaOriginal = psm.ReadPropertyInt(driCrossingData.Diameter);
+
+                            double dia = Convert.ToDouble(diaOriginal) / 1000;
+
+                            if (dia == 0 || diaOriginal == 999) dia = 0.11;
+
+                            string blockName = ReadStringParameterFromDataTable(
+                                fEnt.Layer, dtKrydsninger, "Block", 1);
+
+                            if (blockName.IsNotNoE())
+                            {
+                                if (blockName == "Cirkel, Bund" || blockName == "Cirkel, Top")
+                                {
+                                    Circle circle = null;
+                                    if (blockName.Contains("Bund"))
+                                    {
+                                        circle = new Circle(new Point3d(
+                                        label.LabelLocation.X, label.LabelLocation.Y + (dia / 2), 0),
+                                        Vector3d.ZAxis, dia / 2);
+                                    }
+                                    else if (blockName.Contains("Top"))
+                                    {
+                                        circle = new Circle(new Point3d(
+                                        label.LabelLocation.X, label.LabelLocation.Y - (dia / 2), 0),
+                                        Vector3d.ZAxis, dia / 2);
+                                    }
+
+                                    space.AppendEntity(circle);
+                                    tx.AddNewlyCreatedDBObject(circle, false);
+                                    circle.Layer = fEnt.Layer;
+
+                                    Entity clone = circle.Clone() as Entity;
+                                    detailingBlock.AppendEntity(clone);
+                                    tx.AddNewlyCreatedDBObject(clone, true);
+
+                                    circle.Erase(true);
+                                }
+                                else if (bt.Has(blockName))
+                                {
+                                    using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                        label.LabelLocation, bt[blockName]))
+                                    {
+                                        space.AppendEntity(br);
+                                        tx.AddNewlyCreatedDBObject(br, false);
+                                        br.Layer = fEnt.Layer;
+
+                                        Entity clone = br.Clone() as Entity;
+                                        detailingBlock.AppendEntity(clone);
+                                        tx.AddNewlyCreatedDBObject(clone, true);
+
+                                        br.Erase(true);
+                                    }
+                                }
+                            }
+
+                            label.CheckOrOpenForWrite();
+                            label.Layer = fEnt.Layer;
+                        }
+                        #endregion
+
+                        using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                        new Point3d(x, y, 0), bt[pv.Name]))
+                        {
+                            space.AppendEntity(br);
+                            tx.AddNewlyCreatedDBObject(br, true);
+                        }
+                    }
+                }
+
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         #endregion
 
         [CommandMethod("chel")]
@@ -2122,180 +2296,6 @@ namespace IntersectUtilities
                 lerTx.Abort();
                 lerTx.Dispose();
                 lerDb.Dispose();
-                tx.Commit();
-            }
-        }
-
-        [CommandMethod("populateprofiles")]
-        public void populateprofiles()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    #region Read Csv Data for Layers
-                    //Establish the pathnames to files
-                    //Files should be placed in a specific folder on desktop
-                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-
-                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
-                    #endregion
-
-                    BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
-                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
-
-                    #region Pss manager
-                    PropertySetManager psm = new PropertySetManager(localDb,
-                        PSetDefs.DefinedSets.DriCrossingData);
-
-                    PSetDefs.DriCrossingData driCrossingData = new PSetDefs.DriCrossingData();
-                    #endregion
-
-                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
-
-                    foreach (ProfileView pv in pvs)
-                    {
-                        #region Create a block for profile view detailing
-                        //First, get the profile view
-
-                        if (pv == null)
-                        {
-                            editor.WriteMessage($"\nNo profile view found in document!");
-                            return;
-                        }
-
-                        pv.CheckOrOpenForWrite();
-                        double x = 0.0;
-                        double y = 0.0;
-                        if (pv.ElevationRangeMode == ElevationRangeType.Automatic)
-                        {
-                            pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
-                            pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y);
-                        }
-                        else
-                            pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y);
-
-                        #region Erase existing detailing block if it exists
-                        if (bt.Has(pv.Name))
-                        {
-                            if (!EraseBlock(doc, pv.Name))
-                            {
-                                editor.WriteMessage($"\nFailed to erase block: {pv.Name}.");
-                                return;
-                            }
-                        }
-                        #endregion
-
-                        BlockTableRecord detailingBlock = new BlockTableRecord();
-                        detailingBlock.Name = pv.Name;
-                        detailingBlock.Origin = new Point3d(x, y, 0);
-
-                        bt.Add(detailingBlock);
-                        tx.AddNewlyCreatedDBObject(detailingBlock, true);
-                        #endregion
-
-                        #region Process labels
-                        LabelStyleCollection stc = civilDoc.Styles.LabelStyles
-                                                       .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
-
-                        Oid prStId = stc["PROFILE PROJEKTION MGO"];
-
-                        HashSet<Label> labels = localDb.HashSetOfType<Label>(tx);
-                        Extents3d extentsPv = pv.GeometricExtents;
-
-                        var pvLabels = labels.Where(l => extentsPv.IsPointInsideXY(l.LabelLocation));
-                        prdDbg($"Number of labels inside extents: {pvLabels.Count()}");
-
-                        foreach (Label label in pvLabels)
-                        {
-                            label.CheckOrOpenForWrite();
-                            label.StyleId = prStId;
-
-                            Oid fId = label.FeatureId;
-                            Entity fEnt = fId.Go<Entity>(tx);
-
-                            psm.GetOrAttachPropertySet(fEnt);
-                            var diaOriginal = psm.ReadPropertyInt(driCrossingData.Diameter);
-
-                            double dia = Convert.ToDouble(diaOriginal) / 1000;
-
-                            if (dia == 0 || diaOriginal == 999) dia = 0.11;
-
-                            string blockName = ReadStringParameterFromDataTable(
-                                fEnt.Layer, dtKrydsninger, "Block", 1);
-
-                            if (blockName.IsNotNoE())
-                            {
-                                if (blockName == "Cirkel, Bund" || blockName == "Cirkel, Top")
-                                {
-                                    Circle circle = null;
-                                    if (blockName.Contains("Bund"))
-                                    {
-                                        circle = new Circle(new Point3d(
-                                        label.LabelLocation.X, label.LabelLocation.Y + (dia / 2), 0),
-                                        Vector3d.ZAxis, dia / 2);
-                                    }
-                                    else if (blockName.Contains("Top"))
-                                    {
-                                        circle = new Circle(new Point3d(
-                                        label.LabelLocation.X, label.LabelLocation.Y - (dia / 2), 0),
-                                        Vector3d.ZAxis, dia / 2);
-                                    }
-
-                                    space.AppendEntity(circle);
-                                    tx.AddNewlyCreatedDBObject(circle, false);
-                                    circle.Layer = fEnt.Layer;
-
-                                    Entity clone = circle.Clone() as Entity;
-                                    detailingBlock.AppendEntity(clone);
-                                    tx.AddNewlyCreatedDBObject(clone, true);
-
-                                    circle.Erase(true);
-                                }
-                                else if (bt.Has(blockName))
-                                {
-                                    using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
-                                        label.LabelLocation, bt[blockName]))
-                                    {
-                                        space.AppendEntity(br);
-                                        tx.AddNewlyCreatedDBObject(br, false);
-                                        br.Layer = fEnt.Layer;
-
-                                        Entity clone = br.Clone() as Entity;
-                                        detailingBlock.AppendEntity(clone);
-                                        tx.AddNewlyCreatedDBObject(clone, true);
-
-                                        br.Erase(true);
-                                    }
-                                }
-                            }
-
-                            label.CheckOrOpenForWrite();
-                            label.Layer = fEnt.Layer;
-                        }
-                        #endregion
-
-                        using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
-                                        new Point3d(x, y, 0), bt[pv.Name]))
-                        {
-                            space.AppendEntity(br);
-                            tx.AddNewlyCreatedDBObject(br, true);
-                        }
-                    }
-                }
-
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.ToString());
-                    return;
-                }
                 tx.Commit();
             }
         }
