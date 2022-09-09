@@ -852,7 +852,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("populateprofiles")]
+        [CommandMethod("POPULATEPROFILES")]
         public void populateprofiles()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -880,7 +880,7 @@ namespace IntersectUtilities
                     PropertySetManager psm = new PropertySetManager(localDb,
                         PSetDefs.DefinedSets.DriCrossingData);
 
-                    PSetDefs.DriCrossingData driCrossingData = new PSetDefs.DriCrossingData();
+                    PSetDefs.DriCrossingData dcd = new PSetDefs.DriCrossingData();
                     #endregion
 
                     HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
@@ -893,9 +893,12 @@ namespace IntersectUtilities
                         if (pv == null)
                         {
                             editor.WriteMessage($"\nNo profile view found in document!");
+                            tx.Abort();
                             return;
                         }
 
+                        #region Find zero point of profile view
+                        //Find the zero-point of the profile view
                         pv.CheckOrOpenForWrite();
                         double x = 0.0;
                         double y = 0.0;
@@ -905,7 +908,8 @@ namespace IntersectUtilities
                             pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y);
                         }
                         else
-                            pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y);
+                            pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y); 
+                        #endregion
 
                         #region Erase existing detailing block if it exists
                         if (bt.Has(pv.Name))
@@ -946,10 +950,9 @@ namespace IntersectUtilities
                             Oid fId = label.FeatureId;
                             Entity fEnt = fId.Go<Entity>(tx);
 
-                            psm.GetOrAttachPropertySet(fEnt);
-                            var diaOriginal = psm.ReadPropertyInt(driCrossingData.Diameter);
+                            var diaOriginal = psm.ReadPropertyInt(fEnt, dcd.Diameter);
 
-                            double dia = Convert.ToDouble(diaOriginal) / 1000;
+                            double dia = Convert.ToDouble(diaOriginal) / 1000.0;
 
                             if (dia == 0 || diaOriginal == 999) dia = 0.11;
 
@@ -1026,6 +1029,365 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("COLORIZEALLLERLAYERS")]
+        public void colorizealllerlayers()
+        {
+            colorizealllerlayersmethod();
+        }
+
+        [CommandMethod("CREATEPROFILES")]
+        public void createprofiles()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                #region Open fremtidig db
+                DataReferencesOptions dro = new DataReferencesOptions();
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
+
+                // open the xref database
+                Database fremDb = new Database(false, true);
+                fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
+                Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
+                HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                #endregion
+
+                //////////////////////////////////////
+                string draftProfileLayerName = "0-FJV-PROFILE-DRAFT";
+                //////////////////////////////////////
+
+                try
+                {
+                    #region Create layer for draft profile
+                    using (Transaction txLag = localDb.TransactionManager.StartTransaction())
+                    {
+
+                        LayerTable lt = txLag.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                        if (!lt.Has(draftProfileLayerName))
+                        {
+                            LayerTableRecord ltr = new LayerTableRecord();
+                            ltr.Name = draftProfileLayerName;
+                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 40);
+                            ltr.LineWeight = LineWeight.LineWeight030;
+                            ltr.IsPlottable = false;
+
+                            //Make layertable writable
+                            lt.CheckOrOpenForWrite();
+
+                            //Add the new layer to layer table
+                            Oid ltId = lt.Add(ltr);
+                            txLag.AddNewlyCreatedDBObject(ltr, true);
+                        }
+                        txLag.Commit();
+                    }
+                    #endregion
+
+                    #region Common variables
+                    BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    Plane plane = new Plane(); //For intersecting
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                    #endregion
+
+                    #region Delete previous lines
+                    //Delete previous blocks
+                    var existingPlines = localDb.HashSetOfType<Polyline>(tx, false).Where(x => x.Layer == draftProfileLayerName).ToHashSet();
+                    foreach (Entity ent in existingPlines)
+                    {
+                        ent.CheckOrOpenForWrite();
+                        ent.Erase(true);
+                    }
+                    #endregion
+
+                    #region Initialize PS for Alignment
+                    PropertySetManager psmPipeLineData = new PropertySetManager(
+                        fremDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineData =
+                        new PSetDefs.DriPipelineData();
+                    #endregion
+
+                    foreach (Alignment al in als)
+                    {
+                        prdDbg($"\nProcessing: {al.Name}...");
+                        #region If exist get surface profile and profile view
+                        ObjectIdCollection profileIds = al.GetProfileIds();
+                        ObjectIdCollection profileViewIds = al.GetProfileViewIds();
+
+                        ProfileView pv = null;
+                        foreach (Oid oid in profileViewIds)
+                        {
+                            ProfileView pTemp = oid.Go<ProfileView>(tx);
+                            if (pTemp.Name == $"{al.Name}_PV") pv = pTemp;
+                        }
+                        if (pv == null)
+                        {
+                            prdDbg($"No profile view found for alignment: {al.Name}, skip to next.");
+                            continue;
+                        }
+
+                        Profile surfaceProfile = null;
+                        foreach (Oid oid in profileIds)
+                        {
+                            Profile pTemp = oid.Go<Profile>(tx);
+                            if (pTemp.Name == $"{al.Name}_surface_P") surfaceProfile = pTemp;
+                        }
+                        if (surfaceProfile == null)
+                        {
+                            prdDbg($"No surface profile found for alignment: {al.Name}, skip to next.");
+                            continue;
+                        }
+                        prdDbg(pv.Name);
+                        prdDbg(surfaceProfile.Name);
+                        #endregion
+
+                        #region GetCurvesAndBRs from fremtidig
+                        HashSet<Curve> curves = allCurves
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                            .ToHashSet();
+
+                        HashSet<BlockReference> brs = allBrs
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                            .ToHashSet();
+                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                        #endregion
+
+                        #region Variables and settings
+                        Point3d pvOrigin = pv.Location;
+                        double originX = pvOrigin.X;
+                        double originY = pvOrigin.Y;
+
+                        double pvStStart = pv.StationStart;
+                        double pvStEnd = pv.StationEnd;
+                        double pvElBottom = pv.ElevationMin;
+                        double pvElTop = pv.ElevationMax;
+                        double pvLength = pvStEnd - pvStStart;
+
+                        //Settings
+                        double weedAngle = 5; //In degrees
+                        double weedAngleRad = weedAngle.ToRadians();
+                        double DouglasPeuckerTolerance = .05;
+
+                        double stepLength = 0.1;
+                        int nrOfSteps = (int)(pvLength / stepLength);
+                        #endregion
+
+                        #region Build size array
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        prdDbg(sizeArray.ToString());
+                        #endregion
+
+                        #region Local method to sample profiles
+                        //Local method to sample profiles
+                        double SampleProfile(Profile profile, double station)
+                        {
+                            double sampledElevation = 0;
+                            try { sampledElevation = profile.ElevationAt(station); }
+                            catch (System.Exception)
+                            {
+                                prdDbg($"Station {station} threw an exception when placing size change blocks! Skipping...");
+                                return 0;
+                            }
+                            return sampledElevation;
+                        }
+                        #endregion
+
+                        #region Sample profile with cover
+                        double startStation = 0;
+                        double endStation = 0;
+                        double curStation = 0;
+                        for (int i = 0; i < sizeArray.Length; i++)
+                        {
+                            List<Point2d> allSteps = new List<Point2d>();
+                            //Station management
+                            endStation = sizeArray[i].EndStation;
+                            double segmentLength = endStation - startStation;
+                            nrOfSteps = (int)(segmentLength / stepLength);
+                            //Cover depth management
+                            int curDn = sizeArray[i].DN;
+                            double cover = curDn <= 65 ? 0.6 : 1.0; //CWO info
+                            double halfKappeOd = sizeArray[i].Kod / 2.0 / 1000.0;
+                            prdDbg($"S: {startStation.ToString("0000.0")}, " +
+                                   $"E: {endStation.ToString("0000.00")}, " +
+                                   $"L: {segmentLength.ToString("0000.00")}, " +
+                                   $"Steps: {nrOfSteps.ToString("D5")}");
+                            //Sample elevation at each step and create points at current offset from surface
+                            for (int j = 0; j < nrOfSteps + 1; j++) //+1 because first step is an "extra" step
+                            {
+                                curStation = startStation + stepLength * j;
+                                double sampledSurfaceElevation = SampleProfile(surfaceProfile, curStation);
+                                allSteps.Add(new Point2d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom - cover - halfKappeOd)));
+                            }
+                            #region Apply Douglas Peucker reduction
+                            List<Point2d> reducedSteps = DouglasPeuckerReduction.DouglasPeuckerReductionMethod(allSteps, DouglasPeuckerTolerance);
+                            #endregion
+
+                            #region Draw middle profile
+                            Polyline draftProfile = new Polyline();
+                            draftProfile.SetDatabaseDefaults();
+                            draftProfile.Layer = draftProfileLayerName;
+                            for (int j = 0; j < reducedSteps.Count; j++)
+                            {
+                                var curStep = reducedSteps[j];
+                                draftProfile.AddVertexAt(j, curStep, 0, 0, 0);
+                            }
+                            draftProfile.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                            modelSpace.AppendEntity(draftProfile);
+                            tx.AddNewlyCreatedDBObject(draftProfile, true);
+                            #endregion
+
+                            #region Draw offset profiles
+                            using (DBObjectCollection col = draftProfile.GetOffsetCurves(halfKappeOd))
+                            {
+                                foreach (var ent in col)
+                                {
+                                    if (ent is Polyline poly)
+                                    {
+                                        poly.Color = Color.FromColorIndex(ColorMethod.ByLayer, 256);
+                                        modelSpace.AppendEntity(poly);
+                                        tx.AddNewlyCreatedDBObject(poly, true);
+                                    }
+                                }
+                            }
+                            using (DBObjectCollection col = draftProfile.GetOffsetCurves(-halfKappeOd))
+                            {
+                                foreach (var ent in col)
+                                {
+                                    if (ent is Polyline poly)
+                                    {
+                                        poly.Color = Color.FromColorIndex(ColorMethod.ByLayer, 256);
+                                        modelSpace.AppendEntity(poly);
+                                        tx.AddNewlyCreatedDBObject(poly, true);
+                                    }
+                                }
+                            }
+                            #endregion
+
+                            startStation = sizeArray[i].EndStation;
+                        }
+                        #endregion
+
+                        #region Test Douglas Peucker reduction
+                        ////Test Douglas Peucker reduction
+                        //List<double> coverList = new List<double>();
+                        //int factor = 10; //Using factor to get more sampling points
+                        //for (int i = 0; i < (nrOfSteps + 1) * factor; i++) //+1 because first step is an "extra" step
+                        //{
+                        //    double sampledSurfaceElevation = 0;
+
+                        //    double curStation = pvStStart + stepLength / factor * i;
+                        //    try
+                        //    {
+                        //        sampledSurfaceElevation = surfaceProfile.ElevationAt(curStation);
+                        //    }
+                        //    catch (System.Exception)
+                        //    {
+                        //        //prdDbg($"\nStation {curStation} threw an exception! Skipping...");
+                        //        continue;
+                        //    }
+
+                        //    //To find point perpendicularly beneath the surface point
+                        //    //Use graphical method of intersection with a helper line
+                        //    //Cannot find or think of a mathematical solution
+                        //    //Create new line to intersect with the draft profile
+                        //    Line intersectLine = new Line(
+                        //        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0),
+                        //        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom) - 10, 0));
+
+                        //    //Intersect and get the intersection point
+                        //    Point3dCollection intersectionPoints = new Point3dCollection();
+
+                        //    intersectLine.IntersectWith(draftProfile, 0, plane, intersectionPoints, new IntPtr(0), new IntPtr(0));
+                        //    if (intersectionPoints.Count < 1) continue;
+
+                        //    Point3d intersection = intersectionPoints[0];
+                        //    coverList.Add(intersection.DistanceTo(
+                        //        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0)));
+                        //}
+
+                        //prdDbg($"Max. cover: {(int)(coverList.Max() * 1000)} mm");
+                        //prdDbg($"Min. cover: {(int)(coverList.Min() * 1000)} mm");
+                        //prdDbg($"Average cover: {(int)((coverList.Sum() / coverList.Count) * 1000)} mm");
+                        //prdDbg($"Percent values below cover req.: " +
+                        //    $"{((coverList.Count(x => x < cover) / Convert.ToDouble(coverList.Count)) * 100.0).ToString("0.##")} %");
+                        //#endregion
+
+                        //#region Test Douglas Peucker reduction again
+                        //////Test Douglas Peucker reduction
+                        ////coverList = new List<double>();
+
+                        ////for (int i = 0; i < (nrOfSteps + 1) * factor; i++) //+1 because first step is an "extra" step
+                        ////{
+                        ////    double sampledSurfaceElevation = 0;
+
+                        ////    double curStation = pvStStart + stepLength / factor * i;
+                        ////    try
+                        ////    {
+                        ////        sampledSurfaceElevation = surfaceProfile.ElevationAt(curStation);
+                        ////    }
+                        ////    catch (System.Exception)
+                        ////    {
+                        ////        //prdDbg($"\nStation {curStation} threw an exception! Skipping...");
+                        ////        continue;
+                        ////    }
+
+                        ////    //To find point perpendicularly beneath the surface point
+                        ////    //Use graphical method of intersection with a helper line
+                        ////    //Cannot find or think of a mathematical solution
+                        ////    //Create new line to intersect with the draft profile
+                        ////    Line intersectLine = new Line(
+                        ////        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0),
+                        ////        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom) - 10, 0));
+
+                        ////    //Intersect and get the intersection point
+                        ////    Point3dCollection intersectionPoints = new Point3dCollection();
+
+                        ////    intersectLine.IntersectWith(draftProfile, 0, plane, intersectionPoints, new IntPtr(0), new IntPtr(0));
+                        ////    if (intersectionPoints.Count < 1) continue;
+
+                        ////    Point3d intersection = intersectionPoints[0];
+                        ////    coverList.Add(intersection.DistanceTo(
+                        ////        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0)));
+                        ////}
+
+                        ////prdDbg("After fitting polyline:");
+                        ////prdDbg($"Max. cover: {(int)(coverList.Max() * 1000)} mm");
+                        ////prdDbg($"Min. cover: {(int)(coverList.Min() * 1000)} mm");
+                        ////prdDbg($"Average cover: {(int)((coverList.Sum() / coverList.Count) * 1000)} mm");
+                        ////prdDbg($"Percent values below cover req.: " +
+                        ////    $"{((coverList.Count(x => x < cover) / Convert.ToDouble(coverList.Count)) * 100.0).ToString("0.##")} %");
+                        //#endregion
+
+                        #endregion
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    fremTx.Abort();
+                    fremTx.Dispose();
+                    fremDb.Dispose();
+                    tx.Abort();
+                    prdDbg(ex.ExceptionInfo());
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                fremTx.Abort();
+                fremTx.Dispose();
+                fremDb.Dispose();
+                tx.Commit();
+            }
+        }
         #endregion
 
         [CommandMethod("chel")]
@@ -5047,360 +5409,6 @@ namespace IntersectUtilities
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
-                tx.Commit();
-            }
-        }
-
-        [CommandMethod("CREATEPROFILES")]
-        public void createprofiles()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                #region Open fremtidig db
-                DataReferencesOptions dro = new DataReferencesOptions();
-                string projectName = dro.ProjectName;
-                string etapeName = dro.EtapeName;
-
-                // open the xref database
-                Database fremDb = new Database(false, true);
-                fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                    FileOpenMode.OpenForReadAndAllShare, false, null);
-                Transaction fremTx = fremDb.TransactionManager.StartTransaction();
-                HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
-                HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
-                #endregion
-
-                //////////////////////////////////////
-                string draftProfileLayerName = "0-FJV-PROFILE-DRAFT";
-                //////////////////////////////////////
-
-                try
-                {
-                    #region Create layer for draft profile
-                    using (Transaction txLag = localDb.TransactionManager.StartTransaction())
-                    {
-
-                        LayerTable lt = txLag.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
-
-                        if (!lt.Has(draftProfileLayerName))
-                        {
-                            LayerTableRecord ltr = new LayerTableRecord();
-                            ltr.Name = draftProfileLayerName;
-                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 40);
-                            ltr.LineWeight = LineWeight.LineWeight030;
-                            ltr.IsPlottable = false;
-
-                            //Make layertable writable
-                            lt.CheckOrOpenForWrite();
-
-                            //Add the new layer to layer table
-                            Oid ltId = lt.Add(ltr);
-                            txLag.AddNewlyCreatedDBObject(ltr, true);
-                        }
-                        txLag.Commit();
-                    }
-                    #endregion
-
-                    #region Common variables
-                    BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
-                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                    Plane plane = new Plane(); //For intersecting
-                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-                    #endregion
-
-                    #region Delete previous lines
-                    //Delete previous blocks
-                    var existingPlines = localDb.HashSetOfType<Polyline>(tx, false).Where(x => x.Layer == draftProfileLayerName).ToHashSet();
-                    foreach (Entity ent in existingPlines)
-                    {
-                        ent.CheckOrOpenForWrite();
-                        ent.Erase(true);
-                    }
-                    #endregion
-
-                    #region Initialize PS for Alignment
-                    PropertySetManager psmPipeLineData = new PropertySetManager(
-                        fremDb,
-                        PSetDefs.DefinedSets.DriPipelineData);
-                    PSetDefs.DriPipelineData driPipelineData =
-                        new PSetDefs.DriPipelineData();
-                    #endregion
-
-                    foreach (Alignment al in als)
-                    {
-                        prdDbg($"\nProcessing: {al.Name}...");
-                        #region If exist get surface profile and profile view
-                        ObjectIdCollection profileIds = al.GetProfileIds();
-                        ObjectIdCollection profileViewIds = al.GetProfileViewIds();
-
-                        ProfileView pv = null;
-                        foreach (Oid oid in profileViewIds)
-                        {
-                            ProfileView pTemp = oid.Go<ProfileView>(tx);
-                            if (pTemp.Name == $"{al.Name}_PV") pv = pTemp;
-                        }
-                        if (pv == null)
-                        {
-                            prdDbg($"No profile view found for alignment: {al.Name}, skip to next.");
-                            continue;
-                        }
-
-                        Profile surfaceProfile = null;
-                        foreach (Oid oid in profileIds)
-                        {
-                            Profile pTemp = oid.Go<Profile>(tx);
-                            if (pTemp.Name == $"{al.Name}_surface_P") surfaceProfile = pTemp;
-                        }
-                        if (surfaceProfile == null)
-                        {
-                            prdDbg($"No surface profile found for alignment: {al.Name}, skip to next.");
-                            continue;
-                        }
-                        prdDbg(pv.Name);
-                        prdDbg(surfaceProfile.Name);
-                        #endregion
-
-                        #region GetCurvesAndBRs from fremtidig
-                        HashSet<Curve> curves = allCurves
-                            .Where(x => psmPipeLineData
-                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
-                            .ToHashSet();
-
-                        HashSet<BlockReference> brs = allBrs
-                            .Where(x => psmPipeLineData
-                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
-                            .ToHashSet();
-                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
-                        #endregion
-
-                        #region Variables and settings
-                        Point3d pvOrigin = pv.Location;
-                        double originX = pvOrigin.X;
-                        double originY = pvOrigin.Y;
-
-                        double pvStStart = pv.StationStart;
-                        double pvStEnd = pv.StationEnd;
-                        double pvElBottom = pv.ElevationMin;
-                        double pvElTop = pv.ElevationMax;
-                        double pvLength = pvStEnd - pvStStart;
-
-                        //Settings
-                        double weedAngle = 5; //In degrees
-                        double weedAngleRad = weedAngle.ToRadians();
-                        double DouglasPeuckerTolerance = .05;
-
-                        double stepLength = 0.1;
-                        int nrOfSteps = (int)(pvLength / stepLength);
-                        #endregion
-
-                        #region Build size array
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
-                        prdDbg(sizeArray.ToString());
-                        #endregion
-
-                        #region Local method to sample profiles
-                        //Local method to sample profiles
-                        double SampleProfile(Profile profile, double station)
-                        {
-                            double sampledElevation = 0;
-                            try { sampledElevation = profile.ElevationAt(station); }
-                            catch (System.Exception)
-                            {
-                                prdDbg($"Station {station} threw an exception when placing size change blocks! Skipping...");
-                                return 0;
-                            }
-                            return sampledElevation;
-                        }
-                        #endregion
-
-                        #region Sample profile with cover
-                        double startStation = 0;
-                        double endStation = 0;
-                        double curStation = 0;
-                        for (int i = 0; i < sizeArray.Length; i++)
-                        {
-                            List<Point2d> allSteps = new List<Point2d>();
-                            //Station management
-                            endStation = sizeArray[i].EndStation;
-                            double segmentLength = endStation - startStation;
-                            nrOfSteps = (int)(segmentLength / stepLength);
-                            //Cover depth management
-                            int curDn = sizeArray[i].DN;
-                            double cover = curDn <= 65 ? 0.6 : 1.0; //CWO info
-                            double halfKappeOd = sizeArray[i].Kod / 2.0 / 1000.0;
-                            prdDbg($"S: {startStation.ToString("0000.0")}, " +
-                                   $"E: {endStation.ToString("0000.00")}, " +
-                                   $"L: {segmentLength.ToString("0000.00")}, " +
-                                   $"Steps: {nrOfSteps.ToString("D5")}");
-                            //Sample elevation at each step and create points at current offset from surface
-                            for (int j = 0; j < nrOfSteps + 1; j++) //+1 because first step is an "extra" step
-                            {
-                                curStation = startStation + stepLength * j;
-                                double sampledSurfaceElevation = SampleProfile(surfaceProfile, curStation);
-                                allSteps.Add(new Point2d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom - cover - halfKappeOd)));
-                            }
-                            #region Apply Douglas Peucker reduction
-                            List<Point2d> reducedSteps = DouglasPeuckerReduction.DouglasPeuckerReductionMethod(allSteps, DouglasPeuckerTolerance);
-                            #endregion
-
-                            #region Draw middle profile
-                            Polyline draftProfile = new Polyline();
-                            draftProfile.SetDatabaseDefaults();
-                            draftProfile.Layer = draftProfileLayerName;
-                            for (int j = 0; j < reducedSteps.Count; j++)
-                            {
-                                var curStep = reducedSteps[j];
-                                draftProfile.AddVertexAt(j, curStep, 0, 0, 0);
-                            }
-                            draftProfile.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
-                            modelSpace.AppendEntity(draftProfile);
-                            tx.AddNewlyCreatedDBObject(draftProfile, true);
-                            #endregion
-
-                            #region Draw offset profiles
-                            using (DBObjectCollection col = draftProfile.GetOffsetCurves(halfKappeOd))
-                            {
-                                foreach (var ent in col)
-                                {
-                                    if (ent is Polyline poly)
-                                    {
-                                        poly.Color = Color.FromColorIndex(ColorMethod.ByLayer, 256);
-                                        modelSpace.AppendEntity(poly);
-                                        tx.AddNewlyCreatedDBObject(poly, true);
-                                    }
-                                }
-                            }
-                            using (DBObjectCollection col = draftProfile.GetOffsetCurves(-halfKappeOd))
-                            {
-                                foreach (var ent in col)
-                                {
-                                    if (ent is Polyline poly)
-                                    {
-                                        poly.Color = Color.FromColorIndex(ColorMethod.ByLayer, 256);
-                                        modelSpace.AppendEntity(poly);
-                                        tx.AddNewlyCreatedDBObject(poly, true);
-                                    }
-                                }
-                            }
-                            #endregion
-
-                            startStation = sizeArray[i].EndStation;
-                        }
-                        #endregion
-
-                        #region Test Douglas Peucker reduction
-                        ////Test Douglas Peucker reduction
-                        //List<double> coverList = new List<double>();
-                        //int factor = 10; //Using factor to get more sampling points
-                        //for (int i = 0; i < (nrOfSteps + 1) * factor; i++) //+1 because first step is an "extra" step
-                        //{
-                        //    double sampledSurfaceElevation = 0;
-
-                        //    double curStation = pvStStart + stepLength / factor * i;
-                        //    try
-                        //    {
-                        //        sampledSurfaceElevation = surfaceProfile.ElevationAt(curStation);
-                        //    }
-                        //    catch (System.Exception)
-                        //    {
-                        //        //prdDbg($"\nStation {curStation} threw an exception! Skipping...");
-                        //        continue;
-                        //    }
-
-                        //    //To find point perpendicularly beneath the surface point
-                        //    //Use graphical method of intersection with a helper line
-                        //    //Cannot find or think of a mathematical solution
-                        //    //Create new line to intersect with the draft profile
-                        //    Line intersectLine = new Line(
-                        //        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0),
-                        //        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom) - 10, 0));
-
-                        //    //Intersect and get the intersection point
-                        //    Point3dCollection intersectionPoints = new Point3dCollection();
-
-                        //    intersectLine.IntersectWith(draftProfile, 0, plane, intersectionPoints, new IntPtr(0), new IntPtr(0));
-                        //    if (intersectionPoints.Count < 1) continue;
-
-                        //    Point3d intersection = intersectionPoints[0];
-                        //    coverList.Add(intersection.DistanceTo(
-                        //        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0)));
-                        //}
-
-                        //prdDbg($"Max. cover: {(int)(coverList.Max() * 1000)} mm");
-                        //prdDbg($"Min. cover: {(int)(coverList.Min() * 1000)} mm");
-                        //prdDbg($"Average cover: {(int)((coverList.Sum() / coverList.Count) * 1000)} mm");
-                        //prdDbg($"Percent values below cover req.: " +
-                        //    $"{((coverList.Count(x => x < cover) / Convert.ToDouble(coverList.Count)) * 100.0).ToString("0.##")} %");
-                        //#endregion
-
-                        //#region Test Douglas Peucker reduction again
-                        //////Test Douglas Peucker reduction
-                        ////coverList = new List<double>();
-
-                        ////for (int i = 0; i < (nrOfSteps + 1) * factor; i++) //+1 because first step is an "extra" step
-                        ////{
-                        ////    double sampledSurfaceElevation = 0;
-
-                        ////    double curStation = pvStStart + stepLength / factor * i;
-                        ////    try
-                        ////    {
-                        ////        sampledSurfaceElevation = surfaceProfile.ElevationAt(curStation);
-                        ////    }
-                        ////    catch (System.Exception)
-                        ////    {
-                        ////        //prdDbg($"\nStation {curStation} threw an exception! Skipping...");
-                        ////        continue;
-                        ////    }
-
-                        ////    //To find point perpendicularly beneath the surface point
-                        ////    //Use graphical method of intersection with a helper line
-                        ////    //Cannot find or think of a mathematical solution
-                        ////    //Create new line to intersect with the draft profile
-                        ////    Line intersectLine = new Line(
-                        ////        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0),
-                        ////        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom) - 10, 0));
-
-                        ////    //Intersect and get the intersection point
-                        ////    Point3dCollection intersectionPoints = new Point3dCollection();
-
-                        ////    intersectLine.IntersectWith(draftProfile, 0, plane, intersectionPoints, new IntPtr(0), new IntPtr(0));
-                        ////    if (intersectionPoints.Count < 1) continue;
-
-                        ////    Point3d intersection = intersectionPoints[0];
-                        ////    coverList.Add(intersection.DistanceTo(
-                        ////        new Point3d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom), 0)));
-                        ////}
-
-                        ////prdDbg("After fitting polyline:");
-                        ////prdDbg($"Max. cover: {(int)(coverList.Max() * 1000)} mm");
-                        ////prdDbg($"Min. cover: {(int)(coverList.Min() * 1000)} mm");
-                        ////prdDbg($"Average cover: {(int)((coverList.Sum() / coverList.Count) * 1000)} mm");
-                        ////prdDbg($"Percent values below cover req.: " +
-                        ////    $"{((coverList.Count(x => x < cover) / Convert.ToDouble(coverList.Count)) * 100.0).ToString("0.##")} %");
-                        //#endregion
-
-                        #endregion
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    fremTx.Abort();
-                    fremTx.Dispose();
-                    fremDb.Dispose();
-                    tx.Abort();
-                    prdDbg(ex.ExceptionInfo());
-                    prdDbg(ex.ToString());
-                    return;
-                }
-                fremTx.Abort();
-                fremTx.Dispose();
-                fremDb.Dispose();
                 tx.Commit();
             }
         }
@@ -13464,12 +13472,6 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-        }
-
-        [CommandMethod("COLORIZEALLLERLAYERS")]
-        public void colorizealllerlayers()
-        {
-            colorizealllerlayersmethod();
         }
 
         public void colorizealllerlayersmethod(Database extDb = null)
