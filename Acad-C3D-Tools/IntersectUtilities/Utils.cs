@@ -229,36 +229,6 @@ namespace IntersectUtilities
             editor.WriteMessage("\n" + msg);
         }
         /// <summary>
-        /// Returns the matched string and value with curly braces removed.
-        /// </summary>
-        /// <param name="input">String where to find groups.</param>
-        /// <returns>
-        /// List of tuples or empty list. For example for string:
-        /// {Diameter} {Material}, Regnvand
-        /// It returns list:
-        /// ("{Diameter}", "Diameter")
-        /// ("{Material}", "Material")
-        /// </returns>
-        public static List<(string partInCurlyBracesToReplace, string replaceWith)> FindDescriptionParts(string input)
-        {
-            List<(string, string)> list = new List<(string, string)>();
-            Regex regex = new Regex(@"({[a-zæøåA-ZÆØÅ_:-]*})");
-
-            MatchCollection mc = regex.Matches(input);
-
-            if (mc.Count > 0)
-            {
-                foreach (Match match in mc)
-                {
-                    string toReplace = match.Groups[0].Value;
-                    string columnName = toReplace.Replace("{", "").Replace("}", "");
-                    list.Add((toReplace, columnName));
-                }
-                return list;
-            }
-            else return list;
-        }
-        /// <summary>
         /// Use only for single field, no multiple matches supported!
         /// </summary>
         public static (string setName, string propertyName) FindPropertySetParts(string input)
@@ -278,70 +248,6 @@ namespace IntersectUtilities
             }
 
             return (default, default);
-        }
-        public static string ReadDescriptionPartsFromOD(Tables tables, Entity ent,
-                                                        string ColumnName, System.Data.DataTable dataTable)
-        {
-            string readStructure = ReadStringParameterFromDataTable(ent.Layer, dataTable, ColumnName, 0);
-            if (readStructure != null)
-            {
-                List<(string ToReplace, string Data)> list = FindDescriptionParts(readStructure);
-
-                if (list.Count > 0)
-                {
-                    //Assume only one result
-                    string[] parts = list[0].Data.Split(':');
-                    string value = PropertySetManager
-                        .ReadNonDefinedPropertySetString(ent, parts[0], parts[1]);
-                    if (value.IsNotNoE())
-                    {
-                        string result = readStructure.Replace(list[0].ToReplace, value);
-                        return result;
-                    }
-                }
-            }
-            return "";
-        }
-        public static string ReadDescriptionPartValueFromPS(List<PropertySet> pss, Entity ent,
-            string ColumnName, System.Data.DataTable dataTable)
-        {
-            string readStructure = ReadStringParameterFromDataTable(ent.Layer, dataTable, ColumnName, 0);
-            if (readStructure != null)
-            {
-                List<(string ToReplace, string Data)> list = FindDescriptionParts(readStructure);
-
-                if (list.Count > 0)
-                {
-                    //Assume only one result
-                    string[] parts = list[0].Data.Split(':');
-                    string tableName = parts[0];
-                    string fieldName = parts[1];
-                    PropertySet ps = pss.Find(x => x.PropertySetDefinitionName == tableName);
-                    if (ps == default)
-                    {
-                        prdDbg($"PropertySet {parts[0]} could not be found for entity handle {ent.Handle}.");
-                        return "";
-                    }
-                    int propertyId = ps.PropertyNameToId(fieldName);
-                    object value = ps.GetAt(propertyId);
-
-                    PropertySetDefinition psDef = ps.PropertySetDefinition.Go<PropertySetDefinition>(
-                        ps.Database.TransactionManager.TopTransaction);
-
-                    PropertyDefinitionCollection defs = psDef.Definitions;
-                    int defIdx = defs.IndexOf(fieldName);
-                    PropertyDefinition def = defs[defIdx];
-                    Autodesk.Aec.PropertyData.DataType t = def.DataType;
-
-                    string valueString = PropertySetPropertyValueToString(value, t);
-                    if (valueString.IsNotNoE())
-                    {
-                        string result = readStructure.Replace(list[0].ToReplace, valueString);
-                        return result;
-                    }
-                }
-            }
-            return "";
         }
         public static object ReadPropertyValueFromPS(
             List<PropertySet> pss, Entity ent, string tableName, string fieldName
@@ -1343,7 +1249,8 @@ namespace IntersectUtilities
             pline.Closed = true;
             return pline;
         }
-        public static string ConstructStringFromPSByRecipe(Entity ent, string stringToProcess)
+        public static string ConstructStringFromPSByRecipe(
+            Entity ent, string stringToProcess)
         {
             //Construct pattern which matches the parameter definition
             Regex variablePattern = new Regex(@"{(?<psname>[a-zæøåA-ZÆØÅ0-9_-]*):(?<propname>[a-zæøåA-ZÆØÅ0-9_-]*)}");
@@ -1359,7 +1266,9 @@ namespace IntersectUtilities
                 string psName = match.Groups["psname"].Value;
                 string propName = match.Groups["propname"].Value;
                 //Read the value from PS
-                string parameterValue = PropertySetManager.ReadNonDefinedPropertySetString(ent, psName, propName);
+                string parameterValue = 
+                    PropertySetManager.ReadNonDefinedPropertySetString(
+                        ent, psName, propName);
                 //Replace the captured group in original string with the parameter value
                 stringToProcess = stringToProcess.Replace(capture, parameterValue);
                 //Recursively call current function
@@ -1369,6 +1278,39 @@ namespace IntersectUtilities
             }
 
             return stringToProcess;
+        }
+        public static string ProcessDescription(Entity ent,
+            string descrFromKrydsninger, System.Data.DataTable dtKrydsninger)
+        {
+            Regex columnNameRegex = new Regex(@"{(?<column>[a-zæøåA-ZÆØÅ_-]*)}");
+
+            if (columnNameRegex.IsMatch(descrFromKrydsninger))
+            {
+                //Get the first match
+                Match match = columnNameRegex.Match(descrFromKrydsninger);
+                //Get the first capture, it needs to be replaced by the property value
+                string capture = match.Captures[0].Value;
+                //Get the column name
+                string columnName = match.Groups["column"].Value;
+                //Retreive recipe from column
+                string recipe = ReadStringParameterFromDataTable(
+                    ent.Layer, dtKrydsninger, columnName, 0);
+                //Replace the captured group in original string with the parameter value
+                descrFromKrydsninger = descrFromKrydsninger
+                    .Replace(capture, recipe);
+                //Recursively call current function
+                //It runs on the string until no more captures remain
+                descrFromKrydsninger =
+                    ProcessDescription(
+                        ent, descrFromKrydsninger, dtKrydsninger);
+            }
+
+            //When all column names are replaced by recipes ->
+            //Replace recipes
+            descrFromKrydsninger = ConstructStringFromPSByRecipe(
+                ent, descrFromKrydsninger);
+
+            return descrFromKrydsninger;
         }
         /// <summary>
         /// Assumes no bulges, eg. works only on plines without bulges.
