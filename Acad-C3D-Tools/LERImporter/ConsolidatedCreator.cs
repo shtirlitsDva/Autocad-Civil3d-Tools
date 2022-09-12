@@ -130,6 +130,12 @@ namespace LERImporter
                 if (owner == default) prdDbg($"Ledning {komp.id} kan ikke finde ejer!");
                 else komp.LedningsEjersNavn = owner.companyName;
             }
+            //Report owners
+            Log.log("Ledningsejere indeholdt i Ler 2.0 graveforespørgsel:");
+            foreach (var item in ownersRegister)
+            {
+                Log.log(item.companyName);
+            }
             #endregion
 
             #region Create property sets
