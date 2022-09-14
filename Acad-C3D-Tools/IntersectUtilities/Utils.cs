@@ -1333,8 +1333,10 @@ namespace IntersectUtilities
             //Case 2: Needs testing to discern from end-to-end connection
             if (numberOfPoints1 == 1 || numberOfPoints2 == 1)
             {
-                var point1 = pointsOnLine1.First();
-                var point2 = pointsOnLine2.First();
+                var point1 = pointsOnLine1.FirstOrDefault();
+                var point2 = pointsOnLine2.FirstOrDefault();
+
+                if (point1 == default || point2 == default) return OverlapStatusEnum.None;
 
                 if (point1.IsEqualTo(point2, tol)) return OverlapStatusEnum.None;
                 else return OverlapStatusEnum.Partial;
@@ -1352,6 +1354,8 @@ namespace IntersectUtilities
             Partial,
             Full
         }
+        
+        /// <param name="name">byblock, red, yellow, green, cyan, blue, magenta, white, grey, bylayer</param>
         public static Color ColorByName(string name) => UtilsCommon.Utils.AutocadStdColors[name];
     }
 

@@ -17267,6 +17267,109 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("OVERLAPRESET")]
+        public void overlapreset()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Document doc = docCol.CurrentDocument;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor ed = docCol.CurrentDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Select xref and open database
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select XREF to reset: ");
+                    promptEntityOptions1.SetRejectMessage("\n Not a XREF");
+                    promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
+                    PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) AbortGracefully(tx, "No input!");
+                    Oid blkObjId = entity1.ObjectId;
+                    BlockReference blkRef = tx.GetObject(blkObjId, OpenMode.ForRead, false) as BlockReference;
+
+                    BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                    if (!blockDef.IsFromExternalReference) AbortGracefully(tx, "Selected object is not an XREF!");
+
+                    // open the xref database
+                    Database xrefDb = new Database(false, true);
+                    prdDbg($"\nPathName of the blockDef -> {blockDef.PathName}");
+
+                    //Relative path handling
+                    string curPathName = blockDef.PathName;
+                    bool isFullPath = IsFullPath(curPathName);
+                    if (isFullPath == false)
+                    {
+                        string sourcePath = Path.GetDirectoryName(doc.Name);
+                        prdDbg($"\nSourcePath -> {sourcePath}");
+                        curPathName = GetAbsolutePath(sourcePath, blockDef.PathName);
+                        prdDbg($"\nTargetPath -> {curPathName}");
+                    }
+
+                    xrefDb.ReadDwgFile(curPathName, FileOpenMode.OpenForReadAndWriteNoShare, false, string.Empty);
+                    #endregion
+
+                    //Transaction from Database of the Xref
+                    using (Transaction xrefTx = xrefDb.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            var remotePlines = xrefDb.HashSetOfType<Polyline>(xrefTx);
+                            prdDbg($"Number of polylines in remote database: {remotePlines.Count}");
+                            var localPlines = localDb.HashSetOfType<Polyline>(tx);
+                            prdDbg($"Number of polylines in local database: {localPlines.Count}");
+                            var remotePoints = xrefDb.HashSetOfType<DBPoint>(xrefTx);
+                            prdDbg($"Number of points in remote database: {remotePoints.Count}");
+                            var localPoints = localDb.HashSetOfType<DBPoint>(tx);
+                            prdDbg($"Number of points in local database: {localPoints.Count}");
+
+                            foreach (var remotePline in remotePlines)
+                            {
+                                remotePline.CheckOrOpenForWrite();
+                                remotePline.Color = ColorByName("bylayer");
+                            }
+
+                            foreach (var localPline in localPlines)
+                            {
+                                localPline.CheckOrOpenForWrite();
+                                localPline.Color = ColorByName("bylayer");
+                            }
+
+                            foreach (var localPoint in localPoints)
+                            {
+                                localPoint.CheckOrOpenForWrite();
+                                localPoint.Color = ColorByName("bylayer");
+                            }
+
+                            foreach (var remotePoint in remotePoints)
+                            {
+                                remotePoint.CheckOrOpenForWrite();
+                                remotePoint.Color = ColorByName("bylayer");
+                            }
+
+                        }
+                        catch (System.Exception ex)
+                        {
+                            xrefTx.Abort();
+                            xrefDb.Dispose();
+                            throw;
+                        }
+                        xrefTx.Commit();
+                    }
+
+                    xrefDb.SaveAs(xrefDb.Filename, true, DwgVersion.Current, null);
+                    xrefDb.Dispose();
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         void AbortGracefully(Transaction tx, string msg)
         {
             tx.Abort();
