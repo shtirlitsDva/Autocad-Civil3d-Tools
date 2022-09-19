@@ -15375,9 +15375,6 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Test joining polylines
-                    #endregion
-
                     #region Test constant attribute, constant attr is attached to BlockTableRecord and not BR
                     //PromptEntityOptions peo = new PromptEntityOptions("Select a BR: ");
                     //PromptEntityResult per = editor.GetEntity(peo);
@@ -15406,7 +15403,7 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Test distinct values PIPE gas
-                    //HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
 
                     //ListAllUniqueValues("FeatId");
                     //ListAllUniqueValues("G3E_CID");
@@ -15414,16 +15411,27 @@ namespace IntersectUtilities
                     //ListAllUniqueValues("G3E_FID");
                     //ListAllUniqueValues("G3E_FNO");
                     //ListAllUniqueValues("G3E_ID");
-                    //ListAllUniqueValues("UDLEVER_ID");
+                    HashSet<string> values = new HashSet<string>();
+                    ListAllUniqueValues("materiale");
+                    PrintAllValues(values);
 
-                    //void ListAllUniqueValues(string propertyName)
-                    //{
-                    //    var list = plines
-                    //        .Select(x =>
-                    //            PropertySetManager.ReadNonDefinedPropertySetObject(x, "PIPE", propertyName))
-                    //        .Distinct();
-                    //    prdDbg($"{propertyName}: {list.Count()}");
-                    //}
+                    void ListAllUniqueValues(string propertyName)
+                    {
+                        var list = plines
+                            .Select(x =>
+                                PropertySetManager.ReadNonDefinedPropertySetString(x, "DDG_ledning", propertyName))
+                            .Distinct();
+                        values = list.ToHashSet();
+                        prdDbg($"{propertyName}: {list.Count()}");
+                    }
+
+                    void PrintAllValues(HashSet<string> toPrint)
+                    {
+                        foreach (var item in toPrint)
+                        {
+                            prdDbg(item);
+                        }
+                    }
 
                     #endregion
 
