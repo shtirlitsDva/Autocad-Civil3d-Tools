@@ -46,6 +46,8 @@ namespace IntersectUtilities.UtilsCommon
                 "TYPE G65",
                 "VENTILSKAB",
                 "VINDUE",
+                "M/R G100",
+                "SKAB RS 1000"
             };
             public static Dictionary<string, string> ReplaceLabelParts = new Dictionary<string, string>()
             {
@@ -57,7 +59,9 @@ namespace IntersectUtilities.UtilsCommon
                 { "63 PM 50 MB", "63 PM" },
                 { "90 PM 50 MBAR", "90 PM" },
                 { "90 PM 0.1", "90 PM" },
-                { "75 ST/63 PM 026", "75 ST" }
+                { "75 ST/63 PM 026", "75 ST" },
+                { "ALLE STIK = 20 PM", "20 PM" },
+                { "ALLE STIK ER 20 PM 4.0", "20 PM" }
             };
         }
         public static class Gis

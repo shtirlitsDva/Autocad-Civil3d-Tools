@@ -184,6 +184,7 @@ namespace IntersectUtilities
             if (value == null) return 0.0;
             else return Convert.ToDouble(value);
         }
+        [Obsolete("Use ReadPropertyString(Entity ent, PSetDefs.Property property)")]
         public int ReadPropertyInt(PSetDefs.Property property)
         {
             int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
@@ -199,6 +200,7 @@ namespace IntersectUtilities
             if (value == null) return 0;
             else return (int)value;
         }
+        [Obsolete("Use ReadPropertyString(Entity ent, PSetDefs.Property property)")]
         public void WritePropertyString(PSetDefs.Property property, string value)
         {
             int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
@@ -214,6 +216,7 @@ namespace IntersectUtilities
             this.CurrentPropertySet.SetAt(propertyId, value);
             this.CurrentPropertySet.DowngradeOpen();
         }
+        [Obsolete("Use ReadPropertyString(Entity ent, PSetDefs.Property property)")]
         public void WritePropertyObject(PSetDefs.Property property, object value)
         {
             int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);

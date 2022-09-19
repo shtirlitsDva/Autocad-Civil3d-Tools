@@ -3886,365 +3886,6 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("copytexttoattribute")]
-        [CommandMethod("ca")]
-        public void copytexttoattribute()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-
-            while (true)
-            {
-                using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                {
-                    try
-                    {
-                        LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
-
-                        #region Select pline3d
-                        PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                            "\nSelect (poly)line(3d) to modify:");
-                        promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
-                        promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
-                        promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
-                        promptEntityOptions1.AddAllowedClass(typeof(Line), true);
-                        PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                        if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
-                        Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
-                        Entity ent = entId.Go<Entity>(tx, OpenMode.ForWrite);
-                        #endregion
-
-                        #region Select text
-                        PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
-                            "\nSelect text to copy <Push ENTER to enter text manually>:");
-                        promptEntityOptions2.SetRejectMessage("\n Not a text!");
-                        promptEntityOptions2.AddAllowedClass(typeof(DBText), true);
-                        promptEntityOptions2.AllowNone = true;
-                        PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
-
-                        string readTextValue = "";
-                        if (((PromptResult)entity2).Status == PromptStatus.None)
-                        {
-                            PromptStringOptions strPromptOptions = new PromptStringOptions(
-                                "\nEnter dimension and material data manually: ");
-                            strPromptOptions.AllowSpaces = true;
-                            PromptResult pr = editor.GetString(strPromptOptions);
-                            if (pr.Status != PromptStatus.OK) { tx.Abort(); return; }
-                            readTextValue = pr.StringResult;
-                        }
-                        else if (((PromptResult)entity2).Status == PromptStatus.OK)
-                        {
-                            Autodesk.AutoCAD.DatabaseServices.ObjectId textId = entity2.ObjectId;
-                            readTextValue = textId.Go<DBText>(tx).TextString.Trim();
-                        }
-                        else { tx.Abort(); return; }
-                        #endregion
-
-                        #region Er ledningen i brug
-                        const string kwd1 = "Ja";
-                        const string kwd2 = "Nej";
-
-                        PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
-                        pKeyOpts.Message = "\nEr ledningen i brug? ";
-                        pKeyOpts.Keywords.Add(kwd1);
-                        pKeyOpts.Keywords.Add(kwd2);
-                        pKeyOpts.AllowNone = true;
-                        pKeyOpts.Keywords.Default = kwd1;
-                        PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
-
-                        bool ledningIbrug = pKeyRes.StringResult == kwd1;
-
-                        #endregion
-
-                        #region Use property sets to store data
-                        PropertySetManager psmGas = new PropertySetManager(
-                            localDb, PSetDefs.DefinedSets.DriGasDimOgMat);
-
-                        PSetDefs.DriGasDimOgMat driGasDimOgMat = new PSetDefs.DriGasDimOgMat();
-                        #endregion
-
-                        int parsedInt = 0;
-                        string parsedMat = string.Empty;
-                        if (readTextValue.Contains(" "))
-                        {
-                            //Gas specific handling
-                            string[] output = readTextValue.Split((char[])null); //Splits by whitespace
-
-                            int.TryParse(output[0], out parsedInt);
-                            //Material
-                            parsedMat = output[1];
-                        }
-                        else
-                        {
-                            string[] output = readTextValue.Split('/');
-                            string a = ""; //For number
-                            string b = ""; //For material
-
-                            for (int i = 0; i < output[0].Length; i++)
-                            {
-                                if (Char.IsDigit(output[0][i])) a += output[0][i];
-                                else b += output[0][i];
-                            }
-
-                            int.TryParse(a, out parsedInt);
-                            parsedMat = b;
-                        }
-
-                        //Write properties
-                        psmGas.GetOrAttachPropertySet(ent);
-                        psmGas.WritePropertyObject(driGasDimOgMat.Dimension, parsedInt);
-                        psmGas.WritePropertyObject(driGasDimOgMat.Material, parsedMat);
-                        if (!ledningIbrug) psmGas.WritePropertyObject(driGasDimOgMat.Bemærk, "Ikke i brug");
-
-                        editor.WriteMessage($"\nUpdating color and layer properties!");
-
-                        //Check layer name
-                        if (!lt.Has("GAS-ude af drift"))
-                        {
-                            LayerTableRecord ltr = new LayerTableRecord();
-                            ltr.Name = "GAS-ude af drift";
-                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 221);
-
-                            //Make layertable writable
-                            lt.CheckOrOpenForWrite();
-
-                            //Add the new layer to layer table
-                            Oid ltId = lt.Add(ltr);
-                            tx.AddNewlyCreatedDBObject(ltr, true);
-
-                            lt.DowngradeOpen();
-                        }
-
-                        if (ledningIbrug) ent.ColorIndex = 1;
-                        else { ent.Layer = "GAS-ude af drift"; ent.ColorIndex = 130; }
-
-                    }
-                    catch (System.Exception ex)
-                    {
-                        tx.Abort();
-                        editor.WriteMessage("\n" + ex.Message);
-                        return;
-                    }
-                    tx.Commit();
-                }
-            }
-
-
-        }
-
-        [CommandMethod("gasikkeibrug")]
-        [CommandMethod("cg")]
-        public void gasikkeibrug()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            while (true)
-            {
-                using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                {
-                    try
-                    {
-                        LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
-
-                        #region Select pline3d
-                        PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                            "\nSelect (poly)line(3d) to modify:");
-                        promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
-                        promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
-                        promptEntityOptions1.AddAllowedClass(typeof(Line), true);
-                        promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
-                        PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                        if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
-                        Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
-                        Entity ent = entId.Go<Entity>(tx, OpenMode.ForWrite);
-                        #endregion
-
-                        #region Property set manager
-                        PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGasDimOgMat);
-                        PSetDefs.DriGasDimOgMat driGasDimOgMat = new PSetDefs.DriGasDimOgMat();
-
-                        psm.GetOrAttachPropertySet(ent);
-
-                        psm.WritePropertyString(driGasDimOgMat.Bemærk, "Ikke i brug");
-
-                        editor.WriteMessage($"\nUpdating color and layer properties!");
-
-                        //Check layer name
-                        if (!lt.Has("GAS-ude af drift"))
-                        {
-                            LayerTableRecord ltr = new LayerTableRecord();
-                            ltr.Name = "GAS-ude af drift";
-                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 221);
-
-                            //Make layertable writable
-                            lt.CheckOrOpenForWrite();
-
-                            //Add the new layer to layer table
-                            Oid ltId = lt.Add(ltr);
-                            tx.AddNewlyCreatedDBObject(ltr, true);
-
-                            lt.DowngradeOpen();
-                        }
-
-                        ent.Layer = "GAS-ude af drift"; ent.ColorIndex = 130;
-                        #endregion
-                    }
-                    catch (System.Exception ex)
-                    {
-                        tx.Abort();
-                        editor.WriteMessage("\n" + ex.Message);
-                        return;
-                    }
-                    tx.Commit();
-                }
-            }
-        }
-
-        [CommandMethod("gasibrug")]
-        [CommandMethod("cf")]
-        public void gasibrug()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            while (true)
-            {
-                using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                {
-                    try
-                    {
-                        LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
-
-                        #region Select pline3d
-                        PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                            "\nSelect (poly)line(3d) to modify:");
-                        promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
-                        promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
-                        promptEntityOptions1.AddAllowedClass(typeof(Line), true);
-                        promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
-                        PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                        if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
-                        Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
-                        Entity ent = entId.Go<Entity>(tx, OpenMode.ForWrite);
-                        #endregion
-
-                        #region Property set manager
-                        PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGasDimOgMat);
-                        PSetDefs.DriGasDimOgMat driGasDimOgMat = new PSetDefs.DriGasDimOgMat();
-
-                        psm.GetOrAttachPropertySet(ent);
-                        psm.WritePropertyString(driGasDimOgMat.Bemærk, "");
-
-                        editor.WriteMessage($"\nUpdating color and layer properties!");
-
-                        Dictionary<string, int> layerNames = new Dictionary<string, int>()
-                        {
-                            {"GAS-Stikrør", 30 },
-                            {"GAS-Stikrør-2D",30},
-                            {"GAS-Fordelingsrør",30},
-                            {"GAS-Fordelingsrør-2D",30},
-                            {"GAS-Distributionsrør",30},
-                            {"GAS-Distributionsrør-2D",30},
-                            {"GAS-ude af drift",221},
-                            {"GAS-ude af drift-2D",221}
-                        };
-
-                        foreach (KeyValuePair<string, int> entry in layerNames)
-                        {
-                            localDb.CheckOrCreateLayer(entry.Key, (short)entry.Value);
-                        }
-
-                        int FNO = PropertySetManager.ReadNonDefinedPropertySetInt(
-                            ent,
-                            "PIPE",
-                            "G3E_FNO");
-
-                        if (FNO == 113) ent.Layer = "GAS-Stikrør";
-                        else if (FNO == 112) ent.Layer = "GAS-Distributionsrør";
-                        else if (FNO == 111) ent.Layer = "GAS-Fordelingsrør";
-
-                        if (FNO == 0) ent.ColorIndex = 2;
-                        else ent.ColorIndex = 1;
-                        #endregion
-                    }
-                    catch (System.Exception ex)
-                    {
-                        tx.Abort();
-                        editor.WriteMessage("\n" + ex.Message);
-                        return;
-                    }
-                    tx.Commit();
-                }
-            }
-        }
-
-        [CommandMethod("COPYODGAS")]
-        [CommandMethod("CD")]
-        public void copyodgas()
-        {
-
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    #region Select entities
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                        "\nSelect entity FROM where to copy OD:");
-                    promptEntityOptions1.SetRejectMessage("\n Not an entity!");
-                    promptEntityOptions1.AddAllowedClass(typeof(Entity), false);
-                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId sourceId = entity1.ObjectId;
-                    Entity sourceEnt = sourceId.Go<Entity>(tx);
-
-                    PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
-                        "\nSelect entity where to copy OD TO:");
-                    promptEntityOptions1.SetRejectMessage("\n Not an entity!");
-                    promptEntityOptions1.AddAllowedClass(typeof(Entity), false);
-                    PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
-                    if (((PromptResult)entity2).Status != PromptStatus.OK) { tx.Abort(); return; }
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId targetId = entity2.ObjectId;
-                    Entity targetEnt = targetId.Go<Entity>(tx, OpenMode.ForWrite);
-                    #endregion
-
-                    #region Property sets
-                    PropertySetManager.CopyAllProperties(sourceEnt, targetEnt);
-                    #endregion
-
-                    if (sourceEnt.Layer == "GAS-ude af drift")
-                    {
-                        targetEnt.Layer = "GAS-ude af drift";
-                        targetEnt.ColorIndex = 130;
-                    }
-                    else targetEnt.ColorIndex = 1;
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.ToString());
-                    return;
-                }
-                tx.Commit();
-            }
-        }
-
         [CommandMethod("convertlineworkpss")]
         public void convertlineworkpss()
         {
@@ -11907,6 +11548,146 @@ namespace IntersectUtilities
             }
         }
 
+        #region Gasbehandling
+
+        [CommandMethod("GASQADATA")]
+        public void gasqadata()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region GatherObjects
+                    HashSet<Entity> allEnts = localDb.HashSetOfType<Entity>(tx);
+
+                    HashSet<Entity> entsPIPE = allEnts.Where(x => x.Layer == "PIPE").ToHashSet();
+                    HashSet<Entity> entsLABEL = allEnts.Where(x => x.Layer == "LABEL").ToHashSet();
+                    #endregion
+
+                    #region QA data
+                    //Find how many times multiple groups occur
+                    var groups = entsLABEL.GroupBy(x => Convert.ToInt32(
+                        PropertySetManager.ReadNonDefinedPropertySetDouble(
+                        x, "LABEL", "G3E_FID")));
+                    List<int> counts = groups.Select(x => x.Count()).Distinct().OrderBy(x => x).ToList();
+
+                    foreach (int count in counts)
+                    {
+                        prdDbg(count.ToString() + " - " + groups.Where(x => x.Count() == count).Count().ToString());
+                    }
+
+                    //List values in multiple match groups
+                    int[] countsArray = counts.ToArray();
+                    for (int i = 0; i < countsArray.Length; i++)
+                    {
+                        //Skip groups with one match
+                        if (i == 0) continue;
+
+                        prdDbg($"\nValues for groups of {countsArray[i]}: ");
+                        var isolatedGroups = groups.Where(x => x.Count() == countsArray[i]);
+                        foreach (var group in isolatedGroups)
+                        {
+                            string values = string.Join(" ",
+                                group.Select(
+                                    x => PropertySetManager.ReadNonDefinedPropertySetString(
+                                        x, "LABEL", "LABEL")));
+                            prdDbg(values);
+                        }
+                    }
+
+                    //Insert blank line to separate output
+                    prdDbg("");
+                    prdDbg("Handle values not marked by OK.");
+
+                    //List all unique LABEL values
+                    HashSet<string> allLabels = new HashSet<string>();
+                    foreach (Entity ent in entsLABEL)
+                    {
+                        allLabels.Add(PropertySetManager.ReadNonDefinedPropertySetString(
+                            ent, "LABEL", "LABEL"));
+                    }
+                    var ordered = allLabels.OrderBy(x => x);
+                    foreach (string value in ordered)
+                    {
+                        string label = value.ToUpper();
+                        //Check if value is handled by filters
+                        if (DataQa.Gas.ForbiddenValues.Contains(label))
+                            label += " <--- OK - Forbidden";
+                        if (DataQa.Gas.ReplaceLabelParts.ContainsKey(label))
+                            label += $" <--- OK - Replaced by {DataQa.Gas.ReplaceLabelParts[label]}";
+                        prdDbg(label);
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("GASLISTALLPSDATA")]
+        public void gaslistallpsdata()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region GatherObjects
+                    HashSet<Polyline> allPlines = localDb.HashSetOfType<Polyline>(tx);
+                    #endregion
+
+                    #region Property Set Manager
+                    PropertySetManager gasPsm = new PropertySetManager(
+                        localDb, PSetDefs.DefinedSets.DriGasDimOgMat);
+                    PSetDefs.DriGasDimOgMat gasDef = new PSetDefs.DriGasDimOgMat();
+                    #endregion
+
+                    #region QA data
+                    HashSet<string> allLabels = new HashSet<string>();
+
+                    foreach (Polyline polyline in allPlines)
+                    {
+                        int dim = gasPsm.ReadPropertyInt(polyline, gasDef.Dimension);
+                        string mat = gasPsm.ReadPropertyString(polyline, gasDef.Material);
+
+                        allLabels.Add(dim.ToString() + " " + mat);
+                    }
+
+                    allLabels.OrderBy(x => x).ToList().ForEach(x => prdDbg(x));
+
+                    var query = allPlines.Where(x => gasPsm.FilterPropetyString(x, gasDef.Material, "relinet"));
+
+                    foreach (var item in query) prdDbg(item.Handle.ToString());
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("GASFINDLABELS")]
         public void gasfindlabels()
         {
@@ -12070,8 +11851,9 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("GASQADATA")]
-        public void gasqadata()
+        [CommandMethod("copytexttoattribute")]
+        [CommandMethod("ca")]
+        public void copytexttoattribute()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -12080,133 +11862,440 @@ namespace IntersectUtilities
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
             Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
 
+            while (true)
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                        #region Select pline3d
+                        PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                            "\nSelect (poly)line(3d) to modify:");
+                        promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
+                        promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                        promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
+                        promptEntityOptions1.AddAllowedClass(typeof(Line), true);
+                        PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                        if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
+                        Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
+                        Entity ent = entId.Go<Entity>(tx, OpenMode.ForWrite);
+                        #endregion
+
+                        #region Select text
+                        PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
+                            "\nSelect text to copy <Push ENTER to enter text manually>:");
+                        promptEntityOptions2.SetRejectMessage("\n Not a text!");
+                        promptEntityOptions2.AddAllowedClass(typeof(DBText), true);
+                        promptEntityOptions2.AllowNone = true;
+                        PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+
+                        string readTextValue = "";
+                        if (((PromptResult)entity2).Status == PromptStatus.None)
+                        {
+                            PromptStringOptions strPromptOptions = new PromptStringOptions(
+                                "\nEnter dimension and material data manually: ");
+                            strPromptOptions.AllowSpaces = true;
+                            PromptResult pr = editor.GetString(strPromptOptions);
+                            if (pr.Status != PromptStatus.OK) { tx.Abort(); return; }
+                            readTextValue = pr.StringResult;
+                        }
+                        else if (((PromptResult)entity2).Status == PromptStatus.OK)
+                        {
+                            Autodesk.AutoCAD.DatabaseServices.ObjectId textId = entity2.ObjectId;
+                            readTextValue = textId.Go<DBText>(tx).TextString.Trim();
+                        }
+                        else { tx.Abort(); return; }
+                        #endregion
+
+                        #region Er ledningen i brug
+                        const string kwd1 = "Ja";
+                        const string kwd2 = "Nej";
+
+                        PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
+                        pKeyOpts.Message = "\nEr ledningen i brug? ";
+                        pKeyOpts.Keywords.Add(kwd1);
+                        pKeyOpts.Keywords.Add(kwd2);
+                        pKeyOpts.AllowNone = true;
+                        pKeyOpts.Keywords.Default = kwd1;
+                        PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+
+                        bool ledningIbrug = pKeyRes.StringResult == kwd1;
+
+                        #endregion
+
+                        #region Use property sets to store data
+                        PropertySetManager psmGas = new PropertySetManager(
+                            localDb, PSetDefs.DefinedSets.DriGasDimOgMat);
+
+                        PSetDefs.DriGasDimOgMat driGasDimOgMat = new PSetDefs.DriGasDimOgMat();
+                        #endregion
+
+                        int parsedInt = 0;
+                        string parsedMat = string.Empty;
+                        if (readTextValue.Contains(" "))
+                        {
+                            //Gas specific handling
+                            string[] output = readTextValue.Split((char[])null); //Splits by whitespace
+
+                            int.TryParse(output[0], out parsedInt);
+                            //Material
+                            parsedMat = output[1];
+                        }
+                        else
+                        {
+                            string[] output = readTextValue.Split('/');
+                            string a = ""; //For number
+                            string b = ""; //For material
+
+                            for (int i = 0; i < output[0].Length; i++)
+                            {
+                                if (Char.IsDigit(output[0][i])) a += output[0][i];
+                                else b += output[0][i];
+                            }
+
+                            int.TryParse(a, out parsedInt);
+                            parsedMat = b;
+                        }
+
+                        //Write properties
+                        psmGas.GetOrAttachPropertySet(ent);
+                        psmGas.WritePropertyObject(driGasDimOgMat.Dimension, parsedInt);
+                        psmGas.WritePropertyObject(driGasDimOgMat.Material, parsedMat);
+                        if (!ledningIbrug) psmGas.WritePropertyObject(driGasDimOgMat.Bemærk, "Ikke i brug");
+
+                        editor.WriteMessage($"\nUpdating color and layer properties!");
+
+                        //Check layer name
+                        if (!lt.Has("GAS-ude af drift"))
+                        {
+                            LayerTableRecord ltr = new LayerTableRecord();
+                            ltr.Name = "GAS-ude af drift";
+                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 221);
+
+                            //Make layertable writable
+                            lt.CheckOrOpenForWrite();
+
+                            //Add the new layer to layer table
+                            Oid ltId = lt.Add(ltr);
+                            tx.AddNewlyCreatedDBObject(ltr, true);
+
+                            lt.DowngradeOpen();
+                        }
+
+                        if (ledningIbrug) ent.ColorIndex = 1;
+                        else { ent.Layer = "GAS-ude af drift"; ent.ColorIndex = 130; }
+
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        editor.WriteMessage("\n" + ex.Message);
+                        return;
+                    }
+                    tx.Commit();
+                }
+            }
+
+
+        }
+
+        [CommandMethod("gasikkeibrug")]
+        [CommandMethod("cg")]
+        public void gasikkeibrug()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            while (true)
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                        #region Select pline3d
+                        PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                            "\nSelect (poly)line(3d) to modify:");
+                        promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
+                        promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
+                        promptEntityOptions1.AddAllowedClass(typeof(Line), true);
+                        promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                        PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                        if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
+                        Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
+                        Entity ent = entId.Go<Entity>(tx, OpenMode.ForWrite);
+                        #endregion
+
+                        #region Property set manager
+                        PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGasDimOgMat);
+                        PSetDefs.DriGasDimOgMat driGasDimOgMat = new PSetDefs.DriGasDimOgMat();
+
+                        psm.GetOrAttachPropertySet(ent);
+
+                        psm.WritePropertyString(driGasDimOgMat.Bemærk, "Ikke i brug");
+
+                        editor.WriteMessage($"\nUpdating color and layer properties!");
+
+                        //Check layer name
+                        if (!lt.Has("GAS-ude af drift"))
+                        {
+                            LayerTableRecord ltr = new LayerTableRecord();
+                            ltr.Name = "GAS-ude af drift";
+                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 221);
+
+                            //Make layertable writable
+                            lt.CheckOrOpenForWrite();
+
+                            //Add the new layer to layer table
+                            Oid ltId = lt.Add(ltr);
+                            tx.AddNewlyCreatedDBObject(ltr, true);
+
+                            lt.DowngradeOpen();
+                        }
+
+                        ent.Layer = "GAS-ude af drift"; ent.ColorIndex = 130;
+                        #endregion
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        editor.WriteMessage("\n" + ex.Message);
+                        return;
+                    }
+                    tx.Commit();
+                }
+            }
+        }
+
+        [CommandMethod("gasibrug")]
+        [CommandMethod("cf")]
+        public void gasibrug()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            while (true)
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                        #region Select pline3d
+                        PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                            "\nSelect (poly)line(3d) to modify:");
+                        promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
+                        promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
+                        promptEntityOptions1.AddAllowedClass(typeof(Line), true);
+                        promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                        PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                        if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
+                        Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
+                        Entity ent = entId.Go<Entity>(tx, OpenMode.ForWrite);
+                        #endregion
+
+                        #region Property set manager
+                        PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGasDimOgMat);
+                        PSetDefs.DriGasDimOgMat driGasDimOgMat = new PSetDefs.DriGasDimOgMat();
+
+                        psm.GetOrAttachPropertySet(ent);
+                        psm.WritePropertyString(driGasDimOgMat.Bemærk, "");
+
+                        editor.WriteMessage($"\nUpdating color and layer properties!");
+
+                        Dictionary<string, int> layerNames = new Dictionary<string, int>()
+                        {
+                            {"GAS-Stikrør", 30 },
+                            {"GAS-Stikrør-2D",30},
+                            {"GAS-Fordelingsrør",30},
+                            {"GAS-Fordelingsrør-2D",30},
+                            {"GAS-Distributionsrør",30},
+                            {"GAS-Distributionsrør-2D",30},
+                            {"GAS-ude af drift",221},
+                            {"GAS-ude af drift-2D",221}
+                        };
+
+                        foreach (KeyValuePair<string, int> entry in layerNames)
+                        {
+                            localDb.CheckOrCreateLayer(entry.Key, (short)entry.Value);
+                        }
+
+                        int FNO = PropertySetManager.ReadNonDefinedPropertySetInt(
+                            ent,
+                            "PIPE",
+                            "G3E_FNO");
+
+                        if (FNO == 113) ent.Layer = "GAS-Stikrør";
+                        else if (FNO == 112) ent.Layer = "GAS-Distributionsrør";
+                        else if (FNO == 111) ent.Layer = "GAS-Fordelingsrør";
+
+                        if (FNO == 0) ent.ColorIndex = 2;
+                        else ent.ColorIndex = 1;
+                        #endregion
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        editor.WriteMessage("\n" + ex.Message);
+                        return;
+                    }
+                    tx.Commit();
+                }
+            }
+        }
+
+        [CommandMethod("COPYODGAS")]
+        [CommandMethod("CD")]
+        public void copyodgas()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
-                    #region GatherObjects
-                    HashSet<Entity> allEnts = localDb.HashSetOfType<Entity>(tx);
+                    #region Select entities
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                        "\nSelect entity FROM where to copy OD:");
+                    promptEntityOptions1.SetRejectMessage("\n Not an entity!");
+                    promptEntityOptions1.AddAllowedClass(typeof(Entity), false);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) { tx.Abort(); return; }
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId sourceId = entity1.ObjectId;
+                    Entity sourceEnt = sourceId.Go<Entity>(tx);
 
-                    HashSet<Entity> entsPIPE = allEnts.Where(x => x.Layer == "PIPE").ToHashSet();
-                    HashSet<Entity> entsLABEL = allEnts.Where(x => x.Layer == "LABEL").ToHashSet();
+                    PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
+                        "\nSelect entity where to copy OD TO:");
+                    promptEntityOptions1.SetRejectMessage("\n Not an entity!");
+                    promptEntityOptions1.AddAllowedClass(typeof(Entity), false);
+                    PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                    if (((PromptResult)entity2).Status != PromptStatus.OK) { tx.Abort(); return; }
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId targetId = entity2.ObjectId;
+                    Entity targetEnt = targetId.Go<Entity>(tx, OpenMode.ForWrite);
                     #endregion
 
-                    #region QA data
-                    //Find how many times multiple groups occur
-                    var groups = entsLABEL.GroupBy(x => Convert.ToInt32(
-                        PropertySetManager.ReadNonDefinedPropertySetDouble(
-                        x, "LABEL", "G3E_FID")));
-                    List<int> counts = groups.Select(x => x.Count()).Distinct().OrderBy(x => x).ToList();
-
-                    foreach (int count in counts)
-                    {
-                        prdDbg(count.ToString() + " - " + groups.Where(x => x.Count() == count).Count().ToString());
-                    }
-
-                    //List values in multiple match groups
-                    int[] countsArray = counts.ToArray();
-                    for (int i = 0; i < countsArray.Length; i++)
-                    {
-                        //Skip groups with one match
-                        if (i == 0) continue;
-
-                        prdDbg($"\nValues for groups of {countsArray[i]}: ");
-                        var isolatedGroups = groups.Where(x => x.Count() == countsArray[i]);
-                        foreach (var group in isolatedGroups)
-                        {
-                            string values = string.Join(" ",
-                                group.Select(
-                                    x => PropertySetManager.ReadNonDefinedPropertySetString(
-                                        x, "LABEL", "LABEL")));
-                            prdDbg(values);
-                        }
-                    }
-
-                    //Insert blank line to separate output
-                    prdDbg("");
-                    prdDbg("Handle values not marked by OK.");
-
-                    //List all unique LABEL values
-                    HashSet<string> allLabels = new HashSet<string>();
-                    foreach (Entity ent in entsLABEL)
-                    {
-                        allLabels.Add(PropertySetManager.ReadNonDefinedPropertySetString(
-                            ent, "LABEL", "LABEL"));
-                    }
-                    var ordered = allLabels.OrderBy(x => x);
-                    foreach (string value in ordered)
-                    {
-                        string label = value.ToUpper();
-                        //Check if value is handled by filters
-                        if (DataQa.Gas.ForbiddenValues.Contains(label))
-                            label += " <--- OK - Forbidden";
-                        if (DataQa.Gas.ReplaceLabelParts.ContainsKey(label))
-                            label += $" <--- OK - Replaced by {DataQa.Gas.ReplaceLabelParts[label]}";
-                        prdDbg(label);
-                    }
+                    #region Property sets
+                    PropertySetManager.CopyAllProperties(sourceEnt, targetEnt);
                     #endregion
+
+                    if (sourceEnt.Layer == "GAS-ude af drift")
+                    {
+                        targetEnt.Layer = "GAS-ude af drift";
+                        targetEnt.ColorIndex = 130;
+                    }
+                    else targetEnt.ColorIndex = 1;
                 }
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
+                    editor.WriteMessage("\n" + ex.ToString());
                     return;
                 }
                 tx.Commit();
             }
         }
 
-        [CommandMethod("GASLISTALLPSDATA")]
-        public void gaslistallpsdata()
+
+        [CommandMethod("GASCREATELABELDATA")]
+        [CommandMethod("CS")]
+        public void gascreatelabeldata()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+            List<string> gasDims = new List<string>()
+            {
+                "18",
+                "20",
+                "25",
+                "40",
+                "43",
+                "63",
+                "90",
+                "100",
+                "125",
+                "160",
+                "200",
+                "250"
+            };
+            List<string> gasMats = new List<string>()
+            {
+                "CU",
+                "PC",
+                "PM",
+                "ST",
+                "GG",
+                "XX"
+            };
+            List<string> gasStatus = new List<string>()
+            {
+                "Ibrug",
+                "Uad"
+            };
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
-                    #region GatherObjects
-                    HashSet<Polyline> allPlines = localDb.HashSetOfType<Polyline>(tx);
-                    #endregion
-
-                    #region Property Set Manager
                     PropertySetManager gasPsm = new PropertySetManager(
                         localDb, PSetDefs.DefinedSets.DriGasDimOgMat);
                     PSetDefs.DriGasDimOgMat gasDef = new PSetDefs.DriGasDimOgMat();
-                    #endregion
 
-                    #region QA data
-                    HashSet<string> allLabels = new HashSet<string>();
 
-                    foreach (Polyline polyline in allPlines)
+                    string dimString = Interaction.GetKeywords("Select dimension: ", gasDims.ToArray());
+                    if (dimString.IsNoE()) { AbortGracefully(tx, "User abort!"); return; }
+                    string material = Interaction.GetKeywords("Select material: ", gasMats.ToArray());
+                    if (material.IsNoE()) { AbortGracefully(tx, "User abort!"); return; }
+                    string status = Interaction.GetKeywords("Select status: ", gasStatus.ToArray());
+                    if (status.IsNoE()) { AbortGracefully(tx, "User abort!"); return; }
+
+                    int dim = Convert.ToInt32(dimString);
+
+                    Oid id = Interaction.GetEntity("Select gas pipe: ", typeof(Polyline));
+                    if (id == Oid.Null) { AbortGracefully(tx, "Pipe selection error!"); return; }
+
+                    Polyline pline = id.Go<Polyline>(tx);
+                    pline.CheckOrOpenForWrite();
+                    gasPsm.WritePropertyObject(pline, gasDef.Dimension, dim);
+                    gasPsm.WritePropertyString(pline, gasDef.Material, material);
+
+                    if (status == "Ibrug")
                     {
-                        int dim = gasPsm.ReadPropertyInt(polyline, gasDef.Dimension);
-                        string mat = gasPsm.ReadPropertyString(polyline, gasDef.Material);
-
-                        allLabels.Add(dim.ToString() + " " + mat);
+                        pline.Color = ColorByName("red");
                     }
-
-                    allLabels.OrderBy(x => x).ToList().ForEach(x => prdDbg(x));
-
-                    var query = allPlines.Where(x => gasPsm.FilterPropetyString(x, gasDef.Material, "relinet"));
-
-                    foreach (var item in query) prdDbg(item.Handle.ToString());
-                    #endregion
+                    else
+                    {
+                        pline.Color = ColorByName("cyan");
+                        gasPsm.WritePropertyString(pline, gasDef.Bemærk, "Ikke i brug");
+                    }
                 }
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
+                    prdDbg(ex.ToString());
                     return;
                 }
                 tx.Commit();
             }
         }
+
+
+        #endregion
 
         //Used to move 3d polylines of gas to elevation points
         [CommandMethod("movep3dverticestopoints")]
@@ -17396,12 +17485,13 @@ namespace IntersectUtilities
                     {
                         double elevation = localPoint.Position.Z;
                         //if (elevation > -0.001 && elevation < 0.001) elevations.Add(localPoint);
-                        if (elevation > -0.001 && elevation < 0.001)
+                        if (localPoint.Layer != "LABEL" && elevation > -0.001 && elevation < 0.001)
                         {
                             localPoint.CheckOrOpenForWrite();
-                            //localPoint.Position.Z = -99.0;
+                            localPoint.Position =
+                                new Point3d(localPoint.Position.X, localPoint.Position.Y, -99.0);
                         }
-                            
+
                     }
 
                     //var groups = elevations.GroupBy(x => x);
