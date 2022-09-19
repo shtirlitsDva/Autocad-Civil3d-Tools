@@ -3813,7 +3813,7 @@ namespace IntersectUtilities.Dimensionering
                         foreach (ExcelSheet sheet in orderedSheets)
                         {
                             string strækninger = string.Join(
-                                "|", sheet.SheetParts.Select(x => x.Name).ToArray());
+                                "|", sheet.SheetParts.Select(x => x.Name.Replace("Strækning ", "")).ToArray());
 
                             Regex regex = new Regex(@"^\d{1,3}");
                             foreach (string s in sheet.Adresser)
@@ -4052,7 +4052,7 @@ namespace IntersectUtilities.Dimensionering
                         foreach (ExcelSheet sheet in orderedSheets)
                         {
                             string strækninger = string.Join(
-                                "|", sheet.SheetParts.Select(x => x.Name).ToArray());
+                                "|", sheet.SheetParts.Select(x => x.Name.Replace("Strækning ", "")).ToArray());
 
                             Regex regex = new Regex(@"^\d{1,3}");
                             foreach (string s in sheet.Adresser)

@@ -908,7 +908,7 @@ namespace IntersectUtilities
                             pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y);
                         }
                         else
-                            pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y); 
+                            pv.FindXYAtStationAndElevation(pv.StationStart, pv.ElevationMin, ref x, ref y);
                         #endregion
 
                         #region Erase existing detailing block if it exists
@@ -17359,6 +17359,57 @@ namespace IntersectUtilities
 
                     xrefDb.SaveAs(xrefDb.Filename, true, DwgVersion.Current, null);
                     xrefDb.Dispose();
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        /// <summary>
+        /// Command for GAS points in Køge, where elevations are very low and we cannot discern between zero elevation and none elevation.
+        /// So the solution is to move all points that are at precisely 0.000 to -99 and then they can be deleted.
+        /// </summary>
+        [CommandMethod("MOVEZEROPOINTSTO99")]
+        public void movezeropointsto99()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Document doc = docCol.CurrentDocument;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor ed = docCol.CurrentDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    //Transaction from Database of the Xref
+
+                    var localPoints = localDb.HashSetOfType<DBPoint>(tx);
+                    prdDbg($"Number of points in local database: {localPoints.Count}");
+
+                    //List<DBPoint> elevations = new List<DBPoint>();
+                    foreach (var localPoint in localPoints)
+                    {
+                        double elevation = localPoint.Position.Z;
+                        //if (elevation > -0.001 && elevation < 0.001) elevations.Add(localPoint);
+                        if (elevation > -0.001 && elevation < 0.001)
+                        {
+                            localPoint.CheckOrOpenForWrite();
+                            //localPoint.Position.Z = -99.0;
+                        }
+                            
+                    }
+
+                    //var groups = elevations.GroupBy(x => x);
+
+                    //foreach (var item in groups.OrderBy(x => x.Key))
+                    //{
+                    //    prdDbg($"Key: {item.Key}, Count: {item.Count()}");
+                    //}
                 }
                 catch (System.Exception ex)
                 {
