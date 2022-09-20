@@ -55,7 +55,29 @@ namespace IntersectUtilities
     public partial class Intersect
     {
 
-        
+        [CommandMethod("KLARCREATELAYERS")]
+        public void klarcreatelayers()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+
 
     }
 }
