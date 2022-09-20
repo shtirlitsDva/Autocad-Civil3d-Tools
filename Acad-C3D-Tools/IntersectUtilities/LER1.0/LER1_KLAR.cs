@@ -65,7 +65,23 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    var plines = localDb.ListOfType<Polyline>(tx)
+                        .Where(x => x.Layer == "DDG_ledning")
+                        .ToHashSet();
 
+                    foreach (var pline in plines)
+                    {
+                        string system = 
+                            PropertySetManager.ReadNonDefinedPropertySetString(
+                                pline, "DDG_ledning", "system");
+
+                        string layerName = $"KLAR_{system}";
+
+                        localDb.CheckOrCreateLayer(layerName);
+
+                        pline.CheckOrOpenForWrite();
+                        pline.Layer = layerName;
+                    }
                 }
                 catch (System.Exception ex)
                 {
