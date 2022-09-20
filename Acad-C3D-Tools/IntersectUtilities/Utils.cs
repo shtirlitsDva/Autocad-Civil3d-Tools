@@ -228,6 +228,12 @@ namespace IntersectUtilities
             Editor editor = docCol.MdiActiveDocument.Editor;
             editor.WriteMessage("\n" + msg);
         }
+        public static void prdDbg(object obj)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            editor.WriteMessage("\n" + obj.ToString());
+        }
         /// <summary>
         /// Use only for single field, no multiple matches supported!
         /// </summary>
