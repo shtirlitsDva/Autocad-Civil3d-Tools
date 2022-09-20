@@ -3386,7 +3386,7 @@ namespace IntersectUtilities
                         editor.WriteMessage($"\nCrossing lines: {filteredLinework.Count}.");
 
                         int count = 0;
-                        foreach (Entity ent in filteredLinework.Cast<Entity>())
+                        foreach (var ent in filteredLinework)
                         {
                             #region Create points
                             using (Point3dCollection p3dcol = new Point3dCollection())
@@ -3395,57 +3395,26 @@ namespace IntersectUtilities
 
                                 foreach (Point3d p3d in p3dcol)
                                 {
-                                    //Id of the new Poly3d if type == 3D
-                                    Oid newPolyId;
-
                                     #region Assign elevation based on 3D conditions
-                                    //Create vertical line to intersect the Ler line
-                                    using (Transaction txp3d = localDb.TransactionManager.StartTransaction())
+                                    Point3d p3dInt = ent.GetClosestPointTo(p3d, new Vector3d(0.0, 0.0, 1.0), false);
+
+                                    count++;
+                                    if (p3dInt.Z <= 0)
                                     {
-                                        Point3dCollection newP3dCol = new Point3dCollection();
-                                        //Intersection at 0
-                                        newP3dCol.Add(p3d);
-                                        //New point at very far away
-                                        newP3dCol.Add(new Point3d(p3d.X, p3d.Y, 1000));
-
-                                        Polyline3d newPoly = new Polyline3d(Poly3dType.SimplePoly, newP3dCol, false);
-
-                                        //Open modelspace
-                                        BlockTable acBlkTbl = txp3d.GetObject(
-                                            localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                                        BlockTableRecord acBlkTblRec = txp3d.GetObject(acBlkTbl[BlockTableRecord.ModelSpace],
-                                                         OpenMode.ForWrite) as BlockTableRecord;
-
-                                        acBlkTblRec.AppendEntity(newPoly);
-                                        txp3d.AddNewlyCreatedDBObject(newPoly, true);
-                                        newPolyId = newPoly.ObjectId;
-                                        txp3d.Commit();
+                                        editor.WriteMessage($"\nEntity {ent.Handle} returned {p3dInt.Z}" +
+                                            $" elevation for a 3D layer.");
                                     }
 
-                                    Polyline3d newPoly3d = newPolyId.Go<Polyline3d>(tx);
-                                    using (Point3dCollection p3dIntCol = new Point3dCollection())
+                                    double surfaceElevation = surface.FindElevationAtXY(p3dInt.X, p3dInt.Y);
+                                    if (p3dInt.Z >= surfaceElevation)
                                     {
-                                        ent.IntersectWith(newPoly3d, 0, p3dIntCol, new IntPtr(0), new IntPtr(0));
-
-                                        foreach (Point3d p3dInt in p3dIntCol)
-                                        {
-                                            count++;
-                                            if (p3dInt.Z <= 0)
-                                            {
-                                                editor.WriteMessage($"\nEntity {ent.Handle} returned {p3dInt.Z}" +
-                                                    $" elevation for a 3D layer.");
-                                            }
-
-                                            double surfaceElevation = surface.FindElevationAtXY(p3dInt.X, p3dInt.Y);
-                                            if (p3dInt.Z >= surfaceElevation)
-                                            {
-                                                prdDbg($"Entity {ent.Handle} return intersection point above surface!\n" +
-                                                       $"Location: {p3dInt.ToString()}, Surface E: {surfaceElevation}.");
-                                            }
-                                        }
+                                        prdDbg($"Entity {ent.Handle} return intersection point above surface!\n" +
+                                               $"Location: {p3dInt}, Surface E: {surfaceElevation}.");
                                     }
-                                    newPoly3d.UpgradeOpen();
-                                    newPoly3d.Erase(true);
+
+                                    prdDbg(
+                                        $"Ler elev: {p3dInt.Z.ToString("0.##")}, " +
+                                        $"Surface elev: {surfaceElevation.ToString("0.##")}");
                                     System.Windows.Forms.Application.DoEvents();
                                     #endregion
                                 }
