@@ -1246,7 +1246,6 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -1589,6 +1588,104 @@ namespace IntersectUtilities
                 {
                     tx.Abort();
                     editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+        
+        [CommandMethod("GASCHANGELAYERFOR2DV2")]
+        public void gaschangelayerfor2dv2()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Change layer
+                    ///////////////////////////
+                    bool atZero(double value) => value > -0.0001 && value < 0.0001;
+                    ///////////////////////////
+
+                    #region Create layers
+                    List<string> layerNames = new List<string>()
+                    {   "GAS-Stikrør-2D",
+                        "GAS-Fordelingsrør-2D",
+                        "GAS-Distributionsrør-2D",
+                        "GAS-ude af drift-2D" };
+                    LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    foreach (string name in layerNames)
+                    {
+                        if (!lt.Has(name))
+                        {
+                            LayerTableRecord ltr = new LayerTableRecord();
+                            ltr.Name = name;
+                            if (name != "GAS-ude af drift-2D") ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 30);
+                            else ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 221);
+
+                            //Make layertable writable
+                            lt.CheckOrOpenForWrite();
+
+                            //Add the new layer to layer table
+                            Oid ltId = lt.Add(ltr);
+                            tx.AddNewlyCreatedDBObject(ltr, true);
+                        }
+                    }
+                    #endregion
+
+                    #region Rename layers
+                    List<string> layersToRename = new List<string>()
+                    {
+                        "Distributionsrør",
+                        "Fordelingsrør",
+                        "Stikrør"
+                    };
+
+                    foreach (string name in layersToRename)
+                    {
+                        if (lt.Has(name))
+                        {
+                            LayerTableRecord layer = lt.GetLayerByName(name);
+                            layer.CheckOrOpenForWrite();
+                            layer.Name = $"GAS-{name}";
+                            layer.Color = Color.FromColorIndex(ColorMethod.ByAci, 30);
+                            layer.LineWeight = LineWeight.ByLineWeightDefault;
+                        }
+                    }
+                    #endregion
+
+                    HashSet<Polyline3d> lines = localDb.HashSetOfType<Polyline3d>(tx, true);
+                    foreach (Polyline3d line in lines)
+                    {
+                        bool isNotZeroed = false;
+                        PolylineVertex3d[] vertices = line.GetVertices(tx);
+                        for (int i = 0; i < vertices.Length; i++)
+                        {
+                            if (!atZero(vertices[i].Position.Z)) isNotZeroed = true;
+                        }
+
+                        if (!isNotZeroed)
+                        {
+                            line.CheckOrOpenForWrite();
+                            if (line.Layer == "Distributionsrør" ||
+                                line.Layer == "GAS-Distributionsrør") line.Layer = "GAS-Distributionsrør-2D";
+                            else if (line.Layer == "Stikrør" ||
+                                     line.Layer == "GAS-Stikrør") line.Layer = "GAS-Stikrør-2D";
+                            else if (line.Layer == "Fordelingsrør" ||
+                                     line.Layer == "GAS-Fordelingsrør") line.Layer = "GAS-Fordelingsrør-2D";
+                            else if (line.Layer == "GAS-ude af drift") line.Layer = "GAS-ude af drift-2D";
+                        }
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
