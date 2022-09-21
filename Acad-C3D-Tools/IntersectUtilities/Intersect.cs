@@ -7833,7 +7833,7 @@ namespace IntersectUtilities
                     //ListAllUniqueValues("G3E_FNO");
                     //ListAllUniqueValues("G3E_ID");
                     HashSet<string> values = new HashSet<string>();
-                    ListAllUniqueValues("system");
+                    ListAllUniqueValues("status");
                     PrintAllValues(values);
 
                     void ListAllUniqueValues(string propertyName)

@@ -385,7 +385,7 @@ namespace IntersectUtilities
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             //Settings
-            const double labelOffset = 1.2;
+            const double labelOffset = 0.375;
             const double labelHeight = 0.75;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -431,6 +431,9 @@ namespace IntersectUtilities
 
                             //Compose label
                             string label = ConstructStringFromPSByRecipe(pline, labelRecipe);
+
+                            //quick hack
+                            if (label == "ø0 - ") continue;
 
                             //Create text object
                             DBText textEnt = new DBText();
