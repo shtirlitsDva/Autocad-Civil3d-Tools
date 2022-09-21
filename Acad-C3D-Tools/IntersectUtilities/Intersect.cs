@@ -7824,7 +7824,7 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Test PS values
-                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
+                    var plines = localDb.HashSetOfType<Polyline3d>(tx, true);
 
                     //ListAllUniqueValues("FeatId");
                     //ListAllUniqueValues("G3E_CID");
@@ -7833,22 +7833,22 @@ namespace IntersectUtilities
                     //ListAllUniqueValues("G3E_FNO");
                     //ListAllUniqueValues("G3E_ID");
                     HashSet<string> values = new HashSet<string>();
-                    ListAllUniqueValues("status");
+                    ListAllUniqueValues("Fald");
                     PrintAllValues(values);
 
                     void ListAllUniqueValues(string propertyName)
                     {
                         var list = plines
                             .Select(x =>
-                                PropertySetManager.ReadNonDefinedPropertySetString(x, "DDG_ledning", propertyName))
+                                PropertySetManager.ReadNonDefinedPropertySetObject(x, "DDG_ledning", propertyName))
                             .Distinct();
-                        values = list.ToHashSet();
+                        values = list.Select(x => x.ToString()).ToHashSet();
                         prdDbg($"{propertyName}: {list.Count()}");
                     }
 
                     void PrintAllValues(HashSet<string> toPrint)
                     {
-                        foreach (var item in toPrint)
+                        foreach (var item in toPrint.OrderBy(x => x))
                         {
                             prdDbg(item);
                         }

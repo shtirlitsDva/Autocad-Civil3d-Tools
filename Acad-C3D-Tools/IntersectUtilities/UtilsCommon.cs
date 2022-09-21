@@ -1575,6 +1575,26 @@ namespace IntersectUtilities.UtilsCommon
         }
         public static double StationAtPoint(this Alignment al, BlockReference br)
             => StationAtPoint(al, br.Position);
+        public static void UpdateElevationZ(this PolylineVertex3d vert, double newElevation)
+        {
+            if (!vert.Position.Z.Equalz(newElevation, Tolerance.Global.EqualPoint))
+                vert.Position = new Point3d(
+                    vert.Position.X, vert.Position.Y, newElevation);
+        }
+        public static bool IsAtZeroElevation(this PolylineVertex3d vert) => vert.Position.Z < 0.0001 && vert.Position.Z > -0.0001;
+        public static bool IsAtZeroElevation(this Polyline3d p3d)
+        {
+            PolylineVertex3d[] vertices = p3d.GetVertices(p3d.GetTopTx());
+            bool atZero = true;
+            foreach (var vert in vertices)
+            {
+                if (vert.IsAtZeroElevation()) continue;
+                else atZero = false;
+            }
+            return atZero;
+        }
+        public static bool IsZero(this double d, double tol) => d > -tol && d < tol;
+        public static bool IsZero(this double d) => d > -Tolerance.Global.EqualPoint && d < Tolerance.Global.EqualPoint;
     }
     public static class ExtensionMethods
     {

@@ -120,6 +120,23 @@ namespace IntersectUtilities
                 return false;
             }
         }
+        public static bool IsPropertySetAttached(Entity ent, string propertySetName)
+        {
+            var propertySetIds = PropertyDataServices.GetPropertySets(ent);
+            if (propertySetIds.Count == 0) return false;
+
+            bool foundPs = false;
+            foreach (Oid oid in propertySetIds)
+            {
+                PropertySet ps = oid.Go<PropertySet>(ent.Database.TransactionManager.TopTransaction);
+                if (ps.PropertySetDefinitionName == propertySetName) foundPs = true;
+            }
+            return foundPs;
+        }
+        public static bool IsPropertySetAttached(Entity ent, PSetDefs.DefinedSets propertySet)
+        {
+            return IsPropertySetAttached(ent, propertySet.ToString());
+        }
         private PropertySetDefinition GetPropertySetDefinition(PSetDefs.DefinedSets propertySetName, Transaction tx = null)
         {
             if (Db == null) throw new System.Exception("Database is null!");
