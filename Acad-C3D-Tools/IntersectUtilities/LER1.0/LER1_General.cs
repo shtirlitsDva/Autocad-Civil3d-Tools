@@ -244,53 +244,6 @@ namespace IntersectUtilities
                     System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
                     #endregion
 
-                    //Reference datatables
-                    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-
-                    #region Convert splines
-                    //Enclose in a scope to prevent splines collection from being used later on
-                    {
-                        List<Spline> splines = localDb.ListOfType<Spline>(tx);
-                        editor.WriteMessage($"\nNr. of splines: {splines.Count}. Converting to polylines...");
-
-                        foreach (Spline spline in splines)
-                        {
-                            Curve curve = spline.ToPolylineWithPrecision(10);
-                            modelSpace.AppendEntity(curve);
-                            tx.AddNewlyCreatedDBObject(curve, true);
-                            curve.CheckOrOpenForWrite();
-                            curve.Layer = spline.Layer;
-                            PropertySetManager.CopyAllProperties(spline, curve);
-                            curve.DowngradeOpen();
-                            spline.CheckOrOpenForWrite();
-                            spline.Erase(true);
-                        }
-                    }
-                    #endregion
-
-                    #region Convert lines
-                    //Enclose in a scope to prevent lines collection from being used later on
-                    {
-                        List<Line> lines = localDb.ListOfType<Line>(tx);
-                        editor.WriteMessage($"\nNr. of lines: {lines.Count}. Converting to polylines...");
-
-                        foreach (Line line in lines)
-                        {
-                            Polyline pline = new Polyline(2);
-                            pline.CheckOrOpenForWrite();
-                            pline.AddVertexAt(0, new Point2d(line.StartPoint.X, line.StartPoint.Y), 0, 0, 0);
-                            pline.AddVertexAt(1, new Point2d(line.EndPoint.X, line.EndPoint.Y), 0, 0, 0);
-                            modelSpace.AppendEntity(pline);
-                            tx.AddNewlyCreatedDBObject(pline, true);
-                            pline.Layer = line.Layer;
-                            PropertySetManager.CopyAllProperties(line, pline);
-                            pline.DowngradeOpen();
-                            line.CheckOrOpenForWrite();
-                            line.Erase(true);
-                        }
-                    }
-                    #endregion
-
                     #region Load linework for analysis
                     prdDbg("\nLoading linework for analyzing...");
 
@@ -342,12 +295,42 @@ namespace IntersectUtilities
                             continue;
                         }
                         //int diaOriginal = ReadIntPropertyValue(tables, pline.Id, parts[0], parts[1]);
-                        int diaOriginal = PropertySetManager.ReadNonDefinedPropertySetInt(
+                        object diaOriginal = PropertySetManager.ReadNonDefinedPropertySetObject(
                             pline, parts.setName, parts.propertyName);
 
-                        prdDbg(pline.Handle.ToString() + ": " + diaOriginal.ToString());
+                        double dia = default;
 
-                        double dia = Convert.ToDouble(diaOriginal) / 1000;
+                        switch (diaOriginal)
+                        {
+                            case null:
+                                dia = 90;
+                                break;
+                            case int integer:
+                                dia = Convert.ToDouble(integer);
+                                break;
+                            case double d:
+                                dia = d;
+                                break;
+                            case string s:
+                                if (s.IsNoE()) s = "90";
+                                try
+                                {
+                                    dia = Convert.ToDouble(s);
+                                }
+                                catch (System.Exception)
+                                {
+                                    prdDbg($"Fails: {s}");
+                                    throw;
+                                }
+                                break;
+                            default:
+                                dia = 90;
+                                break;
+                        }
+
+                        prdDbg(pline.Handle.ToString() + ": " + dia.ToString());
+
+                        dia = dia / 1000;
 
                         if (dia == 0) dia = 0.09;
 
@@ -367,7 +350,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -433,7 +416,9 @@ namespace IntersectUtilities
                             string label = ConstructStringFromPSByRecipe(pline, labelRecipe);
 
                             //quick hack
-                            if (label == "ø0 - ") continue;
+                            if (
+                                label == "ø0 - " ||
+                                label == "ø - ") continue;
 
                             //Create text object
                             DBText textEnt = new DBText();
@@ -633,5 +618,113 @@ namespace IntersectUtilities
             }
 
         }
+
+        [CommandMethod("CLEANPSDATA")]
+        public void cleanpsdata()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            #region Data
+            Dictionary<string, double> imperialToDnDictDouble = new Dictionary<string, double>()
+            {
+                { "1/2\"", 15.0 },
+                { "3/4\"", 20.0 },
+                { "1\"", 25.0 },
+                { "1 1/4\"", 32.0 },
+                { "1 1/2\"", 40.0 },
+                { "2\"", 50.0 },
+                { "2 1/2\"", 65.0 },
+                { "3\"", 80.0 },
+                { "4\"", 100.0 },
+                { "5\"", 125.0 },
+                { "6\"", 150.0 },
+                { "8\"", 200.0 },
+                { "10\"", 250.0 },
+                { "12\"", 300.0 },
+                { "14\"", 350.0 },
+                { "16\"", 400.0 },
+                { "18\"", 450.0 },
+                { "20\"", 500.0 },
+                { "24\"", 600.0 },
+                { "28\"", 700.0 },
+                { "32\"", 800.0 },
+            };
+            Dictionary<string, string> imperialToDnDictString = new Dictionary<string, string>()
+            {
+                { "1/2\"", "15" },
+                { "3/4\"", "20" },
+                { "1\"", "25" },
+                { "1 1/4\"", "32" },
+                { "1 1/2\"", "40" },
+                { "2\"", "50" },
+                { "2 1/2\"", "65" },
+                { "3\"", "80" },
+                { "4\"", "100" },
+                { "5\"", "125" },
+                { "6\"", "150" },
+                { "8\"", "200" },
+                { "10\"", "250" },
+                { "12\"", "300" },
+                { "14\"", "350" },
+                { "16\"", "400" },
+                { "18\"", "450" },
+                { "20\"", "500" },
+                { "24\"", "600" },
+                { "28\"", "700" },
+                { "32\"", "800" },
+            };
+
+            Dictionary<string, string> replaceDict = new Dictionary<string, string>()
+            {
+                { "32 m/m", "32" },
+                { "32 mm", "32" },
+                { "63 m/m", "63" },
+                { "sløjfet 90", "90" },
+            };
+            #endregion
+
+            #region Settings
+            string propertySetName = "Lyngen-Ledninger";
+            string propertyName = "Dimension";
+            #endregion
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var pls = localDb.HashSetOfType<Polyline>(tx);
+
+                    foreach (var pl in pls)
+                    {
+                        string originalValue = 
+                            PropertySetManager.ReadNonDefinedPropertySetString(pl, propertySetName, propertyName);
+
+                        if (originalValue.IsNoE()) continue;
+
+                        string value = default;
+                        if (imperialToDnDictString.ContainsKey(originalValue))
+                            value = imperialToDnDictString[originalValue];
+                        else if (replaceDict.ContainsKey(originalValue))
+                            value = replaceDict[originalValue];
+
+                        if (value != default && value != originalValue)
+                        {
+                            PropertySetManager.WriteNonDefinedPropertySetString(
+                                pl, propertySetName, propertyName, value);
+                            prdDbg($"{originalValue} -> {value}");
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
     }
 }

@@ -357,7 +357,7 @@ namespace IntersectUtilities
         {
             ObjectIdCollection psIds = PropertyDataServices.GetPropertySets(ent);
             List<PropertySet> pss = new List<PropertySet>();
-            foreach (Oid oid in psIds) pss.Add(oid.Go<PropertySet>(ent.GetTopTx()));
+            foreach (Oid oid in psIds) pss.Add(oid.Go<PropertySet>(ent.GetTopTx(), OpenMode.ForWrite));
 
             foreach (PropertySet ps in pss)
             {
