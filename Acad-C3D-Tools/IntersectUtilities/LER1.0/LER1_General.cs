@@ -418,7 +418,8 @@ namespace IntersectUtilities
                             //quick hack
                             if (
                                 label == "ø0 - " ||
-                                label == "ø - ") continue;
+                                label == "ø - " ||
+                                label == "ø0 - Uoplyst") continue;
 
                             //Create text object
                             DBText textEnt = new DBText();

@@ -7833,14 +7833,14 @@ namespace IntersectUtilities
                     //ListAllUniqueValues("G3E_FNO");
                     //ListAllUniqueValues("G3E_ID");
                     HashSet<string> values = new HashSet<string>();
-                    ListAllUniqueValues("Dimension");
+                    ListAllUniqueValues("NominelDim");
                     PrintAllValues(values);
 
                     void ListAllUniqueValues(string propertyName)
                     {
                         var list = plines
                             .Select(x =>
-                                PropertySetManager.ReadNonDefinedPropertySetObject(x, "Lyngen-Ledninger", propertyName))
+                                PropertySetManager.ReadNonDefinedPropertySetObject(x, "DVG_ledning", propertyName))
                             .Distinct();
                         values = list.Select(x => x.ToString()).ToHashSet();
                         prdDbg($"{propertyName}: {list.Count()}");
@@ -9627,8 +9627,12 @@ namespace IntersectUtilities
                     var list = localDb.ListOfType<Entity>(tx);
                     foreach (Entity item in list)
                     {
-                        item.CheckOrOpenForWrite();
-                        item.Color = Color.FromColorIndex(ColorMethod.ByAci, 256);
+                        if (item is Polyline || item is Polyline3d)
+                        {
+                            item.CheckOrOpenForWrite();
+                            item.Color = Color.FromColorIndex(ColorMethod.ByAci, 256);
+                            item.Linetype = "ByLayer";
+                        }
                     }
                     #endregion
                 }
