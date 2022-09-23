@@ -184,7 +184,6 @@ namespace IntersectUtilities.Dimensionering
                         #endregion
 
                         var dict = bbrDef.ToPropertyDictionary();
-                        bbrPsm.GetOrAttachPropertySet(bbrBlock);
                         foreach (PropertyInfo pinfo in properties)
                         {
                             if (dict.ContainsKey(pinfo.Name))
@@ -192,7 +191,7 @@ namespace IntersectUtilities.Dimensionering
                                 var value = TryGetValue(pinfo, feature.properties);
                                 try
                                 {
-                                    bbrPsm.WritePropertyObject(dict[pinfo.Name] as PSetDefs.Property, value);
+                                    bbrPsm.WritePropertyObject(bbrBlock, dict[pinfo.Name] as PSetDefs.Property, value);
                                 }
                                 catch (System.Exception)
                                 {
