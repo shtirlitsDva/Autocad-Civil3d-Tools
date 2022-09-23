@@ -213,6 +213,59 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("CONVERT3DPOLIESTOPOLIESPSS")]
+        public void convert3dpoliestopoliespss()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            prdDbg("Remember that the PropertySets need be defined in advance!!!");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var p3ds = localDb.HashSetOfType<Polyline3d>(tx);
+                    editor.WriteMessage($"\nNr. of polylines3d: {p3ds.Count}");
+
+                    foreach (var p3d in p3ds)
+                    {
+                        var verts = p3d.GetVertices(tx);
+
+                        Polyline pline = new Polyline(verts.Length);
+
+                        foreach (var vert in verts)
+                        {
+                            pline.AddVertexAt(pline.NumberOfVertices, vert.Position.To2D(), 0, 0, 0);
+                        }
+
+                        pline.AddEntityToDbModelSpace(localDb);
+
+                        pline.Layer = p3d.Layer;
+                        pline.Color = p3d.Color;
+
+                        PropertySetManager.CopyAllProperties(p3d, pline);
+                    }
+
+                    foreach (var line in p3ds)
+                    {
+                        line.CheckOrOpenForWrite();
+                        line.Erase(true);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.ToString());
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("SETGLOBALWIDTH")]
         public void setglobalwidth()
         {
@@ -620,73 +673,69 @@ namespace IntersectUtilities
 
         }
 
+        [CommandMethod("QAPSDATA")]
+        public void qapsdata()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            #region Settings
+            string propertySetName = "Stenlose-Ledninger";
+            string propertyName = "Dimension";
+            #endregion
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var pls = localDb.HashSetOfType<Polyline>(tx);
+
+                    HashSet<string> data = new HashSet<string>();
+
+                    foreach (var pl in pls)
+                    {
+                        string originalValue =
+                            PropertySetManager.ReadNonDefinedPropertySetString(pl, propertySetName, propertyName);
+
+                        data.Add(originalValue);
+                    }
+
+                    foreach (var originalValue in data.OrderBy(x => x))
+                    {
+                        string value = originalValue;
+                        if (DataQa.Vand.replaceDict.ContainsKey(originalValue))
+                        {
+                            string replaced = DataQa.Vand.replaceDict[originalValue];
+                            value += " <- replaced";
+
+                            if (DataQa.Vand.imperialToDnDictString.ContainsKey(replaced))
+                                value += " <- InchToDn";
+
+                        }
+                        else if (DataQa.Vand.imperialToDnDictString.ContainsKey(originalValue))
+                            value += " <- InchToDn";
+
+                        prdDbg(value);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("CLEANPSDATA")]
         public void cleanpsdata()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            #region Data
-            Dictionary<string, double> imperialToDnDictDouble = new Dictionary<string, double>()
-            {
-                { "1/2\"", 15.0 },
-                { "3/4\"", 20.0 },
-                { "1\"", 25.0 },
-                { "1 1/4\"", 32.0 },
-                { "1 1/2\"", 40.0 },
-                { "2\"", 50.0 },
-                { "2 1/2\"", 65.0 },
-                { "3\"", 80.0 },
-                { "4\"", 100.0 },
-                { "5\"", 125.0 },
-                { "6\"", 150.0 },
-                { "8\"", 200.0 },
-                { "10\"", 250.0 },
-                { "12\"", 300.0 },
-                { "14\"", 350.0 },
-                { "16\"", 400.0 },
-                { "18\"", 450.0 },
-                { "20\"", 500.0 },
-                { "24\"", 600.0 },
-                { "28\"", 700.0 },
-                { "32\"", 800.0 },
-            };
-            Dictionary<string, string> imperialToDnDictString = new Dictionary<string, string>()
-            {
-                { "1/2\"", "15" },
-                { "3/4\"", "20" },
-                { "1\"", "25" },
-                { "1 1/4\"", "32" },
-                { "1 1/2\"", "40" },
-                { "2\"", "50" },
-                { "2 1/2\"", "65" },
-                { "3\"", "80" },
-                { "4\"", "100" },
-                { "5\"", "125" },
-                { "6\"", "150" },
-                { "8\"", "200" },
-                { "10\"", "250" },
-                { "12\"", "300" },
-                { "14\"", "350" },
-                { "16\"", "400" },
-                { "18\"", "450" },
-                { "20\"", "500" },
-                { "24\"", "600" },
-                { "28\"", "700" },
-                { "32\"", "800" },
-            };
-
-            Dictionary<string, string> replaceDict = new Dictionary<string, string>()
-            {
-                { "32 m/m", "32" },
-                { "32 mm", "32" },
-                { "63 m/m", "63" },
-                { "sløjfet 90", "90" },
-            };
-            #endregion
-
             #region Settings
-            string propertySetName = "Lyngen-Ledninger";
+            string propertySetName = "Stenlose-Ledninger";
             string propertyName = "Dimension";
             #endregion
 
@@ -698,16 +747,23 @@ namespace IntersectUtilities
 
                     foreach (var pl in pls)
                     {
-                        string originalValue = 
+                        string originalValue =
                             PropertySetManager.ReadNonDefinedPropertySetString(pl, propertySetName, propertyName);
 
                         if (originalValue.IsNoE()) continue;
 
                         string value = default;
-                        if (imperialToDnDictString.ContainsKey(originalValue))
-                            value = imperialToDnDictString[originalValue];
-                        else if (replaceDict.ContainsKey(originalValue))
-                            value = replaceDict[originalValue];
+
+                        if (DataQa.Vand.replaceDict.ContainsKey(originalValue))
+                        {
+                            string replaced = DataQa.Vand.replaceDict[originalValue];
+
+                            if (DataQa.Vand.imperialToDnDictString.ContainsKey(replaced))
+                                value = DataQa.Vand.imperialToDnDictString[replaced];
+                            else value = replaced;
+                        }
+                        else if (DataQa.Vand.imperialToDnDictString.ContainsKey(originalValue))
+                            value = DataQa.Vand.imperialToDnDictString[originalValue];
 
                         if (value != default && value != originalValue)
                         {
@@ -721,6 +777,59 @@ namespace IntersectUtilities
                 {
                     tx.Abort();
                     prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("LISTUNIQUEPSDATA")]
+        public void listuniquepsdata()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Test PS values
+                    var plines = localDb.HashSetOfType<Polyline>(tx, true);
+
+                    //ListAllUniqueValues("FeatId");
+                    //ListAllUniqueValues("G3E_CID");
+                    //ListAllUniqueValues("G3E_CNO");
+                    //ListAllUniqueValues("G3E_FID");
+                    //ListAllUniqueValues("G3E_FNO");
+                    //ListAllUniqueValues("G3E_ID");
+                    HashSet<string> values = new HashSet<string>();
+                    ListAllUniqueValues("Dimension");
+                    PrintAllValues(values);
+
+                    void ListAllUniqueValues(string propertyName)
+                    {
+                        var list = plines
+                            .Select(x =>
+                                PropertySetManager.ReadNonDefinedPropertySetObject(x, "Stenlose-Ledninger", propertyName))
+                            .Distinct();
+                        values = list.Select(x => x.ToString()).ToHashSet();
+                        prdDbg($"{propertyName}: {list.Count()}");
+                    }
+
+                    void PrintAllValues(HashSet<string> toPrint)
+                    {
+                        foreach (var item in toPrint.OrderBy(x => x))
+                        {
+                            prdDbg(item);
+                        }
+                    }
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();

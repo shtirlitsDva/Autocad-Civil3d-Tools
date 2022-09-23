@@ -7823,39 +7823,6 @@ namespace IntersectUtilities
                     //}
                     #endregion
 
-                    #region Test PS values
-                    var plines = localDb.HashSetOfType<Polyline>(tx, true);
-
-                    //ListAllUniqueValues("FeatId");
-                    //ListAllUniqueValues("G3E_CID");
-                    //ListAllUniqueValues("G3E_CNO");
-                    //ListAllUniqueValues("G3E_FID");
-                    //ListAllUniqueValues("G3E_FNO");
-                    //ListAllUniqueValues("G3E_ID");
-                    HashSet<string> values = new HashSet<string>();
-                    ListAllUniqueValues("NominelDim");
-                    PrintAllValues(values);
-
-                    void ListAllUniqueValues(string propertyName)
-                    {
-                        var list = plines
-                            .Select(x =>
-                                PropertySetManager.ReadNonDefinedPropertySetObject(x, "DVG_ledning", propertyName))
-                            .Distinct();
-                        values = list.Select(x => x.ToString()).ToHashSet();
-                        prdDbg($"{propertyName}: {list.Count()}");
-                    }
-
-                    void PrintAllValues(HashSet<string> toPrint)
-                    {
-                        foreach (var item in toPrint.OrderBy(x => x))
-                        {
-                            prdDbg(item);
-                        }
-                    }
-
-                    #endregion
-
                     #region Test enum list
                     //StringBuilder sb = new StringBuilder();
                     //HashSet<int> nums = new HashSet<int>()
