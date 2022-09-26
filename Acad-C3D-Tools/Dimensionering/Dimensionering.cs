@@ -365,8 +365,7 @@ namespace IntersectUtilities.Dimensionering
                                         //Protect against erasure
                                         claimedIds.Add(br.Id);
                                         //Write area name
-                                        bbrPsm.GetOrAttachPropertySet(br);
-                                        bbrPsm.WritePropertyString(bbrDef.DistriktetsNavn, etapeName);
+                                        bbrPsm.WritePropertyString(br, bbrDef.DistriktetsNavn, etapeName);
                                     }
                                 }
                                 break;
@@ -379,8 +378,7 @@ namespace IntersectUtilities.Dimensionering
                                         //Protect against erasure
                                         claimedIds.Add(br.Id);
                                         //Write area name
-                                        bbrPsm.GetOrAttachPropertySet(br);
-                                        bbrPsm.WritePropertyString(bbrDef.DistriktetsNavn, etapeName);
+                                        bbrPsm.WritePropertyString(br, bbrDef.DistriktetsNavn, etapeName);
                                     }
 
                                     DBObjectCollection objs = new DBObjectCollection();
@@ -394,8 +392,7 @@ namespace IntersectUtilities.Dimensionering
 
                                     if (id == Oid.Null) continue;
                                     Polyline newPline = id.Go<Polyline>(tx);
-                                    omrPsm.GetOrAttachPropertySet(newPline);
-                                    omrPsm.WritePropertyString(omrDef.Område, etapeName);
+                                    omrPsm.WritePropertyString(newPline, omrDef.Område, etapeName);
                                 }
                                 break;
                             default:
