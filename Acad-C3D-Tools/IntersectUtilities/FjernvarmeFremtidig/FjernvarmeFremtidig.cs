@@ -574,9 +574,17 @@ namespace IntersectUtilities
 
                     HashSet<Entity> ents = localDb.GetFjvEntities(tx, fjvKomponenter, true, true);
 
-                    foreach (var item in ents)
+                    foreach (var ent in ents)
                     {
-
+                        if (PropertySetManager.IsPropertySetAttached(ent, "DriPipelineData"))
+                        {
+                            if (PropertySetManager.ReadNonDefinedPropertySetString(
+                                ent, "DriPipelineData", "BelongsToAlignment") == "NA")
+                            {
+                                ent.CheckOrOpenForWrite();
+                                ent.Color = ColorByName("cyan");
+                            }
+                        }
                     }
                 }
                 catch (System.Exception ex)

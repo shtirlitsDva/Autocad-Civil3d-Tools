@@ -17,7 +17,6 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
 using IntersectUtilities.UtilsCommon;
 using Autodesk.Aec.DatabaseServices;
-using csdot.Attributes.Types;
 
 namespace IntersectUtilities
 {
