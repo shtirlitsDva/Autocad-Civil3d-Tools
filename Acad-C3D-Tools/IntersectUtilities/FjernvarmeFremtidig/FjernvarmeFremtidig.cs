@@ -229,7 +229,7 @@ namespace IntersectUtilities
                                 br.RealName() == "SH LIGE")
                             {
                                 psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, branchAl.Name);
-                                psm.WritePropertyString(br, driPipelineData.BranchesOffToAlignment, mainAl.Name); 
+                                psm.WritePropertyString(br, driPipelineData.BranchesOffToAlignment, mainAl.Name);
                             }
                             else
                             {
@@ -581,6 +581,31 @@ namespace IntersectUtilities
                             if (PropertySetManager.ReadNonDefinedPropertySetString(
                                 ent, "DriPipelineData", "BelongsToAlignment") == "NA")
                             {
+                                if (ent is BlockReference br)
+                                {
+                                    ColorAllEntsInBr(br);
+                                }
+                                else if (ent is Polyline pline)
+                                {
+                                    ent.CheckOrOpenForWrite();
+                                    ent.Color = ColorByName("cyan");
+                                }
+                            }
+                        }
+                    }
+
+                    void ColorAllEntsInBr(BlockReference bref)
+                    {
+                        BlockTableRecord btr = bref.BlockTableRecord.Go<BlockTableRecord>(tx);
+                        foreach (Oid id in btr)
+                        {
+                            if (id.IsDerivedFrom<BlockReference>())
+                            {
+                                //ColorAllEntsInBr(id.Go<BlockReference>(tx));
+                            }
+                            else
+                            {
+                                Entity ent = id.Go<Entity>(tx);
                                 ent.CheckOrOpenForWrite();
                                 ent.Color = ColorByName("cyan");
                             }
@@ -595,7 +620,76 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+
+            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
         }
+
+
+        [CommandMethod("HIGHLIGHTRESET")]
+        public void highlightreset()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+                    HashSet<Entity> ents = localDb.GetFjvEntities(tx, fjvKomponenter, true, true);
+
+                    foreach (var ent in ents)
+                    {
+                        if (PropertySetManager.IsPropertySetAttached(ent, "DriPipelineData"))
+                        {
+                            if (PropertySetManager.ReadNonDefinedPropertySetString(
+                                ent, "DriPipelineData", "BelongsToAlignment") == "NA")
+                            {
+                                if (ent is BlockReference br)
+                                {
+                                    ResetColorAllEntsInBr(br);
+                                }
+                                else if (ent is Polyline pline)
+                                {
+                                    ent.CheckOrOpenForWrite();
+                                    ent.Color = ColorByName("bylayer");
+                                }
+                            }
+                        }
+                    }
+
+                    void ResetColorAllEntsInBr(BlockReference bref)
+                    {
+                        BlockTableRecord btr = bref.BlockTableRecord.Go<BlockTableRecord>(tx);
+                        foreach (Oid id in btr)
+                        {
+                            if (id.IsDerivedFrom<BlockReference>())
+                            {
+                                //ResetColorAllEntsInBr(id.Go<BlockReference>(tx));
+                            }
+                            else
+                            {
+                                Entity ent = id.Go<Entity>(tx);
+                                ent.CheckOrOpenForWrite();
+                                ent.Color = ColorByName("byblock");
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+
+            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
+        }
+
 
 
         [CommandMethod("decoratepolylines")]
