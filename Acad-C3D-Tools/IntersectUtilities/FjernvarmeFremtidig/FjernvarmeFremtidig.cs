@@ -114,15 +114,11 @@ namespace IntersectUtilities
                             br.RealName(), fjvKomponenter, "Navn", 0) == null)
                             continue;
 
-                        //Check if a property set is attached
-                        //Attach if not
-                        psm.GetOrAttachPropertySet(br);
-
                         //Skip if record already exists
                         if (!overwrite)
                         {
-                            if (psm.ReadPropertyString(driPipelineData.BelongsToAlignment).IsNotNoE() ||
-                                psm.ReadPropertyString(driPipelineData.BranchesOffToAlignment).IsNotNoE())
+                            if (psm.ReadPropertyString(br, driPipelineData.BelongsToAlignment).IsNotNoE() ||
+                                psm.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment).IsNotNoE())
                                 continue;
                         }
 
@@ -178,7 +174,7 @@ namespace IntersectUtilities
 
                         if (result.Count() == 0)
                         {
-                            psm.WritePropertyString(driPipelineData.BelongsToAlignment, "NA");
+                            psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, "NA");
                         }
                         else if (result.Count() == 2)
                         {//Should be ordinary branch
@@ -229,8 +225,17 @@ namespace IntersectUtilities
                                 continue;
                             }
 
-                            psm.WritePropertyString(driPipelineData.BelongsToAlignment, mainAl.Name);
-                            psm.WritePropertyString(driPipelineData.BranchesOffToAlignment, branchAl.Name);
+                            if (br.RealName() == "AFGRSTUDS" ||
+                                br.RealName() == "SH LIGE")
+                            {
+                                psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, branchAl.Name);
+                                psm.WritePropertyString(br, driPipelineData.BranchesOffToAlignment, mainAl.Name); 
+                            }
+                            else
+                            {
+                                psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, mainAl.Name);
+                                psm.WritePropertyString(br, driPipelineData.BranchesOffToAlignment, branchAl.Name);
+                            }
                         }
                         else if (result.Count() > 2)
                         {//More alignments meeting in one place?
@@ -243,7 +248,15 @@ namespace IntersectUtilities
                         }
                         else if (result.Count() == 1)
                         {
-                            psm.WritePropertyString(driPipelineData.BelongsToAlignment, result.First().al.Name);
+                            if (br.RealName() == "AFGRSTUDS" ||
+                                br.RealName() == "SH LIGE")
+                            {
+                                psm.WritePropertyString(br, driPipelineData.BranchesOffToAlignment, result.First().al.Name);
+                            }
+                            else
+                            {
+                                psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, result.First().al.Name);
+                            }
                         }
                     }
                     #endregion
@@ -292,7 +305,7 @@ namespace IntersectUtilities
                             prdDbg("Error in Curves GetClosestPointTo -> loop incomplete!");
                         }
 
-                        double distThreshold = 1;
+                        double distThreshold = 0.25;
                         var result = alDistTuples.Where(x => x.dist < distThreshold);
 
                         if (result.Count() == 0)
