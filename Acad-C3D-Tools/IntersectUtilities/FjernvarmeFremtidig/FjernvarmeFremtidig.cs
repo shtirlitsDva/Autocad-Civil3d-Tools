@@ -559,6 +559,37 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("HIGHLIGHTNAS")]
+        public void highlightnas()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+                    HashSet<Entity> ents = localDb.GetFjvEntities(tx, fjvKomponenter, true, true);
+
+                    foreach (var item in ents)
+                    {
+
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+
         [CommandMethod("decoratepolylines")]
         public void decoratepolylines()
         {

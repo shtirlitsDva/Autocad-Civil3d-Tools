@@ -80,6 +80,27 @@ namespace AcadOverrules
             Application.DocumentManager.MdiActiveDocument.Editor.Regen();
         }
 
+        private static AlignmentNaMark _AlignmentNaMark;
+
+        //Not working, development suspended
+        //[CommandMethod("TOGGLEALNA")]
+        public static void togglealnaoverrule()
+        {
+            if (_AlignmentNaMark == null)
+            {
+                _AlignmentNaMark = new AlignmentNaMark();
+                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), _AlignmentNaMark, false);
+                Overrule.Overruling = true;
+            }
+            else
+            {
+                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _AlignmentNaMark);
+                _AlignmentNaMark.Dispose();
+                _AlignmentNaMark = null;
+            }
+            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
+        }
+
         private static PolylineDirection _polylineDirection;
 
         [CommandMethod("TOGGLEPOLYDIR")]

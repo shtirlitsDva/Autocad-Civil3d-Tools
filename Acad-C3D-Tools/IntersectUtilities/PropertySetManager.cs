@@ -16,6 +16,8 @@ using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
 using IntersectUtilities.UtilsCommon;
+using Autodesk.Aec.DatabaseServices;
+using csdot.Attributes.Types;
 
 namespace IntersectUtilities
 {
@@ -62,7 +64,7 @@ namespace IntersectUtilities
                 //else
                 //{
                 //    UpdatePropertySetDefinition(propertySetName, missingProperties);
-                    return GetPropertySetDefinition(propertySetName);
+                return GetPropertySetDefinition(propertySetName);
                 //}
             }
             else return CreatePropertySetDefinition(propertySetName);
@@ -126,10 +128,16 @@ namespace IntersectUtilities
             if (propertySetIds.Count == 0) return false;
 
             bool foundPs = false;
-            foreach (Oid oid in propertySetIds)
+            using (var tx = ent.Database.TransactionManager.StartOpenCloseTransaction())
             {
-                PropertySet ps = oid.Go<PropertySet>(ent.Database.TransactionManager.TopTransaction);
-                if (ps.PropertySetDefinitionName == propertySetName) foundPs = true;
+                foreach (Oid oid in propertySetIds)
+                {
+
+                    PropertySet ps = oid.Go<PropertySet>(
+                        ent.Database.TransactionManager.TopTransaction);
+                    if (ps.PropertySetDefinitionName == propertySetName) 
+                        foundPs = true;
+                }
             }
             return foundPs;
         }
@@ -340,10 +348,10 @@ namespace IntersectUtilities
                 {
                     if (ps.PropertySetDefinitionName == propertySetName)
                     {
-                            int id = ps.PropertyNameToId(propertyName);
-                            object value = ps.GetAt(id);
-                            tx.Commit();
-                            return value;
+                        int id = ps.PropertyNameToId(propertyName);
+                        object value = ps.GetAt(id);
+                        tx.Commit();
+                        return value;
                     }
                 }
 
