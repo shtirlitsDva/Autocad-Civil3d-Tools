@@ -100,7 +100,7 @@ namespace IntersectUtilities
                 //}
 
                 value += $"{(int)EndType}:{(int)connectedEntity.EndType}:{connectedEntity.Owner.Handle};";
-                PSM.WritePropertyString(DriGraph.ConnectedEntities, value);
+                PSM.WritePropertyString(Owner, DriGraph.ConnectedEntities, value);
             }
         }
         public void AddEntityToPOIs(Entity ent)
@@ -168,7 +168,7 @@ namespace IntersectUtilities
                             //Handle special case of AFGRSTUDS
                             //which does not coincide with an end on polyline
                             //but is situated somewhere along the polyline
-                            if (br.RealName() == "AFGRSTUDS")
+                            if (br.RealName() == "AFGRSTUDS" || br.RealName() == "SH LIGE")
                             {
                                 PropertySetManager psmPipeline =
                                     new PropertySetManager(dB, PSetDefs.DefinedSets.DriPipelineData);
