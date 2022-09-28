@@ -1518,7 +1518,7 @@ namespace IntersectUtilities
                             .Where(x =>
                                 psmPipeLineData.FilterPropetyString(
                                     x, driPipelineData.BranchesOffToAlignment, al.Name) &&
-                                x.RealName() == "AFGRSTUDS")
+                                x.RealName() == "AFGRSTUDS" || x.RealName() == "SH LIGE")
                             .ToHashSet();
 
                         //Tilføj afgreningsstudse til blokke
@@ -1678,7 +1678,7 @@ namespace IntersectUtilities
                                     "Afgrening med spring",
                                     "Afgrening, parallel" }).Contains(type))
                                     brSign.SetAttributeStringValue("RIGHTSIZE", psmPipeLineData.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment));
-                                else if (type == "Afgreningsstuds")
+                                else if (type == "Afgreningsstuds" || type == "Svanehals")
                                     brSign.SetAttributeStringValue("RIGHTSIZE", psmPipeLineData.ReadPropertyString(br, driPipelineData.BelongsToAlignment));
                                 else brSign.SetAttributeStringValue("RIGHTSIZE", "");
                             }
