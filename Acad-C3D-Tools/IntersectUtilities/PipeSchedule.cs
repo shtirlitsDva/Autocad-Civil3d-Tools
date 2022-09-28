@@ -753,7 +753,15 @@ namespace IntersectUtilities
         public static string GetPipeSeries(Entity ent) => "S3";
         public static PipeSeriesEnum GetPipeSeriesV2(Entity ent)
         {
-            double realKod = ((Polyline)ent).ConstantWidth;
+            double realKod;
+            try
+            {
+                realKod = ((Polyline)ent).ConstantWidth;
+            }
+            catch (Exception)
+            {
+                return PipeSeriesEnum.Undefined;
+            }
             PipeSystemEnum pipeSystem = GetPipeSystem(ent);
             double kod;
             switch (pipeSystem)

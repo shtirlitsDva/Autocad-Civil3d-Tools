@@ -9964,6 +9964,31 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("LISTGW")]
+        public void listallplineslayers()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Document doc = docCol.CurrentDocument;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var id = Interaction.GetEntity("Select polyline to list GW: ", typeof(Polyline), true);
+                    Polyline pline = id.Go<Polyline>(tx);
+                    prdDbg(pline.ConstantWidth);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         void AbortGracefully(Transaction tx, string msg)
         {
             tx.Abort();
