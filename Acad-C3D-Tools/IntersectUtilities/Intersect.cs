@@ -5317,35 +5317,61 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Test nested block location in dynamic blocks
-                    var list = localDb.HashSetOfType<BlockReference>(tx);
-                    foreach (var br in list)
+                    #region Test sideloaded nested block location
+                    Database fremDb = new Database(false, true);
+                    fremDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Dev\15 DynBlockSideloaded\BlockDwg.dwg",
+                        FileOpenMode.OpenForReadAndAllShare, false, null);
+                    Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                    HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                    foreach (var br in allBrs)
                     {
-                        BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+                        BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(fremTx);
                         foreach (Oid id in btr)
-{
+                        {
                             if (!id.IsDerivedFrom<BlockReference>()) continue;
-                            BlockReference nestedBr = id.Go<BlockReference>(tx);
+                            BlockReference nestedBr = id.Go<BlockReference>(fremTx);
                             if (!nestedBr.Name.Contains("MuffeIntern")) continue;
                             Point3d wPt = nestedBr.Position;
                             wPt = wPt.TransformBy(br.BlockTransform);
 
-                            Line line = new Line(new Point3d(), wPt);
-                            line.AddEntityToDbModelSpace(localDb);
+                            //Line line = new Line(new Point3d(), wPt);
+                            //line.AddEntityToDbModelSpace(localDb);
                         }
-
-
-                        //DBObjectCollection objs = new DBObjectCollection();
-                        //br.Explode(objs);
-                        //foreach (var item in objs)
-                        //{
-                        //    if (item is BlockReference nBr)
-                        //    {
-                        //        Line line = new Line(new Point3d(), nBr.Position);
-                        //        line.AddEntityToDbModelSpace(localDb);
-                        //    }
-                        //}
                     }
+                    fremTx.Abort();
+                    fremTx.Dispose();
+                    fremDb.Dispose();
+                    #endregion
+
+                    #region Test nested block location in dynamic blocks
+                    //                    var list = localDb.HashSetOfType<BlockReference>(tx);
+                    //                    foreach (var br in list)
+                    //                    {
+                    //                        BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+                    //                        foreach (Oid id in btr)
+                    //{
+                    //                            if (!id.IsDerivedFrom<BlockReference>()) continue;
+                    //                            BlockReference nestedBr = id.Go<BlockReference>(tx);
+                    //                            if (!nestedBr.Name.Contains("MuffeIntern")) continue;
+                    //                            Point3d wPt = nestedBr.Position;
+                    //                            wPt = wPt.TransformBy(br.BlockTransform);
+
+                    //                            Line line = new Line(new Point3d(), wPt);
+                    //                            line.AddEntityToDbModelSpace(localDb);
+                    //                        }
+
+
+                    //                        //DBObjectCollection objs = new DBObjectCollection();
+                    //                        //br.Explode(objs);
+                    //                        //foreach (var item in objs)
+                    //                        //{
+                    //                        //    if (item is BlockReference nBr)
+                    //                        //    {
+                    //                        //        Line line = new Line(new Point3d(), nBr.Position);
+                    //                        //        line.AddEntityToDbModelSpace(localDb);
+                    //                        //    }
+                    //                        //}
+                    //                    }
                     #endregion
 
                     #region Test constant attribute, constant attr is attached to BlockTableRecord and not BR

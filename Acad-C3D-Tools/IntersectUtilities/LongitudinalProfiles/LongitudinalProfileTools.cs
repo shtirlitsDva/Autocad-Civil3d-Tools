@@ -1689,6 +1689,9 @@ namespace IntersectUtilities
                                 string augmentedType = ComponentSchedule.ReadComponentType(br, fjvKomponenter);
 
                                 BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(fremTx);
+
+                                List<Point3d> locs = new List<Point3d>();
+
                                 foreach (Oid id in btr)
                                 {
                                     if (!id.IsDerivedFrom<BlockReference>()) continue;
@@ -1697,22 +1700,71 @@ namespace IntersectUtilities
                                     Point3d wPt = nestedBr.Position;
                                     wPt = wPt.TransformBy(br.BlockTransform);
 
-                                    Line line = new Line(new Point3d(), wPt);
-                                    line.AddEntityToDbModelSpace(localDb);
+                                    locs.Add(wPt);
+                                    //Line line = new Line(new Point3d(), wPt);
+                                    //line.AddEntityToDbModelSpace(localDb);
                                 }
 
-                                //Clone the blocks to local database
-                                //Because I cannot find a way to do it otherwise
-                                Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+                                if (locs.Count > 2) prdDbg($"Block: {br.Handle} have more than two locations!");
 
-                                ObjectIdCollection idsToClone = new ObjectIdCollection();
-                                idsToClone.Add(br.ObjectId);
+                                double firstStation = 0;
+                                double secondStation = 0;
+                                double offset = 0;
+                                Point3d pos = default;
+                                try
+                                {
+                                    pos = locs.First();
+                                    al.StationOffset(pos.X, pos.Y, ref firstStation, ref offset);
+                                    pos = locs.Last();
+                                    al.StationOffset(pos.X, pos.Y, ref secondStation, ref offset);
+                                }
+                                catch (System.Exception)
+                                {
+                                    prdDbg(pos);
+                                    prdDbg(br.Position.ToString());
+                                    throw;
+                                }
 
-                                IdMapping mapping = new IdMapping();
-                                fremDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
-                                //var pair = mapping[br.Id];
-                                //Oid newId = pair.Value;
-                                //BlockReference br2 = newId.Go<BlockReference>(tx);
+                                //prdDbg($"First st: {firstStation}");
+                                //prdDbg($"Second st: {secondStation}");
+
+                                //Determine the middle point
+                                double station = firstStation > secondStation ?
+                                    secondStation + (firstStation - secondStation) / 2 :
+                                    firstStation + (secondStation - firstStation) / 2;
+
+                                //Determine the length of buerør
+                                double bueRorLength = firstStation > secondStation ?
+                                    firstStation - secondStation :
+                                    secondStation - firstStation;
+
+                                //Determine if blockref is within current PV
+                                //If within -> place block, else go to next iteration
+                                if (!(station > pvStStart && station < pvStEnd)) continue;
+
+                                sampledMidtElevation = SampleProfile(surfaceProfile, station);
+                                double X = originX + station - pvStStart;
+                                double Y = originY + (sampledMidtElevation - pvElBottom) *
+                                        profileViewStyle.GraphStyle.VerticalExaggeration;
+
+                                BlockReference brBueRor = localDb.CreateBlockWithAttributes(bueBlockName, new Point3d(X, Y, 0));
+
+                                //Get br type and process it if it is dynamic
+                                //Write the type of augmentedType to the Left attribute
+
+                                DynamicBlockReferencePropertyCollection dbrpc = brBueRor.DynamicBlockReferencePropertyCollection;
+                                foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
+                                {
+                                    if (dbrp.PropertyName == "Length")
+                                    {
+                                        //prdDbg(length.ToString());
+                                        dbrp.Value = Math.Abs(bueRorLength);
+                                    }
+                                }
+
+                                //Set length text
+                                brBueRor.SetAttributeStringValue("LGD", Math.Abs(bueRorLength).ToString("0.0") + " m");
+                                brBueRor.SetAttributeStringValue("TEXT", augmentedType);
                             }
                             #endregion
 
@@ -1829,206 +1881,6 @@ namespace IntersectUtilities
             }
         }
 
-
-        [CommandMethod("CREATEDETAILINGBUEROR")]
-        public void createdetailingbueror()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-
-            //Do the bueror one more time
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                //////////////////////////////////////
-                string bueBlockName = "DRIPipeArcAnno";
-                //////////////////////////////////////
-
-                try
-                {
-                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
-                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-
-                    #region Common variables
-                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-                    HashSet<BlockReference> buerors =
-                        localDb.HashSetOfType<BlockReference>(tx)
-                        .Where(x => x.RealName() == "BUEROR1" || x.RealName() == "BUEROR2")
-                        .ToHashSet();
-                    #endregion
-
-                    foreach (Alignment al in als)
-                    {
-                        #region If exist get surface profile and profile view
-                        ObjectIdCollection profileIds = al.GetProfileIds();
-                        ObjectIdCollection profileViewIds = al.GetProfileViewIds();
-                        ProfileViewCollection pvs = new ProfileViewCollection(profileViewIds);
-
-                        #region Fetch surface profile
-                        Profile surfaceProfile = null;
-                        foreach (Oid oid in profileIds)
-                        {
-                            Profile pTemp = oid.Go<Profile>(tx);
-                            if (pTemp.Name == $"{al.Name}_surface_P") surfaceProfile = pTemp;
-                        }
-                        if (surfaceProfile == null)
-                        {
-                            prdDbg($"No surface profile found for alignment: {al.Name}, skipping current alignment.");
-                            continue;
-                        }
-                        #endregion
-                        #endregion
-
-                        foreach (ProfileView pv in pvs)
-                        {
-                            prdDbg($"Processing PV {pv.Name}.");
-
-                            #region Variables and settings
-                            Point3d pvOrigin = pv.Location;
-                            double originX = pvOrigin.X;
-                            double originY = pvOrigin.Y;
-
-                            double pvStStart = pv.StationStart;
-                            double pvStEnd = pv.StationEnd;
-                            double pvElBottom = pv.ElevationMin;
-                            double pvElTop = pv.ElevationMax;
-                            double pvLength = pvStEnd - pvStStart;
-                            #endregion
-
-                            #region Prepare exaggeration handling
-                            ProfileViewStyle profileViewStyle = tx
-                                .GetObject(((Autodesk.Aec.DatabaseServices.Entity)pv)
-                                .StyleId, OpenMode.ForRead) as ProfileViewStyle;
-                            #endregion
-
-                            double sampledMidtElevation = 0;
-
-                            #region Local method to sample profiles
-                            //Local method to sample profiles
-                            double SampleProfile(Profile profile, double station)
-                            {
-                                double sampledElevation = 0;
-                                try { sampledElevation = profile.ElevationAt(station); }
-                                catch (System.Exception)
-                                {
-                                    prdDbg($"Station {station} threw an exception when placing size change blocks! Skipping...");
-                                    return 0;
-                                }
-                                return sampledElevation;
-                            }
-                            #endregion
-
-                            foreach (BlockReference br in buerors)
-                            {
-                                //Buerør need special treatment
-                                if (br.RealName() != "BUEROR1" && br.RealName() != "BUEROR2") continue;
-                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
-                                string augmentedType = ComponentSchedule.ReadComponentType(br, fjvKomponenter);
-
-                                BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
-                                foreach (Oid id in btr)
-                                {
-                                    if (!id.IsDerivedFrom<BlockReference>()) continue;
-                                    BlockReference nestedBr = id.Go<BlockReference>(tx);
-                                    if (!nestedBr.Name.Contains("MuffeIntern")) continue;
-                                    Point3d wPt = nestedBr.Position;
-                                    wPt = wPt.TransformBy(br.BlockTransform);
-
-                                    Line line = new Line(new Point3d(), wPt);
-                                    line.AddEntityToDbModelSpace(localDb);
-                                }
-
-                                //DBObjectCollection objs = new DBObjectCollection();
-                                //br.Explode(objs);
-
-                                //(Point3d first, Point3d second) pos = default;
-                                //int count = 0;
-                                //foreach (var item in objs)
-                                //{
-                                //    if (item is BlockReference nBr)
-                                //    {
-                                //        if (!nBr.Name.Contains("MuffeIntern")) continue;
-                                //        count++;
-                                //        Point3d wPt = nBr.Position;
-                                //        if (count == 1) pos.first = al.GetClosestPointTo(wPt, false);
-                                //        else pos.second = al.GetClosestPointTo(wPt, false);
-
-                                //        Line line = new Line(new Point3d(), wPt);
-                                //        line.AddEntityToDbModelSpace(localDb);
-                                //    }
-                                //}
-
-                                //br.CheckOrOpenForWrite();
-                                //br.Erase(true);
-
-                                //double firstStation = 0;
-                                //double secondStation = 0;
-                                //double offset = 0;
-                                //try
-                                //{
-                                //    al.StationOffset(pos.first.X, pos.first.Y, ref firstStation, ref offset);
-                                //    al.StationOffset(pos.second.X, pos.second.Y, ref secondStation, ref offset);
-                                //}
-                                //catch (System.Exception)
-                                //{
-                                //    prdDbg(pos);
-                                //    prdDbg(br.Position.ToString());
-                                //    throw;
-                                //}
-
-                                //prdDbg($"First st: {firstStation}");
-                                //prdDbg($"Second st: {secondStation}");
-
-                                ////Determine the middle point
-                                //double station = firstStation > secondStation ?
-                                //    secondStation + (firstStation - secondStation) / 2 :
-                                //    firstStation + (secondStation - firstStation) / 2;
-
-                                ////Determine the length of buerør
-                                //double bueRorLength = firstStation > secondStation ?
-                                //    firstStation - secondStation :
-                                //    secondStation - firstStation;
-
-                                ////Determine if blockref is within current PV
-                                ////If within -> place block, else go to next iteration
-                                //if (!(station > pvStStart && station < pvStEnd)) continue;
-
-                                //sampledMidtElevation = SampleProfile(surfaceProfile, station);
-                                //double X = originX + station - pvStStart;
-                                //double Y = originY + (sampledMidtElevation - pvElBottom) *
-                                //        profileViewStyle.GraphStyle.VerticalExaggeration;
-
-                                //BlockReference brBueRor = localDb.CreateBlockWithAttributes(bueBlockName, new Point3d(X, Y, 0));
-
-                                ////Get br type and process it if it is dynamic
-                                ////Write the type of augmentedType to the Left attribute
-
-                                //DynamicBlockReferencePropertyCollection dbrpc = brBueRor.DynamicBlockReferencePropertyCollection;
-                                //foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
-                                //{
-                                //    if (dbrp.PropertyName == "Length")
-                                //    {
-                                //        //prdDbg(length.ToString());
-                                //        dbrp.Value = Math.Abs(bueRorLength);
-                                //    }
-                                //}
-
-                                ////Set length text
-                                //brBueRor.SetAttributeStringValue("LGD", Math.Abs(bueRorLength).ToString("0.0") + " m");
-                                //brBueRor.SetAttributeStringValue("TEXT", augmentedType);
-                            }
-                        }
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    prdDbg(ex);
-                    tx.Abort();
-                }
-                tx.Commit();
-            }
-        }
-
-
         /// <summary>
         /// Creates detailing based on an existing MIDT profile
         /// </summary>
@@ -2069,9 +1921,7 @@ namespace IntersectUtilities
                 try
                 {
                     #region Common variables
-                    BlockTableRecord modelSpace = dB.GetModelspaceForWrite();
                     BlockTable bt = tx.GetObject(dB.BlockTableId, OpenMode.ForRead) as BlockTable;
-                    Plane plane = new Plane(); //For intersecting
                     HashSet<Alignment> als = dB.HashSetOfType<Alignment>(tx);
                     #endregion
 
@@ -2129,7 +1979,7 @@ namespace IntersectUtilities
                     {
                         prdDbg($"\nProcessing: {al.Name}...");
 
-                        Polyline alPline = al.GetPolyline().Go<Polyline>(tx);
+                        //Polyline alPline = al.GetPolyline().Go<Polyline>(tx);
 
                         #region If exist get surface profile and profile view
                         ObjectIdCollection profileIds = al.GetProfileIds();
@@ -2384,7 +2234,10 @@ namespace IntersectUtilities
                                 string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
                                 if (type == "Reduktion" || type == "Svejsning") continue;
 
-                                Point3d tpt = alPline.GetClosestPointTo(br.Position, false);
+                                //Buerør need special treatment
+                                if (br.RealName() == "BUEROR1" || br.RealName() == "BUEROR2") continue;
+
+                                Point3d tpt = al.GetClosestPointTo(br.Position, false);
 
                                 double station = 0;
                                 double offset = 0;
@@ -2412,62 +2265,116 @@ namespace IntersectUtilities
                                 BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
                                 brSign.SetAttributeStringValue("LEFTSIZE", type);
 
-                                psmPipeLineData.GetOrAttachPropertySet(br);
-                                if (psmPipeLineData.ReadPropertyString(driPipelineData.BranchesOffToAlignment)
-                                    .IsNotNoE())
-                                    brSign.SetAttributeStringValue("RIGHTSIZE",
-                                        psmPipeLineData.ReadPropertyString(driPipelineData.BranchesOffToAlignment));
+                                //Manage writing of right attribute
+                                if ((new[] {
+                                    "Parallelafgrening",
+                                    "Lige afgrening",
+                                    "Afgrening med spring",
+                                    "Afgrening, parallel" }).Contains(type))
+                                    brSign.SetAttributeStringValue("RIGHTSIZE", 
+                                        psmPipeLineData.ReadPropertyString(
+                                            br, driPipelineData.BranchesOffToAlignment));
+                                else if (type == "Afgreningsstuds" || type == "Svanehals")
+                                    brSign.SetAttributeStringValue("RIGHTSIZE", 
+                                        psmPipeLineData.ReadPropertyString(
+                                            br, driPipelineData.BelongsToAlignment));
                                 else brSign.SetAttributeStringValue("RIGHTSIZE", "");
 
                                 allNewBrs.Add(brSign);
 
-                                psmSource.GetOrAttachPropertySet(brSign);
-                                psmSource.WritePropertyString(
+                                psmSource.WritePropertyString(brSign,
                                     driSourceReference.SourceEntityHandle, br.Handle.ToString());
                             }
                             #endregion
 
-                            #region Place component blocks for branches belonging to other alignments
-                            //foreach (BlockReference br in brsBranchesOffTo)
-                            //{
-                            //    double station = 0;
-                            //    double offset = 0;
-                            //    try
-                            //    {
-                            //        al.StationOffset(br.Position.X, br.Position.Y, ref station, ref offset);
-                            //    }
-                            //    catch (System.Exception)
-                            //    {
-                            //        prdDbg(br.RealName());
-                            //        prdDbg(br.Handle.ToString());
-                            //        prdDbg(br.Position.ToString());
-                            //        throw;
-                            //    }
+                            #region Place buerør blocks
+                            foreach (BlockReference br in brs)
+                            {
+                                //Buerør need special treatment
+                                if (br.RealName() != "BUEROR1" && br.RealName() != "BUEROR2") continue;
+                                string type = ReadStringParameterFromDataTable(
+                                    br.RealName(), fjvKomponenter, "Type", 0);
+                                string augmentedType = ComponentSchedule.ReadComponentType(br, fjvKomponenter);
 
-                            //    //Determine if blockref is within current PV
-                            //    //If within -> place block, else go to next iteration
-                            //    if (!(station >= extendedPvStStart && station <= extendedPvStEnd)) continue;
+                                //The idea is to get the muffer at ends
+                                //Get the station at both muffe intern
+                                //And then use the station values to calculate position and length
+                                BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(fremTx);
 
-                            //    sampledMidtElevation = SampleProfile(midtProfile, station);
-                            //    double X = originX + station - pvStStart;
-                            //    double Y = originY + (sampledMidtElevation - pvElBottom) *
-                            //            profileViewStyle.GraphStyle.VerticalExaggeration;
+                                List<Point3d> locs = new List<Point3d>();
 
-                            //    string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
-                            //    BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
-                            //    brSign.SetAttributeStringValue("LEFTSIZE", type);
+                                foreach (Oid id in btr)
+                                {
+                                    if (!id.IsDerivedFrom<BlockReference>()) continue;
+                                    BlockReference nestedBr = id.Go<BlockReference>(fremTx);
+                                    if (!nestedBr.Name.Contains("MuffeIntern")) continue;
+                                    Point3d wPt = nestedBr.Position;
+                                    wPt = wPt.TransformBy(br.BlockTransform);
 
-                            //    psmPipeLineData.GetOrAttachPropertySet(br);
-                            //    brSign.SetAttributeStringValue("RIGHTSIZE",
-                            //            psmPipeLineData.ReadPropertyString(
-                            //                driPipelineData.BelongsToAlignment));
+                                    locs.Add(wPt);
+                                    //Line line = new Line(new Point3d(), wPt);
+                                    //line.AddEntityToDbModelSpace(localDb);
+                                }
 
-                            //    allNewBrs.Add(brSign);
+                                if (locs.Count > 2) prdDbg($"Block: {br.Handle} have more than two locations!");
 
-                            //    psmSource.GetOrAttachPropertySet(brSign);
-                            //    psmSource.WritePropertyString(
-                            //        driSourceReference.SourceEntityHandle, br.Handle.ToString());
-                            //}
+                                double firstStation = 0;
+                                double secondStation = 0;
+                                double offset = 0;
+                                Point3d pos = default;
+                                try
+                                {
+                                    pos = locs.First();
+                                    al.StationOffset(pos.X, pos.Y, ref firstStation, ref offset);
+                                    pos = locs.Last();
+                                    al.StationOffset(pos.X, pos.Y, ref secondStation, ref offset);
+                                }
+                                catch (System.Exception)
+                                {
+                                    prdDbg(pos);
+                                    prdDbg(br.Position.ToString());
+                                    throw;
+                                }
+
+                                //prdDbg($"First st: {firstStation}");
+                                //prdDbg($"Second st: {secondStation}");
+
+                                //Determine the middle point
+                                double station = firstStation > secondStation ?
+                                    secondStation + (firstStation - secondStation) / 2 :
+                                    firstStation + (secondStation - firstStation) / 2;
+
+                                //Determine the length of buerør
+                                double bueRorLength = firstStation > secondStation ?
+                                    firstStation - secondStation :
+                                    secondStation - firstStation;
+
+                                //Determine if blockref is within current PV
+                                //If within -> place block, else go to next iteration
+                                if (!(station > pvStStart && station < pvStEnd)) continue;
+
+                                sampledMidtElevation = SampleProfile(surfaceProfile, station);
+                                double X = originX + station - pvStStart;
+                                double Y = originY + (sampledMidtElevation - pvElBottom) *
+                                        profileViewStyle.GraphStyle.VerticalExaggeration;
+
+                                BlockReference brBueRor = dB.CreateBlockWithAttributes(bueBlockName, new Point3d(X, Y, 0));
+
+                                DynamicBlockReferencePropertyCollection dbrpc = 
+                                    brBueRor.DynamicBlockReferencePropertyCollection;
+                                foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
+                                {
+                                    if (dbrp.PropertyName == "Length")
+                                    {
+                                        //prdDbg(length.ToString());
+                                        dbrp.Value = Math.Abs(bueRorLength);
+                                    }
+                                }
+
+                                //Set length text
+                                brBueRor.SetAttributeStringValue("LGD", Math.Abs(bueRorLength).ToString("0.0") + " m");
+                                brBueRor.SetAttributeStringValue("TEXT", augmentedType);
+                            }
                             #endregion
 
                             #region Sort overlapping component and size labels
@@ -2509,7 +2416,7 @@ namespace IntersectUtilities
                                 string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
                                 if (type != "Svejsning") continue;
 
-                                Point3d brLocation = alPline.GetClosestPointTo(br.Position, false);
+                                Point3d brLocation = al.GetClosestPointTo(br.Position, false);
 
                                 double station = 0;
                                 double offset = 0;
@@ -2780,7 +2687,7 @@ namespace IntersectUtilities
                     //prdDbg(existingBlocks.Count.ToString());
                     foreach (BlockReference br in existingBlocks)
                     {
-                        if (br.RealName() == name)
+                        if (!br.IsErased && br.RealName() == name)
                         {
                             br.CheckOrOpenForWrite();
                             br.Erase(true);
