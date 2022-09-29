@@ -49,6 +49,8 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using System.Windows.Documents;
+using System.Windows.Controls;
+using System.Security.Cryptography;
 
 namespace IntersectUtilities
 {
@@ -3396,13 +3398,16 @@ namespace IntersectUtilities
                             try
                             {
                                 BlockReference br = oid.Go<BlockReference>(tx, OpenMode.ForWrite);
-                                BlockTableRecord btr = tx.GetObject(br.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
-                                prdDbg("Top LEVEL: " + br.Name);
+                                BlockTableRecord btr = br.IsDynamicBlock ?
+                                    tx.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead) as BlockTableRecord :
+                                    tx.GetObject(br.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
+                                prdDbg("Top LEVEL: " + br.RealName());
 
                                 foreach (Oid bOid in btr)
                                 {
                                     if (bOid.ObjectClass.Name != "AcDbBlockReference") continue;
-                                    WriteNestedBlocksName(bOid.Go<BlockReference>(tx));
+                                    BlockReference nBr = bOid.Go<BlockReference>(tx);
+                                    prdDbg(nBr.Name);
                                 }
                             }
                             catch (System.Exception ex)
@@ -5312,6 +5317,37 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test nested block location in dynamic blocks
+                    var list = localDb.HashSetOfType<BlockReference>(tx);
+                    foreach (var br in list)
+                    {
+                        BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+                        foreach (Oid id in btr)
+{
+                            if (!id.IsDerivedFrom<BlockReference>()) continue;
+                            BlockReference nestedBr = id.Go<BlockReference>(tx);
+                            if (!nestedBr.Name.Contains("MuffeIntern")) continue;
+                            Point3d wPt = nestedBr.Position;
+                            wPt = wPt.TransformBy(br.BlockTransform);
+
+                            Line line = new Line(new Point3d(), wPt);
+                            line.AddEntityToDbModelSpace(localDb);
+                        }
+
+
+                        //DBObjectCollection objs = new DBObjectCollection();
+                        //br.Explode(objs);
+                        //foreach (var item in objs)
+                        //{
+                        //    if (item is BlockReference nBr)
+                        //    {
+                        //        Line line = new Line(new Point3d(), nBr.Position);
+                        //        line.AddEntityToDbModelSpace(localDb);
+                        //    }
+                        //}
+                    }
+                    #endregion
+
                     #region Test constant attribute, constant attr is attached to BlockTableRecord and not BR
                     //PromptEntityOptions peo = new PromptEntityOptions("Select a BR: ");
                     //PromptEntityResult per = editor.GetEntity(peo);

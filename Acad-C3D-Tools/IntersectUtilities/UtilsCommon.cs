@@ -134,6 +134,15 @@ namespace IntersectUtilities.UtilsCommon
             var ocsXAxis = Vector3d.XAxis.TransformBy(Matrix3d.PlaneToWorld(plane));
             return ocsXAxis.GetAngleTo(vector.ProjectTo(normal, normal), normal);
         }
+
+        private static Random random = new Random();
+
+        public static string RandomStringLetters(int length)
+        {
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            return new string(Enumerable.Repeat(chars, length)
+                .Select(s => s[random.Next(s.Length)]).ToArray());
+        }
     }
     public static class UtilsDataTables
     {
