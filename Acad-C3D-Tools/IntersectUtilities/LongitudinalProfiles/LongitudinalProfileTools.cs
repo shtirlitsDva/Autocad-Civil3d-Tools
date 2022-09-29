@@ -1500,7 +1500,7 @@ namespace IntersectUtilities
                             .Where(x =>
                                 psmPipeLineData.FilterPropetyString(
                                     x, driPipelineData.BranchesOffToAlignment, al.Name) &&
-                                x.RealName() == "AFGRSTUDS")
+                                x.RealName() == "AFGRSTUDS" || x.RealName() == "SH LIGE")
                             .ToHashSet();
 
                         //Tilføj afgreningsstudse til blokke
@@ -1652,8 +1652,7 @@ namespace IntersectUtilities
                                 double X = originX + station - pvStStart;
                                 double Y = originY + (sampledMidtElevation - pvElBottom) *
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
-                                BlockReference brSign = localDb.CreateBlockWithAttributes(
-                                    komponentBlockName, new Point3d(X, Y, 0));
+                                BlockReference brSign = localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
                                 brSign.SetAttributeStringValue("LEFTSIZE", type);
                                 if ((new[] {
                                     "Parallelafgrening",
@@ -1661,7 +1660,7 @@ namespace IntersectUtilities
                                     "Afgrening med spring",
                                     "Afgrening, parallel" }).Contains(type))
                                     brSign.SetAttributeStringValue("RIGHTSIZE", psmPipeLineData.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment));
-                                else if (type == "Afgreningsstuds")
+                                else if (type == "Afgreningsstuds" || type == "Svanehals")
                                     brSign.SetAttributeStringValue("RIGHTSIZE", psmPipeLineData.ReadPropertyString(br, driPipelineData.BelongsToAlignment));
                                 else brSign.SetAttributeStringValue("RIGHTSIZE", "");
                             }
@@ -2155,19 +2154,20 @@ namespace IntersectUtilities
                                 double X = originX + station - pvStStart;
                                 double Y = originY + (sampledMidtElevation - pvElBottom) *
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
-                                BlockReference brSign = dB.CreateBlockWithAttributes(
-                                    komponentBlockName, new Point3d(X, Y, 0));
+                                BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
                                 brSign.SetAttributeStringValue("LEFTSIZE", type);
 
-                                if (psmPipeLineData.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment)
+                                psmPipeLineData.GetOrAttachPropertySet(br);
+                                if (psmPipeLineData.ReadPropertyString(driPipelineData.BranchesOffToAlignment)
                                     .IsNotNoE())
                                     brSign.SetAttributeStringValue("RIGHTSIZE",
-                                        psmPipeLineData.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment));
+                                        psmPipeLineData.ReadPropertyString(driPipelineData.BranchesOffToAlignment));
                                 else brSign.SetAttributeStringValue("RIGHTSIZE", "");
 
                                 allNewBrs.Add(brSign);
 
-                                psmSource.WritePropertyString(brSign,
+                                psmSource.GetOrAttachPropertySet(brSign);
+                                psmSource.WritePropertyString(
                                     driSourceReference.SourceEntityHandle, br.Handle.ToString());
                             }
                             #endregion
@@ -2202,13 +2202,15 @@ namespace IntersectUtilities
                                 BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
                                 brSign.SetAttributeStringValue("LEFTSIZE", type);
 
+                                psmPipeLineData.GetOrAttachPropertySet(br);
                                 brSign.SetAttributeStringValue("RIGHTSIZE",
-                                        psmPipeLineData.ReadPropertyString(br,
+                                        psmPipeLineData.ReadPropertyString(
                                             driPipelineData.BelongsToAlignment));
 
                                 allNewBrs.Add(brSign);
 
-                                psmSource.WritePropertyString(brSign,
+                                psmSource.GetOrAttachPropertySet(brSign);
+                                psmSource.WritePropertyString(
                                     driSourceReference.SourceEntityHandle, br.Handle.ToString());
                             }
                             #endregion
