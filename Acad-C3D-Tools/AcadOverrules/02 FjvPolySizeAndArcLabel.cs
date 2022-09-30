@@ -23,6 +23,7 @@ using System.Text.RegularExpressions;
 using System.Data;
 using IntersectUtilities.UtilsCommon;
 
+using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.UtilsODData;
 
@@ -35,6 +36,9 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
+using IntersectUtilities;
+using Autodesk.AutoCAD.DatabaseServices.Filters;
+using System.Reflection;
 
 namespace AcadOverrules
 {
@@ -44,6 +48,10 @@ namespace AcadOverrules
         private const double labelDist = 25;
         private const double labelOffset = 1.2;
         private const double labelHeight = 1.0;
+
+        //Tangency settings
+        //Collinear
+        private const double collinearPolygonOuterOffset = 1.0;
 
         private Autodesk.AutoCAD.GraphicsInterface.TextStyle style =
             new Autodesk.AutoCAD.GraphicsInterface.TextStyle
@@ -72,7 +80,7 @@ namespace AcadOverrules
         public override bool IsApplicable(RXObject overruledSubject)
         {
             //Put a check of Enabled here if using that also
-            return 
+            return
                 ((Polyline)overruledSubject).NumberOfVertices > 1 &&
                 ((Polyline)overruledSubject).Length > 0.1 &&
                 isFjvPline(overruledSubject);
@@ -83,9 +91,7 @@ namespace AcadOverrules
             {
                 if (pline.Database == null) return false;
 
-                if (pline.Layer.Contains("FJV-TWIN") ||
-                    pline.Layer.Contains("FJV-FREM") ||
-                    pline.Layer.Contains("FJV-RETUR")) return true;
+                if (PipeSchedule.GetPipeSystem(pline) != PipeSchedule.PipeSystemEnum.Ukendt) return true;
             }
             return false;
         }
@@ -209,6 +215,94 @@ namespace AcadOverrules
                 //    midPt + perp * (labelOffset + labelHeight + 0.7), Vector3d.ZAxis, deriv, labelHeight, 1.0, 0.0, label);
                 wd.Geometry.Text(
                     midPt + perp * (labelOffset + labelHeight + 0.7), Vector3d.ZAxis, deriv, label, true, style);
+            }
+            #endregion
+
+            #region Segment tangency check
+            if (pline.NumberOfVertices > 2)
+            {
+                for (int i = 0; i < pline.NumberOfVertices - 1; i++)
+                {
+                    double bulge1 = pline.GetBulgeAt(i);
+                    double bulge2 = pline.GetBulgeAt(i + 1);
+
+                    SegmentType st1 = pline.GetSegmentType(i);
+                    SegmentType st2 = pline.GetSegmentType(i + 1);
+
+                    if (st1 == SegmentType.Line && st2 == st1)
+                    {
+                        LineSegment2d ls2d1 = pline.GetLineSegment2dAt(i);
+                        LineSegment2d ls2d2 = pline.GetLineSegment2dAt(i + 1);
+
+                        //1. Collinear: draw yellow rectangle
+                        if (ls2d1.IsColinearTo(ls2d2))
+                        {
+                            Point3d vertPos = pline.GetPoint3dAt(i + 1);
+                            Vector3d dir = ls2d1.Direction.To3D();
+                            Vector3d startingDir = dir.RotateBy(Math.PI / 4, Vector3d.ZAxis);
+
+                            #region polyPolygon
+                            //Use polypolygon
+                            //https://forums.autodesk.com/t5/net/drawjig-geometry-polypolygon/m-p/8909612/highlight/true#M63223
+                            //NumPolygonPositions -> how many polygons
+                            //Each value of this array represents the number of that kind of polygon
+                            UInt32Collection numPolygonPositions =
+                                new UInt32Collection(1) { 1 };
+
+                            //polygonPositions
+                            //Point3d of polygon position
+                            Point3dCollection polygonPositions =
+                                new Point3dCollection() { vertPos };
+
+                            //numPolygonPoints
+                            //Input the number of the polygons' vertices.
+                            UInt32Collection numPolygonPoints =
+                                new UInt32Collection(1) { 4 };
+
+                            //polygonPoints
+                            //the points of polygon
+                            Point3dCollection polygonPoints =
+                                new Point3dCollection();
+
+                            //outlineColors
+                            //Input the outline color for each polygon type, one outlineColor per polygon*index.
+                            EntityColorCollection outlineColors =
+                                new EntityColorCollection(1) { new EntityColor(30) };
+
+                            //outlineTypes
+                            //Input the outline type for each polygon type, one outlineType per polygon*index.
+                            Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection outlineTypes =
+                                new Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection()
+                                    { Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid };
+
+                            //fillColors
+                            //Input the filled color for each polygon type, one fillColor per polygon index.
+                            EntityColorCollection fillColors =
+                                new EntityColorCollection(1) { new EntityColor(30) };
+
+                            //fillOpacities
+                            //Input the opacity of polygon, one fillOpacity per polygon index
+                            TransparencyCollection fillOpacities =
+                                new TransparencyCollection(1) { new Transparency((byte)100) };
+
+                            //Build the polygons
+                            //Get point3d for outer polygon
+                            Point3d origo = new Point3d();
+                            for (int j = 0; j < 4; j++)
+                            {
+                                polygonPoints.Add(
+                                    origo + startingDir.RotateBy(
+                                        Math.PI / 2 * j, Vector3d.ZAxis) * collinearPolygonOuterOffset);
+                            }
+
+                            //Draw the polygons
+                            wd.Geometry.PolyPolygon(
+                                numPolygonPositions, polygonPositions, numPolygonPoints,
+                                polygonPoints, outlineColors, outlineTypes, fillColors, fillOpacities); 
+                            #endregion
+                        }
+                    }
+                }
             }
             #endregion
 

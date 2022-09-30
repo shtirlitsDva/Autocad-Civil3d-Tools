@@ -73,6 +73,8 @@ namespace IntersectUtilities.UtilsCommon
             editor.WriteMessage("\n" + msg);
         }
 
+        public static void prdDbg(object obj) => prdDbg(obj.ToString());
+
         public static Dictionary<string, Color> AutocadStdColors = new Dictionary<string, Color>()
         {
             {"byblock", Color.FromColorIndex(ColorMethod.ByAci, 0) },
@@ -1604,6 +1606,7 @@ namespace IntersectUtilities.UtilsCommon
         }
         public static bool IsZero(this double d, double tol) => d > -tol && d < tol;
         public static bool IsZero(this double d) => d > -Tolerance.Global.EqualPoint && d < Tolerance.Global.EqualPoint;
+        public static Vector3d To3D(this Vector2d vec) => new Vector3d(vec.X, vec.Y, 0.0);
     }
     public static class ExtensionMethods
     {

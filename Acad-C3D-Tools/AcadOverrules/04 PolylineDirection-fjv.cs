@@ -64,7 +64,7 @@ namespace AcadOverrules
             }
             else return false;
         }
-        
+
         public override bool WorldDraw(
             Autodesk.AutoCAD.GraphicsInterface.Drawable drawable,
             Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd)
@@ -124,12 +124,12 @@ namespace AcadOverrules
             for (int i = 0; i < nrOfPoints; i++)
             {
                 double phi = phiDelta * i;
-                Point3d pC = p + vec.RotateBy(phi, Vector3d.ZAxis)*arrowSideL;
+                Point3d pC = p + vec.RotateBy(phi, Vector3d.ZAxis) * arrowSideL;
                 points.Add(pC);
             }
 
             //wd.SubEntityTraits.FillType = Autodesk.AutoCAD.GraphicsInterface.FillType.FillAlways;
-            wd.Geometry.Polygon(points); 
+            wd.Geometry.Polygon(points);
             #endregion
 
             //Start and End labels
