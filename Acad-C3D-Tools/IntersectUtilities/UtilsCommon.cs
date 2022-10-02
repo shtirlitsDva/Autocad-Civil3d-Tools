@@ -1455,6 +1455,19 @@ namespace IntersectUtilities.UtilsCommon
             }
             return pline;
         }
+        public static double ConstantWidthSafe(this Polyline pline)
+        {
+            double plineWidth;
+            try
+            {
+                plineWidth = pline.ConstantWidth;
+            }
+            catch (System.Exception)
+            {
+                plineWidth = 0.0;
+            }
+            return plineWidth;
+        }
         public static Transaction GetTopTx(this Entity ent) => ent.Database.TransactionManager.TopTransaction;
         public static Transaction StartTx(this Entity ent) => ent.Database.TransactionManager.StartTransaction();
         public static List<PropertySet> GetPropertySets(this Entity ent)

@@ -58,16 +58,17 @@ namespace AcadOverrules
         //Collinear
         private const double collinearPolygonOuterOffset = 1.0;
 
-        private Point3dCollection createPolygonPointsCollinearSymbol(Polyline pline, Vector3d dir)
+        private Point3dCollection createPolygonPointsCollinearSymbol(
+            Polyline pline, Vector3d dir)
         {
-            double plineWidth = 0.0;
+            double plineWidth;
             try
             {
                 plineWidth = pline.ConstantWidth;
             }
             catch (System.Exception)
             {
-                plineWidth = 0.5;
+                plineWidth = 0.25;
             }
 
             //Create starting points
@@ -98,7 +99,94 @@ namespace AcadOverrules
 
             return new Point3dCollection(points);
         }
+        private void drawTangencyViolatedPolygonAndLabel(
+            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
+            double plineWidth,
+            Point3d vertPos,
+            Vector3d dir)
+        {
+            //Use polypolygon
+            //https://forums.autodesk.com/t5/net/drawjig-geometry-polypolygon/m-p/8909612/highlight/true#M63223
+            //NumPolygonPositions -> how many polygons
+            //Each value of this array represents the number of that kind of polygon
+            UInt32Collection numPolygonPositions =
+                new UInt32Collection(1) { 1 };
 
+            //polygonPositions
+            //Point3d of polygon position
+            Point3dCollection polygonPositions =
+                new Point3dCollection() { vertPos };
+
+            //numPolygonPoints
+            //Input the number of the polygons' vertices.
+            UInt32Collection numPolygonPoints =
+                new UInt32Collection(1) { 4 };
+
+            //polygonPoints
+            //the points of polygon
+            Point3dCollection polygonPoints =
+                createPolygonPointsTangencyViolated(plineWidth, dir);
+
+            //outlineColors
+            //Input the outline color for each polygon type, one outlineColor per polygon*index.
+            EntityColorCollection outlineColors =
+                new EntityColorCollection(1) {
+                                    new EntityColor(ColorMethod.ByAci, 2) };
+
+            //outlineTypes
+            //Input the outline type for each polygon type, one outlineType per polygon*index.
+            Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection outlineTypes =
+                new Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection()
+                    {
+                        Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid
+                    };
+
+            //fillColors
+            //Input the filled color for each polygon type, one fillColor per polygon index.
+            EntityColorCollection fillColors =
+                new EntityColorCollection(1) {
+                                    new EntityColor(ColorMethod.ByAci, 2) };
+
+            //fillOpacities
+            //Input the opacity of polygon, one fillOpacity per polygon index
+            TransparencyCollection fillOpacities =
+                new TransparencyCollection(1) {
+                                    new Transparency((byte)255)
+                };
+
+            //Draw the polygons
+            wd.Geometry.PolyPolygon(
+                numPolygonPositions, polygonPositions, numPolygonPoints,
+                polygonPoints, outlineColors, outlineTypes, fillColors, fillOpacities);
+        }
+        private Point3dCollection createPolygonPointsTangencyViolated(
+            double plineWidth, Vector3d dir1)
+        {
+            //Create starting points
+            Point3d[] points = new Point3d[4];
+            points[0] = new Point3d(-0.7071, 0.0, 0.0);
+            points[1] = new Point3d(0.0, plineWidth * 1.5, 0.0);
+            points[2] = new Point3d(0.7071, 0.0, 0.0);
+            points[3] = new Point3d(0.0, -plineWidth * 1.5, 0.0);
+
+            //Rotate points to match segment angle
+            double angle = Vector3d.XAxis.GetAngleTo(dir1);
+            for (int i = 0; i < points.Length; i++)
+                points[i] = points[i].RotateBy(angle, Vector3d.ZAxis, origo);
+
+            return new Point3dCollection(points);
+        }
+        private void drawAngleLabel(
+            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd, 
+            Point3d vertPos, double angleDeg, double plineWidth, Vector3d dir)
+        {
+            Vector3d labelDir = -dir.GetPerpendicularVector();
+
+            wd.Geometry.Text(
+                vertPos + labelDir * (plineWidth * 1.5 + labelHeight),
+                Vector3d.ZAxis, dir, $"{angleDeg.ToString("0.####")}°",
+                true, style);
+        }
         #endregion
 
         #region Text style
@@ -278,6 +366,8 @@ namespace AcadOverrules
                     SegmentType st1 = pline.GetSegmentType(i);
                     SegmentType st2 = pline.GetSegmentType(i + 1);
 
+                    Point3d vertPos = pline.GetPoint3dAt(i + 1);
+
                     if (st1 == SegmentType.Line && st2 == st1)
                     {
                         LineSegment2d ls2d1 = pline.GetLineSegment2dAt(i);
@@ -286,7 +376,6 @@ namespace AcadOverrules
                         //1. Collinear: draw yellow rectangle
                         if (ls2d1.IsColinearTo(ls2d2))
                         {
-                            Point3d vertPos = pline.GetPoint3dAt(i + 1);
                             Vector3d dir = ls2d1.Direction.To3D();
 
                             #region polyPolygon
@@ -353,16 +442,44 @@ namespace AcadOverrules
                         {
                             double angleRad = ls2d1.Direction.GetAngleTo(ls2d2.Direction);
                             double angleDeg = angleRad.ToDegrees();
+                            double plineWidth = pline.ConstantWidthSafe();
+
+                            if (plineWidth.IsZero()) plineWidth = 0.25;
 
                             if (angleDeg <= 5.0 && !angleDeg.IsZero())
                             {
                                 prdDbg("Angle: " + angleDeg.ToString("0.######") + "°");
+                                Vector3d dir = ls2d1.Direction.To3D();
+
+                                #region polyPolygon
+                                drawTangencyViolatedPolygonAndLabel(wd, plineWidth, vertPos, dir);
+                                #endregion
+
+                                #region Angle label
+                                drawAngleLabel(wd, vertPos, angleDeg, plineWidth, dir);
+                                #endregion
                             }
                         }
+                    }
+                    else if (st1 == SegmentType.Arc && st2 == st1)
+                    {
+                        CircularArc2d as2d1 = pline.GetArcSegment2dAt(i);
+                        CircularArc2d as2d2 = pline.GetArcSegment2dAt(i + 1);
 
-                        
-                        
-                        
+                        Vector3d dir1 = as2d1.GetTangent(as2d1.EndPoint).Direction.To3D();
+                        Vector3d dir2 = as2d2.GetTangent(as2d2.StartPoint).Direction.To3D();
+
+                        double angleRad = dir1.GetAngleTo(dir2);
+                        double angleDeg = angleRad.ToDegrees();
+
+                        if (angleDeg <= 5.0 && !angleDeg.IsZero())
+                        {
+                            double plineWidth = pline.ConstantWidthSafe();
+                            if (plineWidth.IsZero()) plineWidth = 0.25;
+                            drawTangencyViolatedPolygonAndLabel(
+                                wd, plineWidth, vertPos, dir1);
+                            drawAngleLabel(wd, vertPos, angleDeg, plineWidth, dir1);
+                        }
                     }
                 }
             }
