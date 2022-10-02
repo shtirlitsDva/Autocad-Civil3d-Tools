@@ -71,11 +71,11 @@ namespace AcadOverrules
             }
 
             //Create starting points
-            Point3d[] points = new Point3d[4];
+            Point3d[] points = new Point3d[8];
             points[0] = new Point3d(-0.7071, 0.0, 0.0);
-            points[1] = new Point3d(0.7071, 0.0, 0.0);
-            points[2] = new Point3d(-0.7071, plineWidth / 2, 0.0);
-            points[3] = new Point3d(0.7071, plineWidth / 2, 0.0);
+            points[1] = new Point3d(-0.7071, plineWidth / 2, 0.0);
+            points[2] = new Point3d(0.7071, plineWidth / 2, 0.0);
+            points[3] = new Point3d(0.7071, 0.0, 0.0);
 
             //Prepare the translation
             Point3d target = new Point3d(0.0, plineWidth, 0.0);
@@ -83,14 +83,20 @@ namespace AcadOverrules
             Matrix3d translation = Matrix3d.Displacement(translationVector);
 
             //Vertically offset points
-            for (int i = 0; i < points.Length; i++)
-            {
+            for (int i = 0; i < 4; i++)
                 points[i] = points[i].TransformBy(translation);
-            }
 
-            //
+            //Create second pair of points for mirrored polygon
+            int offset = 4;
+            for (int i = 0; i < 4; i++)
+                points[i + offset] = points[i].RotateBy(Math.PI, Vector3d.ZAxis, origo);
 
-            return points;
+            //Rotate points to match segment angle
+            double angle = Vector3d.XAxis.GetAngleTo(dir);
+            for (int i = 0; i < points.Length; i++)
+                points[i] = points[i].RotateBy(angle, Vector3d.ZAxis, origo);
+
+            return new Point3dCollection(points);
         }
 
         #endregion
@@ -282,7 +288,6 @@ namespace AcadOverrules
                         {
                             Point3d vertPos = pline.GetPoint3dAt(i + 1);
                             Vector3d dir = ls2d1.Direction.To3D();
-                            Vector3d startingDir = dir.RotateBy(Math.PI / 4, Vector3d.ZAxis);
 
                             #region polyPolygon
                             //Use polypolygon
@@ -290,53 +295,53 @@ namespace AcadOverrules
                             //NumPolygonPositions -> how many polygons
                             //Each value of this array represents the number of that kind of polygon
                             UInt32Collection numPolygonPositions =
-                                new UInt32Collection(1) { 1 };
+                                new UInt32Collection(2) { 1, 1 };
 
                             //polygonPositions
                             //Point3d of polygon position
                             Point3dCollection polygonPositions =
-                                new Point3dCollection() { vertPos };
+                                new Point3dCollection() { vertPos, vertPos };
 
                             //numPolygonPoints
                             //Input the number of the polygons' vertices.
                             UInt32Collection numPolygonPoints =
-                                new UInt32Collection(1) { 4 };
+                                new UInt32Collection(2) { 4, 4 };
 
                             //polygonPoints
                             //the points of polygon
                             Point3dCollection polygonPoints =
-                                new Point3dCollection();
+                                createPolygonPointsCollinearSymbol(pline, dir);
 
                             //outlineColors
                             //Input the outline color for each polygon type, one outlineColor per polygon*index.
                             EntityColorCollection outlineColors =
-                                new EntityColorCollection(1) { new EntityColor(30) };
+                                new EntityColorCollection(2) {
+                                    new EntityColor(ColorMethod.ByAci, 30),
+                                    new EntityColor(ColorMethod.ByAci, 30) };
 
                             //outlineTypes
                             //Input the outline type for each polygon type, one outlineType per polygon*index.
                             Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection outlineTypes =
                                 new Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection()
-                                    { Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid };
+                                    {
+                                        Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid,
+                                        Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid
+                                    };
 
                             //fillColors
                             //Input the filled color for each polygon type, one fillColor per polygon index.
                             EntityColorCollection fillColors =
-                                new EntityColorCollection(1) { new EntityColor(30) };
+                                new EntityColorCollection(2) {
+                                    new EntityColor(ColorMethod.ByAci, 30),
+                                    new EntityColor(ColorMethod.ByAci, 30) };
 
                             //fillOpacities
                             //Input the opacity of polygon, one fillOpacity per polygon index
                             TransparencyCollection fillOpacities =
-                                new TransparencyCollection(1) { new Transparency((byte)100) };
-
-                            //Build the polygons
-                            //Get point3d for outer polygon
-                            Point3d origo = new Point3d();
-                            for (int j = 0; j < 4; j++)
-                            {
-                                polygonPoints.Add(
-                                    origo + startingDir.RotateBy(
-                                        Math.PI / 2 * j, Vector3d.ZAxis) * collinearPolygonOuterOffset);
-                            }
+                                new TransparencyCollection(2) {
+                                    new Transparency((byte)255),
+                                    new Transparency((byte)255)
+                                };
 
                             //Draw the polygons
                             wd.Geometry.PolyPolygon(
@@ -344,6 +349,20 @@ namespace AcadOverrules
                                 polygonPoints, outlineColors, outlineTypes, fillColors, fillOpacities);
                             #endregion
                         }
+                        else
+                        {
+                            double angleRad = ls2d1.Direction.GetAngleTo(ls2d2.Direction);
+                            double angleDeg = angleRad.ToDegrees();
+
+                            if (angleDeg <= 5.0 && !angleDeg.IsZero())
+                            {
+                                prdDbg("Angle: " + angleDeg.ToString("0.######") + "°");
+                            }
+                        }
+
+                        
+                        
+                        
                     }
                 }
             }
