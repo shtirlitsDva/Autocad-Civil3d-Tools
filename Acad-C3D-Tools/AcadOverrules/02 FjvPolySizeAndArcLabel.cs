@@ -44,15 +44,58 @@ namespace AcadOverrules
 {
     public class FjvPolylineLabel : Autodesk.AutoCAD.GraphicsInterface.DrawableOverrule
     {
-        //Settings
+        #region Settings
         private const double labelDist = 25;
         private const double labelOffset = 1.2;
         private const double labelHeight = 1.0;
+        #endregion
 
-        //Tangency settings
+        #region Common variables
+        private static readonly Point3d origo = new Point3d();
+        #endregion
+
+        #region Tangency
         //Collinear
         private const double collinearPolygonOuterOffset = 1.0;
 
+        private Point3dCollection createPolygonPointsCollinearSymbol(Polyline pline, Vector3d dir)
+        {
+            double plineWidth = 0.0;
+            try
+            {
+                plineWidth = pline.ConstantWidth;
+            }
+            catch (System.Exception)
+            {
+                plineWidth = 0.5;
+            }
+
+            //Create starting points
+            Point3d[] points = new Point3d[4];
+            points[0] = new Point3d(-0.7071, 0.0, 0.0);
+            points[1] = new Point3d(0.7071, 0.0, 0.0);
+            points[2] = new Point3d(-0.7071, plineWidth / 2, 0.0);
+            points[3] = new Point3d(0.7071, plineWidth / 2, 0.0);
+
+            //Prepare the translation
+            Point3d target = new Point3d(0.0, plineWidth, 0.0);
+            Vector3d translationVector = origo.GetVectorTo(target);
+            Matrix3d translation = Matrix3d.Displacement(translationVector);
+
+            //Vertically offset points
+            for (int i = 0; i < points.Length; i++)
+            {
+                points[i] = points[i].TransformBy(translation);
+            }
+
+            //
+
+            return points;
+        }
+
+        #endregion
+
+        #region Text style
         private Autodesk.AutoCAD.GraphicsInterface.TextStyle style =
             new Autodesk.AutoCAD.GraphicsInterface.TextStyle
             (
@@ -70,13 +113,13 @@ namespace AcadOverrules
                 false,
                 "MyStd"
                 );
+        #endregion
 
         public FjvPolylineLabel()
         {
             base.SetCustomFilter();
         }
 
-        //public bool Enabled { get; set; } = false;
         public override bool IsApplicable(RXObject overruledSubject)
         {
             //Put a check of Enabled here if using that also
@@ -298,7 +341,7 @@ namespace AcadOverrules
                             //Draw the polygons
                             wd.Geometry.PolyPolygon(
                                 numPolygonPositions, polygonPositions, numPolygonPoints,
-                                polygonPoints, outlineColors, outlineTypes, fillColors, fillOpacities); 
+                                polygonPoints, outlineColors, outlineTypes, fillColors, fillOpacities);
                             #endregion
                         }
                     }
