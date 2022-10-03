@@ -1081,6 +1081,13 @@ namespace IntersectUtilities
                 }
             }
 
+            for (int i = 0; i < pline.NumberOfVertices; i++)
+            {
+                SegmentType st1 = pline.GetSegmentType(i);
+                if (st1 == SegmentType.Coincident) verticesToRemove.Add(i);
+            }
+
+            verticesToRemove.Sort();
             verticesToRemove.Reverse();
             pline.CheckOrOpenForWrite();
             for (int j = 0; j < verticesToRemove.Count; j++)
