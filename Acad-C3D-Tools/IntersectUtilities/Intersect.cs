@@ -4563,6 +4563,7 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("REPLACEBLOCK")]
+        [CommandMethod("RB")]
         public void replaceblock()
         {
             DocumentCollection docCol = Application.DocumentManager;
