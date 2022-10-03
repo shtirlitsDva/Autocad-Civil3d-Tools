@@ -71,6 +71,8 @@ namespace AcadOverrules
                 plineWidth = 0.25;
             }
 
+            if (plineWidth.IsZero()) plineWidth = 0.25;
+
             //Create starting points
             Point3d[] points = new Point3d[8];
             points[0] = new Point3d(-0.7071, 0.0, 0.0);
@@ -175,6 +177,89 @@ namespace AcadOverrules
                 points[i] = points[i].RotateBy(angle, Vector3d.ZAxis, origo);
 
             return new Point3dCollection(points);
+        }
+        private Point3dCollection createPolygonPointsCoincidentEmptyPoint()
+        {
+            //Create starting points
+            Point3d[] points = new Point3d[12];
+            points[0] = new Point3d(-0.3536, 0.0, 0.0);
+            points[1] = new Point3d(-0.8839, 0.5303, 0.0);
+            points[2] = new Point3d(-0.5303, 0.8839, 0.0);
+            points[3] = new Point3d(0.0, 0.3536, 0.0);
+            points[4] = new Point3d(0.5303, 0.8839, 0.0);
+            points[5] = new Point3d(0.8839, 0.5303, 0.0);
+            points[6] = new Point3d(0.3536, 0.0, 0.0);
+            points[7] = new Point3d(0.8839, -0.5303, 0.0);
+            points[8] = new Point3d(0.5303, -0.8839, 0.0);
+            points[9] = new Point3d(0.0, -0.3536, 0.0);
+            points[10] = new Point3d(-0.5303, -0.8839, 0.0);
+            points[11] = new Point3d(-0.8839, -0.5303, 0.0);
+
+            ////Rotate points to match segment angle
+            //double angle = Vector3d.XAxis.GetAngleTo(dir);
+            //for (int i = 0; i < points.Length; i++)
+            //    points[i] = points[i].RotateBy(angle, Vector3d.ZAxis, origo);
+
+            return new Point3dCollection(points);
+        }
+        private void drawCoincidentEmptyPointPolygon(
+            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
+            Point3d vertPos
+            )
+        {
+            //Use polypolygon
+            //https://forums.autodesk.com/t5/net/drawjig-geometry-polypolygon/m-p/8909612/highlight/true#M63223
+            //NumPolygonPositions -> how many polygons
+            //Each value of this array represents the number of that kind of polygon
+            UInt32Collection numPolygonPositions =
+                new UInt32Collection(1) { 1 };
+
+            //polygonPositions
+            //Point3d of polygon position
+            Point3dCollection polygonPositions =
+                new Point3dCollection() { vertPos };
+
+            //numPolygonPoints
+            //Input the number of the polygons' vertices.
+            UInt32Collection numPolygonPoints =
+                new UInt32Collection(1) { 12 };
+
+            //polygonPoints
+            //the points of polygon
+            Point3dCollection polygonPoints =
+                createPolygonPointsCoincidentEmptyPoint();
+
+            //outlineColors
+            //Input the outline color for each polygon type, one outlineColor per polygon*index.
+            EntityColorCollection outlineColors =
+                new EntityColorCollection(1) {
+                    new EntityColor(ColorMethod.ByAci, 2) };
+
+            //outlineTypes
+            //Input the outline type for each polygon type, one outlineType per polygon*index.
+            Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection outlineTypes =
+                new Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection()
+                    {
+                        Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid
+                    };
+
+            //fillColors
+            //Input the filled color for each polygon type, one fillColor per polygon index.
+            EntityColorCollection fillColors =
+                new EntityColorCollection(1) {
+                    new EntityColor(ColorMethod.ByAci, 2) };
+
+            //fillOpacities
+            //Input the opacity of polygon, one fillOpacity per polygon index
+            TransparencyCollection fillOpacities =
+                new TransparencyCollection(1) {
+                    new Transparency((byte)255)
+                };
+
+            //Draw the polygons
+            wd.Geometry.PolyPolygon(
+                numPolygonPositions, polygonPositions, numPolygonPoints,
+                polygonPoints, outlineColors, outlineTypes, fillColors, fillOpacities);
         }
         private void drawAngleLabel(
             Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd, 
@@ -360,8 +445,8 @@ namespace AcadOverrules
             {
                 for (int i = 0; i < pline.NumberOfVertices - 1; i++)
                 {
-                    double bulge1 = pline.GetBulgeAt(i);
-                    double bulge2 = pline.GetBulgeAt(i + 1);
+                    //double bulge1 = pline.GetBulgeAt(i);
+                    //double bulge2 = pline.GetBulgeAt(i + 1);
 
                     SegmentType st1 = pline.GetSegmentType(i);
                     SegmentType st2 = pline.GetSegmentType(i + 1);
@@ -448,7 +533,7 @@ namespace AcadOverrules
 
                             if (angleDeg <= 5.0 && !angleDeg.IsZero())
                             {
-                                prdDbg("Angle: " + angleDeg.ToString("0.######") + "°");
+                                //prdDbg("Angle: " + angleDeg.ToString("0.######") + "°");
                                 Vector3d dir = ls2d1.Direction.To3D();
 
                                 #region polyPolygon
@@ -461,24 +546,33 @@ namespace AcadOverrules
                             }
                         }
                     }
-                    else if (st1 == SegmentType.Arc && st2 == st1)
+                    else if (
+                        (st1 == SegmentType.Arc || st1 == SegmentType.Line) && 
+                        (st2 == SegmentType.Arc || st2 == SegmentType.Line))
                     {
-                        CircularArc2d as2d1 = pline.GetArcSegment2dAt(i);
-                        CircularArc2d as2d2 = pline.GetArcSegment2dAt(i + 1);
+                        var dirs = pline.DirectionsAt(i + 1); //Uses look back, while for loop uses look forward
 
-                        Vector3d dir1 = as2d1.GetTangent(as2d1.EndPoint).Direction.To3D();
-                        Vector3d dir2 = as2d2.GetTangent(as2d2.StartPoint).Direction.To3D();
-
-                        double angleRad = dir1.GetAngleTo(dir2);
+                        double angleRad = dirs.dir1.GetAngleTo(dirs.dir2);
                         double angleDeg = angleRad.ToDegrees();
-
+                        //prdDbg(angleDeg.ToString("0.####") + "°");
                         if (angleDeg <= 5.0 && !angleDeg.IsZero())
                         {
                             double plineWidth = pline.ConstantWidthSafe();
                             if (plineWidth.IsZero()) plineWidth = 0.25;
                             drawTangencyViolatedPolygonAndLabel(
-                                wd, plineWidth, vertPos, dir1);
-                            drawAngleLabel(wd, vertPos, angleDeg, plineWidth, dir1);
+                                wd, plineWidth, vertPos, dirs.dir1);
+                            drawAngleLabel(wd, vertPos, angleDeg, plineWidth, dirs.dir1);
+                        }
+                    }
+                    else
+                    {//Segment
+                        if (st1 == SegmentType.Coincident || 
+                            st1 == SegmentType.Empty ||
+                            st1 == SegmentType.Point)
+                        {
+                            Point3d loc = pline.GetPoint3dAt(i);
+
+                            drawCoincidentEmptyPointPolygon(wd, loc);
                         }
                     }
                 }

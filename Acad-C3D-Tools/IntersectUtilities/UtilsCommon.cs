@@ -100,7 +100,7 @@ namespace IntersectUtilities.UtilsCommon
         public static Color ParseColorString(string colorString)
         {
             if (colorString.IsNoE()) return null;
-            
+
             Regex indexColorRegex = new Regex(@"^\d{1,3}$");
             Regex rgbRegex = new Regex(@"^(?<R>\d+)\*(?<G>\d+)\*(?<B>\d+)$");
             Regex nameRegex = new Regex(@"^[a-zA-Z]+$");
@@ -1467,6 +1467,42 @@ namespace IntersectUtilities.UtilsCommon
                 plineWidth = 0.0;
             }
             return plineWidth;
+        }
+        /// <summary>
+        /// Uses backward lookup, index is the forward segment compared with index - 1 backward segment.
+        /// </summary>
+        public static (Vector3d dir1, Vector3d dir2) DirectionsAt(this Polyline pline, int index)
+        {
+            int numberOfVertices = pline.NumberOfVertices;
+            if (index == 0 || index == numberOfVertices - 1) return default;
+            if (numberOfVertices < 3) return default;
+
+            SegmentType st1 = pline.GetSegmentType(index - 1);
+            SegmentType st2 = pline.GetSegmentType(index);
+
+            Vector3d dir1;
+            Vector3d dir2;
+
+            if (st1 == SegmentType.Line) dir1 = pline.GetLineSegmentAt(index - 1).Direction;
+            else if (st1 == SegmentType.Arc)
+            {
+                CircularArc3d ca3d = pline.GetArcSegmentAt(index - 1);
+                dir1 = ca3d.GetTangent(ca3d.EndPoint).Direction;
+            }
+            else dir1 = default;
+
+            if (st2 == SegmentType.Line) dir2 = pline.GetLineSegmentAt(index).Direction;
+            else if (st2 == SegmentType.Arc)
+            {
+                CircularArc3d ca3d = pline.GetArcSegmentAt(index);
+                dir2 = ca3d.GetTangent(ca3d.StartPoint).Direction;
+            }
+            else dir2 = default;
+
+            //Detect if vectors are opposite directions
+            if (dir1.DotProduct(dir2) < 0) dir2 = -dir2;
+
+            return (dir1, dir2);
         }
         public static Transaction GetTopTx(this Entity ent) => ent.Database.TransactionManager.TopTransaction;
         public static Transaction StartTx(this Entity ent) => ent.Database.TransactionManager.StartTransaction();
