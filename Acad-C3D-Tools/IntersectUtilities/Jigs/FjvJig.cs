@@ -176,6 +176,18 @@ namespace IntersectUtilities
                                 pl.RemoveVertexAt(pl.NumberOfVertices - 1);
                                 pl.AddVertexAt(
                                     pl.NumberOfVertices, _tempPoint.Convert2d(_plane), 0, 0, 0);
+
+                                //Case: continuing arc
+                                //If bulge on before-before segmen is non-zero then it is arc we are cont.
+                                if (pl.NumberOfVertices > 2 && pl.GetBulgeAt(pl.NumberOfVertices - 3) != 0)
+                                {
+                                    CircularArc2d ca2d = pl.GetArcSegment2dAt(pl.NumberOfVertices - 3);
+
+                                    Point2d intP = JigUtils.GetTangentsTo(ca2d, _tempPoint.Convert2d(_plane));
+
+                                    if (intP != default)
+                                        pl.SetPointAt(pl.NumberOfVertices - 2, intP);
+                                }
                             }
                             //prdDbg(pl.NumberOfVertices);
                             //prdDbg(_tempPoint);

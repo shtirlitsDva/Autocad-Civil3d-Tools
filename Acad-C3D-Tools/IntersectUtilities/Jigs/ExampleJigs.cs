@@ -100,6 +100,23 @@ namespace IntersectUtilities
 
                 return Atan(sin, cos);
             }
+
+            public static Point2d GetTangentsTo(CircularArc2d arc, Point2d pt)
+            {
+                Point2d center = arc.Center;
+                if (pt.GetDistanceTo(center) <= arc.Radius) return default;
+                Vector2d vec = center.GetVectorTo(pt) / 2.0;
+                CircularArc2d tmp = new CircularArc2d(center + vec, vec.Length);
+                Point2d[] inters = arc.IntersectWith(tmp);
+                if (inters == null || inters.Length < 2) return default;
+                Point2d tanPt;
+
+                if (inters[0].X > inters[1].X) tanPt = inters[0];
+                else tanPt = inters[1];
+
+                return new Point2d(tanPt.X, tanPt.Y);
+            }
+
         }
 
         public class BulgePolyJig : EntityJig
