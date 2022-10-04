@@ -353,5 +353,5 @@ namespace IntersectUtilities
                 }
             }
         }
-    }
+}
 }
