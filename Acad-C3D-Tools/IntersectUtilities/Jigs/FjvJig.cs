@@ -50,6 +50,7 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using System.Windows.Documents;
 using Autodesk.Aec.DatabaseServices;
+using Autodesk.Civil.Settings;
 
 namespace IntersectUtilities
 {
@@ -85,10 +86,20 @@ namespace IntersectUtilities
                         UserInputControls.GovernedByUCSDetect
                         ;
 
-                    jigOpts.BasePoint = _tempPoint;
-                    jigOpts.UseBasePoint = true;
-
                     Polyline pline = Entity as Polyline;
+
+                    if (pline.NumberOfVertices > 1)
+                    {
+                        jigOpts.BasePoint = pline.GetPoint3dAt(
+                            pline.NumberOfVertices - 2);
+                        jigOpts.UseBasePoint = true;
+                    }
+                    else if (pline.NumberOfVertices == 1)
+                    {
+                        jigOpts.BasePoint = pline.GetPoint3dAt(
+                            pline.NumberOfVertices - 1);
+                        jigOpts.UseBasePoint = true;
+                    }
 
                     if (pline.NumberOfVertices == 0)
                     {
@@ -120,7 +131,7 @@ namespace IntersectUtilities
                     {
                         if (res.StringResult == "Line")
                             _currentMode = CurrentModeEnum.Line;
-                        else if (res.StringResult.ToUpper() == "Arc")
+                        else if (res.StringResult == "Arc")
                             _currentMode = CurrentModeEnum.Arc;
                         //else if (res.StringResult.ToUpper() == "UNDO")
                         //    _isUndoing = true;
@@ -148,30 +159,92 @@ namespace IntersectUtilities
 
             protected override bool Update()
             {
-                Polyline pl = Entity as Polyline;
-
-                switch (_currentMode)
+                try
                 {
-                    case CurrentModeEnum.Line:
-                        //Do not add vertex until we have a starting position
-                        if (pl.NumberOfVertices == 0) break;
-                        else if (pl.NumberOfVertices > 0)
-                        {
-                            pl.RemoveVertexAt(pl.NumberOfVertices - 1);
-                            pl.AddVertexAt(
-                                pl.NumberOfVertices, _tempPoint.Convert2d(_plane), 0, 0, 0);
-                        }
-                        //prdDbg(pl.NumberOfVertices);
-                        //prdDbg(_tempPoint);
-                        break;
-                    case CurrentModeEnum.Arc:
-                        prdDbg("Not implemented yet!");
-                        break;
-                    default:
-                        prdDbg("Encountered default switch in currentMode in Update()");
-                        break;
+                    Polyline pl = Entity as Polyline;
+
+                    switch (_currentMode)
+                    {
+                        case CurrentModeEnum.Line:
+                            //Do not add vertex until we have a starting position
+                            if (pl.NumberOfVertices == 0) break;
+                            else if (pl.NumberOfVertices > 0)
+                            {
+                                //Reset bulge if coming from Arc
+                                pl.SetBulgeAt(pl.NumberOfVertices - 2, 0);
+
+                                pl.RemoveVertexAt(pl.NumberOfVertices - 1);
+                                pl.AddVertexAt(
+                                    pl.NumberOfVertices, _tempPoint.Convert2d(_plane), 0, 0, 0);
+                            }
+                            //prdDbg(pl.NumberOfVertices);
+                            //prdDbg(_tempPoint);
+                            break;
+                        case CurrentModeEnum.Arc:
+                            if (pl.NumberOfVertices == 0) break;
+                            else if (pl.NumberOfVertices > 0)
+                            {
+                                pl.RemoveVertexAt(pl.NumberOfVertices - 1);
+                                pl.AddVertexAt(
+                                    pl.NumberOfVertices, _tempPoint.Convert2d(_plane), 0, 0, 0);
+
+                                Point3d lastVertex =
+                                    pl.GetPoint3dAt(pl.NumberOfVertices - 2);
+
+                                Vector3d refDir;
+
+                                if (pl.NumberOfVertices < 3) refDir = new Vector3d(1.0, 1.0, 0.0);
+                                else
+                                {
+                                    // Check bulge to see if last segment was an arc or a line
+                                    if (pl.GetBulgeAt(pl.NumberOfVertices - 3) != 0)
+                                    {
+                                        CircularArc3d arcSegment =
+                                          pl.GetArcSegmentAt(pl.NumberOfVertices - 3);
+                                        Line3d tangent = arcSegment.GetTangent(lastVertex);
+                                        // Reference direction is the invert of the arc tangent
+                                        // at last vertex
+                                        refDir = tangent.Direction.MultiplyBy(-1.0);
+                                    }
+                                    else
+                                    {
+                                        Point3d pt =
+                                          pl.GetPoint3dAt(pl.NumberOfVertices - 3);
+
+                                        refDir =
+                                          new Vector3d(
+                                            lastVertex.X - pt.X,
+                                            lastVertex.Y - pt.Y,
+                                            lastVertex.Z - pt.Z
+                                          );
+                                    }
+                                }
+
+                                double angle =
+                                  JigUtils.ComputeAngle(
+                                    lastVertex, _tempPoint, refDir, _ucs);
+
+                                // Bulge is defined as tan of one fourth of included angle
+                                // Need to double the angle since it represents the included
+                                // angle of the arc
+                                // So formula is: bulge = Tan(angle * 2 * 0.25)
+
+                                double bulge = Math.Tan(angle * 0.5);
+
+                                pl.SetBulgeAt(pl.NumberOfVertices - 2, bulge);
+                            }
+                            break;
+                        default:
+                            prdDbg("Encountered default switch in currentMode in Update()");
+                            break;
+                    }
+                    return true;
                 }
-                return true;
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    throw;
+                }
             }
 
             public enum CurrentModeEnum
@@ -228,9 +301,10 @@ namespace IntersectUtilities
                                     prdDbg("Hit KEYWORD switch!");
                                     break;
                                 case PromptStatus.OK:
-                                    {//LMB was pressed, add a vertex two times, because the last will get removed on next update
+                                    {//LMB was pressed, add a vertex, because the last will get removed on next update
                                         jig.AddVertex(0);
-                                        jig.AddVertex(0);
+                                        Polyline pline = jig._entity as Polyline;
+                                        if (pline.NumberOfVertices < 2) jig.AddVertex(0);
                                         prdDbg("Hit OK switch!");
                                         break;
                                     }
