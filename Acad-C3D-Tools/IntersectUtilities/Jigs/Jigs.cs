@@ -128,7 +128,10 @@ namespace IntersectUtilities
                 jigOpts.UserInputControls =
                   (UserInputControls.Accept3dCoordinates |
                   UserInputControls.NullResponseAccepted |
-                  UserInputControls.NoNegativeResponseAccepted);
+                  UserInputControls.NoNegativeResponseAccepted |
+                  UserInputControls.GovernedByOrthoMode |
+                  UserInputControls.GovernedByUCSDetect
+                  );
 
                 _isUndoing = false;
 
@@ -149,8 +152,6 @@ namespace IntersectUtilities
                       );
 
                     string kwds = (_isArcSeg ? "Line Undo" : "Arc Undo");
-
-                    jigOpts.SetMessageAndKeywords(msgAndKwds, kwds);
                 }
                 else
                     return SamplerStatus.Cancel; // Should never happen
