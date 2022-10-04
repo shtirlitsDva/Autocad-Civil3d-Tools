@@ -221,7 +221,8 @@
     <Compile Include="FolderSelectDialog.cs" />
     <Compile Include="GroupByCluster.cs" />
     <Compile Include="IsogenPopulateAttributes.cs" />
-    <Compile Include="Jigs\Jigs.cs" />
+    <Compile Include="Jigs\FjvJig.cs" />
+    <Compile Include="Jigs\ExampleJigs.cs" />
     <Compile Include="LER1.0\LER1_Evida.cs" />
     <Compile Include="LER1.0\LER1_General.cs" />
     <Compile Include="LER1.0\LER1_KLAR.cs" />

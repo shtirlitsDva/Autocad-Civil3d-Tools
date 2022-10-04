@@ -230,9 +230,9 @@ namespace IntersectUtilities
         }
         public static void prdDbg(object obj)
         {
-            DocumentCollection docCol = Application.DocumentManager;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            editor.WriteMessage("\n" + obj.ToString());
+            if (obj is SystemException ex1) prdDbg(obj.ToString().Wrap(70));
+            else if (obj is System.Exception ex2) prdDbg(obj.ToString().Wrap(70));
+            else prdDbg(obj.ToString());
         }
         /// <summary>
         /// Use only for single field, no multiple matches supported!

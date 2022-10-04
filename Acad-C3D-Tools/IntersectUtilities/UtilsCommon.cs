@@ -72,7 +72,6 @@ namespace IntersectUtilities.UtilsCommon
             Editor editor = docCol.MdiActiveDocument.Editor;
             editor.WriteMessage("\n" + msg);
         }
-
         public static void prdDbg(object obj) => prdDbg(obj.ToString());
 
         public static Dictionary<string, Color> AutocadStdColors = new Dictionary<string, Color>()
@@ -1656,6 +1655,46 @@ namespace IntersectUtilities.UtilsCommon
         public static bool IsZero(this double d, double tol) => d > -tol && d < tol;
         public static bool IsZero(this double d) => d > -Tolerance.Global.EqualPoint && d < Tolerance.Global.EqualPoint;
         public static Vector3d To3D(this Vector2d vec) => new Vector3d(vec.X, vec.Y, 0.0);
+
+        /// <summary>
+        /// Returns a list of strings no larger than the max length sent in.
+        /// </summary>
+        /// <remarks>useful function used to wrap string text for reporting.</remarks>
+        /// <param name="text">Text to be wrapped into of List of Strings</param>
+        /// <param name="maxLength">Max length you want each line to be.</param>
+        /// <returns>List of Strings</returns>
+        public static string Wrap(this string text, int maxLength)
+        {
+            // Return empty list of strings if the text was empty
+            if (text.Length == 0) return string.Empty;
+
+            var words = text.Split(' ');
+            var lines = new List<string>();
+            var currentLine = "";
+
+            foreach (var currentWord in words)
+            {
+
+                if ((currentLine.Length > maxLength) ||
+                    ((currentLine.Length + currentWord.Length) > maxLength))
+                {
+                    lines.Add(currentLine);
+                    currentLine = "";
+                }
+
+                if (currentLine.Length > 0)
+                    currentLine += " " + currentWord;
+                else
+                    currentLine += currentWord;
+
+            }
+
+            if (currentLine.Length > 0)
+                lines.Add(currentLine);
+
+
+            return string.Join("\n", lines);
+        }
     }
     public static class ExtensionMethods
     {
