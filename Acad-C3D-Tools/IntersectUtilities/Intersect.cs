@@ -7568,6 +7568,56 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("EXPORTBLOCKSPSDATATOCSV")]
+        public void exportblockspsdatatocsv()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Document doc = docCol.CurrentDocument;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var brs = localDb.HashSetOfType<BlockReference>(tx, true);
+
+                    StringBuilder sb = new StringBuilder();
+
+                    PropertySetManager psMan = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                    PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                    var propList = bbrDef.ListOfProperties();
+
+                    foreach (var item in propList)
+                    {
+                        sb.Append(item.Name + ";");
+                    }
+                    sb.AppendLine();
+
+                    foreach (var br in brs)
+                    {
+                        foreach (var prop in propList)
+                        {
+                            sb.Append(psMan.ReadPropertyString(br, prop) + ";");
+                        }
+                        sb.AppendLine();
+                    }
+
+                    Utils.OutputWriter(
+                        @"X:\108 - 1249 - VEKS projektledelse - Dokumenter\01 Intern\" +
+                        @"15 GIS\01 Tranegilde\05 Analyse\BBR.csv", sb.ToString(), true);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+
         void AbortGracefully(Transaction tx, string msg)
         {
             tx.Abort();
