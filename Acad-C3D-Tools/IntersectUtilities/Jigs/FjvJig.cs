@@ -52,6 +52,7 @@ using System.Windows.Documents;
 using Autodesk.Aec.DatabaseServices;
 using Autodesk.Civil.Settings;
 using System.Runtime.CompilerServices;
+using System.Windows.Controls;
 
 namespace IntersectUtilities
 {
@@ -261,6 +262,11 @@ namespace IntersectUtilities
                             prdDbg("Encountered default switch in currentMode in Update()");
                             break;
                     }
+                    Application.DocumentManager.MdiActiveDocument.TransactionManager.QueueForGraphicsFlush();
+                    Application.DocumentManager.MdiActiveDocument.Database.TransactionManager.QueueForGraphicsFlush();
+                    Application.DocumentManager.MdiActiveDocument.TransactionManager.FlushGraphics();
+                    Application.UpdateScreen();
+                    System.Windows.Forms.Application.DoEvents();
                     return true;
                 }
                 catch (System.Exception ex)
@@ -293,10 +299,11 @@ namespace IntersectUtilities
             public static void drifjvpline()
             {
                 DocumentCollection docCol = Application.DocumentManager;
+                Document doc = docCol.MdiActiveDocument;
                 Database localDb = docCol.MdiActiveDocument.Database;
                 Editor ed = docCol.MdiActiveDocument.Editor;
 
-                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                using (Transaction tx = localDb.TransactionManager.StartOpenCloseTransaction())
                 {
                     try
                     {
@@ -312,11 +319,15 @@ namespace IntersectUtilities
                                 Oid ent = Interaction.GetEntity(
                                     "Select polyline to continue: ",
                                     typeof(Polyline));
+                                Polyline pl = ent.Go<Polyline>(tx, OpenMode.ForWrite);
                                 jig = new DriFjvPolyJig(
-                                    ed.CurrentUserCoordinateSystem,
-                                    ent.Go<Polyline>(tx, OpenMode.ForWrite));
+                                    ed.CurrentUserCoordinateSystem, pl);
+
+                                
+                                
                                 //add dummy vertex to spoof the logic to continue correctly
                                 jig.AddVertex(0);
+                                
                                 break;
                             default: //Keyword "New" should end here
                                 jig = new DriFjvPolyJig(ed.CurrentUserCoordinateSystem);
@@ -334,7 +345,7 @@ namespace IntersectUtilities
                                         prdDbg("Hit NONE switch!");
                                         Polyline pl = jig._entity as Polyline;
                                         jig.RemoveLastVertex();
-                                        if (pl.Database != null)
+                                        if (pl.Database == null)
                                             pl.AddEntityToDbModelSpace(localDb);
                                         tx.Commit();
                                         return;
