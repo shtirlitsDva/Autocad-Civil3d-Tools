@@ -51,6 +51,7 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using System.Windows.Documents;
 using Autodesk.Aec.DatabaseServices;
 using Autodesk.Civil.Settings;
+using System.Runtime.CompilerServices;
 
 namespace IntersectUtilities
 {
@@ -64,12 +65,26 @@ namespace IntersectUtilities
             Matrix3d _ucs;
             Entity _entity;
 
+            /// <summary>
+            /// For use when a new polyline is created
+            /// </summary>
             public DriFjvPolyJig(Matrix3d ucs) : base(new Polyline())
             {
                 _ucs = ucs;
                 Vector3d normal = Vector3d.ZAxis.TransformBy(ucs);
                 _plane = new Plane(Point3d.Origin, normal);
                 Polyline pline = Entity as Polyline;
+                pline.Normal = normal;
+                _entity = Entity;
+            }
+            /// <summary>
+            /// For use when a preexisting polyline is selected
+            /// </summary>
+            public DriFjvPolyJig(Matrix3d ucs, Polyline pline) : base(pline)
+            {
+                _ucs = ucs;
+                Vector3d normal = Vector3d.ZAxis.TransformBy(ucs);
+                _plane = new Plane(Point3d.Origin, normal);
                 pline.Normal = normal;
                 _entity = Entity;
             }
@@ -82,8 +97,8 @@ namespace IntersectUtilities
 
                     jigOpts.UserInputControls =
                         UserInputControls.NullResponseAccepted |
-                        UserInputControls.NoNegativeResponseAccepted |
-                        UserInputControls.GovernedByUCSDetect
+                        UserInputControls.NoNegativeResponseAccepted
+                        //| UserInputControls.GovernedByUCSDetect
                         ;
 
                     Polyline pline = Entity as Polyline;
@@ -178,7 +193,7 @@ namespace IntersectUtilities
                                     pl.NumberOfVertices, _tempPoint.Convert2d(_plane), 0, 0, 0);
 
                                 //Case: continuing arc
-                                //If bulge on before-before segmen is non-zero then it is arc we are cont.
+                                //If bulge on before-before segment is non-zero then it is arc we are cont.
                                 if (pl.NumberOfVertices > 2 && pl.GetBulgeAt(pl.NumberOfVertices - 3) != 0)
                                 {
                                     CircularArc2d ca2d = pl.GetArcSegment2dAt(pl.NumberOfVertices - 3);
@@ -186,7 +201,24 @@ namespace IntersectUtilities
                                     Point2d intP = JigUtils.GetTangentsTo(ca2d, _tempPoint.Convert2d(_plane));
 
                                     if (intP != default)
+                                    {
                                         pl.SetPointAt(pl.NumberOfVertices - 2, intP);
+                                        Point3d lastVertex = pl.GetPoint3dAt(
+                                            pl.NumberOfVertices - 3);
+
+                                        double angle = JigUtils.ComputeAngle(
+                                            lastVertex, intP.To3D(),
+                                            JigUtils.GetRefDir(pl, lastVertex, 4), _ucs);
+
+                                        // Bulge is defined as tan of one fourth of included angle
+                                        // Need to double the angle since it represents the included
+                                        // angle of the arc
+                                        // So formula is: bulge = Tan(angle * 2 * 0.25)
+
+                                        double bulge = Math.Tan(angle * 0.5);
+                                        pl.SetBulgeAt(pl.NumberOfVertices - 3, bulge);
+                                    }
+
                                 }
                             }
                             //prdDbg(pl.NumberOfVertices);
@@ -208,28 +240,7 @@ namespace IntersectUtilities
                                 if (pl.NumberOfVertices < 3) refDir = new Vector3d(1.0, 1.0, 0.0);
                                 else
                                 {
-                                    // Check bulge to see if last segment was an arc or a line
-                                    if (pl.GetBulgeAt(pl.NumberOfVertices - 3) != 0)
-                                    {
-                                        CircularArc3d arcSegment =
-                                          pl.GetArcSegmentAt(pl.NumberOfVertices - 3);
-                                        Line3d tangent = arcSegment.GetTangent(lastVertex);
-                                        // Reference direction is the invert of the arc tangent
-                                        // at last vertex
-                                        refDir = tangent.Direction.MultiplyBy(-1.0);
-                                    }
-                                    else
-                                    {
-                                        Point3d pt =
-                                          pl.GetPoint3dAt(pl.NumberOfVertices - 3);
-
-                                        refDir =
-                                          new Vector3d(
-                                            lastVertex.X - pt.X,
-                                            lastVertex.Y - pt.Y,
-                                            lastVertex.Z - pt.Z
-                                          );
-                                    }
+                                    refDir = JigUtils.GetRefDir(pl, lastVertex, 3);
                                 }
 
                                 double angle =
@@ -289,7 +300,28 @@ namespace IntersectUtilities
                 {
                     try
                     {
-                        DriFjvPolyJig jig = new DriFjvPolyJig(ed.CurrentUserCoordinateSystem);
+                        DriFjvPolyJig jig;
+
+                        string openingKeyWord = Interaction.GetKeywords(
+                            "Create new or continue existing: ",
+                            new string[2] { "New", "Continue" }, 0);
+
+                        switch (openingKeyWord)
+                        {
+                            case "Continue":
+                                Oid ent = Interaction.GetEntity(
+                                    "Select polyline to continue: ",
+                                    typeof(Polyline));
+                                jig = new DriFjvPolyJig(
+                                    ed.CurrentUserCoordinateSystem,
+                                    ent.Go<Polyline>(tx, OpenMode.ForWrite));
+                                //add dummy vertex to spoof the logic to continue correctly
+                                jig.AddVertex(0);
+                                break;
+                            default: //Keyword "New" should end here
+                                jig = new DriFjvPolyJig(ed.CurrentUserCoordinateSystem);
+                                break;
+                        }
 
                         while (true)
                         {
@@ -302,7 +334,8 @@ namespace IntersectUtilities
                                         prdDbg("Hit NONE switch!");
                                         Polyline pl = jig._entity as Polyline;
                                         jig.RemoveLastVertex();
-                                        pl.AddEntityToDbModelSpace(localDb);
+                                        if (pl.Database != null)
+                                            pl.AddEntityToDbModelSpace(localDb);
                                         tx.Commit();
                                         return;
                                     }

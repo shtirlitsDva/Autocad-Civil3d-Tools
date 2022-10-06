@@ -106,17 +106,58 @@ namespace IntersectUtilities
                 Point2d center = arc.Center;
                 if (pt.GetDistanceTo(center) <= arc.Radius) return default;
                 Vector2d vec = center.GetVectorTo(pt) / 2.0;
-                CircularArc2d tmp = new CircularArc2d(center + vec, vec.Length);
-                Point2d[] inters = arc.IntersectWith(tmp);
-                if (inters == null || inters.Length < 2) return default;
+                //Temp circular arc to get all points to enable back building
+                CircularArc2d tmpFullCircle = new CircularArc2d(center, arc.Radius);
+                CircularArc2d tmpTangents = new CircularArc2d(center + vec, vec.Length);
+                Point2d[] inters = tmpFullCircle.IntersectWith(tmpTangents);
+                if (inters == default || inters.Length == 0) return default;
                 Point2d tanPt;
+                if (inters.Length == 1)
+                {
+                    tanPt = inters[0];
+                    return tanPt;
+                }
 
-                if (inters[0].X > inters[1].X) tanPt = inters[0];
-                else tanPt = inters[1];
+                //Analyze results to determine correct point
+                Vector2d originalDir = arc.GetTangent(arc.EndPoint).Direction;
 
-                return new Point2d(tanPt.X, tanPt.Y);
+                Point2d pt1 = inters[0]; Point2d pt2 = inters[1];
+
+                Vector2d v1 = pt.GetVectorTo(pt1); Vector2d v2 = pt.GetVectorTo(pt2);
+
+                double a1 = originalDir.GetAngleTo(v1); double a2 = originalDir.GetAngleTo(v2);
+
+                return a1 > a2 ? pt2 : pt1;
             }
 
+            public static Vector3d GetRefDir(Polyline pl, Point3d lastVertex, int index)
+            {
+                Vector3d refDir;
+
+                // Check bulge to see if last segment was an arc or a line
+                if (pl.GetBulgeAt(pl.NumberOfVertices - index) != 0)
+                {
+                    CircularArc3d arcSegment =
+                      pl.GetArcSegmentAt(pl.NumberOfVertices - index);
+                    Line3d tangent = arcSegment.GetTangent(lastVertex);
+                    // Reference direction is the invert of the arc tangent
+                    // at last vertex
+                    refDir = tangent.Direction.MultiplyBy(-1.0);
+                }
+                else
+                {
+                    Point3d pt =
+                      pl.GetPoint3dAt(pl.NumberOfVertices - index);
+
+                    refDir =
+                      new Vector3d(
+                        lastVertex.X - pt.X,
+                        lastVertex.Y - pt.Y,
+                        lastVertex.Z - pt.Z
+                      );
+                }
+                return refDir;
+            }
         }
 
         public class BulgePolyJig : EntityJig
