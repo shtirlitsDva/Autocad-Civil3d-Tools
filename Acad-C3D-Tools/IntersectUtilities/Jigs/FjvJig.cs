@@ -58,6 +58,7 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
+        //TODO: Add display of angles and radii
         public class DriFjvPolyJig : EntityJig
         {
             Point3d _tempPoint;
@@ -66,6 +67,7 @@ namespace IntersectUtilities
             Matrix3d _ucs;
             Entity _entity;
             Plane _projectPlane;
+            double _lockedAngle;
 
             /// <summary>
             /// For use when a new polyline is created
@@ -148,8 +150,8 @@ namespace IntersectUtilities
                                 kwds = "Line";
                                 break;
                             default: //Assume default to Line
-                                msgAndKwds = "\nSpecify next point or [Arc]: ";
-                                kwds = "Arc";
+                                msgAndKwds = "\nSpecify next point or [LAngle/Arc]: ";
+                                kwds = "LAngle Arc";
                                 break;
                         }
                         jigOpts.SetMessageAndKeywords(msgAndKwds, kwds);
@@ -161,8 +163,29 @@ namespace IntersectUtilities
 
                     if (res.Status == PromptStatus.Keyword)
                     {
-                        if (res.StringResult == "Line")
-                            _currentMode = CurrentModeEnum.Line;
+                        switch (res.StringResult)
+                        {
+                            case "Line":
+                                _currentMode = CurrentModeEnum.Line;
+                                break;
+                            case "LAngle":
+                                _currentMode = CurrentModeEnum.LineLAngle;
+                                double result = Interaction.GetValue("Input angle: ", 0);
+                                if (result == 0)
+                                {//Abort lock angle
+                                    prdDbg("Failed to get angle!");
+                                    goto case "Line";
+                                }
+                                _lockedAngle = result.ToRadians();
+                                break;
+                            default:
+                                break;
+                        }
+                            
+                        if (res.StringResult == "LAngle")
+                        {
+                            
+                        }
                         else if (res.StringResult == "Arc")
                             _currentMode = CurrentModeEnum.Arc;
                         //else if (res.StringResult.ToUpper() == "UNDO")
@@ -235,11 +258,39 @@ namespace IntersectUtilities
                                         double bulge = Math.Tan(angle * 0.5);
                                         pl.SetBulgeAt(pl.NumberOfVertices - 3, bulge);
                                     }
-
                                 }
                             }
-                            //prdDbg(pl.NumberOfVertices);
-                            //prdDbg(_tempPoint);
+                            break;
+                        case CurrentModeEnum.LineLAngle:
+                            //Do not add vertex until we have a starting position
+                            if (pl.NumberOfVertices == 0) break;
+                            else if (pl.NumberOfVertices > 0)
+                            {
+                                //Reset bulge if coming from Arc
+                                pl.SetBulgeAt(pl.NumberOfVertices - 2, 0);
+                                pl.RemoveVertexAt(pl.NumberOfVertices - 1);
+
+                                //Determine point at locked angle
+                                Point3d lastVertex = pl.GetPoint3dAt(pl.NumberOfVertices - 1);
+                                Vector3d lineDir = pl.GetFirstDerivative(lastVertex);
+
+                                Vector3d dir1 = lineDir.RotateBy(_lockedAngle, Vector3d.ZAxis);
+                                Vector3d dir2 = lineDir.RotateBy(-_lockedAngle, Vector3d.ZAxis);
+                                
+                                Ray3d ray1 = new Ray3d(lastVertex, dir1);
+                                Ray3d ray2 = new Ray3d(lastVertex, dir2);
+
+                                Point3d p1 = ray1.GetClosestPointTo(_tempPoint).Point;
+                                Point3d p2 = ray2.GetClosestPointTo(_tempPoint).Point;
+                                
+                                double dist1 = p1.DistanceTo(_tempPoint);
+                                double dist2 = p2.DistanceTo(_tempPoint);
+                                
+                                _tempPoint = dist1 < dist2 ? p1 : p2;
+
+                                pl.AddVertexAt(
+                                    pl.NumberOfVertices, _tempPoint.Convert2d(_plane), 0, 0, 0);
+                            }
                             break;
                         case CurrentModeEnum.Arc:
                             if (pl.NumberOfVertices == 0) break;
@@ -296,11 +347,19 @@ namespace IntersectUtilities
                 }
             }
 
+
+            [Flags]
             public enum CurrentModeEnum
             {
-                Line,
-                Arc,
-                Attach
+                Line = 0,
+                Arc = 1,
+                Attach = 2,
+                LAngle = 4,
+                LRadius = 8,
+
+                //Combinations
+                LineLAngle = Line | LAngle,
+                ArcLRadius = Arc | LRadius,
             }
 
             public void AddVertex(double bulge)
@@ -413,8 +472,18 @@ namespace IntersectUtilities
                                         Polyline pline = jig._entity as Polyline;
                                         if (pline.NumberOfVertices < 2) jig.AddVertex(0);
                                         //Exit attach mode if it is on
-                                        if (jig._currentMode == CurrentModeEnum.Attach)
-                                            jig._currentMode = CurrentModeEnum.Line;
+                                        switch (jig._currentMode)
+                                        {
+                                            case CurrentModeEnum.Attach:
+                                            case CurrentModeEnum.LineLAngle:
+                                                jig._currentMode = CurrentModeEnum.Line;
+                                                break;
+                                            case CurrentModeEnum.ArcLRadius:
+                                                jig._currentMode = CurrentModeEnum.Arc;
+                                                break;
+                                            default:
+                                                break;
+                                        }
                                         prdDbg("Hit OK switch!");
                                         break;
                                     }
