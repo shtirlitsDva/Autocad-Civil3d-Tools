@@ -262,11 +262,7 @@ namespace IntersectUtilities
                             prdDbg("Encountered default switch in currentMode in Update()");
                             break;
                     }
-                    Application.DocumentManager.MdiActiveDocument.TransactionManager.QueueForGraphicsFlush();
-                    Application.DocumentManager.MdiActiveDocument.Database.TransactionManager.QueueForGraphicsFlush();
-                    Application.DocumentManager.MdiActiveDocument.TransactionManager.FlushGraphics();
-                    Application.UpdateScreen();
-                    System.Windows.Forms.Application.DoEvents();
+                    pl.Draw();
                     return true;
                 }
                 catch (System.Exception ex)
