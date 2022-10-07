@@ -65,6 +65,7 @@ namespace IntersectUtilities
             CurrentModeEnum _currentMode = CurrentModeEnum.Line;
             Matrix3d _ucs;
             Entity _entity;
+            Plane _projectPlane;
 
             /// <summary>
             /// For use when a new polyline is created
@@ -117,9 +118,24 @@ namespace IntersectUtilities
                         jigOpts.UseBasePoint = true;
                     }
 
-                    if (pline.NumberOfVertices == 0)
+                    if (pline.NumberOfVertices == 0 &&
+                        _currentMode != CurrentModeEnum.Attach)
                     {
                         jigOpts.Message = "\nSpecify start point: ";
+                    }
+                    //Case when the user selects attach and the sampler is run first time
+                    else if (pline.NumberOfVertices == 0 &&
+                            _currentMode == CurrentModeEnum.Attach)
+                    {
+                        jigOpts.Message = "\nSpecify next point: ";
+                        pline.AddVertexAt(
+                            pline.NumberOfVertices, _tempPoint.Convert2d(_plane), 0, 0, 0);
+                    }
+                    //Case when the sampler is run after the first time in attach mode
+                    else if (pline.NumberOfVertices == 2 &&
+                            _currentMode == CurrentModeEnum.Attach)
+                    {
+                        jigOpts.Message = "\nSpecify next point: ";
                     }
                     else if (pline.NumberOfVertices > 0)
                     {
@@ -258,11 +274,19 @@ namespace IntersectUtilities
                                 pl.SetBulgeAt(pl.NumberOfVertices - 2, bulge);
                             }
                             break;
+                        case CurrentModeEnum.Attach:
+                            if (pl.NumberOfVertices == 2) RemoveLastVertex();
+
+                            //Calculate the new point
+                            _tempPoint = _projectPlane.ClosestPointTo(_tempPoint);
+                            pl.AddVertexAt(
+                                pl.NumberOfVertices, _tempPoint.Convert2d(_plane), 0, 0, 0);
+                            break;
                         default:
                             prdDbg("Encountered default switch in currentMode in Update()");
                             break;
                     }
-                    pl.Draw();
+                    if (pl.Database != null) pl.Draw();
                     return true;
                 }
                 catch (System.Exception ex)
@@ -275,7 +299,8 @@ namespace IntersectUtilities
             public enum CurrentModeEnum
             {
                 Line,
-                Arc
+                Arc,
+                Attach
             }
 
             public void AddVertex(double bulge)
@@ -307,7 +332,7 @@ namespace IntersectUtilities
 
                         string openingKeyWord = Interaction.GetKeywords(
                             "Create new or continue existing: ",
-                            new string[2] { "New", "Continue" }, 0);
+                            new string[3] { "New", "Continue", "Attach" }, 0);
 
                         switch (openingKeyWord)
                         {
@@ -318,12 +343,42 @@ namespace IntersectUtilities
                                 Polyline pl = ent.Go<Polyline>(tx, OpenMode.ForWrite);
                                 jig = new DriFjvPolyJig(
                                     ed.CurrentUserCoordinateSystem, pl);
-
-                                
-                                
                                 //add dummy vertex to spoof the logic to continue correctly
                                 jig.AddVertex(0);
-                                
+                                break;
+                            case "Attach":
+                                Point3d attachmentP =
+                                    Interaction.GetPoint(
+                                        "Select position along a polyline: ");
+                                //Detect the polyline to attach to
+                                var plines = localDb.HashSetOfType<Polyline>(tx, true);
+                                var query = plines.MinBy(x =>
+                                    attachmentP.DistanceHorizontalTo(
+                                        x.GetClosestPointTo(attachmentP, false)));
+                                Polyline candidate = query.FirstOrDefault();
+                                if (candidate == null)
+                                {
+                                    tx.Abort();
+                                    prdDbg("No polyline found!");
+                                    return;
+                                }
+
+                                //Test to see if the point is on pline
+                                if (attachmentP.DistanceHorizontalTo(
+                                    candidate.GetClosestPointTo(attachmentP, false)) >
+                                    Tolerance.Global.EqualPoint)
+                                {
+                                    tx.Abort();
+                                    prdDbg("Selected point is not on polyline!");
+                                    return;
+                                }
+
+                                jig = new DriFjvPolyJig(ed.CurrentUserCoordinateSystem);
+                                jig._currentMode = CurrentModeEnum.Attach;
+                                jig._tempPoint = attachmentP;
+                                //Lock direction
+                                var deriv = candidate.GetFirstDerivative(attachmentP);
+                                jig._projectPlane = new Plane(attachmentP, deriv);
                                 break;
                             default: //Keyword "New" should end here
                                 jig = new DriFjvPolyJig(ed.CurrentUserCoordinateSystem);
@@ -338,7 +393,7 @@ namespace IntersectUtilities
                             {
                                 case PromptStatus.None:
                                     {
-                                        prdDbg("Hit NONE switch!");
+                                        prdDbg("Hit NONE switch!"); //space was pressed
                                         Polyline pl = jig._entity as Polyline;
                                         jig.RemoveLastVertex();
                                         if (pl.Database == null)
@@ -357,6 +412,9 @@ namespace IntersectUtilities
                                         jig.AddVertex(0);
                                         Polyline pline = jig._entity as Polyline;
                                         if (pline.NumberOfVertices < 2) jig.AddVertex(0);
+                                        //Exit attach mode if it is on
+                                        if (jig._currentMode == CurrentModeEnum.Attach)
+                                            jig._currentMode = CurrentModeEnum.Line;
                                         prdDbg("Hit OK switch!");
                                         break;
                                     }
