@@ -53,6 +53,8 @@ using Autodesk.Aec.DatabaseServices;
 using Autodesk.Civil.Settings;
 using System.Runtime.CompilerServices;
 using System.Windows.Controls;
+using Autodesk.AutoCAD.GraphicsInterface;
+using Polyline = Autodesk.AutoCAD.DatabaseServices.Polyline;
 
 namespace IntersectUtilities
 {
@@ -68,6 +70,7 @@ namespace IntersectUtilities
             Entity _entity;
             Plane _projectPlane;
             double _lockedAngle;
+            TransientManager _tm;
 
             /// <summary>
             /// For use when a new polyline is created
@@ -178,19 +181,14 @@ namespace IntersectUtilities
                                 }
                                 _lockedAngle = result.ToRadians();
                                 break;
+                            case "Arc":
+                                _currentMode = CurrentModeEnum.Arc;
+                                break;
                             default:
                                 break;
                         }
-                            
-                        if (res.StringResult == "LAngle")
-                        {
-                            
-                        }
-                        else if (res.StringResult == "Arc")
-                            _currentMode = CurrentModeEnum.Arc;
-                        //else if (res.StringResult.ToUpper() == "UNDO")
-                        //    _isUndoing = true;
-                        return SamplerStatus.OK;
+
+                        return SamplerStatus.NoChange;
                     }
                     else if (res.Status == PromptStatus.OK)
                     {
@@ -207,7 +205,7 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
-                    prdDbg("Exception encountered!");
+                    prdDbg("Exception encountered in sampler!");
                     return SamplerStatus.Cancel;
                 }
             }
@@ -276,16 +274,16 @@ namespace IntersectUtilities
 
                                 Vector3d dir1 = lineDir.RotateBy(_lockedAngle, Vector3d.ZAxis);
                                 Vector3d dir2 = lineDir.RotateBy(-_lockedAngle, Vector3d.ZAxis);
-                                
+
                                 Ray3d ray1 = new Ray3d(lastVertex, dir1);
                                 Ray3d ray2 = new Ray3d(lastVertex, dir2);
 
                                 Point3d p1 = ray1.GetClosestPointTo(_tempPoint).Point;
                                 Point3d p2 = ray2.GetClosestPointTo(_tempPoint).Point;
-                                
+
                                 double dist1 = p1.DistanceTo(_tempPoint);
                                 double dist2 = p2.DistanceTo(_tempPoint);
-                                
+
                                 _tempPoint = dist1 < dist2 ? p1 : p2;
 
                                 pl.AddVertexAt(
@@ -351,15 +349,21 @@ namespace IntersectUtilities
             [Flags]
             public enum CurrentModeEnum
             {
-                Line = 0,
-                Arc = 1,
-                Attach = 2,
-                LAngle = 4,
-                LRadius = 8,
+                None = 0,
+                Line = 1,
+                Arc = 2,
+                Attach = 4,
+                LAngle = 8,
+                LRadius = 16,
+                PreviousSegmentIsArc = 32,
+                PreviousSegmentIsLine = 64,
 
                 //Combinations
                 LineLAngle = Line | LAngle,
                 ArcLRadius = Arc | LRadius,
+                LinePreviousSegmentArc = Line | PreviousSegmentIsArc,
+                LinePreviousSegmentLine = Line | PreviousSegmentIsLine,
+                LineLAnglePreviousSegmentLine = Line | LAngle | PreviousSegmentIsLine,
             }
 
             public void AddVertex(double bulge)
@@ -443,6 +447,8 @@ namespace IntersectUtilities
                                 jig = new DriFjvPolyJig(ed.CurrentUserCoordinateSystem);
                                 break;
                         }
+
+                        
 
                         while (true)
                         {

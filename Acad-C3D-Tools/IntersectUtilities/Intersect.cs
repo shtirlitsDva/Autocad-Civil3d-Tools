@@ -7617,6 +7617,51 @@ namespace IntersectUtilities
             }
         }
 
+        //[CommandMethod("TESTENUMS")]
+        public void testenums()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Document doc = docCol.CurrentDocument;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    TestEnum testEnum = TestEnum.None
+                        //| TestEnum.TestSecond
+                        //| TestEnum.TestThird
+                        ;
+
+                    testEnum |= TestEnum.TestFirst;
+                    testEnum |= TestEnum.TestSecond;
+                    testEnum |= TestEnum.TestThird;
+                    //testEnum |= TestEnum.TestFourth;
+
+                    prdDbg((testEnum & TestEnum.TestFourth) == 0);
+
+                    prdDbg(testEnum.ToString());
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [Flags]
+        private enum TestEnum
+        {
+            None = 0,
+            TestFirst = 1,
+            TestSecond = 2,
+            TestThird = 4,
+            TestFourth = 8,
+            TestFith = 16,
+        }
 
         void AbortGracefully(Transaction tx, string msg)
         {
