@@ -70,10 +70,16 @@ namespace IntersectUtilities
             Entity _entity;
             Plane _projectPlane;
             double _lockedAngle;
+
+            //Transient stuff for displaying values
             aGi.TransientManager _tm = aGi.TransientManager.CurrentTransientManager;
             private static IntegerCollection collectints = new IntegerCollection();
 
             private static DBObjectCollection angle_labels = new DBObjectCollection();
+            private static DBObjectCollection radius_length_arc_labels = new DBObjectCollection();
+
+            //settings
+            private readonly double LabelHeight = 1.2;
 
             /// <summary>
             /// For use when a new polyline is created
@@ -175,6 +181,7 @@ namespace IntersectUtilities
                         {
                             case "Line":
                                 _currentMode = CurrentModeEnum.Line;
+                                ClearRadiusLengthArcLabels();
                                 break;
                             case "LAngle":
                                 _currentMode = CurrentModeEnum.LineLAngle;
@@ -368,6 +375,36 @@ namespace IntersectUtilities
                             DisplayAngleLabels(angle.ToDegrees(), position);
                         }
                     }
+
+                    //Assume only one radius length label
+                    //Conditions when to display radius length label
+                    //1. Total number of vertices must be at least 2
+                    //2. _currentMode must have Arc set
+                    //3. Current segment must be arc
+                    if (pl.NumberOfVertices > 1 &&
+                        (_currentMode & CurrentModeEnum.Arc) != 0 &&
+                        pl.GetSegmentType(pl.NumberOfVertices - 2) == SegmentType.Arc)
+                    {
+                        CircularArc3d ca3d = pl.GetArcSegmentAt(pl.NumberOfVertices - 2);
+
+                        double length = ca3d.GetLength(
+                            ca3d.GetParameterOf(ca3d.StartPoint), 
+                            ca3d.GetParameterOf(ca3d.EndPoint), 
+                            Tolerance.Global.EqualPoint);
+
+                        if (length.IsZero()) ClearRadiusLengthArcLabels();
+                        else
+                        {
+                            double radius = ca3d.Radius;
+                            //Determine position
+                            double parameter = ca3d.GetParameterAtLength(
+                                ca3d.GetParameterOf(ca3d.StartPoint),
+                                length / 2.0, true, Tolerance.Global.EqualPoint);
+                            Point3d position = ca3d.EvaluatePoint(parameter);
+                            
+                            DisplayRadiusLengthArcLabels(radius, length, position);
+                        }
+                    }
                     #endregion
 
                     return true;
@@ -388,15 +425,10 @@ namespace IntersectUtilities
                 Attach = 4,
                 LAngle = 8,
                 LRadius = 16,
-                PreviousSegmentIsArc = 32,
-                PreviousSegmentIsLine = 64,
 
                 //Combinations
                 LineLAngle = Line | LAngle,
                 ArcLRadius = Arc | LRadius,
-                LinePreviousSegmentArc = Line | PreviousSegmentIsArc,
-                LinePreviousSegmentLine = Line | PreviousSegmentIsLine,
-                LineLAnglePreviousSegmentLine = Line | LAngle | PreviousSegmentIsLine,
             }
 
             #region Vertex handling
@@ -430,13 +462,42 @@ namespace IntersectUtilities
                 string angleText = angle.ToString("0.00") + "°";
 
                 //Assume only one angle label in use at all times
-
                 ClearAngleLabels();
 
                 DBText dBText = new DBText();
                 dBText.TextString = angleText;
                 dBText.Position = position;
+                dBText.Height = LabelHeight;
                 angle_labels.Add(dBText);
+                _tm.AddTransient(dBText, aGi.TransientDrawingMode.DirectTopmost,
+                    128, collectints);
+            }
+
+            private void ClearRadiusLengthArcLabels()
+            {
+                for (int i = 0; i < radius_length_arc_labels.Count; i++)
+                {
+                    aGi.TransientManager.CurrentTransientManager.EraseTransient(
+                        radius_length_arc_labels[i], collectints);
+                    radius_length_arc_labels[i].Dispose();
+                }
+                radius_length_arc_labels.Clear();
+            }
+
+            private void DisplayRadiusLengthArcLabels(double radius, double length, Point3d position)
+            {
+                string text =
+                    $"R:{radius.ToString("0.00m")} " +
+                    $"L:{length.ToString("0.00m")}";
+
+                //Assume only one label in use at all times
+                ClearRadiusLengthArcLabels();
+
+                DBText dBText = new DBText();
+                dBText.TextString = text;
+                dBText.Position = position;
+                dBText.Height = LabelHeight;
+                radius_length_arc_labels.Add(dBText);
                 _tm.AddTransient(dBText, aGi.TransientDrawingMode.DirectTopmost,
                     128, collectints);
             }
@@ -530,6 +591,7 @@ namespace IntersectUtilities
 
                                         //Clean up transients
                                         jig.ClearAngleLabels();
+                                        jig.ClearRadiusLengthArcLabels();
                                         return;
                                     }
                                 case PromptStatus.Error:
@@ -568,6 +630,7 @@ namespace IntersectUtilities
                                     jig._entity.Dispose();
                                     //Clear transients
                                     jig.ClearAngleLabels();
+                                    jig.ClearRadiusLengthArcLabels();
                                     prdDbg("Hit default switch!");
                                     return;
                             }
