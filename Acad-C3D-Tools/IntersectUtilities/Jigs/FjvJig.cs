@@ -53,7 +53,7 @@ using Autodesk.Aec.DatabaseServices;
 using Autodesk.Civil.Settings;
 using System.Runtime.CompilerServices;
 using System.Windows.Controls;
-using Autodesk.AutoCAD.GraphicsInterface;
+using aGi = Autodesk.AutoCAD.GraphicsInterface;
 using Polyline = Autodesk.AutoCAD.DatabaseServices.Polyline;
 
 namespace IntersectUtilities
@@ -70,7 +70,10 @@ namespace IntersectUtilities
             Entity _entity;
             Plane _projectPlane;
             double _lockedAngle;
-            TransientManager _tm;
+            aGi.TransientManager _tm = aGi.TransientManager.CurrentTransientManager;
+            private static IntegerCollection collectints = new IntegerCollection();
+
+            private static DBObjectCollection angle_labels = new DBObjectCollection();
 
             /// <summary>
             /// For use when a new polyline is created
@@ -110,6 +113,7 @@ namespace IntersectUtilities
 
                     Polyline pline = Entity as Polyline;
 
+                    #region Set basePoint
                     if (pline.NumberOfVertices > 1)
                     {
                         jigOpts.BasePoint = pline.GetPoint3dAt(
@@ -122,6 +126,7 @@ namespace IntersectUtilities
                             pline.NumberOfVertices - 1);
                         jigOpts.UseBasePoint = true;
                     }
+                    #endregion
 
                     if (pline.NumberOfVertices == 0 &&
                         _currentMode != CurrentModeEnum.Attach)
@@ -183,6 +188,7 @@ namespace IntersectUtilities
                                 break;
                             case "Arc":
                                 _currentMode = CurrentModeEnum.Arc;
+                                ClearAngleLabels();
                                 break;
                             default:
                                 break;
@@ -336,6 +342,33 @@ namespace IntersectUtilities
                             break;
                     }
                     if (pl.Database != null) pl.Draw();
+
+                    #region Display angle
+                    //Assume only one angle label
+                    //Conditions when to display angle label
+                    //1. Total number of vertices must be at least 3
+                    //2. _currentMode must have Line set
+                    //3. previous segment must not be arc
+                    if (pl.NumberOfVertices > 2 &&
+                        (_currentMode & CurrentModeEnum.Line) != 0 &&
+                        pl.GetSegmentType(pl.NumberOfVertices - 3) != SegmentType.Arc)
+                    {
+                        var prevDir = pl.GetLineSegmentAt(pl.NumberOfVertices - 3).Direction;
+                        var curDir = pl.GetLineSegmentAt(pl.NumberOfVertices - 2).Direction;
+
+                        double angle = prevDir.GetAngleTo(curDir);
+
+                        if (angle.IsZero()) ClearAngleLabels();
+                        else
+                        {
+                            //Determine position
+                            Point3d position = pl.GetPoint3dAt(pl.NumberOfVertices - 2);
+
+                            DisplayAngleLabels(angle.ToDegrees(), position);
+                        }
+                    }
+                    #endregion
+
                     return true;
                 }
                 catch (System.Exception ex)
@@ -366,6 +399,7 @@ namespace IntersectUtilities
                 LineLAnglePreviousSegmentLine = Line | LAngle | PreviousSegmentIsLine,
             }
 
+            #region Vertex handling
             public void AddVertex(double bulge)
             {
                 Polyline pline = Entity as Polyline;
@@ -378,6 +412,35 @@ namespace IntersectUtilities
                 Polyline pline = Entity as Polyline;
                 pline.RemoveVertexAt(pline.NumberOfVertices - 1);
             }
+            #endregion
+
+            #region Transient handling
+            private void ClearAngleLabels()
+            {
+                for (int i = 0; i < angle_labels.Count; i++)
+                {
+                    aGi.TransientManager.CurrentTransientManager.EraseTransient(angle_labels[i], collectints);
+                    angle_labels[i].Dispose();
+                }
+                angle_labels.Clear();
+            }
+
+            private void DisplayAngleLabels(double angle, Point3d position)
+            {
+                string angleText = angle.ToString("0.00") + "°";
+
+                //Assume only one angle label in use at all times
+
+                ClearAngleLabels();
+
+                DBText dBText = new DBText();
+                dBText.TextString = angleText;
+                dBText.Position = position;
+                angle_labels.Add(dBText);
+                _tm.AddTransient(dBText, aGi.TransientDrawingMode.DirectTopmost,
+                    128, collectints);
+            }
+            #endregion
 
             [CommandMethod("DRIFJVPLINE")]
             public static void drifjvpline()
@@ -448,7 +511,7 @@ namespace IntersectUtilities
                                 break;
                         }
 
-                        
+
 
                         while (true)
                         {
@@ -464,6 +527,9 @@ namespace IntersectUtilities
                                         if (pl.Database == null)
                                             pl.AddEntityToDbModelSpace(localDb);
                                         tx.Commit();
+
+                                        //Clean up transients
+                                        jig.ClearAngleLabels();
                                         return;
                                     }
                                 case PromptStatus.Error:
@@ -500,6 +566,8 @@ namespace IntersectUtilities
                                     break;
                                 default:
                                     jig._entity.Dispose();
+                                    //Clear transients
+                                    jig.ClearAngleLabels();
                                     prdDbg("Hit default switch!");
                                     return;
                             }
