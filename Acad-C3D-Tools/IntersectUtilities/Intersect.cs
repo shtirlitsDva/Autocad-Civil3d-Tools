@@ -7592,6 +7592,7 @@ namespace IntersectUtilities
                     {
                         sb.Append(item.Name + ";");
                     }
+                    sb.Append("X;Y;");
                     sb.AppendLine();
 
                     foreach (var br in brs)
@@ -7600,6 +7601,8 @@ namespace IntersectUtilities
                         {
                             sb.Append(psMan.ReadPropertyString(br, prop) + ";");
                         }
+                        sb.Append(br.Position.X.ToString());
+                        sb.Append(br.Position.Y.ToString());
                         sb.AppendLine();
                     }
 
