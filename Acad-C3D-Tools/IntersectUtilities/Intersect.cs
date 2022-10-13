@@ -7601,8 +7601,8 @@ namespace IntersectUtilities
                         {
                             sb.Append(psMan.ReadPropertyString(br, prop) + ";");
                         }
-                        sb.Append(br.Position.X.ToString());
-                        sb.Append(br.Position.Y.ToString());
+                        sb.Append(br.Position.X.ToString()+";");
+                        sb.Append(br.Position.Y.ToString()+";");
                         sb.AppendLine();
                     }
 
