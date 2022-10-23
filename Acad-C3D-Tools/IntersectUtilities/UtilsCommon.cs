@@ -1559,6 +1559,31 @@ namespace IntersectUtilities.UtilsCommon
             if (pl1.StartPoint.HorizontalEqualz(pl2.EndPoint, tol)) return true;
             return false;
         }
+        public static double GetLengthOfSegmentAt(this Polyline pl, int index)
+        {
+            int nVerts = pl.NumberOfVertices;
+            if (index >= nVerts || index < 0) return 0.0;
+
+            SegmentType sType = pl.GetSegmentType(index);
+
+            switch (sType)
+            {
+                case SegmentType.Line:
+                    var line = pl.GetLineSegment2dAt(index);
+                    return line.Length;
+                case SegmentType.Arc:
+                    var arc = pl.GetArcSegment2dAt(index);
+                    return 
+                        arc.GetLength(
+                            arc.GetParameterOf(arc.StartPoint), 
+                            arc.GetParameterOf(arc.EndPoint));
+                case SegmentType.Coincident:
+                case SegmentType.Point:
+                case SegmentType.Empty:
+                default:
+                    return 0.0;
+            }
+        }
         public static HashSet<Point3d> GetAllEndPoints(this BlockReference br)
         {
             HashSet<Point3d> result = new HashSet<Point3d>();

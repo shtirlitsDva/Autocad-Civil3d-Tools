@@ -70,6 +70,7 @@ namespace IntersectUtilities
             Entity _entity;
             Plane _projectPlane;
             double _lockedAngle;
+            double _inputLength;
 
             //Transient stuff for displaying values
             aGi.TransientManager _tm = aGi.TransientManager.CurrentTransientManager;
@@ -160,12 +161,12 @@ namespace IntersectUtilities
                         switch (_currentMode)
                         {
                             case CurrentModeEnum.Arc:
-                                msgAndKwds = "\nSpecify next point or [Line]: ";
-                                kwds = "Line";
+                                msgAndKwds = "\nSpecify next point or [Line/MRadius/LRadius/LEngth]: ";
+                                kwds = "Line MRadius LRadius LEngth";
                                 break;
                             default: //Assume default to Line
-                                msgAndKwds = "\nSpecify next point or [LAngle/Arc]: ";
-                                kwds = "LAngle Arc";
+                                msgAndKwds = "\nSpecify next point or [LAngle/Arc/LEngth]: ";
+                                kwds = "LAngle Arc LEngth";
                                 break;
                         }
                         jigOpts.SetMessageAndKeywords(msgAndKwds, kwds);
@@ -175,6 +176,35 @@ namespace IntersectUtilities
                     //Get the user input
                     PromptPointResult res = prompts.AcquirePoint(jigOpts);
 
+                    #region Debug PromptStatus
+                    //switch (res.Status)
+                    //{
+                    //    case PromptStatus.Cancel:
+                    //        prdDbg("PromptStatus: Cancel");
+                    //        break;
+                    //    case PromptStatus.None:
+                    //        prdDbg("PromptStatus: None");
+                    //        break;
+                    //    case PromptStatus.Error:
+                    //        prdDbg("PromptStatus: Error");
+                    //        break;
+                    //    case PromptStatus.Keyword:
+                    //        prdDbg("PromptStatus: Keyword");
+                    //        break;
+                    //    case PromptStatus.OK:
+                    //        prdDbg("PromptStatus: OK");
+                    //        break;
+                    //    case PromptStatus.Modeless:
+                    //        prdDbg("PromptStatus: Modeless");
+                    //        break;
+                    //    case PromptStatus.Other:
+                    //        prdDbg("PromptStatus: Other");
+                    //        break;
+                    //    default:
+                    //        break;
+                    //}
+                    #endregion
+
                     if (res.Status == PromptStatus.Keyword)
                     {
                         switch (res.StringResult)
@@ -183,15 +213,29 @@ namespace IntersectUtilities
                                 _currentMode = CurrentModeEnum.Line;
                                 ClearRadiusLengthArcLabels();
                                 break;
-                            case "LAngle":
-                                _currentMode = CurrentModeEnum.LineLAngle;
-                                double result = Interaction.GetValue("Input angle: ", 0);
-                                if (result == 0)
-                                {//Abort lock angle
-                                    prdDbg("Failed to get angle!");
-                                    goto case "Line";
+                            case "MRadius":
+                                break;
+                            case "LRadius":
+                                break;
+                            case "LEngth":
+                                {
+                                    _currentMode |= CurrentModeEnum.Length;
+                                    double result = Interaction.GetValue("Input length: ", 0);
+                                    if (result == 0) return SamplerStatus.Cancel;
+                                    _inputLength = result;
                                 }
-                                _lockedAngle = result.ToRadians();
+                                break;
+                            case "LAngle":
+                                {
+                                    _currentMode = CurrentModeEnum.LineLAngle;
+                                    double result = Interaction.GetValue("Input angle: ", 0);
+                                    if (result == 0)
+                                    {//Abort lock angle
+                                        prdDbg("Failed to get angle!");
+                                        goto case "Line";
+                                    }
+                                    _lockedAngle = result.ToRadians();
+                                }
                                 break;
                             case "Arc":
                                 _currentMode = CurrentModeEnum.Arc;
@@ -230,124 +274,157 @@ namespace IntersectUtilities
                 {
                     Polyline pl = Entity as Polyline;
 
-                    switch (_currentMode)
+                    //Special cases
+                    //Special for Length keyword
+                    //User wishes to specify a special length for segment
+                    if (_currentMode.HasFlag(CurrentModeEnum.Length))
                     {
-                        case CurrentModeEnum.Line:
-                            //Do not add vertex until we have a starting position
-                            if (pl.NumberOfVertices == 0) break;
-                            else if (pl.NumberOfVertices > 0)
-                            {
-                                //Reset bulge if coming from Arc
-                                pl.SetBulgeAt(pl.NumberOfVertices - 2, 0);
+                        if (pl.NumberOfVertices > 2)
+                        {
+                            prdDbg(
+                                $"NrOfV-1: {pl.GetSegmentType(pl.NumberOfVertices - 1)}, " +
+                                $"L: {pl.GetLengthOfSegmentAt(pl.NumberOfVertices - 1)}");
+                            prdDbg(
+                                $"NrOfV-2: {pl.GetSegmentType(pl.NumberOfVertices - 2)}, " +
+                                $"L: {pl.GetLengthOfSegmentAt(pl.NumberOfVertices - 2)}");
+                            prdDbg(
+                                $"NrOfV-3: {pl.GetSegmentType(pl.NumberOfVertices - 3)}, " +
+                                $"L: {pl.GetLengthOfSegmentAt(pl.NumberOfVertices - 3)}");
+                        }
 
-                                pl.RemoveVertexAt(pl.NumberOfVertices - 1);
-                                pl.AddVertexAt(
-                                    pl.NumberOfVertices, _tempPoint.Convert2d(_plane), 0, 0, 0);
+                        //different behaviour whether drawing a line or arc
+                        if (_currentMode.HasFlag(CurrentModeEnum.Arc))
+                        {
 
-                                //Case: continuing arc
-                                //If bulge on before-before segment is non-zero then it is arc we are cont.
-                                if (pl.NumberOfVertices > 2 && pl.GetBulgeAt(pl.NumberOfVertices - 3) != 0)
+                        }
+                        else if (_currentMode.HasFlag(CurrentModeEnum.Line))
+                        {
+
+                        }
+
+                        _currentMode &= ~CurrentModeEnum.Length;
+                    }
+                    else
+                    {
+                        switch (_currentMode)
+                        {
+                            case CurrentModeEnum.Line:
+                                //Do not add vertex until we have a starting position
+                                if (pl.NumberOfVertices == 0) break;
+                                else if (pl.NumberOfVertices > 0)
                                 {
-                                    CircularArc2d ca2d = pl.GetArcSegment2dAt(pl.NumberOfVertices - 3);
+                                    //Reset bulge if coming from Arc
+                                    pl.SetBulgeAt(pl.NumberOfVertices - 2, 0);
 
-                                    Point2d intP = JigUtils.GetTangentsTo(ca2d, _tempPoint.Convert2d(_plane));
+                                    pl.RemoveVertexAt(pl.NumberOfVertices - 1);
+                                    pl.AddVertexAt(
+                                        pl.NumberOfVertices, _tempPoint.Convert2d(_plane), 0, 0, 0);
 
-                                    if (intP != default)
+                                    //Case: continuing arc
+                                    //If bulge on before-before segment is non-zero then it is arc we are cont.
+                                    if (pl.NumberOfVertices > 2 && pl.GetBulgeAt(pl.NumberOfVertices - 3) != 0)
                                     {
-                                        pl.SetPointAt(pl.NumberOfVertices - 2, intP);
-                                        Point3d lastVertex = pl.GetPoint3dAt(
-                                            pl.NumberOfVertices - 3);
+                                        CircularArc2d ca2d = pl.GetArcSegment2dAt(pl.NumberOfVertices - 3);
 
-                                        double angle = JigUtils.ComputeAngle(
-                                            lastVertex, intP.To3D(),
-                                            JigUtils.GetRefDir(pl, lastVertex, 4), _ucs);
+                                        Point2d intP = JigUtils.GetTangentsTo(ca2d, _tempPoint.Convert2d(_plane));
 
-                                        // Bulge is defined as tan of one fourth of included angle
-                                        // Need to double the angle since it represents the included
-                                        // angle of the arc
-                                        // So formula is: bulge = Tan(angle * 2 * 0.25)
+                                        if (intP != default)
+                                        {
+                                            pl.SetPointAt(pl.NumberOfVertices - 2, intP);
+                                            Point3d lastVertex = pl.GetPoint3dAt(
+                                                pl.NumberOfVertices - 3);
 
-                                        double bulge = Math.Tan(angle * 0.5);
-                                        pl.SetBulgeAt(pl.NumberOfVertices - 3, bulge);
+                                            double angle = JigUtils.ComputeAngle(
+                                                lastVertex, intP.To3D(),
+                                                JigUtils.GetRefDir(pl, lastVertex, 4), _ucs);
+
+                                            // Bulge is defined as tan of one fourth of included angle
+                                            // Need to double the angle since it represents the included
+                                            // angle of the arc
+                                            // So formula is: bulge = Tan(angle * 2 * 0.25)
+
+                                            double bulge = Math.Tan(angle * 0.5);
+                                            pl.SetBulgeAt(pl.NumberOfVertices - 3, bulge);
+                                        }
                                     }
                                 }
-                            }
-                            break;
-                        case CurrentModeEnum.LineLAngle:
-                            //Do not add vertex until we have a starting position
-                            if (pl.NumberOfVertices == 0) break;
-                            else if (pl.NumberOfVertices > 0)
-                            {
-                                //Reset bulge if coming from Arc
-                                pl.SetBulgeAt(pl.NumberOfVertices - 2, 0);
-                                pl.RemoveVertexAt(pl.NumberOfVertices - 1);
-
-                                //Determine point at locked angle
-                                Point3d lastVertex = pl.GetPoint3dAt(pl.NumberOfVertices - 1);
-                                Vector3d lineDir = pl.GetFirstDerivative(lastVertex);
-
-                                Vector3d dir1 = lineDir.RotateBy(_lockedAngle, Vector3d.ZAxis);
-                                Vector3d dir2 = lineDir.RotateBy(-_lockedAngle, Vector3d.ZAxis);
-
-                                Ray3d ray1 = new Ray3d(lastVertex, dir1);
-                                Ray3d ray2 = new Ray3d(lastVertex, dir2);
-
-                                Point3d p1 = ray1.GetClosestPointTo(_tempPoint).Point;
-                                Point3d p2 = ray2.GetClosestPointTo(_tempPoint).Point;
-
-                                double dist1 = p1.DistanceTo(_tempPoint);
-                                double dist2 = p2.DistanceTo(_tempPoint);
-
-                                _tempPoint = dist1 < dist2 ? p1 : p2;
-
-                                pl.AddVertexAt(
-                                    pl.NumberOfVertices, _tempPoint.Convert2d(_plane), 0, 0, 0);
-                            }
-                            break;
-                        case CurrentModeEnum.Arc:
-                            if (pl.NumberOfVertices == 0) break;
-                            else if (pl.NumberOfVertices > 0)
-                            {
-                                pl.RemoveVertexAt(pl.NumberOfVertices - 1);
-                                pl.AddVertexAt(
-                                    pl.NumberOfVertices, _tempPoint.Convert2d(_plane), 0, 0, 0);
-
-                                Point3d lastVertex =
-                                    pl.GetPoint3dAt(pl.NumberOfVertices - 2);
-
-                                Vector3d refDir;
-
-                                if (pl.NumberOfVertices < 3) refDir = new Vector3d(1.0, 1.0, 0.0);
-                                else
+                                break;
+                            case CurrentModeEnum.LineLAngle:
+                                //Do not add vertex until we have a starting position
+                                if (pl.NumberOfVertices == 0) break;
+                                else if (pl.NumberOfVertices > 0)
                                 {
-                                    refDir = JigUtils.GetRefDir(pl, lastVertex, 3);
+                                    //Reset bulge if coming from Arc
+                                    pl.SetBulgeAt(pl.NumberOfVertices - 2, 0);
+                                    pl.RemoveVertexAt(pl.NumberOfVertices - 1);
+
+                                    //Determine point at locked angle
+                                    Point3d lastVertex = pl.GetPoint3dAt(pl.NumberOfVertices - 1);
+                                    Vector3d lineDir = pl.GetFirstDerivative(lastVertex);
+
+                                    Vector3d dir1 = lineDir.RotateBy(_lockedAngle, Vector3d.ZAxis);
+                                    Vector3d dir2 = lineDir.RotateBy(-_lockedAngle, Vector3d.ZAxis);
+
+                                    Ray3d ray1 = new Ray3d(lastVertex, dir1);
+                                    Ray3d ray2 = new Ray3d(lastVertex, dir2);
+
+                                    Point3d p1 = ray1.GetClosestPointTo(_tempPoint).Point;
+                                    Point3d p2 = ray2.GetClosestPointTo(_tempPoint).Point;
+
+                                    double dist1 = p1.DistanceTo(_tempPoint);
+                                    double dist2 = p2.DistanceTo(_tempPoint);
+
+                                    _tempPoint = dist1 < dist2 ? p1 : p2;
+
+                                    pl.AddVertexAt(
+                                        pl.NumberOfVertices, _tempPoint.Convert2d(_plane), 0, 0, 0);
                                 }
+                                break;
+                            case CurrentModeEnum.Arc:
+                                if (pl.NumberOfVertices == 0) break;
+                                else if (pl.NumberOfVertices > 0)
+                                {
+                                    pl.RemoveVertexAt(pl.NumberOfVertices - 1);
+                                    pl.AddVertexAt(
+                                        pl.NumberOfVertices, _tempPoint.Convert2d(_plane), 0, 0, 0);
 
-                                double angle =
-                                  JigUtils.ComputeAngle(
-                                    lastVertex, _tempPoint, refDir, _ucs);
+                                    Point3d lastVertex =
+                                        pl.GetPoint3dAt(pl.NumberOfVertices - 2);
 
-                                // Bulge is defined as tan of one fourth of included angle
-                                // Need to double the angle since it represents the included
-                                // angle of the arc
-                                // So formula is: bulge = Tan(angle * 2 * 0.25)
+                                    Vector3d refDir;
 
-                                double bulge = Math.Tan(angle * 0.5);
+                                    if (pl.NumberOfVertices < 3) refDir = new Vector3d(1.0, 1.0, 0.0);
+                                    else
+                                    {
+                                        refDir = JigUtils.GetRefDir(pl, lastVertex, 3);
+                                    }
 
-                                pl.SetBulgeAt(pl.NumberOfVertices - 2, bulge);
-                            }
-                            break;
-                        case CurrentModeEnum.Attach:
-                            if (pl.NumberOfVertices == 2) RemoveLastVertex();
+                                    double angle =
+                                      JigUtils.ComputeAngle(
+                                        lastVertex, _tempPoint, refDir, _ucs);
 
-                            //Calculate the new point
-                            _tempPoint = _projectPlane.ClosestPointTo(_tempPoint);
-                            pl.AddVertexAt(
-                                pl.NumberOfVertices, _tempPoint.Convert2d(_plane), 0, 0, 0);
-                            break;
-                        default:
-                            prdDbg("Encountered default switch in currentMode in Update()");
-                            break;
+                                    // Bulge is defined as tan of one fourth of included angle
+                                    // Need to double the angle since it represents the included
+                                    // angle of the arc
+                                    // So formula is: bulge = Tan(angle * 2 * 0.25)
+
+                                    double bulge = Math.Tan(angle * 0.5);
+
+                                    pl.SetBulgeAt(pl.NumberOfVertices - 2, bulge);
+                                }
+                                break;
+                            case CurrentModeEnum.Attach:
+                                if (pl.NumberOfVertices == 2) RemoveLastVertex();
+
+                                //Calculate the new point
+                                _tempPoint = _projectPlane.ClosestPointTo(_tempPoint);
+                                pl.AddVertexAt(
+                                    pl.NumberOfVertices, _tempPoint.Convert2d(_plane), 0, 0, 0);
+                                break;
+                            default:
+                                prdDbg("Encountered default switch in currentMode in Update()");
+                                break;
+                        }
                     }
                     if (pl.Database != null) pl.Draw();
 
@@ -388,8 +465,8 @@ namespace IntersectUtilities
                         CircularArc3d ca3d = pl.GetArcSegmentAt(pl.NumberOfVertices - 2);
 
                         double length = ca3d.GetLength(
-                            ca3d.GetParameterOf(ca3d.StartPoint), 
-                            ca3d.GetParameterOf(ca3d.EndPoint), 
+                            ca3d.GetParameterOf(ca3d.StartPoint),
+                            ca3d.GetParameterOf(ca3d.EndPoint),
                             Tolerance.Global.EqualPoint);
 
                         if (length.IsZero()) ClearRadiusLengthArcLabels();
@@ -401,7 +478,7 @@ namespace IntersectUtilities
                                 ca3d.GetParameterOf(ca3d.StartPoint),
                                 length / 2.0, true, Tolerance.Global.EqualPoint);
                             Point3d position = ca3d.EvaluatePoint(parameter);
-                            
+
                             DisplayRadiusLengthArcLabels(radius, length, position);
                         }
                     }
@@ -425,6 +502,8 @@ namespace IntersectUtilities
                 Attach = 4,
                 LAngle = 8,
                 LRadius = 16,
+                MRadius = 32,
+                Length = 64,
 
                 //Combinations
                 LineLAngle = Line | LAngle,
@@ -571,8 +650,6 @@ namespace IntersectUtilities
                                 jig = new DriFjvPolyJig(ed.CurrentUserCoordinateSystem);
                                 break;
                         }
-
-
 
                         while (true)
                         {
