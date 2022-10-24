@@ -235,7 +235,7 @@ namespace LERImporter
                 string psName = psDict[ledning.GetType().Name];
                 ILerLedning iLedning = ledning as ILerLedning;
                 if (iLedning == null)
-                    throw new System.Exception($"Ledning {ledning.GmlId} har ikke implementeret ILerLedning!");
+                    throw new System.Exception($"Ledning {ledning.GmlId}, {ledning.LerId} har ikke implementeret ILerLedning!");
                 ObjectId entityId = iLedning.DrawEntity2D(db);
                 Entity ent = entityId.Go<Entity>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
                 layerNames.Add(ent.Layer);
@@ -252,7 +252,7 @@ namespace LERImporter
                 string psName = psDict[trace.GetType().Name];
                 ILerLedning ledning = trace as ILerLedning;
                 if (ledning == null)
-                    throw new System.Exception($"Trace {trace.GmlId} har ikke implementeret ILerLedning!");
+                    throw new System.Exception($"Trace {trace.GmlId}, {trace.LerId} har ikke implementeret ILerLedning!");
                 ObjectId entityId = ledning.DrawEntity2D(db);
                 Entity ent = entityId.Go<Entity>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
                 layerNames.Add(ent.Layer);
@@ -269,7 +269,7 @@ namespace LERImporter
                 string psName = psDict[komponent.GetType().Name];
                 ILerKomponent creator = komponent as ILerKomponent;
                 if (creator == null)
-                    throw new System.Exception($"Komponent {komponent.GmlId} har ikke implementeret ILerKomponent!");
+                    throw new System.Exception($"Komponent {komponent.GmlId}, {komponent.LerId} har ikke implementeret ILerKomponent!");
                 Oid entityId = creator.DrawComponent(db);
                 Entity ent = entityId.Go<Entity>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
