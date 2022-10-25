@@ -84,7 +84,26 @@ namespace LERImporter.Schema
         [PsInclude]
         public string Niveau { get => this.niveau.GetXmlEnumAttributeValueFromEnum(); }
     }
-    public partial class VandkomponentType : LedningskomponentType { }
+    public partial class VandkomponentType : LedningskomponentType, ILerKomponent
+    {
+        [PsInclude]
+        public string Vandkomponent { get => this.type.GetXmlEnumAttributeValueFromEnum(); }
+        [PsInclude]
+        public string Tapsted { get => this?.tapstedstype?.Value.ToString() ?? ""; }
+        [PsInclude]
+        public string Anborsted { get => this?.anborsted?.Value.ToString() ?? ""; }
+        [PsInclude]
+        public string Bundkote { get => this?.bundkote?.GetDouble().ToString("0.##") ?? ""; }
+        [PsInclude]
+        public string Stutskote { get => this?.stutskote?.GetDouble().ToString("0.##") ?? ""; }
+        [PsInclude]
+        public string Topkote { get => this?.topkote?.GetDouble().ToString("0.##") ?? ""; }
+        public Oid DrawComponent(Database database)
+        {
+            IEntityCreator creator = this.geometri.Item as IEntityCreator;
+            return creator.CreateEntity(database);
+        }
+    }
     public partial class TermiskKomponentType : LedningskomponentType, ILerKomponent
     {
         [PsInclude]
@@ -149,7 +168,7 @@ namespace LERImporter.Schema
         [PsInclude]
         public double Bundkote { get => this.bundkote?.GetDouble() ?? 0.0; }
         [PsInclude]
-        public double Topkote { get => this.topkote?.GetDouble() ?? 0.0; } 
+        public double Topkote { get => this.topkote?.GetDouble() ?? 0.0; }
         #endregion
         public ObjectId DrawComponent(Database database)
         {
