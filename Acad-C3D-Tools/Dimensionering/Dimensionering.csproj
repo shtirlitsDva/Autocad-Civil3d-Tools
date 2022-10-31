@@ -125,6 +125,12 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\..\..\..\..\AutoCAD DRI - QGIS\REST HENTER\Schemes\Datafordeler\DF DAR Husnummer Class.cs">
+      <Link>DF DAR Husnummer Class.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\..\AutoCAD DRI - QGIS\REST HENTER\Schemes\Misc\GasData.cs">
+      <Link>GasData.cs</Link>
+    </Compile>
     <Compile Include="..\AutoCADCommands\Algorithms.cs">
       <Link>ACC\Algorithms.cs</Link>
     </Compile>
@@ -183,12 +189,6 @@
     </Compile>
     <Compile Include="..\AutoCADCommands\Test.cs">
       <Link>ACC\Test.cs</Link>
-    </Compile>
-    <Compile Include="X:\AutoCAD DRI - QGIS\REST HENTER\Analyse_af_adresser_Egedal\GasData.cs">
-      <Link>GasData.cs</Link>
-    </Compile>
-    <Compile Include="X:\AutoCAD DRI - QGIS\REST HENTER\BBR_behandling_kælder\Schemes.cs">
-      <Link>Schemes.cs</Link>
     </Compile>
     <Compile Include="..\IntersectUtilities\CsvReader.cs">
       <Link>CsvReader.cs</Link>

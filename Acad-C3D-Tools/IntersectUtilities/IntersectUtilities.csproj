@@ -227,6 +227,7 @@
     <Compile Include="LER1.0\LER1_General.cs" />
     <Compile Include="LER1.0\LER1_KLAR.cs" />
     <Compile Include="LER1.0\LER1_Novafos.cs" />
+    <Compile Include="LER1.0\LER1_Fibia.cs" />
     <Compile Include="LER1.0\Partial_Template.cs" />
     <Compile Include="LongitudinalProfiles\LongitudinalProfileTools.cs" />
     <Compile Include="MyGraph.cs" />

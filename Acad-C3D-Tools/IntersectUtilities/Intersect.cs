@@ -7055,7 +7055,10 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-
+            fixlerlayersmethod(localDb);
+        }
+        public void fixlerlayersmethod(Database localDb)
+        {
             string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
             string pathLag = "X:\\AutoCAD DRI - 01 Civil 3D\\Lag.csv";
 
