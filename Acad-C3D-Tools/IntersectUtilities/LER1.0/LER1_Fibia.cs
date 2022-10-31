@@ -63,8 +63,8 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            using (Database ler2dDb = new Database(false, true))
-            using (Database ler3dDb = new Database(false, true))
+            using (Database ler2dDb = new Database(true, true))
+            using (Database ler3dDb = new Database(true, true))
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -80,8 +80,8 @@ namespace IntersectUtilities
                     int rInt = r.Next(0, 1000);
                     string dbFilename = localDb.OriginalFileName;
                     string path = Path.GetDirectoryName(dbFilename);
-                    string ler2dFilename = path + $"\\Fibia_2D_{rInt}";
-                    string ler3dFilename = path + $"\\Fibia_3D_{rInt}";
+                    string ler2dFilename = path + $"\\Fibia_2D_{rInt}.dwg";
+                    string ler3dFilename = path + $"\\Fibia_3D_{rInt}.dwg";
 
                     using (Transaction ler2dTx = ler2dDb.TransactionManager.StartTransaction())
                     {
