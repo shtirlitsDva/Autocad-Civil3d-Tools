@@ -30,8 +30,6 @@ using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
 using Microsoft.Office.Interop.Excel;
 using ChunkedEnumerator;
-using Schema.Misc;
-using Schema.Datafordeler;
 using FolderSelect;
 
 using static IntersectUtilities.Enums;

@@ -125,12 +125,6 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\..\..\..\..\AutoCAD DRI - QGIS\REST HENTER\Schemes\Datafordeler\DF DAR Husnummer Class.cs">
-      <Link>DF DAR Husnummer Class.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\..\..\AutoCAD DRI - QGIS\REST HENTER\Schemes\Misc\GasData.cs">
-      <Link>GasData.cs</Link>
-    </Compile>
     <Compile Include="..\AutoCADCommands\Algorithms.cs">
       <Link>ACC\Algorithms.cs</Link>
     </Compile>
