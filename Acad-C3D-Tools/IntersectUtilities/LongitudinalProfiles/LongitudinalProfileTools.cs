@@ -1390,6 +1390,8 @@ namespace IntersectUtilities
             System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
                 @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.DriSourceReference);
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 #region Open fremtidig db
@@ -1402,12 +1404,17 @@ namespace IntersectUtilities
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
                 #endregion
 
-                #region Initialize PS for Alignment
+                #region Initialize PS for Alignment adn detailing
                 PropertySetManager psmPipeLineData = new PropertySetManager(
                     fremDb,
                     PSetDefs.DefinedSets.DriPipelineData);
                 PSetDefs.DriPipelineData driPipelineData =
                     new PSetDefs.DriPipelineData();
+
+                PropertySetManager psmSourceReference = new PropertySetManager(
+                    localDb, PSetDefs.DefinedSets.DriSourceReference);
+                PSetDefs.DriSourceReference driSourceReference =
+                    new PSetDefs.DriSourceReference();
                 #endregion
 
                 //////////////////////////////////////
@@ -1472,6 +1479,7 @@ namespace IntersectUtilities
                         ObjectIdCollection profileIds = al.GetProfileIds();
                         ObjectIdCollection profileViewIds = al.GetProfileViewIds();
                         ProfileViewCollection pvs = new ProfileViewCollection(profileViewIds);
+                        //Polyline alPl = al.GetPolyline().Go<Polyline>(tx);
 
                         #region Fetch surface profile
                         Profile surfaceProfile = null;
@@ -1626,7 +1634,6 @@ namespace IntersectUtilities
                             #endregion
 
                             #region Place component blocks
-
                             foreach (BlockReference br in brs)
                             {
                                 string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
@@ -1634,7 +1641,7 @@ namespace IntersectUtilities
                                 //Buerør need special treatment
                                 if (br.RealName() == "BUEROR1" || br.RealName() == "BUEROR2") continue;
                                 Point3d brLocation = al.GetClosestPointTo(br.Position, false);
-
+                                
                                 double station = 0;
                                 double offset = 0;
                                 try
@@ -1647,10 +1654,10 @@ namespace IntersectUtilities
                                     prdDbg(brLocation.ToString());
                                     throw;
                                 }
-
+                                
                                 //Determine if blockref is within current PV
                                 //If within -> place block, else go to next iteration
-                                if (!(station > pvStStart && station < pvStEnd)) continue;
+                                if (!(station >= pvStStart && station <= pvStEnd)) continue;
 
                                 sampledMidtElevation = SampleProfile(surfaceProfile, station);
                                 double X = originX + station - pvStStart;
@@ -1673,10 +1680,17 @@ namespace IntersectUtilities
                                     "Lige afgrening",
                                     "Afgrening med spring",
                                     "Afgrening, parallel" }).Contains(type))
-                                    brSign.SetAttributeStringValue("RIGHTSIZE", psmPipeLineData.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment));
+                                    brSign.SetAttributeStringValue("RIGHTSIZE", 
+                                        psmPipeLineData.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment));
                                 else if (type == "Afgreningsstuds" || type == "Svanehals")
-                                    brSign.SetAttributeStringValue("RIGHTSIZE", psmPipeLineData.ReadPropertyString(br, driPipelineData.BelongsToAlignment));
+                                    brSign.SetAttributeStringValue("RIGHTSIZE", 
+                                        psmPipeLineData.ReadPropertyString(br, driPipelineData.BelongsToAlignment));
                                 else brSign.SetAttributeStringValue("RIGHTSIZE", "");
+
+                                psmSourceReference.WritePropertyString(
+                                    brSign, driSourceReference.SourceEntityHandle, br.Handle.ToString());
+                                psmSourceReference.WritePropertyObject(
+                                    brSign, driSourceReference.AlignmentStation, station);
                             }
                             #endregion
 
@@ -1765,6 +1779,11 @@ namespace IntersectUtilities
                                 //Set length text
                                 brBueRor.SetAttributeStringValue("LGD", Math.Abs(bueRorLength).ToString("0.0") + " m");
                                 brBueRor.SetAttributeStringValue("TEXT", augmentedType);
+
+                                psmSourceReference.WritePropertyString(
+                                    brBueRor, driSourceReference.SourceEntityHandle, br.Handle.ToString());
+                                psmSourceReference.WritePropertyObject(
+                                    brBueRor, driSourceReference.AlignmentStation, station);
                             }
                             #endregion
 

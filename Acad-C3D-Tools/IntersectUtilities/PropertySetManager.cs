@@ -605,6 +605,11 @@ namespace IntersectUtilities
                 "Handle of the source entity which provided information for this entity.",
                 PsDataType.Text,
                 "");
+            public Property AlignmentStation { get; } = new Property(
+                "AlignmentStation",
+                "The station at which referenced object is situated.",
+                PsDataType.Real,
+                99999.9);
             public StringCollection AppliesTo { get; } = new StringCollection()
                 {
                     RXClass.GetClass(typeof(BlockReference)).Name
