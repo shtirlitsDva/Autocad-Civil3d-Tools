@@ -113,8 +113,9 @@ namespace IntersectUtilities.DynamicBlocks
         public static string ReadComponentDN1Str(BlockReference br, System.Data.DataTable fjvTable)
         {
             string propertyToExtractName = "DN1";
-
-            string valueToReturn = ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0);
+            //Versioning
+            string version = br.GetAttributeStringValue("VERSION");
+            string valueToReturn = ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0, version);
 
             if (valueToReturn.StartsWith("$"))
             {
@@ -141,8 +142,9 @@ namespace IntersectUtilities.DynamicBlocks
         public static string ReadComponentDN2Str(BlockReference br, System.Data.DataTable fjvTable)
         {
             string propertyToExtractName = "DN2";
-
-            string valueToReturn = ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0);
+            //Versioning
+            string version = br.GetAttributeStringValue("VERSION");
+            string valueToReturn = ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0, version);
 
             if (valueToReturn.StartsWith("$"))
             {
@@ -165,12 +167,32 @@ namespace IntersectUtilities.DynamicBlocks
             if (int.TryParse(value, out result)) return result;
             else return 0;
         }
-        public static MapValue ReadComponentSeries(BlockReference br, System.Data.DataTable fjvTable) => new MapValue("S3");
+        public static string ReadComponentSeries(BlockReference br, System.Data.DataTable fjvTable)
+        {
+            string propertyToExtractName = "Serie";
+            //Versioning
+            string version = br.GetAttributeStringValue("VERSION");
+            string valueToReturn = ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0, version);
+
+            if (valueToReturn.StartsWith("$"))
+            {
+                valueToReturn = valueToReturn.Substring(1);
+                //If the value is a pattern to extract from string
+                if (valueToReturn.Contains("{"))
+                {
+                    valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
+                }
+                //Else the value is parameter literal to read
+                else return br.GetDynamicPropertyByName(valueToReturn).Value as string ?? "";
+            }
+            return valueToReturn ?? "";
+        }
         public static string ReadComponentSystem(BlockReference br, System.Data.DataTable fjvTable)
         {
             string propertyToExtractName = "System";
-
-            string valueToReturn = ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0);
+            //Versioning
+            string version = br.GetAttributeStringValue("VERSION");
+            string valueToReturn = ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0, version);
 
             if (valueToReturn.StartsWith("$"))
             {
@@ -187,23 +209,70 @@ namespace IntersectUtilities.DynamicBlocks
         }
         public static double ReadComponentDN1KodDouble(BlockReference br, System.Data.DataTable fjvTable)
         {
-            string system = ReadComponentSystem(br, fjvTable);
-            if (system.IsNoE()) throw new System.Exception($"{br.RealName()} failed to read system!");
-            int dn = ReadComponentDN1Int(br, fjvTable);
-            if (dn == 0 || dn == 999) throw new System.Exception($"{br.RealName()} failed to read DN1!");
-            if (system == "Twin") return PipeSchedule.GetTwinPipeKOd(dn);
-            else if (system == "Enkelt") return PipeSchedule.GetBondedPipeKOd(dn);
-            else throw new System.Exception($"{br.RealName()} returned non-standard \"System\": {system}!");
+            //There's a confusion about PipeTypeEnum and System in FJV DynamiskeKomponenter
+            //In PipeSchedule PipeTypeEnum tells Twin, Bonded, etc. But in FJV DK the name of the column is System.
+            //In PipeSchedule PipeSystemEnum tells what material the pipe is: steel etc.
+            //Possible solution: Rename the column in FJV DK to PipeType -> requires that ALL block's property renamed also.
+            string systemString = ReadComponentSystem(br, fjvTable);
+            PipeSchedule.PipeTypeEnum system;
+            if (Enum.TryParse(systemString, out system))
+            {
+                int dn = ReadComponentDN1Int(br, fjvTable);
+                if (dn == 0 || dn == 999) throw new System.Exception($"{br.RealName()} failed to read DN1!");
+
+                string seriesString = ReadComponentSeries(br, fjvTable);
+                PipeSchedule.PipeSeriesEnum series;
+                if (Enum.TryParse(seriesString, out series))
+                {
+                    switch (system)
+                    {
+                        case PipeSchedule.PipeTypeEnum.Twin:
+                            return PipeSchedule.GetTwinPipeKOd(dn, series);
+                        case PipeSchedule.PipeTypeEnum.Frem:
+                        case PipeSchedule.PipeTypeEnum.Retur:
+                            return PipeSchedule.GetBondedPipeKOd(dn, series);
+                        case PipeSchedule.PipeTypeEnum.Ukendt:
+                        default:
+                            throw new System.Exception($"{br.RealName()} returned non-standard \"System\": (PipeTypeEnum) {systemString}!");
+                    }
+                }
+                else throw new System.Exception($"{br.RealName()} returned non-standard \"Serie\": {seriesString}!");
+            }
+            else throw new System.Exception($"{br.RealName()} returned non-standard \"System\": {systemString}!");
         }
         public static double ReadComponentDN2KodDouble(BlockReference br, System.Data.DataTable fjvTable)
         {
-            string system = ReadComponentSystem(br, fjvTable);
-            if (system.IsNoE()) throw new System.Exception($"{br.RealName()} failed to read system!");
-            int dn = ReadComponentDN2Int(br, fjvTable);
-            if (dn == 0 || dn == 999) throw new System.Exception($"{br.RealName()} failed to read DN1!");
-            if (system == "Twin") return PipeSchedule.GetTwinPipeKOd(dn);
-            else if (system == "Enkelt") return PipeSchedule.GetBondedPipeKOd(dn);
-            else throw new System.Exception($"{br.RealName()} returned non-standard \"System\": {system}!");
+            //There's a confusion about PipeTypeEnum and System in FJV DynamiskeKomponenter
+            //In PipeSchedule PipeTypeEnum tells Twin, Bonded, etc. But in FJV DK the name of the column is System.
+            //In PipeSchedule PipeSystemEnum tells what material the pipe is: steel etc.
+            //Possible solution: Rename the column in FJV DK to PipeType -> requires that ALL block's property renamed also.
+
+            string systemString = ReadComponentSystem(br, fjvTable);
+            PipeSchedule.PipeTypeEnum system;
+            if (Enum.TryParse(systemString, out system))
+            {
+                int dn = ReadComponentDN2Int(br, fjvTable);
+                if (dn == 0 || dn == 999) throw new System.Exception($"{br.RealName()} failed to read DN1!");
+
+                string seriesString = ReadComponentSeries(br, fjvTable);
+                PipeSchedule.PipeSeriesEnum series;
+                if (Enum.TryParse(seriesString, out series))
+                {
+                    switch (system)
+                    {
+                        case PipeSchedule.PipeTypeEnum.Twin:
+                            return PipeSchedule.GetTwinPipeKOd(dn, series);
+                        case PipeSchedule.PipeTypeEnum.Frem:
+                        case PipeSchedule.PipeTypeEnum.Retur:
+                            return PipeSchedule.GetBondedPipeKOd(dn, series);
+                        case PipeSchedule.PipeTypeEnum.Ukendt:
+                        default:
+                            throw new System.Exception($"{br.RealName()} returned non-standard \"System\": (PipeTypeEnum) {systemString}!");
+                    }
+                }
+                else throw new System.Exception($"{br.RealName()} returned non-standard \"Serie\": {seriesString}!");
+            }
+            else throw new System.Exception($"{br.RealName()} returned non-standard \"System\": {systemString}!");
         }
     }
 }

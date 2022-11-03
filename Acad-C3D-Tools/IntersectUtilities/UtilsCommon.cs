@@ -163,6 +163,30 @@ namespace IntersectUtilities.UtilsCommon
             }
             else return default;
         }
+        /// <summary>
+        /// Special version to read version specifik data for dynamic block DH components.
+        /// </summary>
+        /// <param name="key">The key to select row by.</param>
+        /// <param name="table">The datatable to read.</param>
+        /// <param name="parameter">Column to read value from at the specified row by key.</param>
+        /// <param name="keyColumnIdx">Usually 0, but can be any column.</param>
+        /// <param name="version">A special column introduced to allow versioning of DH components.</param>
+        public static string ReadStringParameterFromDataTable(string key, System.Data.DataTable table, string parameter, int keyColumnIdx = 0, string version = "")
+        {
+            if (table.AsEnumerable().Any(row => row.Field<string>(keyColumnIdx) == key))
+            {
+                var query = table.AsEnumerable()
+                    .Where(x =>
+                    x.Field<string>(keyColumnIdx) == key &&
+                    x.Field<string>("Version") == version)
+                    .Select(x => x.Field<string>(parameter));
+
+                string value = query.FirstOrDefault();
+                //if (value.IsNullOrEmpty()) return null;
+                return value;
+            }
+            else return default;
+        }
         public static double ReadDoubleParameterFromDataTable(string key, System.Data.DataTable table, string parameter, int keyColumnIdx)
         {
             //Test if value exists
@@ -1591,9 +1615,9 @@ namespace IntersectUtilities.UtilsCommon
                     return line.Length;
                 case SegmentType.Arc:
                     var arc = pl.GetArcSegment2dAt(index);
-                    return 
+                    return
                         arc.GetLength(
-                            arc.GetParameterOf(arc.StartPoint), 
+                            arc.GetParameterOf(arc.StartPoint),
                             arc.GetParameterOf(arc.EndPoint));
                 case SegmentType.Coincident:
                 case SegmentType.Point:

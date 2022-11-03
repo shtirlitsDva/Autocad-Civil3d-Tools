@@ -222,7 +222,6 @@ namespace IntersectUtilities
             }
             return valueToReturn ?? "";
         }
-        public static string ReadComponentSeries(BlockReference br, System.Data.DataTable fjvTable) => "S3";
         public static double ReadComponentWidth(BlockReference br, System.Data.DataTable fjvTable)
         {
             Matrix3d transform = br.BlockTransform;
