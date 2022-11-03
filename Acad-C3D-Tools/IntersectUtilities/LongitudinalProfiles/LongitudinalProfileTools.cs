@@ -50,7 +50,6 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using System.Windows.Documents;
 using Color = Autodesk.AutoCAD.Colors.Color;
-using Microsoft.Office.Interop.Excel;
 
 namespace IntersectUtilities
 {
