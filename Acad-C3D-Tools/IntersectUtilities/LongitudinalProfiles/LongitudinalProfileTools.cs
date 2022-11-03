@@ -50,6 +50,7 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using System.Windows.Documents;
 using Color = Autodesk.AutoCAD.Colors.Color;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace IntersectUtilities
 {
@@ -1641,7 +1642,7 @@ namespace IntersectUtilities
                                 //Buerør need special treatment
                                 if (br.RealName() == "BUEROR1" || br.RealName() == "BUEROR2") continue;
                                 Point3d brLocation = al.GetClosestPointTo(br.Position, false);
-                                
+
                                 double station = 0;
                                 double offset = 0;
                                 try
@@ -1654,7 +1655,7 @@ namespace IntersectUtilities
                                     prdDbg(brLocation.ToString());
                                     throw;
                                 }
-                                
+
                                 //Determine if blockref is within current PV
                                 //If within -> place block, else go to next iteration
                                 if (!(station >= pvStStart && station <= pvStEnd)) continue;
@@ -1680,10 +1681,10 @@ namespace IntersectUtilities
                                     "Lige afgrening",
                                     "Afgrening med spring",
                                     "Afgrening, parallel" }).Contains(type))
-                                    brSign.SetAttributeStringValue("RIGHTSIZE", 
+                                    brSign.SetAttributeStringValue("RIGHTSIZE",
                                         psmPipeLineData.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment));
                                 else if (type == "Afgreningsstuds" || type == "Svanehals")
-                                    brSign.SetAttributeStringValue("RIGHTSIZE", 
+                                    brSign.SetAttributeStringValue("RIGHTSIZE",
                                         psmPipeLineData.ReadPropertyString(br, driPipelineData.BelongsToAlignment));
                                 else brSign.SetAttributeStringValue("RIGHTSIZE", "");
 
@@ -2290,11 +2291,11 @@ namespace IntersectUtilities
                                     "Lige afgrening",
                                     "Afgrening med spring",
                                     "Afgrening, parallel" }).Contains(type))
-                                    brSign.SetAttributeStringValue("RIGHTSIZE", 
+                                    brSign.SetAttributeStringValue("RIGHTSIZE",
                                         psmPipeLineData.ReadPropertyString(
                                             br, driPipelineData.BranchesOffToAlignment));
                                 else if (type == "Afgreningsstuds" || type == "Svanehals")
-                                    brSign.SetAttributeStringValue("RIGHTSIZE", 
+                                    brSign.SetAttributeStringValue("RIGHTSIZE",
                                         psmPipeLineData.ReadPropertyString(
                                             br, driPipelineData.BelongsToAlignment));
                                 else brSign.SetAttributeStringValue("RIGHTSIZE", "");
@@ -2379,7 +2380,7 @@ namespace IntersectUtilities
 
                                 BlockReference brBueRor = dB.CreateBlockWithAttributes(bueBlockName, new Point3d(X, Y, 0));
 
-                                DynamicBlockReferencePropertyCollection dbrpc = 
+                                DynamicBlockReferencePropertyCollection dbrpc =
                                     brBueRor.DynamicBlockReferencePropertyCollection;
                                 foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
                                 {
@@ -3161,6 +3162,56 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        [CommandMethod("TESTPROFILEPARABOLA")]
+        public void testprofileparabola()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            var profileId = Interaction.GetEntity("Select profile: ", typeof(Profile));
+            if (profileId == Oid.Null) return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Profile profile = profileId.Go<Profile>(tx);
+
+                    var entities = profile.Entities;
+
+                    foreach (var entity in entities)
+                    {
+                        switch (entity)
+                        {
+                            case ProfileTangent tan:
+                                prdDbg("Tangent entity!");
+                                continue;
+                            case ProfileCircular circular:
+                                prdDbg($"Circular entity R:{circular.Radius}.");
+                                continue;
+                            case ProfileParabolaSymmetric parabolaSymmetric:
+                                prdDbg($"ParabolcSymmetric entity CurveType: {parabolaSymmetric.CurveType}, " +
+                                       $"EntityType: {parabolaSymmetric.EntityType}, " +
+                                       $"Radius: {parabolaSymmetric.Radius}");
+                                continue;
+                            default:
+                                prdDbg("Segment type: " + entity.GetType().ToString() + ". Lav om til circular!");
+                                throw new System.Exception($"LookAheadAndGetBulge: ProfileEntity unknown type encountered!");
+                        }
+                    }
+
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         /// <summary>
         /// Creates offset profiles for all middle profiles
         /// FOR USE ONLY WITH CONTINUOUS PVs!!!
@@ -3883,7 +3934,7 @@ namespace IntersectUtilities
             Database database = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             CivilDocument doc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            
+
             using (Transaction tx = database.TransactionManager.StartTransaction())
             {
                 try

@@ -1033,6 +1033,20 @@ namespace IntersectUtilities.UtilsCommon
             if (profileCircular.CurveType == VerticalCurveType.Crest) b *= -1;
             return b;
         }
+        public static double GetBulge(this ProfileParabolaSymmetric profileParabolaSymmetric, ProfileView profileView)
+        {
+            Point2d startPoint = profileView.GetPoint2dAtStaAndEl(
+                profileParabolaSymmetric.StartStation, profileParabolaSymmetric.StartElevation);
+            Point2d endPoint = profileView.GetPoint2dAtStaAndEl(
+                profileParabolaSymmetric.EndStation, profileParabolaSymmetric.EndElevation);
+            //Calculate bugle
+            //Assuming that ProfileParabolaSymmetric can return a radius
+            double r = profileParabolaSymmetric.Radius;
+            double u = startPoint.GetDistanceTo(endPoint);
+            double b = (2 * (r - Math.Sqrt(r.Pow(2) - u.Pow(2) / 4))) / u;
+            if (profileParabolaSymmetric.CurveType == VerticalCurveType.Crest) b *= -1;
+            return b;
+        }
         public static double GetBulge(this ProfileEntity profileEntity, ProfileView profileView)
         {
             switch (profileEntity)
@@ -1041,6 +1055,8 @@ namespace IntersectUtilities.UtilsCommon
                     return 0;
                 case ProfileCircular circ:
                     return circ.GetBulge(profileView);
+                case ProfileParabolaSymmetric parSym:
+                    return parSym.GetBulge(profileView);
                 default:
                     throw new System.Exception($"GetBulge: ProfileEntity unknown type encountered!");
             }
@@ -1063,6 +1079,8 @@ namespace IntersectUtilities.UtilsCommon
                     return 0;
                 case ProfileCircular circular:
                     return circular.GetBulge(profileView);
+                case ProfileParabolaSymmetric parabolaSymmetric:
+                    return parabolaSymmetric.GetBulge(profileView);
                 default:
                     prdDbg("Segment type: " + next.ToString() + ". Lav om til circular!");
                     throw new System.Exception($"LookAheadAndGetBulge: ProfileEntity unknown type encountered!");
