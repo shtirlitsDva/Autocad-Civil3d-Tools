@@ -256,6 +256,7 @@ namespace IntersectUtilities.DynamicBlocks
                             return PipeSchedule.GetTwinPipeKOd(dn, series);
                         case PipeSchedule.PipeTypeEnum.Frem:
                         case PipeSchedule.PipeTypeEnum.Retur:
+                        case PipeSchedule.PipeTypeEnum.Enkelt:
                             return PipeSchedule.GetBondedPipeKOd(dn, series);
                         case PipeSchedule.PipeTypeEnum.Ukendt:
                         default:

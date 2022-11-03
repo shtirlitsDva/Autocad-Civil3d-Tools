@@ -1084,7 +1084,8 @@ namespace IntersectUtilities
             Ukendt,
             Twin,
             Frem,
-            Retur
+            Retur,
+            Enkelt //Bruges kun til blokke vist
         }
         public enum PipeSeriesEnum
         {
