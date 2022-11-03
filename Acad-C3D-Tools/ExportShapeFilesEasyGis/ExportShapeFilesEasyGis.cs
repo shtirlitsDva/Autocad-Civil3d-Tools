@@ -11,6 +11,7 @@ using Autodesk.AutoCAD.Geometry;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using IntersectUtilities;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.DynamicBlocks;
 using FolderSelect;
 using Dreambuild.AutoCAD;
 
@@ -252,7 +253,7 @@ namespace ExportShapeFiles
                             attributes[3] = ReadComponentSystem(br, komponenter);
                             attributes[4] = ReadComponentDN1(br, komponenter);
                             attributes[5] = ReadComponentDN2(br, komponenter);
-                            attributes[6] = ReadComponentSeries(br, komponenter);
+                            attributes[6] = PropertyReader.ReadComponentSeries(br, komponenter);
                             attributes[7] = ReadComponentVinkel(br, komponenter);
 
                             writer.AddRecord(shapePoints, shapePoints.Length, attributes);

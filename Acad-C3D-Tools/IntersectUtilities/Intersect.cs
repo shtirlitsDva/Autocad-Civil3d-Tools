@@ -5319,29 +5319,29 @@ namespace IntersectUtilities
                 try
                 {
                     #region Test sideloaded nested block location
-                    Database fremDb = new Database(false, true);
-                    fremDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Dev\15 DynBlockSideloaded\BlockDwg.dwg",
-                        FileOpenMode.OpenForReadAndAllShare, false, null);
-                    Transaction fremTx = fremDb.TransactionManager.StartTransaction();
-                    HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
-                    foreach (var br in allBrs)
-                    {
-                        BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(fremTx);
-                        foreach (Oid id in btr)
-                        {
-                            if (!id.IsDerivedFrom<BlockReference>()) continue;
-                            BlockReference nestedBr = id.Go<BlockReference>(fremTx);
-                            if (!nestedBr.Name.Contains("MuffeIntern")) continue;
-                            Point3d wPt = nestedBr.Position;
-                            wPt = wPt.TransformBy(br.BlockTransform);
+                    //Database fremDb = new Database(false, true);
+                    //fremDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Dev\15 DynBlockSideloaded\BlockDwg.dwg",
+                    //    FileOpenMode.OpenForReadAndAllShare, false, null);
+                    //Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                    //HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                    //foreach (var br in allBrs)
+                    //{
+                    //    BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(fremTx);
+                    //    foreach (Oid id in btr)
+                    //    {
+                    //        if (!id.IsDerivedFrom<BlockReference>()) continue;
+                    //        BlockReference nestedBr = id.Go<BlockReference>(fremTx);
+                    //        if (!nestedBr.Name.Contains("MuffeIntern")) continue;
+                    //        Point3d wPt = nestedBr.Position;
+                    //        wPt = wPt.TransformBy(br.BlockTransform);
 
-                            //Line line = new Line(new Point3d(), wPt);
-                            //line.AddEntityToDbModelSpace(localDb);
-                        }
-                    }
-                    fremTx.Abort();
-                    fremTx.Dispose();
-                    fremDb.Dispose();
+                    //        //Line line = new Line(new Point3d(), wPt);
+                    //        //line.AddEntityToDbModelSpace(localDb);
+                    //    }
+                    //}
+                    //fremTx.Abort();
+                    //fremTx.Dispose();
+                    //fremDb.Dispose();
                     #endregion
 
                     #region Test nested block location in dynamic blocks
@@ -5376,30 +5376,30 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Test constant attribute, constant attr is attached to BlockTableRecord and not BR
-                    //PromptEntityOptions peo = new PromptEntityOptions("Select a BR: ");
-                    //PromptEntityResult per = editor.GetEntity(peo);
-                    //BlockReference br = per.ObjectId.Go<BlockReference>(tx);
+                    PromptEntityOptions peo = new PromptEntityOptions("Select a BR: ");
+                    PromptEntityResult per = editor.GetEntity(peo);
+                    BlockReference br = per.ObjectId.Go<BlockReference>(tx);
 
-                    //prdDbg(br.GetAttributeStringValue("VERSION"));
+                    prdDbg(br.GetAttributeStringValue("VERSION"));
 
-                    //foreach (Oid oid in br.AttributeCollection)
-                    //{
-                    //    AttributeReference ar = oid.Go<AttributeReference>(tx);
-                    //    prdDbg($"Name: {ar.Tag}, Text: {ar.TextString}");
-                    //}
+                    foreach (Oid oid in br.AttributeCollection)
+                    {
+                        AttributeReference ar = oid.Go<AttributeReference>(tx);
+                        prdDbg($"Name: {ar.Tag}, Text: {ar.TextString}");
+                    }
 
-                    //BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
-                    //foreach (Oid oid in btr)
-                    //{
-                    //    if (oid.IsDerivedFrom<AttributeDefinition>())
-                    //    {
-                    //        AttributeDefinition attDef = oid.Go<AttributeDefinition>(tx);
-                    //        if (attDef.Tag == "VERSION")
-                    //        {
-                    //            prdDbg($"Constant attribute > Name: {attDef.Tag}, Text: {attDef.TextString}");
-                    //        }
-                    //    }
-                    //}
+                    BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+                    foreach (Oid oid in btr)
+                    {
+                        if (oid.IsDerivedFrom<AttributeDefinition>())
+                        {
+                            AttributeDefinition attDef = oid.Go<AttributeDefinition>(tx);
+                            if (attDef.Tag == "VERSION")
+                            {
+                                prdDbg($"Constant attribute > Name: {attDef.Tag}, Text: {attDef.TextString}");
+                            }
+                        }
+                    }
                     #endregion
 
                     #region Test enum list

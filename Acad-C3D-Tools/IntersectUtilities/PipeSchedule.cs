@@ -575,17 +575,17 @@ namespace IntersectUtilities
                     return 0;
             }
         }
-        public static double GetTwinPipeKOd(Entity ent)
-        {
-            int DN = GetPipeDN(ent);
-            if (kOdsS3Twin.ContainsKey(DN)) return kOdsS3Twin[DN];
-            return 0;
-        }
-        public static double GetTwinPipeKOd(int DN)
-        {
-            if (kOdsS3Twin.ContainsKey(DN)) return kOdsS3Twin[DN];
-            return 0;
-        }
+        //public static double GetTwinPipeKOd(Entity ent)
+        //{
+        //    int DN = GetPipeDN(ent);
+        //    if (kOdsS3Twin.ContainsKey(DN)) return kOdsS3Twin[DN];
+        //    return 0;
+        //}
+        //public static double GetTwinPipeKOd(int DN)
+        //{
+        //    if (kOdsS3Twin.ContainsKey(DN)) return kOdsS3Twin[DN];
+        //    return 0;
+        //}
         public static double GetBondedPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
@@ -693,17 +693,17 @@ namespace IntersectUtilities
             }
             return 0;
         }
-        public static double GetBondedPipeKOd(Entity ent)
-        {
-            int dn = GetPipeDN(ent);
-            if (kOdsS3Bonded.ContainsKey(dn)) return kOdsS3Bonded[dn];
-            return 0;
-        }
-        public static double GetBondedPipeKOd(int DN)
-        {
-            if (kOdsS3Bonded.ContainsKey(DN)) return kOdsS3Bonded[DN];
-            return 0;
-        }
+        //public static double GetBondedPipeKOd(Entity ent)
+        //{
+        //    int dn = GetPipeDN(ent);
+        //    if (kOdsS3Bonded.ContainsKey(dn)) return kOdsS3Bonded[dn];
+        //    return 0;
+        //}
+        //public static double GetBondedPipeKOd(int DN)
+        //{
+        //    if (kOdsS3Bonded.ContainsKey(DN)) return kOdsS3Bonded[DN];
+        //    return 0;
+        //}
         public static double GetPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             PipeTypeEnum pipeType = GetPipeType(ent);
