@@ -420,6 +420,19 @@ namespace IntersectUtilities
                     }
                     #endregion
 
+                    #region Set alignment to no show
+                    revealalignments();
+
+                    Oid alStyle = civilDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+
+                    foreach (Alignment al in als)
+                    {
+                        al.CheckOrOpenForWrite();
+                        al.StyleId = alStyle;
+                    }
+                    #endregion
+
                     #region ProfileStyles
                     Oid pPipeStyleKantId = Oid.Null;
                     try
