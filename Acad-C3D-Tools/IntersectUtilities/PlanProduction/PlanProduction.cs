@@ -345,15 +345,6 @@ namespace IntersectUtilities
                         return;
                     }
 
-                    HashSet<Alignment> alss = localDb.HashSetOfType<Alignment>(tx);
-                    foreach (Alignment al in alss)
-                    {
-                        al.CheckOrOpenForWrite();
-                        al.StyleId = civilDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
-                        al.ImportLabelSet("STD 20-5");
-                        al.DowngradeOpen();
-                    }
-
                     foreach (ProfileView pv in pvs)
                     {
                         pv.CheckOrOpenForWrite();
@@ -420,19 +411,6 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    #region Set alignment to no show
-                    revealalignments();
-
-                    Oid alStyle = civilDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
-                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-
-                    foreach (Alignment al in als)
-                    {
-                        al.CheckOrOpenForWrite();
-                        al.StyleId = alStyle;
-                    }
-                    #endregion
-
                     #region ProfileStyles
                     Oid pPipeStyleKantId = Oid.Null;
                     try
@@ -473,11 +451,11 @@ namespace IntersectUtilities
                     Oid alStyleId = Oid.Null;
                     try
                     {
-                        alStyleId = civilDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
+                        alStyleId = civilDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
                     }
                     catch (System.Exception)
                     {
-                        ed.WriteMessage($"\nFJV TRACÈ SHOW style missing! Run IMPORTLABELSTYLES.");
+                        ed.WriteMessage($"\nFJV TRACE NO SHOW style missing! Run IMPORTLABELSTYLES.");
                         tx.Abort();
                         return;
                     }

@@ -1512,7 +1512,7 @@ namespace IntersectUtilities
                             .Where(x =>
                                 psmPipeLineData.FilterPropetyString(
                                     x, driPipelineData.BranchesOffToAlignment, al.Name) &&
-                                x.RealName() == "AFGRSTUDS" || x.RealName() == "SH LIGE")
+                                (x.RealName() == "AFGRSTUDS" || x.RealName() == "SH LIGE"))
                             .ToHashSet();
 
                         //Tilføj afgreningsstudse til blokke
@@ -2049,7 +2049,7 @@ namespace IntersectUtilities
                             .Where(x =>
                                 psmPipeLineData.FilterPropetyString(
                                     x, driPipelineData.BranchesOffToAlignment, al.Name) &&
-                                x.RealName() == "AFGRSTUDS" || x.RealName() == "SH LIGE")
+                                (x.RealName() == "AFGRSTUDS" || x.RealName() == "SH LIGE"))
                             .ToHashSet();
 
                         //Tilføj afgreningsstudse til blokke
