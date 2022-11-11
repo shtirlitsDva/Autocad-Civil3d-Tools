@@ -238,6 +238,8 @@ namespace IntersectUtilities.Dimensionering
             Document doc = docCol.MdiActiveDocument;
             Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
 
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
             #region Select sample object
             PromptEntityOptions peo1 = new PromptEntityOptions(
                 "\nVælg objekt som repræsenterer udklipsobjekter (skal være POLYLINE eller MPOLYGON): ");
