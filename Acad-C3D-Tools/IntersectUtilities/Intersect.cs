@@ -51,6 +51,7 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using System.Windows.Documents;
 using System.Windows.Controls;
 using System.Security.Cryptography;
+using Microsoft.VisualBasic.Logging;
 
 namespace IntersectUtilities
 {
@@ -7604,14 +7605,16 @@ namespace IntersectUtilities
                         {
                             sb.Append(psMan.ReadPropertyString(br, prop) + ";");
                         }
-                        sb.Append(br.Position.X.ToString()+";");
-                        sb.Append(br.Position.Y.ToString()+";");
+                        sb.Append(br.Position.X.ToString() + ";");
+                        sb.Append(br.Position.Y.ToString() + ";");
                         sb.AppendLine();
                     }
 
+                    string dbFilename = localDb.OriginalFileName;
+                    string path = Path.GetDirectoryName(dbFilename);
+
                     Utils.OutputWriter(
-                        @"X:\108 - 1249 - VEKS projektledelse - Dokumenter\01 Intern\" +
-                        @"15 GIS\01 Tranegilde\05 Analyse\BBR.csv", sb.ToString(), true);
+                        path + "\\BBR.csv", sb.ToString(), true);
                 }
                 catch (System.Exception ex)
                 {
