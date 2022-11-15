@@ -1009,7 +1009,7 @@ namespace IntersectUtilities.Dimensionering
                 }
                 finally
                 {
-
+                    prdDbg("Done!");
                 }
                 tx.Commit();
             }
@@ -3758,11 +3758,19 @@ namespace IntersectUtilities.Dimensionering
                         {
                             if (item.name.IsNotNoE())
                             {
-                                int dim;
-                                if (item.dim == "-") dim = 25;
-                                else dim = Convert.ToInt32(item.dim.Remove(0, 2));
+                                try
+                                {
+                                    int dim;
+                                    if (item.dim == "-") dim = 25;
+                                    else dim = Convert.ToInt32(item.dim.Remove(0, 2));
 
-                                dimList.Add(new DimEntry(item.name, dim));
+                                    dimList.Add(new DimEntry(item.name, dim));
+                                }
+                                catch (System.Exception)
+                                {
+                                    prdDbg($"Item.name: {item.name}, Item.dim: {item.dim}");
+                                    throw;
+                                }
                             }
 
                         }
