@@ -92,13 +92,7 @@ namespace ExportShapeFiles
                     Log.log($"Exporting to {exportDir}.");
 
                     #region Exporting (p)lines
-                    HashSet<Polyline> pls = localDb.HashSetOfType<Polyline>(tx);
-
-                    pls = pls.Where(pl => (pl.Layer.Contains("FJV-TWIN") ||
-                                             pl.Layer.Contains("FJV-FREM") ||
-                                             pl.Layer.Contains("FJV-RETUR")))
-                        .Where(pl => GetPipeDN(pl) != 999)
-                        .ToHashSet();
+                    HashSet<Polyline> pls = localDb.GetFjvPipes(tx, true);
 
                     Log.log($"{pls.Count} polyline(s) found for export.");
 
@@ -173,7 +167,7 @@ namespace ExportShapeFiles
                             string[] attributes = new string[3];
                             attributes[0] = GetPipeDN(pline).ToString();
                             attributes[1] = GetPipeType(pline).ToString();
-                            attributes[2] = GetPipeSeries(pline);
+                            attributes[2] = GetPipeSeriesV2(pline).ToString();
 
                             writer.AddRecord(shapePoints, shapePoints.Length, attributes);
                         }
