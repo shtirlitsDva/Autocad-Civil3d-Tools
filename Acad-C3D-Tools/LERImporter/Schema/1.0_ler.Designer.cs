@@ -3601,20 +3601,6 @@ namespace LERImporter.Schema
         public SurfacePatchArrayPropertyType patches { get; set; }
     }
 
-    /// <summary>
-    /// gml:SurfacePatchArrayPropertyType is a container for a sequence of surface patches.
-    /// </summary>
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
-    [Serializable]
-    
-    [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
-    public partial class SurfacePatchArrayPropertyType
-    {
-        [XmlElement("AbstractSurfacePatch")]
-        public AbstractSurfacePatchType[] AbstractSurfacePatch { get; set; }
-    }
-
     [XmlInclude(typeof(AbstractParametricCurveSurfaceType))]
     [XmlInclude(typeof(AbstractGriddedSurfaceType))]
     [XmlInclude(typeof(SphereType))]

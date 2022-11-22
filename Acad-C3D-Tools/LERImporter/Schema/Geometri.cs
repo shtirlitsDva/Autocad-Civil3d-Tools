@@ -251,67 +251,154 @@ namespace LERImporter.Schema
     {
         public Oid CreateEntity(Database database)
         {
-            if (this.patches.AbstractSurfacePatch.Length > 1) throw
-                    new System.Exception("AbstractSurfacePatch.Length is larger than 1! Not implemented.");
-
-            if (this.patches.AbstractSurfacePatch.Any(x => x is PolygonPatchType))
+            if (this.patches.AbstractSurfacePatch == null)
             {
-                PolygonPatchType ppt = (PolygonPatchType)
-                    this.patches.AbstractSurfacePatch.Where(x => x is PolygonPatchType).FirstOrDefault();
-
-                var exterior = ppt.exterior;
-                var ringType = exterior.Item;
-
-                switch (ringType)
+                switch (this.patches.patch)
                 {
-                    case LinearRingType lrt:
-                        DirectPositionListType dplt;
-                        if ((dplt = lrt.Items[0] as DirectPositionListType) != null)
+                    case PolygonPatchType ppt:
+                        var exterior = ppt.exterior;
+                        var ringType = exterior.Item;
+
+                        switch (ringType)
                         {
-                            var points = dplt.Get3DPoints();
+                            case LinearRingType lrt:
+                                DirectPositionListType dplt;
+                                if ((dplt = lrt.Items[0] as DirectPositionListType) != null)
+                                {
+                                    var points = dplt.Get3DPoints();
 
-                            Point2dCollection points2d = new Point2dCollection();
-                            DoubleCollection dc = new DoubleCollection();
-                            //-1 beacuse the last point is a repetition of first
-                            for (int i = 0; i < points.Length; i++)
-                            {
-                                points2d.Add(points[i].To2D());
-                                dc.Add(0.0);
-                            }
+                                    Point2dCollection points2d = new Point2dCollection();
+                                    DoubleCollection dc = new DoubleCollection();
+                                    //-1 beacuse the last point is a repetition of first
+                                    for (int i = 0; i < points.Length; i++)
+                                    {
+                                        points2d.Add(points[i].To2D());
+                                        dc.Add(0.0);
+                                    }
 
-                            //Polyline pline = new Polyline(points.Length);
-                            ////-1 beacuse the last point is a repetition of first
-                            //for (int i = 0; i < points.Length - 1; i++)
-                            //    pline.AddVertexAt(pline.NumberOfVertices, points[i].To2D(), 0, 0, 0);
-                            //pline.Closed = true;
-                            //Oid plineId = pline.AddEntityToDbModelSpace(database);
+                                    //Polyline pline = new Polyline(points.Length);
+                                    ////-1 beacuse the last point is a repetition of first
+                                    //for (int i = 0; i < points.Length - 1; i++)
+                                    //    pline.AddVertexAt(pline.NumberOfVertices, points[i].To2D(), 0, 0, 0);
+                                    //pline.Closed = true;
+                                    //Oid plineId = pline.AddEntityToDbModelSpace(database);
 
-                            Hatch hatch = new Hatch();
-                            hatch.Normal = new Vector3d(0.0, 0.0, 1.0);
-                            hatch.Elevation = 0.0;
-                            hatch.PatternScale = 1.0;
-                            hatch.SetHatchPattern(HatchPatternType.PreDefined, "SOLID");
-                            Oid hatchId = hatch.AddEntityToDbModelSpace(database);
+                                    Hatch hatch = new Hatch();
+                                    hatch.Normal = new Vector3d(0.0, 0.0, 1.0);
+                                    hatch.Elevation = 0.0;
+                                    hatch.PatternScale = 1.0;
+                                    hatch.SetHatchPattern(HatchPatternType.PreDefined, "SOLID");
+                                    Oid hatchId = hatch.AddEntityToDbModelSpace(database);
 
-                            hatch.AppendLoop(HatchLoopTypes.Default, points2d, dc);
-                            hatch.EvaluateHatch(true);
+                                    hatch.AppendLoop(HatchLoopTypes.Default, points2d, dc);
+                                    hatch.EvaluateHatch(true);
 
-                            return hatchId;
+                                    return hatchId;
+                                }
+                                else throw new System.Exception(
+                                    $"Unexpected type in PolygonType.exterior.Item.Items[0]: {lrt.Items[0].GetType().Name}");
+                            case RingType rt:
+                                throw new System.NotImplementedException();
+                            default:
+                                throw new System.Exception($"Unexpected type in PolygonType.exterior.Item: {ringType.GetType().Name}");
                         }
-                        else throw new System.Exception(
-                            $"Unexpected type in PolygonType.exterior.Item.Items[0]: {lrt.Items[0].GetType().Name}");
-                    case RingType rt:
-                        throw new System.NotImplementedException();
                     default:
-                        throw new System.Exception($"Unexpected type in PolygonType.exterior.Item: {ringType.GetType().Name}");
+                        throw new NotImplementedException($"Type {this.patches.patch.GetType()} is not implemented in patches!");
                 }
             }
             else
             {
-                throw new NotImplementedException("Surface does not implement specified type!");
-            }
+                if (this.patches.AbstractSurfacePatch.Length > 1) throw
+                        new System.Exception("AbstractSurfacePatch.Length is larger than 1! Not implemented.");
 
+                if (this.patches.AbstractSurfacePatch.Any(x => x is PolygonPatchType))
+                {
+                    PolygonPatchType ppt = (PolygonPatchType)
+                        this.patches.AbstractSurfacePatch.Where(x => x is PolygonPatchType).FirstOrDefault();
+
+                    var exterior = ppt.exterior;
+                    var ringType = exterior.Item;
+
+                    switch (ringType)
+                    {
+                        case LinearRingType lrt:
+                            DirectPositionListType dplt;
+                            if ((dplt = lrt.Items[0] as DirectPositionListType) != null)
+                            {
+                                var points = dplt.Get3DPoints();
+
+                                Point2dCollection points2d = new Point2dCollection();
+                                DoubleCollection dc = new DoubleCollection();
+                                //-1 beacuse the last point is a repetition of first
+                                for (int i = 0; i < points.Length; i++)
+                                {
+                                    points2d.Add(points[i].To2D());
+                                    dc.Add(0.0);
+                                }
+
+                                //Polyline pline = new Polyline(points.Length);
+                                ////-1 beacuse the last point is a repetition of first
+                                //for (int i = 0; i < points.Length - 1; i++)
+                                //    pline.AddVertexAt(pline.NumberOfVertices, points[i].To2D(), 0, 0, 0);
+                                //pline.Closed = true;
+                                //Oid plineId = pline.AddEntityToDbModelSpace(database);
+
+                                Hatch hatch = new Hatch();
+                                hatch.Normal = new Vector3d(0.0, 0.0, 1.0);
+                                hatch.Elevation = 0.0;
+                                hatch.PatternScale = 1.0;
+                                hatch.SetHatchPattern(HatchPatternType.PreDefined, "SOLID");
+                                Oid hatchId = hatch.AddEntityToDbModelSpace(database);
+
+                                hatch.AppendLoop(HatchLoopTypes.Default, points2d, dc);
+                                hatch.EvaluateHatch(true);
+
+                                return hatchId;
+                            }
+                            else throw new System.Exception(
+                                $"Unexpected type in PolygonType.exterior.Item.Items[0]: {lrt.Items[0].GetType().Name}");
+                        case RingType rt:
+                            throw new System.NotImplementedException();
+                        default:
+                            throw new System.Exception($"Unexpected type in PolygonType.exterior.Item: {ringType.GetType().Name}");
+                    }
+                }
+                else
+                {
+                    throw new NotImplementedException("Surface does not implement specified type!");
+                }
+            }
         }
+    }
+    /// <summary>
+    /// gml:SurfacePatchArrayPropertyType is a container for a sequence of surface patches.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
+    [Serializable]
+    [DesignerCategoryAttribute("code")]
+    [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
+    public partial class SurfacePatchArrayPropertyType
+    {
+        //[XmlElement("AbstractSurfacePatch")]
+        [XmlArrayItem(typeof(AbstractParametricCurveSurfaceType), Namespace = "http://www.opengis.net/gml/3.2", ElementName = "AbstractParametricCurveSurface")]
+        [XmlArrayItem(typeof(AbstractGriddedSurfaceType), Namespace = "http://www.opengis.net/gml/3.2", ElementName = "AbstractGriddedSurface")]
+        [XmlArrayItem(typeof(SphereType), Namespace = "http://www.opengis.net/gml/3.2", ElementName = "Sphere")]
+        [XmlArrayItem(typeof(CylinderType), Namespace = "http://www.opengis.net/gml/3.2", ElementName = "Cylinder")]
+        [XmlArrayItem(typeof(ConeType), Namespace = "http://www.opengis.net/gml/3.2", ElementName = "Cone")]
+        [XmlArrayItem(typeof(RectangleType), Namespace = "http://www.opengis.net/gml/3.2", ElementName = "Rectangle")]
+        [XmlArrayItem(typeof(TriangleType), Namespace = "http://www.opengis.net/gml/3.2", ElementName = "Triangle")]
+        [XmlArrayItem(typeof(PolygonPatchType), Namespace = "http://www.opengis.net/gml/3.2", ElementName = "PolygonPatch")]
+        public AbstractSurfacePatchType[] AbstractSurfacePatch { get; set; }
+        
+        [XmlElement(typeof(AbstractParametricCurveSurfaceType))]
+        [XmlElement(typeof(AbstractGriddedSurfaceType))]
+        [XmlElement("Sphere", typeof(SphereType))]
+        [XmlElement("Cylinder", typeof(CylinderType))]
+        [XmlElement("Cone", typeof(ConeType))]
+        [XmlElement("Rectangle", typeof(RectangleType))]
+        [XmlElement("Triangle", typeof(TriangleType))]
+        [XmlElement("PolygonPatch", typeof(PolygonPatchType))]
+        public AbstractSurfacePatchType patch { get; set; }
     }
     [XmlRootAttribute("Polygon", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
     public partial class PolygonType : IEntityCreator, IPointParser
