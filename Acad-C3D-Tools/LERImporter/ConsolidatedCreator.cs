@@ -270,7 +270,16 @@ namespace LERImporter
                 ILerKomponent creator = komponent as ILerKomponent;
                 if (creator == null)
                     throw new System.Exception($"Komponent {komponent.GmlId}, {komponent.LerId} har ikke implementeret ILerKomponent!");
-                Oid entityId = creator.DrawComponent(db);
+                Oid entityId;
+                try
+                {
+                    entityId = creator.DrawComponent(db);
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg("Component: " + komponent.gmlid + " threw an exception!");
+                    throw;
+                }
                 Entity ent = entityId.Go<Entity>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
                 //Attach the property set
