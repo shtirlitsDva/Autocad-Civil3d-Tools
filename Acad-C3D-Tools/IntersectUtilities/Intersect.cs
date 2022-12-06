@@ -7678,6 +7678,69 @@ namespace IntersectUtilities
             }
         }
 
+
+        [CommandMethod("SETTBLDATA")]
+        [CommandMethod("STD")]
+        public void settbldata()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            //Jesper simpel metode
+            //Nummer og Vejnavn udelades
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Oid oid = Interaction.GetEntity("Select polyline til TBL områder: ");
+
+                    if (oid == Oid.Null) AbortGracefully(tx, "Selection of entity aborted!");
+
+                    Entity ent = oid.Go<Entity>(tx, OpenMode.ForWrite);
+
+                    PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriOmråder);
+                    PSetDefs.DriOmråder psDef = new PSetDefs.DriOmråder();
+
+                    string[] kwds = new string[]
+                    {
+                        "Vejbane",
+                        "Cykelsti",
+                        "Belægningssten",
+                        "Flisebelægning",
+                        "Fortov",
+                        "Overkørsel",
+                        "Ubefæstet"
+                    };
+
+                    string kwd = Interaction.GetKeywords("Angiv belægning: ", kwds);
+                    if (kwd == null) AbortGracefully(tx, "Input annulleret!");
+
+                    psm.WritePropertyString(ent, psDef.Belægning, kwd);
+
+                    kwds = new string[]
+                    {
+                        "1",
+                        "2",
+                        "3",
+                        "4"
+                    };
+
+                    kwd = null;
+                    kwd = Interaction.GetKeywords("Angiv vejklasse: ", kwds);
+                    if (kwd == null) AbortGracefully(tx, "Input annulleret!");
+
+                    psm.WritePropertyString(ent, psDef.Vejklasse, kwd);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         //[CommandMethod("TESTENUMS")]
         public void testenums()
         {
