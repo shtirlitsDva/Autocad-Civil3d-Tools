@@ -7626,6 +7626,58 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("DISPLAYNROFHISTLINES")]
+        public void displaynrofhistlines()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    doc.SendStringToExecute("(GETENV \"CmdHistLines\")\n", true, false, false);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("SETNROFHISTLINES")]
+        public void setnrofhistlines()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    int lines = Interaction.GetInteger("Enter number of lines for AutoCAD command line history: ");
+
+                    if (lines == -1) AbortGracefully(tx, "Number of lines cancelled!");
+
+                    if (lines < 25 || lines > 2048) AbortGracefully(tx, "Number of lines must be between 25 and 2048!");
+
+                    doc.SendStringToExecute($"(SETENV \"CmdHistLines\" \"{lines}\")\n", true, false, false);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         //[CommandMethod("TESTENUMS")]
         public void testenums()
         {

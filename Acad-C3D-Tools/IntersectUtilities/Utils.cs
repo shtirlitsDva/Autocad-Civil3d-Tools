@@ -943,7 +943,7 @@ namespace IntersectUtilities
                     }
                     catch (System.Exception)
                     {
-                        prdDbg(tempP3d.ToString());
+                        prdDbg($"Error ent: {curve.Handle}, TempP3d: " + tempP3d.ToString());
                         throw;
                     }
 

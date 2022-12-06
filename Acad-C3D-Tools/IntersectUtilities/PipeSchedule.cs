@@ -751,7 +751,7 @@ namespace IntersectUtilities
             return GetPipeKOd(ent, GetPipeSeriesV2(ent));
         }
         public static string GetPipeSeries(Entity ent) => "S3";
-        public static PipeSeriesEnum GetPipeSeriesV2(Entity ent)
+        public static PipeSeriesEnum GetPipeSeriesV2(Entity ent, bool hardFail = false)
         {
             double realKod;
             try
@@ -760,6 +760,8 @@ namespace IntersectUtilities
             }
             catch (Exception)
             {
+                if (hardFail) throw new Exception($"Ent {ent.Handle} ConstantWidth threw an exception!");
+                prdDbg($"Ent {ent.Handle} ConstantWidth threw an exception!");
                 return PipeSeriesEnum.Undefined;
             }
             PipeSystemEnum pipeSystem = GetPipeSystem(ent);
