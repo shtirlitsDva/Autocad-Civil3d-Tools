@@ -153,6 +153,23 @@ namespace IntersectUtilities
                 case BlockReference br:
                     Transaction tx = br.Database.TransactionManager.TopTransaction;
                     BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+
+                    //Quick and dirty fix for missing data
+                    if (br.RealName() == "SH LIGE")
+                    {
+                        PropertySetManager psmPipeline =
+                                    new PropertySetManager(dB, PSetDefs.DefinedSets.DriPipelineData);
+                        PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
+
+                        string belongsTo = psmPipeline.ReadPropertyString(br, driPipelineData.BelongsToAlignment);
+                        if (belongsTo.IsNoE())
+                        {
+                            string branchesOffTo = psmPipeline.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment);
+                            if (branchesOffTo.IsNotNoE())
+                                psmPipeline.WritePropertyString(br, driPipelineData.BelongsToAlignment, branchesOffTo);
+                        }
+                    }
+
                     foreach (Oid oid in btr)
                     {
                         if (!oid.IsDerivedFrom<BlockReference>()) continue;

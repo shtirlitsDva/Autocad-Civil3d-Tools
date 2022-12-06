@@ -201,12 +201,12 @@ namespace IntersectUtilities
                             Alignment mainAl = null;
                             Alignment branchAl = null;
 
-                            if (firstDotProduct > 0.9)
+                            if (firstDotProduct > 0.75)
                             {
                                 mainAl = first.al;
                                 branchAl = second.al;
                             }
-                            else if (secondDotProduct > 0.9)
+                            else if (secondDotProduct > 0.75)
                             {
                                 mainAl = second.al;
                                 branchAl = first.al;
@@ -225,7 +225,8 @@ namespace IntersectUtilities
                                 continue;
                             }
 
-                            if (br.RealName() == "AFGRSTUDS" ||
+                            if (
+                                //br.RealName() == "AFGRSTUDS" ||
                                 br.RealName() == "SH LIGE")
                             {
                                 psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, branchAl.Name);
@@ -555,6 +556,246 @@ namespace IntersectUtilities
                 alTx.Abort();
                 alTx.Dispose();
                 alDb.Dispose();
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("TESTASSIGNMENT")]
+        public void testassignment()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            DataReferencesOptions dro = new DataReferencesOptions();
+            string projectName = dro.ProjectName;
+            string etapeName = dro.EtapeName;
+
+            prdDbg("Kører med antagelse, at alle flex rør (CU, ALUPEX) er stikledninger.");
+
+            // open the xref database
+            Database alDb = new Database(false, true);
+            alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
+                FileOpenMode.OpenForReadAndAllShare, false, null);
+            Transaction alTx = alDb.TransactionManager.StartTransaction();
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+                    HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
+                    HashSet<Polyline> allPipes = localDb.GetFjvPipes(tx);
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
+
+                    #region Initialize property set
+                    PropertySetManager psm = new PropertySetManager(
+                        localDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
+                    #endregion
+
+                    #region Blocks
+                    foreach (BlockReference br in brs)
+                    {
+                        //Guard against unknown blocks
+                        if (ReadStringParameterFromDataTable(
+                            br.RealName(), fjvKomponenter, "Navn", 0) == null)
+                            continue;
+
+                        HashSet<(BlockReference block, double dist, Alignment al)> alDistTuples =
+                            new HashSet<(BlockReference, double, Alignment)>();
+                        try
+                        {
+                            foreach (Alignment al in als)
+                            {
+                                if (al.Length < 1) continue;
+                                Polyline pline = al.GetPolyline().Go<Polyline>(alTx);
+                                Point3d tP3d = pline.GetClosestPointTo(br.Position, false);
+                                alDistTuples.Add((br, tP3d.DistanceHorizontalTo(br.Position), al));
+                            }
+                        }
+                        catch (System.Exception)
+                        {
+                            prdDbg("Error in GetClosestPointTo -> loop incomplete! (Using GetPolyline)");
+                        }
+
+                        double distThreshold = 0.15;
+                        var result = alDistTuples.Where(x => x.dist < distThreshold);
+
+                        if (result.Count() == 0)
+                        {
+                            //If the component cannot find an alignment
+                            //Repeat with increasing threshold
+                            for (int i = 0; i < 4; i++)
+                            {
+                                distThreshold += 0.1;
+                                if (result.Count() != 0) break;
+                                if (i == 3)
+                                {
+                                    //Red line means check result
+                                    //This is caught if no result found at ALL
+                                    Line line = new Line(new Point3d(), br.Position);
+                                    line.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                                    line.AddEntityToDbModelSpace(localDb);
+                                }
+                            }
+
+                            if (result.Count() > 0)
+                            {
+                                //This is caught if a result was found after some iterations
+                                //So the result must be checked to see, if components
+                                //Not belonging to the alignment got selected
+                                //Magenta
+                                Line line = new Line(new Point3d(), br.Position);
+                                line.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
+                                line.AddEntityToDbModelSpace(localDb);
+                            }
+                        }
+
+                        if (result.Count() == 0)
+                        {
+                            psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, "NA");
+                        }
+                        else if (result.Count() == 2)
+                        {//Should be ordinary branch
+                            var first = result.First();
+                            var second = result.Skip(1).First();
+
+                            double rotation = br.Rotation;
+                            Vector3d brDir = new Vector3d(Math.Cos(rotation), Math.Sin(rotation), 0);
+
+                            //First
+                            Point3d firstClosestPoint = first.al.GetClosestPointTo(br.Position, false);
+                            Vector3d firstDeriv = first.al.GetFirstDerivative(firstClosestPoint);
+                            double firstDotProduct = Math.Abs(brDir.DotProduct(firstDeriv));
+                            prdDbg("Ent: " + br.Handle);
+                            prdDbg("First");
+                            prdDbg($"Rotation: {rotation} - First: {first.al.Name}: {Math.Atan2(firstDeriv.Y, firstDeriv.X)}");
+                            prdDbg($"Dot product: {firstDotProduct}");
+
+                            //Second
+                            Point3d secondClosestPoint = second.al.GetClosestPointTo(br.Position, false);
+                            Vector3d secondDeriv = second.al.GetFirstDerivative(secondClosestPoint);
+                            double secondDotProduct = Math.Abs(brDir.DotProduct(secondDeriv));
+                            prdDbg("Second");
+                            prdDbg($"Rotation: {rotation} - Second: {second.al.Name}: {Math.Atan2(secondDeriv.Y, secondDeriv.X)}");
+                            prdDbg($"Dot product: {secondDotProduct}");
+
+                            Alignment mainAl = null;
+                            Alignment branchAl = null;
+
+                            if (firstDotProduct > 0.9)
+                            {
+                                mainAl = first.al;
+                                branchAl = second.al;
+                            }
+                            else if (secondDotProduct > 0.9)
+                            {
+                                mainAl = second.al;
+                                branchAl = first.al;
+                            }
+                            else
+                            {
+                                //Case: Inconclusive
+                                //When the main axis of the block
+                                //Is not aligned with one of the runs
+                                //Annotate with a line for checking
+                                //And must be manually annotated
+                                //Yellow
+                                Line line = new Line(new Point3d(), first.block.Position);
+                                line.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
+                                line.AddEntityToDbModelSpace(localDb);
+                                continue;
+                            }
+
+                            if (
+                                //br.RealName() == "AFGRSTUDS" ||
+                                br.RealName() == "SH LIGE")
+                            {
+                                psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, branchAl.Name);
+                                psm.WritePropertyString(br, driPipelineData.BranchesOffToAlignment, mainAl.Name);
+                            }
+                            else
+                            {
+                                psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, mainAl.Name);
+                                psm.WritePropertyString(br, driPipelineData.BranchesOffToAlignment, branchAl.Name);
+                            }
+                        }
+                        else if (result.Count() > 2)
+                        {//More alignments meeting in one place?
+                         //Possible but not seen yet
+                         //Cyan
+                            var first = result.First();
+                            Line line = new Line(new Point3d(), first.block.Position);
+                            line.Color = Color.FromColorIndex(ColorMethod.ByAci, 4);
+                            line.AddEntityToDbModelSpace(localDb);
+                        }
+                        else if (result.Count() == 1)
+                        {
+                            if (br.RealName() == "AFGRSTUDS" ||
+                                br.RealName() == "SH LIGE")
+                            {
+                                psm.WritePropertyString(br, driPipelineData.BranchesOffToAlignment, result.First().al.Name);
+                            }
+                            else
+                            {
+                                psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, result.First().al.Name);
+                            }
+                        }
+                    }
+                    #endregion
+                 
+                }
+                catch (System.Exception ex)
+                {
+                    alTx.Abort();
+                    alTx.Dispose();
+                    alDb.Dispose();
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                alTx.Abort();
+                alTx.Dispose();
+                alDb.Dispose();
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("TESTDOTPRODUCT")]
+        public void testdotproduct()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Oid oid1 = Interaction.GetEntity("Select first: ", typeof(Line));
+                    Oid oid2 = Interaction.GetEntity("Select second: ", typeof(Line));
+                    if (oid1 == Oid.Null || oid2 == Oid.Null) AbortGracefully(tx, "Aborted!");
+
+                    Line line1 = oid1.Go<Line>(tx);
+                    Line line2 = oid2.Go<Line>(tx);
+
+                    var v1 = line1.GetFirstDerivative(line1.EndPoint);
+                    var v2 = line2.GetFirstDerivative(line2.EndPoint);
+
+                    prdDbg(v1.DotProduct(v2));
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
                 tx.Commit();
             }
         }
