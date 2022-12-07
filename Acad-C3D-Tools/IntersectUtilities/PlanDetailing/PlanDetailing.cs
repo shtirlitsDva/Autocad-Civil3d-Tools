@@ -952,7 +952,7 @@ namespace IntersectUtilities
                     foreach (Alignment al in als.OrderBy(x => x.Name))
                     {
                         #region GetCurvesAndBRs
-                        prdDbg($"\nProcessing: {al.Name}...");
+
                         HashSet<Curve> curves = localDb.ListOfType<Curve>(tx, true)
                             .Where(x => psm.FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                             .ToHashSet();
@@ -960,6 +960,10 @@ namespace IntersectUtilities
                             .Where(x => psm.FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                             .Where(x => x.RealName() != "SVEJSEPUNKT")
                             .ToHashSet();
+
+
+                        if (curves.Count == 0 && brs.Count == 0) continue;
+                        prdDbg($"\nProcessing: {al.Name}...");
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
 
                         HashSet<(Entity ent, double dist)> distTuples = new HashSet<(Entity ent, double dist)>();
@@ -998,6 +1002,15 @@ namespace IntersectUtilities
                             double modulo = division - nrOfSections;
                             double remainder = modulo * pipeStdLegnth;
                             double missingLength = pipeStdLegnth - remainder;
+
+                            //prdDbg(
+                            //    $"pipeStdLength: {pipeStdLegnth}\n" +
+                            //    $"pipeLength: {pipeLength}\n" +
+                            //    $"division: {division}\n" +
+                            //    $"nrOfSections: {nrOfSections}\n" +
+                            //    $"modulo: {modulo}\n" +
+                            //    $"missingLength: {missingLength}"
+                            //    );
 
                             Polyline pline = curve as Polyline;
                             pline.CheckOrOpenForWrite();
@@ -1360,6 +1373,63 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("LISTSINGLESIZEPIPELINES")]
+        public void listsinglesizepipelines()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
 
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                #region Open alignment db
+                DataReferencesOptions dro = new DataReferencesOptions();
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
+
+                // open the xref database
+                Database alDb = new Database(false, true);
+                alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
+                Transaction alTx = alDb.TransactionManager.StartTransaction();
+                HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
+                #endregion
+
+                try
+                {
+                    #region Propertyset init
+                    PropertySetManager psm = new PropertySetManager(
+                        localDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
+                    #endregion
+
+                    foreach (Alignment al in als.OrderBy(x => x.Name))
+                    {
+                        #region GetCurvesAndBRs
+                        HashSet<Curve> curves = localDb.ListOfType<Curve>(tx, true)
+                            .Where(x => psm.FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                            .ToHashSet();
+                        if (curves.Count == 0) continue;
+
+                        TypeOfIteration iterType = 0;
+                        Queue<Curve> kø = Utils.GetSortedQueue(localDb, al, curves, ref iterType);
+                        #endregion
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    alTx.Abort();
+                    alTx.Dispose();
+                    alDb.Dispose();
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                alTx.Abort();
+                alTx.Dispose();
+                alDb.Dispose();
+                tx.Commit();
+            }
+        }
     }
 }

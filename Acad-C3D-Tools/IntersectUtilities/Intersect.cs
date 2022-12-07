@@ -7626,6 +7626,122 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("DISPLAYNROFHISTLINES")]
+        public void displaynrofhistlines()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    doc.SendStringToExecute("(GETENV \"CmdHistLines\")\n", true, false, false);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("SETNROFHISTLINES")]
+        public void setnrofhistlines()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    int lines = Interaction.GetInteger("Enter number of lines for AutoCAD command line history: ");
+
+                    if (lines == -1) AbortGracefully(tx, "Number of lines cancelled!");
+
+                    if (lines < 25 || lines > 2048) AbortGracefully(tx, "Number of lines must be between 25 and 2048!");
+
+                    doc.SendStringToExecute($"(SETENV \"CmdHistLines\" \"{lines}\")\n", true, false, false);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+
+        [CommandMethod("SETTBLDATA")]
+        [CommandMethod("STD")]
+        public void settbldata()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            //Jesper simpel metode
+            //Nummer og Vejnavn udelades
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Oid oid = Interaction.GetEntity("Select polyline til TBL områder: ");
+
+                    if (oid == Oid.Null) AbortGracefully(tx, "Selection of entity aborted!");
+
+                    Entity ent = oid.Go<Entity>(tx, OpenMode.ForWrite);
+
+                    PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriOmråder);
+                    PSetDefs.DriOmråder psDef = new PSetDefs.DriOmråder();
+
+                    string[] kwds = new string[]
+                    {
+                        "Vejbane",
+                        "Cykelsti",
+                        "Belægningssten",
+                        "Flisebelægning",
+                        "FOrtov",
+                        "Overkørsel",
+                        "Ubefæstet"
+                    };
+
+                    string kwd = Interaction.GetKeywords("Angiv belægning: ", kwds);
+                    if (kwd == null) AbortGracefully(tx, "Input annulleret!");
+                    if (kwd == "FOrtov") kwd = "Fortov";
+
+                    psm.WritePropertyString(ent, psDef.Belægning, kwd);
+
+                    kwds = new string[]
+                    {
+                        "1",
+                        "2",
+                        "3",
+                        "4"
+                    };
+
+                    kwd = null;
+                    kwd = Interaction.GetKeywords("Angiv vejklasse: ", kwds);
+                    if (kwd == null) AbortGracefully(tx, "Input annulleret!");
+
+                    psm.WritePropertyString(ent, psDef.Vejklasse, kwd);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         //[CommandMethod("TESTENUMS")]
         public void testenums()
         {
