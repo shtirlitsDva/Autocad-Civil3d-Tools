@@ -560,7 +560,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("TESTASSIGNMENT")]
+        //[CommandMethod("TESTASSIGNMENT")]
         public void testassignment()
         {
 
@@ -768,7 +768,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("TESTDOTPRODUCT")]
+        //[CommandMethod("TESTDOTPRODUCT")]
         public void testdotproduct()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -865,7 +865,6 @@ namespace IntersectUtilities
             Application.DocumentManager.MdiActiveDocument.Editor.Regen();
         }
 
-
         [CommandMethod("HIGHLIGHTRESET")]
         public void highlightreset()
         {
@@ -930,8 +929,6 @@ namespace IntersectUtilities
 
             Application.DocumentManager.MdiActiveDocument.Editor.Regen();
         }
-
-
 
         [CommandMethod("decoratepolylines")]
         public void decoratepolylines()

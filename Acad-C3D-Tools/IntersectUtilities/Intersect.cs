@@ -7707,7 +7707,7 @@ namespace IntersectUtilities
                         "Cykelsti",
                         "Belægningssten",
                         "Flisebelægning",
-                        "Fortov",
+                        "FOrtov",
                         "Overkørsel",
                         "Ubefæstet"
                     };
@@ -7728,6 +7728,8 @@ namespace IntersectUtilities
                     kwd = null;
                     kwd = Interaction.GetKeywords("Angiv vejklasse: ", kwds);
                     if (kwd == null) AbortGracefully(tx, "Input annulleret!");
+
+                    if (kwd == "FOrtov") kwd = "Fortov";
 
                     psm.WritePropertyString(ent, psDef.Vejklasse, kwd);
                 }
