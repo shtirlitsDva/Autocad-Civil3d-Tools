@@ -7707,7 +7707,7 @@ namespace IntersectUtilities
                         "Cykelsti",
                         "Belægningssten",
                         "Flisebelægning",
-                        "Fortov",
+                        "FOrtov",
                         "Overkørsel",
                         "Ubefæstet"
                     };

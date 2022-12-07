@@ -962,6 +962,8 @@ namespace IntersectUtilities
                             .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
 
+                        if (curves.Count == 0 && brs.Count == 0) continue;
+
                         HashSet<(Entity ent, double dist)> distTuples = new HashSet<(Entity ent, double dist)>();
                         #endregion
 
