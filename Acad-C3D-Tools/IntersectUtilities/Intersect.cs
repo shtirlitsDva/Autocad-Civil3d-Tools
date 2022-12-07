@@ -7713,8 +7713,8 @@ namespace IntersectUtilities
                     };
 
                     string kwd = Interaction.GetKeywords("Angiv belægning: ", kwds);
-                    if (kwd == "FOrtov") kwd = "Fortov";
                     if (kwd == null) AbortGracefully(tx, "Input annulleret!");
+                    if (kwd == "FOrtov") kwd = "Fortov";
 
                     psm.WritePropertyString(ent, psDef.Belægning, kwd);
 
