@@ -7713,6 +7713,7 @@ namespace IntersectUtilities
                     };
 
                     string kwd = Interaction.GetKeywords("Angiv belægning: ", kwds);
+                    if (kwd == "FOrtov") kwd = "Fortov";
                     if (kwd == null) AbortGracefully(tx, "Input annulleret!");
 
                     psm.WritePropertyString(ent, psDef.Belægning, kwd);
@@ -7728,8 +7729,6 @@ namespace IntersectUtilities
                     kwd = null;
                     kwd = Interaction.GetKeywords("Angiv vejklasse: ", kwds);
                     if (kwd == null) AbortGracefully(tx, "Input annulleret!");
-
-                    if (kwd == "FOrtov") kwd = "Fortov";
 
                     psm.WritePropertyString(ent, psDef.Vejklasse, kwd);
                 }
