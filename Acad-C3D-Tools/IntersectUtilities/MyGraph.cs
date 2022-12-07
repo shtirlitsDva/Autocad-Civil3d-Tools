@@ -241,7 +241,7 @@ namespace IntersectUtilities
                 { "Start-Start", false },
                 { "Start-End", false },
                 { "Start-Main", true },
-                { "Start-Branch", false },
+                { "Start-Branch", true },
                 { "Start-StikAfgrening", false },
                 { "Start-StikStart", false },
                 { "Start-StikEnd", false },
@@ -405,7 +405,7 @@ namespace IntersectUtilities
                     )
                     .MaxBy(x => x.LargestDn()).FirstOrDefault();
 
-                //prdDbg(ge.OwnerHandle.ToString());
+                prdDbg("Entry: " + ge.OwnerHandle.ToString());
                 if (ge == null)
                 {
                     //throw new System.Exception("No entity found!");
