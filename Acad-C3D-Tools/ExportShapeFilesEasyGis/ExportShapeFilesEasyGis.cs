@@ -303,10 +303,14 @@ namespace ExportShapeFiles
                 {
                     string fileName = localDb.OriginalFileName;
 
-                    string baseDir = @"X:\037-1178 - Gladsaxe udbygning - Dokumenter\01 Intern\04 Projektering\05 Optælling til TBL\";
+                    string dbFilename = localDb.OriginalFileName;
+                    string path = Path.GetDirectoryName(dbFilename);
+                    string shapeExportPath = path + "\\SHP\\";
+                    if (Directory.Exists(shapeExportPath) == false) Directory.CreateDirectory(shapeExportPath);
+                    
                     string shapeName = "Områder";
 
-                    Log.log($"Exporting to {baseDir}.");
+                    Log.log($"Exporting to {shapeExportPath}.");
 
                     #region Exporting (p)lines
                     HashSet<Polyline> pls = localDb.HashSetOfType<Polyline>(tx);
@@ -336,7 +340,7 @@ namespace ExportShapeFiles
 
 
                     using (ShapeFileWriter writer = ShapeFileWriter.CreateWriter(
-                        baseDir, shapeName,
+                        shapeExportPath, shapeName,
                         ShapeType.PolyLine, dbfFields,
                         EGIS.Projections.CoordinateReferenceSystemFactory.Default.GetCRSById(25832)
                         .GetWKT(EGIS.Projections.PJ_WKT_TYPE.PJ_WKT1_GDAL, false)))
