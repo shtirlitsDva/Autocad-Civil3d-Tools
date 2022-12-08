@@ -29,6 +29,7 @@ using MoreLinq;
 using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
 using Dreambuild.AutoCAD;
+using FolderSelect;
 
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
@@ -7678,7 +7679,6 @@ namespace IntersectUtilities
             }
         }
 
-
         [CommandMethod("SETTBLDATA")]
         [CommandMethod("STD")]
         public void settbldata()
@@ -7739,6 +7739,122 @@ namespace IntersectUtilities
                     return;
                 }
                 tx.Commit();
+            }
+        }
+
+        [CommandMethod("UNLOADXREFSBATCH")]
+        public void unloadxrefsbatch()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            string pathToFolder;
+
+            FolderSelectDialog fsd = new FolderSelectDialog()
+            {
+                Title = "Choose folder where view frame drawings are stored: ",
+                InitialDirectory = @"C:\"
+            };
+            if (fsd.ShowDialog(IntPtr.Zero))
+            {
+                pathToFolder = fsd.FileName + "\\";
+            }
+            else return;
+
+            var files = Directory.EnumerateFiles(pathToFolder, "*.dwg");
+
+            //Path to textfile with Xref names
+            string xrefNamesPath = pathToFolder + "xrefNames.txt";
+            if (!File.Exists(xrefNamesPath)) throw new System.Exception(
+                "Text file \"xrefNames.txt\" is missing at the specified location!");
+            var xrefNames = File.ReadAllLines(xrefNamesPath);
+
+            ObjectIdCollection idsToUnload = new ObjectIdCollection();
+
+            foreach (var f in files)
+            {
+                using (Database xDb = new Database(false, true))
+                {
+                    xDb.ReadDwgFile(f, FileOpenMode.OpenForReadAndWriteNoShare, false, "");
+
+                    using (Transaction xTx = xDb.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            BlockTable bt = xDb.BlockTableId.Go<BlockTable>(xTx);
+
+                            foreach (Oid oid in bt)
+                            {
+                                BlockTableRecord btr = oid.Go<BlockTableRecord>(xTx);
+
+                                if (btr.IsFromExternalReference)
+                                    if (xrefNames.Contains(btr.Name))
+                                        idsToUnload.Add(btr.Id);
+                            }
+
+                            if (idsToUnload.Count > 0) xDb.UnloadXrefs(idsToUnload);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            xTx.Abort();
+                            prdDbg(ex);
+                            throw;
+                        }
+                        xTx.Commit();
+                    }
+
+                    xDb.SaveAs(f, true, DwgVersion.Newest, null);
+                }
+            }
+        }
+
+        [CommandMethod("LISTXREFSINFILE")]
+        public void listxrefsinfile()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            #region Dialog box for file list selection and path determination
+            string fileName;
+            OpenFileDialog dialog = new OpenFileDialog()
+            {
+                Title = "Choose .dwg file to list xrefs: ",
+                DefaultExt = "dwg",
+                Filter = "dwg files (*.dwg)|*.dwg|All files (*.*)|*.*",
+                FilterIndex = 0
+            };
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                fileName = dialog.FileName;
+            }
+            else return;
+            #endregion
+
+            using (Database xDb = new Database(false, true))
+            {
+                xDb.ReadDwgFile(fileName, FileOpenMode.OpenForReadAndWriteNoShare, false, "");
+
+                using (Transaction xTx = xDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        BlockTable bt = xDb.BlockTableId.Go<BlockTable>(xTx);
+
+                        foreach (Oid oid in bt)
+                        {
+                            BlockTableRecord btr = oid.Go<BlockTableRecord>(xTx);
+
+                            if (btr.IsFromExternalReference) prdDbg(btr.Name);
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        xTx.Abort();
+                        prdDbg(ex);
+                        throw;
+                    }
+                    xTx.Commit();
+                }
             }
         }
 

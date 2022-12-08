@@ -524,23 +524,23 @@ namespace SheetCreationAutomation
                 return;
             }
 
+            string pathToViewFrameDwgs = @"C:\Temp";
+
+            FolderSelectDialog fsd = new FolderSelectDialog()
+            {
+                Title = "Choose folder where view frame drawings are stored: ",
+                InitialDirectory = @"C:\"
+            };
+            if (fsd.ShowDialog(IntPtr.Zero))
+            {
+                pathToViewFrameDwgs = fsd.FileName + "\\";
+            }
+            else return;
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
-                    string pathToViewFrameDwgs = @"C:\Temp";
-
-                    FolderSelectDialog fsd = new FolderSelectDialog()
-                    {
-                        Title = "Choose folder where view frame drawings are stored: ",
-                        InitialDirectory = @"C:\"
-                    };
-                    if (fsd.ShowDialog(IntPtr.Zero))
-                    {
-                        pathToViewFrameDwgs = fsd.FileName + "\\";
-                    }
-                    else return;
-
                     var files = Directory.EnumerateFiles(pathToViewFrameDwgs, "*.dwg");
 
                     HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
