@@ -210,7 +210,7 @@ namespace SheetCreationAutomation
 
                                     //Create reference to profiles
                                     //Determine the pipeline number
-                                    Regex regex = new Regex(@"(?<number>\d\d\s)");
+                                    Regex regex = new Regex(@"(?<number>\d{2,3}?\s)");
 
                                     string number = "";
                                     if (regex.IsMatch(item.Name))
@@ -340,7 +340,7 @@ namespace SheetCreationAutomation
                 Alignment al = localDb.ListOfType<Alignment>(tx).FirstOrDefault();
                 if (al == null) { prdDbg("No alignment found in drawing!"); tx.Abort(); return; }
 
-                Regex regex = new Regex(@"(?<number>\d\d)");
+                Regex regex = new Regex(@"(?<number>\d{2,3}?\s)");
 
                 string strNumber = "";
                 if (regex.IsMatch(al.Name))
@@ -447,8 +447,7 @@ namespace SheetCreationAutomation
                         if (item.DSEntityType == DataShortcutEntityType.Alignment)
                         {
                             //Determine the pipeline number
-                            Regex regex = new Regex(@"(?<number>\d\d\s)");
-
+                            Regex regex = new Regex(@"(?<number>\d{2,3}?\s)");
                             string number = "";
                             if (regex.IsMatch(item.Name))
                             {
@@ -492,6 +491,125 @@ namespace SheetCreationAutomation
                     sm.Dispose();
                 }
                 tx.Commit();
+            }
+        }
+
+        [CommandMethod("CREATEREFERENCETOPROFILESBATCH")]
+        public void createshortcutsofprofiles()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            bool isValidCreation = false;
+            DataShortcuts.DataShortcutManager sm = DataShortcuts.CreateDataShortcutManager(ref isValidCreation);
+
+            int GetPublishedItemIdxByName(DataShortcuts.DataShortcutManager dsm, string name)
+            {
+                int count = dsm.GetPublishedItemsCount();
+                for (int i = 0; i < count; i++)
+                {
+                    var item = dsm.GetPublishedItemAt(i);
+
+                    if (item.Name == name) return i;
+                }
+                return -1;
+            }
+
+            if (isValidCreation != true)
+            {
+                prdDbg("DataShortcutManager failed to be created!");
+                return;
+            }
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    string pathToViewFrameDwgs = @"C:\Temp";
+
+                    FolderSelectDialog fsd = new FolderSelectDialog()
+                    {
+                        Title = "Choose folder where view frame drawings are stored: ",
+                        InitialDirectory = @"C:\"
+                    };
+                    if (fsd.ShowDialog(IntPtr.Zero))
+                    {
+                        pathToViewFrameDwgs = fsd.FileName + "\\";
+                    }
+                    else return;
+
+                    var files = Directory.EnumerateFiles(pathToViewFrameDwgs, "*.dwg");
+
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+
+                    foreach (var al in als)
+                    {
+                        prdDbg("Processing: " + al.Name);
+                        var file = files.Where(x => x.Contains(al.Name)).FirstOrDefault();
+
+                        if (file == default)
+                        {
+                            prdDbg($"ViewFrame drawing for alignment name: {al.Name}, not found!");
+                            continue;
+                        }
+                        prdDbg(file);
+
+                        using (Database vfDb = new Database(false, true))
+                        {
+                            vfDb.ReadDwgFile(file, FileOpenMode.OpenForReadAndWriteNoShare, false, "");
+
+                            using (Transaction vfTx = vfDb.TransactionManager.StartTransaction())
+                            {
+                                try
+                                {
+                                    //Construct surface profile name
+                                    string profileName = al.Name + "_surface_P";
+
+                                    int pIdx = GetPublishedItemIdxByName(sm, profileName);
+
+                                    if (pIdx != -1)
+                                    {
+                                        prdDbg("Surface profile found! Referencing...");
+                                    }
+                                    else
+                                    {
+                                        prdDbg("Surface profile NOT found!!!!. Skip...");
+                                        continue;
+                                    }
+
+                                    sm.CreateReference(pIdx, vfDb);
+                                }
+                                catch (System.Exception ex)
+                                {
+                                    vfTx.Abort();
+                                    prdDbg(ex);
+                                    throw;
+                                }
+                                vfTx.Commit();
+                            }
+
+                            vfDb.SaveAs(file, true, DwgVersion.Newest, null);
+                        }
+                    }
+                    #region
+
+                    System.Windows.Forms.Application.DoEvents();
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                finally
+                {
+                    sm.Dispose();
+                    tx.Abort();
+                }
             }
         }
     }

@@ -3095,7 +3095,7 @@ namespace IntersectUtilities
 
                     #region Combine partial plines and convert to profile
                     //Get the number of the alignment
-                    Regex regx = new Regex(@"^(?<number>\d\d\s)");
+                    Regex regx = new Regex(@"(?<number>\d{2,3}?\s)");
                     string number = "";
                     if (regx.IsMatch(al.Name))
                     {
