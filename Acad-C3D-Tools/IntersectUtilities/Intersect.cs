@@ -3852,7 +3852,7 @@ namespace IntersectUtilities
 
                     foreach (string fileName in fileList)
                     {
-                        prdDbg(fileName);
+                        //prdDbg(fileName);
                         string file = path + fileName;
                         using (Database extDb = new Database(false, true))
                         {
@@ -3985,6 +3985,13 @@ namespace IntersectUtilities
                                     //ds.LinetypeScale = 10;
                                     //ds.Lineweight = LineWeight.LineWeight000;
                                     #endregion
+                                    #region List all VF numbers
+                                    var list = extDb.ListOfType<ViewFrame>(extTx);
+                                    foreach (ViewFrame vf in list)
+                                    {
+                                        prdDbg(vf.Name);
+                                    }
+                                    #endregion
                                 }
                                 catch (System.Exception ex)
                                 {
@@ -3996,7 +4003,7 @@ namespace IntersectUtilities
 
                                 extTx.Commit();
                             }
-                            extDb.SaveAs(extDb.Filename, true, DwgVersion.Newest, extDb.SecurityParameters);
+                            //extDb.SaveAs(extDb.Filename, true, DwgVersion.Newest, extDb.SecurityParameters);
                         }
                         System.Windows.Forms.Application.DoEvents();
                     }
