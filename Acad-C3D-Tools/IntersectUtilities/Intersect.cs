@@ -3992,6 +3992,7 @@ namespace IntersectUtilities
                                         prdDbg(vf.Name);
                                     }
                                     #endregion
+                                    
                                 }
                                 catch (System.Exception ex)
                                 {
@@ -7862,6 +7863,33 @@ namespace IntersectUtilities
                     }
                     xTx.Commit();
                 }
+            }
+        }
+
+        [CommandMethod("RESETBLOCKATTRIBUTES")]
+        public void resetblockattributes()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    localDb
+                        .GetBlockReferenceByName("Tegningshoved FORS")
+                        .First()
+                        .BlockTableRecord
+                        .Go<BlockTableRecord>(tx)
+                        .ResetAttributesValues();
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
             }
         }
 

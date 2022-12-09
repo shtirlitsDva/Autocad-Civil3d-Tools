@@ -1403,7 +1403,7 @@ namespace IntersectUtilities.UtilsCommon
             foreach (ObjectId id in target.GetBlockReferenceIds(true, false))
             {
                 BlockReference br = (BlockReference)tr.GetObject(id, OpenMode.ForWrite);
-                br.ResetAttributes(attDefs, tr);
+                br.ResetAttributesLocation(attDefs, tr);
             }
             if (target.IsDynamicBlock)
             {
@@ -1415,7 +1415,7 @@ namespace IntersectUtilities.UtilsCommon
                     foreach (ObjectId brId in btr.GetBlockReferenceIds(true, false))
                     {
                         BlockReference br = (BlockReference)tr.GetObject(brId, OpenMode.ForWrite);
-                        br.ResetAttributes(attDefs, tr);
+                        br.ResetAttributesLocation(attDefs, tr);
                     }
                 }
             }
@@ -1433,7 +1433,7 @@ namespace IntersectUtilities.UtilsCommon
             }
             return attDefs;
         }
-        private static void ResetAttributes(this BlockReference br, List<AttributeDefinition> attDefs, Transaction tr)
+        private static void ResetAttributesLocation(this BlockReference br, List<AttributeDefinition> attDefs, Transaction tr)
         {
             Dictionary<string, string> attValues = new Dictionary<string, string>();
             foreach (ObjectId id in br.AttributeCollection)
@@ -1467,6 +1467,86 @@ namespace IntersectUtilities.UtilsCommon
                 br.AttributeCollection.AppendAttribute(attRef);
                 tr.AddNewlyCreatedDBObject(attRef, true);
             }
+        }
+        public static void ResetAttributesValues(this BlockTableRecord target)
+        {
+            if (target == null)
+                throw new ArgumentNullException("target");
+
+            Transaction tr = target.Database.TransactionManager.TopTransaction;
+            if (tr == null)
+                throw new AcRx.Exception(ErrorStatus.NoActiveTransactions);
+            List<AttributeDefinition> attDefs = target.GetAttributes(tr);
+            foreach (ObjectId id in target.GetBlockReferenceIds(true, false))
+            {
+                BlockReference br = (BlockReference)tr.GetObject(id, OpenMode.ForWrite);
+                br.ResetAttributesToDefaultValues(attDefs, tr);
+            }
+            if (target.IsDynamicBlock)
+            {
+                target.UpdateAnonymousBlocks();
+                foreach (ObjectId id in target.GetAnonymousBlockIds())
+                {
+                    BlockTableRecord btr = (BlockTableRecord)tr.GetObject(id, OpenMode.ForRead);
+                    attDefs = btr.GetAttributes(tr);
+                    foreach (ObjectId brId in btr.GetBlockReferenceIds(true, false))
+                    {
+                        BlockReference br = (BlockReference)tr.GetObject(brId, OpenMode.ForWrite);
+                        br.ResetAttributesToDefaultValues(attDefs, tr);
+                    }
+                }
+            }
+        }
+        private static void ResetAttributesToDefaultValues(this BlockReference br, List<AttributeDefinition> attDefs, Transaction tr)
+        {
+            string tag = "";
+            var query = attDefs.Where(x => x.Tag == tag);
+            foreach (ObjectId id in br.AttributeCollection)
+            {
+                if (!id.IsErased)
+                {
+                    AttributeReference attRef = (AttributeReference)tr.GetObject(id, OpenMode.ForWrite);
+                    tag = attRef.Tag;
+
+                    var attDef = query.FirstOrDefault();
+                    prdDbg(attDef);
+                    if (attDef == default) continue;
+
+                    attRef.SetAttributeFromBlock(attDef, br.BlockTransform);
+                    //if (attDef.HasFields) attRef.TextString = attDef.getTextWithFieldCodes();
+                    attRef.UpdateMTextAttribute();
+
+                    //prdDbg(tag);
+                    //prdDbg(attDef.getTextWithFieldCodes());
+                    //prdDbg(attDef.TextString);
+                    //prdDbg(attRef.TextString);
+
+                    //if (attRef.IsMTextAttribute) attValues.Add(attRef.Tag, attRef.MTextAttribute.HasFields ? attRef.MTextAttribute.getMTextWithFieldCodes() : attRef.MTextAttribute.Contents);
+                    //else attValues.Add(attRef.Tag, attRef.HasFields ? attRef.getTextWithFieldCodes() : attRef.TextString);
+                    //attRef.Erase();
+                }
+            }
+            //foreach (AttributeDefinition attDef in attDefs)
+            //{
+            //    AttributeReference attRef = new AttributeReference();
+            //    attRef.SetAttributeFromBlock(attDef, br.BlockTransform);
+            //    if (attDef.Constant)
+            //    {
+            //        string textString;
+            //        if (attRef.IsMTextAttribute) textString = attRef.MTextAttribute.HasFields ? attRef.MTextAttribute.getMTextWithFieldCodes() : attRef.MTextAttribute.Contents;
+            //        else textString = attRef.HasFields ? attRef.getTextWithFieldCodes() : attRef.TextString;
+            //        attRef.TextString = textString;
+            //        //attRef.TextString = attDef.IsMTextAttributeDefinition ?
+            //        //    attDef.MTextAttributeDefinition.Contents :
+            //        //    attDef.TextString;
+            //    }
+            //    else if (attValues.ContainsKey(attRef.Tag))
+            //    {
+            //        attRef.TextString = attValues[attRef.Tag];
+            //    }
+            //    br.AttributeCollection.AppendAttribute(attRef);
+            //    tr.AddNewlyCreatedDBObject(attRef, true);
+            //}
         }
         public static bool IsPointInsideXY(this Extents3d extents, Point2d pnt)
         => pnt.X >= extents.MinPoint.X && pnt.X <= extents.MaxPoint.X
