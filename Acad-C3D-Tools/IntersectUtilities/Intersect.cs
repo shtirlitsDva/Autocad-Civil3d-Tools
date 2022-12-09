@@ -3995,8 +3995,8 @@ namespace IntersectUtilities
                                     #region Hide alignments
                                     var cDoc = CivilDocument.GetCivilDocument(extDb);
                                     Oid alStyle = cDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
-                                    //Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
-                                    Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["_No Labels"];
+                                    Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
+                                    //Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["_No Labels"];
                                     HashSet<Alignment> als = extDb.HashSetOfType<Alignment>(extTx);
 
                                     foreach (Alignment al in als)
@@ -4028,17 +4028,17 @@ namespace IntersectUtilities
                                     //if (ids.Count > 0) extDb.UnloadXrefs(ids);
                                     #endregion
                                     #region Reload all Xrefs
-                                    BlockTable bt = extDb.BlockTableId.Go<BlockTable>(extTx);
-                                    ObjectIdCollection ids = new ObjectIdCollection();
+                                    //BlockTable bt = extDb.BlockTableId.Go<BlockTable>(extTx);
+                                    //ObjectIdCollection ids = new ObjectIdCollection();
 
-                                    foreach (Oid oid in bt)
-                                    {
-                                        BlockTableRecord btr = oid.Go<BlockTableRecord>(extTx);
+                                    //foreach (Oid oid in bt)
+                                    //{
+                                    //    BlockTableRecord btr = oid.Go<BlockTableRecord>(extTx);
 
-                                        if (btr.IsFromExternalReference) ids.Add(btr.Id);
-                                    }
+                                    //    if (btr.IsFromExternalReference) ids.Add(btr.Id);
+                                    //}
 
-                                    if (ids.Count > 0) extDb.ReloadXrefs(ids);
+                                    //if (ids.Count > 0) extDb.ReloadXrefs(ids);
                                     #endregion
                                 }
                                 catch (System.Exception ex)
