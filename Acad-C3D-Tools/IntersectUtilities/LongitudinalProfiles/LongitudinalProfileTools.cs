@@ -152,9 +152,17 @@ namespace IntersectUtilities
                         }
                         if (noProfileExists)
                         {
-                            surfaceProfileId = Profile.CreateFromSurface(
-                                                profileName, alignment.ObjectId, surface.ObjectId,
-                                                terrainLayerId, profileStyleId, profileLabelSetStyleId);
+                            try
+                            {
+                                surfaceProfileId = Profile.CreateFromSurface(
+                                    profileName, alignment.ObjectId, surface.ObjectId,
+                                    terrainLayerId, profileStyleId, profileLabelSetStyleId);
+                            }
+                            catch (System.Exception)
+                            {
+                                prdDbg(alignment.Name + "failed!");
+                                continue;
+                            }
                             editor.WriteMessage($"\nSurface profile created for {alignment.Name}.");
                         }
 
@@ -168,8 +176,7 @@ namespace IntersectUtilities
                     xRefSurfaceTx.Dispose();
                     xRefSurfaceDB.Dispose();
                     tx.Abort();
-                    throw new System.Exception(ex.Message);
-                    editor.WriteMessage("\n" + ex.Message);
+                    prdDbg(ex);
                     return;
                 }
                 xRefSurfaceTx.Commit();
