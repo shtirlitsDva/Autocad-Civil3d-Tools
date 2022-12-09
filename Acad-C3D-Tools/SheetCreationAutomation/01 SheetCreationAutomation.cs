@@ -279,6 +279,11 @@ namespace SheetCreationAutomation
                     #region List number of Vframes
                     HashSet<ViewFrame> vfs = localDb.HashSetOfType<ViewFrame>(tx);
                     prdDbg($"Number_of_VFs: {{{vfs.Count}}}");
+
+                    var path = Environment.ExpandEnvironmentVariables("%temp%");
+                    string fileName = path + "\\vfCount.txt";
+                    File.WriteAllText(fileName, vfs.Count.ToString());
+
                     System.Windows.Forms.Application.DoEvents();
 
                     #endregion
