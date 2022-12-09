@@ -4014,7 +4014,32 @@ namespace IntersectUtilities
                                     //    .Go<BlockTableRecord>(extTx)
                                     //    .ResetAttributesValues();
                                     #endregion
+                                    #region Unload all Xrefs
+                                    //BlockTable bt = extDb.BlockTableId.Go<BlockTable>(extTx);
+                                    //ObjectIdCollection ids = new ObjectIdCollection();
 
+                                    //foreach (Oid oid in bt)
+                                    //{
+                                    //    BlockTableRecord btr = oid.Go<BlockTableRecord>(extTx);
+
+                                    //    if (btr.IsFromExternalReference) ids.Add(btr.Id);
+                                    //}
+
+                                    //if (ids.Count > 0) extDb.UnloadXrefs(ids);
+                                    #endregion
+                                    #region Reload all Xrefs
+                                    BlockTable bt = extDb.BlockTableId.Go<BlockTable>(extTx);
+                                    ObjectIdCollection ids = new ObjectIdCollection();
+
+                                    foreach (Oid oid in bt)
+                                    {
+                                        BlockTableRecord btr = oid.Go<BlockTableRecord>(extTx);
+
+                                        if (btr.IsFromExternalReference) ids.Add(btr.Id);
+                                    }
+
+                                    if (ids.Count > 0) extDb.ReloadXrefs(ids);
+                                    #endregion
                                 }
                                 catch (System.Exception ex)
                                 {
