@@ -3995,7 +3995,8 @@ namespace IntersectUtilities
                                     #region Hide alignments
                                     var cDoc = CivilDocument.GetCivilDocument(extDb);
                                     Oid alStyle = cDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
-                                    Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
+                                    //Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
+                                    Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["_No Labels"];
                                     HashSet<Alignment> als = extDb.HashSetOfType<Alignment>(extTx);
 
                                     foreach (Alignment al in als)
@@ -4005,7 +4006,15 @@ namespace IntersectUtilities
                                         al.ImportLabelSet(labelSetStyle);
                                     }
                                     #endregion
-                                    
+                                    #region Reset titleblock
+                                    //extDb
+                                    //    .GetBlockReferenceByName("Tegningshoved FORS")
+                                    //    .First()
+                                    //    .BlockTableRecord
+                                    //    .Go<BlockTableRecord>(extTx)
+                                    //    .ResetAttributesValues();
+                                    #endregion
+
                                 }
                                 catch (System.Exception ex)
                                 {

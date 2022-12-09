@@ -1509,12 +1509,11 @@ namespace IntersectUtilities.UtilsCommon
                     tag = attRef.Tag;
 
                     var attDef = query.FirstOrDefault();
-                    prdDbg(attDef);
                     if (attDef == default) continue;
 
                     attRef.SetAttributeFromBlock(attDef, br.BlockTransform);
                     //if (attDef.HasFields) attRef.TextString = attDef.getTextWithFieldCodes();
-                    attRef.UpdateMTextAttribute();
+                    //attRef.UpdateMTextAttribute();
 
                     //prdDbg(tag);
                     //prdDbg(attDef.getTextWithFieldCodes());
