@@ -3852,7 +3852,7 @@ namespace IntersectUtilities
 
                     foreach (string fileName in fileList)
                     {
-                        //prdDbg(fileName);
+                        prdDbg(fileName);
                         string file = path + fileName;
                         using (Database extDb = new Database(false, true))
                         {
@@ -3986,10 +3986,23 @@ namespace IntersectUtilities
                                     //ds.Lineweight = LineWeight.LineWeight000;
                                     #endregion
                                     #region List all VF numbers
-                                    var list = extDb.ListOfType<ViewFrame>(extTx);
-                                    foreach (ViewFrame vf in list)
+                                    //var list = extDb.ListOfType<ViewFrame>(extTx);
+                                    //foreach (ViewFrame vf in list)
+                                    //{
+                                    //    prdDbg(vf.Name);
+                                    //}
+                                    #endregion
+                                    #region Hide alignments
+                                    var cDoc = CivilDocument.GetCivilDocument(extDb);
+                                    Oid alStyle = cDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
+                                    Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
+                                    HashSet<Alignment> als = extDb.HashSetOfType<Alignment>(extTx);
+
+                                    foreach (Alignment al in als)
                                     {
-                                        prdDbg(vf.Name);
+                                        al.CheckOrOpenForWrite();
+                                        al.StyleId = alStyle;
+                                        al.ImportLabelSet(labelSetStyle);
                                     }
                                     #endregion
                                 }
@@ -4003,7 +4016,7 @@ namespace IntersectUtilities
 
                                 extTx.Commit();
                             }
-                            //extDb.SaveAs(extDb.Filename, true, DwgVersion.Newest, extDb.SecurityParameters);
+                            extDb.SaveAs(extDb.Filename, true, DwgVersion.Newest, extDb.SecurityParameters);
                         }
                         System.Windows.Forms.Application.DoEvents();
                     }
