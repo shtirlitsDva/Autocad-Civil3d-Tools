@@ -1841,6 +1841,10 @@ namespace IntersectUtilities.UtilsCommon
 
             return string.Join("\n", lines);
         }
+        public static IEnumerable<T> Entities<T>(this ObjectIdCollection col, Transaction tx) where T : DBObject
+        {
+            foreach (Oid oid in col) yield return oid.Go<T>(tx);
+        }
     }
     public static class ExtensionMethods
     {

@@ -3854,10 +3854,10 @@ namespace IntersectUtilities
                     {
                         prdDbg(fileName);
                         string file = path + fileName;
-                        using (Database extDb = new Database(false, true))
+                        using (Database xDb = new Database(false, true))
                         {
-                            extDb.ReadDwgFile(file, System.IO.FileShare.ReadWrite, false, "");
-                            using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                            xDb.ReadDwgFile(file, System.IO.FileShare.ReadWrite, false, "");
+                            using (Transaction xTx = xDb.TransactionManager.StartTransaction())
                             {
                                 try
                                 {
@@ -3865,7 +3865,7 @@ namespace IntersectUtilities
                                     //string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
                                     //System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
 
-                                    //LayerTable lt = extDb.LayerTableId.Go<LayerTable>(extDb.TransactionManager.TopTransaction);
+                                    //LayerTable lt = xDb.LayerTableId.Go<LayerTable>(xDb.TransactionManager.TopTransaction);
 
                                     //HashSet<string> layerNames = dtKrydsninger.AsEnumerable().Select(x => x["Layer"].ToString()).ToHashSet();
 
@@ -3874,19 +3874,19 @@ namespace IntersectUtilities
                                     //    if (lt.Has(layerName))
                                     //    {
                                     //        LayerTableRecord ltr = lt[layerName].Go<LayerTableRecord>(
-                                    //            extDb.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                                    //            xDb.TransactionManager.TopTransaction, OpenMode.ForWrite);
                                     //        ltr.LineWeight = LineWeight.LineWeight013;
                                     //    }
                                     //}
                                     #endregion
                                     #region Stagger labels
-                                    //staggerlabelsallmethod(extDb);
+                                    //staggerlabelsallmethod(xDb);
                                     #endregion
                                     #region Unhide specific layer in DB
-                                    //LayerTable extLt = extDb.LayerTableId.Go<LayerTable>(extTx);
+                                    //LayerTable extLt = xDb.LayerTableId.Go<LayerTable>(xTx);
                                     //foreach (Oid oid in extLt)
                                     //{
-                                    //    LayerTableRecord ltr = oid.Go<LayerTableRecord>(extTx);
+                                    //    LayerTableRecord ltr = oid.Go<LayerTableRecord>(xTx);
                                     //    if (ltr.Name.Contains("|"))
                                     //    {
                                     //        var split = ltr.Name.Split('|');
@@ -3906,10 +3906,10 @@ namespace IntersectUtilities
                                     //}
                                     #endregion
                                     #region Set linetypes of xref
-                                    //LayerTable extLt = extDb.LayerTableId.Go<LayerTable>(extTx);
+                                    //LayerTable extLt = xDb.LayerTableId.Go<LayerTable>(xTx);
                                     //foreach (Oid oid in extLt)
                                     //{
-                                    //    LayerTableRecord ltr = oid.Go<LayerTableRecord>(extTx);
+                                    //    LayerTableRecord ltr = oid.Go<LayerTableRecord>(xTx);
                                     //    if (ltr.Name.Contains("|"))
                                     //    {
                                     //        var split = ltr.Name.Split('|');
@@ -3920,7 +3920,7 @@ namespace IntersectUtilities
                                     //        {
                                     //            prdDbg(ltr.Name);
                                     //            prdDbg(ltr.IsDependent.ToString());
-                                    //            LinetypeTable ltt = extDb.LinetypeTableId.Go<LinetypeTable>(extTx);
+                                    //            LinetypeTable ltt = xDb.LinetypeTableId.Go<LinetypeTable>(xTx);
                                     //            Oid contId = ltt["Continuous"];
                                     //            ltr.CheckOrOpenForWrite();
                                     //            ltr.LinetypeObjectId = contId;
@@ -3929,20 +3929,20 @@ namespace IntersectUtilities
                                     //}
                                     #endregion
                                     #region CreateDetailing
-                                    //createdetailingmethod(dro, extDb);
+                                    //createdetailingmethod(dro, xDb);
                                     #endregion
                                     #region Change xref layer
-                                    //BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                                    //BlockTable bt = xTx.GetObject(xDb.BlockTableId, OpenMode.ForRead) as BlockTable;
 
                                     //foreach (oid oid in bt)
                                     //{
-                                    //    BlockTableRecord btr = extTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
+                                    //    BlockTableRecord btr = xTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
                                     //    if (btr.Name.Contains("_alignment"))
                                     //    {
                                     //        var ids = btr.GetBlockReferenceIds(true, true);
                                     //        foreach (oid brId in ids)
                                     //        {
-                                    //            BlockReference br = brId.Go<BlockReference>(extTx, OpenMode.ForWrite);
+                                    //            BlockReference br = brId.Go<BlockReference>(xTx, OpenMode.ForWrite);
                                     //            prdDbg(br.Name);
                                     //            if (br.Layer == "0") { prdDbg("Already in 0! Skipping..."); continue; }
                                     //            prdDbg("Was in: :" + br.Layer);
@@ -3954,9 +3954,9 @@ namespace IntersectUtilities
                                     //} 
                                     #endregion
                                     #region Change Alignment style
-                                    //CivilDocument extCDoc = CivilDocument.GetCivilDocument(extDb);
+                                    //CivilDocument extCDoc = CivilDocument.GetCivilDocument(xDb);
 
-                                    //HashSet<Alignment> als = extDb.HashSetOfType<Alignment>(extTx);
+                                    //HashSet<Alignment> als = xDb.HashSetOfType<Alignment>(xTx);
 
                                     //foreach (Alignment al in als)
                                     //{
@@ -3967,9 +3967,9 @@ namespace IntersectUtilities
                                     //} 
                                     #endregion
                                     #region Fix midt profile style
-                                    //CivilDocument extDoc = CivilDocument.GetCivilDocument(extDb);
+                                    //CivilDocument extDoc = CivilDocument.GetCivilDocument(xDb);
                                     //var psc = extDoc.Styles.ProfileStyles;
-                                    //ProfileStyle ps = psc["PROFIL STYLE MGO MIDT"].Go<ProfileStyle>(extTx);
+                                    //ProfileStyle ps = psc["PROFIL STYLE MGO MIDT"].Go<ProfileStyle>(xTx);
                                     //ps.CheckOrOpenForWrite();
 
                                     //DisplayStyle ds;
@@ -3986,46 +3986,46 @@ namespace IntersectUtilities
                                     //ds.Lineweight = LineWeight.LineWeight000;
                                     #endregion
                                     #region List all VF numbers
-                                    //var list = extDb.ListOfType<ViewFrame>(extTx);
+                                    //var list = xDb.ListOfType<ViewFrame>(xTx);
                                     //foreach (ViewFrame vf in list)
                                     //{
                                     //    prdDbg(vf.Name);
                                     //}
                                     #endregion
                                     #region Hide alignments
-                                    var cDoc = CivilDocument.GetCivilDocument(extDb);
-                                    Oid alStyle = cDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
-                                    Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
-                                    //Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["_No Labels"];
-                                    HashSet<Alignment> als = extDb.HashSetOfType<Alignment>(extTx);
+                                    //var cDoc = CivilDocument.GetCivilDocument(xDb);
+                                    //Oid alStyle = cDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
+                                    //Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
+                                    ////Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["_No Labels"];
+                                    //HashSet<Alignment> als = xDb.HashSetOfType<Alignment>(xTx);
 
-                                    foreach (Alignment al in als)
-                                    {
-                                        al.CheckOrOpenForWrite();
-                                        al.StyleId = alStyle;
-                                        al.ImportLabelSet(labelSetStyle);
-                                    }
+                                    //foreach (Alignment al in als)
+                                    //{
+                                    //    al.CheckOrOpenForWrite();
+                                    //    al.StyleId = alStyle;
+                                    //    al.ImportLabelSet(labelSetStyle);
+                                    //}
                                     #endregion
                                     #region Reset titleblock
-                                    //extDb
+                                    //xDb
                                     //    .GetBlockReferenceByName("Tegningshoved FORS")
                                     //    .First()
                                     //    .BlockTableRecord
-                                    //    .Go<BlockTableRecord>(extTx)
+                                    //    .Go<BlockTableRecord>(xTx)
                                     //    .ResetAttributesValues();
                                     #endregion
                                     #region Unload all Xrefs
-                                    //BlockTable bt = extDb.BlockTableId.Go<BlockTable>(extTx);
+                                    //BlockTable bt = xDb.BlockTableId.Go<BlockTable>(xTx);
                                     //ObjectIdCollection ids = new ObjectIdCollection();
 
                                     //foreach (Oid oid in bt)
                                     //{
-                                    //    BlockTableRecord btr = oid.Go<BlockTableRecord>(extTx);
+                                    //    BlockTableRecord btr = oid.Go<BlockTableRecord>(xTx);
 
                                     //    if (btr.IsFromExternalReference) ids.Add(btr.Id);
                                     //}
 
-                                    //if (ids.Count > 0) extDb.UnloadXrefs(ids);
+                                    //if (ids.Count > 0) xDb.UnloadXrefs(ids);
                                     #endregion
                                     #region Reload all Xrefs
                                     //BlockTable bt = extDb.BlockTableId.Go<BlockTable>(extTx);
@@ -4040,18 +4040,94 @@ namespace IntersectUtilities
 
                                     //if (ids.Count > 0) extDb.ReloadXrefs(ids);
                                     #endregion
+                                    #region Fix longitudinal profiles
+                                    CivilDocument cDoc = CivilDocument.GetCivilDocument(xDb);
+                                    var als = xDb.HashSetOfType<Alignment>(xTx);
+                                    foreach (Alignment al in als)
+                                    {
+                                        var pIds = al.GetProfileIds();
+                                        var pvIds = al.GetProfileViewIds();
+
+                                        Profile pSurface = null;
+                                        foreach (Oid oid in pIds)
+                                        {
+                                            Profile pt = oid.Go<Profile>(xTx);
+                                            if (pt.Name == $"{al.Name}_surface_P") pSurface = pt;
+                                        }
+                                        if (pSurface == null)
+                                        {
+                                            AbortGracefully(
+                                                new[] { xTx },
+                                                new[] { xDb },
+                                                $"No profile named {al.Name}_surface_P found!");
+                                            tx.Abort();
+                                            return;
+                                        }
+                                        else prdDbg($"\nProfile {pSurface.Name} found!");
+
+                                        foreach (ProfileView pv in pvIds.Entities<ProfileView>(xTx))
+                                        {
+                                            #region Determine profile top and bottom elevations
+                                            double pvStStart = pv.StationStart;
+                                            double pvStEnd = pv.StationEnd;
+
+                                            int nrOfIntervals = (int)((pvStEnd - pvStStart) / 0.25);
+                                            double delta = (pvStEnd - pvStStart) / nrOfIntervals;
+                                            HashSet<double> topElevs = new HashSet<double>();
+
+                                            for (int j = 0; j < nrOfIntervals + 1; j++)
+                                            {
+                                                double topTestEl = 0;
+                                                try
+                                                {
+                                                    topTestEl = pSurface.ElevationAt(pvStStart + delta * j);
+                                                }
+                                                catch (System.Exception)
+                                                {
+                                                    editor.WriteMessage($"\nTop profile at {pvStStart + delta * j} threw an exception! " +
+                                                        $"PV: {pv.StationStart}-{pv.StationEnd}.");
+                                                    continue;
+                                                }
+                                                topElevs.Add(topTestEl);
+                                            }
+
+                                            double maxEl = topElevs.Max();
+                                            double minEl = topElevs.Min();
+
+                                            prdDbg($"\nElevations of surf.p.> Max: {Math.Round(maxEl, 2)} | Min: {Math.Round(minEl, 2)}");
+
+                                            //Set the elevations
+                                            pv.CheckOrOpenForWrite();
+                                            pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+                                            pv.ElevationMax = Math.Ceiling(maxEl);
+                                            pv.ElevationMin = Math.Floor(minEl) - 3.0;
+                                            #endregion
+
+                                            Oid sId = cDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R 1:250:100"];
+                                            pv.CheckOrOpenForWrite();
+                                            pv.StyleId = sId;
+                                        }
+
+                                        //Set profile style
+                                        xDb.CheckOrCreateLayer("0_TERRAIN_PROFILE", 34);
+
+                                        Oid profileStyleId = cDoc.Styles.ProfileStyles["Terræn"];
+                                        pSurface.CheckOrOpenForWrite();
+                                        pSurface.StyleId = profileStyleId;
+                                    }
+                                    #endregion
                                 }
                                 catch (System.Exception ex)
                                 {
-                                    prdDbg(ex.ToString());
-                                    extTx.Abort();
-                                    extDb.Dispose();
+                                    prdDbg(ex);
+                                    xTx.Abort();
+                                    xDb.Dispose();
                                     throw;
                                 }
 
-                                extTx.Commit();
+                                xTx.Commit();
                             }
-                            extDb.SaveAs(extDb.Filename, true, DwgVersion.Newest, extDb.SecurityParameters);
+                            xDb.SaveAs(xDb.Filename, true, DwgVersion.Newest, xDb.SecurityParameters);
                         }
                         System.Windows.Forms.Application.DoEvents();
                     }
@@ -5433,30 +5509,30 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Test constant attribute, constant attr is attached to BlockTableRecord and not BR
-                    PromptEntityOptions peo = new PromptEntityOptions("Select a BR: ");
-                    PromptEntityResult per = editor.GetEntity(peo);
-                    BlockReference br = per.ObjectId.Go<BlockReference>(tx);
+                    //PromptEntityOptions peo = new PromptEntityOptions("Select a BR: ");
+                    //PromptEntityResult per = editor.GetEntity(peo);
+                    //BlockReference br = per.ObjectId.Go<BlockReference>(tx);
 
-                    prdDbg(br.GetAttributeStringValue("VERSION"));
+                    //prdDbg(br.GetAttributeStringValue("VERSION"));
 
-                    foreach (Oid oid in br.AttributeCollection)
-                    {
-                        AttributeReference ar = oid.Go<AttributeReference>(tx);
-                        prdDbg($"Name: {ar.Tag}, Text: {ar.TextString}");
-                    }
+                    //foreach (Oid oid in br.AttributeCollection)
+                    //{
+                    //    AttributeReference ar = oid.Go<AttributeReference>(tx);
+                    //    prdDbg($"Name: {ar.Tag}, Text: {ar.TextString}");
+                    //}
 
-                    BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
-                    foreach (Oid oid in btr)
-                    {
-                        if (oid.IsDerivedFrom<AttributeDefinition>())
-                        {
-                            AttributeDefinition attDef = oid.Go<AttributeDefinition>(tx);
-                            if (attDef.Tag == "VERSION")
-                            {
-                                prdDbg($"Constant attribute > Name: {attDef.Tag}, Text: {attDef.TextString}");
-                            }
-                        }
-                    }
+                    //BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+                    //foreach (Oid oid in btr)
+                    //{
+                    //    if (oid.IsDerivedFrom<AttributeDefinition>())
+                    //    {
+                    //        AttributeDefinition attDef = oid.Go<AttributeDefinition>(tx);
+                    //        if (attDef.Tag == "VERSION")
+                    //        {
+                    //            prdDbg($"Constant attribute > Name: {attDef.Tag}, Text: {attDef.TextString}");
+                    //        }
+                    //    }
+                    //}
                     #endregion
 
                     #region Test enum list
@@ -6503,11 +6579,89 @@ namespace IntersectUtilities
                     //}
 
                     #endregion
+
+                    #region Profile style and PV elevation
+                    //CivilDocument cDoc = CivilDocument.GetCivilDocument(localDb);
+                    //var als = localDb.HashSetOfType<Alignment>(tx);
+                    //foreach (Alignment al in als)
+                    //{
+                    //    var pIds = al.GetProfileIds();
+                    //    var pvIds = al.GetProfileViewIds();
+
+                    //    Profile pSurface = null;
+                    //    foreach (Oid oid in pIds)
+                    //    {
+                    //        Profile pt = oid.Go<Profile>(tx);
+                    //        if (pt.Name == $"{al.Name}_surface_P") pSurface = pt;
+                    //    }
+                    //    if (pSurface == null)
+                    //    {
+                    //        //AbortGracefully(
+                    //        //    new[] { xRefLerTx, xRefSurfaceTx },
+                    //        //    new[] { xRefLerDB, xRefSurfaceDB },
+                    //        //    $"No profile named {alignment.Name}_surface_P found!");
+                    //        prdDbg($"No surface profile {al.Name}_surface_P found!");
+                    //        tx.Abort();
+                    //        return;
+                    //    }
+                    //    else prdDbg($"\nProfile {pSurface.Name} found!");
+
+                    //    foreach (ProfileView pv in pvIds.Entities<ProfileView>(tx))
+                    //    {
+                    //        #region Determine profile top and bottom elevations
+                    //        double pvStStart = pv.StationStart;
+                    //        double pvStEnd = pv.StationEnd;
+
+                    //        int nrOfIntervals = (int)((pvStEnd - pvStStart) / 0.25);
+                    //        double delta = (pvStEnd - pvStStart) / nrOfIntervals;
+                    //        HashSet<double> topElevs = new HashSet<double>();
+
+                    //        for (int j = 0; j < nrOfIntervals + 1; j++)
+                    //        {
+                    //            double topTestEl = 0;
+                    //            try
+                    //            {
+                    //                topTestEl = pSurface.ElevationAt(pvStStart + delta * j);
+                    //            }
+                    //            catch (System.Exception)
+                    //            {
+                    //                editor.WriteMessage($"\nTop profile at {pvStStart + delta * j} threw an exception! " +
+                    //                    $"PV: {pv.StationStart}-{pv.StationEnd}.");
+                    //                continue;
+                    //            }
+                    //            topElevs.Add(topTestEl);
+                    //        }
+
+                    //        double maxEl = topElevs.Max();
+                    //        double minEl = topElevs.Min();
+                            
+                    //        prdDbg($"\nElevations of PV {pv.Name}> Max: {Math.Round(maxEl, 2)} | Min: {Math.Round(minEl, 2)}");
+                            
+                    //        //Set the elevations
+                    //        pv.CheckOrOpenForWrite();
+                    //        pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+                    //        pv.ElevationMax = Math.Ceiling(maxEl);
+                    //        pv.ElevationMin = Math.Floor(minEl) - 3.0;
+                    //        #endregion
+
+                    //        Oid sId = cDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R 1:250:100"];
+                    //        pv.CheckOrOpenForWrite();
+                    //        pv.StyleId = sId;
+                    //    }
+
+                    //    //Set profile style
+                    //    localDb.CheckOrCreateLayer("0_TERRAIN_PROFILE", 34);
+                        
+                    //    Oid profileStyleId = cDoc.Styles.ProfileStyles["Terræn"];
+                    //    pSurface.CheckOrOpenForWrite();
+                    //    pSurface.StyleId = profileStyleId;
+                    //}
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    editor.WriteMessage("\n" + ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
