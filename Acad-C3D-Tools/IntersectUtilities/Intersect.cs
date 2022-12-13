@@ -3709,13 +3709,17 @@ namespace IntersectUtilities
                     //foreach (string name in areaNames)
                     foreach (DataRow row in areaDescriptions.Rows)
                     {
-                        string nummer = row["Nummer"].ToString();
-                        string navn = row["Navn"].ToString();
-                        string vejkl = row["Vejkl"].ToString();
-                        string belægning = row["Belaegning"].ToString();
+                        //string nummer = row["Nummer"].ToString();
+                        //string navn = row["Navn"].ToString();
+                        //string vejkl = row["Vejkl"].ToString();
+                        //string belægning = row["Belaegning"].ToString();
+
+                        string vejkl = row["Vejklasse"].ToString().Replace("Vejkl. ", "");
+                        string belægning = row["Belægning"].ToString();
+                        string vejnavn = row["Vejnavn"].ToString();
 
                         //prdDbg(name);
-                        prdDbg($"{navn} {nummer}, Vejkl. {vejkl}, {belægning}");
+                        prdDbg($"Vejkl. {vejkl}, {belægning}, {vejnavn}");
                         System.Windows.Forms.Application.DoEvents();
                         #region Select pline
                         PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
@@ -3780,16 +3784,9 @@ namespace IntersectUtilities
 
                             Polyline pline = plineId.Go<Polyline>(tx, OpenMode.ForWrite);
 
-                            psmOmråder.GetOrAttachPropertySet(pline);
-                            //psmOmråder.WritePropertyString(driOmråder.Vejnavn, split1[0]);
-                            ////psmOmråder.WritePropertyString(driOmråder.Ejerskab, split1[1]);
-                            //psmOmråder.WritePropertyString(driOmråder.Vejklasse, split1[1]);
-                            //psmOmråder.WritePropertyString(driOmråder.Belægning, split1[2]);
-
-                            psmOmråder.WritePropertyString(driOmråder.Nummer, nummer);
-                            psmOmråder.WritePropertyString(driOmråder.Vejnavn, navn);
-                            psmOmråder.WritePropertyString(driOmråder.Vejklasse, vejkl);
-                            psmOmråder.WritePropertyString(driOmråder.Belægning, belægning);
+                            psmOmråder.WritePropertyString(pline, driOmråder.Vejnavn, vejnavn);
+                            psmOmråder.WritePropertyString(pline, driOmråder.Vejklasse, vejkl);
+                            psmOmråder.WritePropertyString(pline, driOmråder.Belægning, belægning);
 
                             pline.Layer = områderLayer;
                             pline.Color = Color.FromColorIndex(ColorMethod.ByAci, 256);
