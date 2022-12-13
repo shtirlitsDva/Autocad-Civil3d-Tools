@@ -891,9 +891,9 @@ namespace IntersectUtilities
             if (firstDn == secondDn)
             {
                 prdDbg(
-                    $"ADVARSEL: Alignment {al.Name} har samme størrelse i begge ender!\n" +
-                    $"ADVARSEL: Polyliner i denne alignment skal vendes manuelt i retning fra forsyning til kunder.\n" +
-                    $"ADVARSEL: Brug kommando \"TOGGLEFJVDIR\" fra AcadOverrules.dll til at kunne se retningen på linjerne.");
+                    $"ADVARSEL: Alignment {al.Name} har kun én dimension! " +
+                    $"Vend polylines manuelt. " +
+                    $"Brug kommando \"TOGGLEFJVDIR\" fra AcadOverrules.dll til at kunne se retningen på linjerne.");
 
                 //Detect manual iteration type
                 double X = 0.0; double Y = 0.0;
@@ -921,6 +921,9 @@ namespace IntersectUtilities
                 {
                     //Determine direction of curve
                     Point3d tempP3d = curve.GetPointAtParameter(curve.StartParam);
+                    tempP3d = al.GetPolyline()
+                        .Go<Polyline>(al.Database.TransactionManager.TopTransaction)
+                        .GetClosestPointTo(tempP3d, false);
                     double curveStartStation = 0;
                     double offset = 0;
 
@@ -930,6 +933,8 @@ namespace IntersectUtilities
                     }
                     catch (System.Exception)
                     {
+                        prdDbg(al.Name);
+                        prdDbg(curve.Handle);
                         prdDbg(tempP3d.ToString());
                         throw;
                     }

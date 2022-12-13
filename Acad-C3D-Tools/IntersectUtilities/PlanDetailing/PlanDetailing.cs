@@ -1321,7 +1321,17 @@ namespace IntersectUtilities
                                                 pline.ConstantWidth = globalWidth;
                                                 RemoveColinearVerticesPolyline(pline);
 
-                                                Curve toAdd = objs[2] as Curve;
+                                                Curve toAdd;
+                                                try
+                                                {
+                                                    toAdd = objs[2] as Curve;
+                                                }
+                                                catch (System.Exception ex)
+                                                {
+                                                    prdDbg($"Fails at {nextCurve.Handle}");
+                                                    prdDbg(ex);
+                                                    throw;
+                                                }
                                                 //Add the newly created curve to linkedlist
                                                 toAdd.AddEntityToDbModelSpace(localDb);
 
@@ -1428,6 +1438,87 @@ namespace IntersectUtilities
                 alTx.Abort();
                 alTx.Dispose();
                 alDb.Dispose();
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("NUMBERALDESCRIPTION")]
+        public void numberaldescription()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var als = localDb.HashSetOfType<Alignment>(tx);
+
+                    foreach (Alignment al in als.OrderBy(x => x.Name))
+                    {
+                        string name = al.Name;
+                        Regex regex = new Regex(@"(?<number>\d{2,3}?\s)");
+
+                        string number = "";
+                        if (regex.IsMatch(name))
+                        {
+                            number = regex.Match(name).Groups["number"].Value;
+                            number.Remove(number.Length - 1);
+
+                            al.Description = number + ":";
+                        }
+                        else
+                        {
+                            prdDbg($"Name for {al.Name} does not contain a number!");
+                            continue;
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("FIXPLINEGLOBALWIDTH")]
+        public void fixplineglobalwidth()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var pls = localDb.HashSetOfType<Polyline>(tx);
+
+                    foreach (Polyline pl in pls)
+                    {
+                        double constWidth;
+                        try
+                        {
+                            constWidth = pl.ConstantWidth;
+                        }
+                        catch (System.Exception)
+                        {
+                            prdDbg($"Pline {pl.Handle} needs to fix ConstantWidth!");
+                            pl.CheckOrOpenForWrite();
+                            pl.ConstantWidth = pl.GetStartWidthAt(0);
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+
                 tx.Commit();
             }
         }
