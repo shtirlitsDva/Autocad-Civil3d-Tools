@@ -267,7 +267,16 @@ namespace IntersectUtilities
                                 double offset = 0;
 
                                 Point3d pt = curve.GetPointAtParameter(curve.StartParam);
-                                al.StationOffset(pt.X, pt.Y, ref station, ref offset);
+                                try
+                                {
+                                    al.StationOffset(pt.X, pt.Y, ref station, ref offset);
+                                }
+                                catch (System.Exception ex)
+                                {
+                                    prdDbg("Failing point: " + pt);
+                                    prdDbg("Curve: " + curve.Handle);
+                                    throw;
+                                }
                                 wps.Add(new WeldPointData()
                                 {
                                     WeldPoint = curve.GetPointAtParameter(curve.StartParam),
@@ -511,8 +520,7 @@ namespace IntersectUtilities
                     alTx.Dispose();
                     alDb.Dispose();
                     tx.Abort();
-                    prdDbg(ex.ExceptionInfo());
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 alTx.Abort();
