@@ -53,6 +53,7 @@ using System.Windows.Documents;
 using System.Windows.Controls;
 using System.Security.Cryptography;
 using Microsoft.VisualBasic.Logging;
+using System.Reflection.Emit;
 
 namespace IntersectUtilities
 {
@@ -6300,9 +6301,9 @@ namespace IntersectUtilities
 
                     //        double maxEl = topElevs.Max();
                     //        double minEl = topElevs.Min();
-                            
+
                     //        prdDbg($"\nElevations of PV {pv.Name}> Max: {Math.Round(maxEl, 2)} | Min: {Math.Round(minEl, 2)}");
-                            
+
                     //        //Set the elevations
                     //        pv.CheckOrOpenForWrite();
                     //        pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
@@ -6317,10 +6318,23 @@ namespace IntersectUtilities
 
                     //    //Set profile style
                     //    localDb.CheckOrCreateLayer("0_TERRAIN_PROFILE", 34);
-                        
+
                     //    Oid profileStyleId = cDoc.Styles.ProfileStyles["Terræn"];
                     //    pSurface.CheckOrOpenForWrite();
                     //    pSurface.StyleId = profileStyleId;
+                    //}
+                    #endregion
+
+                    #region Test view frame numbers
+                    //ViewFrameGroup vfg = localDb.ListOfType<ViewFrameGroup>(tx).FirstOrDefault();
+                    //if (vfg != null)
+                    //{
+                    //    var ids = vfg.GetViewFrameIds();
+                    //    var ents = ids.Entities<ViewFrame>(tx);
+                    //    foreach (var item in ents)
+                    //    {
+                    //        prdDbg(item.Name);
+                    //    }
                     //}
                     #endregion
                 }

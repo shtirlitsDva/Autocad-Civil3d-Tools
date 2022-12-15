@@ -93,9 +93,12 @@ namespace IntersectUtilities
                     //Comment out if not needed
                     //DataReferencesOptions dro = new DataReferencesOptions();
 
+                    //Specific variables
+                    int count = 0;
+
                     foreach (string fileName in fileList)
                     {
-                        prdDbg(fileName);
+                        //prdDbg(fileName);
                         string file = path + fileName;
                         using (Database xDb = new Database(false, true))
                         {
@@ -231,7 +234,7 @@ namespace IntersectUtilities
                                     //ds.Lineweight = LineWeight.LineWeight000;
                                     #endregion
                                     #region List all VF numbers
-                                    
+
                                     #endregion
                                     #region Hide alignments
                                     //var cDoc = CivilDocument.GetCivilDocument(xDb);
@@ -281,9 +284,12 @@ namespace IntersectUtilities
 
                                     //if (ids.Count > 0) extDb.ReloadXrefs(ids);
                                     #endregion
-                                    #region Fix longitudinal profiles
-                                    //Result result = fixlongitudinalprofiles(xDb);
-                                    #endregion
+                                    //Fix longitudinal profiles
+                                    //result = fixlongitudinalprofiles(xDb);
+                                    //List viewFrame numbers
+                                    //result = listvfnumbers(xDb);
+                                    //Renumber viewframes
+                                    result = renumbervfs(xDb, ref count);
 
                                     switch (result.Status)
                                     {
@@ -406,10 +412,44 @@ namespace IntersectUtilities
         private Result listvfnumbers(Database xDb)
         {
             Transaction xTx = xDb.TransactionManager.TopTransaction;
-            var list = xDb.ListOfType<ViewFrame>(xTx);
-            foreach (ViewFrame vf in list)
+
+            ViewFrameGroup vfg = xDb.ListOfType<ViewFrameGroup>(xTx).FirstOrDefault();
+            if (vfg != null)
             {
-                prdDbg($"{vf.Name}");
+                var ids = vfg.GetViewFrameIds();
+                var ents = ids.Entities<ViewFrame>(xTx);
+                foreach (var item in ents)
+                {
+                    prdDbg(item.Name);
+                }
+            }
+            return new Result();
+        }
+        private Result renumbervfs(Database xDb, ref int count)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+            
+            ViewFrameGroup vfg = xDb.ListOfType<ViewFrameGroup>(xTx).FirstOrDefault();
+            if (vfg != null)
+            {
+                var ids = vfg.GetViewFrameIds();
+                var ents = ids.Entities<ViewFrame>(xTx);
+
+                Random rnd = new Random();
+                foreach (var item in ents)
+                {
+                    item.CheckOrOpenForWrite();
+                    item.Name = rnd.Next(1, 999999).ToString("000000");
+                }
+
+                foreach (var item in ents)
+                {
+                    count++;
+                    string previousName = item.Name;
+                    item.CheckOrOpenForWrite();
+                    item.Name = count.ToString("000");
+                    prdDbg($"{previousName} -> {item.Name}");
+                }
             }
             return new Result();
         }
