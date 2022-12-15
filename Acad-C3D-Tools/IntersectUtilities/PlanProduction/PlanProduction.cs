@@ -920,13 +920,15 @@ namespace IntersectUtilities
                                 if (xdb != null)
                                 {
                                     string fileName = xdb.Filename;
-                                    if (fileName.Contains("_alignment"))
+                                    if (fileName.Contains("_VF"))
                                     {
                                         editor.WriteMessage($"\n{xdb.Filename}.");
+                                        System.Windows.Forms.Application.DoEvents();
                                         if (IsFileLockedOrReadOnly(new FileInfo(fileName)))
                                         {
                                             editor.WriteMessage("\nUnable to modify the external reference. " +
                                                                   "It may be open in the editor or read-only.");
+                                            System.Windows.Forms.Application.DoEvents();
                                         }
                                         else
                                         {
@@ -997,17 +999,20 @@ namespace IntersectUtilities
                     {
                         LayerTableRecord ltr = (LayerTableRecord)tx.GetObject(id, OpenMode.ForRead);
 
-                        if (ltr.Name.Contains("_alignment") &&
+                        if (ltr.Name.Contains("_VF") &&
                             ltr.Name.Contains(viewFrameLayerName) &&
                             !ltr.Name.Contains("TEXT"))
                         {
                             editor.WriteMessage($"\n{ltr.Name}");
+                            System.Windows.Forms.Application.DoEvents();
                             ltr.UpgradeOpen();
-                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 0);
-                            //ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, curNode.Value);
-
-                            //if (curNode.Next == null) curNode = colorSequence.First;
-                            //else curNode = curNode.Next;
+                            //Set color back to black
+                            //ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 0);
+                            
+                            //Set color
+                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, curNode.Value);
+                            if (curNode.Next == null) curNode = colorSequence.First;
+                            else curNode = curNode.Next;
 
                         }
                     }
