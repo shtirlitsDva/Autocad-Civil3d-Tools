@@ -278,7 +278,7 @@ namespace SheetCreationAutomation
                 {
                     #region List number of Vframes
                     HashSet<ViewFrame> vfs = localDb.HashSetOfType<ViewFrame>(tx);
-                    prdDbg($"Number_of_VFs: {{{vfs.Count}}}");
+                    prdDbg($"Number of VFs: {{{vfs.Count}}}");
 
                     var path = Environment.ExpandEnvironmentVariables("%temp%");
                     string fileName = path + "\\vfCount.txt";
@@ -290,6 +290,7 @@ namespace SheetCreationAutomation
                 }
                 catch (System.Exception ex)
                 {
+                    tx.Abort();
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
@@ -312,14 +313,20 @@ namespace SheetCreationAutomation
                 try
                 {
                     #region List number of Vframes
-                    HashSet<ProfileView> vfs = localDb.HashSetOfType<ProfileView>(tx);
-                    prdDbg($"Number_of_VFs: {{{vfs.Count}}}");
+                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
+                    prdDbg($"Number of PVs: {{{pvs.Count}}}");
+
+                    var path = Environment.ExpandEnvironmentVariables("%temp%");
+                    string fileName = path + "\\pvCount.txt";
+                    File.WriteAllText(fileName, pvs.Count.ToString());
+
                     System.Windows.Forms.Application.DoEvents();
 
                     #endregion
                 }
                 catch (System.Exception ex)
                 {
+                    tx.Abort();
                     editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
