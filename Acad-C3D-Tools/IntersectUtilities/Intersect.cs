@@ -7631,7 +7631,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("UNLOADXREFSBATCH")]
+        [CommandMethod("XREFSUNLOADSELECTBATCH")]
         public void unloadxrefsbatch()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -7658,10 +7658,9 @@ namespace IntersectUtilities
                 "Text file \"xrefNames.txt\" is missing at the specified location!");
             var xrefNames = File.ReadAllLines(xrefNamesPath);
 
-            ObjectIdCollection idsToUnload = new ObjectIdCollection();
-
             foreach (var f in files)
             {
+                ObjectIdCollection idsToUnload = new ObjectIdCollection();
                 using (Database xDb = new Database(false, true))
                 {
                     xDb.ReadDwgFile(f, FileOpenMode.OpenForReadAndWriteNoShare, false, "");
@@ -7695,6 +7694,129 @@ namespace IntersectUtilities
                     xDb.SaveAs(f, true, DwgVersion.Newest, null);
                 }
             }
+        }
+
+        [CommandMethod("XREFSUNLOADALLBATCH")]
+        public void unloadallxrefsbatch()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            string pathToFolder;
+
+            FolderSelectDialog fsd = new FolderSelectDialog()
+            {
+                Title = "Choose folder where view frame drawings are stored: ",
+                InitialDirectory = @"C:\"
+            };
+            if (fsd.ShowDialog(IntPtr.Zero))
+            {
+                pathToFolder = fsd.FileName + "\\";
+            }
+            else return;
+
+            var files = Directory.EnumerateFiles(pathToFolder, "*.dwg");
+
+            foreach (var f in files)
+            {
+                ObjectIdCollection idsToUnload = new ObjectIdCollection();
+
+                using (Database xDb = new Database(false, true))
+                {
+                    prdDbg(Path.GetFileName(f));
+                    System.Windows.Forms.Application.DoEvents();
+
+                    xDb.ReadDwgFile(f, FileOpenMode.OpenForReadAndWriteNoShare, false, "");
+
+                    using (Transaction xTx = xDb.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            BlockTable bt = xDb.BlockTableId.Go<BlockTable>(xTx);
+
+                            foreach (Oid oid in bt)
+                            {
+                                BlockTableRecord btr = oid.Go<BlockTableRecord>(xTx);
+
+                                if (btr.IsFromExternalReference) idsToUnload.Add(btr.Id);
+                            }
+
+                            if (idsToUnload.Count > 0) xDb.UnloadXrefs(idsToUnload);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            xTx.Abort();
+                            prdDbg(ex);
+                            throw;
+                        }
+                        xTx.Commit();
+                    }
+
+                    xDb.SaveAs(f, true, DwgVersion.Newest, null);
+                }
+            }
+            prdDbg("Finished!");
+        }
+        
+        [CommandMethod("XREFSRELOADALLBATCH")]
+        public void reloadallxrefsbatch()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            string pathToFolder;
+
+            FolderSelectDialog fsd = new FolderSelectDialog()
+            {
+                Title = "Choose folder where view frame drawings are stored: ",
+                InitialDirectory = @"C:\"
+            };
+            if (fsd.ShowDialog(IntPtr.Zero))
+            {
+                pathToFolder = fsd.FileName + "\\";
+            }
+            else return;
+
+            var files = Directory.EnumerateFiles(pathToFolder, "*.dwg");
+
+            foreach (var f in files)
+            {
+                ObjectIdCollection idsToUnload = new ObjectIdCollection();
+                using (Database xDb = new Database(false, true))
+                {
+                    prdDbg(Path.GetFileName(f));
+                    System.Windows.Forms.Application.DoEvents();
+
+                    xDb.ReadDwgFile(f, FileOpenMode.OpenForReadAndWriteNoShare, false, "");
+
+                    using (Transaction xTx = xDb.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            BlockTable bt = xDb.BlockTableId.Go<BlockTable>(xTx);
+
+                            foreach (Oid oid in bt)
+                            {
+                                BlockTableRecord btr = oid.Go<BlockTableRecord>(xTx);
+
+                                if (btr.IsFromExternalReference) idsToUnload.Add(btr.Id);
+                            }
+
+                            if (idsToUnload.Count > 0) xDb.ReloadXrefs(idsToUnload);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            xTx.Abort();
+                            prdDbg(ex);
+                            throw;
+                        }
+                        xTx.Commit();
+                    }
+
+                    xDb.SaveAs(f, true, DwgVersion.Newest, null);
+                }
+            }
+            prdDbg("Finished!");
         }
 
         [CommandMethod("LISTXREFSINFILE")]
