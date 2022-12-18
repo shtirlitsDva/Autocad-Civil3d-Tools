@@ -562,246 +562,246 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-            string projName = Interaction.GetString("Project name: ");
-            string etapeName = Interaction.GetString("Etape name: ");
+            var droText = File.ReadAllLines(Environment.ExpandEnvironmentVariables("%temp%") + "\\DRO.txt");
 
             //Create crossing points first
-            DataReferencesOptions dro = new DataReferencesOptions(projName, etapeName);
-            Interaction.TaskDialog(projName + "\n" + etapeName, "Cool!", "Nah...");
+            DataReferencesOptions dro = new DataReferencesOptions(droText[0], droText[1]);
             #region The whole sequence
-            //createlerdatapssmethod(dro);
+            createlerdatapssmethod(dro);
 
-            ////Populateprofileviews with crossing data
-            //populateprofiles();
+            //Populateprofileviews with crossing data
+            populateprofiles();
 
-            //using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            //{
-            //    try
-            //    {
-            //        BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
 
-            //        #region Stylize Profile Views
-            //        HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
+                    #region Stylize Profile Views
+                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
 
-            //        Oid pvStyleId = Oid.Null;
-            //        try
-            //        {
-            //            pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R 1:250:100"];
-            //        }
-            //        catch (System.Exception)
-            //        {
-            //            ed.WriteMessage($"\nProfile view style missing! Run IMPORTLABELSTYLES.");
-            //            tx.Abort();
-            //            return;
-            //        }
+                    Oid pvStyleId = Oid.Null;
+                    try
+                    {
+                        pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R 1:250:100"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nProfile view style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
 
-            //        foreach (ProfileView pv in pvs)
-            //        {
-            //            pv.CheckOrOpenForWrite();
-            //            pv.StyleId = pvStyleId;
+                    foreach (ProfileView pv in pvs)
+                    {
+                        pv.CheckOrOpenForWrite();
+                        pv.StyleId = pvStyleId;
 
-            //            Oid alId = pv.AlignmentId;
-            //            Alignment al = alId.Go<Alignment>(tx);
+                        Oid alId = pv.AlignmentId;
+                        Alignment al = alId.Go<Alignment>(tx);
 
-            //            ObjectIdCollection psIds = al.GetProfileIds();
-            //            HashSet<Profile> ps = new HashSet<Profile>();
-            //            foreach (Oid oid in psIds) ps.Add(oid.Go<Profile>(tx));
+                        ObjectIdCollection psIds = al.GetProfileIds();
+                        HashSet<Profile> ps = new HashSet<Profile>();
+                        foreach (Oid oid in psIds) ps.Add(oid.Go<Profile>(tx));
 
-            //            Profile surfaceProfile = ps.Where(x => x.Name.Contains("surface")).FirstOrDefault();
-            //            Oid surfaceProfileId = Oid.Null;
-            //            if (surfaceProfile != null) surfaceProfileId = surfaceProfile.ObjectId;
-            //            else ed.WriteMessage("\nSurface profile not found!");
+                        Profile surfaceProfile = ps.Where(x => x.Name.Contains("surface")).FirstOrDefault();
+                        Oid surfaceProfileId = Oid.Null;
+                        if (surfaceProfile != null) surfaceProfileId = surfaceProfile.ObjectId;
+                        else ed.WriteMessage("\nSurface profile not found!");
 
-            //            Profile topProfile = ps.Where(x => x.Name.Contains("TOP")).FirstOrDefault();
-            //            Oid topProfileId = Oid.Null;
-            //            if (topProfile != null) topProfileId = topProfile.ObjectId;
-            //            else ed.WriteMessage("\nTop profile not found!");
+                        Profile topProfile = ps.Where(x => x.Name.Contains("TOP")).FirstOrDefault();
+                        Oid topProfileId = Oid.Null;
+                        if (topProfile != null) topProfileId = topProfile.ObjectId;
+                        else ed.WriteMessage("\nTop profile not found!");
 
-            //            //this doesn't quite work
-            //            Oid pvbsId = civilDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
-            //            ProfileViewBandSet pvbs = pv.Bands;
-            //            pvbs.ImportBandSetStyle(pvbsId);
+                        //this doesn't quite work
+                        Oid pvbsId = civilDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
+                        ProfileViewBandSet pvbs = pv.Bands;
+                        pvbs.ImportBandSetStyle(pvbsId);
 
-            //            //try this
-            //            Oid pvBSId1 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"];
-            //            Oid pvBSId2 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"];
-            //            ProfileViewBandItemCollection pvic = new ProfileViewBandItemCollection(pv.Id, BandLocationType.Bottom);
-            //            pvic.Add(pvBSId1);
-            //            pvic.Add(pvBSId2);
-            //            pvbs.SetBottomBandItems(pvic);
+                        //try this
+                        Oid pvBSId1 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"];
+                        Oid pvBSId2 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"];
+                        ProfileViewBandItemCollection pvic = new ProfileViewBandItemCollection(pv.Id, BandLocationType.Bottom);
+                        pvic.Add(pvBSId1);
+                        pvic.Add(pvBSId2);
+                        pvbs.SetBottomBandItems(pvic);
 
-            //            ProfileViewBandItemCollection pbic = pvbs.GetBottomBandItems();
-            //            for (int i = 0; i < pbic.Count; i++)
-            //            {
-            //                ProfileViewBandItem pvbi = pbic[i];
-            //                if (i == 0) pvbi.Gap = 0;
-            //                else if (i == 1) pvbi.Gap = 0.016;
-            //                if (surfaceProfileId != Oid.Null) pvbi.Profile1Id = surfaceProfileId;
-            //                if (topProfileId != Oid.Null) pvbi.Profile2Id = topProfileId;
-            //                pvbi.LabelAtStartStation = true;
-            //                pvbi.LabelAtEndStation = true;
-            //            }
-            //            pvbs.SetBottomBandItems(pbic);
+                        ProfileViewBandItemCollection pbic = pvbs.GetBottomBandItems();
+                        for (int i = 0; i < pbic.Count; i++)
+                        {
+                            ProfileViewBandItem pvbi = pbic[i];
+                            if (i == 0) pvbi.Gap = 0;
+                            else if (i == 1) pvbi.Gap = 0.016;
+                            if (surfaceProfileId != Oid.Null) pvbi.Profile1Id = surfaceProfileId;
+                            if (topProfileId != Oid.Null) pvbi.Profile2Id = topProfileId;
+                            pvbi.LabelAtStartStation = true;
+                            pvbi.LabelAtEndStation = true;
+                        }
+                        pvbs.SetBottomBandItems(pbic);
 
-            //            #region Scale LER block
-            //            if (bt.Has(pv.Name))
-            //            {
-            //                BlockTableRecord btr = tx.GetObject(bt[pv.Name], OpenMode.ForRead)
-            //                    as BlockTableRecord;
-            //                ObjectIdCollection brefIds = btr.GetBlockReferenceIds(false, true);
+                        #region Scale LER block
+                        if (bt.Has(pv.Name))
+                        {
+                            BlockTableRecord btr = tx.GetObject(bt[pv.Name], OpenMode.ForRead)
+                                as BlockTableRecord;
+                            ObjectIdCollection brefIds = btr.GetBlockReferenceIds(false, true);
 
-            //                foreach (Oid oid in brefIds)
-            //                {
-            //                    BlockReference bref = oid.Go<BlockReference>(tx, OpenMode.ForWrite);
-            //                    bref.ScaleFactors = new Scale3d(1, 2.5, 1);
-            //                }
+                            foreach (Oid oid in brefIds)
+                            {
+                                BlockReference bref = oid.Go<BlockReference>(tx, OpenMode.ForWrite);
+                                bref.ScaleFactors = new Scale3d(1, 2.5, 1);
+                            }
 
-            //            }
-            //            #endregion
-            //        }
-            //        #endregion
+                        }
+                        #endregion
+                    }
+                    #endregion
 
-            //        #region ProfileStyles
-            //        Oid pPipeStyleKantId = Oid.Null;
-            //        try
-            //        {
-            //            pPipeStyleKantId = civilDoc.Styles.ProfileStyles["PROFIL STYLE MGO KANT"];
-            //        }
-            //        catch (System.Exception)
-            //        {
-            //            ed.WriteMessage($"\nPROFIL STYLE MGO KANT style missing! Run IMPORTLABELSTYLES.");
-            //            tx.Abort();
-            //            return;
-            //        }
+                    #region ProfileStyles
+                    Oid pPipeStyleKantId = Oid.Null;
+                    try
+                    {
+                        pPipeStyleKantId = civilDoc.Styles.ProfileStyles["PROFIL STYLE MGO KANT"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nPROFIL STYLE MGO KANT style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
 
-            //        Oid pPipeStyleMidtId = Oid.Null;
-            //        try
-            //        {
-            //            pPipeStyleMidtId = civilDoc.Styles.ProfileStyles["PROFIL STYLE MGO MIDT"];
-            //        }
-            //        catch (System.Exception)
-            //        {
-            //            ed.WriteMessage($"\nPROFIL STYLE MGO MIDT style missing! Run IMPORTLABELSTYLES.");
-            //            tx.Abort();
-            //            return;
-            //        }
+                    Oid pPipeStyleMidtId = Oid.Null;
+                    try
+                    {
+                        pPipeStyleMidtId = civilDoc.Styles.ProfileStyles["PROFIL STYLE MGO MIDT"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nPROFIL STYLE MGO MIDT style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
 
-            //        Oid pTerStyleId = Oid.Null;
-            //        try
-            //        {
-            //            pTerStyleId = civilDoc.Styles.ProfileStyles["Terræn"];
-            //        }
-            //        catch (System.Exception)
-            //        {
-            //            ed.WriteMessage($"\nTerræn style missing! Run IMPORTLABELSTYLES.");
-            //            tx.Abort();
-            //            return;
-            //        }
+                    Oid pTerStyleId = Oid.Null;
+                    try
+                    {
+                        pTerStyleId = civilDoc.Styles.ProfileStyles["Terræn"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nTerræn style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
 
-            //        Oid alStyleId = Oid.Null;
-            //        try
-            //        {
-            //            alStyleId = civilDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
-            //        }
-            //        catch (System.Exception)
-            //        {
-            //            ed.WriteMessage($"\nFJV TRACE NO SHOW style missing! Run IMPORTLABELSTYLES.");
-            //            tx.Abort();
-            //            return;
-            //        }
+                    Oid alStyleId = Oid.Null;
+                    try
+                    {
+                        alStyleId = civilDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nFJV TRACE NO SHOW style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
 
-            //        Oid alLabelSetStyleId = Oid.Null;
-            //        try
-            //        {
-            //            alLabelSetStyleId = civilDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
-            //        }
-            //        catch (System.Exception)
-            //        {
-            //            ed.WriteMessage($"\nSTD 20-5 style missing! Run IMPORTLABELSTYLES.");
-            //            tx.Abort();
-            //            return;
-            //        }
+                    Oid alLabelSetStyleId = Oid.Null;
+                    try
+                    {
+                        alLabelSetStyleId = civilDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nSTD 20-5 style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
 
-            //        Oid crestCurveLabelId = Oid.Null;
-            //        try
-            //        {
-            //            crestCurveLabelId = civilDoc.Styles.LabelStyles.ProfileLabelStyles.CurveLabelStyles["Radius Crest"];
-            //        }
-            //        catch (System.Exception)
-            //        {
-            //            ed.WriteMessage($"\nRADIUS CREST style missing! Run IMPORTLABELSTYLES.");
-            //            tx.Abort();
-            //            return;
-            //        }
+                    Oid crestCurveLabelId = Oid.Null;
+                    try
+                    {
+                        crestCurveLabelId = civilDoc.Styles.LabelStyles.ProfileLabelStyles.CurveLabelStyles["Radius Crest"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nRADIUS CREST style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
 
-            //        Oid sagCurveLabelId = Oid.Null;
-            //        try
-            //        {
-            //            sagCurveLabelId = civilDoc.Styles.LabelStyles.ProfileLabelStyles.CurveLabelStyles["Radius Sag"];
-            //        }
-            //        catch (System.Exception)
-            //        {
-            //            ed.WriteMessage($"\nRADIUS SAG style missing! Run IMPORTLABELSTYLES.");
-            //            tx.Abort();
-            //            return;
-            //        }
+                    Oid sagCurveLabelId = Oid.Null;
+                    try
+                    {
+                        sagCurveLabelId = civilDoc.Styles.LabelStyles.ProfileLabelStyles.CurveLabelStyles["Radius Sag"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nRADIUS SAG style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
 
-            //        HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-            //        foreach (Alignment al in als)
-            //        {
-            //            al.CheckOrOpenForWrite();
-            //            al.StyleId = alStyleId;
-            //            al.ImportLabelSet(alLabelSetStyleId);
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                    foreach (Alignment al in als)
+                    {
+                        al.CheckOrOpenForWrite();
+                        al.StyleId = alStyleId;
+                        al.ImportLabelSet(alLabelSetStyleId);
 
-            //            ObjectIdCollection pIds = al.GetProfileIds();
-            //            foreach (Oid oid in pIds)
-            //            {
-            //                Profile p = oid.Go<Profile>(tx);
-            //                if (p.Name == $"{al.Name}_surface_P")
-            //                {
-            //                    p.CheckOrOpenForWrite();
-            //                    p.StyleId = pTerStyleId;
-            //                }
-            //                else
-            //                {
-            //                    p.CheckOrOpenForWrite();
-            //                    p.StyleId = pPipeStyleKantId;
+                        ObjectIdCollection pIds = al.GetProfileIds();
+                        foreach (Oid oid in pIds)
+                        {
+                            Profile p = oid.Go<Profile>(tx);
+                            if (p.Name == $"{al.Name}_surface_P")
+                            {
+                                p.CheckOrOpenForWrite();
+                                p.StyleId = pTerStyleId;
+                            }
+                            else
+                            {
+                                p.CheckOrOpenForWrite();
+                                p.StyleId = pPipeStyleKantId;
 
-            //                    if (p.Name.Contains("MIDT"))
-            //                    {
-            //                        p.StyleId = pPipeStyleMidtId;
+                                if (p.Name.Contains("MIDT"))
+                                {
+                                    p.StyleId = pPipeStyleMidtId;
 
-            //                        foreach (ProfileView pv in pvs)
-            //                        {
-            //                            pv.CheckOrOpenForWrite();
-            //                            ProfileCrestCurveLabelGroup.Create(pv.ObjectId, p.ObjectId, crestCurveLabelId);
-            //                            ProfileSagCurveLabelGroup.Create(pv.ObjectId, p.ObjectId, sagCurveLabelId);
-            //                        }
-            //                    }
-            //                }
-            //            }
-            //        }
-            //        #endregion
-            //    }
-            //    catch (System.Exception ex)
-            //    {
-            //        tx.Abort();
-            //        ed.WriteMessage("\n" + ex.ToString());
-            //        return;
-            //    }
-            //    tx.Commit();
-            //}
+                                    foreach (ProfileView pv in pvs)
+                                    {
+                                        pv.CheckOrOpenForWrite();
+                                        ProfileCrestCurveLabelGroup.Create(pv.ObjectId, p.ObjectId, crestCurveLabelId);
+                                        ProfileSagCurveLabelGroup.Create(pv.ObjectId, p.ObjectId, sagCurveLabelId);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    ed.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
 
-            ////Create detailing blocks on top of exaggerated views
-            //createdetailingmethod(dro, localDb);
-            ////Auto stagger all labels to right
-            //staggerlabelsall();
-            ////Draw rectangles representing viewports around longitudinal profiles
-            ////Can be used to check if labels are inside
-            //drawviewportrectangles();
-            ////Colorize layer as per krydsninger table
-            //colorizealllerlayersmethod(); 
+            //Create detailing blocks on top of exaggerated views
+            createdetailingmethod(dro, localDb);
+            //Auto stagger all labels to right
+            staggerlabelsall();
+            //Draw rectangles representing viewports around longitudinal profiles
+            //Can be used to check if labels are inside
+            drawviewportrectangles();
+            //Colorize layer as per krydsninger table
+            colorizealllerlayersmethod();
             #endregion
+
+            Interaction.TaskDialog("Finilization finished!", "OK", "Not OK");
         }
 
         [CommandMethod("resetprofileviews")]
