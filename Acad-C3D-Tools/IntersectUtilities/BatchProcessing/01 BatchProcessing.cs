@@ -49,6 +49,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using System.Windows.Documents;
+using System.Security.Cryptography;
 
 namespace IntersectUtilities
 {
@@ -250,46 +251,14 @@ namespace IntersectUtilities
                                     //    al.ImportLabelSet(labelSetStyle);
                                     //}
                                     #endregion
-                                    #region Reset titleblock
-                                    //xDb
-                                    //    .GetBlockReferenceByName("Tegningshoved FORS")
-                                    //    .First()
-                                    //    .BlockTableRecord
-                                    //    .Go<BlockTableRecord>(xTx)
-                                    //    .ResetAttributesValues();
-                                    #endregion
-                                    #region Unload all Xrefs
-                                    //BlockTable bt = xDb.BlockTableId.Go<BlockTable>(xTx);
-                                    //ObjectIdCollection ids = new ObjectIdCollection();
-
-                                    //foreach (Oid oid in bt)
-                                    //{
-                                    //    BlockTableRecord btr = oid.Go<BlockTableRecord>(xTx);
-
-                                    //    if (btr.IsFromExternalReference) ids.Add(btr.Id);
-                                    //}
-
-                                    //if (ids.Count > 0) xDb.UnloadXrefs(ids);
-                                    #endregion
-                                    #region Reload all Xrefs
-                                    //BlockTable bt = extDb.BlockTableId.Go<BlockTable>(extTx);
-                                    //ObjectIdCollection ids = new ObjectIdCollection();
-
-                                    //foreach (Oid oid in bt)
-                                    //{
-                                    //    BlockTableRecord btr = oid.Go<BlockTableRecord>(extTx);
-
-                                    //    if (btr.IsFromExternalReference) ids.Add(btr.Id);
-                                    //}
-
-                                    //if (ids.Count > 0) extDb.ReloadXrefs(ids);
-                                    #endregion
                                     //Fix longitudinal profiles
                                     //result = fixlongitudinalprofiles(xDb);
                                     //List viewFrame numbers
                                     //result = listvfnumbers(xDb);
                                     //Renumber viewframes
-                                    result = renumbervfs(xDb, ref count);
+                                    //result = renumbervfs(xDb, ref count);
+                                    //Correct field in blocks
+                                    result = correctfieldinblock(xDb);
 
                                     switch (result.Status)
                                     {
@@ -451,6 +420,44 @@ namespace IntersectUtilities
                     prdDbg($"{previousName} -> {item.Name}");
                 }
             }
+            return new Result();
+        }
+        private Result correctfieldinblock(Database xDb)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+
+            HashSet<BlockReference> brs = xDb
+                .GetBlockReferenceByName("Tegningsskilt");
+
+            BlockTableRecord btr = brs
+                .First()
+                .BlockTableRecord
+                .Go<BlockTableRecord>(xTx);
+
+            foreach (Oid oid in btr)
+            {
+                if (!oid.IsDerivedFrom<AttributeDefinition>()) continue;
+                AttributeDefinition attDef = oid.Go<AttributeDefinition>(xTx);
+                if (attDef == null) continue;
+                if (attDef.Tag != "SAG2") continue;
+
+                attDef.CheckOrOpenForWrite();
+                attDef.TextString = "%<\\AcSm SheetSet.Description \\f \"%tc1\">%";
+            }
+
+            foreach (var br in brs)
+            {
+                foreach (Oid oid in br.AttributeCollection)
+                {
+                    AttributeReference ar = oid.Go<AttributeReference>(xTx);
+                    if (ar.Tag == "SAG2")
+                    {
+                        ar.CheckOrOpenForWrite();
+                        ar.TextString = "%<\\AcSm SheetSet.Description \\f \"%tc1\">%";
+                    }
+                }
+            }
+
             return new Result();
         }
         private enum ResultStatus
