@@ -483,6 +483,7 @@ namespace IntersectUtilities
             {
                 var DictionaryPropertySetDefinitions = new DictionaryPropertySetDefinitions(db);
 
+                if (!DictionaryPropertySetDefinitions.Has(propertySetName.ToString(), tx)) return;
                 PropertySetDefinition propSetDef =
                     DictionaryPropertySetDefinitions.GetAt(propertySetName.ToString()).Go<PropertySetDefinition>(tx);
 

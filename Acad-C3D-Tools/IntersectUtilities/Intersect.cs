@@ -933,9 +933,9 @@ namespace IntersectUtilities
                                                $"Location: {p3dInt}, Surface E: {surfaceElevation}.");
                                     }
 
-                                    //prdDbg(
-                                    //    $"Ler elev: {p3dInt.Z.ToString("0.##")}, " +
-                                    //    $"Surface elev: {surfaceElevation.ToString("0.##")}");
+                                    prdDbg(
+                                        $"Ler elev: {p3dInt.Z.ToString("0.##")}, " +
+                                        $"Surface elev: {surfaceElevation.ToString("0.##")}");
                                     System.Windows.Forms.Application.DoEvents();
                                     #endregion
                                 }
@@ -951,6 +951,9 @@ namespace IntersectUtilities
                     xRefAlsTx.Abort();
                     xRefAlsTx.Dispose();
                     xRefAlsDB.Dispose();
+                    xRefSurfaceTx.Abort();
+                    xRefSurfaceTx.Dispose();
+                    xRefSurfaceDB.Dispose();
                     tx.Abort();
                     editor.WriteMessage($"\n{e.ToString()}");
                     return;
@@ -959,6 +962,9 @@ namespace IntersectUtilities
                 xRefAlsTx.Abort();
                 xRefAlsTx.Dispose();
                 xRefAlsDB.Dispose();
+                xRefSurfaceTx.Abort();
+                xRefSurfaceTx.Dispose();
+                xRefSurfaceDB.Dispose();
                 tx.Commit();
             }
         }
