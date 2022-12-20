@@ -38,6 +38,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dimensionering", "Dimension
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoCADCommands", "AutoCADCommands\AutoCADCommands.csproj", "{C5F6C326-952B-43E8-9830-311F190BAB11}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoCadCom", "AutoCadCom\AutoCadCom.csproj", "{8EE650DE-4A29-44A2-8920-C9B1994D7FAE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -162,6 +164,14 @@ Global
 		{C5F6C326-952B-43E8-9830-311F190BAB11}.Release|Any CPU.Build.0 = Release|Any CPU
 		{C5F6C326-952B-43E8-9830-311F190BAB11}.Release|x64.ActiveCfg = Release|Any CPU
 		{C5F6C326-952B-43E8-9830-311F190BAB11}.Release|x64.Build.0 = Release|Any CPU
+		{8EE650DE-4A29-44A2-8920-C9B1994D7FAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8EE650DE-4A29-44A2-8920-C9B1994D7FAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8EE650DE-4A29-44A2-8920-C9B1994D7FAE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8EE650DE-4A29-44A2-8920-C9B1994D7FAE}.Debug|x64.Build.0 = Debug|Any CPU
+		{8EE650DE-4A29-44A2-8920-C9B1994D7FAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8EE650DE-4A29-44A2-8920-C9B1994D7FAE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8EE650DE-4A29-44A2-8920-C9B1994D7FAE}.Release|x64.ActiveCfg = Release|Any CPU
+		{8EE650DE-4A29-44A2-8920-C9B1994D7FAE}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
