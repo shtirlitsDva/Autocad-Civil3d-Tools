@@ -99,7 +99,7 @@ namespace IntersectUtilities
 
                     foreach (string fileName in fileList)
                     {
-                        //prdDbg(fileName);
+                        prdDbg(fileName);
                         string file = path + fileName;
                         using (Database xDb = new Database(false, true))
                         {
@@ -202,19 +202,6 @@ namespace IntersectUtilities
                                     //    }
                                     //} 
                                     #endregion
-                                    #region Change Alignment style
-                                    //CivilDocument extCDoc = CivilDocument.GetCivilDocument(xDb);
-
-                                    //HashSet<Alignment> als = xDb.HashSetOfType<Alignment>(xTx);
-
-                                    //foreach (Alignment al in als)
-                                    //{
-                                    //    al.CheckOrOpenForWrite();
-                                    //    al.StyleId = extCDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
-                                    //    oid labelSetOid = extCDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
-                                    //    al.ImportLabelSet(labelSetOid);
-                                    //} 
-                                    #endregion
                                     #region Fix midt profile style
                                     //CivilDocument extDoc = CivilDocument.GetCivilDocument(xDb);
                                     //var psc = extDoc.Styles.ProfileStyles;
@@ -237,28 +224,26 @@ namespace IntersectUtilities
                                     #region List all VF numbers
 
                                     #endregion
-                                    #region Hide alignments
-                                    //var cDoc = CivilDocument.GetCivilDocument(xDb);
-                                    //Oid alStyle = cDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
-                                    //Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
-                                    ////Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["_No Labels"];
-                                    //HashSet<Alignment> als = xDb.HashSetOfType<Alignment>(xTx);
-
-                                    //foreach (Alignment al in als)
-                                    //{
-                                    //    al.CheckOrOpenForWrite();
-                                    //    al.StyleId = alStyle;
-                                    //    al.ImportLabelSet(labelSetStyle);
-                                    //}
-                                    #endregion
                                     //Fix longitudinal profiles
                                     //result = fixlongitudinalprofiles(xDb);
+
                                     //List viewFrame numbers
                                     //result = listvfnumbers(xDb);
+
                                     //Renumber viewframes
                                     //result = renumbervfs(xDb, ref count);
+
                                     //Correct field in blocks
-                                    result = correctfieldinblock(xDb);
+                                    //result = correctfieldinblock(xDb);
+
+                                    //Hide alignments in files (run hal)
+                                    //result = hidealignments(xDb);
+
+                                    //Set alignment to NO SHOW
+                                    //result = alignmentsnoshow(xDb);
+
+                                    //Freeze layers in viewport
+                                    result = vpfreezelayers(xDb);
 
                                     switch (result.Status)
                                     {
@@ -458,6 +443,95 @@ namespace IntersectUtilities
                 }
             }
 
+            return new Result();
+        }
+        private Result hidealignments(Database xDb)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+
+            var cDoc = CivilDocument.GetCivilDocument(xDb);
+            Oid alStyle = cDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
+            //Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
+            Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["_No Labels"];
+            HashSet<Alignment> als = xDb.HashSetOfType<Alignment>(xTx);
+
+            foreach (Alignment al in als)
+            {
+                al.CheckOrOpenForWrite();
+                al.StyleId = alStyle;
+                al.ImportLabelSet(labelSetStyle);
+            }
+            return new Result();
+        }
+        private Result alignmentsnoshow(Database xDb)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+
+            var cDoc = CivilDocument.GetCivilDocument(xDb);
+            Oid alStyle = cDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
+
+            HashSet<Alignment> als = xDb.HashSetOfType<Alignment>(xTx);
+
+            foreach (Alignment al in als)
+            {
+                al.CheckOrOpenForWrite();
+                al.StyleId = alStyle;
+            }
+            return new Result();
+        }
+        private Result vpfreezelayers(Database xDb)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+
+            HashSet<ProfileProjectionLabel> labels =
+                        xDb.HashSetOfType<ProfileProjectionLabel>(xTx);
+            var layerNames = labels.Select(x => x.Layer).ToHashSet();
+            ObjectIdCollection oids = new ObjectIdCollection();
+            LayerTable lt = xDb.LayerTableId.Go<LayerTable>(xTx);
+            foreach (string name in layerNames) oids.Add(lt[name]);
+            prdDbg($"Number of layers: {layerNames.Count}");
+            prdDbg($"Number of oids: {oids.Count}");
+
+            DBDictionary layoutDict = xDb.LayoutDictionaryId.Go<DBDictionary>(xTx);
+            var enumerator = layoutDict.GetEnumerator();
+            while (enumerator.MoveNext())
+            {
+                DBDictionaryEntry item = enumerator.Current;
+                prdDbg(item.Key);
+                if (item.Key == "Model")
+                {
+                    prdDbg("Skipping model...");
+                    continue;
+                }
+                Layout layout = item.Value.Go<Layout>(xTx);
+                BlockTableRecord layBlock = layout.BlockTableRecordId.Go<BlockTableRecord>(xTx);
+
+                foreach (Oid id in layBlock)
+                {
+                    if (id.IsDerivedFrom<Viewport>())
+                    {
+                        Viewport vp = id.Go<Viewport>(xTx);
+                        //Truncate doubles to whole numebers for easier comparison
+                        int centerX = (int)vp.CenterPoint.X;
+                        int centerY = (int)vp.CenterPoint.Y;
+                        if (centerX == 958 && centerY == 193)
+                        {
+                            prdDbg("Found minikort viewport!");
+                            ObjectIdCollection notFrozenIds = new ObjectIdCollection();
+                            foreach (Oid oid in oids)
+                            {
+                                if (vp.IsLayerFrozenInViewport(oid)) continue;
+                                notFrozenIds.Add(oid);
+                            }
+                            prdDbg($"Number of not frozen layers: {notFrozenIds.Count}");
+                            if (notFrozenIds.Count == 0) continue;
+
+                            vp.CheckOrOpenForWrite();
+                            vp.FreezeLayersInViewport(notFrozenIds.GetEnumerator());
+                        }
+                    }
+                }
+            }
             return new Result();
         }
         private enum ResultStatus
