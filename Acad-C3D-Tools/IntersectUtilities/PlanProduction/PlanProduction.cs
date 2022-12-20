@@ -317,6 +317,49 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            #region Fix wrong PV style at start
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+
+                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
+
+                    Oid pvStyleId = Oid.Null;
+                    try
+                    {
+                        pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R NO SCALE"];
+                        //pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R 1:250:100"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nProfile view style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
+
+                    foreach (ProfileView pv in pvs)
+                    {
+                        Oid pvCurStyleId = pv.StyleId;
+                        ProfileViewStyle curPvStyle = pvCurStyleId.Go<ProfileViewStyle>(tx);
+                        if (curPvStyle.Name != "PROFILE VIEW L TO R NO SCALE")
+                        {
+                            pv.CheckOrOpenForWrite();
+                            pv.StyleId = pvStyleId;
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    ed.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+            #endregion
+
             //Create crossing points first
             DataReferencesOptions dro = new DataReferencesOptions();
             createlerdatapssmethod(dro);
@@ -543,7 +586,15 @@ namespace IntersectUtilities
             }
 
             //Create detailing blocks on top of exaggerated views
-            createdetailingmethod(dro, localDb);
+            //Detect if drawing has "MIDT" profile
+            bool hasMidt = false;
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                var profiles = localDb.HashSetOfType<Profile>(tx);
+                if (profiles.Any(x => x.Name.Contains("MIDT"))) hasMidt = true;
+            }
+            if (hasMidt) createdetailingmethod(dro, localDb);
+            else createdetailingpreliminarymethod(dro, localDb);
             //Auto stagger all labels to right
             staggerlabelsall();
             //Draw rectangles representing viewports around longitudinal profiles
@@ -561,6 +612,49 @@ namespace IntersectUtilities
             Editor ed = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            #region Fix wrong PV style at start
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+
+                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
+
+                    Oid pvStyleId = Oid.Null;
+                    try
+                    {
+                        pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R NO SCALE"];
+                        //pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R 1:250:100"];
+                    }
+                    catch (System.Exception)
+                    {
+                        ed.WriteMessage($"\nProfile view style missing! Run IMPORTLABELSTYLES.");
+                        tx.Abort();
+                        return;
+                    }
+
+                    foreach (ProfileView pv in pvs)
+                    {
+                        Oid pvCurStyleId = pv.StyleId;
+                        ProfileViewStyle curPvStyle = pvCurStyleId.Go<ProfileViewStyle>(tx);
+                        if (curPvStyle.Name != "PROFILE VIEW L TO R NO SCALE")
+                        {
+                            pv.CheckOrOpenForWrite();
+                            pv.StyleId = pvStyleId;
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    ed.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+            #endregion
 
             var droText = File.ReadAllLines(Environment.ExpandEnvironmentVariables("%temp%") + "\\DRO.txt");
 
@@ -791,7 +885,16 @@ namespace IntersectUtilities
             }
 
             //Create detailing blocks on top of exaggerated views
-            createdetailingmethod(dro, localDb);
+            //Detect if drawing has "MIDT" profile
+            bool hasMidt = false;
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                var profiles = localDb.HashSetOfType<Profile>(tx);
+                if (profiles.Any(x => x.Name.Contains("MIDT"))) hasMidt = true;
+            }
+            if (hasMidt) createdetailingmethod(dro, localDb);
+            else createdetailingpreliminarymethod(dro, localDb);
+
             //Auto stagger all labels to right
             staggerlabelsall();
             //Draw rectangles representing viewports around longitudinal profiles

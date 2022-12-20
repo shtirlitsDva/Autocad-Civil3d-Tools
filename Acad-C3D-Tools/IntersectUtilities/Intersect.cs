@@ -920,7 +920,7 @@ namespace IntersectUtilities
                                     Point3d p3dInt = ent.GetClosestPointTo(p3d, new Vector3d(0.0, 0.0, 1.0), false);
 
                                     count++;
-                                    if (p3dInt.Z <= 0)
+                                    if (p3dInt.Z.IsZero(Tolerance.Global.EqualPoint))
                                     {
                                         editor.WriteMessage($"\nEntity {ent.Handle} returned {p3dInt.Z}" +
                                             $" elevation for a 3D layer.");
@@ -951,6 +951,9 @@ namespace IntersectUtilities
                     xRefAlsTx.Abort();
                     xRefAlsTx.Dispose();
                     xRefAlsDB.Dispose();
+                    xRefSurfaceTx.Abort();
+                    xRefSurfaceTx.Dispose();
+                    xRefSurfaceDB.Dispose();
                     tx.Abort();
                     editor.WriteMessage($"\n{e.ToString()}");
                     return;
@@ -959,6 +962,9 @@ namespace IntersectUtilities
                 xRefAlsTx.Abort();
                 xRefAlsTx.Dispose();
                 xRefAlsDB.Dispose();
+                xRefSurfaceTx.Abort();
+                xRefSurfaceTx.Dispose();
+                xRefSurfaceDB.Dispose();
                 tx.Commit();
             }
         }

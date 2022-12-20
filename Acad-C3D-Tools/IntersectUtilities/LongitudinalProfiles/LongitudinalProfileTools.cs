@@ -544,7 +544,8 @@ namespace IntersectUtilities
                                     double zElevation = 0;
                                     if (type != "3D")
                                     {
-                                        var intPoint = surface.GetIntersectionPoint(p3d, new Vector3d(0, 0, 1));
+                                        var intPoint = surface.GetIntersectionPoint(
+                                            new Point3d(p3d.X, p3d.Y, -99.0), new Vector3d(0, 0, 1));
                                         zElevation = intPoint.Z;
 
                                         //Subtract the depth (if invalid it is zero, so no modification will occur)
@@ -1385,22 +1386,26 @@ namespace IntersectUtilities
         [CommandMethod("CREATEDETAILINGPRELIMINARY")]
         public void createdetailingpreliminary()
         {
+            createdetailingpreliminarymethod();
+        }
+        public void createdetailingpreliminarymethod(DataReferencesOptions dataReferencesOptions = default, Database database = default)
+        {
             DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
+            Database dB = database ?? docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-            DataReferencesOptions dro = new DataReferencesOptions();
+            DataReferencesOptions dro = dataReferencesOptions ?? new DataReferencesOptions();
             string projectName = dro.ProjectName;
             string etapeName = dro.EtapeName;
 
             System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
                 @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
-            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.DriSourceReference);
+            PropertySetManager.UpdatePropertySetDefinition(dB, PSetDefs.DefinedSets.DriSourceReference);
 
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            using (Transaction tx = dB.TransactionManager.StartTransaction())
             {
                 #region Open fremtidig db
                 // open the xref database
@@ -1420,7 +1425,7 @@ namespace IntersectUtilities
                     new PSetDefs.DriPipelineData();
 
                 PropertySetManager psmSourceReference = new PropertySetManager(
-                    localDb, PSetDefs.DefinedSets.DriSourceReference);
+                    dB, PSetDefs.DefinedSets.DriSourceReference);
                 PSetDefs.DriSourceReference driSourceReference =
                     new PSetDefs.DriSourceReference();
                 #endregion
@@ -1434,9 +1439,9 @@ namespace IntersectUtilities
                 {
                     #region Common variables
                     //BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
-                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    BlockTable bt = tx.GetObject(dB.BlockTableId, OpenMode.ForRead) as BlockTable;
                     //Plane plane = new Plane(); //For intersecting
-                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                    HashSet<Alignment> als = dB.HashSetOfType<Alignment>(tx);
                     #endregion
 
                     #region Import blocks if missing
@@ -1451,7 +1456,7 @@ namespace IntersectUtilities
 
                         Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
                         //Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
-                        Oid destDbMsId = localDb.BlockTableId;
+                        Oid destDbMsId = dB.BlockTableId;
 
                         BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                         ObjectIdCollection idsToClone = new ObjectIdCollection();
@@ -1581,7 +1586,7 @@ namespace IntersectUtilities
                                     //prdDbg($"{originY} + ({sampledMidtElevation} - {pvElBottom}) * " +
                                     //    $"{profileViewStyle.GraphStyle.VerticalExaggeration} = {deltaY}");
                                     BlockReference brInt =
-                                        localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                                        dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                     brInt.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i].DN}");
                                     brInt.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[i + 1].DN}");
                                 }
@@ -1594,7 +1599,7 @@ namespace IntersectUtilities
                                     curY = originY + (sampledMidtElevation - pvElBottom) *
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
                                     BlockReference brAt0 =
-                                        localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                                        dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                     brAt0.SetAttributeStringValue("LEFTSIZE", "");
                                     brAt0.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[0].DN}");
 
@@ -1606,7 +1611,7 @@ namespace IntersectUtilities
                                         curY = originY + (sampledMidtElevation - pvElBottom) *
                                             profileViewStyle.GraphStyle.VerticalExaggeration;
                                         BlockReference brAtEnd =
-                                            localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                                            dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                         brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[0].DN}");
                                         brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
                                     }
@@ -1619,7 +1624,7 @@ namespace IntersectUtilities
                                     curY = originY + (sampledMidtElevation - pvElBottom) *
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
                                     BlockReference brAtEnd =
-                                        localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
+                                        dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                     brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i + 1].DN}");
                                     brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
                                 }
@@ -1672,7 +1677,7 @@ namespace IntersectUtilities
                                 double Y = originY + (sampledMidtElevation - pvElBottom) *
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
 
-                                BlockReference brSign = localDb.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
+                                BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
 
                                 //Get br type and process it if it is dynamic
                                 //Write the type of augmentedType to the Left attribute
@@ -1769,7 +1774,7 @@ namespace IntersectUtilities
                                 double Y = originY + (sampledMidtElevation - pvElBottom) *
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
 
-                                BlockReference brBueRor = localDb.CreateBlockWithAttributes(bueBlockName, new Point3d(X, Y, 0));
+                                BlockReference brBueRor = dB.CreateBlockWithAttributes(bueBlockName, new Point3d(X, Y, 0));
 
                                 //Get br type and process it if it is dynamic
                                 //Write the type of augmentedType to the Left attribute
@@ -1857,7 +1862,7 @@ namespace IntersectUtilities
                                                     profileViewStyle.GraphStyle.VerticalExaggeration;
                                             Point3d curvePt = new Point3d(curX, curY, 0);
                                             BlockReference brCurve =
-                                                localDb.CreateBlockWithAttributes(bueBlockName, curvePt);
+                                                dB.CreateBlockWithAttributes(bueBlockName, curvePt);
 
                                             DynamicBlockReferencePropertyCollection dbrpc = brCurve.DynamicBlockReferencePropertyCollection;
                                             foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
