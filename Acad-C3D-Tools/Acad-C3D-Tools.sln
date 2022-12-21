@@ -40,6 +40,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoCADCommands", "AutoCADC
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoCadCom", "AutoCadCom\AutoCadCom.csproj", "{8EE650DE-4A29-44A2-8920-C9B1994D7FAE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UiPathAcadCheckState", "UiPathAcadCheckState\UiPathAcadCheckState.csproj", "{150F9D10-DEE6-487C-8506-3C4F85E844BE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -172,6 +174,14 @@ Global
 		{8EE650DE-4A29-44A2-8920-C9B1994D7FAE}.Release|Any CPU.Build.0 = Release|Any CPU
 		{8EE650DE-4A29-44A2-8920-C9B1994D7FAE}.Release|x64.ActiveCfg = Release|Any CPU
 		{8EE650DE-4A29-44A2-8920-C9B1994D7FAE}.Release|x64.Build.0 = Release|Any CPU
+		{150F9D10-DEE6-487C-8506-3C4F85E844BE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{150F9D10-DEE6-487C-8506-3C4F85E844BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{150F9D10-DEE6-487C-8506-3C4F85E844BE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{150F9D10-DEE6-487C-8506-3C4F85E844BE}.Debug|x64.Build.0 = Debug|Any CPU
+		{150F9D10-DEE6-487C-8506-3C4F85E844BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{150F9D10-DEE6-487C-8506-3C4F85E844BE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{150F9D10-DEE6-487C-8506-3C4F85E844BE}.Release|x64.ActiveCfg = Release|Any CPU
+		{150F9D10-DEE6-487C-8506-3C4F85E844BE}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
