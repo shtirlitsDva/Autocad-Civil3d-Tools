@@ -1104,7 +1104,7 @@ namespace IntersectUtilities.Dimensionering
             string dbFilename = localDb.OriginalFileName;
             string basePath = System.IO.Path.GetDirectoryName(dbFilename);
             basePath += "\\"; //Modify basepath to include backslash
-            string dimDbFilename = basePath + "Fjernvarme Fremtidig.dwg";
+            string dimDbFilename = basePath + "Fjernvarme DIM.dwg";
             #endregion
 
             using (Database dimDb = new Database(false, true))
@@ -1481,7 +1481,7 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
-        [CommandMethod("FINDSTRAY")]
+        //[CommandMethod("FINDSTRAY")]
         public void findstray()
         {
             DocumentCollection docCol = Application.DocumentManager;
