@@ -562,7 +562,14 @@ namespace IntersectUtilities
                 return "";
             }
 
-            return (string)query.First()[pathType];
+            string result = (string)query.First()[pathType];
+            if (result.IsNoE()) throw new System.Exception(
+                $"{pathType} mangler at blive defineret i " +
+                $"X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv!");
+            if (!File.Exists(result)) throw new System.Exception(
+                $"Programmet kan ikke finde filen {result} " +
+                $"på det specificerede sti: {result}");
+            return result;
         }
 
         /// <summary>
@@ -1469,6 +1476,9 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Editor editor = docCol.MdiActiveDocument.Editor;
 
+            if (!File.Exists(PathToStierCsv))
+                throw new System.Exception("X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv findes ikke!");
+
             #region Read Csv for paths
             string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
             System.Data.DataTable dtStier =
@@ -1515,7 +1525,7 @@ namespace IntersectUtilities
             {
                 if (kwd.Contains(returnedPartOfTheKeyword)) return kwd;
             }
-            return "";
+            throw new System.Exception("No project of this name found!");
         }
         public static string GetEtapeName(string projectName)
         {
