@@ -72,7 +72,12 @@ namespace IntersectUtilities.UtilsCommon
             Editor editor = docCol.MdiActiveDocument.Editor;
             editor.WriteMessage("\n" + msg);
         }
-        public static void prdDbg(object obj) => prdDbg(obj.ToString());
+        public static void prdDbg(object obj)
+        {
+            if (obj is SystemException ex1) prdDbg(obj.ToString().Wrap(70));
+            else if (obj is System.Exception ex2) prdDbg(obj.ToString().Wrap(70));
+            else prdDbg(obj.ToString());
+        }
 
         public static Dictionary<string, Color> AutocadStdColors = new Dictionary<string, Color>()
         {

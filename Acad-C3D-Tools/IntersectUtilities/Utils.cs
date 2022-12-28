@@ -222,18 +222,6 @@ namespace IntersectUtilities
             }
             return returnList.Cast<T>().ToHashSet();
         }
-        public static void prdDbg(string msg)
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            editor.WriteMessage("\n" + msg);
-        }
-        public static void prdDbg(object obj)
-        {
-            if (obj is SystemException ex1) prdDbg(obj.ToString().Wrap(70));
-            else if (obj is System.Exception ex2) prdDbg(obj.ToString().Wrap(70));
-            else prdDbg(obj.ToString());
-        }
         /// <summary>
         /// Use only for single field, no multiple matches supported!
         /// </summary>
@@ -1592,13 +1580,13 @@ namespace IntersectUtilities
             }
             catch (System.Exception ex)
             {
-                Utils.prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                Utils.prdDbg(ex.ToString());
+                prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                prdDbg(ex);
                 throw;
             }
             if (dynBlocks == default)
             {
-                Utils.prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
                 throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
             }
             #endregion

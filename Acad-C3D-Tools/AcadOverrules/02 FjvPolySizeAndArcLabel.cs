@@ -313,7 +313,7 @@ namespace AcadOverrules
             {
                 if (pline.Database == null) return false;
 
-                if (PipeSchedule.GetPipeSystem(pline) != PipeSchedule.PipeSystemEnum.Ukendt) return true;
+                if (PipeSchedule.GetPipeSystem(pline) != PipeSystemEnum.Ukendt) return true;
             }
             return false;
         }
@@ -335,9 +335,9 @@ namespace AcadOverrules
                 double dist = labelDist * i;
                 if (numberOfLabels == 1) dist = length / 2;
                 Point3d pt = pline.GetPointAtDist(dist);
-                int dn = IntersectUtilities.PipeSchedule.GetPipeDN(pline);
+                int dn = PipeSchedule.GetPipeDN(pline);
                 string system =
-                    IntersectUtilities.PipeSchedule.GetPipeType(pline) == IntersectUtilities.PipeSchedule.PipeTypeEnum.Twin ?
+                    PipeSchedule.GetPipeType(pline) == PipeTypeEnum.Twin ?
                     "T" : "E";
                 string label = $"DN{dn}-{system}";
 

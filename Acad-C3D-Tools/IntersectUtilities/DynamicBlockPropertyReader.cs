@@ -217,25 +217,25 @@ namespace IntersectUtilities.DynamicBlocks
             //In PipeSchedule PipeSystemEnum tells what material the pipe is: steel etc.
             //Possible solution: Rename the column in FJV DK to PipeType -> requires that ALL block's property renamed also.
             string systemString = ReadComponentSystem(br, fjvTable);
-            PipeSchedule.PipeTypeEnum system;
+            PipeTypeEnum system;
             if (Enum.TryParse(systemString, out system))
             {
                 int dn = ReadComponentDN1Int(br, fjvTable);
                 if (dn == 0 || dn == 999) throw new System.Exception($"{br.RealName()} failed to read DN1!");
 
                 string seriesString = ReadComponentSeries(br, fjvTable);
-                PipeSchedule.PipeSeriesEnum series;
+                PipeSeriesEnum series;
                 if (Enum.TryParse(seriesString, out series))
                 {
                     switch (system)
                     {
-                        case PipeSchedule.PipeTypeEnum.Twin:
+                        case PipeTypeEnum.Twin:
                             return PipeSchedule.GetTwinPipeKOd(dn, series);
-                        case PipeSchedule.PipeTypeEnum.Frem:
-                        case PipeSchedule.PipeTypeEnum.Retur:
-                        case PipeSchedule.PipeTypeEnum.Enkelt:
+                        case PipeTypeEnum.Frem:
+                        case PipeTypeEnum.Retur:
+                        case PipeTypeEnum.Enkelt:
                             return PipeSchedule.GetBondedPipeKOd(dn, series);
-                        case PipeSchedule.PipeTypeEnum.Ukendt:
+                        case PipeTypeEnum.Ukendt:
                         default:
                             throw new System.Exception($"{br.RealName()} returned non-standard \"System\": (PipeTypeEnum) {systemString}!");
                     }
@@ -252,25 +252,25 @@ namespace IntersectUtilities.DynamicBlocks
             //Possible solution: Rename the column in FJV DK to PipeType -> requires that ALL block's property renamed also.
 
             string systemString = ReadComponentSystem(br, fjvTable);
-            PipeSchedule.PipeTypeEnum system;
+            PipeTypeEnum system;
             if (Enum.TryParse(systemString, out system))
             {
                 int dn = ReadComponentDN2Int(br, fjvTable);
                 if (dn == 0 || dn == 999) throw new System.Exception($"{br.RealName()} failed to read DN1!");
 
                 string seriesString = ReadComponentSeries(br, fjvTable);
-                PipeSchedule.PipeSeriesEnum series;
+                PipeSeriesEnum series;
                 if (Enum.TryParse(seriesString, out series))
                 {
                     switch (system)
                     {
-                        case PipeSchedule.PipeTypeEnum.Twin:
+                        case PipeTypeEnum.Twin:
                             return PipeSchedule.GetTwinPipeKOd(dn, series);
-                        case PipeSchedule.PipeTypeEnum.Frem:
-                        case PipeSchedule.PipeTypeEnum.Retur:
-                        case PipeSchedule.PipeTypeEnum.Enkelt:
+                        case PipeTypeEnum.Frem:
+                        case PipeTypeEnum.Retur:
+                        case PipeTypeEnum.Enkelt:
                             return PipeSchedule.GetBondedPipeKOd(dn, series);
-                        case PipeSchedule.PipeTypeEnum.Ukendt:
+                        case PipeTypeEnum.Ukendt:
                         default:
                             throw new System.Exception($"{br.RealName()} returned non-standard \"System\": (PipeTypeEnum) {systemString}!");
                     }

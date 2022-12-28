@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Text.RegularExpressions;
 using static IntersectUtilities.Utils;
+using static IntersectUtilities.UtilsCommon.Utils;
 using IntersectUtilities.UtilsCommon;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;

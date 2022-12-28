@@ -28,6 +28,7 @@ using System.Data;
 using MoreLinq;
 using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
+using static IntersectUtilities.UtilsCommon.Utils;
 using Dreambuild.AutoCAD;
 
 using static IntersectUtilities.Enums;
@@ -706,9 +707,9 @@ namespace IntersectUtilities
                     HashSet<Graph.POI> pois = new HashSet<Graph.POI>();
                     foreach (var stik in stikPipes)
                     {
-                        pois.Add(new Graph.POI(stik, stik.StartPoint.To2D(), Graph.EndType.Start,
+                        pois.Add(new Graph.POI(stik, stik.StartPoint.To2D(), EndType.Start,
                             null, null));
-                        pois.Add(new Graph.POI(stik, stik.EndPoint.To2D(), Graph.EndType.End,
+                        pois.Add(new Graph.POI(stik, stik.EndPoint.To2D(), EndType.End,
                             null, null));
                     }
 
@@ -718,8 +719,8 @@ namespace IntersectUtilities
 
                     foreach (var cluster in teeClusters)
                     {
-                        Graph.POI end = cluster.FirstOrDefault(x => x.EndType == Graph.EndType.End);
-                        var starts = cluster.Where(x => x.EndType == Graph.EndType.Start);
+                        Graph.POI end = cluster.FirstOrDefault(x => x.EndType == EndType.End);
+                        var starts = cluster.Where(x => x.EndType == EndType.Start);
 
                         //Rotation of block on main stikpipe
                         Curve curve = end.Owner as Curve;

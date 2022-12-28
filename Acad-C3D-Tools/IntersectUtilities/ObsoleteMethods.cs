@@ -31,6 +31,7 @@ using static IntersectUtilities.Utils;
 using static IntersectUtilities.PipeSchedule;
 
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;

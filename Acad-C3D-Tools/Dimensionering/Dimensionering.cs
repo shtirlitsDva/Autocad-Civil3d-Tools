@@ -34,7 +34,8 @@ using FolderSelect;
 
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
-using static IntersectUtilities.Utils;
+//using static IntersectUtilities.Utils;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.UtilsODData;
@@ -1055,8 +1056,8 @@ namespace IntersectUtilities.Dimensionering
             PromptResult pKeyRes2 = editor.GetKeywords(pKeyOpts2);
             if (pKeyRes2.Status != PromptStatus.OK) return;
             string series = pKeyRes2.StringResult;
-            PipeSchedule.PipeSeriesEnum pipeSeries =
-                (PipeSchedule.PipeSeriesEnum)Enum.Parse(typeof(PipeSchedule.PipeSeriesEnum), series);
+            PipeSeriesEnum pipeSeries =
+                (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum), series);
             #endregion
 
             #region Get file paths
@@ -2249,7 +2250,7 @@ namespace IntersectUtilities.Dimensionering
                             }
                         }
 
-                        Polyline circum = PolylineFromConvexHull(pts);
+                        Polyline circum = IntersectUtilities.Utils.PolylineFromConvexHull(pts);
                         circum.AddEntityToDbModelSpace(localDb);
                         localDb.CheckOrCreateLayer("0-FJV_Debug");
                         circum.Layer = "0-FJV_Debug";
@@ -3702,7 +3703,7 @@ namespace IntersectUtilities.Dimensionering
             string areaName,
             Dictionary<string, BlockReference> brDict,
             ILookup<string, IGrouping<string, Polyline>> plLookup,
-            PipeSchedule.PipeSeriesEnum pipeSeries
+            PipeSeriesEnum pipeSeries
             )
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -3894,10 +3895,10 @@ namespace IntersectUtilities.Dimensionering
                             for (int i = 0; i < originalPipe.NumberOfVertices; i++)
                                 newPipe.AddVertexAt(newPipe.NumberOfVertices, originalPipe.GetPoint2dAt(i), 0, 0, 0);
 
-                            PipeSchedule.PipeTypeEnum pipeType =
+                            PipeTypeEnum pipeType =
                                 sizeArray[0].DN < 250 ?
-                                PipeSchedule.PipeTypeEnum.Twin :
-                                PipeSchedule.PipeTypeEnum.Frem;
+                                PipeTypeEnum.Twin :
+                                PipeTypeEnum.Frem;
 
                             //Determine layer
                             string layerName = string.Concat(
@@ -3934,10 +3935,10 @@ namespace IntersectUtilities.Dimensionering
                                     for (int j = 0; j < curChunk.NumberOfVertices; j++)
                                         newPipe.AddVertexAt(newPipe.NumberOfVertices, curChunk.GetPoint2dAt(j), 0, 0, 0);
 
-                                    PipeSchedule.PipeTypeEnum pipeType =
+                                    PipeTypeEnum pipeType =
                                         sizeArray[i].DN < 250 ?
-                                        PipeSchedule.PipeTypeEnum.Twin :
-                                        PipeSchedule.PipeTypeEnum.Frem;
+                                        PipeTypeEnum.Twin :
+                                        PipeTypeEnum.Frem;
 
                                     //Determine layer
                                     string layerName = string.Concat(
@@ -3962,7 +3963,7 @@ namespace IntersectUtilities.Dimensionering
                         #region Local method to create correct Pipe layer
                         //Avoid side effects with local methods!
                         //Use only passed arguments, do not operate on variables out of method's scope
-                        void CheckOrCreateLayerForPipe(Database db, string layerName, PipeSchedule.PipeTypeEnum pipeType)
+                        void CheckOrCreateLayerForPipe(Database db, string layerName, PipeTypeEnum pipeType)
                         {
                             Transaction localTx = db.TransactionManager.TopTransaction;
                             LayerTable lt = db.LayerTableId.Go<LayerTable>(localTx);
@@ -3975,13 +3976,13 @@ namespace IntersectUtilities.Dimensionering
                                 ltr.Name = layerName;
                                 switch (pipeType)
                                 {
-                                    case PipeSchedule.PipeTypeEnum.Twin:
+                                    case PipeTypeEnum.Twin:
                                         ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
                                         break;
-                                    case PipeSchedule.PipeTypeEnum.Frem:
+                                    case PipeTypeEnum.Frem:
                                         ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
                                         break;
-                                    case PipeSchedule.PipeTypeEnum.Retur:
+                                    case PipeTypeEnum.Retur:
                                         ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 5);
                                         break;
                                     default:
