@@ -31,7 +31,6 @@ using Autodesk.Aec.PropertyData;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.Colors;
 using IntersectUtilities.UtilsCommon;
-using csdot;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
@@ -53,7 +52,6 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
-using csdot.Attributes.Types;
 
 namespace IntersectUtilities
 {
@@ -121,8 +119,8 @@ namespace IntersectUtilities
                         case PipeSystemEnum.AluPex:
                             #region STIK//Find forbindelse til forsyningsrøret
                             Point3d pt = pline.StartPoint;
-                            var query = allPipes.Where(x => 
-                                pt.IsOnCurve(x, 0.025) && 
+                            var query = allPipes.Where(x =>
+                                pt.IsOnCurve(x, 0.025) &&
                                 pline.Handle != x.Handle &&
                                 GetPipeSystem(x) == PipeSystemEnum.Stål);
 
@@ -223,7 +221,7 @@ namespace IntersectUtilities
                     throw new System.Exception("Wrong type of object supplied!");
             }
         }
-        
+
         public Dictionary<string, bool> allowedCombinations =
             new Dictionary<string, bool>()
             {
@@ -381,14 +379,14 @@ namespace IntersectUtilities
                 //Criteria: Only one child -> means an end node AND largest DN of all not visited
                 //Currently only for one network
                 //Disjoined networks are not handled yet
-                
+
                 //Warning: this won't work if there's a connection to first pipe in system
                 //Warning: afgreningsstuds or stik pipe
                 //2022.09.08: Attempt to fix this by adding a new EndType: WeldOn
                 GraphEntity ge = GraphEntities
                     .Where(x =>
                     //Exclude WeldOn and StikAfgrening EndTypes from count
-                        x.Cons.Count(y => 
+                        x.Cons.Count(y =>
                             y.OwnEndType != EndType.StikAfgrening &&
                             y.OwnEndType != EndType.WeldOn) == 1
                     )
@@ -614,7 +612,7 @@ namespace IntersectUtilities
             internal EndType EndType1 { get; }
             internal Handle Id2 { get; }
             internal EndType EndType2 { get; }
-            internal string Label { get; }
+            internal string Label { get; set; }
             internal Edge(Handle id1, Handle id2)
             {
                 Id1 = id1; Id2 = id2;
@@ -625,7 +623,7 @@ namespace IntersectUtilities
                 System.Data.DataTable dt)
             {
                 Id1 = id1; Id2 = id2;
-                EndType1 = endType1; EndType2 = endType2; 
+                EndType1 = endType1; EndType2 = endType2;
                 Dt = dt;
             }
             internal Edge(Handle id1, Handle id2, string label)
@@ -636,31 +634,51 @@ namespace IntersectUtilities
             {
                 Database db = Application.DocumentManager.MdiActiveDocument.Database;
                 string label = " [ label=\"";
-
-                bool errorDetected = false;
+                List<string> errorMsg = new List<string>();
 
                 Entity ent1 = Id1.Go<Entity>(db);
                 Entity ent2 = Id2.Go<Entity>(db);
 
                 //Twin/Bonded test
-                PipeTypeEnum type1;
-                PipeTypeEnum type2;
+                PipeTypeEnum type1 = default;
+                PipeTypeEnum type2 = default;
                 if (ent1 is Polyline) type1 = PipeSchedule.GetPipeType(ent1);
-                else
+                else if (ent1 is BlockReference br)
                 {
-
+                    type1 = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
+                        ReadComponentSystem(br, Dt, EndType1));
+                }
+                if (ent2 is Polyline) type2 = PipeSchedule.GetPipeType(ent2);
+                else if (ent2 is BlockReference br)
+                {
+                    type2 = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
+                        ReadComponentSystem(br, Dt, EndType2));
                 }
 
+                if (type1 == PipeTypeEnum.Retur || type1 == PipeTypeEnum.Frem)
+                    type1 = PipeTypeEnum.Enkelt;
+                if (type2 == PipeTypeEnum.Retur || type2 == PipeTypeEnum.Frem)
+                    type2 = PipeTypeEnum.Enkelt;
+
+                if (type1 != default && type2 != default && type1 != type2)
+                    errorMsg.Add("T/E");
+
                 //DN test
+                //Add DN validation here
 
-
-                if (errorDetected) { //Add code here to color the edge red!
-                                     }
+                if (errorMsg.Count > 0)
+                {
+                    //Add code here to color the edge red!
+                    label += string.Join(", ", errorMsg.ToArray());
+                    label += "\" color=\"red\" ] ";
+                    Label = label;
+                }
             }
             internal string ToString(string edgeSymbol)
             {
+                QualityAssurance();
                 if (Label.IsNoE()) return $"\"{Id1}\" {edgeSymbol} \"{Id2}\"";
-                else return $"\"{Id1}\" {edgeSymbol} \"{Id2}\" [ label=\"{Label}\" ]";
+                else return $"\"{Id1}\" {edgeSymbol} \"{Id2}\"{Label}";
             }
         }
     }

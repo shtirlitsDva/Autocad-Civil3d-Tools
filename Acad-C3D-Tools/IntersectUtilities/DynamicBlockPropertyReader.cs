@@ -195,7 +195,12 @@ namespace IntersectUtilities.DynamicBlocks
             string type = ReadStringParameterFromDataTable(
                 br.RealName(), fjvTable, "Type", 0, version);
 
-            //Write if here!
+            if (endType != default && (type == "F-Model" || type == "Y-Model"))
+            {
+                if (endType == EndType.Main) return "Twin";
+                else if (endType == EndType.Branch) return "Enkelt";
+                else return "Enkelt";
+            }
 
             if (valueToReturn.StartsWith("$"))
             {
