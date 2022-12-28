@@ -144,6 +144,66 @@ namespace IntersectUtilities.UtilsCommon
             return new string(Enumerable.Repeat(chars, length)
                 .Select(s => s[random.Next(s.Length)]).ToArray());
         }
+
+        public enum EndType
+        {
+            None,            //0:
+            Start,           //1: For start of pipes
+            End,             //2: For ends of pipes
+            Main,            //3: For main run in components
+            Branch,          //4: For branches in components
+            StikAfgrening,   //5: For points where stik are connected to supply pipes
+            StikStart,       //6: For stik starts
+            StikEnd,         //7: For stik ends
+            WeldOn           //8: For elements welded directly on pipe without breaking it
+        }
+        public enum PipeTypeEnum
+        {
+            Ukendt,
+            Twin,
+            Frem,
+            Retur,
+            Enkelt //Bruges kun til blokke vist
+        }
+        public enum PipeSeriesEnum
+        {
+            Undefined,
+            S1,
+            S2,
+            S3
+        }
+        internal enum PipeDnEnum
+        {
+            ALUPEX26,
+            ALUPEX32,
+            CU22,
+            CU28,
+            DN20,
+            DN25,
+            DN32,
+            DN40,
+            DN50,
+            DN65,
+            DN80,
+            DN100,
+            DN125,
+            DN150,
+            DN200,
+            DN250,
+            DN300,
+            DN350,
+            DN400,
+            DN450,
+            DN500,
+            DN600
+        }
+        internal enum PipeSystemEnum
+        {
+            Ukendt,
+            Stål,
+            Kobberflex,
+            AluPex
+        }
     }
     public static class UtilsDataTables
     {

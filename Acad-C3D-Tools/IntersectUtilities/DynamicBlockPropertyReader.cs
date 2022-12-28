@@ -20,7 +20,9 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using IntersectUtilities.UtilsCommon;
+using static IntersectUtilities.UtilsCommon.Utils;
 using IntersectUtilities;
+using static IntersectUtilities.PipeSchedule;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
@@ -32,7 +34,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 
 namespace IntersectUtilities.DynamicBlocks
 {
-    public static class PropertyReader
+    public static partial class PropertyReader
     {
         private static DynamicBlockReferenceProperty GetDynamicPropertyByName(this BlockReference br, string name)
         {
@@ -107,7 +109,8 @@ namespace IntersectUtilities.DynamicBlocks
             string propertyToExtractName = "DN1";
             //Versioning
             string version = br.GetAttributeStringValue("VERSION");
-            string valueToReturn = ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0, version);
+            string valueToReturn = ReadStringParameterFromDataTable(
+                br.RealName(), fjvTable, propertyToExtractName, 0, version);
 
             if (valueToReturn.StartsWith("$"))
             {
@@ -179,12 +182,20 @@ namespace IntersectUtilities.DynamicBlocks
             }
             return valueToReturn ?? "";
         }
-        public static string ReadComponentSystem(BlockReference br, System.Data.DataTable fjvTable)
+        public static string ReadComponentSystem(
+            BlockReference br, System.Data.DataTable fjvTable, EndType endType = default)
         {
             string propertyToExtractName = "System";
             //Versioning
             string version = br.GetAttributeStringValue("VERSION");
-            string valueToReturn = ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0, version);
+            string valueToReturn = ReadStringParameterFromDataTable(
+                br.RealName(), fjvTable, propertyToExtractName, 0, version);
+
+            //Special care for F-Model og Y-Rør
+            string type = ReadStringParameterFromDataTable(
+                br.RealName(), fjvTable, "Type", 0, version);
+
+            //Write if here!
 
             if (valueToReturn.StartsWith("$"))
             {

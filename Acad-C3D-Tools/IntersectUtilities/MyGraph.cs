@@ -223,18 +223,7 @@ namespace IntersectUtilities
                     throw new System.Exception("Wrong type of object supplied!");
             }
         }
-        public enum EndType
-        {
-            None,            //0:
-            Start,           //1: For start of pipes
-            End,             //2: For ends of pipes
-            Main,            //3: For main run in components
-            Branch,          //4: For branches in components
-            StikAfgrening,   //5: For points where stik are connected to supply pipes
-            StikStart,       //6: For stik starts
-            StikEnd,         //7: For stik ends
-            WeldOn           //8: For elements welded directly on pipe without breaking it
-        }
+        
         public Dictionary<string, bool> allowedCombinations =
             new Dictionary<string, bool>()
             {
@@ -501,7 +490,10 @@ namespace IntersectUtilities
                         if (key == "Main-Main" && con.ConHandle == previousHandle) continue;
 
                         //Record the edge between nodes
-                        edges.Add(new Edge(current.OwnerHandle, child.OwnerHandle));
+                        edges.Add(new Edge(
+                            current.OwnerHandle, con.OwnEndType,
+                            child.OwnerHandle, con.ConEndType,
+                            ComponentTable));
                         //edges.Add(new Edge(current.OwnerHandle, child.OwnerHandle, key));
                         //If this child node is in visited collection -> skip, so we don't ger circular referencing
                         if (visitedHandles.Contains(child.OwnerHandle)) continue;
@@ -617,16 +609,53 @@ namespace IntersectUtilities
         }
         internal class Edge
         {
+            private System.Data.DataTable Dt { get; }
             internal Handle Id1 { get; }
+            internal EndType EndType1 { get; }
             internal Handle Id2 { get; }
+            internal EndType EndType2 { get; }
             internal string Label { get; }
             internal Edge(Handle id1, Handle id2)
             {
                 Id1 = id1; Id2 = id2;
             }
+            internal Edge(
+                Handle id1, EndType endType1,
+                Handle id2, EndType endType2,
+                System.Data.DataTable dt)
+            {
+                Id1 = id1; Id2 = id2;
+                EndType1 = endType1; EndType2 = endType2; 
+                Dt = dt;
+            }
             internal Edge(Handle id1, Handle id2, string label)
             {
                 Id1 = id1; Id2 = id2; Label = label;
+            }
+            private void QualityAssurance()
+            {
+                Database db = Application.DocumentManager.MdiActiveDocument.Database;
+                string label = " [ label=\"";
+
+                bool errorDetected = false;
+
+                Entity ent1 = Id1.Go<Entity>(db);
+                Entity ent2 = Id2.Go<Entity>(db);
+
+                //Twin/Bonded test
+                PipeTypeEnum type1;
+                PipeTypeEnum type2;
+                if (ent1 is Polyline) type1 = PipeSchedule.GetPipeType(ent1);
+                else
+                {
+
+                }
+
+                //DN test
+
+
+                if (errorDetected) { //Add code here to color the edge red!
+                                     }
             }
             internal string ToString(string edgeSymbol)
             {
