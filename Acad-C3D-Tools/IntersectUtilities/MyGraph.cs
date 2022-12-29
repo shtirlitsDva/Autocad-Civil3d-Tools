@@ -588,7 +588,9 @@ namespace IntersectUtilities
                             string dnStr = dn2 == "0" ? dn1 : dn1 + "/" + dn2;
                             system = ComponentSchedule.ReadComponentSystem(br, Table);
                             string type = ComponentSchedule.ReadComponentType(br, Table);
-                            sb.AppendLine($"[label=\"{{{handle}|{type}}}|{system}\\n{dnStr}\"];");
+                            string color = "";
+                            if (type == "Reduktion") color = "color=\"red\"";
+                            sb.AppendLine($"[label=\"{{{handle}|{type}}}|{system}\\n{dnStr}\"{color}];");
                             break;
                         default:
                             continue;
@@ -670,6 +672,7 @@ namespace IntersectUtilities
                 //But we don't need it actually
                 //We check if any of returned DNs is equal to the test value
                 //If none is equal, then it is error
+                //UPDATE: No, it is significant if we are looking at reducers
                 int DN11 = default;
                 int DN12 = default;
                 if (ent1 is Polyline) DN11 = PipeSchedule.GetPipeDN(ent1);
