@@ -633,7 +633,6 @@ namespace IntersectUtilities
             private void QualityAssurance()
             {
                 Database db = Application.DocumentManager.MdiActiveDocument.Database;
-                string label = " [ label=\"";
                 List<string> errorMsg = new List<string>();
 
                 Entity ent1 = Id1.Go<Entity>(db);
@@ -664,11 +663,65 @@ namespace IntersectUtilities
                     errorMsg.Add("T/E");
 
                 //DN test
-                //Add DN validation here
+                //We cannot determine which end the size comes from
+                //But we don't need it actually
+                //We check if any of returned DNs is equal to the test value
+                //If none is equal, then it is error
+                int DN11 = default;
+                int DN12 = default;
+                if (ent1 is Polyline) DN11 = PipeSchedule.GetPipeDN(ent1);
+                else if (ent1 is BlockReference br)
+                {
+                    DN11 = ReadComponentDN1Int(br, Dt);
+                    DN12 = ReadComponentDN2Int(br, Dt);
+                }
 
+                int DN21 = default;
+                int DN22 = default;
+                if (ent2 is Polyline) DN21 = PipeSchedule.GetPipeDN(ent2);
+                else if (ent2 is BlockReference br)
+                {
+                    DN21 = ReadComponentDN1Int(br, Dt);
+                    DN22 = ReadComponentDN2Int(br, Dt);
+                }
+
+                HashSet<int> dnList1 = new HashSet<int>();
+                if (DN11 != 0) dnList1.Add(DN11);
+                if (DN12 != 0) dnList1.Add(DN12);
+
+                HashSet<int> dnList2 = new HashSet<int>();
+                if (DN21 != 0) dnList2.Add(DN21);
+                if (DN22 != 0) dnList2.Add(DN22);
+
+                if (dnList1.Count == 0 || dnList2.Count == 0)
+                {
+                    if (dnList1.Count == 0)
+                        throw new System.Exception($"Entity {ent1} has wrong DN(s)!");
+                    else if (dnList2.Count == 0)
+                        throw new System.Exception($"Entity {ent2} has wrong DN(s)!");
+                }
+
+                if (dnList1.Count == 1 && dnList2.Count == 1)
+                {
+                    int DN1 = dnList1.First();
+                    int DN2 = dnList2.First();
+                    if (DN1 != DN2) errorMsg.Add("DN");
+                }
+                else if (dnList1.Count == 2 && dnList2.Count == 2)
+                {
+                    errorMsg.Add("DN forvirring");
+                }
+                else if (dnList1.Count == 2)
+                {
+                    int DN = dnList2.
+                }
+
+
+                //If errors detected -- fill out the label and set color red
                 if (errorMsg.Count > 0)
                 {
                     //Add code here to color the edge red!
+                    string label = " [ label=\"";
                     label += string.Join(", ", errorMsg.ToArray());
                     label += "\" color=\"red\" ] ";
                     Label = label;
