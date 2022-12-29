@@ -638,6 +638,7 @@ namespace IntersectUtilities
                 Entity ent1 = Id1.Go<Entity>(db);
                 Entity ent2 = Id2.Go<Entity>(db);
 
+                #region Twin/Enkelt test
                 //Twin/Bonded test
                 PipeTypeEnum type1 = default;
                 PipeTypeEnum type2 = default;
@@ -660,8 +661,10 @@ namespace IntersectUtilities
                     type2 = PipeTypeEnum.Enkelt;
 
                 if (type1 != default && type2 != default && type1 != type2)
-                    errorMsg.Add("T/E");
+                    errorMsg.Add("T/E"); 
+                #endregion
 
+                #region DN QA
                 //DN test
                 //We cannot determine which end the size comes from
                 //But we don't need it actually
@@ -713,9 +716,17 @@ namespace IntersectUtilities
                 }
                 else if (dnList1.Count == 2)
                 {
-                    int DN = dnList2.
+                    int DN = dnList2.First();
+                    if (!dnList1.Contains(DN))
+                        errorMsg.Add("DN");
                 }
-
+                else if (dnList2.Count == 2)
+                {
+                    int DN = dnList1.First();
+                    if (!dnList2.Contains(DN))
+                        errorMsg.Add("DN");
+                } 
+                #endregion
 
                 //If errors detected -- fill out the label and set color red
                 if (errorMsg.Count > 0)
