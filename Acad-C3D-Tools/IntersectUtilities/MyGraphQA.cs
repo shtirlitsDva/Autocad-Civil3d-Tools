@@ -123,17 +123,6 @@ namespace IntersectUtilities
             {
                 #region DN QA
                 //DN test
-                //We cannot determine which end the size comes from
-                //But we don't need it actually
-                //We check if any of returned DNs is equal to the test value
-                //If none is equal, then it is error
-                //UPDATE1:  No, it is significant if we are looking at reducers
-                //UPDATE2:  Current idea is to implement a full-fledged
-                //          look-back-forward to compare entities before and after
-                //          the reducer, it is possible because we are in a graph
-                //          situation and we are confident that connection information
-                //          is present in the PopertySet for connected entities, so
-                //          no geometric search/matching is necessary
                 Entity ent1 = edge.Id1.Go<Entity>(db);
                 Entity ent2 = edge.Id2.Go<Entity>(db);
 

@@ -47,6 +47,7 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
+using Microsoft.Office.Interop.Excel;
 
 namespace IntersectUtilities.UtilsCommon
 {
@@ -208,6 +209,18 @@ namespace IntersectUtilities.UtilsCommon
             Stål,
             Kobberflex,
             AluPex
+        }
+        public enum DynamiskProperty
+        {
+            None,
+            Navn,
+            Type,
+            DN1,
+            DN2,
+            System,
+            Vinkel,
+            Serie,
+            Version
         }
     }
     public static class UtilsDataTables
@@ -1388,7 +1401,8 @@ namespace IntersectUtilities.UtilsCommon
         /// <summary>
         /// Remember to check for existence of BlockTableRecord!
         /// </summary>
-        public static BlockReference CreateBlockWithAttributes(this Database db, string blockName, Point3d position, double rotation = 0)
+        public static BlockReference CreateBlockWithAttributes(
+            this Database db, string blockName, Point3d position, double rotation = 0)
         {
             Transaction tx = db.TransactionManager.TopTransaction;
             BlockTableRecord modelSpace = db.GetModelspaceForWrite();
@@ -1498,7 +1512,8 @@ namespace IntersectUtilities.UtilsCommon
             }
             return attDefs;
         }
-        private static void ResetAttributesLocation(this BlockReference br, List<AttributeDefinition> attDefs, Transaction tr)
+        private static void ResetAttributesLocation(
+            this BlockReference br, List<AttributeDefinition> attDefs, Transaction tr)
         {
             Dictionary<string, string> attValues = new Dictionary<string, string>();
             foreach (ObjectId id in br.AttributeCollection)
@@ -1562,7 +1577,8 @@ namespace IntersectUtilities.UtilsCommon
                 }
             }
         }
-        private static void ResetAttributesToDefaultValues(this BlockReference br, List<AttributeDefinition> attDefs, Transaction tr)
+        private static void ResetAttributesToDefaultValues(
+            this BlockReference br, List<AttributeDefinition> attDefs, Transaction tr)
         {
             string tag = "";
             var query = attDefs.Where(x => x.Tag == tag);
@@ -1611,6 +1627,88 @@ namespace IntersectUtilities.UtilsCommon
             //    br.AttributeCollection.AppendAttribute(attRef);
             //    tr.AddNewlyCreatedDBObject(attRef, true);
             //}
+        }
+        public static string ReadDynamiskCsvProperty(
+            this BlockReference br, DynamiskProperty prop,
+            System.Data.DataTable dt, bool parseProperty = true)
+        {
+            string key = br.RealName();
+            string parameter = prop.ToString();
+            string version = br.GetAttributeStringValue("VERSION");
+            //int keyColumnIdx = 0
+            {
+                if (dt.AsEnumerable().Any(row => row.Field<string>(0) == key))
+                {
+                    var query = dt.AsEnumerable()
+                        .Where(x =>
+                        x.Field<string>(0) == key &&
+                        x.Field<string>("Version") == version)
+                        .Select(x => x.Field<string>(parameter));
+
+                    string value = query.FirstOrDefault();
+                    if (parseProperty)
+                    {
+                        value = ConstructStringByRegex(br, value);
+                        return value;
+                    }
+                    else return value;
+                }
+                else return default;
+            }
+        }
+        private static string ConstructStringByRegex(BlockReference br, string stringToProcess)
+        {
+            //Construct pattern which matches the parameter definition
+            Regex variablePattern = new Regex(@"{\$(?<Parameter>[a-zæøåA-ZÆØÅ0-9_:-]*)}");
+
+            //Test if a pattern matches in the input string
+            if (variablePattern.IsMatch(stringToProcess))
+            {
+                //Get the first match
+                Match match = variablePattern.Match(stringToProcess);
+                //Get the first capture
+                string capture = match.Captures[0].Value;
+                //Get the parameter name from the regex match
+                string parameterName = match.Groups["Parameter"].Value;
+                //Read the parameter value from BR
+                string parameterValue = br.ReadDynamicPropertyValue(parameterName);
+                //Replace the captured group in original string with the parameter value
+                stringToProcess = stringToProcess.Replace(capture, parameterValue);
+                //Recursively call current function
+                //It runs on the string until no more captures remain
+                //Then it returns
+                stringToProcess = ConstructStringByRegex(br, stringToProcess);
+            }
+
+            return stringToProcess;
+        }
+        private static string ReadDynamicPropertyValue(this BlockReference br, string propertyName)
+        {
+            DynamicBlockReferencePropertyCollection props = br.DynamicBlockReferencePropertyCollection;
+            foreach (DynamicBlockReferenceProperty property in props)
+            {
+                //prdDbg($"Name: {property.PropertyName}, Units: {property.UnitsType}, Value: {property.Value}");
+                if (property.PropertyName == propertyName)
+                {
+                    switch (property.UnitsType)
+                    {
+                        case DynamicBlockReferencePropertyUnitsType.NoUnits:
+                            return property.Value.ToString();
+                        case DynamicBlockReferencePropertyUnitsType.Angular:
+                            double angular = Convert.ToDouble(property.Value);
+                            return angular.ToDegrees().ToString("0.##");
+                        case DynamicBlockReferencePropertyUnitsType.Distance:
+                            double distance = Convert.ToDouble(property.Value);
+                            return distance.ToString("0.##");
+                        case DynamicBlockReferencePropertyUnitsType.Area:
+                            double area = Convert.ToDouble(property.Value);
+                            return area.ToString("0.00");
+                        default:
+                            return "";
+                    }
+                }
+            }
+            return "";
         }
         public static bool IsPointInsideXY(this Extents3d extents, Point2d pnt)
         => pnt.X >= extents.MinPoint.X && pnt.X <= extents.MaxPoint.X
