@@ -55,7 +55,7 @@ using PsDataType = Autodesk.Aec.PropertyData.DataType;
 
 namespace IntersectUtilities
 {
-    public class Graph
+    public partial class Graph
     {
         private static Regex regex = new Regex(@"(?<OwnEndType>\d):(?<ConEndType>\d):(?<Handle>\w*);");
 
@@ -490,8 +490,8 @@ namespace IntersectUtilities
                         //Record the edge between nodes
                         edges.Add(new Edge(
                             current.OwnerHandle, con.OwnEndType,
-                            child.OwnerHandle, con.ConEndType,
-                            ComponentTable));
+                            child.OwnerHandle, con.ConEndType
+                            ));
                         //edges.Add(new Edge(current.OwnerHandle, child.OwnerHandle, key));
                         //If this child node is in visited collection -> skip, so we don't ger circular referencing
                         if (visitedHandles.Contains(child.OwnerHandle)) continue;
@@ -515,6 +515,7 @@ namespace IntersectUtilities
                 //Write edges
                 foreach (Edge edge in edges)
                 {
+                    QA.QualityAssurance(edge, dB, ComponentTable);
                     sb.AppendLine(edge.ToString("->"));
                 }
 
@@ -609,7 +610,6 @@ namespace IntersectUtilities
         }
         internal class Edge
         {
-            private System.Data.DataTable Dt { get; }
             internal Handle Id1 { get; }
             internal EndType EndType1 { get; }
             internal Handle Id2 { get; }
@@ -621,129 +621,17 @@ namespace IntersectUtilities
             }
             internal Edge(
                 Handle id1, EndType endType1,
-                Handle id2, EndType endType2,
-                System.Data.DataTable dt)
+                Handle id2, EndType endType2)
             {
                 Id1 = id1; Id2 = id2;
                 EndType1 = endType1; EndType2 = endType2;
-                Dt = dt;
             }
             internal Edge(Handle id1, Handle id2, string label)
             {
                 Id1 = id1; Id2 = id2; Label = label;
             }
-            private void QualityAssurance()
-            {
-                Database db = Application.DocumentManager.MdiActiveDocument.Database;
-                List<string> errorMsg = new List<string>();
-
-                Entity ent1 = Id1.Go<Entity>(db);
-                Entity ent2 = Id2.Go<Entity>(db);
-
-                #region Twin/Enkelt test
-                //Twin/Bonded test
-                PipeTypeEnum type1 = default;
-                PipeTypeEnum type2 = default;
-                if (ent1 is Polyline) type1 = PipeSchedule.GetPipeType(ent1);
-                else if (ent1 is BlockReference br)
-                {
-                    type1 = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
-                        ReadComponentSystem(br, Dt, EndType1));
-                }
-                if (ent2 is Polyline) type2 = PipeSchedule.GetPipeType(ent2);
-                else if (ent2 is BlockReference br)
-                {
-                    type2 = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
-                        ReadComponentSystem(br, Dt, EndType2));
-                }
-
-                if (type1 == PipeTypeEnum.Retur || type1 == PipeTypeEnum.Frem)
-                    type1 = PipeTypeEnum.Enkelt;
-                if (type2 == PipeTypeEnum.Retur || type2 == PipeTypeEnum.Frem)
-                    type2 = PipeTypeEnum.Enkelt;
-
-                if (type1 != default && type2 != default && type1 != type2)
-                    errorMsg.Add("T/E"); 
-                #endregion
-
-                #region DN QA
-                //DN test
-                //We cannot determine which end the size comes from
-                //But we don't need it actually
-                //We check if any of returned DNs is equal to the test value
-                //If none is equal, then it is error
-                //UPDATE: No, it is significant if we are looking at reducers
-                int DN11 = default;
-                int DN12 = default;
-                if (ent1 is Polyline) DN11 = PipeSchedule.GetPipeDN(ent1);
-                else if (ent1 is BlockReference br)
-                {
-                    DN11 = ReadComponentDN1Int(br, Dt);
-                    DN12 = ReadComponentDN2Int(br, Dt);
-                }
-
-                int DN21 = default;
-                int DN22 = default;
-                if (ent2 is Polyline) DN21 = PipeSchedule.GetPipeDN(ent2);
-                else if (ent2 is BlockReference br)
-                {
-                    DN21 = ReadComponentDN1Int(br, Dt);
-                    DN22 = ReadComponentDN2Int(br, Dt);
-                }
-
-                HashSet<int> dnList1 = new HashSet<int>();
-                if (DN11 != 0) dnList1.Add(DN11);
-                if (DN12 != 0) dnList1.Add(DN12);
-
-                HashSet<int> dnList2 = new HashSet<int>();
-                if (DN21 != 0) dnList2.Add(DN21);
-                if (DN22 != 0) dnList2.Add(DN22);
-
-                if (dnList1.Count == 0 || dnList2.Count == 0)
-                {
-                    if (dnList1.Count == 0)
-                        throw new System.Exception($"Entity {ent1} has wrong DN(s)!");
-                    else if (dnList2.Count == 0)
-                        throw new System.Exception($"Entity {ent2} has wrong DN(s)!");
-                }
-
-                if (dnList1.Count == 1 && dnList2.Count == 1)
-                {
-                    int DN1 = dnList1.First();
-                    int DN2 = dnList2.First();
-                    if (DN1 != DN2) errorMsg.Add("DN");
-                }
-                else if (dnList1.Count == 2 && dnList2.Count == 2)
-                {
-                    errorMsg.Add("DN forvirring");
-                }
-                else if (dnList1.Count == 2)
-                {
-                    int DN = dnList2.First();
-                    if (!dnList1.Contains(DN))
-                        errorMsg.Add("DN");
-                }
-                else if (dnList2.Count == 2)
-                {
-                    int DN = dnList1.First();
-                    if (!dnList2.Contains(DN))
-                        errorMsg.Add("DN");
-                } 
-                #endregion
-
-                //If errors detected -- fill out the label and set color red
-                if (errorMsg.Count > 0)
-                {
-                    //Add code here to color the edge red!
-                    string label = " [ label=\"";
-                    label += string.Join(", ", errorMsg.ToArray());
-                    label += "\" color=\"red\" ] ";
-                    Label = label;
-                }
-            }
             internal string ToString(string edgeSymbol)
             {
-                QualityAssurance();
                 if (Label.IsNoE()) return $"\"{Id1}\" {edgeSymbol} \"{Id2}\"";
                 else return $"\"{Id1}\" {edgeSymbol} \"{Id2}\"{Label}";
             }
