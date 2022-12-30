@@ -53,6 +53,8 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
 using csdot.Attributes.Types;
+using Autodesk.Aec.Modeler;
+using static IntersectUtilities.Graph;
 
 namespace IntersectUtilities
 {
@@ -123,6 +125,17 @@ namespace IntersectUtilities
             {
                 #region DN QA
                 //DN test
+                //We cannot determine which end the size comes from
+                //But we don't need it actually
+                //We check if any of returned DNs is equal to the test value
+                //If none is equal, then it is error
+                //UPDATE1:  No, it is significant if we are looking at reducers
+                //UPDATE2:  Current idea is to implement a full-fledged
+                //          look-back-forward to compare entities before and after
+                //          the reducer, it is possible because we are in a graph
+                //          situation and we are confident that connection information
+                //          is present in the PopertySet for connected entities, so
+                //          no geometric search/matching is necessary
                 Entity ent1 = edge.Id1.Go<Entity>(db);
                 Entity ent2 = edge.Id2.Go<Entity>(db);
 
@@ -160,6 +173,58 @@ namespace IntersectUtilities
                         throw new System.Exception($"Entity {ent2} has wrong DN(s)!");
                 }
 
+                //Take special care of Reducers
+                //Case must be evaluated before the general case
+                //Each special case must be handled separately
+                //As a general test case is too difficult to achieve
+                if (ent1 is BlockReference br1)
+                    if (br1 != default)
+                    {
+                        string type1 = br1.ReadDynamiskCsvProperty(
+                            DynamiskProperty.Type, dt, false);
+
+                        if (type1 == "Reduktion")
+                        {
+                            //1.1 poly-reducer-poly
+                            if (ent2 is Polyline pl2)
+                            {
+                                PipeDnEnum DN1 = (PipeDnEnum)Enum.Parse(
+                                    typeof(PipeDnEnum), "DN" + GetPipeDN(pl2).ToString());
+
+                                //Get the polyline at the other end of the reducer
+                                string conString = Graph.PSM.ReadPropertyString(
+                                    br1, Graph.DriGraph.ConnectedEntities);
+                                if (conString.IsNoE())
+                                    throw new System.Exception(
+                                        $"Malformend constring: {conString}, entity: {br1.Handle}.");
+                                var cons = GraphEntity.parseConString(conString);
+
+                                if (cons.Length == 2)
+                                {
+                                    Entity ent3 =
+                                        cons.Where(x => x.ConHandle != pl2.Handle)
+                                        .FirstOrDefault().ConHandle.Go<Entity>(db);
+
+                                    if (ent3 is Polyline pl3)
+                                    {
+                                        PipeDnEnum DN2 = (PipeDnEnum)Enum.Parse(
+                                            typeof(PipeDnEnum), "DN" + GetPipeDN(pl3).ToString());
+
+                                        int interval;
+                                        if (br1.RealName() == "RED KDLR x2") interval = 2;
+                                        else interval = 1;
+
+                                        if (((DN1 + interval) == DN2 || (DN2 + interval) == DN1))
+                                        {
+                                            return;
+                                        }
+                                        else errorMsg.Add("DN");
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                 if (dnList1.Count == 1 && dnList2.Count == 1)
                 {
                     int DN1 = dnList1.First();
@@ -185,6 +250,5 @@ namespace IntersectUtilities
                 #endregion
             }
         }
-
     }
 }

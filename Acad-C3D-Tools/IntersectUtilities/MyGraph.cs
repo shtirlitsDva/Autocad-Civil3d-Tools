@@ -60,8 +60,8 @@ namespace IntersectUtilities
         private static Regex regex = new Regex(@"(?<OwnEndType>\d):(?<ConEndType>\d):(?<Handle>\w*);");
 
         public HashSet<POI> POIs = new HashSet<POI>();
-        PSetDefs.DriGraph DriGraph { get; } = new PSetDefs.DriGraph();
-        PropertySetManager PSM { get; }
+        public static PSetDefs.DriGraph DriGraph { get; } = new PSetDefs.DriGraph();
+        public static PropertySetManager PSM { get; set; }
         Database dB { get; }
         private HashSet<Polyline> allPipes;
         private System.Data.DataTable ComponentTable { get; }
@@ -305,7 +305,7 @@ namespace IntersectUtilities
                 return 0;
             }
 
-            private Con[] parseConString(string conString)
+            internal static Con[] parseConString(string conString)
             {
                 Con[] cons;
                 if (regex.IsMatch(conString))
