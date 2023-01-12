@@ -67,10 +67,7 @@ namespace IntersectUtilities
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
-            //doc.Editor.WriteMessage("\n-> Command: intut");
-            doc.Editor.WriteMessage("\n-> Intersect alignment with XREF: INTAL");
-            doc.Editor.WriteMessage("\n-> Write a list of all XREF layers: LISTINTLAY");
-            doc.Editor.WriteMessage("\n-> Change the elevation of CogoPoint by selecting projection label: CHEL");
+            prdDbg("IntersectUtilites loaded!");
         }
 
         public void Terminate()
