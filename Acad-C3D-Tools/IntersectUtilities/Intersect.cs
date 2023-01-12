@@ -7597,14 +7597,21 @@ namespace IntersectUtilities
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriOmråder);
                     PSetDefs.DriOmråder psDef = new PSetDefs.DriOmråder();
 
+                    //string[] kwds = new string[]
+                    //{
+                    //    "Vejbane",
+                    //    "Cykelsti",
+                    //    "Belægningssten",
+                    //    "Flisebelægning",
+                    //    "FOrtov",
+                    //    "Overkørsel",
+                    //    "Ubefæstet"
+                    //};
+
                     string[] kwds = new string[]
                     {
                         "Vejbane",
-                        "Cykelsti",
-                        "Belægningssten",
-                        "Flisebelægning",
-                        "FOrtov",
-                        "Overkørsel",
+                        "Befæstet",
                         "Ubefæstet"
                     };
 
