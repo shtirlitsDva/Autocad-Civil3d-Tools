@@ -12,6 +12,8 @@ namespace IntersectUtilities.UtilsCommon
         {
             public static HashSet<string> ForbiddenValues = new HashSet<string>()
             {
+                "IKKE FJERNES",
+                "UDLUFTNING MÅ",
                 "1843B TYPE D",
                 "ALLE STIK = Ø40 PM",
                 "ANV. SOM TRÆKRØR",

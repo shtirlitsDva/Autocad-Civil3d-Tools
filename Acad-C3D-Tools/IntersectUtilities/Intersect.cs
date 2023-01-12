@@ -899,13 +899,13 @@ namespace IntersectUtilities
                 {
                     foreach (Alignment al in alignments)
                     {
-                        editor.WriteMessage($"\n++++++++ Indlæser alignment {al.Name}. ++++++++");
+                        //editor.WriteMessage($"\n++++++++ Indlæser alignment {al.Name}. ++++++++");
                         System.Windows.Forms.Application.DoEvents();
 
                         //Filtering is required because else I would be dealing with all layers
                         //We need to limit the processed layers only to the crossed ones.
                         HashSet<Polyline3d> filteredLinework = FilterForCrossingEntities(allLinework, al);
-                        editor.WriteMessage($"\nCrossing lines: {filteredLinework.Count}.");
+                        //editor.WriteMessage($"\nCrossing lines: {filteredLinework.Count}.");
 
                         int count = 0;
                         foreach (var ent in filteredLinework)
@@ -934,9 +934,9 @@ namespace IntersectUtilities
                                                $"Location: {p3dInt}, Surface E: {surfaceElevation}.");
                                     }
 
-                                    prdDbg(
-                                        $"Ler elev: {p3dInt.Z.ToString("0.##")}, " +
-                                        $"Surface elev: {surfaceElevation.ToString("0.##")}");
+                                    //prdDbg(
+                                    //    $"Ler elev: {p3dInt.Z.ToString("0.##")}, " +
+                                    //    $"Surface elev: {surfaceElevation.ToString("0.##")}");
                                     System.Windows.Forms.Application.DoEvents();
                                     #endregion
                                 }
