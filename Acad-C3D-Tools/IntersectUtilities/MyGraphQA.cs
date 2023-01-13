@@ -183,6 +183,7 @@ namespace IntersectUtilities
                         string type1 = br1.ReadDynamiskCsvProperty(
                             DynamiskProperty.Type, dt, false);
 
+                        //1. Reduktion
                         if (type1 == "Reduktion")
                         {
                             //1.1 poly-reducer-poly
@@ -221,6 +222,23 @@ namespace IntersectUtilities
                                 }
                             }
                         }
+
+                        //2. Parallelafgrening - reducer
+                        if (ent2 is BlockReference br2)
+                            if (br2 != default)
+                            {
+                                string type2 = br2.ReadDynamiskCsvProperty(
+                                    DynamiskProperty.Type, dt, false);
+
+                                HashSet<string> types = new HashSet<string>()
+                                { "Afgrening med spring", "Afgrening, parallel", "Lige afgrening", "Parallelafgrening"};
+
+                                if (types.Contains(type1) && type2 == "Reduktion")
+                                {
+                                    dnList1 = new HashSet<int>() { dnList1.Max() };
+                                    dnList2 = new HashSet<int>() { dnList2.Max() };
+                                }
+                            }
                     }
 
                 if (dnList1.Count == 1 && dnList2.Count == 1)
