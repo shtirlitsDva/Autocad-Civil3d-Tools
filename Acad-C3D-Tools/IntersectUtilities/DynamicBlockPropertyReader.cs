@@ -185,35 +185,44 @@ namespace IntersectUtilities.DynamicBlocks
         public static string ReadComponentSystem(
             BlockReference br, System.Data.DataTable fjvTable, EndType endType = default)
         {
-            string propertyToExtractName = "System";
-            //Versioning
-            string version = br.GetAttributeStringValue("VERSION");
-            string valueToReturn = ReadStringParameterFromDataTable(
-                br.RealName(), fjvTable, propertyToExtractName, 0, version);
-
-            //Special care for F-Model og Y-Rør
-            string type = ReadStringParameterFromDataTable(
-                br.RealName(), fjvTable, "Type", 0, version);
-
-            if (endType != default && (type == "F-Model" || type == "Y-Model"))
+            try
             {
-                if (endType == EndType.Main) return "Twin";
-                else if (endType == EndType.Branch) return "Enkelt";
-                else return "Enkelt";
-            }
+                string propertyToExtractName = "System";
+                //Versioning
+                string version = br.GetAttributeStringValue("VERSION");
+                string valueToReturn = ReadStringParameterFromDataTable(
+                    br.RealName(), fjvTable, propertyToExtractName, 0, version);
 
-            if (valueToReturn.StartsWith("$"))
-            {
-                valueToReturn = valueToReturn.Substring(1);
-                //If the value is a pattern to extract from string
-                if (valueToReturn.Contains("{"))
+                //Special care for F-Model og Y-Rør
+                string type = ReadStringParameterFromDataTable(
+                    br.RealName(), fjvTable, "Type", 0, version);
+
+                if (endType != default && (type == "F-Model" || type == "Y-Model"))
                 {
-                    valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
+                    if (endType == EndType.Main) return "Twin";
+                    else if (endType == EndType.Branch) return "Enkelt";
+                    else return "Enkelt";
                 }
-                //Else the value is parameter literal to read
-                else return br.GetDynamicPropertyByName(valueToReturn).Value as string ?? "";
+
+                if (valueToReturn.StartsWith("$"))
+                {
+                    valueToReturn = valueToReturn.Substring(1);
+                    //If the value is a pattern to extract from string
+                    if (valueToReturn.Contains("{"))
+                    {
+                        valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
+                    }
+                    //Else the value is parameter literal to read
+                    else return br.GetDynamicPropertyByName(valueToReturn).Value as string ?? "";
+                }
+                return valueToReturn ?? "";
             }
-            return valueToReturn ?? "";
+            catch (System.Exception ex)
+            {
+                prdDbg(br.Handle);
+                prdDbg(ex);
+                throw;
+            }
         }
         public static double ReadComponentDN1KodDouble(BlockReference br, System.Data.DataTable fjvTable)
         {

@@ -188,8 +188,7 @@ namespace IntersectUtilities
                             //1.1 poly-reducer-poly
                             if (ent2 is Polyline pl2)
                             {
-                                PipeDnEnum DN1 = (PipeDnEnum)Enum.Parse(
-                                    typeof(PipeDnEnum), "DN" + GetPipeDN(pl2).ToString());
+                                PipeDnEnum DN1 = GetPipeDnEnum(pl2);
 
                                 //Get the polyline at the other end of the reducer
                                 string conString = Graph.PSM.ReadPropertyString(
@@ -207,8 +206,7 @@ namespace IntersectUtilities
 
                                     if (ent3 is Polyline pl3)
                                     {
-                                        PipeDnEnum DN2 = (PipeDnEnum)Enum.Parse(
-                                            typeof(PipeDnEnum), "DN" + GetPipeDN(pl3).ToString());
+                                        PipeDnEnum DN2 = GetPipeDnEnum(pl3);
 
                                         int interval;
                                         if (br1.RealName() == "RED KDLR x2") interval = 2;

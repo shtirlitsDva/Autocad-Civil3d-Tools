@@ -177,7 +177,7 @@ namespace IntersectUtilities.UtilsCommon
             S2,
             S3
         }
-        internal enum PipeDnEnum
+        public enum PipeDnEnum
         {
             ALUPEX26,
             ALUPEX32,

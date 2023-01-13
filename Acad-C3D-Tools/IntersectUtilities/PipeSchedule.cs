@@ -233,6 +233,27 @@ namespace IntersectUtilities
         {
             return GetPipeDN(ExtractLayerName(ent));
         }
+        public static PipeDnEnum GetPipeDnEnum(Entity ent)
+        {
+            int DN = GetPipeDN(ent);
+
+            switch (GetPipeSystem(ent))
+            {
+                case PipeSystemEnum.Ukendt:
+                    return default;
+                case PipeSystemEnum.Stål:
+                    return (PipeDnEnum)Enum.Parse(
+                        typeof(PipeDnEnum), "DN" + DN.ToString());
+                case PipeSystemEnum.Kobberflex:
+                    return (PipeDnEnum)Enum.Parse(
+                        typeof(PipeDnEnum), "CU" + DN.ToString());
+                case PipeSystemEnum.AluPex:
+                    return (PipeDnEnum)Enum.Parse(
+                        typeof(PipeDnEnum), "ALUPEX" + DN.ToString());
+                default:
+                    return default;
+            }
+        }
         public static int GetPipeDN(string layer)
         {
             layer = ExtractLayerName(layer);
