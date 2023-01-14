@@ -184,7 +184,8 @@ namespace IntersectUtilities
         {
             string propertyToExtractName = "DN2";
 
-            string valueToReturn = ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0);
+            string valueToReturn = ReadStringParameterFromDataTable(
+                br.RealName(), fjvTable, propertyToExtractName, 0);
 
             if (valueToReturn.StartsWith("$"))
             {
@@ -195,7 +196,7 @@ namespace IntersectUtilities
                     valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
                 }
                 //Else the value is parameter literal to read
-                else return br.GetDynamicPropertyByName(valueToReturn).Value as string ?? "";
+                else return br.GetDynamicPropertyByName(valueToReturn).Value.ToString() ?? "";
             }
             return valueToReturn ?? "";
         }

@@ -255,7 +255,7 @@ namespace IntersectUtilities
                 { "Branch-StikEnd", true },
                 { "StikAfgrening-Start", false },
                 { "StikAfgrening-End", false },
-                { "StikAfgrening-Main", false },
+                { "StikAfgrening-Main", true },
                 { "StikAfgrening-Branch", false },
                 { "StikAfgrening-StikAfgrening", false },
                 { "StikAfgrening-StikStart", true },
@@ -480,7 +480,9 @@ namespace IntersectUtilities
                         string ownEnd = con.OwnEndType.ToString();
                         string conEnd = con.ConEndType.ToString();
                         string key = ownEnd + "-" + conEnd;
+                        if (key == "StikAfgrening-Main") prdDbg(key);
                         if (allowedCombinations.ContainsKey(key) && !allowedCombinations[key]) continue;
+                        if (key == "StikAfgrening-Main") prdDbg("Passed!");
 
                         //Tries to prevent duplicate Main-Main edges by eliminating upstream Main-Main instance
                         //Doesn't work if recursion just returned from a branch, because previous is set the the

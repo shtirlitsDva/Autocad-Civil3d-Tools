@@ -55,6 +55,7 @@ using System.Windows.Controls;
 using System.Security.Cryptography;
 using Microsoft.VisualBasic.Logging;
 using System.Reflection.Emit;
+using csdot;
 
 namespace IntersectUtilities
 {
@@ -5122,6 +5123,20 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test dynamic reading of parameters
+                    //PromptEntityOptions peo = new PromptEntityOptions("\nSelect block to read parameter: ");
+                    //peo.SetRejectMessage("\nNot a block!");
+                    //peo.AddAllowedClass(typeof(BlockReference), true);
+                    //PromptEntityResult per = editor.GetEntity(peo);
+                    //BlockReference br = per.ObjectId.Go<BlockReference>(tx);
+
+                    //System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
+                    //                    @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+                    //prdDbg(br.ReadDynamiskCsvProperty(DynamiskProperty.DN1, dt));
+
+                    #endregion
+
                     #region Test sideloaded nested block location
                     //Database fremDb = new Database(false, true);
                     //fremDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Dev\15 DynBlockSideloaded\BlockDwg.dwg",
@@ -6431,7 +6446,7 @@ namespace IntersectUtilities
                     System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
                                         @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
-                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, komponenter, true);
+                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, komponenter, true, false);
 
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
                     Graph graph = new Graph(localDb, psm, komponenter);
@@ -6446,6 +6461,58 @@ namespace IntersectUtilities
                     //Iterate over clusters
                     foreach (IGrouping<Graph.POI, Graph.POI> cluster in clusters)
                     {
+                        //SPECIAL CASE
+                        #region SPECIAL CASE: Stikafgreninger
+                        //Special case to get stikafgreninger to show on graph
+                        if (cluster.Any(x =>
+                        {
+                            //Detect stikafgreninger
+                            BlockReference br = x.Owner as BlockReference;
+                            if (br == null) return false;
+                            if (br.RealName() == "STIKAFGRENING") return true;
+                            return false;
+                        }))
+                        {
+                            //Test if cluster has right amount of POIs,
+                            //Should be 3: steelPipe, StikAfgrening, stikPipe
+                            if (cluster.Count() != 3)
+                                throw new System.Exception(
+                                    "StikafgreningsPOI har ikke 3 elementer!\n" +
+                                    $"{string.Join(", ", cluster.Select(x => x.Owner.Handle.ToString()))}");
+                            
+                            //Chain references from steel->stikafgrening->stik
+                            Graph.POI stikAfgrening =
+                                cluster.Where(x =>
+                                {
+                                    BlockReference br = x.Owner as BlockReference;
+                                    if (br == null) return false;
+                                    if (br.RealName() == "STIKAFGRENING") return true;
+                                    return false;
+                                })
+                                .FirstOrDefault();
+                            Graph.POI steelPipe =
+                                cluster.Where(x => GetPipeSystem(x.Owner) == PipeSystemEnum.Stål)
+                                .FirstOrDefault();
+                            if (steelPipe == null) throw new System.Exception(
+                                $"Stikafgrening {stikAfgrening.Owner.Handle} har ikke forbindelse til Stål!");
+                            Graph.POI stikPipe =
+                                cluster.Where(x => x.Owner is Polyline && GetPipeSystem(x.Owner) != PipeSystemEnum.Stål)
+                                .FirstOrDefault();
+                            if (stikPipe == null) throw new System.Exception(
+                                $"Stikafgrening {stikAfgrening.Owner.Handle} kan ikke finde stikrør!");
+
+                            //Assign the references
+                            steelPipe.AddReference(stikAfgrening);
+                            stikAfgrening.AddReference(stikPipe);
+                            //Add a reference from stikpipe to block or the code will
+                            //throw because the connection string will be empty
+                            //if the stikpipe is the last element
+                            stikPipe.AddReference(stikAfgrening);
+                            //Skip rest of the creation
+                            continue;
+                        } 
+                        #endregion
+
                         //Create unique pairs
                         var pairs = cluster.SelectMany((value, index) => cluster.Skip(index + 1),
                                                        (first, second) => new { first, second });
@@ -6484,9 +6551,9 @@ namespace IntersectUtilities
                 try
                 {
                     System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
-                                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
-                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, komponenter, true, true);
+                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, komponenter, true, false);
 
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
                     Graph graph = new Graph(localDb, psm, komponenter);
@@ -6530,16 +6597,13 @@ namespace IntersectUtilities
                     System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
                                         @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
-                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, komponenter, true);
+                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, komponenter, true, false);
 
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
                     PSetDefs.DriGraph driGraph = new PSetDefs.DriGraph();
 
                     foreach (var item in allEnts)
-                    {
-                        psm.GetOrAttachPropertySet(item);
-                        psm.WritePropertyString(driGraph.ConnectedEntities, "");
-                    }
+                        psm.WritePropertyString(item, driGraph.ConnectedEntities, "");
 
                 }
                 catch (System.Exception ex)
@@ -7768,7 +7832,7 @@ namespace IntersectUtilities
             }
             prdDbg("Finished!");
         }
-        
+
         [CommandMethod("XREFSRELOADALLBATCH")]
         public void reloadallxrefsbatch()
         {

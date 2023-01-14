@@ -1813,7 +1813,7 @@ namespace IntersectUtilities.UtilsCommon
         /// </summary>
         /// <param name="p3d">The point to index.</param>
         /// <param name="precision">Precision to which truncate the double. Default 1000.0 gives millimeter precision.</param>
-        public static (long, long) Get2DKey(this Point3d p3d, double precision = 1000.0) => 
+        public static (long, long) Get2DKey(this Point3d p3d, double precision = 1000.0) =>
             ((long)(p3d.X * precision), (long)(p3d.Y * precision));
         public static Point2d To2D(this Point3d p3d) => new Point2d(p3d.X, p3d.Y);
         public static bool IsOnCurve(this Point3d pt, Curve cv, double tol)
@@ -2175,7 +2175,7 @@ namespace IntersectUtilities.UtilsCommon
             return new HashSet<T>(db.ListOfType<T>(tr, discardFrozen));
         }
         public static HashSet<Entity> GetFjvEntities(this Database db, Transaction tr, System.Data.DataTable fjvKomponenter,
-            bool discardWelds = true, bool discardFrozen = false)
+            bool discardWelds = true, bool discardStikBlocks = true, bool discardFrozen = false)
         {
             HashSet<Entity> entities = new HashSet<Entity>();
 
@@ -2186,12 +2186,20 @@ namespace IntersectUtilities.UtilsCommon
             var brQuery = rawBrefs.Where(x => UtilsDataTables.ReadStringParameterFromDataTable(
                             x.RealName(), fjvKomponenter, "Navn", 0) != default);
 
-            HashSet<string> forbiddenBlocks = new HashSet<string>()
+            HashSet<string> weldingBlocks = new HashSet<string>()
             {
-                "SVEJSEPUNKT", "SVEJSEPUNKT-NOTXT", "STIKAFGRENING", "STIKTEE"
+                "SVEJSEPUNKT",
+                "SVEJSEPUNKT-NOTXT",
             };
 
-            if (discardWelds) brQuery = brQuery.Where(x => !forbiddenBlocks.Contains(x.RealName()));
+            HashSet<string> stikBlocks = new HashSet<string>()
+            {
+                "STIKAFGRENING",
+                "STIKTEE"
+            };
+
+            if (discardWelds) brQuery = brQuery.Where(x => !weldingBlocks.Contains(x.RealName()));
+            if (discardStikBlocks) brQuery = brQuery.Where(x => !stikBlocks.Contains(x.RealName()));
 
             entities.UnionWith(brQuery);
             entities.UnionWith(plineQuery);
