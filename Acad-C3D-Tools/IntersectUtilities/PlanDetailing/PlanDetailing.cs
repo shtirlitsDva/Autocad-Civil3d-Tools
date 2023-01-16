@@ -337,18 +337,18 @@ namespace IntersectUtilities
                                 if (nestedBr.Name.Contains("BRANCH"))
                                 {
                                     parseSuccess = int.TryParse(
-                                        ODDataReader.DynKomponenter.ReadComponentDN2(br, komponenter).StrValue, out DN);
+                                        ComponentSchedule.ReadComponentDN2(br, komponenter), out DN);
                                 }
                                 else //Else catches "MAIN" and ordinary case
                                 {
                                     parseSuccess = int.TryParse(
-                                        ODDataReader.DynKomponenter.ReadComponentDN1(br, komponenter).StrValue, out DN);
+                                        ComponentSchedule.ReadComponentDN1(br, komponenter), out DN);
                                 }
 
                                 if (!parseSuccess)
                                 {
                                     prdDbg($"ERROR: Parsing of DN failed for block handle: {br.Handle}! " +
-                                        $"Returned value: {ODDataReader.DynKomponenter.ReadComponentDN1(br, komponenter).StrValue}");
+                                        $"Returned value: {ComponentSchedule.ReadComponentDN1(br, komponenter)}");
                                 }
                                 #endregion
 
