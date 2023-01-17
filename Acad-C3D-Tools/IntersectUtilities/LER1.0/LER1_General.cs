@@ -673,7 +673,7 @@ namespace IntersectUtilities
 
         }
 
-        [CommandMethod("QAPSDATA")]
+        [CommandMethod("QAVANDDATA")]
         public void qapsdata()
         {
             DocumentCollection docCol = Application.DocumentManager;
