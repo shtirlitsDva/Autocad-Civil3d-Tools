@@ -78,6 +78,55 @@ namespace IntersectUtilities.UtilsCommon
             else if (obj is System.Exception ex2) prdDbg(obj.ToString().Wrap(70));
             else prdDbg(obj.ToString());
         }
+        /// <summary>
+        /// Gets keywords.
+        /// </summary>
+        /// <param name="message">The message.</param>
+        /// <param name="keywords">The keywords.</param>
+        /// <param name="defaultIndex">The default index.</param>
+        /// <returns>The keyword result or null on else than OK.</returns>
+        public static string GetKeywords(string message, ICollection<string> keywords)
+        {
+            if (keywords.Count == 0) return null;
+
+            Dictionary<string, string> keywordsDict = new Dictionary<string, string>();
+            int i = 0;
+            string dKwd = "";
+            foreach (string keyword in keywords)
+            {
+                string prefix = ColumnNameByIndex(i) + ":";
+                string cleanedKeyword = RemoveSpecialCharacters(keyword, "[^a-zA-Z0-9]+");
+                keywordsDict.Add(prefix + cleanedKeyword.ToUpper(), keyword);
+                if (i == 0) dKwd = prefix + cleanedKeyword.ToUpper();
+                i++;
+            }
+
+            string messageAndKeywords = message + " [";
+            messageAndKeywords += string.Join("/", keywordsDict.Select(x => x.Key).ToArray());
+            messageAndKeywords += "]";
+
+            string globalKeywords = string.Join(" ", keywordsDict.Select(x => x.Key).ToArray());
+
+            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+            var opt = new PromptKeywordOptions(message);
+            opt.AllowNone = true;
+            
+            opt.SetMessageAndKeywords(messageAndKeywords, globalKeywords);
+            opt.Keywords.Default = dKwd;
+
+            var res = ed.GetKeywords(opt);
+            if (res.Status == PromptStatus.OK)
+            {
+                return keywordsDict[res.StringResult];
+            }
+
+            return null;
+        }
+
+        public static string RemoveSpecialCharacters(string str, string regex)
+        {
+            return Regex.Replace(str, regex, "", RegexOptions.Compiled);
+        }
 
         public static Dictionary<string, Color> AutocadStdColors = new Dictionary<string, Color>()
         {
@@ -133,7 +182,6 @@ namespace IntersectUtilities.UtilsCommon
             prdDbg($"Parsing of color string {colorString} failed!");
             return null;
         }
-
         public static double GetRotation(Vector3d vector, Vector3d normal)
         {
             var plane = new Plane();
@@ -142,12 +190,36 @@ namespace IntersectUtilities.UtilsCommon
         }
 
         private static Random random = new Random();
-
         public static string RandomStringLetters(int length)
         {
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
             return new string(Enumerable.Repeat(chars, length)
                 .Select(s => s[random.Next(s.Length)]).ToArray());
+        }
+        private static string mColumnLetters = "zabcdefghijklmnopqrstuvwxyz";
+
+        public static string ColumnNameByIndex(int ColumnIndex)
+        {
+            int ModOf26, Subtract;
+            StringBuilder NumberInLetters = new StringBuilder();
+            ColumnIndex += 1; // A is the first column, but for calculation it's number is 1 and not 0. however, Index is alsways zero-based.
+            while (ColumnIndex > 0)
+            {
+                if (ColumnIndex <= 26)
+                {
+                    ModOf26 = ColumnIndex;
+                    NumberInLetters.Insert(0, mColumnLetters.Substring(ModOf26, 1));
+                    ColumnIndex = 0;
+                }
+                else
+                {
+                    ModOf26 = ColumnIndex % 26;
+                    Subtract = (ModOf26 == 0) ? 26 : ModOf26;
+                    ColumnIndex = (ColumnIndex - Subtract) / 26;
+                    NumberInLetters.Insert(0, mColumnLetters.Substring(ModOf26, 1));
+                }
+            }
+            return NumberInLetters.ToString().ToUpper();
         }
 
         public enum EndType
@@ -2014,6 +2086,12 @@ namespace IntersectUtilities.UtilsCommon
         {
             foreach (Oid oid in col) yield return oid.Go<T>(tx);
         }
+        public static List<string> ToList(this StringCollection sc)
+        {
+            List<string> list = new List<string>();
+            foreach (string s in sc) list.Add(s);
+            return list;
+        }
     }
     public static class ExtensionMethods
     {
@@ -2263,8 +2341,6 @@ namespace IntersectUtilities.UtilsCommon
         public static double ToDegrees(this double radians) => (180 / Math.PI) * radians;
         public static double ToRadians(this double degrees) => (Math.PI / 180) * degrees;
     }
-
-
     public class PointDBHorizontalComparer : IEqualityComparer<DBPoint>
     {
         double Tol;
@@ -2280,7 +2356,6 @@ namespace IntersectUtilities.UtilsCommon
         public int GetHashCode(DBPoint a) => Tuple.Create(
         Math.Round(a.Position.X, 3), Math.Round(a.Position.Y, 3)).GetHashCode();
     }
-
     public class Point3dHorizontalComparer : IEqualityComparer<Point3d>
     {
         double Tol;

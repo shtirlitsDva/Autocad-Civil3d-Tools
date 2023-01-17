@@ -16,7 +16,6 @@ using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
 using IntersectUtilities.UtilsCommon;
-using Autodesk.Aec.DatabaseServices;
 
 namespace IntersectUtilities
 {
@@ -518,6 +517,53 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+        }
+        private static (string PsSetName, string PropertyName) AskForSetAndProperty(Database db)
+        {
+            if (db.TransactionManager.TopTransaction == null)
+            {
+                prdDbg("AskForSetAndProperty(Database db) has to run inside a transaction!");
+                return default;
+            }
+            DictionaryPropertySetDefinitions dpsdict = new DictionaryPropertySetDefinitions(db);
+            string psName = GetKeywords("Select property set: ", dpsdict.NamesInUse.ToList());
+            if (psName == null) return default;
+            PropertySetDefinition psDef = dpsdict.GetAt(psName).Go<PropertySetDefinition>(db.TransactionManager.TopTransaction);
+            PropertyDefinitionCollection propDefs = psDef.Definitions;
+            List<string> propDefNames = new List<string>();
+            foreach (PropertyDefinition propDef in propDefs) propDefNames.Add(propDef.Name);
+            string propName = GetKeywords("Select property name: ", propDefNames);
+            if (propName == null) return default;
+
+            return (psName, propName);
+        }
+        public static void ListUniquePsData(Database db)
+        {
+            var names = AskForSetAndProperty(db);
+            if (names == default)
+            {
+                prdDbg("Set and property names are null!");
+                return;
+            }
+            Transaction tx = db.TransactionManager.TopTransaction;
+            var dpsd = new DictionaryPropertySetDefinitions(db);
+            Oid psDefId = dpsd.GetAt(names.PsSetName);
+
+            var setIdsCol = PropertyDataServices.GetAllPropertySetsUsingDefinition(psDefId, false);
+            
+            HashSet<string> values = new HashSet<string>();
+            foreach (Oid oid in setIdsCol)
+            {
+                PropertySet ps = oid.Go<PropertySet>(tx);
+                int id = ps.PropertyNameToId(names.PropertyName);
+                PropertySetData data = ps.GetPropertySetDataAt(id);
+                values.Add(data.GetData()?.ToString());
+            }
+
+            if (values.Contains("")) { values.Remove(""); values.Add("<empty>"); };
+
+            foreach (var item in values.OrderBy(x => x)) prdDbg(item);
+            
         }
     }
 

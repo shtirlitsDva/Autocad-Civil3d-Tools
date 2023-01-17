@@ -500,7 +500,6 @@ namespace IntersectUtilities
                             textEnt.AddEntityToDbModelSpace(localDb);
                         }
                     }
-
                 }
                 catch (System.Exception ex)
                 {
@@ -794,38 +793,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Test PS values
-                    var plines = localDb.HashSetOfType<Polyline>(tx, true);
-
-                    //ListAllUniqueValues("FeatId");
-                    //ListAllUniqueValues("G3E_CID");
-                    //ListAllUniqueValues("G3E_CNO");
-                    //ListAllUniqueValues("G3E_FID");
-                    //ListAllUniqueValues("G3E_FNO");
-                    //ListAllUniqueValues("G3E_ID");
-                    HashSet<string> values = new HashSet<string>();
-                    ListAllUniqueValues("Dimension");
-                    PrintAllValues(values);
-
-                    void ListAllUniqueValues(string propertyName)
-                    {
-                        var list = plines
-                            .Select(x =>
-                                PropertySetManager.ReadNonDefinedPropertySetObject(x, "Stenlose-Ledninger", propertyName))
-                            .Distinct();
-                        values = list.Select(x => x.ToString()).ToHashSet();
-                        prdDbg($"{propertyName}: {list.Count()}");
-                    }
-
-                    void PrintAllValues(HashSet<string> toPrint)
-                    {
-                        foreach (var item in toPrint.OrderBy(x => x))
-                        {
-                            prdDbg(item);
-                        }
-                    }
-
-                    #endregion
+                    PropertySetManager.ListUniquePsData(localDb);
                 }
                 catch (System.Exception ex)
                 {
