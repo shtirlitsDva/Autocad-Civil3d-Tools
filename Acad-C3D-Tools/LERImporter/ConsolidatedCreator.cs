@@ -226,20 +226,12 @@ namespace LERImporter
             }
 
             //Create property sets 3d
-            psDict.Clear();
             allUniqueTypes.Clear();
             allUniqueTypes = ledninger.Select(x => x.GetType()).Distinct().ToHashSet();
             allUniqueTypes.UnionWith(ledningstrace.Select(x => x.GetType()).Distinct().ToHashSet());
             foreach (Type type in allUniqueTypes)
             {
                 string psName = type.Name.Replace("Type", "");
-                //Store the ps name in dictionary referenced by the type name
-                //PS name is not goood! It becomes Elledning which is not unique
-                //But it is unique!!
-                //Data with different files will still follow the class definition in code
-                //Which assures that all pssets are the same
-                psDict.Add(type.Name, psName);
-
                 PropertySetDefinition propSetDef3d = new PropertySetDefinition();
                 propSetDef3d.SetToStandard(Db3d);
                 propSetDef3d.SubSetDatabaseDefaults(Db3d);
