@@ -143,7 +143,7 @@ namespace LERImporter.Schema
     {
         [PsInclude]
         public string Type { get => this.type?.Value?.ToString() ?? ""; }
-        private string DetermineLayerName(Database database)
+        private string DetermineLayerName(Database database, bool _3D = false)
         {
             #region Determine correct layer name
             string layerName;
@@ -185,6 +185,7 @@ namespace LERImporter.Schema
             }
 
             layerName += driftsstatusSuffix;
+            if (_3D) layerName += "-3D";
 
             database.CheckOrCreateLayer(layerName);
             return layerName;
@@ -208,7 +209,7 @@ namespace LERImporter.Schema
             Polyline3d p3d = DrawPline3D(database)
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
-            string layerName = DetermineLayerName(database);
+            string layerName = DetermineLayerName(database, true);
 
             p3d.Layer = layerName;
 
@@ -255,7 +256,7 @@ namespace LERImporter.Schema
     }
     public partial class VandledningType : ILerLedning
     {
-        private string DetermineLayerName(Database database)
+        private string DetermineLayerName(Database database, bool _3D = false)
         {
             #region Determine correct layer name
             string layerName = "Vandledning_L2";
@@ -275,6 +276,7 @@ namespace LERImporter.Schema
             }
 
             layerName += driftsstatusSuffix;
+            if (_3D) layerName += "-3D";
 
             database.CheckOrCreateLayer(layerName);
             return layerName;
@@ -297,7 +299,7 @@ namespace LERImporter.Schema
             Polyline3d p3d = DrawPline3D(database)
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
-            string layerName = DetermineLayerName(database);
+            string layerName = DetermineLayerName(database, true);
 
             p3d.Layer = layerName;
 
@@ -320,7 +322,7 @@ namespace LERImporter.Schema
         TermiskledningstypeType GetTermiskledningType() => this.type?.Value ?? TermiskledningstypeType.produktionsledning;
         TermiskledningsindholdstypeType GetTermiskledningsindholdstypeType() => this.indhold;
         TermiskledningkonstruktiontypeType GetTermiskledningkonstruktiontypeType() => this.konstruktion;
-        private string DetermineLayerName(Database database)
+        private string DetermineLayerName(Database database, bool _3D = false)
         {
             #region Determine correct layer name
             string layerName;
@@ -375,6 +377,7 @@ namespace LERImporter.Schema
             }
 
             layerName += driftsstatusSuffix;
+            if (_3D) layerName += "-3D";
 
             database.CheckOrCreateLayer(layerName);
             return layerName;
@@ -397,7 +400,7 @@ namespace LERImporter.Schema
             Polyline3d p3d = DrawPline3D(database)
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
-            string layerName = DetermineLayerName(database);
+            string layerName = DetermineLayerName(database, true);
 
             p3d.Layer = layerName;
 
@@ -469,7 +472,7 @@ namespace LERImporter.Schema
             {"telekommunikation",ForsyningsartEnum.telekommunikation},
             {"vand",ForsyningsartEnum.vand}
         };
-        private string DetermineLayerName(Database database)
+        private string DetermineLayerName(Database database, bool _3D = false)
         {
             #region Determine correct layer name
             string layerName;
@@ -523,6 +526,7 @@ namespace LERImporter.Schema
             }
 
             layerName += suffix;
+            if (_3D) layerName += "-3D";
             database.CheckOrCreateLayer(layerName);
             return layerName;
             #endregion
@@ -543,7 +547,7 @@ namespace LERImporter.Schema
             Polyline3d p3d = DrawPline3D(database)
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
-            string layerName = DetermineLayerName(database);
+            string layerName = DetermineLayerName(database, true);
 
             p3d.Layer = layerName;
 
@@ -569,7 +573,7 @@ namespace LERImporter.Schema
         [PsInclude]
         public string LedningstransportType { get => this.ledningstransporttype?.Value.ToString() ?? ""; }
         public LedningstransporttypeType? ledningstransportType { get => this.ledningstransporttype?.Value; }
-        private string DetermineLayerName(Database database)
+        private string DetermineLayerName(Database database, bool _3D = false)
         {
             string layerName = "Afløbsledning";
             string driftsstatusSuffix = "";
@@ -591,6 +595,8 @@ namespace LERImporter.Schema
             {
                 layerName = layerName + driftsstatusSuffix;
             }
+
+            if (_3D) layerName += "-3D";
 
             database.CheckOrCreateLayer(layerName);
             return layerName;
@@ -614,7 +620,7 @@ namespace LERImporter.Schema
             Polyline3d p3d = DrawPline3D(database)
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
-            string layerName = DetermineLayerName(database);
+            string layerName = DetermineLayerName(database, true);
 
             p3d.Layer = layerName;
 
@@ -664,7 +670,7 @@ namespace LERImporter.Schema
                 return ElledningTypeEnum.other;
             }
         }
-        private string DetermineLayerName(Database database)
+        private string DetermineLayerName(Database database, bool _3D = false)
         {
             #region Determine correct layer name
             string layerName;
@@ -714,6 +720,7 @@ namespace LERImporter.Schema
             if (SpædningsNiveau.IsNotNoE() &&
                 SpædningsNiveau != "0kV") layerName += $"-{SpædningsNiveau}";
             layerName += driftsstatusSuffix;
+            if (_3D) layerName += "-3D";
 
             database.CheckOrCreateLayer(layerName);
             return layerName;
@@ -740,7 +747,7 @@ namespace LERImporter.Schema
             Polyline3d p3d = DrawPline3D(database)
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
-            string layerName = DetermineLayerName(database);
+            string layerName = DetermineLayerName(database, true);
 
             p3d.Layer = layerName;
 
@@ -807,7 +814,7 @@ namespace LERImporter.Schema
             return forsyningsartDict[art];
         }
 
-        private string DetermineLayerName(Database database)
+        private string DetermineLayerName(Database database, bool _3D = false)
         {
             #region Determine correct layer name
             string layerName;
@@ -861,6 +868,7 @@ namespace LERImporter.Schema
             }
 
             layerName += suffix;
+            if (_3D) layerName += "-3D";
             database.CheckOrCreateLayer(layerName);
             return layerName;
             #endregion
@@ -898,7 +906,7 @@ namespace LERImporter.Schema
             Polyline3d p3d = DrawPline3D(database)
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
-            string layerName = DetermineLayerName(database);
+            string layerName = DetermineLayerName(database, true);
 
             p3d.Layer = layerName;
 

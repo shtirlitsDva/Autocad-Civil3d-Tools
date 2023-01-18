@@ -387,7 +387,7 @@ namespace SheetCreationAutomation
 
                     for (int i = 0; i < publishedCount; i++)
                     {
-                        prdDbg("");
+                        //prdDbg("");
                         DataShortcuts.DataShortcutManager.PublishedItem item =
                             sm.GetPublishedItemAt(i);
                         //prdDbg($"Name: {item.Name}");
@@ -396,10 +396,12 @@ namespace SheetCreationAutomation
 
                         if (item.DSEntityType == DataShortcutEntityType.Profile)
                         {
-                            if (item.Name.StartsWith(strNumber))
-                            {
-                                sm.CreateReference(i, localDb);
-                            }
+                            //if (item.Name.StartsWith(strNumber))
+                            //{
+                            //    sm.CreateReference(i, localDb);
+                            //}
+                            prdDbg(item.Name);
+                            sm.CreateReference(i, localDb);
                         }
                     }
 
