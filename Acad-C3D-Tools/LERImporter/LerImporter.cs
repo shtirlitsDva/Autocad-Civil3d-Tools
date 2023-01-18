@@ -296,8 +296,11 @@ namespace LERImporter
 
                 #region Create database for 2D ler
                 using (Database ler2dDb = new Database(false, true))
+                using (Database ler3dDb = new Database(false, true))
                 {
                     ler2dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Templates\LerTemplate.dwt",
+                                FileOpenMode.OpenForReadAndAllShare, false, null);
+                    ler3dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Templates\LerTemplate.dwt",
                                 FileOpenMode.OpenForReadAndAllShare, false, null);
                     //Build the new future file name of the drawing
                     var query = gf.featureCollection.Where(x => x.item is Schema.Graveforesp);
@@ -308,29 +311,35 @@ namespace LERImporter
                         bemaerkning = gfsp.bemaerkning;
                         if (bemaerkning.IsNotNoE()) bemaerkning += "_";
                     }
-                    string newFilename = $"{folderPath}{bemaerkning ?? ""}LER_2D.dwg";
-                    Log.log($"Writing Ler 2D to new dwg file:\n" + $"{newFilename}.");
-                    //ler2dDb.SaveAs(newFilename, true, DwgVersion.Newest, null);
+                    string new2dFilename = $"{folderPath}{bemaerkning ?? ""}LER_2D.dwg";
+                    Log.log($"Writing Ler 2D to new dwg file:\n" + $"{new2dFilename}.");
+                    string new3dFilename = $"{folderPath}{bemaerkning ?? ""}LER_3D.dwg";
+                    Log.log($"Writing Ler 3D to new dwg file:\n" + $"{new3dFilename}.");
 
                     using (Transaction ler2dTx = ler2dDb.TransactionManager.StartTransaction())
+                    using (Transaction ler3dTx = ler3dDb.TransactionManager.StartTransaction())
                     {
                         try
                         {
-                            LERImporter.ConsolidatedCreator.CreateLerData(ler2dDb, gf);
+                            LERImporter.ConsolidatedCreator.CreateLerData(ler2dDb, ler3dDb, gf);
                         }
                         catch (System.Exception ex)
                         {
                             Log.log(ex.ToString());
                             ler2dTx.Abort();
                             ler2dDb.Dispose();
+                            ler3dTx.Abort();
+                            ler3dDb.Dispose();
                             throw;
                         }
 
                         ler2dTx.Commit();
+                        ler3dTx.Commit();
                     }
 
                     //Save the new dwg file
-                    ler2dDb.SaveAs(newFilename, DwgVersion.Current);
+                    ler2dDb.SaveAs(new2dFilename, DwgVersion.Current);
+                    ler3dDb.SaveAs(new3dFilename, DwgVersion.Current);
                     //ler2dDb.Dispose();
                 }
                 #endregion
@@ -369,7 +378,7 @@ namespace LERImporter
                 str = str.Replace("<ler:id>", "<ler:lerid>");
                 str = str.Replace("</ler:id>", "</ler:lerid>");
 
-                string modifiedFileName = 
+                string modifiedFileName =
                     folderPath + "\\" + fileName + "_mod" + extension;
 
                 File.WriteAllText(modifiedFileName, str);

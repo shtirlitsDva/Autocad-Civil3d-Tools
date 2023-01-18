@@ -121,10 +121,18 @@ namespace LERImporter.Schema
 
             return oid;
         }
-
-        public Oid DrawEntity3D(Database database)
+        public Oid DrawPline3D(Database database)
         {
-            throw new NotImplementedException();
+            IPointParser parser = this.geometri.AbstractCurve as IPointParser;
+
+            Point3d[] points = parser.Get3DPoints();
+            Point3dCollection col = new Point3dCollection(points);
+
+            Polyline3d p3d = new Polyline3d(Poly3dType.SimplePoly, col, false);
+
+            Oid oid = p3d.AddEntityToDbModelSpace(database);
+
+            return oid;
         }
         public string GetTypeName()
         {
@@ -197,7 +205,14 @@ namespace LERImporter.Schema
         }
         public Oid DrawEntity3D(Database database)
         {
-            throw new NotImplementedException();
+            Polyline3d p3d = DrawPline3D(database)
+                .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            string layerName = DetermineLayerName(database);
+
+            p3d.Layer = layerName;
+
+            return p3d.Id;
         }
         public TelekommunikationsledningTypeEnum getTelekommunikationsledningType()
         {
@@ -279,7 +294,14 @@ namespace LERImporter.Schema
 
         public Oid DrawEntity3D(Database database)
         {
-            throw new NotImplementedException();
+            Polyline3d p3d = DrawPline3D(database)
+                .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            string layerName = DetermineLayerName(database);
+
+            p3d.Layer = layerName;
+
+            return p3d.Id;
         }
     }
     public partial class TermiskLedningType : ILerLedning
@@ -372,7 +394,14 @@ namespace LERImporter.Schema
 
         public Oid DrawEntity3D(Database database)
         {
-            throw new NotImplementedException();
+            Polyline3d p3d = DrawPline3D(database)
+                .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            string layerName = DetermineLayerName(database);
+
+            p3d.Layer = layerName;
+
+            return p3d.Id;
         }
 
         /// <summary>
@@ -511,7 +540,14 @@ namespace LERImporter.Schema
         }
         public Oid DrawEntity3D(Database database)
         {
-            throw new NotImplementedException();
+            Polyline3d p3d = DrawPline3D(database)
+                .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            string layerName = DetermineLayerName(database);
+
+            p3d.Layer = layerName;
+
+            return p3d.Id;
         }
         public enum ForsyningsartEnum
         {
@@ -575,7 +611,14 @@ namespace LERImporter.Schema
 
         public Oid DrawEntity3D(Database database)
         {
-            throw new NotImplementedException();
+            Polyline3d p3d = DrawPline3D(database)
+                .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            string layerName = DetermineLayerName(database);
+
+            p3d.Layer = layerName;
+
+            return p3d.Id;
         }
     }
     public partial class LedningUkendtForsyningsartType : ILerLedning
@@ -694,7 +737,14 @@ namespace LERImporter.Schema
         }
         public Oid DrawEntity3D(Database database)
         {
-            throw new NotImplementedException();
+            Polyline3d p3d = DrawPline3D(database)
+                .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            string layerName = DetermineLayerName(database);
+
+            p3d.Layer = layerName;
+
+            return p3d.Id;
         }
         public enum ElledningTypeEnum
         {
@@ -845,7 +895,27 @@ namespace LERImporter.Schema
 
         public Oid DrawEntity3D(Database database)
         {
-            throw new NotImplementedException();
+            Polyline3d p3d = DrawPline3D(database)
+                .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            string layerName = DetermineLayerName(database);
+
+            p3d.Layer = layerName;
+
+            return p3d.Id;
+        }
+        public Oid DrawPline3D(Database database)
+        {
+            IPointParser parser = this.geometri.MultiCurve as IPointParser;
+
+            Point3d[] points = parser.Get3DPoints();
+            Point3dCollection col = new Point3dCollection(points);
+
+            Polyline3d p3d = new Polyline3d(Poly3dType.SimplePoly, col, false);
+
+            Oid oid = p3d.AddEntityToDbModelSpace(database);
+
+            return oid;
         }
         private static Dictionary<string, ForsyningsartEnum> forsyningsartDict = new Dictionary<string, ForsyningsartEnum>()
         {

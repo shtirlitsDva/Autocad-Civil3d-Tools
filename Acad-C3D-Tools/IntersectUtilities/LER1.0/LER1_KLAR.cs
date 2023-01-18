@@ -96,7 +96,7 @@ namespace IntersectUtilities
         }
 
         /// <summary>
-        /// Used to move 3d polylines of Novafos data to elevation points
+        /// Used to move 3d polylines of Klar data to elevation points
         /// </summary>
         [CommandMethod("KLARCREATE3D")]
         public void klarcreate3d()
@@ -121,7 +121,7 @@ namespace IntersectUtilities
             HashSet<Polyline3d> linesWithMissingBothNodes = new HashSet<Polyline3d>();
 
             //Data
-            string propSetNamePipes = "DDG_ledning";
+            string propSetNamePipes = "Spildevand_ledning";
             string propSetNameNodes = "DDG_knude";
 
             //Process all lines and detect with nodes at both ends
@@ -279,6 +279,7 @@ namespace IntersectUtilities
                     }
                     prdDbg($"Number of p3ds additionally calculated by slope: {countSlopeCalc}.");
 
+                    #region Old code
                     ////Process lines with missing both end nodes
                     //using (Transaction tx2 = localDb.TransactionManager.StartTransaction())
                     //{
@@ -557,8 +558,124 @@ namespace IntersectUtilities
                     //        return;
                     //    }
                     //    tx2.Commit();
-                    //}
+                    //} 
+                    #endregion
 
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        /// <summary>
+        /// Uses only opstrøms- og nedstrømskote fra ledningsinformation
+        /// Bruger ikke knude bundkote, hvilket ikke altid passer
+        /// Antager at første vertex altid er opstrøms og sidste verted er nedstrøms
+        /// </summary>
+        [CommandMethod("KLARCREATE3DV2")]
+        public void klarcreate3dv2()
+        {
+            //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            //Slope in pro mille
+            double slope = 20;
+            //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            //Prepare list to hold processed lines.
+            HashSet<Polyline3d> readyLines = new HashSet<Polyline3d>();
+            //List with one of nodes missing
+            HashSet<(Polyline3d line, string end)> linesWithOneMissingNode =
+                new HashSet<(Polyline3d line, string end)>();
+            //For use for secondary interpolation for lines missing one or both end nodes.
+            HashSet<Polyline3d> linesWithMissingBothNodes = new HashSet<Polyline3d>();
+
+            //Data
+            string propSetNamePipes = "Spildevand_ledning";
+            string propOpst = "BundloebskoteOpst";
+            string propNedst = "BundloebskoteNedst";
+            string propSetNameNodes = "DDG_knude";
+
+            //Process all lines and detect with nodes at both ends
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Load linework from local db
+                    HashSet<Polyline3d> localPlines3d = localDb
+                        .ListOfType<Polyline3d>(tx)
+                        .Where(x => PropertySetManager.IsPropertySetAttached(x, propSetNamePipes))
+                        .ToHashSet();
+                    editor.WriteMessage($"\nNr. of local 3D polies: {localPlines3d.Count}");
+                    #endregion
+
+                    #region Poly3ds with knudepunkter at ends
+                    foreach (Polyline3d pline3d in localPlines3d)
+                    {
+                        var vertices = pline3d.GetVertices(tx);
+                        int endIdx = vertices.Length - 1;
+
+                        double startElevation =
+                            PropertySetManager.ReadNonDefinedPropertySetDouble(
+                                pline3d, propSetNamePipes, propOpst);
+                        double endElevation =
+                            PropertySetManager.ReadNonDefinedPropertySetDouble(
+                                pline3d, propSetNamePipes, propNedst);
+
+                        //Case where both elevations are found
+                        if (!startElevation.Equalz(0.0, 0.0001) && !endElevation.Equalz(0.0, 0.0001))
+                        {
+                            //Add to interpolated listv
+                            readyLines.Add(pline3d);
+
+                            //Start match
+                            vertices[0].CheckOrOpenForWrite();
+                            vertices[0].UpdateElevationZ(startElevation);
+                            vertices[endIdx].CheckOrOpenForWrite();
+                            vertices[endIdx].UpdateElevationZ(endElevation);
+
+                            //Interpolate if pline has intermediate vertici
+                            if (vertices.Length > 2)
+                            {
+                                double AB = pline3d.GetHorizontalLength(tx);
+                                double m = (endElevation - startElevation) / AB;
+                                double b = endElevation - m * AB;
+
+                                //Skip first and last points
+                                for (int i = 1; i < endIdx; i++)
+                                {
+                                    double PB = pline3d.GetHorizontalLengthBetweenIdxs(0, i);
+                                    double newElevation = m * PB + b;
+                                    vertices[i].CheckOrOpenForWrite();
+                                    vertices[i].UpdateElevationZ(newElevation);
+                                }
+                            }
+                        }
+                        else if (!startElevation.Equalz(0.0, 0.0001) || !endElevation.Equalz(0.0, 0.0001))
+                        {
+                            if (!startElevation.Equalz(0.0, 0.0001)) linesWithOneMissingNode.Add((pline3d, "start"));
+                            else linesWithOneMissingNode.Add((pline3d, "end"));
+                        }
+                        else
+                        {
+                            //The rest of the lines assumed missing both nodes
+                            linesWithMissingBothNodes.Add(pline3d);
+                        }
+                    }
+                    #endregion
+
+                    editor.WriteMessage($"\nReady lines: {readyLines.Count}, " +
+                                          $"Lines missing one node: {linesWithOneMissingNode.Count}, " +
+                                          $"Missing both ends: {linesWithMissingBothNodes.Count}.");
                 }
                 catch (System.Exception ex)
                 {
@@ -593,9 +710,9 @@ namespace IntersectUtilities
             HashSet<Polyline3d> linesWithMissingBothNodes = new HashSet<Polyline3d>();
 
             //Data
-            string propSetNamePipes = "Spildevand_Greve_line";
+            string propSetNamePipes = "Spildevand_ledning";
 
-            string propSetNameNodes = "Spildevand_Greve_knude";
+            string propSetNameNodes = "Spildevand_knude";
             string bundKote = "Bundkote";
 
             //Process all lines and detect with nodes at both ends
@@ -689,6 +806,7 @@ namespace IntersectUtilities
                                           $"Lines missing one node: {linesWithOneMissingNode.Count}, " +
                                           $"Missing both ends: {linesWithMissingBothNodes.Count}.");
 
+                    #region Old code
                     ////Process lines with missing one of the nodes
                     ////Assume that the slope data is present, else move it to missing both nodes
                     //int countSlopeCalc = 0;
@@ -1039,7 +1157,8 @@ namespace IntersectUtilities
                     //        return;
                     //    }
                     //    tx2.Commit();
-                    //}
+                    //} 
+                    #endregion
 
                 }
                 catch (System.Exception ex)
@@ -1057,7 +1176,7 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            string layerName = "Spildevand_Greve_line-2D";
+            string layerName = "Spildevand_ledning-2D";
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -1071,7 +1190,7 @@ namespace IntersectUtilities
                         if (!item.IsAtZeroElevation()) continue;
                         item.CheckOrOpenForWrite();
                         item.Layer = layerName;
-                        //item.Color = ColorByName("cyan");
+                        item.Color = ColorByName("cyan");
                     }
                 }
                 catch (System.Exception ex)

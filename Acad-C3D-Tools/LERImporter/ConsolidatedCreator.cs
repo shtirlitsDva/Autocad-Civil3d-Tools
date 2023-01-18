@@ -25,7 +25,7 @@ namespace LERImporter
 {
     internal class ConsolidatedCreator
     {
-        public static void CreateLerData(Database db, FeatureCollection fc)
+        public static void CreateLerData(Database Db2d, Database Db3d, FeatureCollection fc)
         {
             string pathLag = "X:\\AutoCAD DRI - 01 Civil 3D\\Lag-Ler2.0.csv";
             System.Data.DataTable dtLag = CsvReader.ReadCsvToDataTable(pathLag, "Lag");
@@ -78,7 +78,7 @@ namespace LERImporter
             #endregion
 
             #region Draw graveforesp polygon
-            db.CheckOrCreateLayer("GraveforespPolygon");
+            Db2d.CheckOrCreateLayer("GraveforespPolygon");
 
             PolygonType polygon = graveforesp.polygonProperty.Item as PolygonType;
             LinearRingType lrt = polygon.exterior.Item as LinearRingType;
@@ -99,7 +99,7 @@ namespace LERImporter
             hatch.Elevation = 0.0;
             hatch.PatternScale = 1.0;
             hatch.SetHatchPattern(HatchPatternType.PreDefined, "SOLID");
-            Oid hatchId = hatch.AddEntityToDbModelSpace(db);
+            Oid hatchId = hatch.AddEntityToDbModelSpace(Db2d);
 
             hatch.AppendLoop(HatchLoopTypes.Default, points2d, dc);
             hatch.EvaluateHatch(true);
@@ -142,7 +142,7 @@ namespace LERImporter
             //Dictionary to translate between type name and psName
             Dictionary<string, string> psDict = new Dictionary<string, string>();
 
-            //Create property sets
+            //Create property sets 2d
             HashSet<Type> allUniqueTypes = ledninger.Select(x => x.GetType()).Distinct().ToHashSet();
             allUniqueTypes.UnionWith(ledningstrace.Select(x => x.GetType()).Distinct().ToHashSet());
             allUniqueTypes.UnionWith(ledningskomponenter.Select(x => x.GetType()).Distinct().ToHashSet());
@@ -156,11 +156,11 @@ namespace LERImporter
                 //Which assures that all pssets are the same
                 psDict.Add(type.Name, psName);
 
-                PropertySetDefinition propSetDef = new PropertySetDefinition();
-                propSetDef.SetToStandard(db);
-                propSetDef.SubSetDatabaseDefaults(db);
+                PropertySetDefinition propSetDef2d = new PropertySetDefinition();
+                propSetDef2d.SetToStandard(Db2d);
+                propSetDef2d.SubSetDatabaseDefaults(Db2d);
 
-                propSetDef.Description = type.FullName;
+                propSetDef2d.Description = type.FullName;
                 bool isStyle = false;
                 var appliedTo = new StringCollection()
                 {
@@ -169,7 +169,7 @@ namespace LERImporter
                     RXClass.GetClass(typeof(DBPoint)).Name,
                     RXClass.GetClass(typeof(Hatch)).Name,
                 };
-                propSetDef.SetAppliesToFilter(appliedTo, isStyle);
+                propSetDef2d.SetAppliesToFilter(appliedTo, isStyle);
 
                 var properties = type.GetProperties();
 
@@ -179,8 +179,8 @@ namespace LERImporter
                     if (include)
                     {
                         var propDefManual = new PropertyDefinition();
-                        propDefManual.SetToStandard(db);
-                        propDefManual.SubSetDatabaseDefaults(db);
+                        propDefManual.SetToStandard(Db2d);
+                        propDefManual.SubSetDatabaseDefaults(Db2d);
                         propDefManual.Name = prop.Name;
                         propDefManual.Description = prop.Name;
                         switch (prop.PropertyType.Name)
@@ -206,21 +206,105 @@ namespace LERImporter
                                 propDefManual.DefaultData = "";
                                 break;
                         }
-                        propSetDef.Definitions.Add(propDefManual);
+                        propSetDef2d.Definitions.Add(propDefManual);
                     }
                 }
 
-                using (Transaction tx = db.TransactionManager.StartTransaction())
+                using (Transaction tx = Db2d.TransactionManager.StartTransaction())
                 {
                     //check if prop set already exists
-                    DictionaryPropertySetDefinitions dictPropSetDef = new DictionaryPropertySetDefinitions(db);
+                    DictionaryPropertySetDefinitions dictPropSetDef = new DictionaryPropertySetDefinitions(Db2d);
                     if (dictPropSetDef.Has(psName, tx))
                     {
                         tx.Abort();
                         continue;
                     }
-                    dictPropSetDef.AddNewRecord(psName, propSetDef);
-                    tx.AddNewlyCreatedDBObject(propSetDef, true);
+                    dictPropSetDef.AddNewRecord(psName, propSetDef2d);
+                    tx.AddNewlyCreatedDBObject(propSetDef2d, true);
+                    tx.Commit();
+                }
+            }
+
+            //Create property sets 3d
+            psDict.Clear();
+            allUniqueTypes.Clear();
+            allUniqueTypes = ledninger.Select(x => x.GetType()).Distinct().ToHashSet();
+            allUniqueTypes.UnionWith(ledningstrace.Select(x => x.GetType()).Distinct().ToHashSet());
+            foreach (Type type in allUniqueTypes)
+            {
+                string psName = type.Name.Replace("Type", "");
+                //Store the ps name in dictionary referenced by the type name
+                //PS name is not goood! It becomes Elledning which is not unique
+                //But it is unique!!
+                //Data with different files will still follow the class definition in code
+                //Which assures that all pssets are the same
+                psDict.Add(type.Name, psName);
+
+                PropertySetDefinition propSetDef3d = new PropertySetDefinition();
+                propSetDef3d.SetToStandard(Db3d);
+                propSetDef3d.SubSetDatabaseDefaults(Db3d);
+
+                propSetDef3d.Description = type.FullName;
+                bool isStyle = false;
+                var appliedTo = new StringCollection()
+                {
+                    RXClass.GetClass(typeof(Polyline)).Name,
+                    RXClass.GetClass(typeof(Polyline3d)).Name,
+                    RXClass.GetClass(typeof(DBPoint)).Name,
+                    RXClass.GetClass(typeof(Hatch)).Name,
+                };
+                propSetDef3d.SetAppliesToFilter(appliedTo, isStyle);
+
+                var properties = type.GetProperties();
+
+                foreach (PropertyInfo prop in properties)
+                {
+                    bool include = prop.CustomAttributes.Any(x => x.AttributeType == typeof(Schema.PsInclude));
+                    if (include)
+                    {
+                        var propDefManual = new PropertyDefinition();
+                        propDefManual.SetToStandard(Db3d);
+                        propDefManual.SubSetDatabaseDefaults(Db3d);
+                        propDefManual.Name = prop.Name;
+                        propDefManual.Description = prop.Name;
+                        switch (prop.PropertyType.Name)
+                        {
+                            case nameof(String):
+                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+                                propDefManual.DefaultData = "";
+                                break;
+                            case nameof(System.Boolean):
+                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.TrueFalse;
+                                propDefManual.DefaultData = false;
+                                break;
+                            case nameof(Double):
+                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Real;
+                                propDefManual.DefaultData = 0.0;
+                                break;
+                            case nameof(Int32):
+                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Integer;
+                                propDefManual.DefaultData = 0;
+                                break;
+                            default:
+                                propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+                                propDefManual.DefaultData = "";
+                                break;
+                        }
+                        propSetDef3d.Definitions.Add(propDefManual);
+                    }
+                }
+
+                using (Transaction tx = Db3d.TransactionManager.StartTransaction())
+                {
+                    //check if prop set already exists
+                    DictionaryPropertySetDefinitions dictPropSetDef = new DictionaryPropertySetDefinitions(Db3d);
+                    if (dictPropSetDef.Has(psName, tx))
+                    {
+                        tx.Abort();
+                        continue;
+                    }
+                    dictPropSetDef.AddNewRecord(psName, propSetDef3d);
+                    tx.AddNewlyCreatedDBObject(propSetDef3d, true);
                     tx.Commit();
                 }
             }
@@ -228,7 +312,8 @@ namespace LERImporter
 
             #region Create elements
             //List of all (new) layers of new entities
-            HashSet<string> layerNames = new HashSet<string>();
+            HashSet<string> layerNames2d = new HashSet<string>();
+            HashSet<string> layerNames3d = new HashSet<string>();
 
             foreach (LedningType ledning in ledninger)
             {
@@ -236,16 +321,34 @@ namespace LERImporter
                 ILerLedning iLedning = ledning as ILerLedning;
                 if (iLedning == null)
                     throw new System.Exception($"Ledning {ledning.GmlId}, {ledning.LerId} har ikke implementeret ILerLedning!");
-                ObjectId entityId = iLedning.DrawEntity2D(db);
-                Entity ent = entityId.Go<Entity>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
-                layerNames.Add(ent.Layer);
 
-                //Attach the property set
-                PropertySetManager.AttachNonDefinedPropertySet(db, ent, psName);
+                //Create 2D
+                {
+                    ObjectId entityId = iLedning.DrawEntity2D(Db2d);
+                    Entity ent = entityId.Go<Entity>(Db2d.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                    layerNames2d.Add(ent.Layer);
 
-                //Populate the property set
-                var psData = GmlToPropertySet.TranslateGmlToPs(ledning);
-                PropertySetManager.PopulateNonDefinedPropertySet(db, ent, psName, psData);
+                    //Attach the property set
+                    PropertySetManager.AttachNonDefinedPropertySet(Db2d, ent, psName);
+
+                    //Populate the property set
+                    var psData = GmlToPropertySet.TranslateGmlToPs(ledning);
+                    PropertySetManager.PopulateNonDefinedPropertySet(Db2d, ent, psName, psData);
+                }
+
+                //Create 3D
+                {
+                    ObjectId entityId = iLedning.DrawEntity3D(Db3d);
+                    Entity ent = entityId.Go<Entity>(Db3d.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                    layerNames3d.Add(ent.Layer);
+
+                    //Attach the property set
+                    PropertySetManager.AttachNonDefinedPropertySet(Db3d, ent, psName);
+
+                    //Populate the property set
+                    var psData = GmlToPropertySet.TranslateGmlToPs(ledning);
+                    PropertySetManager.PopulateNonDefinedPropertySet(Db3d, ent, psName, psData);
+                }
             }
             foreach (LedningstraceType trace in ledningstrace)
             {
@@ -253,16 +356,34 @@ namespace LERImporter
                 ILerLedning ledning = trace as ILerLedning;
                 if (ledning == null)
                     throw new System.Exception($"Trace {trace.GmlId}, {trace.LerId} har ikke implementeret ILerLedning!");
-                ObjectId entityId = ledning.DrawEntity2D(db);
-                Entity ent = entityId.Go<Entity>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
-                layerNames.Add(ent.Layer);
 
-                //Attach the property set
-                PropertySetManager.AttachNonDefinedPropertySet(db, ent, psName);
+                //Draw 2d
+                {
+                    ObjectId entityId = ledning.DrawEntity2D(Db2d);
+                    Entity ent = entityId.Go<Entity>(Db2d.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                    layerNames2d.Add(ent.Layer);
 
-                //Populate the property set
-                var psData = GmlToPropertySet.TranslateGmlToPs(trace);
-                PropertySetManager.PopulateNonDefinedPropertySet(db, ent, psName, psData);
+                    //Attach the property set
+                    PropertySetManager.AttachNonDefinedPropertySet(Db2d, ent, psName);
+
+                    //Populate the property set
+                    var psData = GmlToPropertySet.TranslateGmlToPs(trace);
+                    PropertySetManager.PopulateNonDefinedPropertySet(Db2d, ent, psName, psData);
+                }
+
+                //Draw 3d
+                {
+                    ObjectId entityId = ledning.DrawEntity3D(Db3d);
+                    Entity ent = entityId.Go<Entity>(Db3d.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                    layerNames3d.Add(ent.Layer);
+
+                    //Attach the property set
+                    PropertySetManager.AttachNonDefinedPropertySet(Db3d, ent, psName);
+
+                    //Populate the property set
+                    var psData = GmlToPropertySet.TranslateGmlToPs(trace);
+                    PropertySetManager.PopulateNonDefinedPropertySet(Db3d, ent, psName, psData);
+                }
             }
             foreach (LedningskomponentType komponent in ledningskomponenter)
             {
@@ -273,109 +394,148 @@ namespace LERImporter
                 Oid entityId;
                 try
                 {
-                    entityId = creator.DrawComponent(db);
+                    entityId = creator.DrawComponent(Db2d);
                 }
                 catch (System.Exception ex)
                 {
                     prdDbg("Component: " + komponent.gmlid + " threw an exception!");
                     throw;
                 }
-                Entity ent = entityId.Go<Entity>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                Entity ent = entityId.Go<Entity>(Db2d.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
                 //Attach the property set
-                PropertySetManager.AttachNonDefinedPropertySet(db, ent, psName);
+                PropertySetManager.AttachNonDefinedPropertySet(Db2d, ent, psName);
 
                 //Populate the property set
                 var psData = GmlToPropertySet.TranslateGmlToPs(komponent);
-                PropertySetManager.PopulateNonDefinedPropertySet(db, ent, psName, psData);
+                PropertySetManager.PopulateNonDefinedPropertySet(Db2d, ent, psName, psData);
             }
             #endregion
 
             #region Read and assign layer's color
-            //Cache layer table
-            LayerTable ltable = db.LayerTableId.Go<LayerTable>(db.TransactionManager.TopTransaction);
-
-            //Set up all LER layers
-            foreach (string layerName in layerNames)
+            //Set 2D colors
             {
-                string colorString = ReadStringParameterFromDataTable(layerName, dtLag, "Farve", 0);
+                //Cache layer table
+                LayerTable ltable = Db2d.LayerTableId.Go<LayerTable>(Db2d.TransactionManager.TopTransaction);
 
-                Color color;
-                if (colorString.IsNoE())
+                //Set up all LER layers
+                foreach (string layerName in layerNames2d)
                 {
-                    Log.log($"Ledning with layer name {layerName} could not get a color!");
-                    color = Color.FromColorIndex(ColorMethod.ByAci, 0);
-                }
-                else
-                {
-                    color = ParseColorString(colorString);
-                    if (color == null)
+                    string colorString = ReadStringParameterFromDataTable(layerName, dtLag, "Farve", 0);
+
+                    Color color;
+                    if (colorString.IsNoE())
                     {
-                        Log.log($"Ledning layer name {layerName} could not parse colorString {colorString}!");
+                        Log.log($"Ledning with layer name {layerName} could not get a color!");
                         color = Color.FromColorIndex(ColorMethod.ByAci, 0);
                     }
+                    else
+                    {
+                        color = ParseColorString(colorString);
+                        if (color == null)
+                        {
+                            Log.log($"Ledning layer name {layerName} could not parse colorString {colorString}!");
+                            color = Color.FromColorIndex(ColorMethod.ByAci, 0);
+                        }
+                    }
+
+                    LayerTableRecord ltr = ltable[layerName]
+                        .Go<LayerTableRecord>(Db2d.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+                    ltr.Color = color;
                 }
+            }
 
-                LayerTableRecord ltr = ltable[layerName]
-                    .Go<LayerTableRecord>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
+            //Set 3D colors
+            {
+                //Cache layer table
+                LayerTable ltable = Db3d.LayerTableId.Go<LayerTable>(Db3d.TransactionManager.TopTransaction);
 
-                ltr.Color = color;
+                //Set up all LER layers
+                foreach (string layerName in layerNames3d)
+                {
+                    string colorString = ReadStringParameterFromDataTable(layerName, dtLag, "Farve", 0);
+
+                    Color color;
+                    if (colorString.IsNoE())
+                    {
+                        Log.log($"Ledning with layer name {layerName} could not get a color!");
+                        color = Color.FromColorIndex(ColorMethod.ByAci, 0);
+                    }
+                    else
+                    {
+                        color = ParseColorString(colorString);
+                        if (color == null)
+                        {
+                            Log.log($"Ledning layer name {layerName} could not parse colorString {colorString}!");
+                            color = Color.FromColorIndex(ColorMethod.ByAci, 0);
+                        }
+                    }
+
+                    LayerTableRecord ltr = ltable[layerName]
+                        .Go<LayerTableRecord>(Db3d.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+                    ltr.Color = color;
+                }
             }
             #endregion
 
             #region Read and assign layer's linetype
-            LinetypeTable ltt = (LinetypeTable)db.TransactionManager.TopTransaction
-                .GetObject(db.LinetypeTableId, OpenMode.ForWrite);
-
-            //Check if all line types are present
-            HashSet<string> missingLineTypes = new HashSet<string>();
-            foreach (string layerName in layerNames)
             {
-                string lineTypeName = ReadStringParameterFromDataTable(layerName, dtLag, "LineType", 0);
-                if (lineTypeName.IsNoE()) continue;
-                else if (!ltt.Has(lineTypeName)) missingLineTypes.Add(lineTypeName);
-            }
+                LayerTable ltable = Db2d.LayerTableId.Go<LayerTable>(Db2d.TransactionManager.TopTransaction);
+                LinetypeTable ltt = (LinetypeTable)Db2d.TransactionManager.TopTransaction
+                    .GetObject(Db2d.LinetypeTableId, OpenMode.ForWrite);
 
-            if (missingLineTypes.Count > 0)
-            {
-                Database ltDb = new Database(false, true);
-                ltDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\Projection_styles.dwg",
-                    FileOpenMode.OpenForReadAndAllShare, false, null);
-                Transaction ltTx = ltDb.TransactionManager.StartTransaction();
-
-                Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(db);
-
-                LinetypeTable sourceLtt = (LinetypeTable)ltDb.TransactionManager.TopTransaction
-                    .GetObject(ltDb.LinetypeTableId, OpenMode.ForRead);
-                ObjectIdCollection idsToClone = new ObjectIdCollection();
-
-                foreach (string missingName in missingLineTypes) idsToClone.Add(sourceLtt[missingName]);
-
-                IdMapping mapping = new IdMapping();
-                ltDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
-                ltTx.Commit();
-                ltTx.Dispose();
-                ltDb.Dispose();
-            }
-
-            Oid lineTypeId;
-            foreach (string layerName in layerNames)
-            {
-                string lineTypeName = ReadStringParameterFromDataTable(layerName, dtLag, "LineType", 0);
-                if (lineTypeName.IsNoE())
+                //Check if all line types are present
+                HashSet<string> missingLineTypes = new HashSet<string>();
+                foreach (string layerName in layerNames2d)
                 {
-                    Log.log($"WARNING! Layer name {layerName} does not have a line type specified!.");
-                    //If linetype string is NoE -> CONTINUOUS linetype must be used
-                    lineTypeId = ltt["Continuous"];
+                    string lineTypeName = ReadStringParameterFromDataTable(layerName, dtLag, "LineType", 0);
+                    if (lineTypeName.IsNoE()) continue;
+                    else if (!ltt.Has(lineTypeName)) missingLineTypes.Add(lineTypeName);
                 }
-                else
+
+                if (missingLineTypes.Count > 0)
                 {
-                    //the presence of the linetype is assured in previous foreach.
-                    lineTypeId = ltt[lineTypeName];
+                    Database ltDb = new Database(false, true);
+                    ltDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\Projection_styles.dwg",
+                        FileOpenMode.OpenForReadAndAllShare, false, null);
+                    Transaction ltTx = ltDb.TransactionManager.StartTransaction();
+
+                    Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(Db2d);
+
+                    LinetypeTable sourceLtt = (LinetypeTable)ltDb.TransactionManager.TopTransaction
+                        .GetObject(ltDb.LinetypeTableId, OpenMode.ForRead);
+                    ObjectIdCollection idsToClone = new ObjectIdCollection();
+
+                    foreach (string missingName in missingLineTypes) idsToClone.Add(sourceLtt[missingName]);
+
+                    IdMapping mapping = new IdMapping();
+                    ltDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                    ltTx.Commit();
+                    ltTx.Dispose();
+                    ltDb.Dispose();
                 }
-                LayerTableRecord ltr = ltable[layerName]
-                        .Go<LayerTableRecord>(db.TransactionManager.TopTransaction, OpenMode.ForWrite);
-                ltr.LinetypeObjectId = lineTypeId;
+
+                Oid lineTypeId;
+                foreach (string layerName in layerNames2d)
+                {
+                    string lineTypeName = ReadStringParameterFromDataTable(layerName, dtLag, "LineType", 0);
+                    if (lineTypeName.IsNoE())
+                    {
+                        Log.log($"WARNING! Layer name {layerName} does not have a line type specified!.");
+                        //If linetype string is NoE -> CONTINUOUS linetype must be used
+                        lineTypeId = ltt["Continuous"];
+                    }
+                    else
+                    {
+                        //the presence of the linetype is assured in previous foreach.
+                        lineTypeId = ltt[lineTypeName];
+                    }
+                    LayerTableRecord ltr = ltable[layerName]
+                            .Go<LayerTableRecord>(Db2d.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                    ltr.LinetypeObjectId = lineTypeId;
+                }
             }
             #endregion
         }

@@ -472,6 +472,7 @@ namespace IntersectUtilities
                             //quick hack
                             if (
                                 label == "ø0 - " ||
+                                label == "ø0" ||
                                 label == "ø - " ||
                                 label == "ø0 - Uoplyst") continue;
 
