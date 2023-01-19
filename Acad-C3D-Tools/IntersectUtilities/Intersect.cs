@@ -7990,7 +7990,10 @@ namespace IntersectUtilities
                         sb.AppendLine(al.Name);
                     }
 
-
+                    string dbFilename = localDb.OriginalFileName;
+                    string path = Path.GetDirectoryName(dbFilename);
+                    string listFileName = path + "\\AlignmentsList.txt";
+                    OutputWriter(listFileName, sb.ToString(), true);
                 }
                 catch (System.Exception ex)
                 {
@@ -8001,7 +8004,6 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
 
         [CommandMethod("DELETESPECIFICALIGNMENTS")]
         public void deletespecificalignments()
@@ -8022,8 +8024,10 @@ namespace IntersectUtilities
                 path = dialog.FileName;
             }
             else return;
+            List<string> list = File.ReadAllLines(path).ToList();
 
-            List<string> fileList = File.ReadAllLines(path).ToList();
+            string kwd = Interaction.GetKeywords("Direct or inverse? ", new string[] { "Direct", "Inverse" });
+            if (kwd == null) return;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -8031,18 +8035,24 @@ namespace IntersectUtilities
                 {
                     HashSet<Alignment> alignments = localDb.HashSetOfType<Alignment>(tx);
 
-                    foreach (var name in fileList)
+                    foreach (var al in alignments)
                     {
-                        Alignment al = alignments.Where(x => x.Name == name).FirstOrDefault();
-
-                        if (al == default)
+                        if (kwd == "Direct")
                         {
-                            prdDbg($"Alignment {name} not found in drawing!");
-                            continue;
+                            if (list.Contains(al.Name))
+                            {
+                                al.CheckOrOpenForWrite();
+                                al.Erase(true);
+                            }
                         }
+                        else if (kwd == "Inverse")
+                        {
+                            if (list.Contains(al.Name)) continue;
 
-                        al.CheckOrOpenForWrite();
-                        al.Erase(true);
+                            al.CheckOrOpenForWrite();
+                            al.Erase(true);
+                        }
+                        else throw new System.Exception($"Wrong keyword: {kwd}!");
                     }
                 }
                 catch (System.Exception ex)
@@ -8054,7 +8064,6 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
 
         //[CommandMethod("TESTENUMS")]
         public void testenums()
