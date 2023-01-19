@@ -7971,6 +7971,91 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("LISTALLALIGNMENTS")]
+        public void listallalignments()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+
+                    StringBuilder sb = new StringBuilder();
+
+                    foreach (var al in als)
+                    {
+                        sb.AppendLine(al.Name);
+                    }
+
+
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+
+        [CommandMethod("DELETESPECIFICALIGNMENTS")]
+        public void deletespecificalignments()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            string path = string.Empty;
+            OpenFileDialog dialog = new OpenFileDialog()
+            {
+                Title = "Choose txt file with alignments listed: ",
+                DefaultExt = "txt",
+                Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
+                FilterIndex = 0
+            };
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                path = dialog.FileName;
+            }
+            else return;
+
+            List<string> fileList = File.ReadAllLines(path).ToList();
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<Alignment> alignments = localDb.HashSetOfType<Alignment>(tx);
+
+                    foreach (var name in fileList)
+                    {
+                        Alignment al = alignments.Where(x => x.Name == name).FirstOrDefault();
+
+                        if (al == default)
+                        {
+                            prdDbg($"Alignment {name} not found in drawing!");
+                            continue;
+                        }
+
+                        al.CheckOrOpenForWrite();
+                        al.Erase(true);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+
         //[CommandMethod("TESTENUMS")]
         public void testenums()
         {
