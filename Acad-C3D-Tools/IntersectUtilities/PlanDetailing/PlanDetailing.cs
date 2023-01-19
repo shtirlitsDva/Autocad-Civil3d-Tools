@@ -460,7 +460,7 @@ namespace IntersectUtilities
                             orderedByDist = alGroup.OrderBy(x => x.Station);
                         else orderedByDist = alGroup.OrderByDescending(x => x.Station);
 
-                        Regex regex = new Regex(@"(?<number>^\d\d)");
+                        Regex regex = new Regex(@"(?<number>^\d{2,3}\s)");
                         string currentPipelineNumber = "";
                         if (regex.IsMatch(alGroup.First().Alignment.Name))
                         {
@@ -1466,7 +1466,7 @@ namespace IntersectUtilities
                     foreach (Alignment al in als.OrderBy(x => x.Name))
                     {
                         string name = al.Name;
-                        Regex regex = new Regex(@"(?<number>\d{2,3}?\s)");
+                        Regex regex = new Regex(@"(?<number>\d{2,3}\s)");
 
                         string number = "";
                         if (regex.IsMatch(name))
