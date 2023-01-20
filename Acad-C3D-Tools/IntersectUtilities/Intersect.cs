@@ -7658,23 +7658,23 @@ namespace IntersectUtilities
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriOmråder);
                     PSetDefs.DriOmråder psDef = new PSetDefs.DriOmråder();
 
-                    //string[] kwds = new string[]
-                    //{
-                    //    "Vejbane",
-                    //    "Cykelsti",
-                    //    "Belægningssten",
-                    //    "Flisebelægning",
-                    //    "FOrtov",
-                    //    "Overkørsel",
-                    //    "Ubefæstet"
-                    //};
-
                     string[] kwds = new string[]
                     {
                         "Vejbane",
-                        "Befæstet",
+                        "Cykelsti",
+                        "Belægningssten",
+                        "Flisebelægning",
+                        "FOrtov",
+                        "Overkørsel",
                         "Ubefæstet"
                     };
+
+                    //string[] kwds = new string[]
+                    //{
+                    //    "Vejbane",
+                    //    "Befæstet",
+                    //    "Ubefæstet"
+                    //};
 
                     string kwd = Interaction.GetKeywords("Angiv belægning: ", kwds);
                     if (kwd == null) AbortGracefully(tx, "Input annulleret!");
