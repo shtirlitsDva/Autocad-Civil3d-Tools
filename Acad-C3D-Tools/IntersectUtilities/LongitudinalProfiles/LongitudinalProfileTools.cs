@@ -2469,19 +2469,20 @@ namespace IntersectUtilities
                                 BlockReference brWeld =
                                     dB.CreateBlockWithAttributes(weldBlockName, wPt);
 
-                                BlockReference brWeldNumber =
-                                    dB.CreateBlockWithAttributes(weldNumberBlockName, wPt);
-
-                                //Gather new weld numebrs in a collection to be able to find overlaps
-                                newWeldNumberBlocks.Add(brWeldNumber);
-
                                 //Set attributes
                                 string nummer = br.GetAttributeStringValue("NUMMER");
 
-                                brWeldNumber.SetAttributeStringValue("NUMMER", nummer);
+                                if (nummer != "")
+                                {
+                                    BlockReference brWeldNumber =
+                                    dB.CreateBlockWithAttributes(weldNumberBlockName, wPt);
 
-                                psmSource.GetOrAttachPropertySet(brWeld);
-                                psmSource.WritePropertyString(
+                                    //Gather new weld numebrs in a collection to be able to find overlaps
+                                    newWeldNumberBlocks.Add(brWeldNumber);
+                                    brWeldNumber.SetAttributeStringValue("NUMMER", nummer);
+                                }
+                                
+                                psmSource.WritePropertyString(brWeld,
                                     driSourceReference.SourceEntityHandle, br.Handle.ToString());
                                 #endregion
 
@@ -2513,60 +2514,72 @@ namespace IntersectUtilities
                             #region Overlaps function
                             double Overlaps(BlockReference i, BlockReference j)
                             {
-                                Extents3d extI = i.GeometricExtents;
-                                Extents3d extJ = j.GeometricExtents;
+                                try
+                                {
+                                    Extents3d extI = i.GeometricExtents;
+                                    Extents3d extJ = j.GeometricExtents;
 
-                                double wI = extI.MaxPoint.X - extI.MinPoint.X;
-                                double wJ = extJ.MaxPoint.X - extJ.MinPoint.X;
+                                    double wI = extI.MaxPoint.X - extI.MinPoint.X;
+                                    double wJ = extJ.MaxPoint.X - extJ.MinPoint.X;
 
-                                double threshold = wI / 2 + wJ / 2;
+                                    double threshold = wI / 2 + wJ / 2;
 
-                                double centreIX = extI.MinPoint.X + wI / 2;
-                                double centreJX = extJ.MinPoint.X + wJ / 2;
+                                    double centreIX = extI.MinPoint.X + wI / 2;
+                                    double centreJX = extJ.MinPoint.X + wJ / 2;
 
-                                double dist = Math.Abs(centreIX - centreJX);
-                                double result = dist - threshold;
+                                    double dist = Math.Abs(centreIX - centreJX);
+                                    double result = dist - threshold;
 
-                                return result < 0 ? 0 : result;
+                                    return result < 0 ? 0 : result;
+                                }
+                                catch (System.Exception ex)
+                                {
+                                    prdDbg(ex);
+                                    prdDbg(i.Handle + " " + j.Handle);
+                                    throw;
+                                }
                             }
                             #endregion
 
                             #region Find overlapping weld labels and find a solution
-                            clusters = newWeldNumberBlocks.GroupByCluster((x, y) => Overlaps(x, y), 0.0001);
-
-                            foreach (IGrouping<BlockReference, BlockReference> cluster in clusters)
+                            if (newWeldNumberBlocks.Count() > 1)
                             {
-                                if (cluster.Count() < 2) continue;
+                                clusters = newWeldNumberBlocks.GroupByCluster((x, y) => Overlaps(x, y), 0.0001);
 
-                                List<string> numbers = new List<string>();
-                                string prefix = "";
-                                foreach (BlockReference item in cluster)
+                                foreach (IGrouping<BlockReference, BlockReference> cluster in clusters)
                                 {
-                                    string number = item.GetAttributeStringValue("NUMMER");
-                                    var splits = number.Split('.');
-                                    prefix = splits[0];
-                                    numbers.Add(splits[1]);
-                                }
+                                    if (cluster.Count() < 2) continue;
 
-                                List<int> convertedNumbers = new List<int>();
-                                foreach (string number in numbers)
-                                {
-                                    int result;
-                                    if (int.TryParse(number, out result)) convertedNumbers.Add(result);
-                                }
+                                    List<string> numbers = new List<string>();
+                                    string prefix = "";
+                                    foreach (BlockReference item in cluster)
+                                    {
+                                        string number = item.GetAttributeStringValue("NUMMER");
+                                        var splits = number.Split('.');
+                                        prefix = splits[0];
+                                        numbers.Add(splits[1]);
+                                    }
 
-                                convertedNumbers.Sort();
+                                    List<int> convertedNumbers = new List<int>();
+                                    foreach (string number in numbers)
+                                    {
+                                        int result;
+                                        if (int.TryParse(number, out result)) convertedNumbers.Add(result);
+                                    }
 
-                                string finalNumber = $"{prefix}.{convertedNumbers.First().ToString("000")}" +
-                                    $" - {convertedNumbers.Last().ToString("000")}";
+                                    convertedNumbers.Sort();
 
-                                int i = 0;
-                                foreach (BlockReference item in cluster)
-                                {
-                                    if (i == 0) item.SetAttributeStringValue("NUMMER", finalNumber);
-                                    else { item.Erase(true); }
-                                    i++;
-                                }
+                                    string finalNumber = $"{prefix}.{convertedNumbers.First().ToString("000")}" +
+                                        $" - {convertedNumbers.Last().ToString("000")}";
+
+                                    int i = 0;
+                                    foreach (BlockReference item in cluster)
+                                    {
+                                        if (i == 0) item.SetAttributeStringValue("NUMMER", finalNumber);
+                                        else { item.Erase(true); }
+                                        i++;
+                                    }
+                                } 
                             }
                             #endregion
 
