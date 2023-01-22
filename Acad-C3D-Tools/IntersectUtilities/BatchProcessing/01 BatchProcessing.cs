@@ -222,9 +222,7 @@ namespace IntersectUtilities
                                     //ds.LinetypeScale = 10;
                                     //ds.Lineweight = LineWeight.LineWeight000;
                                     #endregion
-                                    #region List all VF numbers
-
-                                    #endregion
+                                    
                                     //Fix longitudinal profiles
                                     //result = fixlongitudinalprofiles(xDb);
 
