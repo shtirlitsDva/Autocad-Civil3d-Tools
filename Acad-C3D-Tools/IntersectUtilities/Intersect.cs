@@ -7781,7 +7781,7 @@ namespace IntersectUtilities
 
             FolderSelectDialog fsd = new FolderSelectDialog()
             {
-                Title = "Choose folder where view frame drawings are stored: ",
+                Title = "Choose folder where drawings are stored: ",
                 InitialDirectory = @"C:\"
             };
             if (fsd.ShowDialog(IntPtr.Zero))
@@ -7843,7 +7843,7 @@ namespace IntersectUtilities
 
             FolderSelectDialog fsd = new FolderSelectDialog()
             {
-                Title = "Choose folder where view frame drawings are stored: ",
+                Title = "Choose folder where drawings are stored: ",
                 InitialDirectory = @"C:\"
             };
             if (fsd.ShowDialog(IntPtr.Zero))
