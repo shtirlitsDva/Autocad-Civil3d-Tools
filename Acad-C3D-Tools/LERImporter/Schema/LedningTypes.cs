@@ -100,9 +100,10 @@ namespace LERImporter.Schema
         [PsInclude]
         public string LiggerILedning { get => this.liggerILedning == true ? "Sand" : "Falsk"; }
         [PsInclude]
-        public double UdvendigDiameter { get => this.udvendigDiameter?.getValueInStdUnits() ?? default; }
+        public double UdvendigDiameter { get => this.udvendigDiameter?.getValue() ?? default; }
         [PsInclude]
-        public string UndvendigDiameterUnits { get => this.udvendigDiameter?.getMeasureUnitName() ?? default; }
+        public string UdvendigDiameterUnits { get => this.udvendigDiameter?.getMeasureUnitName() ?? default; }
+        public double UdvendigDiameterInStdUnits { get => this.udvendigDiameter?.getValueInStdUnits() ?? default; }
         [PsInclude]
         public string UdvendigFarve { get => this.udvendigFarve != null ? string.Join(", ", this.udvendigFarve) : ""; }
         [PsInclude]
@@ -289,7 +290,7 @@ namespace LERImporter.Schema
 
             pline.Layer = DetermineLayerName(database);
 
-            pline.ConstantWidth = this.UdvendigDiameter;
+            pline.ConstantWidth = this.UdvendigDiameterInStdUnits;
 
             return pline.ObjectId;
         }
@@ -390,7 +391,7 @@ namespace LERImporter.Schema
 
             pline.Layer = DetermineLayerName(database);
 
-            pline.ConstantWidth = this.UdvendigDiameter;
+            pline.ConstantWidth = this.UdvendigDiameterInStdUnits;
 
             return pline.ObjectId;
         }
@@ -538,7 +539,7 @@ namespace LERImporter.Schema
 
             pline.Layer = DetermineLayerName(database);
 
-            pline.ConstantWidth = this.UdvendigDiameter;
+            pline.ConstantWidth = this.UdvendigDiameterInStdUnits;
 
             return pline.ObjectId;
         }
@@ -610,7 +611,7 @@ namespace LERImporter.Schema
 
             pline.Layer = layerName;
 
-            pline.ConstantWidth = this.UdvendigDiameter != default ? this.UdvendigDiameter : 0.011;
+            pline.ConstantWidth = this.UdvendigDiameterInStdUnits != default ? this.UdvendigDiameterInStdUnits : 0.011;
 
             return pline.Id;
         }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
+
 using Log = LERImporter.SimpleLogger;
 
 namespace LERImporter.Schema
@@ -43,6 +44,10 @@ namespace LERImporter.Schema
                 throw new Exception($"Non defined units in MeasureType: uom = {this.uom}!");
             }
         }
+        /// <summary>
+        /// Returns value as stored in gml.
+        /// </summary>
+        public double getValue() => this.Value / 1000;
         public string getMeasureUnitName()
         {
             if (string.IsNullOrEmpty(this.uom))
