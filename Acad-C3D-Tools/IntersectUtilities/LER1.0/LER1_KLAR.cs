@@ -600,7 +600,7 @@ namespace IntersectUtilities
             HashSet<Polyline3d> linesWithMissingBothNodes = new HashSet<Polyline3d>();
 
             //Data
-            string propSetNamePipes = "Spildevand_ledning";
+            string propSetNamePipes = "Spildevand_Greve_line";
             string propOpst = "BundloebskoteOpst";
             string propNedst = "BundloebskoteNedst";
             string propSetNameNodes = "DDG_knude";
@@ -710,7 +710,7 @@ namespace IntersectUtilities
             HashSet<Polyline3d> linesWithMissingBothNodes = new HashSet<Polyline3d>();
 
             //Data
-            string propSetNamePipes = "Spildevand_ledning";
+            string propSetNamePipes = "Spildevand_Greve_line";
 
             string propSetNameNodes = "Spildevand_knude";
             string bundKote = "Bundkote";
@@ -1176,7 +1176,7 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            string layerName = "Spildevand_ledning-2D";
+            string layerName = "Spildevand_Greve_line-2D";
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -1233,6 +1233,47 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        [CommandMethod("TESTPOINTELEVATION")]
+        public void testpointelevation()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var points = localDb.HashSetOfType<DBPoint>(tx);
+
+                    foreach (var pt in points)
+                    {
+                        double el = PropertySetManager.ReadNonDefinedPropertySetDouble(
+                            pt, "Spildevand_Greve_knude", "Bundkote");
+
+                        if (el.IsZero())
+                        {
+                            pt.CheckOrOpenForWrite();
+                            pt.Erase();
+                        }
+                        else
+                        {
+                            pt.CheckOrOpenForWrite();
+                            pt.Position =
+                                new Point3d(pt.Position.X, pt.Position.Y, el);   
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
 
         //[CommandMethod("TESTFALD")]
         public void testfald()
