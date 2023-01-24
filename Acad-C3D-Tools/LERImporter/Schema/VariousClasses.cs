@@ -47,7 +47,7 @@ namespace LERImporter.Schema
         /// <summary>
         /// Returns value as stored in gml.
         /// </summary>
-        public double getValue() => this.Value / 1000;
+        public double getValue() => this.Value;
         public string getMeasureUnitName()
         {
             if (string.IsNullOrEmpty(this.uom))

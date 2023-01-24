@@ -446,12 +446,16 @@ namespace LERImporter
                 //Set up all LER layers
                 foreach (string layerName in layerNames3d)
                 {
-                    string colorString = ReadStringParameterFromDataTable(layerName, dtLag, "Farve", 0);
+                    string tempLayerName = layerName;
+                    if (layerName.EndsWith("-3D")) 
+                        tempLayerName = 
+                            tempLayerName.Substring(0, tempLayerName.Length - 3);
+                    string colorString = ReadStringParameterFromDataTable(tempLayerName, dtLag, "Farve", 0);
 
                     Color color;
                     if (colorString.IsNoE())
                     {
-                        Log.log($"Ledning with layer name {layerName} could not get a color!");
+                        Log.log($"Ledning with layer name {tempLayerName} could not get a color!");
                         color = Color.FromColorIndex(ColorMethod.ByAci, 0);
                     }
                     else
@@ -459,7 +463,7 @@ namespace LERImporter
                         color = ParseColorString(colorString);
                         if (color == null)
                         {
-                            Log.log($"Ledning layer name {layerName} could not parse colorString {colorString}!");
+                            Log.log($"Ledning layer name {tempLayerName} could not parse colorString {colorString}!");
                             color = Color.FromColorIndex(ColorMethod.ByAci, 0);
                         }
                     }
