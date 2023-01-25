@@ -5123,1240 +5123,1240 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Test dynamic reading of parameters
-                    //PromptEntityOptions peo = new PromptEntityOptions("\nSelect block to read parameter: ");
-                    //peo.SetRejectMessage("\nNot a block!");
-                    //peo.AddAllowedClass(typeof(BlockReference), true);
-                    //PromptEntityResult per = editor.GetEntity(peo);
-                    //BlockReference br = per.ObjectId.Go<BlockReference>(tx);
-
-                    //System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
-                    //                    @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-
-                    //prdDbg(br.ReadDynamiskCsvProperty(DynamiskProperty.DN1, dt));
-
-                    #endregion
-
-                    #region Test sideloaded nested block location
-                    //Database fremDb = new Database(false, true);
-                    //fremDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Dev\15 DynBlockSideloaded\BlockDwg.dwg",
-                    //    FileOpenMode.OpenForReadAndAllShare, false, null);
-                    //Transaction fremTx = fremDb.TransactionManager.StartTransaction();
-                    //HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
-                    //foreach (var br in allBrs)
-                    //{
-                    //    BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(fremTx);
-                    //    foreach (Oid id in btr)
-                    //    {
-                    //        if (!id.IsDerivedFrom<BlockReference>()) continue;
-                    //        BlockReference nestedBr = id.Go<BlockReference>(fremTx);
-                    //        if (!nestedBr.Name.Contains("MuffeIntern")) continue;
-                    //        Point3d wPt = nestedBr.Position;
-                    //        wPt = wPt.TransformBy(br.BlockTransform);
-
-                    //        //Line line = new Line(new Point3d(), wPt);
-                    //        //line.AddEntityToDbModelSpace(localDb);
-                    //    }
-                    //}
-                    //fremTx.Abort();
-                    //fremTx.Dispose();
-                    //fremDb.Dispose();
-                    #endregion
-
-                    #region Test nested block location in dynamic blocks
-                    //                    var list = localDb.HashSetOfType<BlockReference>(tx);
-                    //                    foreach (var br in list)
-                    //                    {
-                    //                        BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
-                    //                        foreach (Oid id in btr)
-                    //{
-                    //                            if (!id.IsDerivedFrom<BlockReference>()) continue;
-                    //                            BlockReference nestedBr = id.Go<BlockReference>(tx);
-                    //                            if (!nestedBr.Name.Contains("MuffeIntern")) continue;
-                    //                            Point3d wPt = nestedBr.Position;
-                    //                            wPt = wPt.TransformBy(br.BlockTransform);
-
-                    //                            Line line = new Line(new Point3d(), wPt);
-                    //                            line.AddEntityToDbModelSpace(localDb);
-                    //                        }
-
-
-                    //                        //DBObjectCollection objs = new DBObjectCollection();
-                    //                        //br.Explode(objs);
-                    //                        //foreach (var item in objs)
-                    //                        //{
-                    //                        //    if (item is BlockReference nBr)
-                    //                        //    {
-                    //                        //        Line line = new Line(new Point3d(), nBr.Position);
-                    //                        //        line.AddEntityToDbModelSpace(localDb);
-                    //                        //    }
-                    //                        //}
-                    //                    }
-                    #endregion
-
-                    #region Test constant attribute, constant attr is attached to BlockTableRecord and not BR
-                    //PromptEntityOptions peo = new PromptEntityOptions("Select a BR: ");
-                    //PromptEntityResult per = editor.GetEntity(peo);
-                    //BlockReference br = per.ObjectId.Go<BlockReference>(tx);
-
-                    //prdDbg(br.GetAttributeStringValue("VERSION"));
-
-                    //foreach (Oid oid in br.AttributeCollection)
-                    //{
-                    //    AttributeReference ar = oid.Go<AttributeReference>(tx);
-                    //    prdDbg($"Name: {ar.Tag}, Text: {ar.TextString}");
-                    //}
-
-                    //BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
-                    //foreach (Oid oid in btr)
-                    //{
-                    //    if (oid.IsDerivedFrom<AttributeDefinition>())
-                    //    {
-                    //        AttributeDefinition attDef = oid.Go<AttributeDefinition>(tx);
-                    //        if (attDef.Tag == "VERSION")
-                    //        {
-                    //            prdDbg($"Constant attribute > Name: {attDef.Tag}, Text: {attDef.TextString}");
-                    //        }
-                    //    }
-                    //}
-                    #endregion
-
-                    #region Test enum list
-                    //StringBuilder sb = new StringBuilder();
-                    //HashSet<int> nums = new HashSet<int>()
-                    //{
-                    //    1, 2, 3, 4, 5, 6, 7, 8
-                    //};
-
-                    //foreach (var num in nums)
-                    //{
-                    //    string f = ((Graph.EndType)num).ToString();
-                    //    foreach (var xum in nums)
-                    //    {
-                    //        string s = ((Graph.EndType)xum).ToString();
-
-                    //        sb.AppendLine($"{f}-{s}");
-                    //    }
-                    //}
-
-                    //OutputWriter(@"C:\Temp\EntTypeEnum.txt", sb.ToString(), true);
-                    #endregion
-
-                    #region test regex
-                    //List<string> list = new List<string>()
-                    //{
-                    //    "0*123*232",
-                    //    "234*12*0",
-                    //    "0*115*230",
-                    //    "000*115*230",
-                    //    "0*0*0",
-                    //    "255*255*255",
-                    //    "231*0*98"
-                    //};
-
-                    //foreach (string s in list)
-                    //{
-                    //    var color = UtilsCommon.Utils.ParseColorString(s);
-                    //    if (color == null) prdDbg($"Parsing of string {s} failed!");
-                    //    else prdDbg($"Parsing of string {s} success!");
-                    //}
-                    #endregion
-
-                    #region Create points at vertices
-                    //var meter = new ProgressMeter();
-
-                    //string pointLayer = "0-MARKER-POINT";
-                    //localDb.CheckOrCreateLayer(pointLayer);
-
-                    //meter.Start("Gathering elements...");
-                    //var ids = QuickSelection.SelectAll("LWPOLYLINE")
-                    //    .QWhere(x => x.Layer.Contains("Etape"));
-                    //meter.SetLimit(ids.Count());
-                    //ids.QForEach(x =>
-                    //{
-                    //    var pline = x as Polyline;
-                    //    var vertNumber = pline.NumberOfVertices;
-                    //    for (int i = 0; i < vertNumber; i++)
-                    //    {
-                    //        Point3d vertLocation = pline.GetPoint3dAt(i);
-                    //        DBPoint point = new DBPoint(vertLocation);
-                    //        point.AddEntityToDbModelSpace(localDb);
-                    //        point.Layer = pointLayer;
-                    //    }
-                    //});
-                    #endregion
-
-                    #region Test clean 3d poly
-                    //PromptEntityOptions peo = new PromptEntityOptions("\nSelect pline 3d: ");
-                    //peo.SetRejectMessage("\nNot a Polyline3d!");
-                    //peo.AddAllowedClass(typeof(Polyline3d), true);
-                    //PromptEntityResult per = editor.GetEntity(peo);
-                    //Polyline3d pline = per.ObjectId.Go<Polyline3d>(tx);
-
-                    //List<int> verticesToRemove = new List<int>();
-
-                    //PolylineVertex3d[] vertices = pline.GetVertices(tx);
-
-                    //for (int i = 0; i < vertices.Length - 2; i++)
-                    //{
-                    //    PolylineVertex3d vertex1 = vertices[i];
-                    //    PolylineVertex3d vertex2 = vertices[i + 1];
-                    //    PolylineVertex3d vertex3 = vertices[i + 2];
-
-                    //    Vector3d vec1 = vertex1.Position.GetVectorTo(vertex2.Position);
-                    //    Vector3d vec2 = vertex2.Position.GetVectorTo(vertex3.Position);
-
-                    //    if (vec1.IsCodirectionalTo(vec2, Tolerance.Global)) verticesToRemove.Add(i + 1);
-                    //}
-
-                    //Point3dCollection p3ds = new Point3dCollection();
-
-                    //for (int i = 0; i < vertices.Length; i++)
-                    //{
-                    //    if (verticesToRemove.Contains(i)) continue;
-                    //    PolylineVertex3d v = vertices[i];
-                    //    p3ds.Add(v.Position);
-                    //}
-
-                    //Polyline3d nyPline = new Polyline3d(Poly3dType.SimplePoly, p3ds, false);
-                    //nyPline.AddEntityToDbModelSpace(localDb);
-
-                    //nyPline.Layer = pline.Layer;
-
-                    //pline.CheckOrOpenForWrite();
-                    //pline.Erase(true);
-                    #endregion
-
-                    #region Test redefine
-                    //string blockName = "SH LIGE";
-                    //string blockPath = @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Symboler.dwg";
-
-                    //using (var blockDb = new Database(false, true))
-                    //{
-
-                    //    // Read the DWG into a side database
-                    //    blockDb.ReadDwgFile(blockPath, FileOpenMode.OpenForReadAndAllShare, true, "");
-
-                    //    Transaction blockTx = blockDb.TransactionManager.StartTransaction();
-
-                    //    Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
-                    //    Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
-
-                    //    BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                    //    ObjectIdCollection idsToClone = new ObjectIdCollection();
-                    //    idsToClone.Add(sourceBt[blockName]);
-
-                    //    IdMapping mapping = new IdMapping();
-                    //    blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
-
-                    //    blockTx.Commit();
-                    //    blockTx.Dispose();
-                    //}
-
-                    //var existingBlocks = localDb.HashSetOfType<BlockReference>(tx);
-                    //foreach (var existingBlock in existingBlocks)
-                    //{
-                    //    if (existingBlock.RealName() == blockName)
-                    //    {
-                    //        existingBlock.ResetBlock();
-                    //        var props = existingBlock.DynamicBlockReferencePropertyCollection;
-                    //        foreach (DynamicBlockReferenceProperty prop in props)
-                    //        {
-                    //            if (prop.PropertyName == "Type") prop.Value = "200x40";
-                    //        }
-                    //        existingBlock.RecordGraphicsModified(true);
-                    //    }
-                    //}
-                    #endregion
-
-                    #region Test dynamic properties
-                    //PromptEntityOptions peo = new PromptEntityOptions("Select a BR: ");
-                    //PromptEntityResult per = editor.GetEntity(peo);
-                    //BlockReference br = per.ObjectId.Go<BlockReference>(tx);
-
-                    //DynamicBlockReferencePropertyCollection props = br.DynamicBlockReferencePropertyCollection;
-                    //foreach (DynamicBlockReferenceProperty property in props)
-                    //{
-                    //    prdDbg($"Name: {property.PropertyName}, Units: {property.UnitsType}, Value: {property.Value}");
-                    //    if (property.PropertyName == "Type")
-                    //    {
-                    //        property.Value = "Type 2";
-                    //    }
-                    //}
-
-                    ////Construct pattern which matches the parameter definition
-                    //Regex variablePattern = new Regex(@"{\$(?<Parameter>[a-zæøåA-ZÆØÅ0-9_:-]*)}");
-
-                    //stringToTry = ConstructStringByRegex(stringToTry);
-                    //prdDbg(stringToTry);
-
-                    ////Test if a pattern matches in the input string
-                    //string ConstructStringByRegex(string stringToProcess)
-                    //{
-                    //    if (variablePattern.IsMatch(stringToProcess))
-                    //    {
-                    //        //Get the first match
-                    //        Match match = variablePattern.Match(stringToProcess);
-                    //        //Get the first capture
-                    //        string capture = match.Captures[0].Value;
-                    //        //Get the parameter name from the regex match
-                    //        string parameterName = match.Groups["Parameter"].Value;
-                    //        //Read the parameter value from BR
-                    //        string parameterValue = ReadDynamicPropertyValue(br, parameterName);
-                    //        //Replace the captured group in original string with the parameter value
-                    //        stringToProcess = stringToProcess.Replace(capture, parameterValue);
-                    //        //Recursively call current function
-                    //        //It runs on the string until no more captures remain
-                    //        //Then it returns
-                    //        stringToProcess = ConstructStringByRegex(stringToProcess);
-                    //    }
-
-                    //    return stringToProcess;
-                    //}
-
-                    //string ReadDynamicPropertyValue(BlockReference block, string propertyName)
-                    //{
-                    //    DynamicBlockReferencePropertyCollection props = block.DynamicBlockReferencePropertyCollection;
-                    //    foreach (DynamicBlockReferenceProperty property in props)
-                    //    {
-                    //        //prdDbg($"Name: {property.PropertyName}, Units: {property.UnitsType}, Value: {property.Value}");
-                    //        if (property.PropertyName == propertyName)
-                    //        {
-                    //            switch (property.UnitsType)
-                    //            {
-                    //                case DynamicBlockReferencePropertyUnitsType.NoUnits:
-                    //                    return property.Value.ToString();
-                    //                case DynamicBlockReferencePropertyUnitsType.Angular:
-                    //                    double angular = Convert.ToDouble(property.Value);
-                    //                    return angular.ToDegrees().ToString("0.##");
-                    //                case DynamicBlockReferencePropertyUnitsType.Distance:
-                    //                    double distance = Convert.ToDouble(property.Value);
-                    //                    return distance.ToString("0.##");
-                    //                case DynamicBlockReferencePropertyUnitsType.Area:
-                    //                    double area = Convert.ToDouble(property.Value);
-                    //                    return area.ToString("0.00");
-                    //                default:
-                    //                    return "";
-                    //            }
-                    //        }
-                    //    }
-                    //    return "";
-                    //}
-                    #endregion
-
-                    #region QA pipe lengths
-                    //System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
-                    //        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-
-                    //HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
-                    //prdDbg($"Block count: {brs.Count}");
-
-                    //double totalLength = 0;
-                    //int antal = 0;
-
-                    //foreach (BlockReference br in brs)
-                    //{
-                    //    if (br.RealName() == "SVEJSEPUNKT" ||
-                    //        ReadStringParameterFromDataTable(br.RealName(), komponenter, "Navn", 0) == null) continue;
-
-                    //    DBObjectCollection objs = new DBObjectCollection();
-                    //    br.Explode(objs);
-
-                    //    if (br.RealName().Contains("RED KDLR"))
-                    //    {
-                    //        BlockReference br1 = null;
-                    //        BlockReference br2 = null;
-
-                    //        foreach (DBObject obj in objs)
-                    //        {
-                    //            if (obj is BlockReference muffe1 && br1 == null) br1 = muffe1;
-                    //            else if (obj is BlockReference muffe2 && br1 != null) br2 = muffe2;
-                    //        }
-
-                    //        double dist = br1.Position.DistanceHorizontalTo(br2.Position);
-                    //        totalLength += dist;
-                    //        antal++;
-                    //    }
-                    //    else
-                    //    {
-                    //        foreach (DBObject obj in objs)
-                    //        {
-                    //            if (br.RealName() == "PA TWIN S3") prdDbg(obj.GetType().Name);
-                    //            if (obj is Line line) totalLength += line.Length;
-                    //        }
-                    //        antal++;
-                    //    }
-                    //}
-
-                    //prdDbg($"Samlet længde af {antal} komponenter: {totalLength}");
-
-                    //HashSet<Profile> profiles = localDb.HashSetOfType<Profile>(tx);
-
-                    //double totalProfLength = 0;
-
-                    //foreach (Profile profile in profiles)
-                    //{
-                    //    if (profile.Name.Contains("MIDT"))
-                    //        totalProfLength += profile.Length;
-                    //}
-
-                    //prdDbg($"Profiles: {totalProfLength.ToString("0.###")}");
-
-                    //#region Read surface from file
-                    //CivSurface surface = null;
-                    //try
-                    //{
-                    //    surface = localDb
-                    //        .HashSetOfType<TinSurface>(tx)
-                    //        .FirstOrDefault() as CivSurface;
-                    //}
-                    //catch (System.Exception)
-                    //{
-                    //    throw;
-                    //}
-
-                    //if (surface == null)
-                    //{
-                    //    editor.WriteMessage("\nSurface could not be loaded!");
-                    //    tx.Abort();
-                    //    return;
-                    //}
-                    //#endregion
-
-                    //HashSet<Polyline> plines = localDb.GetFjvPipes(tx).Where(x => GetPipeDN(x) != 999).ToHashSet();
-                    //prdDbg(plines.Count.ToString());
-
-                    //double totalPlineLength = 0;
-                    //double totalFlLength = 0;
-
-                    //foreach (Polyline pline in plines)
-                    //{
-                    //    totalPlineLength += pline.Length;
-
-                    //    Oid flOid = FeatureLine.Create(pline.Handle.ToString(), pline.Id);
-                    //    FeatureLine fl = flOid.Go<FeatureLine>(tx);
-                    //    fl.AssignElevationsFromSurface(surface.Id, true);
-
-                    //    totalFlLength += fl.Length3D;
-                    //}
-
-                    //prdDbg($"Pls: {totalPlineLength.ToString("0.###")}, Fls: {totalFlLength.ToString("0.###")}");
-                    #endregion
-
-                    #region Test buerør
-                    ////PromptEntityOptions peo = new PromptEntityOptions("Select pline");
-                    ////PromptEntityResult per = editor.GetEntity(peo);
-                    ////Polyline pline = per.ObjectId.Go<Polyline>(tx);
-                    //HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
-
-                    //foreach (Polyline pline in plines)
-                    //{
-                    //    for (int j = 0; j < pline.NumberOfVertices - 1; j++)
-                    //    {
-                    //        //Guard against already cut out curves
-                    //        if (j == 0 && pline.NumberOfVertices == 2) { break; }
-                    //        double b = pline.GetBulgeAt(j);
-                    //        Point2d fP = pline.GetPoint2dAt(j);
-                    //        Point2d sP = pline.GetPoint2dAt(j + 1);
-                    //        double u = fP.GetDistanceTo(sP);
-                    //        double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
-                    //        double minRadius = PipeSchedule.GetPipeMinElasticRadius(pline);
-
-                    //        //If radius is less than minRadius a buerør is detected
-                    //        //Split the pline in segments delimiting buerør and append
-                    //        if (radius < minRadius)
-                    //        {
-                    //            prdDbg($"Buerør detected {fP.ToString()} and {sP.ToString()}.");
-                    //            prdDbg($"R: {radius}, minR: {minRadius}");
-
-                    //            Line line = new Line(new Point3d(0, 0, 0), pline.GetPointAtDist(pline.Length / 2));
-                    //            line.AddEntityToDbModelSpace(localDb);
-                    //        }
-                    //    }
-                    //}
-                    #endregion
-
-                    #region Test location point of BRs
-                    //HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
-                    //BlockReference br = brs.Where(x => x.Handle.ToString() == "4E2A23").FirstOrDefault();
-                    //prdDbg($"{br != default}");
-
-                    //Database alsDB = new Database(false, true);
-                    //alsDB.ReadDwgFile(@"X:\022-1226 Egedal - Krogholmvej, Etape 1 - Dokumenter\" +
-                    //                  @"01 Intern\02 Tegninger\01 Autocad\Alignment\Alignment - Etape 1.dwg",
-                    //    System.IO.FileShare.Read, false, string.Empty);
-                    //using (Transaction alsTx = alsDB.TransactionManager.StartTransaction())
-                    //{
-                    //    HashSet<Alignment> als = alsDB.HashSetOfType<Alignment>(alsTx);
-                    //    Alignment al = als.Where(x => x.Name == "05 Sigurdsvej").FirstOrDefault();
-
-                    //    if (al != default)
-                    //    {
-                    //        Point3d brLoc = al.GetClosestPointTo(br.Position, false);
-
-                    //        double station = 0;
-                    //        double offset = 0;
-                    //        al.StationOffset(brLoc.X, brLoc.Y, ref station, ref offset);
-                    //        prdDbg($"S: {station}, O: {offset}");
-                    //    }
-
-                    //    alsTx.Abort();
-                    //}
-                    //alsDB.Dispose();
-                    #endregion
-
-                    #region Test exploding alignment
-                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select an alignment: ");
-                    //promptEntityOptions1.SetRejectMessage("\n Not an alignment!");
-                    //promptEntityOptions1.AddAllowedClass(typeof(Alignment), true);
-                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    //Autodesk.AutoCAD.DatabaseServices.ObjectId alId = entity1.ObjectId;
-                    //Alignment al = alId.Go<Alignment>(tx);
-
-                    ////DBObjectCollection objs = new DBObjectCollection();
-                    //////First explode
-                    ////al.Explode(objs);
-                    //////Explodes to 1 block
-                    ////Entity firstExplode = (Entity)objs[0];
-                    ////Second explode
-                    ////objs = new DBObjectCollection();
-                    ////firstExplode.Explode(objs);
-                    ////prdDbg($"Subsequent block exploded to number of items: {objs.Count}.");
-
-                    //List<Oid> explodedObjects = new List<Oid>();
-
-                    //ObjectEventHandler handler = (s, e) =>
-                    //{
-                    //    explodedObjects.Add(e.DBObject.ObjectId);
-                    //};
-
-                    //localDb.ObjectAppended += handler;
-                    //editor.Command("_explode", al.ObjectId);
-                    //localDb.ObjectAppended -= handler;
-
-                    //prdDbg(explodedObjects.Count.ToString());
-
-                    ////Assume block reference is the only item
-                    //Oid bId = explodedObjects.First();
-
-                    //explodedObjects.Clear();
-
-                    //localDb.ObjectAppended += handler;
-                    //editor.Command("_explode", bId);
-                    //localDb.ObjectAppended -= handler;
-
-                    //prdDbg(explodedObjects.Count.ToString());
-                    #endregion
-
-                    #region Test size arrays
-                    //Alignment al;
-
-                    //#region Select alignment
-                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select an alignment: ");
-                    //promptEntityOptions1.SetRejectMessage("\n Not an alignment!");
-                    //promptEntityOptions1.AddAllowedClass(typeof(Alignment), true);
-                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    //Autodesk.AutoCAD.DatabaseServices.ObjectId profileId = entity1.ObjectId;
-                    //al = profileId.Go<Alignment>(tx);
-                    //#endregion
-
-                    //#region Open fremtidig db
-                    //DataReferencesOptions dro = new DataReferencesOptions();
-                    //string projectName = dro.ProjectName;
-                    //string etapeName = dro.EtapeName;
-
-                    //// open the xref database
-                    //Database fremDb = new Database(false, true);
-                    //fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                    //    System.IO.FileShare.Read, false, string.Empty);
-                    //Transaction fremTx = fremDb.TransactionManager.StartTransaction();
-                    //HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
-                    //HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
-                    //#endregion
-
-                    //try
-                    //{
-                    //    #region GetCurvesAndBRs from fremtidig
-                    //    HashSet<Curve> curves = allCurves
-                    //        .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
-                    //        .ToHashSet();
-                    //    HashSet<BlockReference> brs = allBrs
-                    //        .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
-                    //        .ToHashSet();
-                    //    prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
-                    //    #endregion
-
-                    //    //PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves);
-                    //    //prdDbg("Curves:");
-                    //    //prdDbg(sizeArray.ToString());
-
-                    //    prdDbg("Blocks:");
-                    //    PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
-                    //    prdDbg(sizeArray.ToString());
-
-                    //    //Determine direction
-                    //    HashSet<(Curve curve, double dist)> curveDistTuples =
-                    //            new HashSet<(Curve curve, double dist)>();
-                    //    prdDbg($"{al.Name}");
-                    //    Point3d samplePoint = al.GetPointAtDist(0);
-
-                    //    foreach (Curve curve in curves)
-                    //    {
-                    //        if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
-                    //        Point3d closestPoint = curve.GetClosestPointTo(samplePoint, false);
-                    //        if (closestPoint != default)
-                    //            curveDistTuples.Add(
-                    //                (curve, samplePoint.DistanceHorizontalTo(closestPoint)));
-                    //        prdDbg($"Dist: {samplePoint.DistanceHorizontalTo(closestPoint)}");
-                    //    }
-
-                    //    Curve closestCurve = curveDistTuples.MinBy(x => x.dist).FirstOrDefault().curve;
-
-                    //    int startingDn = PipeSchedule.GetPipeDN(closestCurve);
-                    //    prdDbg($"startingDn: {startingDn}");
-
-                    //    //if (sizeArray[0].DN != startingDn) sizeArray.Reverse();
-                    //}
-                    //catch (System.Exception ex)
-                    //{
-                    //    fremTx.Abort();
-                    //    fremTx.Dispose();
-                    //    fremDb.Dispose();
-                    //    prdDbg(ex.ToString());
-                    //    throw;
-                    //}
-                    //fremTx.Abort();
-                    //fremTx.Dispose();
-                    //fremDb.Dispose();
-                    #endregion
-
-                    #region RXClass to String test
-                    //prdDbg("Line: " + RXClass.GetClass(typeof(Line)).Name);
-                    //prdDbg("Spline: " + RXClass.GetClass(typeof(Spline)).Name);
-                    //prdDbg("Polyline: " + RXClass.GetClass(typeof(Polyline)).Name);
-                    #endregion
-
-                    #region Paperspace to modelspace test
-                    ////BlockTable blockTable = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                    ////BlockTableRecord paperSpace = tx.GetObject(blockTable[BlockTableRecord.PaperSpace], OpenMode.ForRead)
-                    ////    as BlockTableRecord;
-
-                    //DBDictionary layoutDict = localDb.LayoutDictionaryId.Go<DBDictionary>(tx);
-                    //var enumerator = layoutDict.GetEnumerator();
-                    //while (enumerator.MoveNext())
-                    //{
-                    //    DBDictionaryEntry item = enumerator.Current;
-                    //    prdDbg(item.Key);
-                    //    if (item.Key == "Model")
-                    //    {
-                    //        prdDbg("Skipping model...");
-                    //        continue;
-                    //    }
-
-                    //    Layout layout = item.Value.Go<Layout>(tx);
-                    //    //ObjectIdCollection vpIds = layout.GetViewports();
-
-                    //    BlockTableRecord layBlock = layout.BlockTableRecordId.Go<BlockTableRecord>(tx);
-
-                    //    foreach (Oid id in layBlock)
-                    //    {
-                    //        if (id.IsDerivedFrom<Viewport>())
-                    //        {
-                    //            Viewport viewport = id.Go<Viewport>(tx);
-                    //            //Truncate doubles to whole numebers for easier comparison
-                    //            int centerX = (int)viewport.CenterPoint.X;
-                    //            int centerY = (int)viewport.CenterPoint.Y;
-                    //            if (centerX == 422 && centerY == 442)
-                    //            {
-                    //                prdDbg("Found profile viewport!");
-                    //                Extents3d ext = viewport.GeometricExtents;
-                    //                Polyline pl = new Polyline(4);
-                    //                pl.AddVertexAt(0, new Point2d(ext.MinPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
-                    //                pl.AddVertexAt(1, new Point2d(ext.MinPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
-                    //                pl.AddVertexAt(2, new Point2d(ext.MaxPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
-                    //                pl.AddVertexAt(3, new Point2d(ext.MaxPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
-                    //                pl.Closed = true;
-                    //                pl.SetDatabaseDefaults();
-                    //                pl.PaperToModel(viewport);
-                    //                pl.Layer = "0-NONPLOT";
-                    //                pl.AddEntityToDbModelSpace<Polyline>(localDb);
-                    //            }
-                    //        }
-                    //    }
-                    //}
-                    #endregion
-
-                    #region ProfileProjectionLabel testing
-                    //HashSet<ProfileProjectionLabel> labels = localDb.HashSetOfType<ProfileProjectionLabel>(tx);
-                    //foreach (var label in labels)
-                    //{
-                    //    DBPoint testPoint = new DBPoint(label.LabelLocation);
-                    //    testPoint.AddEntityToDbModelSpace<DBPoint>(localDb);
-                    //}
-
-                    #endregion
-
-                    #region PropertySets testing 1
-                    ////IntersectUtilities.ODDataConverter.ODDataConverter.testing();
-                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                    //    "\nSelect entity to list rxobject:");
-                    //promptEntityOptions1.SetRejectMessage("\n Not a p3d!");
-                    //promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
-                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    //Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
-                    //prdDbg(CogoPoint.GetClass(typeof(CogoPoint)).Name);
-                    #endregion
-
-                    #region Print all values of all ODTable's fields
-                    ////PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                    ////    "\nSelect entity to list OdTable:");
-                    ////promptEntityOptions1.SetRejectMessage("\n Not a p3d!");
-                    ////promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
-                    ////PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    ////if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    ////Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
-
-                    //HashSet<Polyline3d> p3ds = localDb.HashSetOfType<Polyline3d>(tx, true)
-                    //    .Where(x => x.Layer == "AFL_ledning_faelles").ToHashSet();
-
-                    //foreach (Polyline3d item in p3ds)
-                    //{
-                    //    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-
-                    //    using (Records records
-                    //           = tables.GetObjectRecords(0, item.Id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
-                    //    {
-                    //        int count = records.Count;
-                    //        prdDbg($"Tables total: {count.ToString()}");
-                    //        for (int i = 0; i < count; i++)
-                    //        {
-                    //            Record record = records[i];
-                    //            int recordCount = record.Count;
-                    //            prdDbg($"Table {record.TableName} has {recordCount} fields.");
-                    //            for (int j = 0; j < recordCount; j++)
-                    //            {
-                    //                MapValue value = record[j];
-                    //                prdDbg($"R:{i + 1};V:{j + 1} : {value.StrValue}");
-                    //            }
-                    //        }
-                    //    } 
-                    //}
-                    #endregion
-
-                    #region Test removing colinear vertices
-                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                    //    "\nSelect polyline to list parameters:");
-                    //promptEntityOptions1.SetRejectMessage("\n Not a polyline!");
-                    //promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
-                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    //Autodesk.AutoCAD.DatabaseServices.ObjectId plineId = entity1.ObjectId;
-
-                    //Polyline pline = plineId.Go<Polyline>(tx);
-
-                    //RemoveColinearVerticesPolyline(pline);
-                    #endregion
-
-                    #region Test polyline parameter and vertices
-                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                    //    "\nSelect polyline to list parameters:");
-                    //promptEntityOptions1.SetRejectMessage("\n Not a polyline!");
-                    //promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
-                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    //Autodesk.AutoCAD.DatabaseServices.ObjectId plineId = entity1.ObjectId;
-
-                    //Polyline pline = plineId.Go<Polyline>(tx);
-
-                    //for (int i = 0; i < pline.NumberOfVertices; i++)
-                    //{
-                    //    Point3d p3d = pline.GetPoint3dAt(i);
-                    //    prdDbg($"Vertex: {i}, Parameter: {pline.GetParameterAtPoint(p3d)}");
-                    //}
-                    #endregion
-
-                    #region List all gas stik materialer
-                    //Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-                    //HashSet<Polyline3d> p3ds = localDb.HashSetOfType<Polyline3d>(tx)
-                    //                                  .Where(x => x.Layer == "GAS-Stikrør" ||
-                    //                                              x.Layer == "GAS-Stikrør-2D")
-                    //                                  .ToHashSet();
-                    //HashSet<string> materials = new HashSet<string>();
-                    //foreach (Polyline3d p3d in p3ds)
-                    //{
-                    //    materials.Add(ReadPropertyToStringValue(tables, p3d.Id, "GasDimOgMat", "Material"));
-                    //}
-
-                    //var ordered = materials.OrderBy(x => x);
-                    //foreach (string s in ordered) prdDbg(s);
-                    #endregion
-
-                    #region ODTables troubles
-
-                    //try
-                    //{
-                    //    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-                    //    StringCollection names = tables.GetTableNames();
-                    //    foreach (string name in names)
-                    //    {
-                    //        prdDbg(name);
-                    //        Autodesk.Gis.Map.ObjectData.Table table = null;
-                    //        try
-                    //        {
-                    //            table = tables[name];
-                    //            FieldDefinitions defs = table.FieldDefinitions;
-                    //            for (int i = 0; i < defs.Count; i++)
-                    //            {
-                    //                if (defs[i].Name.Contains("DIA") ||
-                    //                    defs[i].Name.Contains("Dia") ||
-                    //                    defs[i].Name.Contains("dia")) prdDbg(defs[i].Name);
-                    //            }
-                    //        }
-                    //        catch (Autodesk.Gis.Map.MapException e)
-                    //        {
-                    //            var errCode = (Autodesk.Gis.Map.Constants.ErrorCode)(e.ErrorCode);
-                    //            prdDbg(errCode.ToString());
-
-                    //            MapApplication app = HostMapApplicationServices.Application;
-                    //            FieldDefinitions tabDefs = app.ActiveProject.MapUtility.NewODFieldDefinitions();
-                    //            tabDefs.AddColumn(
-                    //                FieldDefinition.Create("Diameter", "Diameter of crossing pipe", DataType.Character), 0);
-                    //            tabDefs.AddColumn(
-                    //                FieldDefinition.Create("Alignment", "Alignment name", DataType.Character), 1);
-                    //            tables.RemoveTable("CrossingData");
-                    //            tables.Add("CrossingData", tabDefs, "Table holding relevant crossing data", true);
-                    //            //tables.UpdateTable("CrossingData", tabDefs);
-                    //        }
-                    //    }
-                    //}
-                    //catch (Autodesk.Gis.Map.MapException e)
-                    //{
-                    //    var errCode = (Autodesk.Gis.Map.Constants.ErrorCode)(e.ErrorCode);
-                    //    prdDbg(errCode.ToString());
-                    //}
-
-
-
-
-                    #endregion
-
-                    #region ChangeLayerOfXref
-
-                    //string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\5.5\";
-
-                    //var fileList = File.ReadAllLines(path + "fileList.txt").ToList();
-
-                    //foreach (string name in fileList)
-                    //{
-                    //    prdDbg(name);
-                    //}
-
-                    //foreach (string name in fileList)
-                    //{
-                    //    prdDbg(name);
-                    //    string fileName = path + name;
-                    //    prdDbg(fileName);
-
-                    //    using (Database extDb = new Database(false, true))
-                    //    {
-                    //        extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
-
-                    //        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
-                    //        {
-                    //            BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-
-                    //            foreach (oid oid in bt)
-                    //            {
-                    //                BlockTableRecord btr = extTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
-                    //                if (btr.Name.Contains("_alignment"))
-                    //                {
-                    //                    var ids = btr.GetBlockReferenceIds(true, true);
-                    //                    foreach (oid brId in ids)
-                    //                    {
-                    //                        BlockReference br = brId.Go<BlockReference>(extTx, OpenMode.ForWrite);
-                    //                        prdDbg(br.Name);
-                    //                        if (br.Layer == "0") { prdDbg("Already in 0! Skipping..."); continue; }
-                    //                        prdDbg("Was in: :" + br.Layer);
-                    //                        br.Layer = "0";
-                    //                        prdDbg("Moved to: " + br.Layer);
-                    //                        System.Windows.Forms.Application.DoEvents();
-                    //                    }
-                    //                }
-                    //            }
-                    //            extTx.Commit();
-                    //        }
-                    //        extDb.SaveAs(extDb.Filename, DwgVersion.Current);
-
-                    //    }
-                    //}
-                    #endregion
-
-                    #region List blocks scale
-                    //HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
-                    //foreach (BlockReference br in brs)
-                    //{
-                    //    prdDbg(br.ScaleFactors.ToString());
-                    //}
-                    #endregion
-
-                    #region Gather alignment names
-                    //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-
-                    //foreach (Alignment al in als.OrderBy(x => x.Name))
-                    //{
-                    //    editor.WriteMessage($"\n{al.Name}");
-                    //}
-
-                    #endregion
-
-                    #region Test ODTables from external database
-                    //Tables odTables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-                    //StringCollection curDbTables = new StringCollection();
-                    //Database curDb = HostApplicationServices.WorkingDatabase;
-                    //StringCollection allDbTables = odTables.GetTableNames();
-                    //Autodesk.Gis.Map.Project.AttachedDrawings attachedDwgs =
-                    //    HostMapApplicationServices.Application.ActiveProject.DrawingSet.AllAttachedDrawings;
-
-                    //int directDWGCount = HostMapApplicationServices.Application.ActiveProject.DrawingSet.DirectDrawingsCount;
-
-                    //foreach (String name in allDbTables)
-                    //{
-                    //    Autodesk.Gis.Map.ObjectData.Table table = odTables[name];
-
-                    //    bool bTableExistsInCurDb = true;
-
-                    //    for (int i = 0; i < directDWGCount; ++i)
-                    //    {
-                    //        Autodesk.Gis.Map.Project.AttachedDrawing attDwg = attachedDwgs[i];
-
-                    //        StringCollection attachedTables = attDwg.GetTableList(Autodesk.Gis.Map.Constants.TableType.ObjectDataTable);
-                    //    }
-                    //    if (bTableExistsInCurDb)
-
-                    //        curDbTables.Add(name);
-
-                    //}
-
-                    //editor.WriteMessage("Current Drawing Object Data Tables Names :\r\n");
-
-                    //foreach (String name in curDbTables)
-                    //{
-
-                    //    editor.WriteMessage(name + "\r\n");
-
-                    //}
-
-                    #endregion
-
-                    #region Test description field population
-                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                    //"\nSelect test subject:");
-                    //promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
-                    //promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
-                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    //Autodesk.AutoCAD.DatabaseServices.ObjectId lineId = entity1.ObjectId;
-                    //Entity ent = lineId.Go<Entity>(tx);
-
-                    //Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
-
-                    //#region Read Csv Data for Layers and Depth
-
-                    ////Establish the pathnames to files
-                    ////Files should be placed in a specific folder on desktop
-                    //string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-                    //string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
-
-                    //System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
-                    //System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
-
-                    //#endregion
-
-                    ////Populate description field
-                    ////1. Read size record if it exists
-                    //MapValue sizeRecord = Utils.ReadRecordData(
-                    //    tables, lineId, "SizeTable", "Size");
-                    //int SizeTableSize = 0;
-                    //string sizeDescrPart = "";
-                    //if (sizeRecord != null)
-                    //{
-                    //    SizeTableSize = sizeRecord.Int32Value;
-                    //    sizeDescrPart = $"ø{SizeTableSize}";
-                    //}
-
-                    ////2. Read description from Krydsninger
-                    //string descrFromKrydsninger = ReadStringParameterFromDataTable(
-                    //    ent.Layer, dtKrydsninger, "Description", 0);
-
-                    ////2.1 Read the formatting in the description field
-                    //List<(string ToReplace, string Data)> descrFormatList = null;
-                    //if (descrFromKrydsninger.IsNotNoE())
-                    //    descrFormatList = FindDescriptionParts(descrFromKrydsninger);
-
-                    ////Finally: Compose description field
-                    //List<string> descrParts = new List<string>();
-                    ////1. Add custom size
-                    //if (SizeTableSize != 0) descrParts.Add(sizeDescrPart);
-                    ////2. Process and add parts from format bits in OD
-                    //if (descrFromKrydsninger.IsNotNoE())
-                    //{
-                    //    //Interpolate description from Krydsninger with format setting, if they exist
-                    //    if (descrFormatList != null && descrFormatList.Count > 0)
-                    //    {
-                    //        for (int i = 0; i < descrFormatList.Count; i++)
-                    //        {
-                    //            var tuple = descrFormatList[i];
-                    //            string result = ReadDescriptionPartsFromOD(tables, ent, tuple.Data, dtKrydsninger);
-                    //            descrFromKrydsninger = descrFromKrydsninger.Replace(tuple.ToReplace, result);
-                    //        }
-                    //    }
-
-                    //    //Add the description field to parts
-                    //    descrParts.Add(descrFromKrydsninger);
-                    //}
-
-                    //string description = "";
-                    //if (descrParts.Count == 1) description = descrParts[0];
-                    //else if (descrParts.Count > 1)
-                    //    description = string.Join("; ", descrParts);
-
-                    //editor.WriteMessage($"\n{description}");
-                    #endregion
-
-                    #region GetDistance
-                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
-                    //"\nSelect line:");
-                    //promptEntityOptions1.SetRejectMessage("\n Not a line!");
-                    //promptEntityOptions1.AddAllowedClass(typeof(Line), true);
-                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    //Autodesk.AutoCAD.DatabaseServices.ObjectId lineId = entity1.ObjectId;
-
-                    //PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
-                    //"\nSelect p3dpoly:");
-                    //promptEntityOptions2.SetRejectMessage("\n Not a p3dpoly!");
-                    //promptEntityOptions2.AddAllowedClass(typeof(Polyline3d), true);
-                    //PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
-                    //if (((PromptResult)entity2).Status != PromptStatus.OK) return;
-                    //Autodesk.AutoCAD.DatabaseServices.ObjectId poly3dId = entity2.ObjectId;
-
-                    //Line line = lineId.Go<Line>(tx);
-                    //Polyline3d p3d = poly3dId.Go<Polyline3d>(tx);
-
-                    //double distance = line.GetGeCurve().GetDistanceTo(
-                    //    p3d.GetGeCurve());
-
-                    //editor.WriteMessage($"\nDistance: {distance}.");
-                    //editor.WriteMessage($"\nIs less than 0.1: {distance < 0.1}.");
-
-                    //if (distance < 0.1)
-                    //{
-                    //    PointOnCurve3d[] intPoints = line.GetGeCurve().GetClosestPointTo(
-                    //                                 p3d.GetGeCurve());
-
-                    //    //Assume one intersection
-                    //    Point3d result = intPoints.First().Point;
-                    //    editor.WriteMessage($"\nDetected elevation: {result.Z}.");
-                    //}
-
-                    #endregion
-
-                    #region CleanMtexts
-                    //HashSet<MText> mtexts = localDb.HashSetOfType<MText>(tx);
-
-                    //foreach (MText mText in mtexts)
-                    //{
-                    //    string contents = mText.Contents;
-
-                    //    contents = contents.Replace(@"\H3.17507;", "");
-
-                    //    mText.CheckOrOpenForWrite();
-
-                    //    mText.Contents = contents;
-                    //} 
-                    #endregion
-
-                    #region Test PV start and end station
-
-                    //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-                    //foreach (Alignment al in als)
-                    //{
-                    //    ObjectIdCollection pIds = al.GetProfileIds();
-                    //    Profile p = null;
-                    //    foreach (oid oid in pIds)
-                    //    {
-                    //        Profile pt = oid.Go<Profile>(tx);
-                    //        if (pt.Name == $"{al.Name}_surface_P") p = pt;
-                    //    }
-                    //    if (p == null) return;
-                    //    else editor.WriteMessage($"\nProfile {p.Name} found!");
-
-                    //    ProfileView[] pvs = localDb.ListOfType<ProfileView>(tx).ToArray();
-
-                    //    foreach (ProfileView pv in pvs)
-                    //    {
-                    //        editor.WriteMessage($"\nName of pv: {pv.Name}.");
-
-                    #region Test finding of max elevation
-                    //double pvStStart = pv.StationStart;
-                    //double pvStEnd = pv.StationEnd;
-
-                    //int nrOfIntervals = 100;
-                    //double delta = (pvStEnd - pvStStart) / nrOfIntervals;
-                    //HashSet<double> elevs = new HashSet<double>();
-
-                    //for (int i = 0; i < nrOfIntervals + 1; i++)
-                    //{
-                    //    double testEl = p.ElevationAt(pvStStart + delta * i);
-                    //    elevs.Add(testEl);
-                    //    editor.WriteMessage($"\nElevation at {i} is {testEl}.");
-                    //}
-
-                    //double maxEl = elevs.Max();
-                    //editor.WriteMessage($"\nMax elevation of {pv.Name} is {maxEl}.");
-
-                    //pv.CheckOrOpenForWrite();
-                    //pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
-
-                    //pv.ElevationMax = Math.Ceiling(maxEl); 
-                    #endregion
-                    //}
-                    //}
-
-
-
-                    #endregion
-
-                    #region Test station and offset alignment
-                    //#region Select point
-                    //PromptPointOptions pPtOpts = new PromptPointOptions("");
-                    //// Prompt for the start point
-                    //pPtOpts.Message = "\nEnter location to test the alignment:";
-                    //PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
-                    //Point3d selectedPoint = pPtRes.Value;
-                    //// Exit if the user presses ESC or cancels the command
-                    //if (pPtRes.Status != PromptStatus.OK) return;
-                    //#endregion
-
-                    //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
-
-                    //foreach (Alignment al in als)
-                    //{
-                    //    double station = 0;
-                    //    double offset = 0;
-
-                    //    al.StationOffset(selectedPoint.X, selectedPoint.Y, ref station, ref offset);
-
-                    //    editor.WriteMessage($"\nReported: ST: {station}, OS: {offset}.");
-                    //} 
-                    #endregion
-
-                    #region Test assigning labels and point styles
-                    //oid cogoPointStyle = civilDoc.Styles.PointStyles["LER KRYDS"];
-                    //CogoPointCollection cpc = civilDoc.CogoPoints;
-
-                    //foreach (oid cpOid in cpc)
-                    //{
-                    //    CogoPoint cp = cpOid.Go<CogoPoint>(tx, OpenMode.ForWrite);
-                    //    cp.StyleId = cogoPointStyle;
-                    //}
-
-                    #endregion
-
-                    #region Profile style and PV elevation
-                    //CivilDocument cDoc = CivilDocument.GetCivilDocument(localDb);
-                    //var als = localDb.HashSetOfType<Alignment>(tx);
-                    //foreach (Alignment al in als)
-                    //{
-                    //    var pIds = al.GetProfileIds();
-                    //    var pvIds = al.GetProfileViewIds();
-
-                    //    Profile pSurface = null;
-                    //    foreach (Oid oid in pIds)
-                    //    {
-                    //        Profile pt = oid.Go<Profile>(tx);
-                    //        if (pt.Name == $"{al.Name}_surface_P") pSurface = pt;
-                    //    }
-                    //    if (pSurface == null)
-                    //    {
-                    //        //AbortGracefully(
-                    //        //    new[] { xRefLerTx, xRefSurfaceTx },
-                    //        //    new[] { xRefLerDB, xRefSurfaceDB },
-                    //        //    $"No profile named {alignment.Name}_surface_P found!");
-                    //        prdDbg($"No surface profile {al.Name}_surface_P found!");
-                    //        tx.Abort();
-                    //        return;
-                    //    }
-                    //    else prdDbg($"\nProfile {pSurface.Name} found!");
-
-                    //    foreach (ProfileView pv in pvIds.Entities<ProfileView>(tx))
-                    //    {
-                    //        #region Determine profile top and bottom elevations
-                    //        double pvStStart = pv.StationStart;
-                    //        double pvStEnd = pv.StationEnd;
-
-                    //        int nrOfIntervals = (int)((pvStEnd - pvStStart) / 0.25);
-                    //        double delta = (pvStEnd - pvStStart) / nrOfIntervals;
-                    //        HashSet<double> topElevs = new HashSet<double>();
-
-                    //        for (int j = 0; j < nrOfIntervals + 1; j++)
-                    //        {
-                    //            double topTestEl = 0;
-                    //            try
-                    //            {
-                    //                topTestEl = pSurface.ElevationAt(pvStStart + delta * j);
-                    //            }
-                    //            catch (System.Exception)
-                    //            {
-                    //                editor.WriteMessage($"\nTop profile at {pvStStart + delta * j} threw an exception! " +
-                    //                    $"PV: {pv.StationStart}-{pv.StationEnd}.");
-                    //                continue;
-                    //            }
-                    //            topElevs.Add(topTestEl);
-                    //        }
-
-                    //        double maxEl = topElevs.Max();
-                    //        double minEl = topElevs.Min();
-
-                    //        prdDbg($"\nElevations of PV {pv.Name}> Max: {Math.Round(maxEl, 2)} | Min: {Math.Round(minEl, 2)}");
-
-                    //        //Set the elevations
-                    //        pv.CheckOrOpenForWrite();
-                    //        pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
-                    //        pv.ElevationMax = Math.Ceiling(maxEl);
-                    //        pv.ElevationMin = Math.Floor(minEl) - 3.0;
-                    //        #endregion
-
-                    //        Oid sId = cDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R 1:250:100"];
-                    //        pv.CheckOrOpenForWrite();
-                    //        pv.StyleId = sId;
-                    //    }
-
-                    //    //Set profile style
-                    //    localDb.CheckOrCreateLayer("0_TERRAIN_PROFILE", 34);
-
-                    //    Oid profileStyleId = cDoc.Styles.ProfileStyles["Terræn"];
-                    //    pSurface.CheckOrOpenForWrite();
-                    //    pSurface.StyleId = profileStyleId;
-                    //}
-                    #endregion
-
-                    #region Test view frame numbers
-                    //ViewFrameGroup vfg = localDb.ListOfType<ViewFrameGroup>(tx).FirstOrDefault();
-                    //if (vfg != null)
-                    //{
-                    //    var ids = vfg.GetViewFrameIds();
-                    //    var ents = ids.Entities<ViewFrame>(tx);
-                    //    foreach (var item in ents)
-                    //    {
-                    //        prdDbg(item.Name);
-                    //    }
-                    //}
-                    #endregion
-                }
+                #region Test dynamic reading of parameters
+                //PromptEntityOptions peo = new PromptEntityOptions("\nSelect block to read parameter: ");
+                //peo.SetRejectMessage("\nNot a block!");
+                //peo.AddAllowedClass(typeof(BlockReference), true);
+                //PromptEntityResult per = editor.GetEntity(peo);
+                //BlockReference br = per.ObjectId.Go<BlockReference>(tx);
+
+                //System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
+                //                    @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+                //prdDbg(br.ReadDynamiskCsvProperty(DynamiskProperty.DN1, dt));
+
+                #endregion
+
+                #region Test sideloaded nested block location
+                //Database fremDb = new Database(false, true);
+                //fremDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Dev\15 DynBlockSideloaded\BlockDwg.dwg",
+                //    FileOpenMode.OpenForReadAndAllShare, false, null);
+                //Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                //HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                //foreach (var br in allBrs)
+                //{
+                //    BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(fremTx);
+                //    foreach (Oid id in btr)
+                //    {
+                //        if (!id.IsDerivedFrom<BlockReference>()) continue;
+                //        BlockReference nestedBr = id.Go<BlockReference>(fremTx);
+                //        if (!nestedBr.Name.Contains("MuffeIntern")) continue;
+                //        Point3d wPt = nestedBr.Position;
+                //        wPt = wPt.TransformBy(br.BlockTransform);
+
+                //        //Line line = new Line(new Point3d(), wPt);
+                //        //line.AddEntityToDbModelSpace(localDb);
+                //    }
+                //}
+                //fremTx.Abort();
+                //fremTx.Dispose();
+                //fremDb.Dispose();
+                #endregion
+
+                #region Test nested block location in dynamic blocks
+                //                    var list = localDb.HashSetOfType<BlockReference>(tx);
+                //                    foreach (var br in list)
+                //                    {
+                //                        BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+                //                        foreach (Oid id in btr)
+                //{
+                //                            if (!id.IsDerivedFrom<BlockReference>()) continue;
+                //                            BlockReference nestedBr = id.Go<BlockReference>(tx);
+                //                            if (!nestedBr.Name.Contains("MuffeIntern")) continue;
+                //                            Point3d wPt = nestedBr.Position;
+                //                            wPt = wPt.TransformBy(br.BlockTransform);
+
+                //                            Line line = new Line(new Point3d(), wPt);
+                //                            line.AddEntityToDbModelSpace(localDb);
+                //                        }
+
+
+                //                        //DBObjectCollection objs = new DBObjectCollection();
+                //                        //br.Explode(objs);
+                //                        //foreach (var item in objs)
+                //                        //{
+                //                        //    if (item is BlockReference nBr)
+                //                        //    {
+                //                        //        Line line = new Line(new Point3d(), nBr.Position);
+                //                        //        line.AddEntityToDbModelSpace(localDb);
+                //                        //    }
+                //                        //}
+                //                    }
+                #endregion
+
+                #region Test constant attribute, constant attr is attached to BlockTableRecord and not BR
+                //PromptEntityOptions peo = new PromptEntityOptions("Select a BR: ");
+                //PromptEntityResult per = editor.GetEntity(peo);
+                //BlockReference br = per.ObjectId.Go<BlockReference>(tx);
+
+                //prdDbg(br.GetAttributeStringValue("VERSION"));
+
+                //foreach (Oid oid in br.AttributeCollection)
+                //{
+                //    AttributeReference ar = oid.Go<AttributeReference>(tx);
+                //    prdDbg($"Name: {ar.Tag}, Text: {ar.TextString}");
+                //}
+
+                //BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+                //foreach (Oid oid in btr)
+                //{
+                //    if (oid.IsDerivedFrom<AttributeDefinition>())
+                //    {
+                //        AttributeDefinition attDef = oid.Go<AttributeDefinition>(tx);
+                //        if (attDef.Tag == "VERSION")
+                //        {
+                //            prdDbg($"Constant attribute > Name: {attDef.Tag}, Text: {attDef.TextString}");
+                //        }
+                //    }
+                //}
+                #endregion
+
+                #region Test enum list
+                //StringBuilder sb = new StringBuilder();
+                //HashSet<int> nums = new HashSet<int>()
+                //{
+                //    1, 2, 3, 4, 5, 6, 7, 8
+                //};
+
+                //foreach (var num in nums)
+                //{
+                //    string f = ((Graph.EndType)num).ToString();
+                //    foreach (var xum in nums)
+                //    {
+                //        string s = ((Graph.EndType)xum).ToString();
+
+                //        sb.AppendLine($"{f}-{s}");
+                //    }
+                //}
+
+                //OutputWriter(@"C:\Temp\EntTypeEnum.txt", sb.ToString(), true);
+                #endregion
+
+                #region test regex
+                //List<string> list = new List<string>()
+                //{
+                //    "0*123*232",
+                //    "234*12*0",
+                //    "0*115*230",
+                //    "000*115*230",
+                //    "0*0*0",
+                //    "255*255*255",
+                //    "231*0*98"
+                //};
+
+                //foreach (string s in list)
+                //{
+                //    var color = UtilsCommon.Utils.ParseColorString(s);
+                //    if (color == null) prdDbg($"Parsing of string {s} failed!");
+                //    else prdDbg($"Parsing of string {s} success!");
+                //}
+                #endregion
+
+                #region Create points at vertices
+                //var meter = new ProgressMeter();
+
+                //string pointLayer = "0-MARKER-POINT";
+                //localDb.CheckOrCreateLayer(pointLayer);
+
+                //meter.Start("Gathering elements...");
+                //var ids = QuickSelection.SelectAll("LWPOLYLINE")
+                //    .QWhere(x => x.Layer.Contains("Etape"));
+                //meter.SetLimit(ids.Count());
+                //ids.QForEach(x =>
+                //{
+                //    var pline = x as Polyline;
+                //    var vertNumber = pline.NumberOfVertices;
+                //    for (int i = 0; i < vertNumber; i++)
+                //    {
+                //        Point3d vertLocation = pline.GetPoint3dAt(i);
+                //        DBPoint point = new DBPoint(vertLocation);
+                //        point.AddEntityToDbModelSpace(localDb);
+                //        point.Layer = pointLayer;
+                //    }
+                //});
+                #endregion
+
+                #region Test clean 3d poly
+                //PromptEntityOptions peo = new PromptEntityOptions("\nSelect pline 3d: ");
+                //peo.SetRejectMessage("\nNot a Polyline3d!");
+                //peo.AddAllowedClass(typeof(Polyline3d), true);
+                //PromptEntityResult per = editor.GetEntity(peo);
+                //Polyline3d pline = per.ObjectId.Go<Polyline3d>(tx);
+
+                //List<int> verticesToRemove = new List<int>();
+
+                //PolylineVertex3d[] vertices = pline.GetVertices(tx);
+
+                //for (int i = 0; i < vertices.Length - 2; i++)
+                //{
+                //    PolylineVertex3d vertex1 = vertices[i];
+                //    PolylineVertex3d vertex2 = vertices[i + 1];
+                //    PolylineVertex3d vertex3 = vertices[i + 2];
+
+                //    Vector3d vec1 = vertex1.Position.GetVectorTo(vertex2.Position);
+                //    Vector3d vec2 = vertex2.Position.GetVectorTo(vertex3.Position);
+
+                //    if (vec1.IsCodirectionalTo(vec2, Tolerance.Global)) verticesToRemove.Add(i + 1);
+                //}
+
+                //Point3dCollection p3ds = new Point3dCollection();
+
+                //for (int i = 0; i < vertices.Length; i++)
+                //{
+                //    if (verticesToRemove.Contains(i)) continue;
+                //    PolylineVertex3d v = vertices[i];
+                //    p3ds.Add(v.Position);
+                //}
+
+                //Polyline3d nyPline = new Polyline3d(Poly3dType.SimplePoly, p3ds, false);
+                //nyPline.AddEntityToDbModelSpace(localDb);
+
+                //nyPline.Layer = pline.Layer;
+
+                //pline.CheckOrOpenForWrite();
+                //pline.Erase(true);
+                #endregion
+
+                #region Test redefine
+                //string blockName = "SH LIGE";
+                //string blockPath = @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Symboler.dwg";
+
+                //using (var blockDb = new Database(false, true))
+                //{
+
+                //    // Read the DWG into a side database
+                //    blockDb.ReadDwgFile(blockPath, FileOpenMode.OpenForReadAndAllShare, true, "");
+
+                //    Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+
+                //    Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                //    Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+
+                //    BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                //    ObjectIdCollection idsToClone = new ObjectIdCollection();
+                //    idsToClone.Add(sourceBt[blockName]);
+
+                //    IdMapping mapping = new IdMapping();
+                //    blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+
+                //    blockTx.Commit();
+                //    blockTx.Dispose();
+                //}
+
+                //var existingBlocks = localDb.HashSetOfType<BlockReference>(tx);
+                //foreach (var existingBlock in existingBlocks)
+                //{
+                //    if (existingBlock.RealName() == blockName)
+                //    {
+                //        existingBlock.ResetBlock();
+                //        var props = existingBlock.DynamicBlockReferencePropertyCollection;
+                //        foreach (DynamicBlockReferenceProperty prop in props)
+                //        {
+                //            if (prop.PropertyName == "Type") prop.Value = "200x40";
+                //        }
+                //        existingBlock.RecordGraphicsModified(true);
+                //    }
+                //}
+                #endregion
+
+                #region Test dynamic properties
+                //PromptEntityOptions peo = new PromptEntityOptions("Select a BR: ");
+                //PromptEntityResult per = editor.GetEntity(peo);
+                //BlockReference br = per.ObjectId.Go<BlockReference>(tx);
+
+                //DynamicBlockReferencePropertyCollection props = br.DynamicBlockReferencePropertyCollection;
+                //foreach (DynamicBlockReferenceProperty property in props)
+                //{
+                //    prdDbg($"Name: {property.PropertyName}, Units: {property.UnitsType}, Value: {property.Value}");
+                //    if (property.PropertyName == "Type")
+                //    {
+                //        property.Value = "Type 2";
+                //    }
+                //}
+
+                ////Construct pattern which matches the parameter definition
+                //Regex variablePattern = new Regex(@"{\$(?<Parameter>[a-zæøåA-ZÆØÅ0-9_:-]*)}");
+
+                //stringToTry = ConstructStringByRegex(stringToTry);
+                //prdDbg(stringToTry);
+
+                ////Test if a pattern matches in the input string
+                //string ConstructStringByRegex(string stringToProcess)
+                //{
+                //    if (variablePattern.IsMatch(stringToProcess))
+                //    {
+                //        //Get the first match
+                //        Match match = variablePattern.Match(stringToProcess);
+                //        //Get the first capture
+                //        string capture = match.Captures[0].Value;
+                //        //Get the parameter name from the regex match
+                //        string parameterName = match.Groups["Parameter"].Value;
+                //        //Read the parameter value from BR
+                //        string parameterValue = ReadDynamicPropertyValue(br, parameterName);
+                //        //Replace the captured group in original string with the parameter value
+                //        stringToProcess = stringToProcess.Replace(capture, parameterValue);
+                //        //Recursively call current function
+                //        //It runs on the string until no more captures remain
+                //        //Then it returns
+                //        stringToProcess = ConstructStringByRegex(stringToProcess);
+                //    }
+
+                //    return stringToProcess;
+                //}
+
+                //string ReadDynamicPropertyValue(BlockReference block, string propertyName)
+                //{
+                //    DynamicBlockReferencePropertyCollection props = block.DynamicBlockReferencePropertyCollection;
+                //    foreach (DynamicBlockReferenceProperty property in props)
+                //    {
+                //        //prdDbg($"Name: {property.PropertyName}, Units: {property.UnitsType}, Value: {property.Value}");
+                //        if (property.PropertyName == propertyName)
+                //        {
+                //            switch (property.UnitsType)
+                //            {
+                //                case DynamicBlockReferencePropertyUnitsType.NoUnits:
+                //                    return property.Value.ToString();
+                //                case DynamicBlockReferencePropertyUnitsType.Angular:
+                //                    double angular = Convert.ToDouble(property.Value);
+                //                    return angular.ToDegrees().ToString("0.##");
+                //                case DynamicBlockReferencePropertyUnitsType.Distance:
+                //                    double distance = Convert.ToDouble(property.Value);
+                //                    return distance.ToString("0.##");
+                //                case DynamicBlockReferencePropertyUnitsType.Area:
+                //                    double area = Convert.ToDouble(property.Value);
+                //                    return area.ToString("0.00");
+                //                default:
+                //                    return "";
+                //            }
+                //        }
+                //    }
+                //    return "";
+                //}
+                #endregion
+
+                #region QA pipe lengths
+                //System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
+                //        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+                //HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
+                //prdDbg($"Block count: {brs.Count}");
+
+                //double totalLength = 0;
+                //int antal = 0;
+
+                //foreach (BlockReference br in brs)
+                //{
+                //    if (br.RealName() == "SVEJSEPUNKT" ||
+                //        ReadStringParameterFromDataTable(br.RealName(), komponenter, "Navn", 0) == null) continue;
+
+                //    DBObjectCollection objs = new DBObjectCollection();
+                //    br.Explode(objs);
+
+                //    if (br.RealName().Contains("RED KDLR"))
+                //    {
+                //        BlockReference br1 = null;
+                //        BlockReference br2 = null;
+
+                //        foreach (DBObject obj in objs)
+                //        {
+                //            if (obj is BlockReference muffe1 && br1 == null) br1 = muffe1;
+                //            else if (obj is BlockReference muffe2 && br1 != null) br2 = muffe2;
+                //        }
+
+                //        double dist = br1.Position.DistanceHorizontalTo(br2.Position);
+                //        totalLength += dist;
+                //        antal++;
+                //    }
+                //    else
+                //    {
+                //        foreach (DBObject obj in objs)
+                //        {
+                //            if (br.RealName() == "PA TWIN S3") prdDbg(obj.GetType().Name);
+                //            if (obj is Line line) totalLength += line.Length;
+                //        }
+                //        antal++;
+                //    }
+                //}
+
+                //prdDbg($"Samlet længde af {antal} komponenter: {totalLength}");
+
+                //HashSet<Profile> profiles = localDb.HashSetOfType<Profile>(tx);
+
+                //double totalProfLength = 0;
+
+                //foreach (Profile profile in profiles)
+                //{
+                //    if (profile.Name.Contains("MIDT"))
+                //        totalProfLength += profile.Length;
+                //}
+
+                //prdDbg($"Profiles: {totalProfLength.ToString("0.###")}");
+
+                //#region Read surface from file
+                //CivSurface surface = null;
+                //try
+                //{
+                //    surface = localDb
+                //        .HashSetOfType<TinSurface>(tx)
+                //        .FirstOrDefault() as CivSurface;
+                //}
+                //catch (System.Exception)
+                //{
+                //    throw;
+                //}
+
+                //if (surface == null)
+                //{
+                //    editor.WriteMessage("\nSurface could not be loaded!");
+                //    tx.Abort();
+                //    return;
+                //}
+                //#endregion
+
+                //HashSet<Polyline> plines = localDb.GetFjvPipes(tx).Where(x => GetPipeDN(x) != 999).ToHashSet();
+                //prdDbg(plines.Count.ToString());
+
+                //double totalPlineLength = 0;
+                //double totalFlLength = 0;
+
+                //foreach (Polyline pline in plines)
+                //{
+                //    totalPlineLength += pline.Length;
+
+                //    Oid flOid = FeatureLine.Create(pline.Handle.ToString(), pline.Id);
+                //    FeatureLine fl = flOid.Go<FeatureLine>(tx);
+                //    fl.AssignElevationsFromSurface(surface.Id, true);
+
+                //    totalFlLength += fl.Length3D;
+                //}
+
+                //prdDbg($"Pls: {totalPlineLength.ToString("0.###")}, Fls: {totalFlLength.ToString("0.###")}");
+                #endregion
+
+                #region Test buerør
+                ////PromptEntityOptions peo = new PromptEntityOptions("Select pline");
+                ////PromptEntityResult per = editor.GetEntity(peo);
+                ////Polyline pline = per.ObjectId.Go<Polyline>(tx);
+                //HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
+
+                //foreach (Polyline pline in plines)
+                //{
+                //    for (int j = 0; j < pline.NumberOfVertices - 1; j++)
+                //    {
+                //        //Guard against already cut out curves
+                //        if (j == 0 && pline.NumberOfVertices == 2) { break; }
+                //        double b = pline.GetBulgeAt(j);
+                //        Point2d fP = pline.GetPoint2dAt(j);
+                //        Point2d sP = pline.GetPoint2dAt(j + 1);
+                //        double u = fP.GetDistanceTo(sP);
+                //        double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
+                //        double minRadius = PipeSchedule.GetPipeMinElasticRadius(pline);
+
+                //        //If radius is less than minRadius a buerør is detected
+                //        //Split the pline in segments delimiting buerør and append
+                //        if (radius < minRadius)
+                //        {
+                //            prdDbg($"Buerør detected {fP.ToString()} and {sP.ToString()}.");
+                //            prdDbg($"R: {radius}, minR: {minRadius}");
+
+                //            Line line = new Line(new Point3d(0, 0, 0), pline.GetPointAtDist(pline.Length / 2));
+                //            line.AddEntityToDbModelSpace(localDb);
+                //        }
+                //    }
+                //}
+                #endregion
+
+                #region Test location point of BRs
+                //HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
+                //BlockReference br = brs.Where(x => x.Handle.ToString() == "4E2A23").FirstOrDefault();
+                //prdDbg($"{br != default}");
+
+                //Database alsDB = new Database(false, true);
+                //alsDB.ReadDwgFile(@"X:\022-1226 Egedal - Krogholmvej, Etape 1 - Dokumenter\" +
+                //                  @"01 Intern\02 Tegninger\01 Autocad\Alignment\Alignment - Etape 1.dwg",
+                //    System.IO.FileShare.Read, false, string.Empty);
+                //using (Transaction alsTx = alsDB.TransactionManager.StartTransaction())
+                //{
+                //    HashSet<Alignment> als = alsDB.HashSetOfType<Alignment>(alsTx);
+                //    Alignment al = als.Where(x => x.Name == "05 Sigurdsvej").FirstOrDefault();
+
+                //    if (al != default)
+                //    {
+                //        Point3d brLoc = al.GetClosestPointTo(br.Position, false);
+
+                //        double station = 0;
+                //        double offset = 0;
+                //        al.StationOffset(brLoc.X, brLoc.Y, ref station, ref offset);
+                //        prdDbg($"S: {station}, O: {offset}");
+                //    }
+
+                //    alsTx.Abort();
+                //}
+                //alsDB.Dispose();
+                #endregion
+
+                #region Test exploding alignment
+                //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select an alignment: ");
+                //promptEntityOptions1.SetRejectMessage("\n Not an alignment!");
+                //promptEntityOptions1.AddAllowedClass(typeof(Alignment), true);
+                //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                //Autodesk.AutoCAD.DatabaseServices.ObjectId alId = entity1.ObjectId;
+                //Alignment al = alId.Go<Alignment>(tx);
+
+                ////DBObjectCollection objs = new DBObjectCollection();
+                //////First explode
+                ////al.Explode(objs);
+                //////Explodes to 1 block
+                ////Entity firstExplode = (Entity)objs[0];
+                ////Second explode
+                ////objs = new DBObjectCollection();
+                ////firstExplode.Explode(objs);
+                ////prdDbg($"Subsequent block exploded to number of items: {objs.Count}.");
+
+                //List<Oid> explodedObjects = new List<Oid>();
+
+                //ObjectEventHandler handler = (s, e) =>
+                //{
+                //    explodedObjects.Add(e.DBObject.ObjectId);
+                //};
+
+                //localDb.ObjectAppended += handler;
+                //editor.Command("_explode", al.ObjectId);
+                //localDb.ObjectAppended -= handler;
+
+                //prdDbg(explodedObjects.Count.ToString());
+
+                ////Assume block reference is the only item
+                //Oid bId = explodedObjects.First();
+
+                //explodedObjects.Clear();
+
+                //localDb.ObjectAppended += handler;
+                //editor.Command("_explode", bId);
+                //localDb.ObjectAppended -= handler;
+
+                //prdDbg(explodedObjects.Count.ToString());
+                #endregion
+
+                #region Test size arrays
+                //Alignment al;
+
+                //#region Select alignment
+                //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select an alignment: ");
+                //promptEntityOptions1.SetRejectMessage("\n Not an alignment!");
+                //promptEntityOptions1.AddAllowedClass(typeof(Alignment), true);
+                //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                //Autodesk.AutoCAD.DatabaseServices.ObjectId profileId = entity1.ObjectId;
+                //al = profileId.Go<Alignment>(tx);
+                //#endregion
+
+                //#region Open fremtidig db
+                //DataReferencesOptions dro = new DataReferencesOptions();
+                //string projectName = dro.ProjectName;
+                //string etapeName = dro.EtapeName;
+
+                //// open the xref database
+                //Database fremDb = new Database(false, true);
+                //fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
+                //    System.IO.FileShare.Read, false, string.Empty);
+                //Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                //HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
+                //HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                //#endregion
+
+                //try
+                //{
+                //    #region GetCurvesAndBRs from fremtidig
+                //    HashSet<Curve> curves = allCurves
+                //        .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                //        .ToHashSet();
+                //    HashSet<BlockReference> brs = allBrs
+                //        .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                //        .ToHashSet();
+                //    prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                //    #endregion
+
+                //    //PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves);
+                //    //prdDbg("Curves:");
+                //    //prdDbg(sizeArray.ToString());
+
+                //    prdDbg("Blocks:");
+                //    PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                //    prdDbg(sizeArray.ToString());
+
+                //    //Determine direction
+                //    HashSet<(Curve curve, double dist)> curveDistTuples =
+                //            new HashSet<(Curve curve, double dist)>();
+                //    prdDbg($"{al.Name}");
+                //    Point3d samplePoint = al.GetPointAtDist(0);
+
+                //    foreach (Curve curve in curves)
+                //    {
+                //        if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
+                //        Point3d closestPoint = curve.GetClosestPointTo(samplePoint, false);
+                //        if (closestPoint != default)
+                //            curveDistTuples.Add(
+                //                (curve, samplePoint.DistanceHorizontalTo(closestPoint)));
+                //        prdDbg($"Dist: {samplePoint.DistanceHorizontalTo(closestPoint)}");
+                //    }
+
+                //    Curve closestCurve = curveDistTuples.MinBy(x => x.dist).FirstOrDefault().curve;
+
+                //    int startingDn = PipeSchedule.GetPipeDN(closestCurve);
+                //    prdDbg($"startingDn: {startingDn}");
+
+                //    //if (sizeArray[0].DN != startingDn) sizeArray.Reverse();
+                //}
+                //catch (System.Exception ex)
+                //{
+                //    fremTx.Abort();
+                //    fremTx.Dispose();
+                //    fremDb.Dispose();
+                //    prdDbg(ex.ToString());
+                //    throw;
+                //}
+                //fremTx.Abort();
+                //fremTx.Dispose();
+                //fremDb.Dispose();
+                #endregion
+
+                #region RXClass to String test
+                //prdDbg("Line: " + RXClass.GetClass(typeof(Line)).Name);
+                //prdDbg("Spline: " + RXClass.GetClass(typeof(Spline)).Name);
+                //prdDbg("Polyline: " + RXClass.GetClass(typeof(Polyline)).Name);
+                #endregion
+
+                #region Paperspace to modelspace test
+                ////BlockTable blockTable = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                ////BlockTableRecord paperSpace = tx.GetObject(blockTable[BlockTableRecord.PaperSpace], OpenMode.ForRead)
+                ////    as BlockTableRecord;
+
+                //DBDictionary layoutDict = localDb.LayoutDictionaryId.Go<DBDictionary>(tx);
+                //var enumerator = layoutDict.GetEnumerator();
+                //while (enumerator.MoveNext())
+                //{
+                //    DBDictionaryEntry item = enumerator.Current;
+                //    prdDbg(item.Key);
+                //    if (item.Key == "Model")
+                //    {
+                //        prdDbg("Skipping model...");
+                //        continue;
+                //    }
+
+                //    Layout layout = item.Value.Go<Layout>(tx);
+                //    //ObjectIdCollection vpIds = layout.GetViewports();
+
+                //    BlockTableRecord layBlock = layout.BlockTableRecordId.Go<BlockTableRecord>(tx);
+
+                //    foreach (Oid id in layBlock)
+                //    {
+                //        if (id.IsDerivedFrom<Viewport>())
+                //        {
+                //            Viewport viewport = id.Go<Viewport>(tx);
+                //            //Truncate doubles to whole numebers for easier comparison
+                //            int centerX = (int)viewport.CenterPoint.X;
+                //            int centerY = (int)viewport.CenterPoint.Y;
+                //            if (centerX == 422 && centerY == 442)
+                //            {
+                //                prdDbg("Found profile viewport!");
+                //                Extents3d ext = viewport.GeometricExtents;
+                //                Polyline pl = new Polyline(4);
+                //                pl.AddVertexAt(0, new Point2d(ext.MinPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
+                //                pl.AddVertexAt(1, new Point2d(ext.MinPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
+                //                pl.AddVertexAt(2, new Point2d(ext.MaxPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
+                //                pl.AddVertexAt(3, new Point2d(ext.MaxPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
+                //                pl.Closed = true;
+                //                pl.SetDatabaseDefaults();
+                //                pl.PaperToModel(viewport);
+                //                pl.Layer = "0-NONPLOT";
+                //                pl.AddEntityToDbModelSpace<Polyline>(localDb);
+                //            }
+                //        }
+                //    }
+                //}
+                #endregion
+
+                #region ProfileProjectionLabel testing
+                //HashSet<ProfileProjectionLabel> labels = localDb.HashSetOfType<ProfileProjectionLabel>(tx);
+                //foreach (var label in labels)
+                //{
+                //    DBPoint testPoint = new DBPoint(label.LabelLocation);
+                //    testPoint.AddEntityToDbModelSpace<DBPoint>(localDb);
+                //}
+
+                #endregion
+
+                #region PropertySets testing 1
+                ////IntersectUtilities.ODDataConverter.ODDataConverter.testing();
+                //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                //    "\nSelect entity to list rxobject:");
+                //promptEntityOptions1.SetRejectMessage("\n Not a p3d!");
+                //promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                //Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
+                //prdDbg(CogoPoint.GetClass(typeof(CogoPoint)).Name);
+                #endregion
+
+                #region Print all values of all ODTable's fields
+                ////PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                ////    "\nSelect entity to list OdTable:");
+                ////promptEntityOptions1.SetRejectMessage("\n Not a p3d!");
+                ////promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                ////PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                ////if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                ////Autodesk.AutoCAD.DatabaseServices.ObjectId entId = entity1.ObjectId;
+
+                //HashSet<Polyline3d> p3ds = localDb.HashSetOfType<Polyline3d>(tx, true)
+                //    .Where(x => x.Layer == "AFL_ledning_faelles").ToHashSet();
+
+                //foreach (Polyline3d item in p3ds)
+                //{
+                //    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                //    using (Records records
+                //           = tables.GetObjectRecords(0, item.Id, Autodesk.Gis.Map.Constants.OpenMode.OpenForRead, false))
+                //    {
+                //        int count = records.Count;
+                //        prdDbg($"Tables total: {count.ToString()}");
+                //        for (int i = 0; i < count; i++)
+                //        {
+                //            Record record = records[i];
+                //            int recordCount = record.Count;
+                //            prdDbg($"Table {record.TableName} has {recordCount} fields.");
+                //            for (int j = 0; j < recordCount; j++)
+                //            {
+                //                MapValue value = record[j];
+                //                prdDbg($"R:{i + 1};V:{j + 1} : {value.StrValue}");
+                //            }
+                //        }
+                //    } 
+                //}
+                #endregion
+
+                #region Test removing colinear vertices
+                //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                //    "\nSelect polyline to list parameters:");
+                //promptEntityOptions1.SetRejectMessage("\n Not a polyline!");
+                //promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
+                //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                //Autodesk.AutoCAD.DatabaseServices.ObjectId plineId = entity1.ObjectId;
+
+                //Polyline pline = plineId.Go<Polyline>(tx);
+
+                //RemoveColinearVerticesPolyline(pline);
+                #endregion
+
+                #region Test polyline parameter and vertices
+                //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                //    "\nSelect polyline to list parameters:");
+                //promptEntityOptions1.SetRejectMessage("\n Not a polyline!");
+                //promptEntityOptions1.AddAllowedClass(typeof(Polyline), true);
+                //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                //Autodesk.AutoCAD.DatabaseServices.ObjectId plineId = entity1.ObjectId;
+
+                //Polyline pline = plineId.Go<Polyline>(tx);
+
+                //for (int i = 0; i < pline.NumberOfVertices; i++)
+                //{
+                //    Point3d p3d = pline.GetPoint3dAt(i);
+                //    prdDbg($"Vertex: {i}, Parameter: {pline.GetParameterAtPoint(p3d)}");
+                //}
+                #endregion
+
+                #region List all gas stik materialer
+                //Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                //HashSet<Polyline3d> p3ds = localDb.HashSetOfType<Polyline3d>(tx)
+                //                                  .Where(x => x.Layer == "GAS-Stikrør" ||
+                //                                              x.Layer == "GAS-Stikrør-2D")
+                //                                  .ToHashSet();
+                //HashSet<string> materials = new HashSet<string>();
+                //foreach (Polyline3d p3d in p3ds)
+                //{
+                //    materials.Add(ReadPropertyToStringValue(tables, p3d.Id, "GasDimOgMat", "Material"));
+                //}
+
+                //var ordered = materials.OrderBy(x => x);
+                //foreach (string s in ordered) prdDbg(s);
+                #endregion
+
+                #region ODTables troubles
+
+                //try
+                //{
+                //    Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                //    StringCollection names = tables.GetTableNames();
+                //    foreach (string name in names)
+                //    {
+                //        prdDbg(name);
+                //        Autodesk.Gis.Map.ObjectData.Table table = null;
+                //        try
+                //        {
+                //            table = tables[name];
+                //            FieldDefinitions defs = table.FieldDefinitions;
+                //            for (int i = 0; i < defs.Count; i++)
+                //            {
+                //                if (defs[i].Name.Contains("DIA") ||
+                //                    defs[i].Name.Contains("Dia") ||
+                //                    defs[i].Name.Contains("dia")) prdDbg(defs[i].Name);
+                //            }
+                //        }
+                //        catch (Autodesk.Gis.Map.MapException e)
+                //        {
+                //            var errCode = (Autodesk.Gis.Map.Constants.ErrorCode)(e.ErrorCode);
+                //            prdDbg(errCode.ToString());
+
+                //            MapApplication app = HostMapApplicationServices.Application;
+                //            FieldDefinitions tabDefs = app.ActiveProject.MapUtility.NewODFieldDefinitions();
+                //            tabDefs.AddColumn(
+                //                FieldDefinition.Create("Diameter", "Diameter of crossing pipe", DataType.Character), 0);
+                //            tabDefs.AddColumn(
+                //                FieldDefinition.Create("Alignment", "Alignment name", DataType.Character), 1);
+                //            tables.RemoveTable("CrossingData");
+                //            tables.Add("CrossingData", tabDefs, "Table holding relevant crossing data", true);
+                //            //tables.UpdateTable("CrossingData", tabDefs);
+                //        }
+                //    }
+                //}
+                //catch (Autodesk.Gis.Map.MapException e)
+                //{
+                //    var errCode = (Autodesk.Gis.Map.Constants.ErrorCode)(e.ErrorCode);
+                //    prdDbg(errCode.ToString());
+                //}
+
+
+
+
+                #endregion
+
+                #region ChangeLayerOfXref
+
+                //string path = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\01 Autocad\Autocad\02 Sheets\5.5\";
+
+                //var fileList = File.ReadAllLines(path + "fileList.txt").ToList();
+
+                //foreach (string name in fileList)
+                //{
+                //    prdDbg(name);
+                //}
+
+                //foreach (string name in fileList)
+                //{
+                //    prdDbg(name);
+                //    string fileName = path + name;
+                //    prdDbg(fileName);
+
+                //    using (Database extDb = new Database(false, true))
+                //    {
+                //        extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
+
+                //        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
+                //        {
+                //            BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                //            foreach (oid oid in bt)
+                //            {
+                //                BlockTableRecord btr = extTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
+                //                if (btr.Name.Contains("_alignment"))
+                //                {
+                //                    var ids = btr.GetBlockReferenceIds(true, true);
+                //                    foreach (oid brId in ids)
+                //                    {
+                //                        BlockReference br = brId.Go<BlockReference>(extTx, OpenMode.ForWrite);
+                //                        prdDbg(br.Name);
+                //                        if (br.Layer == "0") { prdDbg("Already in 0! Skipping..."); continue; }
+                //                        prdDbg("Was in: :" + br.Layer);
+                //                        br.Layer = "0";
+                //                        prdDbg("Moved to: " + br.Layer);
+                //                        System.Windows.Forms.Application.DoEvents();
+                //                    }
+                //                }
+                //            }
+                //            extTx.Commit();
+                //        }
+                //        extDb.SaveAs(extDb.Filename, DwgVersion.Current);
+
+                //    }
+                //}
+                #endregion
+
+                #region List blocks scale
+                //HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
+                //foreach (BlockReference br in brs)
+                //{
+                //    prdDbg(br.ScaleFactors.ToString());
+                //}
+                #endregion
+
+                #region Gather alignment names
+                //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+
+                //foreach (Alignment al in als.OrderBy(x => x.Name))
+                //{
+                //    editor.WriteMessage($"\n{al.Name}");
+                //}
+
+                #endregion
+
+                #region Test ODTables from external database
+                //Tables odTables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+                //StringCollection curDbTables = new StringCollection();
+                //Database curDb = HostApplicationServices.WorkingDatabase;
+                //StringCollection allDbTables = odTables.GetTableNames();
+                //Autodesk.Gis.Map.Project.AttachedDrawings attachedDwgs =
+                //    HostMapApplicationServices.Application.ActiveProject.DrawingSet.AllAttachedDrawings;
+
+                //int directDWGCount = HostMapApplicationServices.Application.ActiveProject.DrawingSet.DirectDrawingsCount;
+
+                //foreach (String name in allDbTables)
+                //{
+                //    Autodesk.Gis.Map.ObjectData.Table table = odTables[name];
+
+                //    bool bTableExistsInCurDb = true;
+
+                //    for (int i = 0; i < directDWGCount; ++i)
+                //    {
+                //        Autodesk.Gis.Map.Project.AttachedDrawing attDwg = attachedDwgs[i];
+
+                //        StringCollection attachedTables = attDwg.GetTableList(Autodesk.Gis.Map.Constants.TableType.ObjectDataTable);
+                //    }
+                //    if (bTableExistsInCurDb)
+
+                //        curDbTables.Add(name);
+
+                //}
+
+                //editor.WriteMessage("Current Drawing Object Data Tables Names :\r\n");
+
+                //foreach (String name in curDbTables)
+                //{
+
+                //    editor.WriteMessage(name + "\r\n");
+
+                //}
+
+                #endregion
+
+                #region Test description field population
+                //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                //"\nSelect test subject:");
+                //promptEntityOptions1.SetRejectMessage("\n Not a polyline3d!");
+                //promptEntityOptions1.AddAllowedClass(typeof(Polyline3d), true);
+                //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                //Autodesk.AutoCAD.DatabaseServices.ObjectId lineId = entity1.ObjectId;
+                //Entity ent = lineId.Go<Entity>(tx);
+
+                //Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+                //#region Read Csv Data for Layers and Depth
+
+                ////Establish the pathnames to files
+                ////Files should be placed in a specific folder on desktop
+                //string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                //string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
+
+                //System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                //System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
+
+                //#endregion
+
+                ////Populate description field
+                ////1. Read size record if it exists
+                //MapValue sizeRecord = Utils.ReadRecordData(
+                //    tables, lineId, "SizeTable", "Size");
+                //int SizeTableSize = 0;
+                //string sizeDescrPart = "";
+                //if (sizeRecord != null)
+                //{
+                //    SizeTableSize = sizeRecord.Int32Value;
+                //    sizeDescrPart = $"ø{SizeTableSize}";
+                //}
+
+                ////2. Read description from Krydsninger
+                //string descrFromKrydsninger = ReadStringParameterFromDataTable(
+                //    ent.Layer, dtKrydsninger, "Description", 0);
+
+                ////2.1 Read the formatting in the description field
+                //List<(string ToReplace, string Data)> descrFormatList = null;
+                //if (descrFromKrydsninger.IsNotNoE())
+                //    descrFormatList = FindDescriptionParts(descrFromKrydsninger);
+
+                ////Finally: Compose description field
+                //List<string> descrParts = new List<string>();
+                ////1. Add custom size
+                //if (SizeTableSize != 0) descrParts.Add(sizeDescrPart);
+                ////2. Process and add parts from format bits in OD
+                //if (descrFromKrydsninger.IsNotNoE())
+                //{
+                //    //Interpolate description from Krydsninger with format setting, if they exist
+                //    if (descrFormatList != null && descrFormatList.Count > 0)
+                //    {
+                //        for (int i = 0; i < descrFormatList.Count; i++)
+                //        {
+                //            var tuple = descrFormatList[i];
+                //            string result = ReadDescriptionPartsFromOD(tables, ent, tuple.Data, dtKrydsninger);
+                //            descrFromKrydsninger = descrFromKrydsninger.Replace(tuple.ToReplace, result);
+                //        }
+                //    }
+
+                //    //Add the description field to parts
+                //    descrParts.Add(descrFromKrydsninger);
+                //}
+
+                //string description = "";
+                //if (descrParts.Count == 1) description = descrParts[0];
+                //else if (descrParts.Count > 1)
+                //    description = string.Join("; ", descrParts);
+
+                //editor.WriteMessage($"\n{description}");
+                #endregion
+
+                #region GetDistance
+                //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                //"\nSelect line:");
+                //promptEntityOptions1.SetRejectMessage("\n Not a line!");
+                //promptEntityOptions1.AddAllowedClass(typeof(Line), true);
+                //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                //Autodesk.AutoCAD.DatabaseServices.ObjectId lineId = entity1.ObjectId;
+
+                //PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
+                //"\nSelect p3dpoly:");
+                //promptEntityOptions2.SetRejectMessage("\n Not a p3dpoly!");
+                //promptEntityOptions2.AddAllowedClass(typeof(Polyline3d), true);
+                //PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                //if (((PromptResult)entity2).Status != PromptStatus.OK) return;
+                //Autodesk.AutoCAD.DatabaseServices.ObjectId poly3dId = entity2.ObjectId;
+
+                //Line line = lineId.Go<Line>(tx);
+                //Polyline3d p3d = poly3dId.Go<Polyline3d>(tx);
+
+                //double distance = line.GetGeCurve().GetDistanceTo(
+                //    p3d.GetGeCurve());
+
+                //editor.WriteMessage($"\nDistance: {distance}.");
+                //editor.WriteMessage($"\nIs less than 0.1: {distance < 0.1}.");
+
+                //if (distance < 0.1)
+                //{
+                //    PointOnCurve3d[] intPoints = line.GetGeCurve().GetClosestPointTo(
+                //                                 p3d.GetGeCurve());
+
+                //    //Assume one intersection
+                //    Point3d result = intPoints.First().Point;
+                //    editor.WriteMessage($"\nDetected elevation: {result.Z}.");
+                //}
+
+                #endregion
+
+                #region CleanMtexts
+                //HashSet<MText> mtexts = localDb.HashSetOfType<MText>(tx);
+
+                //foreach (MText mText in mtexts)
+                //{
+                //    string contents = mText.Contents;
+
+                //    contents = contents.Replace(@"\H3.17507;", "");
+
+                //    mText.CheckOrOpenForWrite();
+
+                //    mText.Contents = contents;
+                //} 
+                #endregion
+
+                #region Test PV start and end station
+
+                //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                //foreach (Alignment al in als)
+                //{
+                //    ObjectIdCollection pIds = al.GetProfileIds();
+                //    Profile p = null;
+                //    foreach (oid oid in pIds)
+                //    {
+                //        Profile pt = oid.Go<Profile>(tx);
+                //        if (pt.Name == $"{al.Name}_surface_P") p = pt;
+                //    }
+                //    if (p == null) return;
+                //    else editor.WriteMessage($"\nProfile {p.Name} found!");
+
+                //    ProfileView[] pvs = localDb.ListOfType<ProfileView>(tx).ToArray();
+
+                //    foreach (ProfileView pv in pvs)
+                //    {
+                //        editor.WriteMessage($"\nName of pv: {pv.Name}.");
+
+                #region Test finding of max elevation
+                //double pvStStart = pv.StationStart;
+                //double pvStEnd = pv.StationEnd;
+
+                //int nrOfIntervals = 100;
+                //double delta = (pvStEnd - pvStStart) / nrOfIntervals;
+                //HashSet<double> elevs = new HashSet<double>();
+
+                //for (int i = 0; i < nrOfIntervals + 1; i++)
+                //{
+                //    double testEl = p.ElevationAt(pvStStart + delta * i);
+                //    elevs.Add(testEl);
+                //    editor.WriteMessage($"\nElevation at {i} is {testEl}.");
+                //}
+
+                //double maxEl = elevs.Max();
+                //editor.WriteMessage($"\nMax elevation of {pv.Name} is {maxEl}.");
+
+                //pv.CheckOrOpenForWrite();
+                //pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+
+                //pv.ElevationMax = Math.Ceiling(maxEl); 
+                #endregion
+                //}
+                //}
+
+
+
+                #endregion
+
+                #region Test station and offset alignment
+                //#region Select point
+                //PromptPointOptions pPtOpts = new PromptPointOptions("");
+                //// Prompt for the start point
+                //pPtOpts.Message = "\nEnter location to test the alignment:";
+                //PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
+                //Point3d selectedPoint = pPtRes.Value;
+                //// Exit if the user presses ESC or cancels the command
+                //if (pPtRes.Status != PromptStatus.OK) return;
+                //#endregion
+
+                //HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+
+                //foreach (Alignment al in als)
+                //{
+                //    double station = 0;
+                //    double offset = 0;
+
+                //    al.StationOffset(selectedPoint.X, selectedPoint.Y, ref station, ref offset);
+
+                //    editor.WriteMessage($"\nReported: ST: {station}, OS: {offset}.");
+                //} 
+                #endregion
+
+                #region Test assigning labels and point styles
+                //oid cogoPointStyle = civilDoc.Styles.PointStyles["LER KRYDS"];
+                //CogoPointCollection cpc = civilDoc.CogoPoints;
+
+                //foreach (oid cpOid in cpc)
+                //{
+                //    CogoPoint cp = cpOid.Go<CogoPoint>(tx, OpenMode.ForWrite);
+                //    cp.StyleId = cogoPointStyle;
+                //}
+
+                #endregion
+
+                #region Profile style and PV elevation
+                //CivilDocument cDoc = CivilDocument.GetCivilDocument(localDb);
+                //var als = localDb.HashSetOfType<Alignment>(tx);
+                //foreach (Alignment al in als)
+                //{
+                //    var pIds = al.GetProfileIds();
+                //    var pvIds = al.GetProfileViewIds();
+
+                //    Profile pSurface = null;
+                //    foreach (Oid oid in pIds)
+                //    {
+                //        Profile pt = oid.Go<Profile>(tx);
+                //        if (pt.Name == $"{al.Name}_surface_P") pSurface = pt;
+                //    }
+                //    if (pSurface == null)
+                //    {
+                //        //AbortGracefully(
+                //        //    new[] { xRefLerTx, xRefSurfaceTx },
+                //        //    new[] { xRefLerDB, xRefSurfaceDB },
+                //        //    $"No profile named {alignment.Name}_surface_P found!");
+                //        prdDbg($"No surface profile {al.Name}_surface_P found!");
+                //        tx.Abort();
+                //        return;
+                //    }
+                //    else prdDbg($"\nProfile {pSurface.Name} found!");
+
+                //    foreach (ProfileView pv in pvIds.Entities<ProfileView>(tx))
+                //    {
+                //        #region Determine profile top and bottom elevations
+                //        double pvStStart = pv.StationStart;
+                //        double pvStEnd = pv.StationEnd;
+
+                //        int nrOfIntervals = (int)((pvStEnd - pvStStart) / 0.25);
+                //        double delta = (pvStEnd - pvStStart) / nrOfIntervals;
+                //        HashSet<double> topElevs = new HashSet<double>();
+
+                //        for (int j = 0; j < nrOfIntervals + 1; j++)
+                //        {
+                //            double topTestEl = 0;
+                //            try
+                //            {
+                //                topTestEl = pSurface.ElevationAt(pvStStart + delta * j);
+                //            }
+                //            catch (System.Exception)
+                //            {
+                //                editor.WriteMessage($"\nTop profile at {pvStStart + delta * j} threw an exception! " +
+                //                    $"PV: {pv.StationStart}-{pv.StationEnd}.");
+                //                continue;
+                //            }
+                //            topElevs.Add(topTestEl);
+                //        }
+
+                //        double maxEl = topElevs.Max();
+                //        double minEl = topElevs.Min();
+
+                //        prdDbg($"\nElevations of PV {pv.Name}> Max: {Math.Round(maxEl, 2)} | Min: {Math.Round(minEl, 2)}");
+
+                //        //Set the elevations
+                //        pv.CheckOrOpenForWrite();
+                //        pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+                //        pv.ElevationMax = Math.Ceiling(maxEl);
+                //        pv.ElevationMin = Math.Floor(minEl) - 3.0;
+                //        #endregion
+
+                //        Oid sId = cDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R 1:250:100"];
+                //        pv.CheckOrOpenForWrite();
+                //        pv.StyleId = sId;
+                //    }
+
+                //    //Set profile style
+                //    localDb.CheckOrCreateLayer("0_TERRAIN_PROFILE", 34);
+
+                //    Oid profileStyleId = cDoc.Styles.ProfileStyles["Terræn"];
+                //    pSurface.CheckOrOpenForWrite();
+                //    pSurface.StyleId = profileStyleId;
+                //}
+                #endregion
+
+                #region Test view frame numbers
+                //ViewFrameGroup vfg = localDb.ListOfType<ViewFrameGroup>(tx).FirstOrDefault();
+                //if (vfg != null)
+                //{
+                //    var ids = vfg.GetViewFrameIds();
+                //    var ents = ids.Entities<ViewFrame>(tx);
+                //    foreach (var item in ents)
+                //    {
+                //        prdDbg(item.Name);
+                //    }
+                //}
+                #endregion
+            }
                 catch (System.Exception ex)
                 {
                     tx.Abort();

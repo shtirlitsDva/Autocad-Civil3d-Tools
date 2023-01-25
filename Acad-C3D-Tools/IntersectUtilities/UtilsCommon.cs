@@ -2005,7 +2005,10 @@ namespace IntersectUtilities.UtilsCommon
 
             try
             {
-                cP = al.GetClosestPointTo(p, false);
+                Polyline pline = al.GetPolyline().Go<Polyline>(
+                    al.Database.TransactionManager.TopTransaction);
+                //cP = al.GetClosestPointTo(p, false);
+                cP = pline.GetClosestPointTo(p, false);
                 al.StationOffset(cP.X, cP.Y, ref station, ref offset);
             }
             catch (System.Exception ex)

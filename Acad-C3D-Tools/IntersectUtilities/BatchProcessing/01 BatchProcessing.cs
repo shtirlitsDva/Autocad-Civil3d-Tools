@@ -93,7 +93,7 @@ namespace IntersectUtilities
                     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                     //Project and etape selection object
                     //Comment out if not needed
-                    //DataReferencesOptions dro = new DataReferencesOptions();
+                    DataReferencesOptions dro = new DataReferencesOptions();
 
                     //Specific variables
                     int count = 0;
@@ -178,9 +178,6 @@ namespace IntersectUtilities
                                     //    }
                                     //}
                                     #endregion
-                                    #region CreateDetailing
-                                    //createdetailingmethod(dro, xDb);
-                                    #endregion
                                     #region Change xref layer
                                     //BlockTable bt = xTx.GetObject(xDb.BlockTableId, OpenMode.ForRead) as BlockTable;
 
@@ -222,7 +219,7 @@ namespace IntersectUtilities
                                     //ds.LinetypeScale = 10;
                                     //ds.Lineweight = LineWeight.LineWeight000;
                                     #endregion
-                                    
+
                                     //Fix longitudinal profiles
                                     //result = fixlongitudinalprofiles(xDb);
 
@@ -242,7 +239,13 @@ namespace IntersectUtilities
                                     //result = alignmentsnoshow(xDb);
 
                                     //Freeze layers in viewport
-                                    result = vpfreezelayers(xDb);
+                                    //result = vpfreezelayers(xDb);
+
+                                    //Create reference to pipe profiles in drawings
+                                    //result = createreferencetopipeprofiles(xDb);
+
+                                    //Create reference to pipe profiles in drawings
+                                    result = createdetailing(xDb, dro);
 
                                     switch (result.Status)
                                     {
@@ -279,13 +282,91 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
             }
         }
 
+        /// <summary>
+        /// For batch processing.
+        /// Recreates detailing across drawings.
+        /// </summary>
+        private Result createdetailing(Database xDb, DataReferencesOptions dro)
+        {
+            //Recreate detailing in affected drawings
+            deletedetailingmethod(xDb);
+            createdetailingmethod(dro, xDb);
+            return new Result();
+        }
+
+        private Result createreferencetopipeprofiles(Database xDb)
+        {
+            //Used when sheets were created before pipe profiles were available
+            //Finds those profiles and creates a reference to them in drawing
+            //Then it deletes the detailing and recreates it
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+            var als = xDb.HashSetOfType<Alignment>(xTx);
+
+            Regex reg1 = new Regex(@"(?<number>\d{2,3}?\s)");
+
+            bool isValidCreation = false;
+            DataShortcuts.DataShortcutManager sm = DataShortcuts.CreateDataShortcutManager(ref isValidCreation);
+            if (isValidCreation != true)
+            {
+                prdDbg("DataShortcutManager failed to be created!");
+                return new Result(ResultStatus.FatalError, "DataShortcutManager failed to be created!");
+            }
+            int publishedCount = sm.GetPublishedItemsCount();
+
+            foreach (Alignment al in als)
+            {
+                string number = reg1.Match(al.Name).Groups["number"].Value;
+                prdDbg($"{al.Name} -> {number}");
+
+                for (int i = 0; i < publishedCount; i++)
+                {
+                    DataShortcuts.DataShortcutManager.PublishedItem item =
+                        sm.GetPublishedItemAt(i);
+
+                    if (item.DSEntityType == DataShortcutEntityType.Alignment)
+                    {
+                        if (item.Name.StartsWith(number))
+                        {
+                            var items = GetItemsByPipelineNumber(sm, number);
+
+                            foreach (int idx in items)
+                            {
+                                DataShortcuts.DataShortcutManager.PublishedItem entity =
+                                    sm.GetPublishedItemAt(idx);
+
+                                if (entity.DSEntityType == DataShortcutEntityType.Alignment ||
+                                    entity.Name.Contains("surface")) continue;
+
+                                sm.CreateReference(idx, xDb);
+                            }
+                        }
+                    }
+                }
+
+                IEnumerable<int> GetItemsByPipelineNumber(
+                    DataShortcuts.DataShortcutManager dsMan, string pipelineNumber)
+                {
+                    int count = dsMan.GetPublishedItemsCount();
+
+                    for (int j = 0; j < count; j++)
+                    {
+                        string name = dsMan.GetPublishedItemAt(j).Name;
+                        if (name.StartsWith(pipelineNumber)) yield return j;
+                    }
+                }
+            }
+
+            sm.Dispose();
+
+            return new Result();
+        }
         private Result fixlongitudinalprofiles(Database xDb)
         {
             //Used when no pipe profiles have been drawn to make default profile views look good

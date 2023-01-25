@@ -1692,5 +1692,53 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        [CommandMethod("GASCOLORKNOWN")]
+        public void gascolorknown()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Property Set Manager
+                    PropertySetManager psmGas = new PropertySetManager(
+                        localDb, PSetDefs.DefinedSets.DriGasDimOgMat);
+                    PSetDefs.DriGasDimOgMat driGasDimOgMat = new PSetDefs.DriGasDimOgMat();
+                    #endregion
+
+                    #region GatherObjects
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
+                    #endregion
+
+                    #region Color pipes with dimensions
+                    foreach (Polyline pline in plines)
+                    {
+                        int dim = psmGas.ReadPropertyInt(pline, driGasDimOgMat.Dimension);
+                        if (dim == 0) continue;
+                        else
+                        {
+                            pline.CheckOrOpenForWrite();
+                            pline.Color = ColorByName("red");
+                        }
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
     }
 }

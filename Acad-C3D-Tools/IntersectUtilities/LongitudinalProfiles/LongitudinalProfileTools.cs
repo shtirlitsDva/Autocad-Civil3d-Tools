@@ -52,6 +52,7 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using System.Windows.Documents;
 using Color = Autodesk.AutoCAD.Colors.Color;
 using static System.Net.Mime.MediaTypeNames;
+using Autodesk.Civil.Settings;
 
 namespace IntersectUtilities
 {
@@ -2270,7 +2271,9 @@ namespace IntersectUtilities
                                 //Buerør need special treatment
                                 if (br.RealName() == "BUEROR1" || br.RealName() == "BUEROR2") continue;
 
-                                Point3d tpt = al.GetClosestPointTo(br.Position, false);
+                                Polyline pl = al.GetPolyline().Go<Polyline>(tx);
+                                //Point3d tpt = al.GetClosestPointTo(br.Position, false);
+                                Point3d tpt = pl.GetClosestPointTo(br.Position, false);
 
                                 double station = 0;
                                 double offset = 0;
@@ -2296,7 +2299,8 @@ namespace IntersectUtilities
                                 double Y = originY + (sampledMidtElevation - pvElBottom) *
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
                                 BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
-                                brSign.SetAttributeStringValue("LEFTSIZE", type);
+                                brSign.SetAttributeStringValue("LEFTSIZE",
+                                    ComponentSchedule.ReadComponentType(br, fjvKomponenter));
 
                                 //Manage writing of right attribute
                                 if ((new[] {
@@ -2449,7 +2453,9 @@ namespace IntersectUtilities
                                 string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
                                 if (type != "Svejsning") continue;
 
-                                Point3d brLocation = al.GetClosestPointTo(br.Position, false);
+                                Polyline pl = al.GetPolyline().Go<Polyline>(tx);
+                                //Point3d brLocation = al.GetClosestPointTo(br.Position, false);
+                                Point3d brLocation = pl.GetClosestPointTo(br.Position, false);
 
                                 double station = 0;
                                 double offset = 0;
