@@ -93,7 +93,7 @@ namespace IntersectUtilities
                     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                     //Project and etape selection object
                     //Comment out if not needed
-                    DataReferencesOptions dro = new DataReferencesOptions();
+                    //DataReferencesOptions dro = new DataReferencesOptions();
 
                     //Specific variables
                     int count = 0;
@@ -200,25 +200,6 @@ namespace IntersectUtilities
                                     //    }
                                     //} 
                                     #endregion
-                                    #region Fix midt profile style
-                                    //CivilDocument extDoc = CivilDocument.GetCivilDocument(xDb);
-                                    //var psc = extDoc.Styles.ProfileStyles;
-                                    //ProfileStyle ps = psc["PROFIL STYLE MGO MIDT"].Go<ProfileStyle>(xTx);
-                                    //ps.CheckOrOpenForWrite();
-
-                                    //DisplayStyle ds;
-                                    //ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.Line);
-                                    //ds.LinetypeScale = 10;
-                                    //ds.Lineweight = LineWeight.LineWeight000;
-
-                                    //ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.Curve);
-                                    //ds.LinetypeScale = 10;
-                                    //ds.Lineweight = LineWeight.LineWeight000;
-
-                                    //ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.SymmetricalParabola);
-                                    //ds.LinetypeScale = 10;
-                                    //ds.Lineweight = LineWeight.LineWeight000;
-                                    #endregion
 
                                     //Fix longitudinal profiles
                                     //result = fixlongitudinalprofiles(xDb);
@@ -244,8 +225,11 @@ namespace IntersectUtilities
                                     //Create reference to pipe profiles in drawings
                                     //result = createreferencetopipeprofiles(xDb);
 
-                                    //Create reference to pipe profiles in drawings
-                                    result = createdetailing(xDb, dro);
+                                    //Create detailing
+                                    //result = createdetailing(xDb, dro);
+
+                                    //fix various problems with profile styles etc.
+                                    result = fixdrawings(xDb);
 
                                     switch (result.Status)
                                     {
@@ -288,7 +272,102 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        private Result fixdrawings(Database xDb)
+        {
+            try
+            {
+                Transaction xTx = xDb.TransactionManager.TopTransaction;
+                CivilDocument civilDoc = CivilDocument.GetCivilDocument(xDb);
+                #region Fix profile styles
+                #region Profile line weight and ltscale
+                var psc = civilDoc.Styles.ProfileStyles;
+                ProfileStyle ps = psc["PROFIL STYLE MGO MIDT"].Go<ProfileStyle>(xTx);
+                ps.CheckOrOpenForWrite();
 
+                DisplayStyle ds;
+                ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.Line);
+                ds.LinetypeScale = 10;
+                ds.Lineweight = LineWeight.LineWeight000;
+
+                ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.Curve);
+                ds.LinetypeScale = 10;
+                ds.Lineweight = LineWeight.LineWeight000;
+
+                ds = ps.GetDisplayStyleProfile(ProfileDisplayStyleProfileType.SymmetricalParabola);
+                ds.LinetypeScale = 10;
+                ds.Lineweight = LineWeight.LineWeight000;
+                #endregion
+                Oid pPipeStyleKantId = civilDoc.Styles.ProfileStyles["PROFIL STYLE MGO KANT"];
+                Oid pPipeStyleMidtId = civilDoc.Styles.ProfileStyles["PROFIL STYLE MGO MIDT"];
+                Oid crestCurveLabelId =
+                    civilDoc.Styles.LabelStyles.ProfileLabelStyles.CurveLabelStyles["Radius Crest"];
+                Oid sagCurveLabelId =
+                    civilDoc.Styles.LabelStyles.ProfileLabelStyles.CurveLabelStyles["Radius Sag"];
+
+                HashSet<ProfileView> pvs = xDb.HashSetOfType<ProfileView>(xTx);
+                HashSet<Alignment> als = xDb.HashSetOfType<Alignment>(xTx);
+                foreach (Alignment al in als)
+                {
+                    ObjectIdCollection pIds = al.GetProfileIds();
+                    Oid surfaceProfileId = Oid.Null;
+                    Oid topProfileId = Oid.Null;
+                    foreach (Oid oid in pIds)
+                    {
+                        Profile p = oid.Go<Profile>(xTx);
+                        if (p.Name == $"{al.Name}_surface_P")
+                        {
+                            surfaceProfileId = p.Id;
+                            continue;
+                        }
+                        else if (
+                            p.Name.Contains("TOP") ||
+                            p.Name.Contains("BUND"))
+                        {
+                            p.CheckOrOpenForWrite();
+                            p.StyleId = pPipeStyleKantId;
+                            if (p.Name.Contains("TOP")) topProfileId = p.Id;
+                        }
+                        else if (p.Name.Contains("MIDT"))
+                        {
+                            p.StyleId = pPipeStyleMidtId;
+
+                            foreach (ProfileView pv in pvs)
+                            {
+                                pv.CheckOrOpenForWrite();
+                                ProfileCrestCurveLabelGroup.Create(pv.ObjectId, p.ObjectId, crestCurveLabelId);
+                                ProfileSagCurveLabelGroup.Create(pv.ObjectId, p.ObjectId, sagCurveLabelId);
+                            }
+                        }
+                    }
+
+                    foreach (ProfileView pv in pvs)
+                    {
+                        ProfileViewBandSet pvbs = pv.Bands;
+                        ProfileViewBandItemCollection pvbic = pvbs.GetBottomBandItems();
+
+                        for (int i = 0; i < pvbic.Count; i++)
+                        {
+                            if (i == 0)
+                            {
+                                ProfileViewBandItem pvbi = pvbic[i];
+                                pvbi.Profile1Id = surfaceProfileId;
+                                pvbi.Profile2Id = topProfileId;
+                                pvbi.LabelAtStartStation = true;
+                                pvbi.LabelAtEndStation = true;
+                            }
+                        }
+                        pvbs.SetBottomBandItems(pvbic);
+                    }
+                }
+                #endregion
+            }
+            catch (System.Exception ex)
+            {
+                return new Result(ResultStatus.FatalError, ex.ToString());
+            }
+
+            return new Result();
+        }
         /// <summary>
         /// For batch processing.
         /// Recreates detailing across drawings.
@@ -300,7 +379,6 @@ namespace IntersectUtilities
             createdetailingmethod(dro, xDb);
             return new Result();
         }
-
         private Result createreferencetopipeprofiles(Database xDb)
         {
             //Used when sheets were created before pipe profiles were available
@@ -462,7 +540,7 @@ namespace IntersectUtilities
         private Result renumbervfs(Database xDb, ref int count)
         {
             Transaction xTx = xDb.TransactionManager.TopTransaction;
-            
+
             ViewFrameGroup vfg = xDb.ListOfType<ViewFrameGroup>(xTx).FirstOrDefault();
             if (vfg != null)
             {
