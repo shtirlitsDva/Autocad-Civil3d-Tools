@@ -229,7 +229,10 @@ namespace IntersectUtilities
                                     //result = createdetailing(xDb, dro);
 
                                     //fix various problems with profile styles etc.
-                                    result = fixdrawings(xDb);
+                                    //result = fixdrawings(xDb);
+
+                                    //vpfreeze c-anno-mtch in minipam
+                                    result = vpfreezecannomtch(xDb);
 
                                     switch (result.Status)
                                     {
@@ -689,6 +692,71 @@ namespace IntersectUtilities
                         }
                     }
                 }
+            }
+            return new Result();
+        }
+        private Result vpfreezecannomtch(Database xDb)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+            ObjectIdCollection oids = new ObjectIdCollection();
+
+            try
+            {
+                LayerTable lt = xDb.LayerTableId.Go<LayerTable>(xTx);
+                //Find c-anno-mtch
+                foreach (Oid loid in lt)
+                {
+                    LayerTableRecord ltr = loid.Go<LayerTableRecord>(xTx);
+                    if (ltr.Name.EndsWith("_VF|C-ANNO-MTCH"))
+                    {
+                        oids.Add(loid);
+                        prdDbg(ltr.Name);
+                    }
+                }
+
+                DBDictionary layoutDict = xDb.LayoutDictionaryId.Go<DBDictionary>(xTx);
+                var enumerator = layoutDict.GetEnumerator();
+                while (enumerator.MoveNext())
+                {
+                    DBDictionaryEntry item = enumerator.Current;
+                    if (item.Key == "Model")
+                    {
+                        prdDbg("Skipping model...");
+                        continue;
+                    }
+                    Layout layout = item.Value.Go<Layout>(xTx);
+                    BlockTableRecord layBlock = layout.BlockTableRecordId.Go<BlockTableRecord>(xTx);
+
+                    foreach (Oid id in layBlock)
+                    {
+                        if (id.IsDerivedFrom<Viewport>())
+                        {
+                            Viewport vp = id.Go<Viewport>(xTx);
+                            //Truncate doubles to whole numbers for easier comparison
+                            int centerX = (int)vp.CenterPoint.X;
+                            int centerY = (int)vp.CenterPoint.Y;
+                            if (centerX == 958 && centerY == 193)
+                            {
+                                prdDbg("Found minikort viewport!");
+                                ObjectIdCollection notFrozenIds = new ObjectIdCollection();
+                                foreach (Oid oid in oids)
+                                {
+                                    if (vp.IsLayerFrozenInViewport(oid)) continue;
+                                    notFrozenIds.Add(oid);
+                                }
+                                prdDbg($"Number of not frozen layers: {notFrozenIds.Count}");
+                                if (notFrozenIds.Count == 0) continue;
+
+                                vp.CheckOrOpenForWrite();
+                                vp.FreezeLayersInViewport(notFrozenIds.GetEnumerator());
+                            }
+                        }
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                return new Result(ResultStatus.FatalError, ex.ToString());
             }
             return new Result();
         }
