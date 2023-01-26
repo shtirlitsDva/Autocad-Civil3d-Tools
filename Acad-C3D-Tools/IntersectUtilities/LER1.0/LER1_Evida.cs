@@ -1740,5 +1740,44 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        [CommandMethod("GASSELECTUNKNOWN")]
+        public void gasselectunknown()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PropertySetManager psmGas = new PropertySetManager(
+                        localDb, PSetDefs.DefinedSets.DriGasDimOgMat);
+                    PSetDefs.DriGasDimOgMat driGasDimOgMat = new PSetDefs.DriGasDimOgMat();
+
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
+
+                    List<Oid> oids = new List<Oid>();
+                    foreach (Polyline pline in plines)
+                    {
+                        int dim = psmGas.ReadPropertyInt(pline, driGasDimOgMat.Dimension);
+                        if (dim == 0) oids.Add(pline.Id);
+                    }
+                    editor.SetImpliedSelection(oids.ToArray());
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
     }
 }
