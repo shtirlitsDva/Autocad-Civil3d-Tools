@@ -98,7 +98,7 @@ namespace ExportShapeFiles
                     Log.log($"{pls.Count} polyline(s) found for export.");
 
                     #region Field def
-                    DbfFieldDesc[] dbfFields = new DbfFieldDesc[3];
+                    DbfFieldDesc[] dbfFields = new DbfFieldDesc[4];
 
                     dbfFields[0].FieldName = "DN";
                     dbfFields[0].FieldType = DbfFieldType.Character;
@@ -111,6 +111,10 @@ namespace ExportShapeFiles
                     dbfFields[2].FieldName = "Serie";
                     dbfFields[2].FieldType = DbfFieldType.Character;
                     dbfFields[2].FieldLength = 100;
+
+                    dbfFields[3].FieldName = "Type";
+                    dbfFields[3].FieldType = DbfFieldType.Character;
+                    dbfFields[3].FieldLength = 100;
                     #endregion
 
                     using (ShapeFileWriter writer = ShapeFileWriter.CreateWriter(
@@ -165,10 +169,11 @@ namespace ExportShapeFiles
 
                             PointD[] shapePoints = points.Select(p => new PointD(p.X, p.Y)).ToArray();
 
-                            string[] attributes = new string[3];
+                            string[] attributes = new string[4];
                             attributes[0] = GetPipeDN(pline).ToString();
                             attributes[1] = GetPipeType(pline).ToString();
                             attributes[2] = GetPipeSeriesV2(pline).ToString();
+                            attributes[3] = GetPipeSystem(pline).ToString();
 
                             writer.AddRecord(shapePoints, shapePoints.Length, attributes);
                         }
