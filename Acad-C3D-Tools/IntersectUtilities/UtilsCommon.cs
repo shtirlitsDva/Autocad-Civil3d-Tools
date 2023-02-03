@@ -2010,6 +2010,8 @@ namespace IntersectUtilities.UtilsCommon
                 //cP = al.GetClosestPointTo(p, false);
                 cP = pline.GetClosestPointTo(p, false);
                 al.StationOffset(cP.X, cP.Y, ref station, ref offset);
+                pline.CheckOrOpenForWrite();
+                pline.Erase();
             }
             catch (System.Exception ex)
             {

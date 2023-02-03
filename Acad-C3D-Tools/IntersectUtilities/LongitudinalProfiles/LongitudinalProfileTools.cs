@@ -2274,6 +2274,8 @@ namespace IntersectUtilities
                                 Polyline pl = al.GetPolyline().Go<Polyline>(tx);
                                 //Point3d tpt = al.GetClosestPointTo(br.Position, false);
                                 Point3d tpt = pl.GetClosestPointTo(br.Position, false);
+                                pl.CheckOrOpenForWrite();
+                                pl.Erase();
 
                                 double station = 0;
                                 double offset = 0;
@@ -2456,6 +2458,8 @@ namespace IntersectUtilities
                                 Polyline pl = al.GetPolyline().Go<Polyline>(tx);
                                 //Point3d brLocation = al.GetClosestPointTo(br.Position, false);
                                 Point3d brLocation = pl.GetClosestPointTo(br.Position, false);
+                                pl.CheckOrOpenForWrite();
+                                pl.Erase(true);
 
                                 double station = 0;
                                 double offset = 0;
