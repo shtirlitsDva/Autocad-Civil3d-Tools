@@ -681,7 +681,7 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
 
             #region Settings
-            string propertySetName = "Stenlose-Ledninger";
+            string propertySetName = "Ledninger";
             string propertyName = "Dimension";
             #endregion
 
@@ -736,7 +736,7 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
 
             #region Settings
-            string propertySetName = "Stenlose-Ledninger";
+            string propertySetName = "Ledninger";
             string propertyName = "Dimension";
             #endregion
 
