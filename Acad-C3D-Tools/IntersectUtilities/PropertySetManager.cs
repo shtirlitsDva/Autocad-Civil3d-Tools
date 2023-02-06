@@ -333,6 +333,47 @@ namespace IntersectUtilities
                 throw;
             }
         }
+        /// <summary>
+        /// Iterates all PSS attached to source and tries to get value of property
+        /// </summary>
+        public static bool TryReadProperty(Entity source, string propertyName, out object value)
+        {
+            try
+            {
+                List<PropertySet> sourcePss = source.GetPropertySets();
+                DictionaryPropertySetDefinitions sourcePropDefDict
+                    = new DictionaryPropertySetDefinitions(source.Database);
+                
+                foreach (PropertySet sourcePs in sourcePss)
+                {
+                    int propertyId = -1;
+
+                    try
+                    {
+                        propertyId = sourcePs.PropertyNameToId(propertyName);
+                        if (propertyId == -1) continue;
+                        else
+                        {
+                            value = sourcePs.GetAt(propertyId);
+                            return true;
+                        }
+
+                    }
+                    catch (System.Exception)
+                    {
+                        continue;
+                    }
+                }
+
+                value = null;
+                return false;
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
+                throw;
+            }
+        }
         public static object ReadNonDefinedPropertySetObject(Entity ent, string propertySetName, string propertyName)
         {
             ObjectIdCollection psIds = PropertyDataServices.GetPropertySets(ent);
