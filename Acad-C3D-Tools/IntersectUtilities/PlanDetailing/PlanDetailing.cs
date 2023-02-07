@@ -1392,65 +1392,6 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("LISTSINGLESIZEPIPELINES")]
-        public void listsinglesizepipelines()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                #region Open alignment db
-                DataReferencesOptions dro = new DataReferencesOptions();
-                string projectName = dro.ProjectName;
-                string etapeName = dro.EtapeName;
-
-                // open the xref database
-                Database alDb = new Database(false, true);
-                alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
-                    FileOpenMode.OpenForReadAndAllShare, false, null);
-                Transaction alTx = alDb.TransactionManager.StartTransaction();
-                HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
-                #endregion
-
-                try
-                {
-                    #region Propertyset init
-                    PropertySetManager psm = new PropertySetManager(
-                        localDb,
-                        PSetDefs.DefinedSets.DriPipelineData);
-                    PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
-                    #endregion
-
-                    foreach (Alignment al in als.OrderBy(x => x.Name))
-                    {
-                        #region GetCurvesAndBRs
-                        HashSet<Curve> curves = localDb.ListOfType<Curve>(tx, true)
-                            .Where(x => psm.FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
-                            .ToHashSet();
-                        if (curves.Count == 0) continue;
-
-                        TypeOfIteration iterType = 0;
-                        Queue<Curve> kø = Utils.GetSortedQueue(localDb, al, curves, ref iterType);
-                        #endregion
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    alTx.Abort();
-                    alTx.Dispose();
-                    alDb.Dispose();
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                alTx.Abort();
-                alTx.Dispose();
-                alDb.Dispose();
-                tx.Commit();
-            }
-        }
-
         [CommandMethod("NUMBERALDESCRIPTION")]
         public void numberaldescription()
         {
@@ -1489,7 +1430,7 @@ namespace IntersectUtilities
                     prdDbg(ex);
                     return;
                 }
-                
+
                 tx.Commit();
             }
         }
@@ -1529,6 +1470,93 @@ namespace IntersectUtilities
                 }
 
                 tx.Commit();
+            }
+        }
+
+        [CommandMethod("PLACEELBOW")]
+        [CommandMethod("PE")]
+        public void placeelbow()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+
+            while (true)
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        HashSet<Polyline> pls = localDb.GetFjvPipes(tx);
+                        if (pls.Count == 0)
+                        {
+                            prdDbg("No DH pipes in drawing!");
+                            tx.Abort();
+                            return;
+                        }
+
+                        //message for the ask for point prompt
+                        string message = "Select location to place elbow: ";
+                        var opt = new PromptPointOptions(message);
+
+
+                        #region Ask for point
+                        Point3d location = Algorithms.NullPoint3d;
+                        do
+                        {
+                            var res = ed.GetPoint(opt);
+                            if (res.Status == PromptStatus.Cancel)
+                            {
+                                tx.Abort();
+                                return;
+                            }
+                            if (res.Status == PromptStatus.OK) location = res.Value;
+                        }
+                        while (location == Algorithms.NullPoint3d);
+                        #endregion
+
+                        #region Find nearest pline
+                        Polyline pl = pls
+                            .MinBy(x => location.DistanceHorizontalTo(
+                                x.GetClosestPointTo(location, false))
+                            ).FirstOrDefault();
+
+                        if (pl == default)
+                        {
+                            prdDbg("Nearest pipe cannot be found!");
+                            tx.Abort();
+                            return;
+                        }
+                        #endregion
+
+                        #region Test to see if point coincides with a vertice
+                        bool verticeFound = false;
+                        for (int i = 0; i < pl.NumberOfVertices; i++)
+                        {
+                            Point3d vert = pl.GetPoint3dAt(i);
+                            if (vert.IsEqualTo(location, Tolerance.Global))
+                                verticeFound = true;
+                            if (verticeFound) break;
+                        }
+
+                        if (!verticeFound)
+                        {
+                            prdDbg("Not a vertice! The location must be a vertice.");
+                            continue;
+                        }
+                        #endregion
+
+
+
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        prdDbg(ex);
+                        return;
+                    }
+                    tx.Commit();
+                }
             }
         }
     }
