@@ -767,9 +767,9 @@ namespace IntersectUtilities
             }
 
         }
-        public static double GetPipeKOd(Entity ent)
+        public static double GetPipeKOd(Entity ent, bool hardFail = false)
         {
-            return GetPipeKOd(ent, GetPipeSeriesV2(ent));
+            return GetPipeKOd(ent, GetPipeSeriesV2(ent, hardFail));
         }
         public static string GetPipeSeries(Entity ent) => "S3";
         public static PipeSeriesEnum GetPipeSeriesV2(Entity ent, bool hardFail = false)

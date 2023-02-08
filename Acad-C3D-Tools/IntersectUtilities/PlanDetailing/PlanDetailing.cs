@@ -49,7 +49,6 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using System.Windows.Documents;
 
 namespace IntersectUtilities
 {
@@ -1661,20 +1660,21 @@ namespace IntersectUtilities
                 {
                     try
                     {
+                        #region Get pipes
                         HashSet<Polyline> pls = localDb.GetFjvPipes(tx);
                         if (pls.Count == 0)
                         {
                             prdDbg("No DH pipes in drawing!");
                             tx.Abort();
                             return;
-                        }
+                        } 
+                        #endregion
 
+                        #region Ask for point
                         //message for the ask for point prompt
                         string message = "Select location to place elbow: ";
                         var opt = new PromptPointOptions(message);
 
-
-                        #region Ask for point
                         Point3d location = Algorithms.NullPoint3d;
                         do
                         {
@@ -1701,6 +1701,10 @@ namespace IntersectUtilities
                             tx.Abort();
                             return;
                         }
+                        #endregion
+
+                        #region Test to see if pline has good constant width
+                        double kOd = PipeSchedule.GetPipeKOd(pl, true);
                         #endregion
 
                         #region Test to see if point coincides with a vertice
