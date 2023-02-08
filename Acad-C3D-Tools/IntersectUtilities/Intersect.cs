@@ -50,12 +50,6 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using System.Windows.Documents;
-using System.Windows.Controls;
-using System.Security.Cryptography;
-using Microsoft.VisualBasic.Logging;
-using System.Reflection.Emit;
-using csdot;
 
 namespace IntersectUtilities
 {

@@ -917,6 +917,179 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("PLACESTIKPOINTS")]
+        public void placestikpoints()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+
+            Regex cuflexRgx = new Regex(@"^CuFlex\s(?<DN>\d\d)-\d+/\d+");
+            Regex steelRgx = new Regex(@"^DN(?<DN>\d+)");
+
+            #region Read adresse rør dim katalog
+            System.Data.DataTable dtBbr = CsvReader.ReadCsvToDataTable(
+                    @"X:\120-1312 - Herstedøster - 01 Intern\04 Projektering\adresserogstik.csv",
+                    "BBRData");
+
+            Dictionary<string, string> adresseRørDimDict = new Dictionary<string, string>();
+
+            var query = dtBbr.AsEnumerable().GroupBy(x => x["Vejnavn"].ToString());
+            if (query.Any(x => x.Count() > 1))
+            {
+                prdDbg("Duplicate addresses detected:");
+                foreach (var item in query.Where(x => x.Count() > 1))
+                {
+                    prdDbg(item.Key);
+                }
+                return;
+            }
+
+            foreach (DataRow dr in dtBbr.Rows)
+                adresseRørDimDict.Add(dr["Vejnavn"].ToString(), dr["RørDim"].ToString());
+            #endregion
+
+            while (true)
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        #region Guard against missing DH pipes
+                        HashSet<Polyline> pls = localDb.GetFjvPipes(tx);
+                        if (pls.Count == 0)
+                        {
+                            prdDbg("No DH pipes in drawing!");
+                            tx.Abort();
+                            return;
+                        }
+                        #endregion
+
+                        #region Ask for BBR block
+                        string message = "Select BBR block: ";
+                        var optBlock = new PromptEntityOptions(message);
+                        Type allowedType = typeof(BlockReference);
+                        optBlock.SetRejectMessage("Allowed type: " + allowedType.Name); // Must call this first
+                        optBlock.AddAllowedClass(allowedType, true);
+
+                        Oid bbrOid = Oid.Null;
+                        do
+                        {
+                            var res = ed.GetEntity(optBlock);
+                            if (res.Status == PromptStatus.Cancel)
+                            {
+                                tx.Abort();
+                                return;
+                            }
+                            if (res.Status == PromptStatus.OK) bbrOid = res.ObjectId;
+                        }
+                        while (bbrOid == Oid.Null);
+                        BlockReference bbrBlock = bbrOid.Go<BlockReference>(tx);
+                        #endregion
+
+                        #region Get BBR address
+                        PropertySetManager bbrPsm = new PropertySetManager(
+                            localDb, PSetDefs.DefinedSets.BBR);
+                        PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                        string adresse = bbrPsm.ReadPropertyString(bbrBlock, bbrDef.Adresse);
+                        #endregion
+
+                        #region Ask for point
+                        //message for the ask for point prompt
+                        message = "Select location to place elbow: ";
+                        var optPoint = new PromptPointOptions(message);
+
+                        Point3d location = Algorithms.NullPoint3d;
+                        do
+                        {
+                            var res = ed.GetPoint(optPoint);
+                            if (res.Status == PromptStatus.Cancel)
+                            {
+                                tx.Abort();
+                                return;
+                            }
+                            if (res.Status == PromptStatus.OK) location = res.Value;
+                        }
+                        while (location == Algorithms.NullPoint3d);
+                        #endregion
+
+                        #region Find nearest pline
+                        Polyline pl = pls
+                            .MinBy(x => location.DistanceHorizontalTo(
+                                x.GetClosestPointTo(location, false))
+                            ).FirstOrDefault();
+
+                        if (pl == default)
+                        {
+                            prdDbg("Nearest pipe cannot be found!");
+                            tx.Abort();
+                            continue;
+                        }
+                        #endregion
+
+                        #region Test to see if point is on the pline
+                        bool isOnTheLine = false;
+                        if (pl.GetClosestPointTo(location, false)
+                            .DistanceHorizontalTo(location).IsZero(0.001))
+                        {
+                            location = pl.GetClosestPointTo(location, false);
+                            isOnTheLine = true;
+                        }
+                        #endregion
+
+                        #region Determine rotation if any and create block
+                        BlockReference stikBlock;
+                        if (isOnTheLine)
+                        {
+                            Vector3d deriv = pl.GetFirstDerivative(location);
+                            double rotation = Math.Atan2(deriv.Y, deriv.X);
+                            stikBlock = localDb.CreateBlockWithAttributes("STIKAFGRENING", location, rotation);
+                        }
+                        else stikBlock = localDb.CreateBlockWithAttributes("STIKAFGRENING", location);
+                        #endregion
+
+                        #region Fill out the block properties
+                        SetDynBlockPropertyObject(stikBlock, "StikType", adresse);
+                        SetDynBlockPropertyObject(stikBlock, "System", "Twin");
+                        SetDynBlockPropertyObject(stikBlock, "DN1",
+                            Convert.ToDouble(PipeSchedule.GetPipeDN(pl)));
+
+                        //Determine stik dimension
+                        if (adresseRørDimDict.ContainsKey(adresse))
+                        {
+                            string rørDimRaw = adresseRørDimDict[adresse];
+
+                            double dn = 0.0;
+
+                            if (cuflexRgx.IsMatch(rørDimRaw))
+                                dn = Convert.ToDouble(
+                                    cuflexRgx.Match(rørDimRaw).Groups["DN"].Value);
+                            else if (steelRgx.IsMatch(rørDimRaw))
+                                dn = Convert.ToDouble(
+                                    steelRgx.Match(rørDimRaw).Groups["DN"].Value);
+
+                            SetDynBlockPropertyObject(stikBlock, "DN2", dn);
+                        }
+                        else
+                        {
+                            prdDbg($"Adresse: {adresse} ikke fundet i stikoversigten!");
+                            tx.Abort();
+                            continue;
+                        }
+                        #endregion
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        prdDbg(ex);
+                        return;
+                    }
+                    tx.Commit();
+                }
+            }
+        }
+
         [CommandMethod("CORRECTPIPESTOCUTLENGTHS")]
         [CommandMethod("CPTCL")]
         public void correctpipestocutlengths()
@@ -1542,6 +1715,7 @@ namespace IntersectUtilities
                         if (!verticeFound)
                         {
                             prdDbg("Not a vertice! The location must be a vertice.");
+                            tx.Abort();
                             continue;
                         }
                         #endregion
