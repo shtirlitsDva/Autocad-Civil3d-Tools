@@ -58,6 +58,20 @@ namespace IntersectUtilities
         internal readonly Database Db;
         internal readonly Transaction Tx;
         internal readonly string BlockDb = @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Symboler.dwg";
+        internal readonly int Dn;
+        internal readonly PipeSystemEnum PipeSystem; //Stål, Cu, Alu osv.
+        private PipeTypeEnum _pipeType; //Twin, Frem, Retur
+        internal PipeTypeEnum PipeType
+        {
+            get => _pipeType;
+            set
+            {
+                if (value == PipeTypeEnum.Frem || value == PipeTypeEnum.Retur)
+                    _pipeType = PipeTypeEnum.Enkelt;
+                else _pipeType = value;
+            }
+        } //Twin, Frem, Retur
+        internal PipeSeriesEnum PipeSerie;
         private DataTable Data;
         public ComponentData(Polyline originalHost, Point3d location)
         {
@@ -70,6 +84,11 @@ namespace IntersectUtilities
                 Tx = Db.TransactionManager.TopTransaction;
             }
             else throw new System.Exception($"Class ComponentData created outside a transaction!");
+
+            Dn = PipeSchedule.GetPipeDN(originalHost);
+            PipeSystem = PipeSchedule.GetPipeSystem(originalHost);
+            PipeType = PipeSchedule.GetPipeType(originalHost);
+            PipeSerie = PipeSchedule.GetPipeSeriesV2(OriginalHost, true);
         }
         internal void ReadData(string pathToData)
         {
@@ -78,8 +97,38 @@ namespace IntersectUtilities
         internal virtual Result Validate()
         {
             Result result = new Result();
+            //Test BlockDb
             if (!File.Exists(BlockDb))
                 throw new System.Exception("ComponentData cannot access " + BlockDb + "!");
+
+            //Test Dn
+            if (Dn == 999)
+            {
+                result.Status = ResultStatus.SoftError;
+                result.ErrorMsg = $"Pipe {OriginalHost.Handle} fails to report correct DN!";
+            }
+
+            //Test pipe system
+            if (PipeSystem == PipeSystemEnum.Ukendt)
+            {
+                result.Status = ResultStatus.SoftError;
+                result.ErrorMsg = $"Pipe {OriginalHost.Handle} fails to report correct PipeSystem (Stål, AluFlex osv.)!";
+            }
+
+            //Test pipe type
+            if (PipeType == PipeTypeEnum.Ukendt)
+            {
+                result.Status = ResultStatus.SoftError;
+                result.ErrorMsg = $"Pipe {OriginalHost.Handle} fails to report correct PipeType (Twin/Enkelt)!";
+            }
+
+            //Test pipe series
+            if (PipeSerie == PipeSeriesEnum.Undefined)
+            {
+                result.Status = ResultStatus.SoftError;
+                result.ErrorMsg = $"Pipe {OriginalHost.Handle} fails to report correct PipeSerie!";
+            }
+
             return result;
         }
         internal virtual Result Place()
@@ -97,6 +146,7 @@ namespace IntersectUtilities
         private readonly string blockNameTwin = "PRÆBØJN-90GR-TWIN-GLD";
         private readonly string blockNameEnkelt = "PRÆBØJN 90GR ENKELT";
 
+
         public Elbow(Polyline originalHost, Point3d location) : base(originalHost, location)
         {
             string pathToData =
@@ -107,20 +157,12 @@ namespace IntersectUtilities
         }
         internal override Result Validate()
         {
-            #region Test to see if pline has good constant width
-            //The method will throw if constant width is in error
-            double kOd = PipeSchedule.GetPipeKOd(OriginalHost, true);
-            #endregion
-
-            //Validate presence of BlockDb
-            base.Validate();
+            Result result = base.Validate();
 
             #region Test to see if block is present in DB or import
             CheckPresenceOrImportBlock(blockNameTwin);
             CheckPresenceOrImportBlock(blockNameEnkelt);
             #endregion
-
-            Result result = new Result();
 
             #region Test to see if point coincides with a vertice
             bool verticeFound = false;
