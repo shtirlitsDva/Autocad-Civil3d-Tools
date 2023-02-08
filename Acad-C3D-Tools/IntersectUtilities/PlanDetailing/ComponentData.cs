@@ -88,7 +88,8 @@ namespace IntersectUtilities
         }
         internal void CheckPresenceOrImportBlock(string blockName)
         {
-            Result result = new Result();
+            BlockTable bt = Db.BlockTableId.Go<BlockTable>(Tx);
+            if (!bt.Has(blockName)) Db.CheckOrImportBlockRecord(BlockDb, blockName);
         }
     }
     internal class Elbow : ComponentData
@@ -115,7 +116,8 @@ namespace IntersectUtilities
             base.Validate();
 
             #region Test to see if block is present in DB or import
-
+            CheckPresenceOrImportBlock(blockNameTwin);
+            CheckPresenceOrImportBlock(blockNameEnkelt);
             #endregion
 
             Result result = new Result();
