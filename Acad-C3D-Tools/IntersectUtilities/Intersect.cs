@@ -5117,15 +5117,22 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Test version parameter
-                    PromptEntityOptions peo = new PromptEntityOptions("\nSelect block to read parameter: ");
-                    peo.SetRejectMessage("\nNot a block!");
-                    peo.AddAllowedClass(typeof(BlockReference), true);
-                    PromptEntityResult per = editor.GetEntity(peo);
-                    BlockReference br = per.ObjectId.Go<BlockReference>(tx);
+                    #region Test block values
+                    //PromptEntityOptions peo = new PromptEntityOptions("\nSelect block to read parameter: ");
+                    //peo.SetRejectMessage("\nNot a block!");
+                    //peo.AddAllowedClass(typeof(BlockReference), true);
+                    //PromptEntityResult per = editor.GetEntity(peo);
+                    //BlockReference br = per.ObjectId.Go<BlockReference>(tx);
 
-                    string version = br.GetAttributeStringValue("VERSION");
-                    prdDbg(version);
+                    //var pc = br.DynamicBlockReferencePropertyCollection;
+                    //foreach (DynamicBlockReferenceProperty prop in pc)
+                    //{
+                    //    if (prop.PropertyName == "StikType")
+                    //    {
+                    //        prdDbg(prop.Value.ToString());
+                    //        break;
+                    //    }
+                    //}
                     #endregion
 
                     #region Test dynamic reading of parameters
