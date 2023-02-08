@@ -49,14 +49,15 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using DataTable = System.Data.DataTable;
 using Autodesk.AutoCAD.MacroRecorder;
 
-namespace IntersectUtilities.PlanDetailing
+namespace IntersectUtilities
 {
     internal abstract class ComponentData
     {
-        private readonly Polyline OriginalHost;
-        private readonly Point3d Location;
-        private readonly Database Db;
-        private readonly Transaction Tx;
+        internal readonly Polyline OriginalHost;
+        internal readonly Point3d Location;
+        internal readonly Database Db;
+        internal readonly Transaction Tx;
+        internal readonly string BlockDb = @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Symboler.dwg";
         private DataTable Data;
         public ComponentData(Polyline originalHost, Point3d location)
         {
@@ -74,10 +75,23 @@ namespace IntersectUtilities.PlanDetailing
         {
             Data = CsvReader.ReadCsvToDataTable(pathToData, "Data");
         }
-        internal virtual ResultBuffer ;
+        internal virtual Result Validate()
+        {
+            Result result = new Result();
+            if (!File.Exists(BlockDb))
+                throw new System.Exception("ComponentData cannot access " + BlockDb + "!");
+            return result;
+        }
+        internal virtual Result Place()
+        {
+            throw new NotImplementedException();
+        }
     }
     internal class Elbow : ComponentData
     {
+        private readonly string blockNameTwin = "PRÆBØJN-90GR-TWIN-GLD";
+        private readonly string blockNameEnkelt = "PRÆBØJN 90GR ENKELT";
+
         public Elbow(Polyline originalHost, Point3d location) : base(originalHost, location)
         {
             string pathToData =
@@ -85,28 +99,45 @@ namespace IntersectUtilities.PlanDetailing
 
             if (File.Exists(pathToData)) this.ReadData(pathToData);
             else throw new System.Exception("Class Elbow:ComponentData cannot find " + pathToData + "!");
-
+        }
+        internal override Result Validate()
+        {
             #region Test to see if pline has good constant width
-            double kOd = PipeSchedule.GetPipeKOd(originalHost, true);
+            //The method will throw if constant width is in error
+            double kOd = PipeSchedule.GetPipeKOd(OriginalHost, true);
             #endregion
+
+            //Validate presence of BlockDb
+            base.Validate();
+
+            #region Test to see if block is present in DB or import
+
+            #endregion
+
+            Result result = new Result();
 
             #region Test to see if point coincides with a vertice
             bool verticeFound = false;
-            for (int i = 0; i < originalHost.NumberOfVertices; i++)
+            for (int i = 0; i < OriginalHost.NumberOfVertices; i++)
             {
-                Point3d vert = originalHost.GetPoint3dAt(i);
-                if (vert.IsEqualTo(location, Tolerance.Global))
+                Point3d vert = OriginalHost.GetPoint3dAt(i);
+                if (vert.IsEqualTo(Location, Tolerance.Global))
                     verticeFound = true;
                 if (verticeFound) break;
             }
 
             if (!verticeFound)
             {
-                prdDbg("Not a vertice! The location must be a vertice.");
-                tx.Abort();
-                continue;
+                result.Status = ResultStatus.SoftError;
+                result.ErrorMsg = "Location not a vertice! The location must be a vertice.";
             }
             #endregion
+
+            return result;
+        }
+        internal override Result Place()
+        {
+
         }
     }
 }

@@ -1703,7 +1703,14 @@ namespace IntersectUtilities
                         }
                         #endregion
 
-                        
+                        Elbow elbow = new Elbow(pl, location);
+                        Result result = elbow.Validate();
+                        if (result.Status != ResultStatus.OK)
+                        {
+                            prdDbg(result.ErrorMsg);
+                            tx.Abort();
+                            continue;
+                        }
 
 
                     }
