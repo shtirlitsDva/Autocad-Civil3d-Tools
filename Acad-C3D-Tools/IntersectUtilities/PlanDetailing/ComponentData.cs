@@ -47,24 +47,18 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using DataTable = System.Data.DataTable;
+using Autodesk.AutoCAD.MacroRecorder;
 
 namespace IntersectUtilities.PlanDetailing
 {
     internal abstract class ComponentData
     {
+        private readonly Polyline OriginalHost;
+        private readonly Point3d Location;
+        private readonly Database Db;
+        private readonly Transaction Tx;
         private DataTable Data;
-        internal void ReadData(string pathToData)
-        {
-            Data = CsvReader.ReadCsvToDataTable(pathToData, "Data");
-        }
-    }
-    internal class Elbow : ComponentData
-    {
-        private Polyline OriginalHost;
-        private Point3d Location;
-        private Database Db;
-        private Transaction Tx;
-        public Elbow(Polyline originalHost, Point3d location)
+        public ComponentData(Polyline originalHost, Point3d location)
         {
             OriginalHost = originalHost;
             Location = location;
@@ -74,14 +68,45 @@ namespace IntersectUtilities.PlanDetailing
             {
                 Tx = Db.TransactionManager.TopTransaction;
             }
-            else throw new System.Exception("Class Elbow:ComponentData must be created inside a transaction!");
-
+            else throw new System.Exception($"Class ComponentData created outside a transaction!");
+        }
+        internal void ReadData(string pathToData)
+        {
+            Data = CsvReader.ReadCsvToDataTable(pathToData, "Data");
+        }
+        internal virtual ResultBuffer ;
+    }
+    internal class Elbow : ComponentData
+    {
+        public Elbow(Polyline originalHost, Point3d location) : base(originalHost, location)
+        {
             string pathToData =
                 @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Isoplus tabeller\Twin_90gr_Alle_S.csv";
 
             if (File.Exists(pathToData)) this.ReadData(pathToData);
             else throw new System.Exception("Class Elbow:ComponentData cannot find " + pathToData + "!");
-            
+
+            #region Test to see if pline has good constant width
+            double kOd = PipeSchedule.GetPipeKOd(originalHost, true);
+            #endregion
+
+            #region Test to see if point coincides with a vertice
+            bool verticeFound = false;
+            for (int i = 0; i < originalHost.NumberOfVertices; i++)
+            {
+                Point3d vert = originalHost.GetPoint3dAt(i);
+                if (vert.IsEqualTo(location, Tolerance.Global))
+                    verticeFound = true;
+                if (verticeFound) break;
+            }
+
+            if (!verticeFound)
+            {
+                prdDbg("Not a vertice! The location must be a vertice.");
+                tx.Abort();
+                continue;
+            }
+            #endregion
         }
     }
 }

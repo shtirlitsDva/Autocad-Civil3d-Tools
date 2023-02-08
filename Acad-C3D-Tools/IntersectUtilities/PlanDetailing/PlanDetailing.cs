@@ -1703,28 +1703,7 @@ namespace IntersectUtilities
                         }
                         #endregion
 
-                        #region Test to see if pline has good constant width
-                        double kOd = PipeSchedule.GetPipeKOd(pl, true);
-                        #endregion
-
-                        #region Test to see if point coincides with a vertice
-                        bool verticeFound = false;
-                        for (int i = 0; i < pl.NumberOfVertices; i++)
-                        {
-                            Point3d vert = pl.GetPoint3dAt(i);
-                            if (vert.IsEqualTo(location, Tolerance.Global))
-                                verticeFound = true;
-                            if (verticeFound) break;
-                        }
-
-                        if (!verticeFound)
-                        {
-                            prdDbg("Not a vertice! The location must be a vertice.");
-                            tx.Abort();
-                            continue;
-                        }
-                        #endregion
-
+                        
 
 
                     }

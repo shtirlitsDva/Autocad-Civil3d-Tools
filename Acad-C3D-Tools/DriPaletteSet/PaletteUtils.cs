@@ -171,6 +171,35 @@ namespace DriPaletteSet
                 }
             }
         }
+        internal static void ResetWidths()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            using (DocumentLock docLock = doc.LockDocument())
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<Polyline> pipes = localDb.GetFjvPipes(tx);
+                    foreach (Polyline pipe in pipes)
+                    {
+                        pipe.CheckOrOpenForWrite();
+                        pipe.ConstantWidth = 0.0;
+                    }
+
+                    tx.Commit();
+                }
+                catch (System.Exception e)
+                {
+                    prdDbg(e.ToString() + "\n");
+                    tx.Abort();
+                    return;
+                }
+            }
+        }
         public static void labelpipe()
         {
 
