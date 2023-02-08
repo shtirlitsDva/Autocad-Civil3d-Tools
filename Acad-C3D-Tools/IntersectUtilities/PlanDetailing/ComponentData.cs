@@ -86,6 +86,10 @@ namespace IntersectUtilities
         {
             throw new NotImplementedException();
         }
+        internal void CheckPresenceOrImportBlock(string blockName)
+        {
+            Result result = new Result();
+        }
     }
     internal class Elbow : ComponentData
     {
