@@ -110,7 +110,7 @@ namespace IntersectUtilities.UtilsCommon
             var ed = Application.DocumentManager.MdiActiveDocument.Editor;
             var opt = new PromptKeywordOptions(message);
             opt.AllowNone = true;
-            
+
             opt.SetMessageAndKeywords(messageAndKeywords, globalKeywords);
             opt.Keywords.Default = dKwd;
 
@@ -1508,7 +1508,36 @@ namespace IntersectUtilities.UtilsCommon
             }
             return br;
         }
+        public static void AttSync(this BlockReference br)
+        {
+            Transaction tx = br.Database.TransactionManager.TopTransaction;
+            BlockTableRecord btr;
+            if (br.IsDynamicBlock) btr =
+                    br.AnonymousBlockTableRecord.Go<BlockTableRecord>(tx);
+            else btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
 
+            Dictionary<string, AttributeDefinition> atDefDict
+                = new Dictionary<string, AttributeDefinition>();
+            foreach (Oid id in btr)
+            {
+                if (id.IsDerivedFrom<AttributeDefinition>())
+                {
+                    AttributeDefinition def = id.Go<AttributeDefinition>(tx);
+                    atDefDict.Add(def.Tag, def);
+                }
+            }
+
+            AttributeCollection ac = br.AttributeCollection;
+            foreach (Oid atId in ac)
+            {
+                AttributeReference ar = atId.Go<AttributeReference>(tx);
+                if (!ar.IsConstant && atDefDict.ContainsKey(ar.Tag))
+                {
+                    ar.CheckOrOpenForWrite();
+                    ar.SetAttributeFromBlock(atDefDict[ar.Tag], br.BlockTransform);
+                }
+            }
+        }
         public static List<string> ListLayers(this Database db)
         {
             List<string> lstlay = new List<string>();

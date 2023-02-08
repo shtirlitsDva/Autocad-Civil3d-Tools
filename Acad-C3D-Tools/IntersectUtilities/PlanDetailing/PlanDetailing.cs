@@ -505,15 +505,14 @@ namespace IntersectUtilities
 
                             psm.WritePropertyString(wpBr, driPipelineData.BelongsToAlignment, wp.Alignment.Name);
 
-                            wpBr.RecordGraphicsModified(true);
+                            wpBr.AttSync();
 
                             idx++;
                         }
                     }
                     #endregion
 
-                    //BlockTableRecord btr = bt[blockName].Go<BlockTableRecord>(tx);
-                    //btr.SynchronizeAttributes();
+                    
                 }
                 catch (System.Exception ex)
                 {
@@ -1078,6 +1077,8 @@ namespace IntersectUtilities
                             continue;
                         }
                         #endregion
+
+                        stikBlock.AttSync();
                     }
                     catch (System.Exception ex)
                     {

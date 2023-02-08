@@ -5117,15 +5117,54 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Test version parameter
+                    #region Test values
                     PromptEntityOptions peo = new PromptEntityOptions("\nSelect block to read parameter: ");
                     peo.SetRejectMessage("\nNot a block!");
                     peo.AddAllowedClass(typeof(BlockReference), true);
                     PromptEntityResult per = editor.GetEntity(peo);
                     BlockReference br = per.ObjectId.Go<BlockReference>(tx);
 
-                    string version = br.GetAttributeStringValue("VERSION");
+                    var pc = br.DynamicBlockReferencePropertyCollection;
+                    foreach (DynamicBlockReferenceProperty prop in pc)
+                    {
+                        if (prop.PropertyName == "StikType")
+                        {
+                            prdDbg(prop.Value.ToString());
+                            break;
+                        }
+                    }
+
+                    string version = br.GetAttributeStringValue("TYPE");
                     prdDbg(version);
+
+                    BlockTableRecord btr;
+                    if (br.IsDynamicBlock)
+                        btr = br.AnonymousBlockTableRecord.Go<BlockTableRecord>(tx);
+                    else btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+
+                    foreach (Oid oid in br.AttributeCollection)
+                    {
+                        AttributeReference ar = oid.Go<AttributeReference>(tx);
+                        ar.CheckOrOpenForWrite();
+
+                        foreach (Oid arOid in btr)
+                        {
+                            prdDbg(arOid.ObjectClass.Name);
+                            if (arOid.IsDerivedFrom<AttributeDefinition>())
+                            {
+                                AttributeDefinition at = arOid.Go<AttributeDefinition>(tx);
+                                if (ar.Tag == at.Tag)
+                                {
+                                    ar.SetAttributeFromBlock(at, br.BlockTransform);
+                                }
+                            }
+                        }
+                    }
+
+                    version = br.GetAttributeStringValue("TYPE");
+                    prdDbg(version);
+
+                    br.RecordGraphicsModified(true);
                     #endregion
 
                     #region Test dynamic reading of parameters
