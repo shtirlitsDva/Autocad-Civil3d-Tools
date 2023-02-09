@@ -1183,6 +1183,28 @@ namespace IntersectUtilities.UtilsCommon
             }
             return totalLength;
         }
+        /// <summary>
+        /// Finds the index of vertice coincident with given point3d.
+        /// If not coincident with any returns -1.
+        /// </summary>
+        public static int GetIndexAtPoint(this Polyline pline, Point3d p3d)
+        {
+            #region Test to see if point coincides with a vertice
+            bool verticeFound = false;
+            int idx = -1;
+            for (int i = 0; i < pline.NumberOfVertices; i++)
+            {
+                idx = i;
+                Point3d vert = pline.GetPoint3dAt(i);
+                if (vert.IsEqualTo(p3d, Tolerance.Global))
+                    verticeFound = true;
+                if (verticeFound) break;
+            }
+
+            if (!verticeFound) return -1;
+            else return idx;
+            #endregion
+        }
         public static double DistanceHorizontalTo(this Point3d sourceP3d, Point3d targetP3d)
         {
             double X1 = sourceP3d.X;

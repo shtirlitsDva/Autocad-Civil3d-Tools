@@ -145,8 +145,7 @@ namespace IntersectUtilities
     {
         private readonly string blockNameTwin = "PRÆBØJN-90GR-TWIN-GLD";
         private readonly string blockNameEnkelt = "PRÆBØJN 90GR ENKELT";
-
-
+        private string blockName { get => PipeType == PipeTypeEnum.Twin ? blockNameTwin : blockNameEnkelt; }
         public Elbow(Polyline originalHost, Point3d location) : base(originalHost, location)
         {
             string pathToData =
@@ -164,20 +163,19 @@ namespace IntersectUtilities
             CheckPresenceOrImportBlock(blockNameEnkelt);
             #endregion
 
-            #region Test to see if point coincides with a vertice
-            bool verticeFound = false;
-            for (int i = 0; i < OriginalHost.NumberOfVertices; i++)
-            {
-                Point3d vert = OriginalHost.GetPoint3dAt(i);
-                if (vert.IsEqualTo(Location, Tolerance.Global))
-                    verticeFound = true;
-                if (verticeFound) break;
-            }
+            #region Test to see if point coincides with a vertice or at ends
+            int idx = OriginalHost.GetIndexAtPoint(Location);
 
-            if (!verticeFound)
+            if (idx == -1)
             {
                 result.Status = ResultStatus.SoftError;
                 result.ErrorMsg = "Location not a vertice! The location must be a vertice.";
+            }
+            
+            if (idx == 0 || idx == OriginalHost.NumberOfVertices - 1)
+            {
+                result.Status = ResultStatus.SoftError;
+                result.ErrorMsg = "The command does not accept start or end points. Yet...";
             }
             #endregion
 
@@ -185,7 +183,10 @@ namespace IntersectUtilities
         }
         internal override Result Place()
         {
+            int idx = OriginalHost.GetIndexAtPoint(Location);
 
+
+            BlockReference br = Db.CreateBlockWithAttributes(blockName, Location, );
         }
     }
 }
