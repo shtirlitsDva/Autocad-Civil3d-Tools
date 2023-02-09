@@ -242,6 +242,7 @@ namespace LERImporter.Schema
         [XmlElement("Polygon", typeof(PolygonType))]
         [XmlElement("Point", typeof(PointType))]
         [XmlElement("Surface", typeof(SurfaceType))]
+        [XmlElement("MultiSurface", typeof(MultiSurfaceType))]
         public AbstractGeometryType Item { get; set; }
     }
     [XmlRootAttribute("AbstractGeometry", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
@@ -370,6 +371,69 @@ namespace LERImporter.Schema
             }
         }
     }
+    public partial class MultiSurfaceType : IEntityCreator
+    {
+        public Oid CreateEntity(Database database)
+        {
+            if (this.surfaceMember != null && this.surfaceMember.Length > 0)
+            {
+                Hatch hatch = new Hatch();
+                hatch.Normal = new Vector3d(0.0, 0.0, 1.0);
+                hatch.Elevation = 0.0;
+                hatch.PatternScale = 1.0;
+                hatch.SetHatchPattern(HatchPatternType.PreDefined, "SOLID");
+                Oid hatchId = hatch.AddEntityToDbModelSpace(database);
+
+                foreach (SurfacePropertyType spt in surfaceMember)
+                {
+                    switch (spt.AbstractSurface)
+                    {
+                        case PolygonType pt:
+                            {
+                                var exterior = pt.exterior;
+                                var ringType = exterior.Item;
+                                switch (ringType)
+                                {
+                                    case LinearRingType lrt:
+                                        DirectPositionListType dplt;
+                                        if ((dplt = lrt.Items[0] as DirectPositionListType) != null)
+                                        {
+                                            var points = dplt.Get3DPoints();
+
+                                            Point2dCollection points2d = new Point2dCollection();
+                                            DoubleCollection dc = new DoubleCollection();
+                                            //-1 beacuse the last point is a repetition of first
+                                            for (int i = 0; i < points.Length; i++)
+                                            {
+                                                points2d.Add(points[i].To2D());
+                                                dc.Add(0.0);
+                                            }
+
+                                            hatch.AppendLoop(HatchLoopTypes.Default, points2d, dc);
+                                            hatch.EvaluateHatch(true);
+                                        }
+                                        else throw new System.Exception(
+                                            $"Unexpected type in PolygonType.exterior.Item.Items[0]: {lrt.Items[0].GetType().Name}");
+                                        break;
+                                    case RingType rt:
+                                        throw new System.NotImplementedException();
+                                    default:
+                                        throw new System.Exception($"Unexpected type in PolygonType.exterior.Item: {ringType.GetType().Name}");
+                                }
+                            }
+                            break;
+                        default:
+                            throw new NotImplementedException(
+                                $"Element {this.GMLTypeID} asked for non implemented geometry! Error 124385.");
+                    }
+                }
+
+                return hatchId;
+            }
+            else throw new NotImplementedException(
+                $"Unexpected geometry in element {this.GMLTypeID}!");
+        }
+    }
     /// <summary>
     /// gml:SurfacePatchArrayPropertyType is a container for a sequence of surface patches.
     /// </summary>
@@ -389,7 +453,7 @@ namespace LERImporter.Schema
         [XmlArrayItem(typeof(TriangleType), Namespace = "http://www.opengis.net/gml/3.2", ElementName = "Triangle")]
         [XmlArrayItem(typeof(PolygonPatchType), Namespace = "http://www.opengis.net/gml/3.2", ElementName = "PolygonPatch")]
         public AbstractSurfacePatchType[] AbstractSurfacePatch { get; set; }
-        
+
         [XmlElement(typeof(AbstractParametricCurveSurfaceType))]
         [XmlElement(typeof(AbstractGriddedSurfaceType))]
         [XmlElement("Sphere", typeof(SphereType))]
@@ -485,4 +549,9 @@ namespace LERImporter.Schema
     public partial class LinearRingType { }
     [XmlRootAttribute("Ring", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
     public partial class RingType { }
+    public partial class SurfacePropertyType
+    {
+        [XmlElement("Polygon", typeof(PolygonType))]
+        public AbstractSurfaceType AbstractSurface { get; set; }
+    }
 }
