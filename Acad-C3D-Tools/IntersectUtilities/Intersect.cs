@@ -5117,6 +5117,39 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test getting angle between segments
+                    //string message = "Select location to place elbow: ";
+                    //var opt = new PromptPointOptions(message);
+
+                    //Point3d location = Point3d.Origin;
+
+                    //var res = editor.GetPoint(opt);
+                    //if (res.Status == PromptStatus.Cancel)
+                    //{
+                    //    tx.Abort();
+                    //    return;
+                    //}
+                    //if (res.Status == PromptStatus.OK) location = res.Value;
+                    //else { tx.Abort(); return; }
+
+                    //HashSet<Polyline> pls = localDb.GetFjvPipes(tx);
+                    //Polyline pl = pls
+                    //        .MinBy(x => location.DistanceHorizontalTo(
+                    //            x.GetClosestPointTo(location, false))
+                    //        ).FirstOrDefault();
+
+                    //int idx = pl.GetIndexAtPoint(location);
+
+                    //if (idx == -1 || idx == 0 || idx == pl.NumberOfVertices - 1) { tx.Abort(); return; }
+
+                    //var sg1 = pl.GetLineSegmentAt(idx);
+                    //var sg2 = pl.GetLineSegmentAt(idx - 1);
+
+                    //prdDbg(sg1.Direction.GetAngleTo(sg2.Direction).ToDegrees());
+
+                    //prdDbg(sg1.Direction.CrossProduct(sg2.Direction));
+                    #endregion
+
                     #region Test block values
                     //PromptEntityOptions peo = new PromptEntityOptions("\nSelect block to read parameter: ");
                     //peo.SetRejectMessage("\nNot a block!");
@@ -5127,12 +5160,10 @@ namespace IntersectUtilities
                     //var pc = br.DynamicBlockReferencePropertyCollection;
                     //foreach (DynamicBlockReferenceProperty prop in pc)
                     //{
-                    //    if (prop.PropertyName == "StikType")
-                    //    {
-                    //        prdDbg(prop.Value.ToString());
-                    //        break;
-                    //    }
+                    //    prdDbg(prop.PropertyName + " " + prop.UnitsType);
                     //}
+
+                    //SetDynBlockPropertyObject(br, "DN", 200.ToString());
                     #endregion
 
                     #region Test dynamic reading of parameters

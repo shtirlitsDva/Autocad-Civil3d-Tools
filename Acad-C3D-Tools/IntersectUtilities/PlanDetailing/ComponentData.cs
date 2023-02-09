@@ -72,7 +72,8 @@ namespace IntersectUtilities
             }
         } //Twin, Frem, Retur
         internal PipeSeriesEnum PipeSerie;
-        private DataTable Data;
+        internal BlockReference Br;
+        //private DataTable Data;
         public ComponentData(Polyline originalHost, Point3d location)
         {
             OriginalHost = originalHost;
@@ -90,10 +91,10 @@ namespace IntersectUtilities
             PipeType = PipeSchedule.GetPipeType(originalHost);
             PipeSerie = PipeSchedule.GetPipeSeriesV2(OriginalHost, true);
         }
-        internal void ReadData(string pathToData)
-        {
-            Data = CsvReader.ReadCsvToDataTable(pathToData, "Data");
-        }
+        //internal void ReadData(string pathToData)
+        //{
+        //    Data = CsvReader.ReadCsvToDataTable(pathToData, "Data");
+        //}
         internal virtual Result Validate()
         {
             Result result = new Result();
@@ -135,6 +136,10 @@ namespace IntersectUtilities
         {
             throw new NotImplementedException();
         }
+        internal virtual Result Cut()
+        {
+            throw new NotImplementedException();
+        }
         internal void CheckPresenceOrImportBlock(string blockName)
         {
             BlockTable bt = Db.BlockTableId.Go<BlockTable>(Tx);
@@ -148,11 +153,11 @@ namespace IntersectUtilities
         private string blockName { get => PipeType == PipeTypeEnum.Twin ? blockNameTwin : blockNameEnkelt; }
         public Elbow(Polyline originalHost, Point3d location) : base(originalHost, location)
         {
-            string pathToData =
-                @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Isoplus tabeller\Twin_90gr_Alle_S.csv";
+            //string pathToData =
+            //    @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Isoplus tabeller\Twin_90gr_Alle_S.csv";
 
-            if (File.Exists(pathToData)) this.ReadData(pathToData);
-            else throw new System.Exception("Class Elbow:ComponentData cannot find " + pathToData + "!");
+            //if (File.Exists(pathToData)) this.ReadData(pathToData);
+            //else throw new System.Exception("Class Elbow:ComponentData cannot find " + pathToData + "!");
         }
         internal override Result Validate()
         {
@@ -163,6 +168,20 @@ namespace IntersectUtilities
             CheckPresenceOrImportBlock(blockNameEnkelt);
             #endregion
 
+            #region Check number of MuffeIntern blocks in BTR
+            BlockTable bt = Db.BlockTableId.Go<BlockTable>(Tx);
+            BlockTableRecord btr = bt[blockNameTwin].Go<BlockTableRecord>(Tx);
+            var blocks = btr.GetNestedBlocksByName("MuffeIntern");
+            if (blocks.Length != 2)
+                throw new System.Exception(
+                    $"BlockTableRecord {btr.Name} has unexpected number ({blocks.Length}) of MuffeIntern!");
+            btr = bt[blockNameEnkelt].Go<BlockTableRecord>(Tx);
+            blocks = btr.GetNestedBlocksByName("MuffeIntern");
+            if (blocks.Length != 2)
+                throw new System.Exception(
+                    $"BlockTableRecord {btr.Name} has unexpected number ({blocks.Length}) of MuffeIntern!");
+            #endregion
+
             #region Test to see if point coincides with a vertice or at ends
             int idx = OriginalHost.GetIndexAtPoint(Location);
 
@@ -171,11 +190,28 @@ namespace IntersectUtilities
                 result.Status = ResultStatus.SoftError;
                 result.ErrorMsg = "Location not a vertice! The location must be a vertice.";
             }
-            
-            if (idx == 0 || idx == OriginalHost.NumberOfVertices - 1)
+
+            else if (idx == 0 || idx == OriginalHost.NumberOfVertices - 1)
             {
                 result.Status = ResultStatus.SoftError;
                 result.ErrorMsg = "The command does not accept start or end points. Yet...";
+            }
+            #endregion
+
+            #region Test to see if bend is 90°
+            else
+            {
+                LineSegment2d seg1 = OriginalHost.GetLineSegment2dAt(idx);
+                LineSegment2d seg2 = OriginalHost.GetLineSegment2dAt(idx - 1);
+
+                double angle = seg1.Direction.GetAngleTo(seg2.Direction).ToDegrees();
+
+                if (!angle.Equalz(90.0, 0.00001))
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg =
+                        $"The bend is not exactly 90°! But actually {angle}.";
+                }
             }
             #endregion
 
@@ -183,10 +219,84 @@ namespace IntersectUtilities
         }
         internal override Result Place()
         {
+            Result result = new Result();
             int idx = OriginalHost.GetIndexAtPoint(Location);
+            SegmentType st1 = OriginalHost.GetSegmentType(idx);
+            if (st1 != SegmentType.Line)
+            {
+                result.Status = ResultStatus.SoftError;
+                result.ErrorMsg = "Previous segment is not a Line!";
+                return result;
+            }
 
+            LineSegment3d seg1 = OriginalHost.GetLineSegmentAt(idx);
+            LineSegment3d seg2 = OriginalHost.GetLineSegmentAt(idx - 1);
+            double rotation = Math.Atan2(seg1.Direction.Y, seg1.Direction.X);
 
-            BlockReference br = Db.CreateBlockWithAttributes(blockName, Location, );
+            Br = Db.CreateBlockWithAttributes(blockName, Location, rotation);
+
+            var cp = seg1.Direction.CrossProduct(seg2.Direction);
+            if (cp.Z.Equalz(-1, 0.000001))
+                SetDynBlockProperty(Br, "Flip-H", "1");
+
+            //DN is NoUnits, must be set with a string
+            SetDynBlockPropertyObject(Br, "DN", Dn.ToString());
+            if (PipeType == PipeTypeEnum.Twin)
+                SetDynBlockPropertyObject(Br, "Serie", PipeSerie.ToString());
+            Br.AttSync();
+
+            return result;
+        }
+        /// <summary>
+        /// Must be called within same transaction as Place()
+        /// </summary>
+        internal override Result Cut()
+        {
+            Result result = new Result();
+            BlockTableRecord btr = Br.BlockTableRecord.Go<BlockTableRecord>(Tx);
+
+            var muffer = btr.GetNestedBlocksByName("MuffeIntern");
+
+            List<double> splitPts = new List<double>();
+            foreach (BlockReference br in muffer)
+            {
+                Point3d pt = br.Position.TransformBy(Br.BlockTransform);
+                splitPts.Add(
+                    OriginalHost.GetParameterAtPoint(
+                        OriginalHost.GetClosestPointTo(pt, false)));
+            }
+
+            splitPts.Sort();
+
+            try
+            {
+                DBObjectCollection objs = OriginalHost
+                    .GetSplitCurves(new DoubleCollection(splitPts.ToArray()));
+
+                if (objs.Count != 3) throw new System.Exception(
+                    $"Unexpected number of split curves for polyline {OriginalHost.Handle}!");
+
+                for (int i = 0; i < 3; i++)
+                {
+                    if (i == 1) continue;
+                    Polyline pl = objs[i] as Polyline;
+
+                    pl.AddEntityToDbModelSpace(Db);
+                    pl.Layer = OriginalHost.Layer;
+                    pl.ConstantWidth = OriginalHost.ConstantWidth;
+                    PropertySetManager.CopyAllProperties(OriginalHost, pl);
+                }
+
+                OriginalHost.CheckOrOpenForWrite();
+                OriginalHost.Erase(true);
+            }
+            catch (Autodesk.AutoCAD.Runtime.Exception ex)
+            {
+                Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
+                throw new System.Exception("Splitting of pline failed!");
+            }
+
+            return result;
         }
     }
 }

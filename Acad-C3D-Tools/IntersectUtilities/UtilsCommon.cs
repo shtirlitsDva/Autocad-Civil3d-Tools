@@ -1592,6 +1592,20 @@ namespace IntersectUtilities.UtilsCommon
                exception.Message);
         }
         static RXClass attDefClass = RXClass.GetClass(typeof(AttributeDefinition));
+        public static BlockReference[] GetNestedBlocksByName(this BlockTableRecord btr, string blockName)
+        {
+            List<BlockReference> btrs = new List<BlockReference>();
+            foreach (Oid oid in btr)
+            {
+                if (!oid.IsDerivedFrom<BlockReference>()) continue;
+                BlockReference nestedBr = oid.Go<BlockReference>(
+                    btr.Database.TransactionManager.TopTransaction);
+                if (nestedBr.RealName() == blockName)
+                    btrs.Add(nestedBr);
+            }
+
+            return btrs.ToArray();
+        }
         public static void SynchronizeAttributes(this BlockTableRecord target)
         {
             if (target == null)

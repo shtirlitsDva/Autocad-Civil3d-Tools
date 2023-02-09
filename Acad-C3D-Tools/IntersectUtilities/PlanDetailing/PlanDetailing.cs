@@ -1703,6 +1703,7 @@ namespace IntersectUtilities
                         }
                         #endregion
 
+                        #region Place elbow
                         Elbow elbow = new Elbow(pl, location);
                         Result result = elbow.Validate();
                         if (result.Status != ResultStatus.OK)
@@ -1711,8 +1712,22 @@ namespace IntersectUtilities
                             tx.Abort();
                             continue;
                         }
+                        result = elbow.Place();
+                        if (result.Status != ResultStatus.OK)
+                        {
+                            prdDbg(result.ErrorMsg);
+                            tx.Abort();
+                            continue;
+                        }
+                        #endregion
 
-
+                        #region Cut original host pline
+                        if (result.Status == ResultStatus.OK)
+                        {
+                            elbow.Cut();
+                        }
+                        
+                        #endregion
                     }
                     catch (System.Exception ex)
                     {
