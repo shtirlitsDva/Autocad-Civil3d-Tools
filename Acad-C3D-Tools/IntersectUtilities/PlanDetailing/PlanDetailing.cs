@@ -1682,6 +1682,7 @@ namespace IntersectUtilities
                             if (res.Status == PromptStatus.Cancel)
                             {
                                 tx.Abort();
+                                bringallblockstofront();
                                 return;
                             }
                             if (res.Status == PromptStatus.OK) location = res.Value;
@@ -1733,6 +1734,112 @@ namespace IntersectUtilities
                     {
                         tx.Abort();
                         prdDbg(ex);
+                        return;
+                    }
+                    tx.Commit();
+                }
+            }
+        }
+
+        [CommandMethod("PLACETRANSITIONX1")]
+        [CommandMethod("PT1")]
+        public void placetransitionx1()
+        {
+            placetransition(Transition.TransitionType.X1);
+        }
+        [CommandMethod("PLACETRANSITIONX2")]
+        [CommandMethod("PT2")]
+        public void placetransitionx2()
+        {
+            placetransition(Transition.TransitionType.X2);
+        }
+        private void placetransition(Transition.TransitionType transitionType)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+
+            while (true)
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        #region Get pipes
+                        HashSet<Polyline> pls = localDb.GetFjvPipes(tx);
+                        if (pls.Count == 0)
+                        {
+                            prdDbg("No DH pipes in drawing!");
+                            tx.Abort();
+                            return;
+                        }
+                        #endregion
+
+                        #region Ask for point
+                        //message for the ask for point prompt
+                        string message = "Select location to place transition: ";
+                        var opt = new PromptPointOptions(message);
+
+                        Point3d location = Algorithms.NullPoint3d;
+                        do
+                        {
+                            var res = ed.GetPoint(opt);
+                            if (res.Status == PromptStatus.Cancel)
+                            {
+                                tx.Abort();
+                                bringallblockstofront();
+                                return;
+                            }
+                            if (res.Status == PromptStatus.OK) location = res.Value;
+                        }
+                        while (location == Algorithms.NullPoint3d);
+                        #endregion
+
+                        #region Find nearest pline
+                        Polyline pl = pls
+                            .MinBy(x => location.DistanceHorizontalTo(
+                                x.GetClosestPointTo(location, false))
+                            ).FirstOrDefault();
+
+                        if (pl == default)
+                        {
+                            prdDbg("Nearest pipe cannot be found!");
+                            tx.Abort();
+                            return;
+                        }
+                        #endregion
+
+                        #region Place transition
+                        Transition transition = new Transition(pl, location, transitionType);
+                        Result result = transition.Validate();
+                        if (result.Status != ResultStatus.OK)
+                        {
+                            prdDbg(result.ErrorMsg);
+                            tx.Abort();
+                            continue;
+                        }
+                        result = transition.Place();
+                        if (result.Status != ResultStatus.OK)
+                        {
+                            prdDbg(result.ErrorMsg);
+                            tx.Abort();
+                            continue;
+                        }
+                        #endregion
+
+                        #region Cut original host pline
+                        if (result.Status == ResultStatus.OK)
+                        {
+                            transition.Cut();
+                        }
+
+                        #endregion
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        prdDbg(ex);
+                        bringallblockstofront();
                         return;
                     }
                     tx.Commit();
