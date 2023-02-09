@@ -630,14 +630,60 @@ namespace LERImporter.Schema
     }
     public partial class LedningUkendtForsyningsartType : ILerLedning
     {
+        [PsInclude]
+        public string SupplerendeInfo { get => this.supplerendeInfo ?? ""; }
+        private string DetermineLayerName(Database database, bool _3D = false)
+        {
+            string layerName = "UkendtLedning";
+            string driftsstatusSuffix = "";
+
+            switch (this.Driftsstatus2)
+            {
+                case DriftsstatusType.underetablering:
+                case DriftsstatusType.idrift:
+                    break;
+                case DriftsstatusType.permanentudeafdrift:
+                    driftsstatusSuffix = "_UAD";
+                    break;
+                default:
+                    throw new System.Exception(
+                        $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus.ToString()}!");
+            }
+
+            if (driftsstatusSuffix.IsNotNoE())
+            {
+                layerName = layerName + driftsstatusSuffix;
+            }
+
+            if (_3D) layerName += "-3D";
+
+            database.CheckOrCreateLayer(layerName);
+            return layerName;
+        }
         public Oid DrawEntity2D(Database database)
         {
-            throw new NotImplementedException();
+            Polyline pline = DrawPline2D(database)
+                .Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            string layerName = DetermineLayerName(database);
+
+            pline.Layer = layerName;
+
+            pline.ConstantWidth = this.UdvendigDiameterInStdUnits != default ? this.UdvendigDiameterInStdUnits : 0.011;
+
+            return pline.Id;
         }
 
         public Oid DrawEntity3D(Database database)
         {
-            throw new NotImplementedException();
+            Polyline3d p3d = DrawPline3D(database)
+                .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            string layerName = DetermineLayerName(database, true);
+
+            p3d.Layer = layerName;
+
+            return p3d.Id;
         }
     }
     public partial class ElledningType : ILerLedning
