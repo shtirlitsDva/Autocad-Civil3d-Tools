@@ -407,17 +407,20 @@ namespace IntersectUtilities
             #endregion
 
             #region Test to see if point is on line, is not coincident and not start or end
-            int idx = Run.GetIndexAtPoint(Location);
-
-            //Real idx is the idx the segment belongs to even if location is not on vertice
-            int realIdx = (int)Run.GetParameterAtPoint(Location);
 
             if (Run.GetDistToPoint(Location) > 0.000001)
             {
                 result.Status = ResultStatus.SoftError;
                 result.ErrorMsg = "Location is not on a pipe. Select location on pipe.";
+                return result;
             }
-            else if (idx != -1)
+
+            int idx = Run.GetIndexAtPoint(Location);
+
+            //Real idx is the idx the segment belongs to even if location is not on vertice
+            int realIdx = (int)Run.GetParameterAtPoint(Location);
+
+            if (idx != -1)
             {
                 result.Status = ResultStatus.SoftError;
                 result.ErrorMsg = "Location is a vertice! The location must NOT be a vertice.";
@@ -452,7 +455,8 @@ namespace IntersectUtilities
             int idxReal = (int)Run.GetParameterAtPoint(Location);
 
             LineSegment3d seg1 = Run.GetLineSegmentAt(idxReal);
-            double rotation = Math.Atan2(seg1.Direction.Y, seg1.Direction.X);
+            double rotation = Math.Atan2(seg1.Direction.Y, seg1.Direction.X)
+                + Math.PI / 2;
 
             Br = Db.CreateBlockWithAttributes(blockName, Location, rotation);
 
