@@ -169,6 +169,7 @@ namespace IntersectUtilities
 
             var btr = Db.GetBlockTableRecordByName(blockName);
 
+            #region Read present block version
             string version = "";
             foreach (Oid oid in btr)
             {
@@ -181,17 +182,20 @@ namespace IntersectUtilities
             if (version.IsNoE()) version = "1";
             if (version.Contains("v")) version = version.Replace("v", "");
             int blockVersion = Convert.ToInt32(version);
+            #endregion
 
+            #region Determine latest version
             var query = dt.AsEnumerable()
-                .Where(x => x["Navn"].ToString() == blockName)
-                .Select(x => x["Version"].ToString())
-                .Select(x => { if (x == "") return "1"; else return x; })
-                .Select(x => Convert.ToInt32(x.Replace("v", "")))
-                .OrderBy(x => x);
+                    .Where(x => x["Navn"].ToString() == blockName)
+                    .Select(x => x["Version"].ToString())
+                    .Select(x => { if (x == "") return "1"; else return x; })
+                    .Select(x => Convert.ToInt32(x.Replace("v", "")))
+                    .OrderBy(x => x);
 
             if (query.Count() == 0)
                 throw new System.Exception($"Block {blockName} is not present in FJV Dynamiske Komponenter.csv!");
-            int maxVersion = query.Max();
+            int maxVersion = query.Max(); 
+            #endregion
 
             if (maxVersion != blockVersion)
                 throw new System.Exception(
@@ -460,7 +464,7 @@ namespace IntersectUtilities
 
             Br = Db.CreateBlockWithAttributes(blockName, Location, rotation);
 
-            //DN is NoUnits, must be set with a string
+            //Type is NoUnits, must be set with a string
             //Construct type name
             int interval = transitionType == TransitionType.X1 ? 1 : 2;
             var RunDnEnum = GetPipeDnEnum(Run);
