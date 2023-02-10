@@ -58,6 +58,7 @@ namespace IntersectUtilities
         internal readonly Database Db;
         internal readonly Transaction Tx;
         internal readonly string BlockDb = @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Symboler.dwg";
+        internal readonly string BlockLayerName = "0-KOMPONENT";
         internal readonly int Dn;
         internal readonly PipeSystemEnum PipeSystem; //Stål, Cu, Alu osv.
         private PipeTypeEnum _pipeType; //Twin, Frem, Retur
@@ -97,6 +98,9 @@ namespace IntersectUtilities
         //}
         internal virtual Result Validate()
         {
+            //Validate presence of layer where to place blocks
+            Db.CheckOrCreateLayer(BlockLayerName, 0);
+
             Result result = new Result();
             //Test BlockDb
             if (!File.Exists(BlockDb))
@@ -234,6 +238,7 @@ namespace IntersectUtilities
             double rotation = Math.Atan2(seg1.Direction.Y, seg1.Direction.X);
 
             Br = Db.CreateBlockWithAttributes(blockName, Location, rotation);
+            Br.Layer = BlockLayerName;
 
             var cp = seg1.Direction.CrossProduct(seg2.Direction);
             if (cp.Z.Equalz(-1, 0.000001))
