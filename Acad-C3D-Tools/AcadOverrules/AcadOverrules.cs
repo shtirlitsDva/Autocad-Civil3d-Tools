@@ -140,5 +140,25 @@ namespace AcadOverrules
             }
             Application.DocumentManager.MdiActiveDocument.Editor.Regen();
         }
+
+        private static GripVectorOverrule _gripVectorOverrule;
+
+        [CommandMethod("TOGGLEGRIPOR")]
+        public static void togglegripoverrule()
+        {
+            if (_gripVectorOverrule == null)
+            {
+                _gripVectorOverrule = new GripVectorOverrule();
+                Overrule.AddOverrule(RXObject.GetClass(typeof(Polyline)), _gripVectorOverrule, false);
+                Overrule.Overruling = true;
+            }
+            else
+            {
+                Overrule.RemoveOverrule(RXObject.GetClass(typeof(Polyline)), _gripVectorOverrule);
+                _gripVectorOverrule.Dispose();
+                _gripVectorOverrule = null;
+            }
+            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
+        }
     }
 }
