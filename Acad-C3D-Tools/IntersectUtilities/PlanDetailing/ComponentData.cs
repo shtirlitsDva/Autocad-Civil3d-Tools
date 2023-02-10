@@ -48,6 +48,7 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using DataTable = System.Data.DataTable;
 using Autodesk.AutoCAD.MacroRecorder;
+using System.Runtime.CompilerServices;
 
 namespace IntersectUtilities
 {
@@ -74,6 +75,7 @@ namespace IntersectUtilities
         } //Twin, Frem, Retur
         internal PipeSeriesEnum PipeSerie;
         internal BlockReference Br;
+        internal bool Valid = false;
         //private DataTable Data;
         public ComponentData(Polyline run, Point3d location)
         {
@@ -106,6 +108,7 @@ namespace IntersectUtilities
             if (!File.Exists(BlockDb))
                 throw new System.Exception("ComponentData cannot access " + BlockDb + "!");
 
+            #region Test pipe properties
             //Test Dn
             if (Dn == 999)
             {
@@ -133,21 +136,68 @@ namespace IntersectUtilities
                 result.Status = ResultStatus.SoftError;
                 result.ErrorMsg = $"Pipe {Run.Handle} fails to report correct PipeSerie!";
             }
+            #endregion
 
             return result;
         }
         internal virtual Result Place()
         {
-            throw new NotImplementedException();
+            Result result = new Result();
+            if (!Valid)
+            {
+                result.Status = ResultStatus.SoftError;
+                result.ErrorMsg = "Component has not been validated before placing!";
+                return result;
+            }
+            return result;
         }
-        internal virtual Result Cut()
+        internal virtual Result Cut(Result result)
         {
             throw new NotImplementedException();
         }
-        internal void CheckPresenceOrImportBlock(string blockName)
+        internal void CheckIfBlockPresentInDrawingIsLatestVersion(string blockName)
         {
-            BlockTable bt = Db.BlockTableId.Go<BlockTable>(Tx);
-            if (!bt.Has(blockName)) Db.CheckOrImportBlockRecord(BlockDb, blockName);
+            Result result = new Result();
+
+            //Test to see if DynBlock csv is accessible
+            string pathToCatalogue =
+                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv";
+            if (!File.Exists(pathToCatalogue))
+                throw new System.Exception("ComponentData cannot access " + pathToCatalogue + "!");
+
+            DataTable dt = CsvReader.ReadCsvToDataTable(pathToCatalogue, "DynKomps");
+
+            var btr = Db.GetBlockTableRecordByName(blockName);
+
+            string version = "";
+            foreach (Oid oid in btr)
+            {
+                if (oid.IsDerivedFrom<AttributeDefinition>())
+                {
+                    var atdef = oid.Go<AttributeDefinition>(Tx);
+                    if (atdef.Tag == "VERSION") { version = atdef.TextString; break; }
+                }
+            }
+            if (version.IsNoE()) version = "1";
+            if (version.Contains("v")) version = version.Replace("v", "");
+            int blockVersion = Convert.ToInt32(version);
+
+            var query = dt.AsEnumerable()
+                .Where(x => x["Navn"].ToString() == blockName)
+                .Select(x => x["Version"].ToString())
+                .Select(x => { if (x == "") return "1"; else return x; })
+                .Select(x => Convert.ToInt32(x.Replace("v", "")))
+                .OrderBy(x => x);
+
+            if (query.Count() == 0)
+                throw new System.Exception($"Block {blockName} is not present in FJV Dynamiske Komponenter.csv!");
+            int maxVersion = query.Max();
+
+            if (maxVersion != blockVersion)
+                throw new System.Exception(
+                    $"Block {blockName} is not latest version! Update with latest version from:\n" +
+                    $"{BlockDb}\n" +
+                    $"WARNING! This can break existing blocks! Caution is advised!");
         }
     }
     internal class Elbow : ComponentData
@@ -168,8 +218,11 @@ namespace IntersectUtilities
             Result result = base.Validate();
 
             #region Test to see if block is present in DB or import
-            CheckPresenceOrImportBlock(blockNameTwin);
-            CheckPresenceOrImportBlock(blockNameEnkelt);
+            Db.CheckOrImportBlockRecord(BlockDb, blockName);
+            #endregion
+
+            #region Check to see if present block is latest version
+            CheckIfBlockPresentInDrawingIsLatestVersion(blockName);
             #endregion
 
             #region Check number of MuffeIntern blocks in BTR
@@ -234,11 +287,14 @@ namespace IntersectUtilities
             }
             #endregion
 
+            if (result.Status == ResultStatus.OK) { Valid = true; }
             return result;
         }
         internal override Result Place()
         {
-            Result result = new Result();
+            Result result = base.Place();
+            if (result.Status != ResultStatus.OK) { return result; }
+
             int idx = Run.GetIndexAtPoint(Location);
 
             LineSegment3d seg1 = Run.GetLineSegmentAt(idx);
@@ -258,14 +314,11 @@ namespace IntersectUtilities
                 SetDynBlockPropertyObject(Br, "Serie", PipeSerie.ToString());
             Br.AttSync();
 
+            if (result.Status == ResultStatus.OK) result = this.Cut(result);
             return result;
         }
-        /// <summary>
-        /// Must be called within same transaction as Place()
-        /// </summary>
-        internal override Result Cut()
+        internal override Result Cut(Result result)
         {
-            Result result = new Result();
             BlockTableRecord btr = Br.BlockTableRecord.Go<BlockTableRecord>(Tx);
 
             var muffer = btr.GetNestedBlocksByName("MuffeIntern");
@@ -315,17 +368,24 @@ namespace IntersectUtilities
     internal class Transition : ComponentData
     {
         private readonly string blockName;
+        private readonly TransitionType transitionType;
+
         public Transition(Polyline run, Point3d location, TransitionType type)
             : base(run, location)
         {
             blockName = type == TransitionType.X1 ? "RED KDLR" : "RED KDLR x2";
+            transitionType = type;
         }
         internal override Result Validate()
         {
             Result result = base.Validate();
 
             #region Test to see if block is present in DB or import
-            CheckPresenceOrImportBlock(blockName);
+            Db.CheckOrImportBlockRecord(BlockDb, blockName);
+            #endregion
+
+            #region Check to see if present block is latest version
+            CheckIfBlockPresentInDrawingIsLatestVersion(blockName);
             #endregion
 
             #region Check number of MuffeIntern blocks in BTR
@@ -335,6 +395,15 @@ namespace IntersectUtilities
             if (blocks.Length != 2)
                 throw new System.Exception(
                     $"BlockTableRecord {btr.Name} has unexpected number ({blocks.Length}) of MuffeIntern!");
+            #endregion
+
+            #region Test pipesystem, must be Steel
+            if (PipeSystem != PipeSystemEnum.Stål)
+            {
+                result.Status = ResultStatus.SoftError;
+                result.ErrorMsg = "Flex ledninger er ikke understøttet. Virker kun på stål.";
+                return result;
+            }
             #endregion
 
             #region Test to see if point is on line, is not coincident and not start or end
@@ -363,42 +432,56 @@ namespace IntersectUtilities
                 result.Status = ResultStatus.SoftError;
                 result.ErrorMsg = "The segment is not a Line! Must be a straight Line segment.";
             }
+            else if ((transitionType == TransitionType.X1 && Dn == 20) ||
+                (transitionType == TransitionType.X2 &&
+                    (Dn == 20 || Dn == 25)))
+            {
+                result.Status = ResultStatus.SoftError;
+                result.ErrorMsg = "Cannot place transition on smallest size!";
+            }
             #endregion
 
+            if (result.Status == ResultStatus.OK) { Valid = true; }
             return result;
         }
         internal override Result Place()
         {
-            throw new NotImplementedException("Continue here!");
+            Result result = base.Place();
+            if (result.Status != ResultStatus.OK) { return result; }
 
-            Result result = new Result();
-            int idx = Run.GetIndexAtPoint(Location);
-            
+            int idxReal = (int)Run.GetParameterAtPoint(Location);
 
-            LineSegment3d seg1 = Run.GetLineSegmentAt(idx);
-            LineSegment3d seg2 = Run.GetLineSegmentAt(idx - 1);
+            LineSegment3d seg1 = Run.GetLineSegmentAt(idxReal);
             double rotation = Math.Atan2(seg1.Direction.Y, seg1.Direction.X);
 
             Br = Db.CreateBlockWithAttributes(blockName, Location, rotation);
 
-            var cp = seg1.Direction.CrossProduct(seg2.Direction);
-            if (cp.Z.Equalz(-1, 0.000001))
-                SetDynBlockProperty(Br, "Flip-H", "1");
-
             //DN is NoUnits, must be set with a string
-            SetDynBlockPropertyObject(Br, "DN", Dn.ToString());
-            if (PipeType == PipeTypeEnum.Twin)
-                SetDynBlockPropertyObject(Br, "Serie", PipeSerie.ToString());
+            //Construct type name
+            int interval = transitionType == TransitionType.X1 ? 1 : 2;
+            var RunDnEnum = GetPipeDnEnum(Run);
+            var ReducedDnEnum = RunDnEnum - interval;
+
+            string type =
+                $"{RunDnEnum.ToString().Replace("DN", "")}" +
+                $"x" +
+                $"{ReducedDnEnum.ToString().Replace("DN", "")}";
+
+            SetDynBlockPropertyObject(Br, "Type", type);
+
+            SetDynBlockPropertyObject(Br, "System", PipeType.ToString());
+            SetDynBlockPropertyObject(Br, "Serie", PipeSerie.ToString());
             Br.AttSync();
+
+            if (result.Status == ResultStatus.OK) result = Cut(result);
 
             return result;
         }
         /// <summary>
         /// Must be called within same transaction as Place()
         /// </summary>
-        internal override Result Cut()
+        internal override Result Cut(Result result)
         {
-            Result result = new Result();
             BlockTableRecord btr = Br.BlockTableRecord.Go<BlockTableRecord>(Tx);
 
             var muffer = btr.GetNestedBlocksByName("MuffeIntern");

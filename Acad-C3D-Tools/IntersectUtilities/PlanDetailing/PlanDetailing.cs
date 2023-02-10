@@ -1721,14 +1721,6 @@ namespace IntersectUtilities
                             continue;
                         }
                         #endregion
-
-                        #region Cut original host pline
-                        if (result.Status == ResultStatus.OK)
-                        {
-                            elbow.Cut();
-                        }
-                        
-                        #endregion
                     }
                     catch (System.Exception ex)
                     {
@@ -1825,14 +1817,6 @@ namespace IntersectUtilities
                             tx.Abort();
                             continue;
                         }
-                        #endregion
-
-                        #region Cut original host pline
-                        if (result.Status == ResultStatus.OK)
-                        {
-                            transition.Cut();
-                        }
-
                         #endregion
                     }
                     catch (System.Exception ex)
