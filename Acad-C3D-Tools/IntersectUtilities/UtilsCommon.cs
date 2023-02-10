@@ -1491,6 +1491,13 @@ namespace IntersectUtilities.UtilsCommon
                 blockDb.Dispose();
             }
         }
+        public static BlockTableRecord GetBlockTableRecordByName(this Database db, string blockName)
+        {
+            BlockTable bt = db.BlockTableId.Go<BlockTable>(db.TransactionManager.TopTransaction);
+            if (bt.Has(blockName))
+                return bt[blockName].Go<BlockTableRecord>(db.TransactionManager.TopTransaction);
+            else return null;
+        }
         /// <summary>
         /// Remember to check for existence of BlockTableRecord!
         /// </summary>

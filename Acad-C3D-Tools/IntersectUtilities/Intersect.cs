@@ -5116,6 +5116,49 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test getting versions
+                    //string pathToCatalogue = 
+                    //    @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv";
+                    //if (!File.Exists(pathToCatalogue))
+                    //    throw new System.Exception("ComponentData cannot access " + pathToCatalogue + "!");
+
+                    //System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(pathToCatalogue, "DynKomps");
+
+                    //string blockName = "RED KDLR";
+
+                    //var btr = localDb.GetBlockTableRecordByName(blockName);
+
+                    //string version = "";
+                    //foreach (Oid oid in btr)
+                    //{
+                    //    if (oid.IsDerivedFrom<AttributeDefinition>())
+                    //    {
+                    //        var atdef = oid.Go<AttributeDefinition>(tx);
+                    //        if (atdef.Tag == "VERSION") { version = atdef.TextString; break; }
+                    //    }
+                    //}
+                    //if (version.IsNoE()) version = "1";
+                    //if (version.Contains("v")) version = version.Replace("v", "");
+                    //int blockVersion = Convert.ToInt32(version);
+
+                    //var query = dt.AsEnumerable()
+                    //    .Where(x => x["Navn"].ToString() == blockName)
+                    //    .Select(x => x["Version"].ToString())
+                    //    .Select(x => { if (x == "") return "1"; else return x; })
+                    //    .Select(x => Convert.ToInt32(x.Replace("v", "")))
+                    //    .OrderBy(x => x);
+
+                    //if (query.Count() == 0)
+                    //{
+                    //    throw new System.Exception($"Block {blockName} is not present in FJV Dynamiske Komponenter.csv!");
+                    //}
+
+                    //int maxVersion = query.Max();
+
+                    //prdDbg(blockVersion == maxVersion);
+                    
+                    #endregion
+
                     #region Test polyline parameter and segments and locations
                     ////Conclusion: parameter at point, if truncated, will give vertex idx
                     //#region Ask for point
