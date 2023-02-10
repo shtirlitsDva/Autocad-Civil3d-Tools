@@ -4272,7 +4272,6 @@ namespace IntersectUtilities
 
         [CommandMethod("BRINGALLBLOCKSTOFRONT")]
         [CommandMethod("BF")]
-        //Does not update dynamic blocks
         public static void bringallblockstofront()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -5117,6 +5116,45 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test polyline parameter and segments and locations
+                    ////Conclusion: parameter at point, if truncated, will give vertex idx
+                    //#region Ask for point
+                    ////message for the ask for point prompt
+                    //string message = "Select location to test: ";
+                    //var opt = new PromptPointOptions(message);
+
+                    //Point3d location = Algorithms.NullPoint3d;
+                    //do
+                    //{
+                    //    var res = editor.GetPoint(opt);
+                    //    if (res.Status == PromptStatus.Cancel)
+                    //    {
+                    //        tx.Abort();
+                    //        return;
+                    //    }
+                    //    if (res.Status == PromptStatus.OK) location = res.Value;
+                    //}
+                    //while (location == Algorithms.NullPoint3d);
+                    //#endregion
+
+                    //#region Get pipes
+                    //HashSet<Polyline> pls = localDb.GetFjvPipes(tx);
+                    //if (pls.Count == 0)
+                    //{
+                    //    prdDbg("No DH pipes in drawing!");
+                    //    tx.Abort();
+                    //    return;
+                    //}
+                    //#endregion
+
+                    //Polyline pl = pls
+                    //        .MinBy(x => location.DistanceHorizontalTo(
+                    //            x.GetClosestPointTo(location, false))
+                    //        ).FirstOrDefault();
+
+                    //prdDbg(pl.GetParameterAtPoint(location));
+                    #endregion
+
                     #region Test getting angle between segments
                     //string message = "Select location to place elbow: ";
                     //var opt = new PromptPointOptions(message);

@@ -768,7 +768,7 @@ namespace IntersectUtilities
         private string _errorMsg;
         internal string ErrorMsg 
         { 
-            get { return _errorMsg; }
+            get { return _errorMsg + "\n"; }
             set { if (_errorMsg.IsNoE()) _errorMsg = value;
                 else _errorMsg += "\n" + value; } 
         }
