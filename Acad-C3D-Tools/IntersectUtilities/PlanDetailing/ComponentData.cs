@@ -221,13 +221,10 @@ namespace IntersectUtilities
                     $"BlockTableRecord {btr.Name} has unexpected " +
                     $"number ({blocks.Length}) of {nestedBlockName}!");
         }
-        internal void CutPolylineToAccommodateBlock(
+        internal void CutPolylineWithBlocksToAccommodateBlock(
             Transaction tx, Polyline run, BlockReference br, string cutBlockName)
         {
-
             BlockTableRecord btr = br.AnonymousBlockTableRecord.Go<BlockTableRecord>(tx);
-            //if (br.IsDynamicBlock) btr = br.AnonymousBlockTableRecord.Go<BlockTableRecord>(tx);
-            //else btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
 
             var muffer = btr.GetNestedBlocksByName(cutBlockName);
 
@@ -242,8 +239,37 @@ namespace IntersectUtilities
 
             splitPts.Sort();
 
-            //prdDbg($"Muffer: {muffer.Length}, Btr: {btr.Name}, pts: {string.Join(", ", splitPts)}");
+            try
+            {
+                DBObjectCollection objs = run
+                    .GetSplitCurves(new DoubleCollection(splitPts.ToArray()));
 
+                if (objs.Count != 3) throw new System.Exception(
+                    $"Unexpected number ({objs.Count}) of split curves for polyline {run.Handle}!");
+
+                for (int i = 0; i < 3; i++)
+                {
+                    if (i == 1) continue;
+                    Polyline pl = objs[i] as Polyline;
+
+                    pl.AddEntityToDbModelSpace(Db);
+                    pl.Layer = run.Layer;
+                    pl.ConstantWidth = run.ConstantWidth;
+                    PropertySetManager.CopyAllProperties(run, pl);
+                }
+
+                run.CheckOrOpenForWrite();
+                run.Erase(true);
+            }
+            catch (Autodesk.AutoCAD.Runtime.Exception ex)
+            {
+                Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
+                throw new System.Exception("Splitting of pline failed!");
+            }
+        }
+        internal void CutPolylineWithDoublesToAccommodateBlock(
+            Polyline run, List<double> splitPts, string cutBlockName)
+        {
             try
             {
                 DBObjectCollection objs = run
@@ -392,7 +418,7 @@ namespace IntersectUtilities
             {
                 Polyline run = RunId.Go<Polyline>(tx);
                 BlockReference br = BrId.Go<BlockReference>(tx);
-                CutPolylineToAccommodateBlock(tx, run, br, cutBlockName);
+                CutPolylineWithBlocksToAccommodateBlock(tx, run, br, cutBlockName);
                 tx.Commit();
             }
 
@@ -403,6 +429,27 @@ namespace IntersectUtilities
     {
         private readonly string blockName = "BØJN KDLR v2";
         private readonly string cutBlockName = "MuffeIntern";
+        private readonly Dictionary<int, double> radiusDict = new Dictionary<int, double>()
+        {
+            { 20, 0.037 },
+            { 25, 0.038 },
+            { 32, 0.048 },
+            { 40, 0.057 },
+            { 50, 0.076 },
+            { 65, 0.095 },
+            { 80, 0.114 },
+            { 100, 0.152 },
+            { 125, 0.19 },
+            { 150, 0.229 },
+            { 200, 0.305 },
+            { 250, 0.381 },
+            { 300, 0.457 },
+            { 350, 0.533 },
+            { 400, 0.61 },
+            { 450, 0.686 },
+            { 500, 0.762 },
+            { 600, 0.914 },
+        };
         public ElbowWeldFitting(Database db, Oid runId, Point3d location) : base(db, runId, location) { }
         internal override Result Validate()
         {
@@ -456,12 +503,13 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Test to see if bend is between 80° and 10°
-                    LineSegment2d seg1 = run.GetLineSegment2dAt(idx);
-                    LineSegment2d seg2 = run.GetLineSegment2dAt(idx - 1);
+                    LineSegment3d seg1 = run.GetLineSegmentAt(idx);
+                    LineSegment3d seg2 = run.GetLineSegmentAt(idx - 1);
 
                     double angle = seg1.Direction.GetAngleTo(seg2.Direction).ToDegrees();
+                    prdDbg(angle);
 
-                    if (angle > 80.0 && angle < 10.0)
+                    if (angle > 80.0 || angle < 10.0)
                     {
                         result.Status = ResultStatus.SoftError;
                         result.ErrorMsg =
@@ -505,11 +553,6 @@ namespace IntersectUtilities
                     SetDynBlockPropertyObject(br, "System", PipeType.ToString());
                     SetDynBlockPropertyObject(br, "Serie", PipeSerie.ToString());
                     br.AttSync();
-
-                    BlockTableRecord abtr = br.AnonymousBlockTableRecord.Go<BlockTableRecord>(tx);
-                    abtr.UpdateAnonymousBlocks();
-                    br.RecordGraphicsModified(true);
-                    Application.DocumentManager.CurrentDocument.TransactionManager.QueueForGraphicsFlush();
                 }
                 catch (System.Exception)
                 {
@@ -519,8 +562,6 @@ namespace IntersectUtilities
 
                 tx.Commit();
             }
-            Application.DocumentManager.CurrentDocument.TransactionManager.QueueForGraphicsFlush();
-            System.Windows.Forms.Application.DoEvents();
 
             if (result.Status == ResultStatus.OK) result = this.Cut(result);
             return result;
@@ -531,7 +572,20 @@ namespace IntersectUtilities
             {
                 Polyline run = RunId.Go<Polyline>(tx);
                 BlockReference br = BrId.Go<BlockReference>(tx);
-                CutPolylineToAccommodateBlock(tx, run, br, cutBlockName);
+
+                double angle = Convert.ToDouble(
+                    br.ReadDynamicPropertyValue("Vinkel"), CultureInfo.InvariantCulture);
+                double ll = Math.Tan(angle.ToRadians() / 2) * radiusDict[Dn];
+
+                int idx = run.GetIndexAtPoint(Location);
+
+                double l1 = run.GetLengthOfSegmentAt(idx);
+                double p1 = (double)idx + ll / l1;
+
+                double l2 = run.GetLengthOfSegmentAt(idx - 1);
+                double p2 = (double)idx - ll / l2;
+
+                CutPolylineWithDoublesToAccommodateBlock(run, new List<double> { p2, p1 }, cutBlockName);
                 tx.Commit();
             }
 
@@ -676,7 +730,7 @@ namespace IntersectUtilities
             {
                 Polyline run = RunId.Go<Polyline>(tx);
                 BlockReference br = BrId.Go<BlockReference>(tx);
-                CutPolylineToAccommodateBlock(tx, run, br, cutBlockName);
+                CutPolylineWithBlocksToAccommodateBlock(tx, run, br, cutBlockName);
                 tx.Commit();
             }
 

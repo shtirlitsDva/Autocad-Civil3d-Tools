@@ -1825,7 +1825,7 @@ namespace IntersectUtilities.UtilsCommon
 
             return stringToProcess;
         }
-        private static string ReadDynamicPropertyValue(this BlockReference br, string propertyName)
+        public static string ReadDynamicPropertyValue(this BlockReference br, string propertyName)
         {
             DynamicBlockReferencePropertyCollection props = br.DynamicBlockReferencePropertyCollection;
             foreach (DynamicBlockReferenceProperty property in props)
