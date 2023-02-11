@@ -47,6 +47,7 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
+using Microsoft.Office.Interop.Excel;
 
 namespace IntersectUtilities.UtilsCommon
 {
@@ -2189,6 +2190,20 @@ namespace IntersectUtilities.UtilsCommon
         {
             Handle h = new Handle(Convert.ToInt64(handle, 16));
             return h.Go<T>(db);
+        }
+        public static IEnumerable<Oid> AcWhere<T>(
+            this IEnumerable<Oid> source, Func<T, bool> predicate) where T : Entity
+        {
+            if (source == null) throw new System.Exception("source is null");
+            if (predicate == null) throw new System.Exception("predicate is null");
+
+            foreach (Oid oid in source)
+            {
+                T item = (T)oid.Open(OpenMode.ForRead);
+                if (predicate(item)) yield return oid;
+                item.Close();
+                item.Dispose();
+            }
         }
         public static Oid AddEntityToDbModelSpace<T>(this T entity, Database db) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {

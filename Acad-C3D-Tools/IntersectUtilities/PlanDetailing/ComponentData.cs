@@ -49,15 +49,15 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using DataTable = System.Data.DataTable;
 using Autodesk.AutoCAD.MacroRecorder;
 using System.Runtime.CompilerServices;
+using System.Windows.Documents;
 
 namespace IntersectUtilities
 {
     internal abstract class ComponentData
     {
-        internal readonly Polyline Run;
+        internal readonly Oid RunId;
         internal readonly Point3d Location;
         internal readonly Database Db;
-        internal readonly Transaction Tx;
         internal readonly string BlockDb = @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Symboler.dwg";
         internal readonly string BlockLayerName = "0-KOMPONENT";
         internal readonly int Dn;
@@ -77,22 +77,22 @@ namespace IntersectUtilities
         internal BlockReference Br;
         internal bool Valid = false;
         //private DataTable Data;
-        public ComponentData(Polyline run, Point3d location)
+        public ComponentData(Database db, Oid runId, Point3d location)
         {
-            Run = run;
+            RunId = runId;
             Location = location;
-            Db = run.Database;
+            Db = db;
 
-            if (Db.TransactionManager.TopTransaction != null)
+            using (OpenCloseTransaction tx = new OpenCloseTransaction())
             {
-                Tx = Db.TransactionManager.TopTransaction;
+                Polyline run = RunId.Go<Polyline>(tx);
+                Dn = PipeSchedule.GetPipeDN(run);
+                PipeSystem = PipeSchedule.GetPipeSystem(run);
+                PipeType = PipeSchedule.GetPipeType(run);
+                PipeSerie = PipeSchedule.GetPipeSeriesV2(run, true);
+                tx.Commit();
             }
-            else throw new System.Exception($"Class ComponentData created outside a transaction!");
-
-            Dn = PipeSchedule.GetPipeDN(run);
-            PipeSystem = PipeSchedule.GetPipeSystem(run);
-            PipeType = PipeSchedule.GetPipeType(run);
-            PipeSerie = PipeSchedule.GetPipeSeriesV2(Run, true);
+            
         }
         //internal void ReadData(string pathToData)
         //{
@@ -100,41 +100,47 @@ namespace IntersectUtilities
         //}
         internal virtual Result Validate()
         {
-            //Validate presence of layer where to place blocks
-            Db.CheckOrCreateLayer(BlockLayerName, 0);
-
             Result result = new Result();
+
             //Test BlockDb
             if (!File.Exists(BlockDb))
                 throw new System.Exception("ComponentData cannot access " + BlockDb + "!");
 
-            #region Test pipe properties
-            //Test Dn
-            if (Dn == 999)
+            using (OpenCloseTransaction tx = new OpenCloseTransaction())
             {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = $"Pipe {Run.Handle} fails to report correct DN!";
-            }
+                Polyline run = RunId.Go<Polyline>(tx);
+                //Validate presence of layer where to place blocks
+                Db.CheckOrCreateLayer(BlockLayerName, 0);
 
-            //Test pipe system
-            if (PipeSystem == PipeSystemEnum.Ukendt)
-            {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = $"Pipe {Run.Handle} fails to report correct PipeSystem (Stål, AluFlex osv.)!";
-            }
+                #region Test pipe properties
+                //Test Dn
+                if (Dn == 999)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = $"Pipe {run.Handle} fails to report correct DN!";
+                }
 
-            //Test pipe type
-            if (PipeType == PipeTypeEnum.Ukendt)
-            {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = $"Pipe {Run.Handle} fails to report correct PipeType (Twin/Enkelt)!";
-            }
+                //Test pipe system
+                if (PipeSystem == PipeSystemEnum.Ukendt)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = $"Pipe {run.Handle} fails to report correct PipeSystem (Stål, AluFlex osv.)!";
+                }
 
-            //Test pipe series
-            if (PipeSerie == PipeSeriesEnum.Undefined)
-            {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = $"Pipe {Run.Handle} fails to report correct PipeSerie!";
+                //Test pipe type
+                if (PipeType == PipeTypeEnum.Ukendt)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = $"Pipe {run.Handle} fails to report correct PipeType (Twin/Enkelt)!";
+                }
+
+                //Test pipe series
+                if (PipeSerie == PipeSeriesEnum.Undefined)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = $"Pipe {run.Handle} fails to report correct PipeSerie!";
+                }
+                tx.Commit();
             }
             #endregion
 
@@ -155,7 +161,7 @@ namespace IntersectUtilities
         {
             throw new NotImplementedException();
         }
-        internal void CheckIfBlockPresentInDrawingIsLatestVersion(string blockName)
+        internal void CheckIfBlockPresentInDrawingIsLatestVersion(Transaction tx, string blockName)
         {
             Result result = new Result();
 
@@ -175,7 +181,7 @@ namespace IntersectUtilities
             {
                 if (oid.IsDerivedFrom<AttributeDefinition>())
                 {
-                    var atdef = oid.Go<AttributeDefinition>(Tx);
+                    var atdef = oid.Go<AttributeDefinition>(tx);
                     if (atdef.Tag == "VERSION") { version = atdef.TextString; break; }
                 }
             }
@@ -204,10 +210,10 @@ namespace IntersectUtilities
                     $"{BlockDb}\n" +
                     $"WARNING! This can break existing blocks! Caution is advised!");
         }
-        internal void CheckNumberOfNestedBlocks(string blockName, string nestedBlockName, int expectedNumber)
+        internal void CheckNumberOfNestedBlocks(Transaction tx, string blockName, string nestedBlockName, int expectedNumber)
         {
-            BlockTable bt = Db.BlockTableId.Go<BlockTable>(Tx);
-            BlockTableRecord btr = bt[blockName].Go<BlockTableRecord>(Tx);
+            BlockTable bt = Db.BlockTableId.Go<BlockTable>(tx);
+            BlockTableRecord btr = bt[blockName].Go<BlockTableRecord>(tx);
             var blocks = btr.GetNestedBlocksByName(nestedBlockName);
             if (blocks.Length != expectedNumber)
                 throw new System.Exception(
@@ -368,7 +374,7 @@ namespace IntersectUtilities
     {
         private readonly string blockName = "BØJN KDLR v2";
         private readonly string cutBlockName = "MuffeIntern";
-        public ElbowWeldFitting(Polyline run, Point3d location) : base(run, location) { }
+        public ElbowWeldFitting(Database db, Oid runId, Point3d location) : base(db, runId, location) { }
         internal override Result Validate()
         {
             Result result = base.Validate();

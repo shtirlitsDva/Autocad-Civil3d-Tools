@@ -1775,15 +1775,18 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Find nearest pline
-                    Oid nearestPl = 
-                        plOids.QOpenForRead<Polyline>()
-                        .MinBy(x => location.DistanceHorizontalTo(
-                            x.GetClosestPointTo(location, false))
-                        ).FirstOrDefault().Id;
+                    Oid nearestPlId;
+                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                    {
+                        Polyline pl = plOids.Select(x => x.Go<Polyline>(tx))
+                            .MinBy(x => location.DistanceHorizontalTo(
+                                x.GetClosestPointTo(location, false)))
+                            .FirstOrDefault();
+                        nearestPlId = pl.Id;
+                        tx.Commit();
+                    }
 
-                    prdDbg(nearestPl);
-
-                    if (nearestPl == default)
+                    if (nearestPlId == default)
                     {
                         prdDbg("Nearest pipe cannot be found!");
                         return;
@@ -1791,19 +1794,19 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Place elbow
-                    //ElbowWeldFitting elbow = new ElbowWeldFitting(nearestPl, location);
-                    //Result result = elbow.Validate();
-                    //if (result.Status != ResultStatus.OK)
-                    //{
-                    //    prdDbg(result.ErrorMsg);
-                    //    continue;
-                    //}
-                    //result = elbow.Place();
-                    //if (result.Status != ResultStatus.OK)
-                    //{
-                    //    prdDbg(result.ErrorMsg);
-                    //    continue;
-                    //}
+                    ElbowWeldFitting elbow = new ElbowWeldFitting(localDb, nearestPlId, location);
+                    Result result = elbow.Validate();
+                    if (result.Status != ResultStatus.OK)
+                    {
+                        prdDbg(result.ErrorMsg);
+                        continue;
+                    }
+                    result = elbow.Place();
+                    if (result.Status != ResultStatus.OK)
+                    {
+                        prdDbg(result.ErrorMsg);
+                        continue;
+                    }
                     #endregion
                 }
                 catch (System.Exception ex)
