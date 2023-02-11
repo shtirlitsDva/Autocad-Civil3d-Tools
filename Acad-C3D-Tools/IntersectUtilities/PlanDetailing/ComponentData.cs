@@ -74,7 +74,7 @@ namespace IntersectUtilities
             }
         } //Twin, Frem, Retur
         internal PipeSeriesEnum PipeSerie;
-        internal BlockReference Br;
+        internal Oid BrId;
         internal bool Valid = false;
         //private DataTable Data;
         public ComponentData(Database db, Oid runId, Point3d location)
@@ -83,7 +83,7 @@ namespace IntersectUtilities
             Location = location;
             Db = db;
 
-            using (OpenCloseTransaction tx = new OpenCloseTransaction())
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
                 Polyline run = RunId.Go<Polyline>(tx);
                 Dn = PipeSchedule.GetPipeDN(run);
@@ -92,7 +92,7 @@ namespace IntersectUtilities
                 PipeSerie = PipeSchedule.GetPipeSeriesV2(run, true);
                 tx.Commit();
             }
-            
+
         }
         //internal void ReadData(string pathToData)
         //{
@@ -106,7 +106,7 @@ namespace IntersectUtilities
             if (!File.Exists(BlockDb))
                 throw new System.Exception("ComponentData cannot access " + BlockDb + "!");
 
-            using (OpenCloseTransaction tx = new OpenCloseTransaction())
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
                 Polyline run = RunId.Go<Polyline>(tx);
                 //Validate presence of layer where to place blocks
@@ -210,7 +210,8 @@ namespace IntersectUtilities
                     $"{BlockDb}\n" +
                     $"WARNING! This can break existing blocks! Caution is advised!");
         }
-        internal void CheckNumberOfNestedBlocks(Transaction tx, string blockName, string nestedBlockName, int expectedNumber)
+        internal void CheckNumberOfNestedBlocks(
+            Transaction tx, string blockName, string nestedBlockName, int expectedNumber)
         {
             BlockTable bt = Db.BlockTableId.Go<BlockTable>(tx);
             BlockTableRecord btr = bt[blockName].Go<BlockTableRecord>(tx);
@@ -220,77 +221,134 @@ namespace IntersectUtilities
                     $"BlockTableRecord {btr.Name} has unexpected " +
                     $"number ({blocks.Length}) of {nestedBlockName}!");
         }
+        internal void CutPolylineToAccommodateBlock(
+            Transaction tx, Polyline run, BlockReference br, string cutBlockName)
+        {
+
+            BlockTableRecord btr = br.AnonymousBlockTableRecord.Go<BlockTableRecord>(tx);
+            //if (br.IsDynamicBlock) btr = br.AnonymousBlockTableRecord.Go<BlockTableRecord>(tx);
+            //else btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+
+            var muffer = btr.GetNestedBlocksByName(cutBlockName);
+
+            List<double> splitPts = new List<double>();
+            foreach (BlockReference muffe in muffer)
+            {
+                Point3d pt = muffe.Position.TransformBy(br.BlockTransform);
+                splitPts.Add(
+                    run.GetParameterAtPoint(
+                        run.GetClosestPointTo(pt, false)));
+            }
+
+            splitPts.Sort();
+
+            //prdDbg($"Muffer: {muffer.Length}, Btr: {btr.Name}, pts: {string.Join(", ", splitPts)}");
+
+            try
+            {
+                DBObjectCollection objs = run
+                    .GetSplitCurves(new DoubleCollection(splitPts.ToArray()));
+
+                if (objs.Count != 3) throw new System.Exception(
+                    $"Unexpected number ({objs.Count}) of split curves for polyline {run.Handle}!");
+
+                for (int i = 0; i < 3; i++)
+                {
+                    if (i == 1) continue;
+                    Polyline pl = objs[i] as Polyline;
+
+                    pl.AddEntityToDbModelSpace(Db);
+                    pl.Layer = run.Layer;
+                    pl.ConstantWidth = run.ConstantWidth;
+                    PropertySetManager.CopyAllProperties(run, pl);
+                }
+
+                run.CheckOrOpenForWrite();
+                run.Erase(true);
+            }
+            catch (Autodesk.AutoCAD.Runtime.Exception ex)
+            {
+                Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
+                throw new System.Exception("Splitting of pline failed!");
+            }
+        }
     }
-    internal class Elbow : ComponentData
+    internal class ElbowPreinsulated : ComponentData
     {
         private readonly string blockNameTwin = "PRÆBØJN-90GR-TWIN-GLD";
         private readonly string blockNameEnkelt = "PRÆBØJN 90GR ENKELT";
         private readonly string cutBlockName = "MuffeIntern";
         private string blockName { get => PipeType == PipeTypeEnum.Twin ? blockNameTwin : blockNameEnkelt; }
-        public Elbow(Polyline run, Point3d location) : base(run, location) { }
+        public ElbowPreinsulated(Database db, Oid runId, Point3d location) : base(db, runId, location) { }
         internal override Result Validate()
         {
             Result result = base.Validate();
 
-            #region Test to see if block is present in DB or import
-            Db.CheckOrImportBlockRecord(BlockDb, blockName);
-            #endregion
-
-            #region Check to see if present block is latest version
-            CheckIfBlockPresentInDrawingIsLatestVersion(blockName);
-            #endregion
-
-            #region Check number of cutblocks in BTR
-            CheckNumberOfNestedBlocks(blockName, cutBlockName, 2);
-            #endregion
-
-            #region Test to see if point coincides with a vertice or at ends
-            int idx = Run.GetIndexAtPoint(Location);
-
-            if (idx == -1)
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = "Location not a vertice! The location must be a vertice.";
-            }
+                Polyline run = RunId.Go<Polyline>(tx);
+                #region Test to see if block is present in DB or import
+                Db.CheckOrImportBlockRecord(BlockDb, blockName);
+                #endregion
 
-            else if (idx == 0 || idx == Run.NumberOfVertices - 1)
-            {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = "The command does not accept start or end points. Yet...";
-            }
-            #endregion
+                #region Check to see if present block is latest version
+                CheckIfBlockPresentInDrawingIsLatestVersion(tx, blockName);
+                #endregion
 
-            #region Test to see if adjacent segments are lines
-            SegmentType st1 = Run.GetSegmentType(idx);
-            if (st1 != SegmentType.Line)
-            {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = "Next segment is not a Line!";
-            }
-            SegmentType st2 = Run.GetSegmentType(idx - 1);
-            if (st2 != SegmentType.Line)
-            {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = "Previous segment is not a Line!";
-            }
-            #endregion
+                #region Check number of cutblocks in BTR
+                CheckNumberOfNestedBlocks(tx, blockName, cutBlockName, 2);
+                #endregion
 
-            #region Test to see if bend is 90°
-            else
-            {
-                LineSegment2d seg1 = Run.GetLineSegment2dAt(idx);
-                LineSegment2d seg2 = Run.GetLineSegment2dAt(idx - 1);
+                #region Test to see if point coincides with a vertice or at ends
+                int idx = run.GetIndexAtPoint(Location);
 
-                double angle = seg1.Direction.GetAngleTo(seg2.Direction).ToDegrees();
-
-                if (!angle.Equalz(90.0, 0.00001))
+                if (idx == -1)
                 {
                     result.Status = ResultStatus.SoftError;
-                    result.ErrorMsg =
-                        $"The bend is not exactly 90°! But actually {angle}.";
+                    result.ErrorMsg = "Location not a vertice! The location must be a vertice.";
                 }
+
+                else if (idx == 0 || idx == run.NumberOfVertices - 1)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = "The command does not accept start or end points. Yet...";
+                }
+                #endregion
+                else
+                #region Test to see if adjacent segments are lines
+
+                {
+                    SegmentType st1 = run.GetSegmentType(idx);
+                    if (st1 != SegmentType.Line)
+                    {
+                        result.Status = ResultStatus.SoftError;
+                        result.ErrorMsg = "Next segment is not a Line!";
+                    }
+                    SegmentType st2 = run.GetSegmentType(idx - 1);
+                    if (st2 != SegmentType.Line)
+                    {
+                        result.Status = ResultStatus.SoftError;
+                        result.ErrorMsg = "Previous segment is not a Line!";
+                    }
+
+                    #region Test to see if the angle is 90°
+                    LineSegment2d seg1 = run.GetLineSegment2dAt(idx);
+                    LineSegment2d seg2 = run.GetLineSegment2dAt(idx - 1);
+
+                    double angle = seg1.Direction.GetAngleTo(seg2.Direction).ToDegrees();
+
+                    if (!angle.Equalz(90.0, 0.00001))
+                    {
+                        result.Status = ResultStatus.SoftError;
+                        result.ErrorMsg =
+                            $"The bend is not exactly 90°! But actually {angle}.";
+                    }
+                    #endregion
+                }
+                #endregion
+
+                tx.Commit();
             }
-            #endregion
 
             if (result.Status == ResultStatus.OK) { Valid = true; }
             return result;
@@ -300,71 +358,42 @@ namespace IntersectUtilities
             Result result = base.Place();
             if (result.Status != ResultStatus.OK) { return result; }
 
-            int idx = Run.GetIndexAtPoint(Location);
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
+            {
+                Polyline run = RunId.Go<Polyline>(tx);
+                int idx = run.GetIndexAtPoint(Location);
 
-            LineSegment3d seg1 = Run.GetLineSegmentAt(idx);
-            LineSegment3d seg2 = Run.GetLineSegmentAt(idx - 1);
-            double rotation = Math.Atan2(seg1.Direction.Y, seg1.Direction.X);
+                LineSegment3d seg1 = run.GetLineSegmentAt(idx);
+                LineSegment3d seg2 = run.GetLineSegmentAt(idx - 1);
+                double rotation = Math.Atan2(seg1.Direction.Y, seg1.Direction.X);
 
-            Br = Db.CreateBlockWithAttributes(blockName, Location, rotation);
-            Br.Layer = BlockLayerName;
+                BlockReference br = Db.CreateBlockWithAttributes(blockName, Location, rotation);
+                br.Layer = BlockLayerName;
+                BrId = br.Id;
 
-            var cp = seg1.Direction.CrossProduct(seg2.Direction);
-            if (cp.Z.Equalz(-1, 0.000001))
-                SetDynBlockProperty(Br, "Flip-H", "1");
+                var cp = seg1.Direction.CrossProduct(seg2.Direction);
+                if (cp.Z.Equalz(-1, 0.000001))
+                    SetDynBlockProperty(br, "Flip-H", "1");
 
-            //DN is NoUnits, must be set with a string
-            SetDynBlockPropertyObject(Br, "DN", Dn.ToString());
-            if (PipeType == PipeTypeEnum.Twin)
-                SetDynBlockPropertyObject(Br, "Serie", PipeSerie.ToString());
-            Br.AttSync();
+                //DN is NoUnits, must be set with a string
+                SetDynBlockPropertyObject(br, "DN", Dn.ToString());
+                if (PipeType == PipeTypeEnum.Twin)
+                    SetDynBlockPropertyObject(br, "Serie", PipeSerie.ToString());
+                br.AttSync();
+                tx.Commit();
+            }
 
             if (result.Status == ResultStatus.OK) result = this.Cut(result);
             return result;
         }
         internal override Result Cut(Result result)
         {
-            BlockTableRecord btr = Br.BlockTableRecord.Go<BlockTableRecord>(Tx);
-
-            var muffer = btr.GetNestedBlocksByName("MuffeIntern");
-
-            List<double> splitPts = new List<double>();
-            foreach (BlockReference br in muffer)
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
-                Point3d pt = br.Position.TransformBy(Br.BlockTransform);
-                splitPts.Add(
-                    Run.GetParameterAtPoint(
-                        Run.GetClosestPointTo(pt, false)));
-            }
-
-            splitPts.Sort();
-
-            try
-            {
-                DBObjectCollection objs = Run
-                    .GetSplitCurves(new DoubleCollection(splitPts.ToArray()));
-
-                if (objs.Count != 3) throw new System.Exception(
-                    $"Unexpected number of split curves for polyline {Run.Handle}!");
-
-                for (int i = 0; i < 3; i++)
-                {
-                    if (i == 1) continue;
-                    Polyline pl = objs[i] as Polyline;
-
-                    pl.AddEntityToDbModelSpace(Db);
-                    pl.Layer = Run.Layer;
-                    pl.ConstantWidth = Run.ConstantWidth;
-                    PropertySetManager.CopyAllProperties(Run, pl);
-                }
-
-                Run.CheckOrOpenForWrite();
-                Run.Erase(true);
-            }
-            catch (Autodesk.AutoCAD.Runtime.Exception ex)
-            {
-                Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
-                throw new System.Exception("Splitting of pline failed!");
+                Polyline run = RunId.Go<Polyline>(tx);
+                BlockReference br = BrId.Go<BlockReference>(tx);
+                CutPolylineToAccommodateBlock(tx, run, br, cutBlockName);
+                tx.Commit();
             }
 
             return result;
@@ -378,66 +407,70 @@ namespace IntersectUtilities
         internal override Result Validate()
         {
             Result result = base.Validate();
-
-            #region Test to see if block is present in DB or import
-            Db.CheckOrImportBlockRecord(BlockDb, blockName);
-            #endregion
-
-            #region Check to see if present block is latest version
-            CheckIfBlockPresentInDrawingIsLatestVersion(blockName);
-            #endregion
-
-            #region Check number of cutblocks in BTR
-            CheckNumberOfNestedBlocks(blockName, cutBlockName, 2);
-            #endregion
-
-            #region Test to see if point coincides with a vertice or at ends
-            int idx = Run.GetIndexAtPoint(Location);
-
-            if (idx == -1)
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = "Location not a vertice! The location must be a vertice.";
-            }
+                Polyline run = RunId.Go<Polyline>(tx);
 
-            else if (idx == 0 || idx == Run.NumberOfVertices - 1)
-            {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = "The command does not accept start or end points. Yet...";
-            }
-            #endregion
+                #region Test to see if block is present in DB or import
+                Db.CheckOrImportBlockRecord(BlockDb, blockName);
+                #endregion
 
-            #region Test to see if adjacent segments are lines
-            SegmentType st1 = Run.GetSegmentType(idx);
-            if (st1 != SegmentType.Line)
-            {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = "Next segment is not a Line!";
-            }
-            SegmentType st2 = Run.GetSegmentType(idx - 1);
-            if (st2 != SegmentType.Line)
-            {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = "Previous segment is not a Line!";
-            }
-            #endregion
+                #region Check to see if present block is latest version
+                CheckIfBlockPresentInDrawingIsLatestVersion(tx, blockName);
+                #endregion
 
-            #region Test to see if bend is between 80° and 10°
-            else
-            {
-                LineSegment2d seg1 = Run.GetLineSegment2dAt(idx);
-                LineSegment2d seg2 = Run.GetLineSegment2dAt(idx - 1);
+                #region Check number of cutblocks in BTR
+                CheckNumberOfNestedBlocks(tx, blockName, cutBlockName, 2);
+                #endregion
 
-                double angle = seg1.Direction.GetAngleTo(seg2.Direction).ToDegrees();
+                #region Test to see if point coincides with a vertice or at ends
+                int idx = run.GetIndexAtPoint(Location);
 
-                if (angle > 80.0 && angle < 10.0)
+                if (idx == -1)
                 {
                     result.Status = ResultStatus.SoftError;
-                    result.ErrorMsg =
-                        $"The bend is not between 80° and 10°! But actually {angle}.";
+                    result.ErrorMsg = "Location not a vertice! The location must be a vertice.";
                 }
+
+                else if (idx == 0 || idx == run.NumberOfVertices - 1)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = "The command does not accept start or end points. Yet...";
+                }
+                #endregion
+                else
+                #region Test to see if adjacent segments are lines
+                {
+                    SegmentType st1 = run.GetSegmentType(idx);
+                    if (st1 != SegmentType.Line)
+                    {
+                        result.Status = ResultStatus.SoftError;
+                        result.ErrorMsg = "Next segment is not a Line!";
+                    }
+                    SegmentType st2 = run.GetSegmentType(idx - 1);
+                    if (st2 != SegmentType.Line)
+                    {
+                        result.Status = ResultStatus.SoftError;
+                        result.ErrorMsg = "Previous segment is not a Line!";
+                    }
+                    #endregion
+
+                    #region Test to see if bend is between 80° and 10°
+                    LineSegment2d seg1 = run.GetLineSegment2dAt(idx);
+                    LineSegment2d seg2 = run.GetLineSegment2dAt(idx - 1);
+
+                    double angle = seg1.Direction.GetAngleTo(seg2.Direction).ToDegrees();
+
+                    if (angle > 80.0 && angle < 10.0)
+                    {
+                        result.Status = ResultStatus.SoftError;
+                        result.ErrorMsg =
+                            $"The bend is not between 80° and 10°! But actually {angle}.";
+                    }
+                }
+                #endregion
+                tx.Commit();
             }
-            #endregion
 
             if (result.Status == ResultStatus.OK) { Valid = true; }
             return result;
@@ -447,86 +480,59 @@ namespace IntersectUtilities
             Result result = base.Place();
             if (result.Status != ResultStatus.OK) { return result; }
 
-            int idx = Run.GetIndexAtPoint(Location);
-
-            LineSegment3d seg1 = Run.GetLineSegmentAt(idx);
-            LineSegment3d seg2 = Run.GetLineSegmentAt(idx - 1);
-            double rotation = Math.Atan2(seg1.Direction.Y, seg1.Direction.X)//;
-                + Math.PI;
-            double angle = seg1.Direction.GetAngleTo(seg2.Direction);
-            //prdDbg($"Rot: {rotation.ToDegrees().ToString("#.###")}, Angle: {angle})
-
             using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
+                Polyline run = RunId.Go<Polyline>(tx);
+
+                int idx = run.GetIndexAtPoint(Location);
+
+                LineSegment3d seg1 = run.GetLineSegmentAt(idx);
+                LineSegment3d seg2 = run.GetLineSegmentAt(idx - 1);
+                double rotation = Math.Atan2(seg1.Direction.Y, seg1.Direction.X)
+                    + Math.PI;
+                double angle = seg1.Direction.GetAngleTo(seg2.Direction);
+
                 try
                 {
-                    Br = Db.CreateBlockWithAttributes(blockName, Location, rotation);
-                    Br.Layer = BlockLayerName;
-                    SetDynBlockPropertyObject(Br, "Vinkel", angle);
-                    SetDynBlockPropertyObject(Br, "DN", Dn);
+                    BlockReference br = Db.CreateBlockWithAttributes(blockName, Location, rotation);
+                    br.Layer = BlockLayerName;
+                    BrId = br.Id;
+                    SetDynBlockPropertyObject(br, "Vinkel", angle);
+                    SetDynBlockPropertyObject(br, "DN", Dn);
                     var cp = seg1.Direction.CrossProduct(seg2.Direction);
-                    if (cp.Z < 0)
-                         Br.ScaleFactors = new Scale3d(1, -1, 1);
-                    Br.Draw();
+                    if (cp.Z < 0.0)
+                        br.ScaleFactors = new Scale3d(1, -1, 1);
+                    SetDynBlockPropertyObject(br, "System", PipeType.ToString());
+                    SetDynBlockPropertyObject(br, "Serie", PipeSerie.ToString());
+                    br.AttSync();
+
+                    BlockTableRecord abtr = br.AnonymousBlockTableRecord.Go<BlockTableRecord>(tx);
+                    abtr.UpdateAnonymousBlocks();
+                    br.RecordGraphicsModified(true);
+                    Application.DocumentManager.CurrentDocument.TransactionManager.QueueForGraphicsFlush();
                 }
                 catch (System.Exception)
                 {
                     tx.Abort();
                     throw;
                 }
+
                 tx.Commit();
             }
-
-            SetDynBlockPropertyObject(Br, "System", PipeType.ToString());
-            SetDynBlockPropertyObject(Br, "Serie", PipeSerie.ToString());
-            Br.AttSync();
+            Application.DocumentManager.CurrentDocument.TransactionManager.QueueForGraphicsFlush();
+            System.Windows.Forms.Application.DoEvents();
 
             if (result.Status == ResultStatus.OK) result = this.Cut(result);
             return result;
         }
         internal override Result Cut(Result result)
         {
-            BlockTableRecord btr = Br.BlockTableRecord.Go<BlockTableRecord>(Tx);
-
-            var muffer = btr.GetNestedBlocksByName("MuffeIntern");
-
-            List<double> splitPts = new List<double>();
-            foreach (BlockReference br in muffer)
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
-                Point3d pt = br.Position.TransformBy(Br.BlockTransform);
-                splitPts.Add(
-                    Run.GetParameterAtPoint(
-                        Run.GetClosestPointTo(pt, false)));
-            }
-
-            splitPts.Sort();
-
-            try
-            {
-                DBObjectCollection objs = Run
-                    .GetSplitCurves(new DoubleCollection(splitPts.ToArray()));
-
-                if (objs.Count != 3) throw new System.Exception(
-                    $"Unexpected number of split curves for polyline {Run.Handle}!");
-
-                for (int i = 0; i < 3; i++)
-                {
-                    if (i == 1) continue;
-                    Polyline pl = objs[i] as Polyline;
-
-                    pl.AddEntityToDbModelSpace(Db);
-                    pl.Layer = Run.Layer;
-                    pl.ConstantWidth = Run.ConstantWidth;
-                    PropertySetManager.CopyAllProperties(Run, pl);
-                }
-
-                Run.CheckOrOpenForWrite();
-                Run.Erase(true);
-            }
-            catch (Autodesk.AutoCAD.Runtime.Exception ex)
-            {
-                Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
-                throw new System.Exception("Splitting of pline failed!");
+                Polyline run = RunId.Go<Polyline>(tx);
+                BlockReference br = BrId.Go<BlockReference>(tx);
+                CutPolylineToAccommodateBlock(tx, run, br, cutBlockName);
+                tx.Commit();
             }
 
             return result;
@@ -537,8 +543,8 @@ namespace IntersectUtilities
         private readonly string blockName;
         private readonly string cutBlockName = "MuffeIntern";
         private readonly TransitionType transitionType;
-        public Transition(Polyline run, Point3d location, TransitionType type)
-            : base(run, location)
+        public Transition(Database db, Oid runId, Point3d location, TransitionType type)
+            : base(db, runId, location)
         {
             blockName = type == TransitionType.X1 ? "RED KDLR" : "RED KDLR x2";
             transitionType = type;
@@ -547,64 +553,71 @@ namespace IntersectUtilities
         {
             Result result = base.Validate();
 
-            #region Test to see if block is present in DB or import
-            Db.CheckOrImportBlockRecord(BlockDb, blockName);
-            #endregion
-
-            #region Check to see if present block is latest version
-            CheckIfBlockPresentInDrawingIsLatestVersion(blockName);
-            #endregion
-
-            #region Check number of cutblocks in BTR
-            CheckNumberOfNestedBlocks(blockName, cutBlockName, 2);
-            #endregion
-
-            #region Test pipesystem, must be Steel
-            if (PipeSystem != PipeSystemEnum.Stål)
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = "Flex ledninger er ikke understøttet. Virker kun på stål.";
-                return result;
-            }
-            #endregion
+                #region Test to see if block is present in DB or import
+                Db.CheckOrImportBlockRecord(BlockDb, blockName);
+                #endregion
 
-            #region Test to see if point is on line, is not coincident and not start or end
+                #region Check to see if present block is latest version
+                CheckIfBlockPresentInDrawingIsLatestVersion(tx, blockName);
+                #endregion
 
-            if (Run.GetDistToPoint(Location) > 0.000001)
-            {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = "Location is not on a pipe. Select location on pipe.";
-                return result;
-            }
+                #region Check number of cutblocks in BTR
+                CheckNumberOfNestedBlocks(tx, blockName, cutBlockName, 2);
+                #endregion
 
-            int idx = Run.GetIndexAtPoint(Location);
+                Polyline run = RunId.Go<Polyline>(tx);
 
-            //Real idx is the idx the segment belongs to even if location is not on vertice
-            int realIdx = (int)Run.GetParameterAtPoint(Location);
+                #region Test pipesystem, must be Steel
+                if (PipeSystem != PipeSystemEnum.Stål)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = "Flex ledninger er ikke understøttet. Virker kun på stål.";
+                }
+                #endregion
 
-            if (idx != -1)
-            {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = "Location is a vertice! The location must NOT be a vertice.";
+                #region Test to see if point is on line, is not coincident and not start or end
+
+                else if (run.GetDistToPoint(Location) > 0.000001)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = "Location is not on a pipe. Select location on pipe.";
+                }
+                else
+                {
+                    int idx = run.GetIndexAtPoint(Location);
+
+                    //Real idx is the idx the segment belongs to even if location is not on vertice
+                    int realIdx = (int)run.GetParameterAtPoint(Location);
+
+                    if (idx != -1)
+                    {
+                        result.Status = ResultStatus.SoftError;
+                        result.ErrorMsg = "Location is a vertice! The location must NOT be a vertice.";
+                    }
+                    else if (idx == 0 || idx == run.NumberOfVertices - 1)
+                    {
+                        result.Status = ResultStatus.SoftError;
+                        result.ErrorMsg = "The command does not accept start or end points. Yet...";
+                    }
+                    else if (run.GetSegmentType(realIdx) != SegmentType.Line)
+                    {
+                        result.Status = ResultStatus.SoftError;
+                        result.ErrorMsg = "The segment is not a Line! Must be a straight Line segment.";
+                    }
+                    else if ((transitionType == TransitionType.X1 && Dn == 20) ||
+                        (transitionType == TransitionType.X2 &&
+                            (Dn == 20 || Dn == 25)))
+                    {
+                        result.Status = ResultStatus.SoftError;
+                        result.ErrorMsg = "Cannot place transition on smallest size!";
+                    }
+                }
+                #endregion
+
+                tx.Commit();
             }
-            else if (idx == 0 || idx == Run.NumberOfVertices - 1)
-            {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = "The command does not accept start or end points. Yet...";
-            }
-            else if (Run.GetSegmentType(realIdx) != SegmentType.Line)
-            {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = "The segment is not a Line! Must be a straight Line segment.";
-            }
-            else if ((transitionType == TransitionType.X1 && Dn == 20) ||
-                (transitionType == TransitionType.X2 &&
-                    (Dn == 20 || Dn == 25)))
-            {
-                result.Status = ResultStatus.SoftError;
-                result.ErrorMsg = "Cannot place transition on smallest size!";
-            }
-            #endregion
 
             if (result.Status == ResultStatus.OK) { Valid = true; }
             return result;
@@ -614,81 +627,57 @@ namespace IntersectUtilities
             Result result = base.Place();
             if (result.Status != ResultStatus.OK) { return result; }
 
-            int idxReal = (int)Run.GetParameterAtPoint(Location);
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
+            {
+                Polyline run = RunId.Go<Polyline>(tx);
 
-            LineSegment3d seg1 = Run.GetLineSegmentAt(idxReal);
-            double rotation = Math.Atan2(seg1.Direction.Y, seg1.Direction.X)
-                + Math.PI / 2;
+                int idxReal = (int)run.GetParameterAtPoint(Location);
 
-            Br = Db.CreateBlockWithAttributes(blockName, Location, rotation);
+                LineSegment3d seg1 = run.GetLineSegmentAt(idxReal);
+                double rotation = Math.Atan2(seg1.Direction.Y, seg1.Direction.X)
+                    + Math.PI / 2;
 
-            //Type is NoUnits, must be set with a string
-            //Construct type name
-            int interval = transitionType == TransitionType.X1 ? 1 : 2;
-            var RunDnEnum = GetPipeDnEnum(Run);
-            var ReducedDnEnum = RunDnEnum - interval;
+                BlockReference br = Db.CreateBlockWithAttributes(
+                    blockName, Location, rotation);
+                br.Layer = BlockLayerName;
+                BrId = br.Id;
 
-            string type =
-                $"{RunDnEnum.ToString().Replace("DN", "")}" +
-                $"x" +
-                $"{ReducedDnEnum.ToString().Replace("DN", "")}";
+                //Type is NoUnits, must be set with a string
+                //Construct type name
+                int interval = transitionType == TransitionType.X1 ? 1 : 2;
+                var runDnEnum = GetPipeDnEnum(run);
+                var ReducedDnEnum = runDnEnum - interval;
 
-            SetDynBlockPropertyObject(Br, "Type", type);
+                string type =
+                    $"{runDnEnum.ToString().Replace("DN", "")}" +
+                    $"x" +
+                    $"{ReducedDnEnum.ToString().Replace("DN", "")}";
 
-            SetDynBlockPropertyObject(Br, "System", PipeType.ToString());
-            SetDynBlockPropertyObject(Br, "Serie", PipeSerie.ToString());
-            Br.AttSync();
+                SetDynBlockPropertyObject(br, "Type", type);
 
+                SetDynBlockPropertyObject(br, "System", PipeType.ToString());
+                SetDynBlockPropertyObject(br, "Serie", PipeSerie.ToString());
+                br.AttSync();
+                if (br.IsDynamicBlock)
+                {
+                    BlockTableRecord abtr = br.AnonymousBlockTableRecord.Go<BlockTableRecord>(tx);
+                    abtr.UpdateAnonymousBlocks();
+                }
+
+                tx.Commit();
+            }
             if (result.Status == ResultStatus.OK) result = Cut(result);
 
             return result;
         }
-        /// <summary>
-        /// Must be called within same transaction as Place()
-        /// </summary>
         internal override Result Cut(Result result)
         {
-            BlockTableRecord btr = Br.BlockTableRecord.Go<BlockTableRecord>(Tx);
-
-            var muffer = btr.GetNestedBlocksByName("MuffeIntern");
-
-            List<double> splitPts = new List<double>();
-            foreach (BlockReference br in muffer)
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
-                Point3d pt = br.Position.TransformBy(Br.BlockTransform);
-                splitPts.Add(
-                    Run.GetParameterAtPoint(
-                        Run.GetClosestPointTo(pt, false)));
-            }
-
-            splitPts.Sort();
-
-            try
-            {
-                DBObjectCollection objs = Run
-                    .GetSplitCurves(new DoubleCollection(splitPts.ToArray()));
-
-                if (objs.Count != 3) throw new System.Exception(
-                    $"Unexpected number of split curves for polyline {Run.Handle}!");
-
-                for (int i = 0; i < 3; i++)
-                {
-                    if (i == 1) continue;
-                    Polyline pl = objs[i] as Polyline;
-
-                    pl.AddEntityToDbModelSpace(Db);
-                    pl.Layer = Run.Layer;
-                    pl.ConstantWidth = Run.ConstantWidth;
-                    PropertySetManager.CopyAllProperties(Run, pl);
-                }
-
-                Run.CheckOrOpenForWrite();
-                Run.Erase(true);
-            }
-            catch (Autodesk.AutoCAD.Runtime.Exception ex)
-            {
-                Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
-                throw new System.Exception("Splitting of pline failed!");
+                Polyline run = RunId.Go<Polyline>(tx);
+                BlockReference br = BrId.Go<BlockReference>(tx);
+                CutPolylineToAccommodateBlock(tx, run, br, cutBlockName);
+                tx.Commit();
             }
 
             return result;
