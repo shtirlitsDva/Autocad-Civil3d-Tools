@@ -194,29 +194,34 @@ namespace IntersectUtilities
 
             if (query.Count() == 0)
                 throw new System.Exception($"Block {blockName} is not present in FJV Dynamiske Komponenter.csv!");
-            int maxVersion = query.Max(); 
+            int maxVersion = query.Max();
             #endregion
 
             if (maxVersion != blockVersion)
                 throw new System.Exception(
-                    $"Block {blockName} is not latest version! Update with latest version from:\n" +
+                    $"Block {blockName} v{blockVersion} is not latest version v{maxVersion}! " +
+                    $"Update with latest version from:\n" +
                     $"{BlockDb}\n" +
                     $"WARNING! This can break existing blocks! Caution is advised!");
+        }
+        internal void CheckNumberOfNestedBlocks(string blockName, string nestedBlockName, int expectedNumber)
+        {
+            BlockTable bt = Db.BlockTableId.Go<BlockTable>(Tx);
+            BlockTableRecord btr = bt[blockName].Go<BlockTableRecord>(Tx);
+            var blocks = btr.GetNestedBlocksByName(nestedBlockName);
+            if (blocks.Length != expectedNumber)
+                throw new System.Exception(
+                    $"BlockTableRecord {btr.Name} has unexpected " +
+                    $"number ({blocks.Length}) of {nestedBlockName}!");
         }
     }
     internal class Elbow : ComponentData
     {
         private readonly string blockNameTwin = "PRÆBØJN-90GR-TWIN-GLD";
         private readonly string blockNameEnkelt = "PRÆBØJN 90GR ENKELT";
+        private readonly string cutBlockName = "MuffeIntern";
         private string blockName { get => PipeType == PipeTypeEnum.Twin ? blockNameTwin : blockNameEnkelt; }
-        public Elbow(Polyline run, Point3d location) : base(run, location)
-        {
-            //string pathToData =
-            //    @"X:\AutoCAD DRI - 01 Civil 3D\DynBlokke\Isoplus tabeller\Twin_90gr_Alle_S.csv";
-
-            //if (File.Exists(pathToData)) this.ReadData(pathToData);
-            //else throw new System.Exception("Class Elbow:ComponentData cannot find " + pathToData + "!");
-        }
+        public Elbow(Polyline run, Point3d location) : base(run, location) { }
         internal override Result Validate()
         {
             Result result = base.Validate();
@@ -229,18 +234,8 @@ namespace IntersectUtilities
             CheckIfBlockPresentInDrawingIsLatestVersion(blockName);
             #endregion
 
-            #region Check number of MuffeIntern blocks in BTR
-            BlockTable bt = Db.BlockTableId.Go<BlockTable>(Tx);
-            BlockTableRecord btr = bt[blockNameTwin].Go<BlockTableRecord>(Tx);
-            var blocks = btr.GetNestedBlocksByName("MuffeIntern");
-            if (blocks.Length != 2)
-                throw new System.Exception(
-                    $"BlockTableRecord {btr.Name} has unexpected number ({blocks.Length}) of MuffeIntern!");
-            btr = bt[blockNameEnkelt].Go<BlockTableRecord>(Tx);
-            blocks = btr.GetNestedBlocksByName("MuffeIntern");
-            if (blocks.Length != 2)
-                throw new System.Exception(
-                    $"BlockTableRecord {btr.Name} has unexpected number ({blocks.Length}) of MuffeIntern!");
+            #region Check number of cutblocks in BTR
+            CheckNumberOfNestedBlocks(blockName, cutBlockName, 2);
             #endregion
 
             #region Test to see if point coincides with a vertice or at ends
@@ -369,11 +364,173 @@ namespace IntersectUtilities
             return result;
         }
     }
+    internal class ElbowWeldFitting : ComponentData
+    {
+        private readonly string blockName = "BØJN KDLR v2";
+        private readonly string cutBlockName = "MuffeIntern";
+        public ElbowWeldFitting(Polyline run, Point3d location) : base(run, location) { }
+        internal override Result Validate()
+        {
+            Result result = base.Validate();
+
+            #region Test to see if block is present in DB or import
+            Db.CheckOrImportBlockRecord(BlockDb, blockName);
+            #endregion
+
+            #region Check to see if present block is latest version
+            CheckIfBlockPresentInDrawingIsLatestVersion(blockName);
+            #endregion
+
+            #region Check number of cutblocks in BTR
+            CheckNumberOfNestedBlocks(blockName, cutBlockName, 2);
+            #endregion
+
+            #region Test to see if point coincides with a vertice or at ends
+            int idx = Run.GetIndexAtPoint(Location);
+
+            if (idx == -1)
+            {
+                result.Status = ResultStatus.SoftError;
+                result.ErrorMsg = "Location not a vertice! The location must be a vertice.";
+            }
+
+            else if (idx == 0 || idx == Run.NumberOfVertices - 1)
+            {
+                result.Status = ResultStatus.SoftError;
+                result.ErrorMsg = "The command does not accept start or end points. Yet...";
+            }
+            #endregion
+
+            #region Test to see if adjacent segments are lines
+            SegmentType st1 = Run.GetSegmentType(idx);
+            if (st1 != SegmentType.Line)
+            {
+                result.Status = ResultStatus.SoftError;
+                result.ErrorMsg = "Next segment is not a Line!";
+            }
+            SegmentType st2 = Run.GetSegmentType(idx - 1);
+            if (st2 != SegmentType.Line)
+            {
+                result.Status = ResultStatus.SoftError;
+                result.ErrorMsg = "Previous segment is not a Line!";
+            }
+            #endregion
+
+            #region Test to see if bend is between 80° and 10°
+            else
+            {
+                LineSegment2d seg1 = Run.GetLineSegment2dAt(idx);
+                LineSegment2d seg2 = Run.GetLineSegment2dAt(idx - 1);
+
+                double angle = seg1.Direction.GetAngleTo(seg2.Direction).ToDegrees();
+
+                if (angle > 80.0 && angle < 10.0)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg =
+                        $"The bend is not between 80° and 10°! But actually {angle}.";
+                }
+            }
+            #endregion
+
+            if (result.Status == ResultStatus.OK) { Valid = true; }
+            return result;
+        }
+        internal override Result Place()
+        {
+            Result result = base.Place();
+            if (result.Status != ResultStatus.OK) { return result; }
+
+            int idx = Run.GetIndexAtPoint(Location);
+
+            LineSegment3d seg1 = Run.GetLineSegmentAt(idx);
+            LineSegment3d seg2 = Run.GetLineSegmentAt(idx - 1);
+            double rotation = Math.Atan2(seg1.Direction.Y, seg1.Direction.X)//;
+                + Math.PI;
+            double angle = seg1.Direction.GetAngleTo(seg2.Direction);
+            //prdDbg($"Rot: {rotation.ToDegrees().ToString("#.###")}, Angle: {angle})
+
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Br = Db.CreateBlockWithAttributes(blockName, Location, rotation);
+                    Br.Layer = BlockLayerName;
+                    SetDynBlockPropertyObject(Br, "Vinkel", angle);
+                    SetDynBlockPropertyObject(Br, "DN", Dn);
+                    var cp = seg1.Direction.CrossProduct(seg2.Direction);
+                    if (cp.Z < 0)
+                         Br.ScaleFactors = new Scale3d(1, -1, 1);
+                    Br.Draw();
+                }
+                catch (System.Exception)
+                {
+                    tx.Abort();
+                    throw;
+                }
+                tx.Commit();
+            }
+
+            SetDynBlockPropertyObject(Br, "System", PipeType.ToString());
+            SetDynBlockPropertyObject(Br, "Serie", PipeSerie.ToString());
+            Br.AttSync();
+
+            if (result.Status == ResultStatus.OK) result = this.Cut(result);
+            return result;
+        }
+        internal override Result Cut(Result result)
+        {
+            BlockTableRecord btr = Br.BlockTableRecord.Go<BlockTableRecord>(Tx);
+
+            var muffer = btr.GetNestedBlocksByName("MuffeIntern");
+
+            List<double> splitPts = new List<double>();
+            foreach (BlockReference br in muffer)
+            {
+                Point3d pt = br.Position.TransformBy(Br.BlockTransform);
+                splitPts.Add(
+                    Run.GetParameterAtPoint(
+                        Run.GetClosestPointTo(pt, false)));
+            }
+
+            splitPts.Sort();
+
+            try
+            {
+                DBObjectCollection objs = Run
+                    .GetSplitCurves(new DoubleCollection(splitPts.ToArray()));
+
+                if (objs.Count != 3) throw new System.Exception(
+                    $"Unexpected number of split curves for polyline {Run.Handle}!");
+
+                for (int i = 0; i < 3; i++)
+                {
+                    if (i == 1) continue;
+                    Polyline pl = objs[i] as Polyline;
+
+                    pl.AddEntityToDbModelSpace(Db);
+                    pl.Layer = Run.Layer;
+                    pl.ConstantWidth = Run.ConstantWidth;
+                    PropertySetManager.CopyAllProperties(Run, pl);
+                }
+
+                Run.CheckOrOpenForWrite();
+                Run.Erase(true);
+            }
+            catch (Autodesk.AutoCAD.Runtime.Exception ex)
+            {
+                Application.ShowAlertDialog(ex.Message + "\n" + ex.StackTrace);
+                throw new System.Exception("Splitting of pline failed!");
+            }
+
+            return result;
+        }
+    }
     internal class Transition : ComponentData
     {
         private readonly string blockName;
+        private readonly string cutBlockName = "MuffeIntern";
         private readonly TransitionType transitionType;
-
         public Transition(Polyline run, Point3d location, TransitionType type)
             : base(run, location)
         {
@@ -392,13 +549,8 @@ namespace IntersectUtilities
             CheckIfBlockPresentInDrawingIsLatestVersion(blockName);
             #endregion
 
-            #region Check number of MuffeIntern blocks in BTR
-            BlockTable bt = Db.BlockTableId.Go<BlockTable>(Tx);
-            BlockTableRecord btr = bt[blockName].Go<BlockTableRecord>(Tx);
-            var blocks = btr.GetNestedBlocksByName("MuffeIntern");
-            if (blocks.Length != 2)
-                throw new System.Exception(
-                    $"BlockTableRecord {btr.Name} has unexpected number ({blocks.Length}) of MuffeIntern!");
+            #region Check number of cutblocks in BTR
+            CheckNumberOfNestedBlocks(blockName, cutBlockName, 2);
             #endregion
 
             #region Test pipesystem, must be Steel

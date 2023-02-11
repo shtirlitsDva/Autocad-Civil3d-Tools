@@ -2288,6 +2288,45 @@ namespace IntersectUtilities.UtilsCommon
             //tr.Commit();
             //}
         }
+        public static HashSet<Oid> HashSetOfFjvPipeIds(this Database db, bool discardFrozen = true)
+        {
+            if (db.TransactionManager.TopTransaction != null)
+                throw new System.Exception(
+                    "HashSetOfFjvPipeIds must be used outside of Transaction!");
+
+            HashSet<Oid> result = new HashSet<Oid>();
+
+            var bt = db.BlockTableId.Open(OpenMode.ForRead) as BlockTable;
+            var ms = bt[BlockTableRecord.ModelSpace].Open(OpenMode.ForRead) as BlockTableRecord;
+            var lt = db.LayerTableId.Open(OpenMode.ForRead) as LayerTable;
+
+            foreach (Oid oid in ms)
+            {
+                if (oid.IsDerivedFrom<Polyline>())
+                {
+                    Polyline pline = oid.Open(OpenMode.ForRead) as Polyline;
+                    var ltr = lt[pline.Layer].Open(OpenMode.ForRead) as LayerTableRecord;
+
+                    if (!(ltr.IsFrozen && discardFrozen) &&
+                        GetPipeSystem(pline) != PipeSystemEnum.Ukendt)
+                        result.Add(oid);
+
+                    ltr.Close();
+                    ltr.Dispose();
+                    pline.Close();
+                    pline.Dispose();
+                }
+            }
+
+            lt.Close();
+            lt.Dispose();
+            ms.Close();
+            ms.Dispose();
+            bt.Close();
+            bt.Dispose();
+
+            return result;
+        }
         public static List<T> ListOfType<T>(this Database database, Transaction tr, bool discardFrozen = false) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
             //using (var tr = database.TransactionManager.StartTransaction())
@@ -2305,12 +2344,12 @@ namespace IntersectUtilities.UtilsCommon
             RXClass theClass = RXObject.GetClass(typeof(T));
 
             // Loop through the entities in model space
-            foreach (Oid objectId in modelSpace)
+            foreach (Oid oid in modelSpace)
             {
                 // Look for entities of the correct type
-                if (objectId.ObjectClass.IsDerivedFrom(theClass))
+                if (oid.ObjectClass.IsDerivedFrom(theClass))
                 {
-                    var entity = (T)tr.GetObject(objectId, OpenMode.ForRead);
+                    var entity = (T)tr.GetObject(oid, OpenMode.ForRead);
                     if (discardFrozen)
                     {
                         LayerTableRecord layer = (LayerTableRecord)tr.GetObject(entity.LayerId, OpenMode.ForRead);
@@ -2370,6 +2409,17 @@ namespace IntersectUtilities.UtilsCommon
                 .ToHashSet();
 
             return entities;
+        }
+        public static IEnumerable<Oid> GetFjvPipesIds(this Database db, bool discardFrozen = false)
+        {
+            Transaction tx = db.TransactionManager.StartTransaction();
+
+            var rawPlines = db.ListOfType<Polyline>(tx, discardFrozen);
+            foreach (var item in rawPlines)
+                if (GetPipeSystem(item) != PipeSystemEnum.Ukendt) yield return item.Id;
+
+            tx.Abort();
+            tx.Dispose();
         }
 
         // Searches the drawing for a block with the specified name.
