@@ -52,7 +52,6 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using System.Windows.Documents;
 using Color = Autodesk.AutoCAD.Colors.Color;
 using static System.Net.Mime.MediaTypeNames;
-using Autodesk.Civil.Settings;
 
 namespace IntersectUtilities
 {
@@ -4089,6 +4088,68 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     editor.WriteMessage("\n" + ex.Message);
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("POLYLINEFROMPROFILE")]
+        public void polylinefromprofile()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database database = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            CivilDocument doc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = database.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select a Profile: ");
+                    promptEntityOptions1.SetRejectMessage("\n Not a profile!");
+                    promptEntityOptions1.AddAllowedClass(typeof(Profile), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    Profile profile  = entity1.ObjectId.Go<Profile>(tx);
+                    
+                    PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select a ProfileView: ");
+                    promptEntityOptions2.SetRejectMessage("\n Not a ProfileView");
+                    promptEntityOptions2.AddAllowedClass(typeof(ProfileView), true);
+                    PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+                    if (((PromptResult)entity2).Status != PromptStatus.OK) return;
+                    ProfileView profileView = entity2.ObjectId.Go<ProfileView>(tx);
+
+                    ProfileEntityCollection entities = profile.Entities;
+                    prdDbg($"Count of entities: {entities.Count}");
+                    HashSet<string> types = new HashSet<string>();
+
+                    Polyline pline = new Polyline(entities.Count + 1);
+
+                    //Place first point
+                    ProfileEntity pe = entities.EntityAtId(entities.FirstEntity);
+                    double startX = 0.0, startY = 0.0;
+                    profileView.FindXYAtStationAndElevation(pe.StartStation, pe.StartElevation, ref startX, ref startY);
+                    Point2d startPoint = new Point2d(startX, startY);
+                    Point2d endPoint = new Point2d();
+                    pline.AddVertexAt(0, startPoint, pe.GetBulge(profileView), 0, 0);
+                    int vertIdx = 1;
+                    for (int i = 0; i < entities.Count + 1; i++)
+                    {
+                        endPoint = profileView.GetPoint2dAtStaAndEl(pe.EndStation, pe.EndElevation);
+                        double bulge = entities.LookAheadAndGetBulge(pe, profileView);
+                        pline.AddVertexAt(vertIdx, endPoint, bulge, 0, 0);
+                        vertIdx++;
+                        startPoint = endPoint;
+                        try { pe = entities.EntityAtId(pe.EntityAfter); }
+                        catch (System.Exception) { break; }
+                    }
+
+                    pline.AddEntityToDbModelSpace(database);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
                 }
                 tx.Commit();
             }
