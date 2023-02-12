@@ -262,7 +262,7 @@ namespace AcadOverrules
                 polygonPoints, outlineColors, outlineTypes, fillColors, fillOpacities);
         }
         private void drawAngleLabel(
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd, 
+            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
             Point3d vertPos, double angleDeg, double plineWidth, Vector3d dir)
         {
             Vector3d labelDir = -dir.GetPerpendicularVector();
@@ -328,6 +328,12 @@ namespace AcadOverrules
             double length = pline.Length;
             int numberOfLabels = (int)(length / labelDist);
             if (numberOfLabels == 0) numberOfLabels = 1;
+            int dn = PipeSchedule.GetPipeDN(pline);
+            string system =
+                PipeSchedule.GetPipeType(pline) == PipeTypeEnum.Twin ?
+                "T" : "E";
+            string label = $"DN{dn}-{system}";
+            var extents = style.ExtentsBox(label, true, false, null);
 
             for (int i = 0; i < numberOfLabels + 1; i++)
             {
@@ -335,11 +341,6 @@ namespace AcadOverrules
                 double dist = labelDist * i;
                 if (numberOfLabels == 1) dist = length / 2;
                 Point3d pt = pline.GetPointAtDist(dist);
-                int dn = PipeSchedule.GetPipeDN(pline);
-                string system =
-                    PipeSchedule.GetPipeType(pline) == PipeTypeEnum.Twin ?
-                    "T" : "E";
-                string label = $"DN{dn}-{system}";
 
                 try
                 {
@@ -349,7 +350,8 @@ namespace AcadOverrules
                     Vector3d perp = deriv.GetPerpendicularVector();
 
                     wd.Geometry.Text(
-                        pt + perp * labelOffset, Vector3d.ZAxis, deriv, label, true, style);
+                        pt - deriv * extents.MaxPoint.X / 2 + perp * labelOffset, 
+                        Vector3d.ZAxis, deriv, label, true, style);
                 }
                 catch (System.Exception ex)
                 {
@@ -403,7 +405,6 @@ namespace AcadOverrules
                 pt2 = sP3d - vec;
                 wd.Geometry.WorldLine(pt1, pt2);
 
-                string label;
                 if (radius > minRadius)
                 {
                     label = $"Elastisk R{radius.ToString("0.##")}";
@@ -433,10 +434,13 @@ namespace AcadOverrules
                 Vector3d perp = deriv.GetPerpendicularVector();
                 if (b > 0) perp = -perp;
 
+                extents = style.ExtentsBox(label, true, false, null);
+
                 //wd.Geometry.Text(
                 //    midPt + perp * (labelOffset + labelHeight + 0.7), Vector3d.ZAxis, deriv, labelHeight, 1.0, 0.0, label);
                 wd.Geometry.Text(
-                    midPt + perp * (labelOffset + labelHeight + 0.7), Vector3d.ZAxis, deriv, label, true, style);
+                    midPt + deriv * -extents.MaxPoint.X / 2 + perp * (labelOffset + labelHeight + 0.7),
+                    Vector3d.ZAxis, deriv, label, true, style);
             }
             #endregion
 
@@ -547,7 +551,7 @@ namespace AcadOverrules
                         }
                     }
                     else if (
-                        (st1 == SegmentType.Arc || st1 == SegmentType.Line) && 
+                        (st1 == SegmentType.Arc || st1 == SegmentType.Line) &&
                         (st2 == SegmentType.Arc || st2 == SegmentType.Line))
                     {
                         var dirs = pline.DirectionsAt(i + 1); //Uses look back, while for loop uses look forward
@@ -566,7 +570,7 @@ namespace AcadOverrules
                     }
                     else
                     {//Segment
-                        if (st1 == SegmentType.Coincident || 
+                        if (st1 == SegmentType.Coincident ||
                             st1 == SegmentType.Empty ||
                             st1 == SegmentType.Point)
                         {
