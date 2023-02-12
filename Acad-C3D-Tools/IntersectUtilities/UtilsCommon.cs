@@ -1187,7 +1187,7 @@ namespace IntersectUtilities.UtilsCommon
         /// Finds the index of vertice coincident with given point3d.
         /// If not coincident with any returns -1.
         /// </summary>
-        public static int GetIndexAtPoint(this Polyline pline, Point3d p3d)
+        public static int GetCoincidentIndexAtPoint(this Polyline pline, Point3d p3d)
         {
             #region Test to see if point coincides with a vertice
             bool verticeFound = false;

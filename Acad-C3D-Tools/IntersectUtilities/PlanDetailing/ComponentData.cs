@@ -326,7 +326,7 @@ namespace IntersectUtilities
                 #endregion
 
                 #region Test to see if point coincides with a vertice or at ends
-                int idx = run.GetIndexAtPoint(Location);
+                int idx = run.GetCoincidentIndexAtPoint(Location);
 
                 if (idx == -1)
                 {
@@ -387,7 +387,7 @@ namespace IntersectUtilities
             using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
                 Polyline run = RunId.Go<Polyline>(tx);
-                int idx = run.GetIndexAtPoint(Location);
+                int idx = run.GetCoincidentIndexAtPoint(Location);
 
                 LineSegment3d seg1 = run.GetLineSegmentAt(idx);
                 LineSegment3d seg2 = run.GetLineSegmentAt(idx - 1);
@@ -471,7 +471,7 @@ namespace IntersectUtilities
                 #endregion
 
                 #region Test to see if point coincides with a vertice or at ends
-                int idx = run.GetIndexAtPoint(Location);
+                int idx = run.GetCoincidentIndexAtPoint(Location);
 
                 if (idx == -1)
                 {
@@ -532,7 +532,7 @@ namespace IntersectUtilities
             {
                 Polyline run = RunId.Go<Polyline>(tx);
 
-                int idx = run.GetIndexAtPoint(Location);
+                int idx = run.GetCoincidentIndexAtPoint(Location);
 
                 LineSegment3d seg1 = run.GetLineSegmentAt(idx);
                 LineSegment3d seg2 = run.GetLineSegmentAt(idx - 1);
@@ -577,7 +577,7 @@ namespace IntersectUtilities
                     br.ReadDynamicPropertyValue("Vinkel"), CultureInfo.InvariantCulture);
                 double ll = Math.Tan(angle.ToRadians() / 2) * radiusDict[Dn];
 
-                int idx = run.GetIndexAtPoint(Location);
+                int idx = run.GetCoincidentIndexAtPoint(Location);
 
                 double l1 = run.GetLengthOfSegmentAt(idx);
                 double p1 = (double)idx + ll / l1;
@@ -640,7 +640,7 @@ namespace IntersectUtilities
                 }
                 else
                 {
-                    int idx = run.GetIndexAtPoint(Location);
+                    int idx = run.GetCoincidentIndexAtPoint(Location);
 
                     //Real idx is the idx the segment belongs to even if location is not on vertice
                     int realIdx = (int)run.GetParameterAtPoint(Location);
@@ -649,11 +649,6 @@ namespace IntersectUtilities
                     {
                         result.Status = ResultStatus.SoftError;
                         result.ErrorMsg = "Location is a vertice! The location must NOT be a vertice.";
-                    }
-                    else if (idx == 0 || idx == run.NumberOfVertices - 1)
-                    {
-                        result.Status = ResultStatus.SoftError;
-                        result.ErrorMsg = "The command does not accept start or end points. Yet...";
                     }
                     else if (run.GetSegmentType(realIdx) != SegmentType.Line)
                     {
@@ -747,7 +742,7 @@ namespace IntersectUtilities
     {
         private readonly string blockName = "BUEROR2";
         private readonly string cutBlockName = "MuffeIntern";
-        
+
         public Bueror(Database db, Oid runId, Point3d location) : base(db, runId, location) { }
         internal override Result Validate()
         {
@@ -768,23 +763,48 @@ namespace IntersectUtilities
                 CheckNumberOfNestedBlocks(tx, blockName, cutBlockName, 2);
                 #endregion
 
-                #region Test to see if point coincides with a vertice or at ends
-                int idx = run.GetIndexAtPoint(Location);
+                #region Test if location is on polyline
+                if (run.GetDistToPoint(Location) > 0.000001)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = "Location is not on a pipe. Select location on pipe.";
+                    tx.Commit();
+                    return result;
+                }
+                #endregion
+
+                #region Test to see if segment is a buerør
+                int idx = run.GetCoincidentIndexAtPoint(Location);
 
                 if (idx == run.NumberOfVertices - 1)
                 {
                     result.Status = ResultStatus.SoftError;
                     result.ErrorMsg = "The command does not accept end points. Yet...";
+                    tx.Commit();
+                    return result;
                 }
-                #endregion
-                else
-                #region Test to see if the selected segment is buerør
+
+                double realIdx = run.GetParameterAtPoint(Location);
+                var segType = run.GetSegmentType((int)realIdx);
+
+                if (segType != SegmentType.Arc)
                 {
-                    
-                    
-                    
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = "Buerør can only be placed on arc segments!";
+                    tx.Commit();
+                    return result;
                 }
+
+                var seg = run.GetArcSegmentAt((int)realIdx);
+
+                seg.rad
                 #endregion
+
+
+
+
+
+
                 tx.Commit();
             }
 
@@ -800,7 +820,7 @@ namespace IntersectUtilities
             {
                 Polyline run = RunId.Go<Polyline>(tx);
 
-                int idx = run.GetIndexAtPoint(Location);
+                int idx = run.GetCoincidentIndexAtPoint(Location);
 
                 LineSegment3d seg1 = run.GetLineSegmentAt(idx);
                 LineSegment3d seg2 = run.GetLineSegmentAt(idx - 1);
@@ -845,7 +865,7 @@ namespace IntersectUtilities
                     br.ReadDynamicPropertyValue("Vinkel"), CultureInfo.InvariantCulture);
                 double ll = Math.Tan(angle.ToRadians() / 2) * radiusDict[Dn];
 
-                int idx = run.GetIndexAtPoint(Location);
+                int idx = run.GetCoincidentIndexAtPoint(Location);
 
                 double l1 = run.GetLengthOfSegmentAt(idx);
                 double p1 = (double)idx + ll / l1;
