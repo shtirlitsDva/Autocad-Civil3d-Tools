@@ -407,7 +407,7 @@ namespace AcadOverrules
 
                 if (radius > minRadius)
                 {
-                    label = $"Elastisk R{radius.ToString("0.##")}";
+                    label = $"EL R{radius.ToString("0.##")}";
                 }
                 else
                 {
@@ -415,12 +415,12 @@ namespace AcadOverrules
 
                     if (isInSituBuk)
                     {
-                        label = $"In-situ buk R{radius.ToString("0.##")} L{arcLength.ToString("0.##")}";
+                        label = $"IS R{radius.ToString("0.##")} L{arcLength.ToString("0.##")}";
                     }
                     else
                     {
                         double angle = arcLength / ((Math.PI / 180) * radius);
-                        label = $"Buerør R{radius.ToString("0.##")} L{arcLength.ToString("0.##")} A{angle.ToString("0.##")}";
+                        label = $"BR R{radius.ToString("0.##")} L{arcLength.ToString("0.##")} A{angle.ToString("0.##")}";
                     }
                 }
 
