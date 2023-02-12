@@ -743,4 +743,121 @@ namespace IntersectUtilities
             X2
         }
     }
+    internal class Bueror : ComponentData
+    {
+        private readonly string blockName = "BUEROR2";
+        private readonly string cutBlockName = "MuffeIntern";
+        
+        public Bueror(Database db, Oid runId, Point3d location) : base(db, runId, location) { }
+        internal override Result Validate()
+        {
+            Result result = base.Validate();
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
+            {
+                Polyline run = RunId.Go<Polyline>(tx);
+
+                #region Test to see if block is present in DB or import
+                Db.CheckOrImportBlockRecord(BlockDb, blockName);
+                #endregion
+
+                #region Check to see if present block is latest version
+                CheckIfBlockPresentInDrawingIsLatestVersion(tx, blockName);
+                #endregion
+
+                #region Check number of cutblocks in BTR
+                CheckNumberOfNestedBlocks(tx, blockName, cutBlockName, 2);
+                #endregion
+
+                #region Test to see if point coincides with a vertice or at ends
+                int idx = run.GetIndexAtPoint(Location);
+
+                if (idx == run.NumberOfVertices - 1)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = "The command does not accept end points. Yet...";
+                }
+                #endregion
+                else
+                #region Test to see if the selected segment is buerør
+                {
+                    
+                    
+                    
+                }
+                #endregion
+                tx.Commit();
+            }
+
+            if (result.Status == ResultStatus.OK) { Valid = true; }
+            return result;
+        }
+        internal override Result Place()
+        {
+            Result result = base.Place();
+            if (result.Status != ResultStatus.OK) { return result; }
+
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
+            {
+                Polyline run = RunId.Go<Polyline>(tx);
+
+                int idx = run.GetIndexAtPoint(Location);
+
+                LineSegment3d seg1 = run.GetLineSegmentAt(idx);
+                LineSegment3d seg2 = run.GetLineSegmentAt(idx - 1);
+                double rotation = Math.Atan2(seg1.Direction.Y, seg1.Direction.X)
+                    + Math.PI;
+                double angle = seg1.Direction.GetAngleTo(seg2.Direction);
+
+                try
+                {
+                    BlockReference br = Db.CreateBlockWithAttributes(blockName, Location, rotation);
+                    br.Layer = BlockLayerName;
+                    BrId = br.Id;
+                    SetDynBlockPropertyObject(br, "Vinkel", angle);
+                    SetDynBlockPropertyObject(br, "DN", Dn);
+                    var cp = seg1.Direction.CrossProduct(seg2.Direction);
+                    if (cp.Z < 0.0)
+                        br.ScaleFactors = new Scale3d(1, -1, 1);
+                    SetDynBlockPropertyObject(br, "System", PipeType.ToString());
+                    SetDynBlockPropertyObject(br, "Serie", PipeSerie.ToString());
+                    br.AttSync();
+                }
+                catch (System.Exception)
+                {
+                    tx.Abort();
+                    throw;
+                }
+
+                tx.Commit();
+            }
+
+            if (result.Status == ResultStatus.OK) result = this.Cut(result);
+            return result;
+        }
+        internal override Result Cut(Result result)
+        {
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
+            {
+                Polyline run = RunId.Go<Polyline>(tx);
+                BlockReference br = BrId.Go<BlockReference>(tx);
+
+                double angle = Convert.ToDouble(
+                    br.ReadDynamicPropertyValue("Vinkel"), CultureInfo.InvariantCulture);
+                double ll = Math.Tan(angle.ToRadians() / 2) * radiusDict[Dn];
+
+                int idx = run.GetIndexAtPoint(Location);
+
+                double l1 = run.GetLengthOfSegmentAt(idx);
+                double p1 = (double)idx + ll / l1;
+
+                double l2 = run.GetLengthOfSegmentAt(idx - 1);
+                double p2 = (double)idx - ll / l2;
+
+                CutPolylineWithDoublesToAccommodateBlock(run, new List<double> { p2, p1 });
+                tx.Commit();
+            }
+
+            return result;
+        }
+    }
 }
