@@ -268,7 +268,7 @@ namespace IntersectUtilities
             }
         }
         internal void CutPolylineWithDoublesToAccommodateBlock(
-            Polyline run, List<double> splitPts, string cutBlockName)
+            Polyline run, List<double> splitPts)
         {
             try
             {
@@ -585,7 +585,7 @@ namespace IntersectUtilities
                 double l2 = run.GetLengthOfSegmentAt(idx - 1);
                 double p2 = (double)idx - ll / l2;
 
-                CutPolylineWithDoublesToAccommodateBlock(run, new List<double> { p2, p1 }, cutBlockName);
+                CutPolylineWithDoublesToAccommodateBlock(run, new List<double> { p2, p1 });
                 tx.Commit();
             }
 
