@@ -944,7 +944,9 @@ namespace IntersectUtilities
                 case PipeSystemEnum.Ukendt:
                     return 0;
                 case PipeSystemEnum.Stål:
-                    return steelRadii[GetPipeDN(ent)];
+                    int dn = GetPipeDN(ent);
+                    if (steelRadii.ContainsKey(dn)) return steelRadii[dn];
+                    else return steelRadii[999];
                 case PipeSystemEnum.Kobberflex:
                     switch (pipeType)
                     {
