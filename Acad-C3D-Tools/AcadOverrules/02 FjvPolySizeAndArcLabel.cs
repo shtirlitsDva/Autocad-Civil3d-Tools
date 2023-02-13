@@ -172,13 +172,13 @@ namespace AcadOverrules
             points[3] = new Point3d(0.0, -plineWidth * 1.5, 0.0);
 
             //Rotate points to match segment angle
-            double angle = Vector3d.XAxis.GetAngleTo(dir1);
+            double angle = Math.Atan2(dir1.Y, dir1.X);
             for (int i = 0; i < points.Length; i++)
                 points[i] = points[i].RotateBy(angle, Vector3d.ZAxis, origo);
 
             return new Point3dCollection(points);
         }
-        private Point3dCollection createPolygonPointsCoincidentEmptyPoint()
+        private Point3dCollection createPolygonPointsCoincidentEmptyPoint(Vector3d dir)
         {
             //Create starting points
             Point3d[] points = new Point3d[12];
@@ -195,16 +195,16 @@ namespace AcadOverrules
             points[10] = new Point3d(-0.5303, -0.8839, 0.0);
             points[11] = new Point3d(-0.8839, -0.5303, 0.0);
 
-            ////Rotate points to match segment angle
-            //double angle = Vector3d.XAxis.GetAngleTo(dir);
-            //for (int i = 0; i < points.Length; i++)
-            //    points[i] = points[i].RotateBy(angle, Vector3d.ZAxis, origo);
+            //Rotate points to match segment angle
+            double angle = Math.Atan2(dir.Y, dir.X);
+            for (int i = 0; i < points.Length; i++)
+                points[i] = points[i].RotateBy(angle, Vector3d.ZAxis, origo);
 
             return new Point3dCollection(points);
         }
         private void drawCoincidentEmptyPointPolygon(
             Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
-            Point3d vertPos
+            Point3d vertPos, Vector3d dir
             )
         {
             //Use polypolygon
@@ -227,7 +227,7 @@ namespace AcadOverrules
             //polygonPoints
             //the points of polygon
             Point3dCollection polygonPoints =
-                createPolygonPointsCoincidentEmptyPoint();
+                createPolygonPointsCoincidentEmptyPoint(dir);
 
             //outlineColors
             //Input the outline color for each polygon type, one outlineColor per polygon*index.
@@ -278,15 +278,18 @@ namespace AcadOverrules
         private void drawImpossibleRadiusPolyPolygon(
             Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
             uint numberOfRepetitions,
-            Point3dCollection polygonPositions
+            Point3dCollection polygonPositions,
+            Vector3dCollection dirs
             )
         {
             //Use polypolygon
             //https://forums.autodesk.com/t5/net/drawjig-geometry-polypolygon/m-p/8909612/highlight/true#M63223
             //NumPolygonPositions -> how many polygons
             //Each value of this array represents the number of that kind of polygon
-            UInt32Collection numPolygonPositions =
-                new UInt32Collection(1) { numberOfRepetitions };
+            UInt32Collection numPolygonPositions = new UInt32Collection();
+            //    new UInt32Collection(1) { numberOfRepetitions };
+            for (int i = 0; i < numberOfRepetitions; i++)
+                numPolygonPositions.Add(1);
 
             //polygonPositions
             //Point3d of polygon position
@@ -295,47 +298,66 @@ namespace AcadOverrules
 
             //numPolygonPoints
             //Input the number of the polygons' vertices.
-            UInt32Collection numPolygonPoints =
-                new UInt32Collection(1) { 12 };
+            UInt32Collection numPolygonPoints = new UInt32Collection();
+            //    new UInt32Collection(1) { 12 };
+            for (int i = 0; i < numberOfRepetitions; i++)
+                numPolygonPoints.Add((uint)12);
 
             //polygonPoints
             //the points of polygon
-            Point3dCollection polygonPoints =
-                createPolygonPointsImpossibleRadius();
+            Point3dCollection polygonPoints = new Point3dCollection();
+            //createPolygonPointsImpossibleRadius();
+            for (int i = 0; i < numberOfRepetitions; i++)
+                foreach (Point3d p3d in createPolygonPointsImpossibleRadius(dirs[i]))
+                    polygonPoints.Add(p3d);
 
             //outlineColors
             //Input the outline color for each polygon type, one outlineColor per polygon*index.
-            EntityColorCollection outlineColors =
-                new EntityColorCollection(1) {
-                    new EntityColor(ColorMethod.ByAci, 20) };
+            EntityColorCollection outlineColors = new EntityColorCollection();
+            for (int i = 0; i < numberOfRepetitions; i++)
+                outlineColors.Add(new EntityColor(ColorMethod.ByAci, 20));
+            //new EntityColorCollection(2) {
+            //    new EntityColor(ColorMethod.ByAci, 20),
+            //    new EntityColor(ColorMethod.ByAci, 20),
+            //};
 
             //outlineTypes
             //Input the outline type for each polygon type, one outlineType per polygon*index.
             Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection outlineTypes =
-                new Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection()
-                    {
-                        Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid
-                    };
+                new Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection();
+            for (int i = 0; i < numberOfRepetitions; i++)
+                outlineTypes.Add(Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid);
+            //{
+            //    Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid,
+            //    Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid,
+            //};
 
             //fillColors
             //Input the filled color for each polygon type, one fillColor per polygon index.
-            EntityColorCollection fillColors =
-                new EntityColorCollection(1) {
-                    new EntityColor(ColorMethod.ByAci, 1) };
+            EntityColorCollection fillColors = new EntityColorCollection();
+            for (int i = 0; i < numberOfRepetitions; i++)
+                fillColors.Add(new EntityColor(ColorMethod.ByAci, 20));
+            //new EntityColorCollection(2) {
+            //    new EntityColor(ColorMethod.ByAci, 1),
+            //    new EntityColor(ColorMethod.ByAci, 1),
+            //};
 
             //fillOpacities
             //Input the opacity of polygon, one fillOpacity per polygon index
-            TransparencyCollection fillOpacities =
-                new TransparencyCollection(1) {
-                    new Transparency((byte)255)
-                };
+            TransparencyCollection fillOpacities = new TransparencyCollection();
+            for (int i = 0; i < numberOfRepetitions; i++)
+                fillOpacities.Add(new Transparency((byte)255));
+            //new TransparencyCollection(2) {
+            //    new Transparency((byte)255),
+            //    new Transparency((byte)255)
+            //};
 
             //Draw the polygons
             wd.Geometry.PolyPolygon(
                 numPolygonPositions, polygonPositions, numPolygonPoints,
                 polygonPoints, outlineColors, outlineTypes, fillColors, fillOpacities);
         }
-        private Point3dCollection createPolygonPointsImpossibleRadius()
+        private Point3dCollection createPolygonPointsImpossibleRadius(Vector3d dir)
         {
             //Create starting points
             Point3d[] points = new Point3d[12];
@@ -352,10 +374,11 @@ namespace AcadOverrules
             points[10] = new Point3d(-0.2828, -0.4243, 0.0);
             points[11] = new Point3d(-0.4243, -0.2828, 0.0);
 
-            ////Rotate points to match segment angle
+            //Rotate points to match segment angle
             //double angle = Vector3d.XAxis.GetAngleTo(dir);
-            //for (int i = 0; i < points.Length; i++)
-            //    points[i] = points[i].RotateBy(angle, Vector3d.ZAxis, origo);
+            double angle = Math.Atan2(dir.Y, dir.X);
+            for (int i = 0; i < points.Length; i++)
+                points[i] = points[i].RotateBy(angle, Vector3d.ZAxis, origo);
 
             return new Point3dCollection(points);
         }
@@ -477,12 +500,10 @@ namespace AcadOverrules
 
                 //Split the pline in segments delimiting buerør and append
 
-                Point3d fP3d = new Point3d(fP.X, fP.Y, 0);
-                Point3d sP3d = new Point3d(sP.X, sP.Y, 0);
+                Point3d fP3d = fP.To3D();
+                Point3d sP3d = sP.To3D();
 
-                double fL = pline.GetDistAtPoint(fP3d);
-                double sL = pline.GetDistAtPoint(sP3d);
-
+                #region Arc delimiter lines
                 Vector3d vec = pline.GetFirstDerivative(fP3d);
                 vec = vec.GetNormal();
                 vec = vec.GetPerpendicularVector();
@@ -495,7 +516,8 @@ namespace AcadOverrules
                 vec = vec.GetPerpendicularVector();
                 pt1 = sP3d + vec;
                 pt2 = sP3d - vec;
-                wd.Geometry.WorldLine(pt1, pt2); 
+                wd.Geometry.WorldLine(pt1, pt2);
+                #endregion
                 #endregion
 
                 if (!isBueRor)
@@ -504,7 +526,7 @@ namespace AcadOverrules
                 }
                 else
                 {
-                    double arcLength = sL - fL;
+                    double arcLength = pline.GetLengthOfSegmentAt(j);
 
                     if (isInSituBuk)
                     {
@@ -521,16 +543,31 @@ namespace AcadOverrules
                         //Impossible radius detected, draw crosses
                         int numberOfRepetitions = (int)(arcLength / 1.2);
                         double rest = arcLength - (double)numberOfRepetitions * 1.2;
+                        numberOfRepetitions += 1;
+                        double fL = pline.GetDistanceAtParameter((double)j);
                         Point3dCollection p3ds = new Point3dCollection();
+                        Vector3dCollection v3ds = new Vector3dCollection();
 
-                        for (int i = 0; i < numberOfRepetitions; i++)
+                        for (int m = 0; m < numberOfRepetitions; m++)
                         {
-                            double sampleL = arcLength + (i + 1) * 1.2;
-                            if (i == 0) sampleL += rest / 2.0;
-                            p3ds.Add(pline.GetPointAtDist(sampleL));
+                            double sampleL = fL + m * 1.2;
+                            //if (m == 0)
+                            sampleL += rest / 2.0;
+                            try
+                            {
+                                Point3d p = pline.GetPointAtDist(sampleL);
+                                p3ds.Add(p);
+                                v3ds.Add(pline.GetFirstDerivative(p));
+                            }
+                            catch (System.Exception)
+                            {
+                                break;
+                                //throw;
+                            }
                         }
 
-                        drawImpossibleRadiusPolyPolygon(wd, (uint)numberOfRepetitions, p3ds);
+                        drawImpossibleRadiusPolyPolygon(
+                            wd, Convert.ToUInt32(numberOfRepetitions), p3ds, v3ds);
                     }
                 }
 
@@ -686,7 +723,7 @@ namespace AcadOverrules
                         {
                             Point3d loc = pline.GetPoint3dAt(i);
 
-                            drawCoincidentEmptyPointPolygon(wd, loc);
+                            drawCoincidentEmptyPointPolygon(wd, loc, pline.GetFirstDerivative(loc));
                         }
                     }
                 }
