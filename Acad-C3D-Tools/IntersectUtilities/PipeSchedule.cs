@@ -849,73 +849,70 @@ namespace IntersectUtilities
             }
             return false;
         }
-        public static double GetPipeMinElasticRadius(Entity ent, bool considerInSituBending = true)
-        {
-            if (considerInSituBending && IsInSituBent(ent)) return 0;
-
-            Dictionary<int, double> cuS1Enkelt = new Dictionary<int, double>
+        #region Tables for elastic and buerør radii
+        private static Dictionary<int, double> cuS1Enkelt = new Dictionary<int, double>
             {
                 { 15, 0.6 },
                 { 18, 0.7 },
                 { 22, 0.8 },
                 { 28, 0.8 },
             };
-            Dictionary<int, double> cuS2Enkelt = new Dictionary<int, double>
+        private static Dictionary<int, double> cuS2Enkelt = new Dictionary<int, double>
             {
                 { 15, 0.8 },
                 { 18, 0.8 },
                 { 22, 0.8 },
                 { 28, 1.0 },
             };
-            Dictionary<int, double> cuS1Twin = new Dictionary<int, double>
+        private static Dictionary<int, double> cuS1Twin = new Dictionary<int, double>
             {
                 { 22, 0.9 },
                 { 28, 0.9 },
             };
-            Dictionary<int, double> cuS2Twin = new Dictionary<int, double>
+        private static Dictionary<int, double> cuS2Twin = new Dictionary<int, double>
             {
                 { 22, 1.1 },
                 { 28, 1.1 },
             };
-            Dictionary<int, double> aluPexS1Enkelt = new Dictionary<int, double>
+        private static Dictionary<int, double> aluPexS1Enkelt = new Dictionary<int, double>
             {
                 { 20, 0.7 },
                 { 26, 0.72 },
                 { 32, 0.72 },
             };
-            Dictionary<int, double> aluPexS2Enkelt = new Dictionary<int, double>
+        private static Dictionary<int, double> aluPexS2Enkelt = new Dictionary<int, double>
             {
                 { 20, 0.72 },
                 { 26, 0.72 },
                 { 32, 0.9 },
             };
-            Dictionary<int, double> aluPexS3Enkelt = new Dictionary<int, double>
+        private static Dictionary<int, double> aluPexS3Enkelt = new Dictionary<int, double>
             {
                 { 20, 0.9 },
                 { 26, 0.9 },
                 { 32, 1.0 },
             };
-            Dictionary<int, double> aluPexS1Twin = new Dictionary<int, double>
+        private static Dictionary<int, double> aluPexS1Twin = new Dictionary<int, double>
             {
                 { 20, 0.9 },
                 { 26, 1.1 },
                 { 32, 1.25 },
             };
-            Dictionary<int, double> aluPexS2Twin = new Dictionary<int, double>
+        private static Dictionary<int, double> aluPexS2Twin = new Dictionary<int, double>
             {
                 { 16, 1.1 },
                 { 20, 1.1 },
                 { 26, 1.25 },
                 { 32, 1.25 },
             };
-            Dictionary<int, double> aluPexS3Twin = new Dictionary<int, double>
+        private static Dictionary<int, double> aluPexS3Twin = new Dictionary<int, double>
             {
                 { 16, 1.25 },
                 { 20, 1.25 },
                 { 26, 1.40 },
                 { 32, 1.40 },
             };
-            Dictionary<int, double> steelRadii = new Dictionary<int, double>
+        private static Dictionary<int, double> steelMinElasticRadii = new Dictionary<int, double>
             {
                 { 20, 13.0 },
                 { 25, 17.0 },
@@ -932,8 +929,51 @@ namespace IntersectUtilities
                 { 300, 162.0 },
                 { 350, 178.0 },
                 { 400, 203.0 },
+                { 450, 229.0 },
+                { 500, 254.0 },
                 { 999, 0.0 }
             };
+        private static Dictionary<int, double> steelEnkeltMinBuerorRadii = new Dictionary<int, double>
+            {
+                { 20, 8.4 },
+                { 25, 12.8 },
+                { 32, 13.4 },
+                { 40, 15.4 },
+                { 50, 17.2 },
+                { 65, 19.6 },
+                { 80, 20.2 },
+                { 100, 20.8 },
+                { 125, 20.8 },
+                { 150, 22.9 },
+                { 200, 26.2 },
+                { 250, 29.6 },
+                { 300, 32.7 },
+                { 350, 65.5 },
+                { 400, 70.5 },
+                { 450, 114.6 },
+                { 500, 152.8 },
+                { 550, 152.8 },
+                { 999, 0.0 }
+            };
+        private static Dictionary<int, double> steelTwinMinBuerorRadii = new Dictionary<int, double>
+            {
+                { 20, 0.0 },
+                { 25, 16.8 },
+                { 32, 16.8 },
+                { 40, 19.7 },
+                { 50, 16.0 },
+                { 65, 17.6 },
+                { 80, 18.6 },
+                { 100, 22.9 },
+                { 125, 31.3 },
+                { 150, 36.2 },
+                { 200, 42.9 },
+                { 999, 0.0 }
+            };
+        #endregion
+        public static double GetPipeMinElasticRadius(Entity ent, bool considerInSituBending = true)
+        {
+            if (considerInSituBending && IsInSituBent(ent)) return 0;
 
             PipeTypeEnum pipeType = GetPipeType(ent);
             PipeSeriesEnum pipeSeries = GetPipeSeriesV2(ent);
@@ -945,8 +985,8 @@ namespace IntersectUtilities
                     return 0;
                 case PipeSystemEnum.Stål:
                     int dn = GetPipeDN(ent);
-                    if (steelRadii.ContainsKey(dn)) return steelRadii[dn];
-                    else return steelRadii[999];
+                    if (steelMinElasticRadii.ContainsKey(dn)) return steelMinElasticRadii[dn];
+                    else return steelMinElasticRadii[999];
                 case PipeSystemEnum.Kobberflex:
                     switch (pipeType)
                     {
@@ -1024,6 +1064,29 @@ namespace IntersectUtilities
                 default:
                     return 0;
             }
+        }
+        public static double GetBuerorMinRadius(Entity ent)
+        {
+            PipeSystemEnum pipeSystem = GetPipeSystem(ent);
+            if (pipeSystem != PipeSystemEnum.Stål) return 0.0;
+            PipeTypeEnum pipeType = GetPipeType(ent);
+            if (pipeType == PipeTypeEnum.Frem || pipeType == PipeTypeEnum.Retur)
+                pipeType = PipeTypeEnum.Twin;
+            int dn = GetPipeDN(ent);
+            switch (pipeType)
+            {
+                case PipeTypeEnum.Twin:
+                    if (steelTwinMinBuerorRadii.ContainsKey(dn))
+                        return steelTwinMinBuerorRadii[dn];
+                    else return 0.0;
+                case PipeTypeEnum.Enkelt:
+                    if (steelEnkeltMinBuerorRadii.ContainsKey(dn))
+                        return steelEnkeltMinBuerorRadii[dn];
+                    else return 0.0;
+                default:
+                    return 0.0;
+            }
+
         }
         public static string GetLabel(Entity ent)
         {
