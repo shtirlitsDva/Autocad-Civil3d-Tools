@@ -274,6 +274,93 @@ namespace AcadOverrules
         }
         #endregion
 
+        #region Impossible radius cross
+        private void drawImpossibleRadiusPolyPolygon(
+            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
+            uint numberOfRepetitions,
+            Point3dCollection polygonPositions
+            )
+        {
+            //Use polypolygon
+            //https://forums.autodesk.com/t5/net/drawjig-geometry-polypolygon/m-p/8909612/highlight/true#M63223
+            //NumPolygonPositions -> how many polygons
+            //Each value of this array represents the number of that kind of polygon
+            UInt32Collection numPolygonPositions =
+                new UInt32Collection(1) { numberOfRepetitions };
+
+            //polygonPositions
+            //Point3d of polygon position
+            //Point3dCollection polygonPositions =
+            //    new Point3dCollection() { vertPos };
+
+            //numPolygonPoints
+            //Input the number of the polygons' vertices.
+            UInt32Collection numPolygonPoints =
+                new UInt32Collection(1) { 12 };
+
+            //polygonPoints
+            //the points of polygon
+            Point3dCollection polygonPoints =
+                createPolygonPointsImpossibleRadius();
+
+            //outlineColors
+            //Input the outline color for each polygon type, one outlineColor per polygon*index.
+            EntityColorCollection outlineColors =
+                new EntityColorCollection(1) {
+                    new EntityColor(ColorMethod.ByAci, 20) };
+
+            //outlineTypes
+            //Input the outline type for each polygon type, one outlineType per polygon*index.
+            Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection outlineTypes =
+                new Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection()
+                    {
+                        Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid
+                    };
+
+            //fillColors
+            //Input the filled color for each polygon type, one fillColor per polygon index.
+            EntityColorCollection fillColors =
+                new EntityColorCollection(1) {
+                    new EntityColor(ColorMethod.ByAci, 1) };
+
+            //fillOpacities
+            //Input the opacity of polygon, one fillOpacity per polygon index
+            TransparencyCollection fillOpacities =
+                new TransparencyCollection(1) {
+                    new Transparency((byte)255)
+                };
+
+            //Draw the polygons
+            wd.Geometry.PolyPolygon(
+                numPolygonPositions, polygonPositions, numPolygonPoints,
+                polygonPoints, outlineColors, outlineTypes, fillColors, fillOpacities);
+        }
+        private Point3dCollection createPolygonPointsImpossibleRadius()
+        {
+            //Create starting points
+            Point3d[] points = new Point3d[12];
+            points[0] = new Point3d(-0.1414, 0.0, 0.0);
+            points[1] = new Point3d(-0.4243, 0.2828, 0.0);
+            points[2] = new Point3d(-0.2828, 0.4243, 0.0);
+            points[3] = new Point3d(0.0, 0.1414, 0.0);
+            points[4] = new Point3d(0.2828, 0.4243, 0.0);
+            points[5] = new Point3d(0.4243, 0.2828, 0.0);
+            points[6] = new Point3d(0.1414, 0.0, 0.0);
+            points[7] = new Point3d(0.4243, -0.2828, 0.0);
+            points[8] = new Point3d(0.2828, -0.4243, 0.0);
+            points[9] = new Point3d(0.0, -0.1414, 0.0);
+            points[10] = new Point3d(-0.2828, -0.4243, 0.0);
+            points[11] = new Point3d(-0.4243, -0.2828, 0.0);
+
+            ////Rotate points to match segment angle
+            //double angle = Vector3d.XAxis.GetAngleTo(dir);
+            //for (int i = 0; i < points.Length; i++)
+            //    points[i] = points[i].RotateBy(angle, Vector3d.ZAxis, origo);
+
+            return new Point3dCollection(points);
+        }
+        #endregion
+
         #region Text style
         private Autodesk.AutoCAD.GraphicsInterface.TextStyle style =
             new Autodesk.AutoCAD.GraphicsInterface.TextStyle
@@ -350,7 +437,7 @@ namespace AcadOverrules
                     Vector3d perp = deriv.GetPerpendicularVector();
 
                     wd.Geometry.Text(
-                        pt - deriv * extents.MaxPoint.X / 2 + perp * labelOffset, 
+                        pt - deriv * extents.MaxPoint.X / 2 + perp * labelOffset,
                         Vector3d.ZAxis, deriv, label, true, style);
                 }
                 catch (System.Exception ex)
@@ -370,8 +457,12 @@ namespace AcadOverrules
             #region Buerør label
             int nrOfVertices = pline.NumberOfVertices;
 
+            double minElasticRadius = PipeSchedule.GetPipeMinElasticRadius(pline, false);
+            bool isInSituBuk = PipeSchedule.IsInSituBent(pline);
+            double minBuerorRadius = PipeSchedule.GetBuerorMinRadius(pline);
             for (int j = 0; j < pline.NumberOfVertices - 1; j++)
             {
+                #region Geometry calculation
                 //Guard against already cut out curves
                 double b = pline.GetBulgeAt(j);
                 if (b == 0) continue;
@@ -380,9 +471,10 @@ namespace AcadOverrules
 
                 double u = fP.GetDistanceTo(sP);
                 double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
-                double minRadius = IntersectUtilities.PipeSchedule.GetPipeMinElasticRadius(pline, false);
-                bool isInSituBuk = IntersectUtilities.PipeSchedule.IsInSituBent(pline);
+
                 //If radius is less than minRadius a buerør is detected
+                bool isBueRor = radius < minElasticRadius;
+
                 //Split the pline in segments delimiting buerør and append
 
                 Point3d fP3d = new Point3d(fP.X, fP.Y, 0);
@@ -403,9 +495,10 @@ namespace AcadOverrules
                 vec = vec.GetPerpendicularVector();
                 pt1 = sP3d + vec;
                 pt2 = sP3d - vec;
-                wd.Geometry.WorldLine(pt1, pt2);
+                wd.Geometry.WorldLine(pt1, pt2); 
+                #endregion
 
-                if (radius > minRadius)
+                if (!isBueRor)
                 {
                     label = $"EL R{radius.ToString("0.##")}";
                 }
@@ -421,6 +514,23 @@ namespace AcadOverrules
                     {
                         double angle = arcLength / ((Math.PI / 180) * radius);
                         label = $"BR R{radius.ToString("0.##")} L{arcLength.ToString("0.##")} A{angle.ToString("0.##")}";
+                    }
+
+                    if (radius < minBuerorRadius)
+                    {
+                        //Impossible radius detected, draw crosses
+                        int numberOfRepetitions = (int)(arcLength / 1.2);
+                        double rest = arcLength - (double)numberOfRepetitions * 1.2;
+                        Point3dCollection p3ds = new Point3dCollection();
+
+                        for (int i = 0; i < numberOfRepetitions; i++)
+                        {
+                            double sampleL = arcLength + (i + 1) * 1.2;
+                            if (i == 0) sampleL += rest / 2.0;
+                            p3ds.Add(pline.GetPointAtDist(sampleL));
+                        }
+
+                        drawImpossibleRadiusPolyPolygon(wd, (uint)numberOfRepetitions, p3ds);
                     }
                 }
 

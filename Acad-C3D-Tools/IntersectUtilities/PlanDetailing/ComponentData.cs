@@ -797,7 +797,6 @@ namespace IntersectUtilities
 
                 var seg = run.GetArcSegmentAt((int)realIdx);
 
-                seg.rad
                 #endregion
 
 
@@ -861,19 +860,6 @@ namespace IntersectUtilities
                 Polyline run = RunId.Go<Polyline>(tx);
                 BlockReference br = BrId.Go<BlockReference>(tx);
 
-                double angle = Convert.ToDouble(
-                    br.ReadDynamicPropertyValue("Vinkel"), CultureInfo.InvariantCulture);
-                double ll = Math.Tan(angle.ToRadians() / 2) * radiusDict[Dn];
-
-                int idx = run.GetCoincidentIndexAtPoint(Location);
-
-                double l1 = run.GetLengthOfSegmentAt(idx);
-                double p1 = (double)idx + ll / l1;
-
-                double l2 = run.GetLengthOfSegmentAt(idx - 1);
-                double p2 = (double)idx - ll / l2;
-
-                CutPolylineWithDoublesToAccommodateBlock(run, new List<double> { p2, p1 });
                 tx.Commit();
             }
 
