@@ -50,6 +50,7 @@ using DataTable = System.Data.DataTable;
 using Autodesk.AutoCAD.MacroRecorder;
 using System.Runtime.CompilerServices;
 using System.Windows.Documents;
+using Microsoft.Office.Interop.Excel;
 
 namespace IntersectUtilities
 {
@@ -797,12 +798,30 @@ namespace IntersectUtilities
 
                 var seg = run.GetArcSegmentAt((int)realIdx);
 
+                double actualRadius = seg.Radius;
+                double minElasticRadius = PipeSchedule.GetPipeMinElasticRadius(run);
+                double minBuerorRadius = PipeSchedule.GetBuerorMinRadius(run);
+
+                //Check arc segment radius to be whithin bueror range
+                if (actualRadius > minElasticRadius)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg =
+                        $"Arc's radius {actualRadius.ToString("#.##")} is larger than " +
+                        $"minimum elastic radius ({minElasticRadius.ToString("#.##")})!";
+                    tx.Commit();
+                    return result;
+                }
+                if (actualRadius < minBuerorRadius)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg =
+                        $"Arc's radius {actualRadius.ToString("#.##")} is smaller than " +
+                        $"minimum buerør radius ({minBuerorRadius.ToString("#.##")})!";
+                    tx.Commit();
+                    return result;
+                }
                 #endregion
-
-
-
-
-
 
                 tx.Commit();
             }
@@ -819,32 +838,42 @@ namespace IntersectUtilities
             {
                 Polyline run = RunId.Go<Polyline>(tx);
 
-                int idx = run.GetCoincidentIndexAtPoint(Location);
+                int idx = (int)run.GetParamAtPointX(Location);
+                double pipeStdLength = PipeSchedule.GetPipeStdLength(run);
+                var arc = run.GetArcSegmentAt(idx);
+                double radius = arc.Radius;
+                double arcLength = run.GetLengthOfSegmentAt(idx);
+                int nrOfPipes = (int)(arcLength / pipeStdLength) + 1;
+                double lengthUpToArc = run.GetDistanceAtParameter((double)idx);
 
-                LineSegment3d seg1 = run.GetLineSegmentAt(idx);
-                LineSegment3d seg2 = run.GetLineSegmentAt(idx - 1);
-                double rotation = Math.Atan2(seg1.Direction.Y, seg1.Direction.X)
-                    + Math.PI;
-                double angle = seg1.Direction.GetAngleTo(seg2.Direction);
+                for (int i = 0; i < nrOfPipes; i++)
+                {
+                    try
+                    {
+                        double curLength = lengthUpToArc + i * pipeStdLength;
+                        double curPar = run.GetParamAtDist(curLength);
+                        Vector3d dir = run.GetFirstDerivative(curPar);
+                        Point3d curLoc = run.GetPointAtParam(curPar);
+                        double rotation = Math.Atan2(dir.Y, dir.X);
 
-                try
-                {
-                    BlockReference br = Db.CreateBlockWithAttributes(blockName, Location, rotation);
-                    br.Layer = BlockLayerName;
-                    BrId = br.Id;
-                    SetDynBlockPropertyObject(br, "Vinkel", angle);
-                    SetDynBlockPropertyObject(br, "DN", Dn);
-                    var cp = seg1.Direction.CrossProduct(seg2.Direction);
-                    if (cp.Z < 0.0)
-                        br.ScaleFactors = new Scale3d(1, -1, 1);
-                    SetDynBlockPropertyObject(br, "System", PipeType.ToString());
-                    SetDynBlockPropertyObject(br, "Serie", PipeSerie.ToString());
-                    br.AttSync();
-                }
-                catch (System.Exception)
-                {
-                    tx.Abort();
-                    throw;
+                        BlockReference br = Db.CreateBlockWithAttributes(blockName, curLoc, rotation);
+                        br.Layer = BlockLayerName;
+                        BrId = br.Id;
+                        SetDynBlockPropertyObject(br, "R", radius);
+                        SetDynBlockPropertyObject(br, "Type", Dn.ToString());
+                        SetDynBlockPropertyObject(br, "System", PipeType.ToString());
+                        SetDynBlockPropertyObject(br, "Serie", PipeSerie.ToString());
+                        if (i != nrOfPipes - 1)
+                            SetDynBlockPropertyObject(br, "L", pipeStdLength);
+                        else SetDynBlockPropertyObject(br, "L", arcLength % pipeStdLength);
+                        br.AttSync();
+                    }
+                    catch (System.Exception ex)
+                    {
+                        prdDbg(ex);
+                        tx.Abort();
+                        throw;
+                    }
                 }
 
                 tx.Commit();
