@@ -846,6 +846,13 @@ namespace IntersectUtilities
                 int nrOfPipes = (int)(arcLength / pipeStdLength) + 1;
                 double lengthUpToArc = run.GetDistanceAtParameter((double)idx);
 
+                //Determine if blocks must be mirrored
+                var dir1 = run.GetFirstDerivative((double)idx);
+                var dir2 = run.GetFirstDerivative((double)(idx + 1));
+                var cp = dir1.CrossProduct(dir2);
+                bool mustBeMirrored = false;
+                if (cp.Z < 0.0) mustBeMirrored = true;
+
                 for (int i = 0; i < nrOfPipes; i++)
                 {
                     try
@@ -866,6 +873,8 @@ namespace IntersectUtilities
                         if (i != nrOfPipes - 1)
                             SetDynBlockPropertyObject(br, "L", pipeStdLength);
                         else SetDynBlockPropertyObject(br, "L", arcLength % pipeStdLength);
+
+                        if (mustBeMirrored) br.ScaleFactors = new Scale3d(1, -1, 1);
                         br.AttSync();
                     }
                     catch (System.Exception ex)
