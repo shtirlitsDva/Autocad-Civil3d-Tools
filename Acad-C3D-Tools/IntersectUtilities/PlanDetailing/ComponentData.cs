@@ -898,6 +898,12 @@ namespace IntersectUtilities
                 Polyline run = RunId.Go<Polyline>(tx);
                 BlockReference br = BrId.Go<BlockReference>(tx);
 
+                int idx = (int)run.GetParamAtPointX(Location);
+                double p1 = run.GetParameterAtPoint(run.GetPoint3dAt(idx));
+                double p2 = run.GetParameterAtPoint(run.GetPoint3dAt(++idx));
+
+                CutPolylineWithDoublesToAccommodateBlock(run, new List<double> { p1, p2 });
+
                 tx.Commit();
             }
 
