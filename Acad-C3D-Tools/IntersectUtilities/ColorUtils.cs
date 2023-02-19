@@ -415,5 +415,23 @@ namespace IntersectUtilities.ColorUtils
             "#ff1493",
             "#ee82ee"
         };
+        public static Dictionary<string, short> DnToColorDict = new Dictionary<string, short>()
+        {
+            { "DN25", 4 },
+            { "DN32", 161 },
+            { "DN40", 5 },
+            { "DN50", 1 },
+            { "DN65", 6 },
+            { "DN80", 200 },
+            { "DN100", 3 },
+            { "DN125", 82 },
+            { "DN150", 15 },
+            { "DN200", 123 },
+            { "DN250", 153 },
+            { "DN300", 2 },
+            { "DN350", 31 },
+            { "DN400", 40 },
+            { "DN450", 232 },
+        };
     }
 }

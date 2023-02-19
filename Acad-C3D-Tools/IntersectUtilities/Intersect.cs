@@ -6964,11 +6964,15 @@ namespace IntersectUtilities
                         LayerTableRecord ltr = ltrid.Go<LayerTableRecord>(tx);
                         if (PipeSchedule.GetPipeDN(ltr.Name) != 999) pipeLtrs.Add(ltr);
                     }
-                    pipeLtrs = pipeLtrs.OrderBy(x => x.Name).ToList();
+                    pipeLtrs = pipeLtrs
+                        .GroupBy(x => GetPipeDN(x.Name))
+                        .Select(x => x.First())
+                        .OrderBy(x => GetPipeDN(x.Name))
+                        .ToList();
 
                     prdDbg($"Number of pipe layers in drawing: {pipeLtrs.Count}");
 
-                    List<Color> colors = new List<Color>();
+                    //List<Color> colors = new List<Color>();
                     #region HSL H stepping method, produces many similar-looking colors
                     //Random random = new Random();
                     //for (int h = 0; h < 360; h += 360 / pipeLtrs.Count)
@@ -6985,18 +6989,19 @@ namespace IntersectUtilities
                     //} 
                     #endregion
 
-                    if (pipeLtrs.Count > ColorUtils.StaticColorList.StaticColors.Count)
-                        throw new System.Exception($"There are {pipeLtrs.Count} layers and only " +
-                            $"{ColorUtils.StaticColorList.StaticColors.Count} colours!");
+                    //Old method to assign colors
+                    //if (pipeLtrs.Count > ColorUtils.StaticColorList.StaticColors.Count)
+                    //    throw new System.Exception($"There are {pipeLtrs.Count} layers and only " +
+                    //        $"{ColorUtils.StaticColorList.StaticColors.Count} colours!");
 
-                    for (int j = 0; j < pipeLtrs.Count; j++)
-                    {
-                        string colorString = ColorUtils.StaticColorList.StaticColors[j];
-                        System.Drawing.Color color = System.Drawing.ColorTranslator.FromHtml(colorString);
-                        colors.Add(Color.FromRgb(color.R, color.G, color.B));
-                    }
+                    //for (int j = 0; j < pipeLtrs.Count; j++)
+                    //{
+                    //    string colorString = ColorUtils.StaticColorList.StaticColors[j];
+                    //    System.Drawing.Color color = System.Drawing.ColorTranslator.FromHtml(colorString);
+                    //    colors.Add(Color.FromRgb(color.R, color.G, color.B));
+                    //}
 
-                    var zip = pipeLtrs.Zip(colors, (x, y) => new { layer = x, color = y });
+                    //var zip = pipeLtrs.Zip(colors, (x, y) => new { layer = x, color = y });
 
                     #region Determine upper right corner of all polylines: Point3d UpperRightCorner
                     //To place legend find bbox of all plines and place legend at the top right corner
@@ -7023,12 +7028,31 @@ namespace IntersectUtilities
                     #endregion
 
                     //Assign colors and create legend
+                    Random random = new Random();
+                    HashSet<short> existingNumbers =
+                        ColorUtils.StaticColorList.DnToColorDict.Select(x => x.Value).ToHashSet();
                     int i = 0;
-                    foreach (var pair in zip.OrderByAlphaNumeric(x => x.layer.Name))
+                    foreach (var layer in pipeLtrs)
                     {
-                        Color color = pair.color;
-                        pair.layer.CheckOrOpenForWrite();
-                        pair.layer.Color = color;
+                        int dn = GetPipeDN(layer.Name);
+                        string key = "DN" + dn;
+
+                        //Determine color
+                        Color color;
+                        if (ColorUtils.StaticColorList.DnToColorDict.ContainsKey(key))
+                            color = Color.FromColorIndex(ColorMethod.ByAci,
+                                ColorUtils.StaticColorList.DnToColorDict[key]);
+                        else
+                        {
+                            short num;
+                            do num = (short)random.Next(1, 254);
+                            while (existingNumbers.Contains(num));
+                            existingNumbers.Add(num);
+                            color = Color.FromColorIndex(ColorMethod.ByAci, num);
+                        }
+
+                        layer.CheckOrOpenForWrite();
+                        layer.Color = color;
 
                         //Create legend
                         double vDist = 10;
@@ -7047,8 +7071,8 @@ namespace IntersectUtilities
                         text.Height = 5;
                         text.Color = color;
                         text.TextString =
-                            $"DN{PipeSchedule.GetPipeDN(pair.layer.Name)} " +
-                            $"{PipeSchedule.GetPipeType(pair.layer.Name)}";
+                            $"DN{PipeSchedule.GetPipeDN(layer.Name)} " +
+                            $"{PipeSchedule.GetPipeType(layer.Name)}";
 
                         i--;
                     }
