@@ -12,6 +12,7 @@ namespace IntersectUtilities.UtilsCommon
         {
             public static HashSet<string> ForbiddenValues = new HashSet<string>()
             {
+                "ALLE STIK ER",
                 "IKKE FJERNES",
                 "UDLUFTNING MÅ",
                 "1843B TYPE D",
@@ -44,7 +45,9 @@ namespace IntersectUtilities.UtilsCommon
                 "T=0.4",
                 "T=0.7",
                 "TERRASSE",
+                "TRAPPE",
                 "TYPE G 16/25",
+                "TYPE G25",
                 "TYPE G65",
                 "VENTILSKAB",
                 "VINDUE",
@@ -57,13 +60,15 @@ namespace IntersectUtilities.UtilsCommon
                 { "40 PC 026", "40 PC" },
                 { "40 PM 026", "40 PM" },
                 { "40 PM 20 MBAR", "40 PM" },
+                { "63PM", "63 PM" },
                 { "63 PM 026", "63 PM" },
                 { "63 PM 50 MB", "63 PM" },
                 { "90 PM 50 MBAR", "90 PM" },
                 { "90 PM 0.1", "90 PM" },
                 { "75 ST/63 PM 026", "75 ST" },
                 { "ALLE STIK = 20 PM", "20 PM" },
-                { "ALLE STIK ER 20 PM 4.0", "20 PM" }
+                { "ALLE STIK ER 20 PM 4.0", "20 PM" },
+                { "LIGGER UNDER 63 PM", "63 PM" }
             };
         }
         public static class Gis
