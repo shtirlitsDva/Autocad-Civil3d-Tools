@@ -55,6 +55,7 @@
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.richTextBox1 = new System.Windows.Forms.RichTextBox();
             this.button2 = new System.Windows.Forms.Button();
+            this.button_NulstillGlobalWidth = new System.Windows.Forms.Button();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
             this.groupBox3.SuspendLayout();
@@ -282,6 +283,7 @@
             // 
             // groupBox2
             // 
+            this.groupBox2.Controls.Add(this.button_NulstillGlobalWidth);
             this.groupBox2.Controls.Add(this.button1);
             this.groupBox2.Controls.Add(this.checkBox15);
             this.groupBox2.Controls.Add(this.checkBox14);
@@ -379,6 +381,17 @@
             this.button2.UseVisualStyleBackColor = true;
             this.button2.Click += new System.EventHandler(this.button2_Click);
             // 
+            // button_NulstillGlobalWidth
+            // 
+            this.button_NulstillGlobalWidth.Location = new System.Drawing.Point(134, 21);
+            this.button_NulstillGlobalWidth.Margin = new System.Windows.Forms.Padding(2);
+            this.button_NulstillGlobalWidth.Name = "button_NulstillGlobalWidth";
+            this.button_NulstillGlobalWidth.Size = new System.Drawing.Size(51, 43);
+            this.button_NulstillGlobalWidth.TabIndex = 2;
+            this.button_NulstillGlobalWidth.Text = "Nulstil";
+            this.button_NulstillGlobalWidth.UseVisualStyleBackColor = true;
+            this.button_NulstillGlobalWidth.Click += new System.EventHandler(this.button_NulstillGlobalWidth_Click);
+            // 
             // TwinPalette
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -425,5 +438,6 @@
         private System.Windows.Forms.CheckBox checkBox16;
         private System.Windows.Forms.CheckBox checkBox18;
         private System.Windows.Forms.CheckBox checkBox19;
+        private System.Windows.Forms.Button button_NulstillGlobalWidth;
     }
 }

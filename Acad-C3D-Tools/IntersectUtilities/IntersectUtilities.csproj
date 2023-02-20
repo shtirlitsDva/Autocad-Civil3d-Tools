@@ -239,6 +239,7 @@
     <Compile Include="ODDataConverter.cs" />
     <Compile Include="ODDataReader.cs" />
     <Compile Include="PipeSchedule.cs" />
+    <Compile Include="PlanDetailing\ComponentData.cs" />
     <Compile Include="PlanDetailing\PlanDetailing.cs" />
     <Compile Include="PlanProduction\PlanProduction.cs" />
     <Compile Include="PolylineCurvingDev.cs" />

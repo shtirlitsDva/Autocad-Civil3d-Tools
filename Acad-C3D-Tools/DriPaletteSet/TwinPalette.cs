@@ -108,5 +108,10 @@ namespace DriPaletteSet
         {
             PaletteUtils.labelpipe();
         }
+
+        private void button_NulstillGlobalWidth_Click(object sender, EventArgs e)
+        {
+            PaletteUtils.ResetWidths();
+        }
     }
 }

@@ -172,13 +172,13 @@ namespace AcadOverrules
             points[3] = new Point3d(0.0, -plineWidth * 1.5, 0.0);
 
             //Rotate points to match segment angle
-            double angle = Vector3d.XAxis.GetAngleTo(dir1);
+            double angle = Math.Atan2(dir1.Y, dir1.X);
             for (int i = 0; i < points.Length; i++)
                 points[i] = points[i].RotateBy(angle, Vector3d.ZAxis, origo);
 
             return new Point3dCollection(points);
         }
-        private Point3dCollection createPolygonPointsCoincidentEmptyPoint()
+        private Point3dCollection createPolygonPointsCoincidentEmptyPoint(Vector3d dir)
         {
             //Create starting points
             Point3d[] points = new Point3d[12];
@@ -195,16 +195,16 @@ namespace AcadOverrules
             points[10] = new Point3d(-0.5303, -0.8839, 0.0);
             points[11] = new Point3d(-0.8839, -0.5303, 0.0);
 
-            ////Rotate points to match segment angle
-            //double angle = Vector3d.XAxis.GetAngleTo(dir);
-            //for (int i = 0; i < points.Length; i++)
-            //    points[i] = points[i].RotateBy(angle, Vector3d.ZAxis, origo);
+            //Rotate points to match segment angle
+            double angle = Math.Atan2(dir.Y, dir.X);
+            for (int i = 0; i < points.Length; i++)
+                points[i] = points[i].RotateBy(angle, Vector3d.ZAxis, origo);
 
             return new Point3dCollection(points);
         }
         private void drawCoincidentEmptyPointPolygon(
             Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
-            Point3d vertPos
+            Point3d vertPos, Vector3d dir
             )
         {
             //Use polypolygon
@@ -227,7 +227,7 @@ namespace AcadOverrules
             //polygonPoints
             //the points of polygon
             Point3dCollection polygonPoints =
-                createPolygonPointsCoincidentEmptyPoint();
+                createPolygonPointsCoincidentEmptyPoint(dir);
 
             //outlineColors
             //Input the outline color for each polygon type, one outlineColor per polygon*index.
@@ -262,7 +262,7 @@ namespace AcadOverrules
                 polygonPoints, outlineColors, outlineTypes, fillColors, fillOpacities);
         }
         private void drawAngleLabel(
-            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd, 
+            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
             Point3d vertPos, double angleDeg, double plineWidth, Vector3d dir)
         {
             Vector3d labelDir = -dir.GetPerpendicularVector();
@@ -271,6 +271,116 @@ namespace AcadOverrules
                 vertPos + labelDir * (plineWidth * 1.5 + labelHeight),
                 Vector3d.ZAxis, dir, $"{angleDeg.ToString("0.####")}°",
                 true, style);
+        }
+        #endregion
+
+        #region Impossible radius cross
+        private void drawImpossibleRadiusPolyPolygon(
+            Autodesk.AutoCAD.GraphicsInterface.WorldDraw wd,
+            uint numberOfRepetitions,
+            Point3dCollection polygonPositions,
+            Vector3dCollection dirs
+            )
+        {
+            //Use polypolygon
+            //https://forums.autodesk.com/t5/net/drawjig-geometry-polypolygon/m-p/8909612/highlight/true#M63223
+            //NumPolygonPositions -> how many polygons
+            //Each value of this array represents the number of that kind of polygon
+            UInt32Collection numPolygonPositions = new UInt32Collection();
+            //    new UInt32Collection(1) { numberOfRepetitions };
+            for (int i = 0; i < numberOfRepetitions; i++)
+                numPolygonPositions.Add(1);
+
+            //polygonPositions
+            //Point3d of polygon position
+            //Point3dCollection polygonPositions =
+            //    new Point3dCollection() { vertPos };
+
+            //numPolygonPoints
+            //Input the number of the polygons' vertices.
+            UInt32Collection numPolygonPoints = new UInt32Collection();
+            //    new UInt32Collection(1) { 12 };
+            for (int i = 0; i < numberOfRepetitions; i++)
+                numPolygonPoints.Add((uint)12);
+
+            //polygonPoints
+            //the points of polygon
+            Point3dCollection polygonPoints = new Point3dCollection();
+            //createPolygonPointsImpossibleRadius();
+            for (int i = 0; i < numberOfRepetitions; i++)
+                foreach (Point3d p3d in createPolygonPointsImpossibleRadius(dirs[i]))
+                    polygonPoints.Add(p3d);
+
+            //outlineColors
+            //Input the outline color for each polygon type, one outlineColor per polygon*index.
+            EntityColorCollection outlineColors = new EntityColorCollection();
+            for (int i = 0; i < numberOfRepetitions; i++)
+                outlineColors.Add(new EntityColor(ColorMethod.ByAci, 20));
+            //new EntityColorCollection(2) {
+            //    new EntityColor(ColorMethod.ByAci, 20),
+            //    new EntityColor(ColorMethod.ByAci, 20),
+            //};
+
+            //outlineTypes
+            //Input the outline type for each polygon type, one outlineType per polygon*index.
+            Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection outlineTypes =
+                new Autodesk.AutoCAD.GraphicsInterface.LinetypeCollection();
+            for (int i = 0; i < numberOfRepetitions; i++)
+                outlineTypes.Add(Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid);
+            //{
+            //    Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid,
+            //    Autodesk.AutoCAD.GraphicsInterface.Linetype.Solid,
+            //};
+
+            //fillColors
+            //Input the filled color for each polygon type, one fillColor per polygon index.
+            EntityColorCollection fillColors = new EntityColorCollection();
+            for (int i = 0; i < numberOfRepetitions; i++)
+                fillColors.Add(new EntityColor(ColorMethod.ByAci, 20));
+            //new EntityColorCollection(2) {
+            //    new EntityColor(ColorMethod.ByAci, 1),
+            //    new EntityColor(ColorMethod.ByAci, 1),
+            //};
+
+            //fillOpacities
+            //Input the opacity of polygon, one fillOpacity per polygon index
+            TransparencyCollection fillOpacities = new TransparencyCollection();
+            for (int i = 0; i < numberOfRepetitions; i++)
+                fillOpacities.Add(new Transparency((byte)255));
+            //new TransparencyCollection(2) {
+            //    new Transparency((byte)255),
+            //    new Transparency((byte)255)
+            //};
+
+            //Draw the polygons
+            wd.Geometry.PolyPolygon(
+                numPolygonPositions, polygonPositions, numPolygonPoints,
+                polygonPoints, outlineColors, outlineTypes, fillColors, fillOpacities);
+        }
+        private Point3dCollection createPolygonPointsImpossibleRadius(Vector3d dir)
+        {
+            //Create starting points
+            Point3d[] points = new Point3d[12];
+            points[0] = new Point3d(-0.1414, 0.0, 0.0);
+            points[1] = new Point3d(-0.4243, 0.2828, 0.0);
+            points[2] = new Point3d(-0.2828, 0.4243, 0.0);
+            points[3] = new Point3d(0.0, 0.1414, 0.0);
+            points[4] = new Point3d(0.2828, 0.4243, 0.0);
+            points[5] = new Point3d(0.4243, 0.2828, 0.0);
+            points[6] = new Point3d(0.1414, 0.0, 0.0);
+            points[7] = new Point3d(0.4243, -0.2828, 0.0);
+            points[8] = new Point3d(0.2828, -0.4243, 0.0);
+            points[9] = new Point3d(0.0, -0.1414, 0.0);
+            points[10] = new Point3d(-0.2828, -0.4243, 0.0);
+            points[11] = new Point3d(-0.4243, -0.2828, 0.0);
+
+            //Rotate points to match segment angle
+            //double angle = Vector3d.XAxis.GetAngleTo(dir);
+            double angle = Math.Atan2(dir.Y, dir.X);
+            for (int i = 0; i < points.Length; i++)
+                points[i] = points[i].RotateBy(angle, Vector3d.ZAxis, origo);
+
+            return new Point3dCollection(points);
         }
         #endregion
 
@@ -328,6 +438,12 @@ namespace AcadOverrules
             double length = pline.Length;
             int numberOfLabels = (int)(length / labelDist);
             if (numberOfLabels == 0) numberOfLabels = 1;
+            int dn = PipeSchedule.GetPipeDN(pline);
+            string system =
+                PipeSchedule.GetPipeType(pline) == PipeTypeEnum.Twin ?
+                "T" : "E";
+            string label = $"DN{dn}-{system}";
+            var extents = style.ExtentsBox(label, true, false, null);
 
             for (int i = 0; i < numberOfLabels + 1; i++)
             {
@@ -335,11 +451,6 @@ namespace AcadOverrules
                 double dist = labelDist * i;
                 if (numberOfLabels == 1) dist = length / 2;
                 Point3d pt = pline.GetPointAtDist(dist);
-                int dn = PipeSchedule.GetPipeDN(pline);
-                string system =
-                    PipeSchedule.GetPipeType(pline) == PipeTypeEnum.Twin ?
-                    "T" : "E";
-                string label = $"DN{dn}-{system}";
 
                 try
                 {
@@ -349,7 +460,8 @@ namespace AcadOverrules
                     Vector3d perp = deriv.GetPerpendicularVector();
 
                     wd.Geometry.Text(
-                        pt + perp * labelOffset, Vector3d.ZAxis, deriv, label, true, style);
+                        pt - deriv * extents.MaxPoint.X / 2 + perp * labelOffset,
+                        Vector3d.ZAxis, deriv, label, true, style);
                 }
                 catch (System.Exception ex)
                 {
@@ -368,8 +480,12 @@ namespace AcadOverrules
             #region Buerør label
             int nrOfVertices = pline.NumberOfVertices;
 
+            double minElasticRadius = PipeSchedule.GetPipeMinElasticRadius(pline, false);
+            bool isInSituBuk = PipeSchedule.IsInSituBent(pline);
+            double minBuerorRadius = PipeSchedule.GetBuerorMinRadius(pline);
             for (int j = 0; j < pline.NumberOfVertices - 1; j++)
             {
+                #region Geometry calculation
                 //Guard against already cut out curves
                 double b = pline.GetBulgeAt(j);
                 if (b == 0) continue;
@@ -378,17 +494,16 @@ namespace AcadOverrules
 
                 double u = fP.GetDistanceTo(sP);
                 double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
-                double minRadius = IntersectUtilities.PipeSchedule.GetPipeMinElasticRadius(pline, false);
-                bool isInSituBuk = IntersectUtilities.PipeSchedule.IsInSituBent(pline);
+
                 //If radius is less than minRadius a buerør is detected
+                bool isBueRor = radius < minElasticRadius;
+
                 //Split the pline in segments delimiting buerør and append
 
-                Point3d fP3d = new Point3d(fP.X, fP.Y, 0);
-                Point3d sP3d = new Point3d(sP.X, sP.Y, 0);
+                Point3d fP3d = fP.To3D();
+                Point3d sP3d = sP.To3D();
 
-                double fL = pline.GetDistAtPoint(fP3d);
-                double sL = pline.GetDistAtPoint(sP3d);
-
+                #region Arc delimiter lines
                 Vector3d vec = pline.GetFirstDerivative(fP3d);
                 vec = vec.GetNormal();
                 vec = vec.GetPerpendicularVector();
@@ -402,24 +517,57 @@ namespace AcadOverrules
                 pt1 = sP3d + vec;
                 pt2 = sP3d - vec;
                 wd.Geometry.WorldLine(pt1, pt2);
+                #endregion
+                #endregion
 
-                string label;
-                if (radius > minRadius)
+                if (!isBueRor)
                 {
-                    label = $"Elastisk R{radius.ToString("0.##")}";
+                    label = $"EL R{radius.ToString("0.##")}";
                 }
                 else
                 {
-                    double arcLength = sL - fL;
+                    double arcLength = pline.GetLengthOfSegmentAt(j);
 
                     if (isInSituBuk)
                     {
-                        label = $"In-situ buk R{radius.ToString("0.##")} L{arcLength.ToString("0.##")}";
+                        label = $"IS R{radius.ToString("0.##")} L{arcLength.ToString("0.##")}";
                     }
                     else
                     {
                         double angle = arcLength / ((Math.PI / 180) * radius);
-                        label = $"Buerør R{radius.ToString("0.##")} L{arcLength.ToString("0.##")} A{angle.ToString("0.##")}";
+                        label = $"BR R{radius.ToString("0.##")} L{arcLength.ToString("0.##")} A{angle.ToString("0.##")}";
+                    }
+
+                    if (radius < minBuerorRadius)
+                    {
+                        //Impossible radius detected, draw crosses
+                        int numberOfRepetitions = (int)(arcLength / 1.2);
+                        double rest = arcLength - (double)numberOfRepetitions * 1.2;
+                        numberOfRepetitions += 1;
+                        double fL = pline.GetDistanceAtParameter((double)j);
+                        Point3dCollection p3ds = new Point3dCollection();
+                        Vector3dCollection v3ds = new Vector3dCollection();
+
+                        for (int m = 0; m < numberOfRepetitions; m++)
+                        {
+                            double sampleL = fL + m * 1.2;
+                            //if (m == 0)
+                            sampleL += rest / 2.0;
+                            try
+                            {
+                                Point3d p = pline.GetPointAtDist(sampleL);
+                                p3ds.Add(p);
+                                v3ds.Add(pline.GetFirstDerivative(p));
+                            }
+                            catch (System.Exception)
+                            {
+                                break;
+                                //throw;
+                            }
+                        }
+
+                        drawImpossibleRadiusPolyPolygon(
+                            wd, Convert.ToUInt32(numberOfRepetitions), p3ds, v3ds);
                     }
                 }
 
@@ -433,10 +581,13 @@ namespace AcadOverrules
                 Vector3d perp = deriv.GetPerpendicularVector();
                 if (b > 0) perp = -perp;
 
+                extents = style.ExtentsBox(label, true, false, null);
+
                 //wd.Geometry.Text(
                 //    midPt + perp * (labelOffset + labelHeight + 0.7), Vector3d.ZAxis, deriv, labelHeight, 1.0, 0.0, label);
                 wd.Geometry.Text(
-                    midPt + perp * (labelOffset + labelHeight + 0.7), Vector3d.ZAxis, deriv, label, true, style);
+                    midPt + deriv * -extents.MaxPoint.X / 2 + perp * (labelOffset + labelHeight + 0.7),
+                    Vector3d.ZAxis, deriv, label, true, style);
             }
             #endregion
 
@@ -547,7 +698,7 @@ namespace AcadOverrules
                         }
                     }
                     else if (
-                        (st1 == SegmentType.Arc || st1 == SegmentType.Line) && 
+                        (st1 == SegmentType.Arc || st1 == SegmentType.Line) &&
                         (st2 == SegmentType.Arc || st2 == SegmentType.Line))
                     {
                         var dirs = pline.DirectionsAt(i + 1); //Uses look back, while for loop uses look forward
@@ -566,13 +717,13 @@ namespace AcadOverrules
                     }
                     else
                     {//Segment
-                        if (st1 == SegmentType.Coincident || 
+                        if (st1 == SegmentType.Coincident ||
                             st1 == SegmentType.Empty ||
                             st1 == SegmentType.Point)
                         {
                             Point3d loc = pline.GetPoint3dAt(i);
 
-                            drawCoincidentEmptyPointPolygon(wd, loc);
+                            drawCoincidentEmptyPointPolygon(wd, loc, pline.GetFirstDerivative(loc));
                         }
                     }
                 }

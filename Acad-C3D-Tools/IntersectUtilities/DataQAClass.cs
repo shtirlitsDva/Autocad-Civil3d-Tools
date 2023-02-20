@@ -23,7 +23,9 @@ namespace IntersectUtilities.UtilsCommon
                 "ARMAFLEX",
                 "B-RØR",
                 "BELIGGENHED USIKKER",
+                "BELIG. USIKKER",
                 "EXISTENS USIKKER",
+                "FLEXOPFØRINGSRØR",
                 "FRIT R-SKAB",
                 "FRITST.M/R SKAB",
                 "G10",
@@ -67,6 +69,9 @@ namespace IntersectUtilities.UtilsCommon
                 { "90 PM 0.1", "90 PM" },
                 { "75 ST/63 PM 026", "75 ST" },
                 { "ALLE STIK = 20 PM", "20 PM" },
+                { "ALLE STIK 20 PM", "20 PM" },
+                { "ALLAE STIK 20 PM", "20 PM" },
+                { "ALLE STIK ER 20 PM 4.0", "20 PM" }
                 { "ALLE STIK ER 20 PM 4.0", "20 PM" },
                 { "LIGGER UNDER 63 PM", "63 PM" }
             };

@@ -105,6 +105,7 @@
     <Compile Include="03 GasPolySize.cs" />
     <Compile Include="02 FjvPolySizeAndArcLabel.cs" />
     <Compile Include="01 PolylineDirection-dim.cs" />
+    <Compile Include="06 GripOverruleTest.cs" />
     <Compile Include="AcadOverrules.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

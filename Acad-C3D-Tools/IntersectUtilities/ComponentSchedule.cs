@@ -9,6 +9,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.Utils;
+using System.Security.Cryptography;
 
 namespace IntersectUtilities
 {

@@ -110,7 +110,7 @@ namespace IntersectUtilities.UtilsCommon
             var ed = Application.DocumentManager.MdiActiveDocument.Editor;
             var opt = new PromptKeywordOptions(message);
             opt.AllowNone = true;
-            
+
             opt.SetMessageAndKeywords(messageAndKeywords, globalKeywords);
             opt.Keywords.Default = dKwd;
 
@@ -1183,6 +1183,28 @@ namespace IntersectUtilities.UtilsCommon
             }
             return totalLength;
         }
+        /// <summary>
+        /// Finds the index of vertice coincident with given point3d.
+        /// If not coincident with any returns -1.
+        /// </summary>
+        public static int GetCoincidentIndexAtPoint(this Polyline pline, Point3d p3d)
+        {
+            #region Test to see if point coincides with a vertice
+            bool verticeFound = false;
+            int idx = -1;
+            for (int i = 0; i < pline.NumberOfVertices; i++)
+            {
+                idx = i;
+                Point3d vert = pline.GetPoint3dAt(i);
+                if (vert.IsEqualTo(p3d, Tolerance.Global))
+                    verticeFound = true;
+                if (verticeFound) break;
+            }
+
+            if (!verticeFound) return -1;
+            else return idx;
+            #endregion
+        }
         public static double DistanceHorizontalTo(this Point3d sourceP3d, Point3d targetP3d)
         {
             double X1 = sourceP3d.X;
@@ -1469,6 +1491,13 @@ namespace IntersectUtilities.UtilsCommon
                 blockDb.Dispose();
             }
         }
+        public static BlockTableRecord GetBlockTableRecordByName(this Database db, string blockName)
+        {
+            BlockTable bt = db.BlockTableId.Go<BlockTable>(db.TransactionManager.TopTransaction);
+            if (bt.Has(blockName))
+                return bt[blockName].Go<BlockTableRecord>(db.TransactionManager.TopTransaction);
+            else return null;
+        }
         /// <summary>
         /// Remember to check for existence of BlockTableRecord!
         /// </summary>
@@ -1508,7 +1537,36 @@ namespace IntersectUtilities.UtilsCommon
             }
             return br;
         }
+        public static void AttSync(this BlockReference br)
+        {
+            Transaction tx = br.Database.TransactionManager.TopTransaction;
+            BlockTableRecord btr;
+            if (br.IsDynamicBlock) btr =
+                    br.AnonymousBlockTableRecord.Go<BlockTableRecord>(tx);
+            else btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
 
+            Dictionary<string, AttributeDefinition> atDefDict
+                = new Dictionary<string, AttributeDefinition>();
+            foreach (Oid id in btr)
+            {
+                if (id.IsDerivedFrom<AttributeDefinition>())
+                {
+                    AttributeDefinition def = id.Go<AttributeDefinition>(tx);
+                    atDefDict.Add(def.Tag, def);
+                }
+            }
+
+            AttributeCollection ac = br.AttributeCollection;
+            foreach (Oid atId in ac)
+            {
+                AttributeReference ar = atId.Go<AttributeReference>(tx);
+                if (!ar.IsConstant && atDefDict.ContainsKey(ar.Tag))
+                {
+                    ar.CheckOrOpenForWrite();
+                    ar.SetAttributeFromBlock(atDefDict[ar.Tag], br.BlockTransform);
+                }
+            }
+        }
         public static List<string> ListLayers(this Database db)
         {
             List<string> lstlay = new List<string>();
@@ -1541,6 +1599,20 @@ namespace IntersectUtilities.UtilsCommon
                exception.Message);
         }
         static RXClass attDefClass = RXClass.GetClass(typeof(AttributeDefinition));
+        public static BlockReference[] GetNestedBlocksByName(this BlockTableRecord btr, string blockName)
+        {
+            List<BlockReference> btrs = new List<BlockReference>();
+            foreach (Oid oid in btr)
+            {
+                if (!oid.IsDerivedFrom<BlockReference>()) continue;
+                BlockReference nestedBr = oid.Go<BlockReference>(
+                    btr.Database.TransactionManager.TopTransaction);
+                if (nestedBr.RealName() == blockName)
+                    btrs.Add(nestedBr);
+            }
+
+            return btrs.ToArray();
+        }
         public static void SynchronizeAttributes(this BlockTableRecord target)
         {
             if (target == null)
@@ -1753,7 +1825,7 @@ namespace IntersectUtilities.UtilsCommon
 
             return stringToProcess;
         }
-        private static string ReadDynamicPropertyValue(this BlockReference br, string propertyName)
+        public static string ReadDynamicPropertyValue(this BlockReference br, string propertyName)
         {
             DynamicBlockReferencePropertyCollection props = br.DynamicBlockReferencePropertyCollection;
             foreach (DynamicBlockReferenceProperty property in props)
@@ -2010,6 +2082,8 @@ namespace IntersectUtilities.UtilsCommon
                 //cP = al.GetClosestPointTo(p, false);
                 cP = pline.GetClosestPointTo(p, false);
                 al.StationOffset(cP.X, cP.Y, ref station, ref offset);
+                pline.CheckOrOpenForWrite();
+                pline.Erase();
             }
             catch (System.Exception ex)
             {
@@ -2116,6 +2190,20 @@ namespace IntersectUtilities.UtilsCommon
             Handle h = new Handle(Convert.ToInt64(handle, 16));
             return h.Go<T>(db);
         }
+        public static IEnumerable<Oid> AcWhere<T>(
+            this IEnumerable<Oid> source, Func<T, bool> predicate) where T : Entity
+        {
+            if (source == null) throw new System.Exception("source is null");
+            if (predicate == null) throw new System.Exception("predicate is null");
+
+            foreach (Oid oid in source)
+            {
+                T item = (T)oid.Open(OpenMode.ForRead);
+                if (predicate(item)) yield return oid;
+                item.Close();
+                item.Dispose();
+            }
+        }
         public static Oid AddEntityToDbModelSpace<T>(this T entity, Database db) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
             if (db.TransactionManager.TopTransaction == null)
@@ -2214,6 +2302,45 @@ namespace IntersectUtilities.UtilsCommon
             //tr.Commit();
             //}
         }
+        public static HashSet<Oid> HashSetOfFjvPipeIds(this Database db, bool discardFrozen = true)
+        {
+            if (db.TransactionManager.TopTransaction != null)
+                throw new System.Exception(
+                    "HashSetOfFjvPipeIds must be used outside of Transaction!");
+
+            HashSet<Oid> result = new HashSet<Oid>();
+
+            var bt = db.BlockTableId.Open(OpenMode.ForRead) as BlockTable;
+            var ms = bt[BlockTableRecord.ModelSpace].Open(OpenMode.ForRead) as BlockTableRecord;
+            var lt = db.LayerTableId.Open(OpenMode.ForRead) as LayerTable;
+
+            foreach (Oid oid in ms)
+            {
+                if (oid.IsDerivedFrom<Polyline>())
+                {
+                    Polyline pline = oid.Open(OpenMode.ForRead) as Polyline;
+                    var ltr = lt[pline.Layer].Open(OpenMode.ForRead) as LayerTableRecord;
+
+                    if (!(ltr.IsFrozen && discardFrozen) &&
+                        GetPipeSystem(pline) != PipeSystemEnum.Ukendt)
+                        result.Add(oid);
+
+                    ltr.Close();
+                    ltr.Dispose();
+                    pline.Close();
+                    pline.Dispose();
+                }
+            }
+
+            lt.Close();
+            lt.Dispose();
+            ms.Close();
+            ms.Dispose();
+            bt.Close();
+            bt.Dispose();
+
+            return result;
+        }
         public static List<T> ListOfType<T>(this Database database, Transaction tr, bool discardFrozen = false) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
             //using (var tr = database.TransactionManager.StartTransaction())
@@ -2231,12 +2358,12 @@ namespace IntersectUtilities.UtilsCommon
             RXClass theClass = RXObject.GetClass(typeof(T));
 
             // Loop through the entities in model space
-            foreach (Oid objectId in modelSpace)
+            foreach (Oid oid in modelSpace)
             {
                 // Look for entities of the correct type
-                if (objectId.ObjectClass.IsDerivedFrom(theClass))
+                if (oid.ObjectClass.IsDerivedFrom(theClass))
                 {
-                    var entity = (T)tr.GetObject(objectId, OpenMode.ForRead);
+                    var entity = (T)tr.GetObject(oid, OpenMode.ForRead);
                     if (discardFrozen)
                     {
                         LayerTableRecord layer = (LayerTableRecord)tr.GetObject(entity.LayerId, OpenMode.ForRead);
@@ -2296,6 +2423,17 @@ namespace IntersectUtilities.UtilsCommon
                 .ToHashSet();
 
             return entities;
+        }
+        public static IEnumerable<Oid> GetFjvPipesIds(this Database db, bool discardFrozen = false)
+        {
+            Transaction tx = db.TransactionManager.StartTransaction();
+
+            var rawPlines = db.ListOfType<Polyline>(tx, discardFrozen);
+            foreach (var item in rawPlines)
+                if (GetPipeSystem(item) != PipeSystemEnum.Ukendt) yield return item.Id;
+
+            tx.Abort();
+            tx.Dispose();
         }
 
         // Searches the drawing for a block with the specified name.

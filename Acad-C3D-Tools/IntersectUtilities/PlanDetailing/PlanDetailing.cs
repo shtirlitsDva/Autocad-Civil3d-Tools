@@ -49,7 +49,6 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using System.Windows.Documents;
 
 namespace IntersectUtilities
 {
@@ -505,15 +504,14 @@ namespace IntersectUtilities
 
                             psm.WritePropertyString(wpBr, driPipelineData.BelongsToAlignment, wp.Alignment.Name);
 
-                            wpBr.RecordGraphicsModified(true);
+                            wpBr.AttSync();
 
                             idx++;
                         }
                     }
                     #endregion
 
-                    //BlockTableRecord btr = bt[blockName].Go<BlockTableRecord>(tx);
-                    //btr.SynchronizeAttributes();
+
                 }
                 catch (System.Exception ex)
                 {
@@ -914,6 +912,181 @@ namespace IntersectUtilities
                 }
                 #endregion
                 tx.Commit();
+            }
+        }
+
+        [CommandMethod("PLACESTIKPOINTS")]
+        public void placestikpoints()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+
+            Regex cuflexRgx = new Regex(@"^CuFlex\s(?<DN>\d\d)-\d+/\d+");
+            Regex steelRgx = new Regex(@"^DN(?<DN>\d+)");
+
+            #region Read adresse rør dim katalog
+            System.Data.DataTable dtBbr = CsvReader.ReadCsvToDataTable(
+                    @"X:\120-1312 - Herstedøster - 01 Intern\04 Projektering\adresserogstik.csv",
+                    "BBRData");
+
+            Dictionary<string, string> adresseRørDimDict = new Dictionary<string, string>();
+
+            var query = dtBbr.AsEnumerable().GroupBy(x => x["Vejnavn"].ToString());
+            if (query.Any(x => x.Count() > 1))
+            {
+                prdDbg("Duplicate addresses detected:");
+                foreach (var item in query.Where(x => x.Count() > 1))
+                {
+                    prdDbg(item.Key);
+                }
+                return;
+            }
+
+            foreach (DataRow dr in dtBbr.Rows)
+                adresseRørDimDict.Add(dr["Vejnavn"].ToString(), dr["RørDim"].ToString());
+            #endregion
+
+            while (true)
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        #region Guard against missing DH pipes
+                        HashSet<Polyline> pls = localDb.GetFjvPipes(tx);
+                        if (pls.Count == 0)
+                        {
+                            prdDbg("No DH pipes in drawing!");
+                            tx.Abort();
+                            return;
+                        }
+                        #endregion
+
+                        #region Ask for BBR block
+                        string message = "Select BBR block: ";
+                        var optBlock = new PromptEntityOptions(message);
+                        Type allowedType = typeof(BlockReference);
+                        optBlock.SetRejectMessage("Allowed type: " + allowedType.Name); // Must call this first
+                        optBlock.AddAllowedClass(allowedType, true);
+
+                        Oid bbrOid = Oid.Null;
+                        do
+                        {
+                            var res = ed.GetEntity(optBlock);
+                            if (res.Status == PromptStatus.Cancel)
+                            {
+                                tx.Abort();
+                                return;
+                            }
+                            if (res.Status == PromptStatus.OK) bbrOid = res.ObjectId;
+                        }
+                        while (bbrOid == Oid.Null);
+                        BlockReference bbrBlock = bbrOid.Go<BlockReference>(tx);
+                        #endregion
+
+                        #region Get BBR address
+                        PropertySetManager bbrPsm = new PropertySetManager(
+                            localDb, PSetDefs.DefinedSets.BBR);
+                        PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                        string adresse = bbrPsm.ReadPropertyString(bbrBlock, bbrDef.Adresse);
+                        #endregion
+
+                        #region Ask for point
+                        //message for the ask for point prompt
+                        message = "Select location to place elbow: ";
+                        var optPoint = new PromptPointOptions(message);
+
+                        Point3d location = Algorithms.NullPoint3d;
+                        do
+                        {
+                            var res = ed.GetPoint(optPoint);
+                            if (res.Status == PromptStatus.Cancel)
+                            {
+                                tx.Abort();
+                                return;
+                            }
+                            if (res.Status == PromptStatus.OK) location = res.Value;
+                        }
+                        while (location == Algorithms.NullPoint3d);
+                        #endregion
+
+                        #region Find nearest pline
+                        Polyline pl = pls
+                            .MinBy(x => location.DistanceHorizontalTo(
+                                x.GetClosestPointTo(location, false))
+                            ).FirstOrDefault();
+
+                        if (pl == default)
+                        {
+                            prdDbg("Nearest pipe cannot be found!");
+                            tx.Abort();
+                            continue;
+                        }
+                        #endregion
+
+                        #region Test to see if point is on the pline
+                        bool isOnTheLine = false;
+                        if (pl.GetClosestPointTo(location, false)
+                            .DistanceHorizontalTo(location).IsZero(0.001))
+                        {
+                            location = pl.GetClosestPointTo(location, false);
+                            isOnTheLine = true;
+                        }
+                        #endregion
+
+                        #region Determine rotation if any and create block
+                        BlockReference stikBlock;
+                        if (isOnTheLine)
+                        {
+                            Vector3d deriv = pl.GetFirstDerivative(location);
+                            double rotation = Math.Atan2(deriv.Y, deriv.X);
+                            stikBlock = localDb.CreateBlockWithAttributes("STIKAFGRENING", location, rotation);
+                        }
+                        else stikBlock = localDb.CreateBlockWithAttributes("STIKAFGRENING", location);
+                        #endregion
+
+                        #region Fill out the block properties
+                        SetDynBlockPropertyObject(stikBlock, "StikType", adresse);
+                        SetDynBlockPropertyObject(stikBlock, "System", "Twin");
+                        SetDynBlockPropertyObject(stikBlock, "DN1",
+                            Convert.ToDouble(PipeSchedule.GetPipeDN(pl)));
+
+                        //Determine stik dimension
+                        if (adresseRørDimDict.ContainsKey(adresse))
+                        {
+                            string rørDimRaw = adresseRørDimDict[adresse];
+
+                            double dn = 0.0;
+
+                            if (cuflexRgx.IsMatch(rørDimRaw))
+                                dn = Convert.ToDouble(
+                                    cuflexRgx.Match(rørDimRaw).Groups["DN"].Value);
+                            else if (steelRgx.IsMatch(rørDimRaw))
+                                dn = Convert.ToDouble(
+                                    steelRgx.Match(rørDimRaw).Groups["DN"].Value);
+
+                            SetDynBlockPropertyObject(stikBlock, "DN2", dn);
+                        }
+                        else
+                        {
+                            prdDbg($"Adresse: {adresse} ikke fundet i stikoversigten!");
+                            tx.Abort();
+                            continue;
+                        }
+                        #endregion
+
+                        stikBlock.AttSync();
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        prdDbg(ex);
+                        return;
+                    }
+                    tx.Commit();
+                }
             }
         }
 
@@ -1392,65 +1565,6 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("LISTSINGLESIZEPIPELINES")]
-        public void listsinglesizepipelines()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                #region Open alignment db
-                DataReferencesOptions dro = new DataReferencesOptions();
-                string projectName = dro.ProjectName;
-                string etapeName = dro.EtapeName;
-
-                // open the xref database
-                Database alDb = new Database(false, true);
-                alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
-                    FileOpenMode.OpenForReadAndAllShare, false, null);
-                Transaction alTx = alDb.TransactionManager.StartTransaction();
-                HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
-                #endregion
-
-                try
-                {
-                    #region Propertyset init
-                    PropertySetManager psm = new PropertySetManager(
-                        localDb,
-                        PSetDefs.DefinedSets.DriPipelineData);
-                    PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
-                    #endregion
-
-                    foreach (Alignment al in als.OrderBy(x => x.Name))
-                    {
-                        #region GetCurvesAndBRs
-                        HashSet<Curve> curves = localDb.ListOfType<Curve>(tx, true)
-                            .Where(x => psm.FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
-                            .ToHashSet();
-                        if (curves.Count == 0) continue;
-
-                        TypeOfIteration iterType = 0;
-                        Queue<Curve> kø = Utils.GetSortedQueue(localDb, al, curves, ref iterType);
-                        #endregion
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    alTx.Abort();
-                    alTx.Dispose();
-                    alDb.Dispose();
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                alTx.Abort();
-                alTx.Dispose();
-                alDb.Dispose();
-                tx.Commit();
-            }
-        }
-
         [CommandMethod("NUMBERALDESCRIPTION")]
         public void numberaldescription()
         {
@@ -1489,7 +1603,7 @@ namespace IntersectUtilities
                     prdDbg(ex);
                     return;
                 }
-                
+
                 tx.Commit();
             }
         }
@@ -1529,6 +1643,348 @@ namespace IntersectUtilities
                 }
 
                 tx.Commit();
+            }
+        }
+
+        [CommandMethod("PLACEELBOW")]
+        [CommandMethod("PE")]
+        public void placeelbow()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+
+            while (true)
+            {
+                try
+                {
+                #region Get pipes
+                HashSet<Oid> plOids = localDb.HashSetOfFjvPipeIds(true);
+                if (plOids.Count == 0)
+                {
+                    prdDbg("No DH pipes in drawing!");
+                    return;
+                }
+                #endregion
+
+                #region Ask for point
+                //message for the ask for point prompt
+                string message = "Select location to place pipe fitting: ";
+                var opt = new PromptPointOptions(message);
+
+                Point3d location = Algorithms.NullPoint3d;
+                do
+                {
+                    var res = ed.GetPoint(opt);
+                    if (res.Status == PromptStatus.Cancel)
+                    {
+                        bringallblockstofront();
+                        return;
+                    }
+                    if (res.Status == PromptStatus.OK) location = res.Value;
+                }
+                while (location == Algorithms.NullPoint3d);
+                #endregion
+
+                #region Find nearest pline
+                Oid nearestPlId;
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    Polyline pl = plOids.Select(x => x.Go<Polyline>(tx))
+                        .MinBy(x => location.DistanceHorizontalTo(
+                            x.GetClosestPointTo(location, false)))
+                        .FirstOrDefault();
+                    nearestPlId = pl.Id;
+                    tx.Commit();
+                }
+
+                if (nearestPlId == default)
+                {
+                    prdDbg("Nearest pipe cannot be found!");
+                    return;
+                }
+                #endregion
+
+                #region Place preinsulated elbow
+                ElbowPreinsulated elbow = new ElbowPreinsulated(localDb, nearestPlId, location);
+                Result result = elbow.Validate();
+                if (result.Status != ResultStatus.OK)
+                {
+                    prdDbg(result.ErrorMsg);
+                    continue;
+                }
+                result = elbow.Place();
+                if (result.Status != ResultStatus.OK)
+                {
+                    prdDbg(result.ErrorMsg);
+                    continue;
+                }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    return;
+                }
+            }
+        }
+
+        [CommandMethod("PLACEKEDELRØRSBØJNING")]
+        [CommandMethod("PK")]
+        public void placekedelrørsbøjning()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+
+            while (true)
+            {
+                try
+                {
+                    #region Get pipes
+                    HashSet<Oid> plOids = localDb.HashSetOfFjvPipeIds(true);
+                    if (plOids.Count == 0)
+                    {
+                        prdDbg("No DH pipes in drawing!");
+                        return;
+                    }
+                    #endregion
+
+                    #region Ask for point
+                    //message for the ask for point prompt
+                    string message = "Select location to place pipe fitting: ";
+                    var opt = new PromptPointOptions(message);
+
+                    Point3d location = Algorithms.NullPoint3d;
+                    do
+                    {
+                        var res = ed.GetPoint(opt);
+                        if (res.Status == PromptStatus.Cancel)
+                        {
+                            bringallblockstofront();
+                            return;
+                        }
+                        if (res.Status == PromptStatus.OK) location = res.Value;
+                    }
+                    while (location == Algorithms.NullPoint3d);
+                    #endregion
+
+                    #region Find nearest pline
+                    Oid nearestPlId;
+                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                    {
+                        Polyline pl = plOids.Select(x => x.Go<Polyline>(tx))
+                            .MinBy(x => location.DistanceHorizontalTo(
+                                x.GetClosestPointTo(location, false)))
+                            .FirstOrDefault();
+                        nearestPlId = pl.Id;
+                        tx.Commit();
+                    }
+
+                    if (nearestPlId == default)
+                    {
+                        prdDbg("Nearest pipe cannot be found!");
+                        return;
+                    }
+                    #endregion
+
+                    #region Place kedelrørsfitting
+                    ElbowWeldFitting elbow = new ElbowWeldFitting(localDb, nearestPlId, location);
+                    Result result = elbow.Validate();
+                    if (result.Status != ResultStatus.OK)
+                    {
+                        prdDbg(result.ErrorMsg);
+                        continue;
+                    }
+                    result = elbow.Place();
+                    if (result.Status != ResultStatus.OK)
+                    {
+                        prdDbg(result.ErrorMsg);
+                        continue;
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    return;
+                }
+            }
+        }
+
+        [CommandMethod("PLACETRANSITIONX1")]
+        [CommandMethod("PT1")]
+        public void placetransitionx1()
+        {
+            placetransition(Transition.TransitionType.X1);
+        }
+        [CommandMethod("PLACETRANSITIONX2")]
+        [CommandMethod("PT2")]
+        public void placetransitionx2()
+        {
+            placetransition(Transition.TransitionType.X2);
+        }
+        private void placetransition(Transition.TransitionType transitionType)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+
+            while (true)
+            {
+                try
+                {
+                    #region Get pipes
+                    HashSet<Oid> plOids = localDb.HashSetOfFjvPipeIds(true);
+                    if (plOids.Count == 0)
+                    {
+                        prdDbg("No DH pipes in drawing!");
+                        return;
+                    }
+                    #endregion
+
+                    #region Ask for point
+                    //message for the ask for point prompt
+                    string message = "Select location to place pipe fitting: ";
+                    var opt = new PromptPointOptions(message);
+
+                    Point3d location = Algorithms.NullPoint3d;
+                    do
+                    {
+                        var res = ed.GetPoint(opt);
+                        if (res.Status == PromptStatus.Cancel)
+                        {
+                            bringallblockstofront();
+                            return;
+                        }
+                        if (res.Status == PromptStatus.OK) location = res.Value;
+                    }
+                    while (location == Algorithms.NullPoint3d);
+                    #endregion
+
+                    #region Find nearest pline
+                    Oid nearestPlId;
+                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                    {
+                        Polyline pl = plOids.Select(x => x.Go<Polyline>(tx))
+                            .MinBy(x => location.DistanceHorizontalTo(
+                                x.GetClosestPointTo(location, false)))
+                            .FirstOrDefault();
+                        nearestPlId = pl.Id;
+                        tx.Commit();
+                    }
+
+                    if (nearestPlId == default)
+                    {
+                        prdDbg("Nearest pipe cannot be found!");
+                        return;
+                    }
+                    #endregion
+
+                    #region Place transition
+                    Transition transition = new Transition(
+                        localDb, nearestPlId, location, transitionType);
+                    Result result = transition.Validate();
+                    if (result.Status != ResultStatus.OK)
+                    {
+                        prdDbg(result.ErrorMsg);
+                        continue;
+                    }
+                    result = transition.Place();
+                    if (result.Status != ResultStatus.OK)
+                    {
+                        prdDbg(result.ErrorMsg);
+                        continue;
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    return;
+                }
+            }
+        }
+        [CommandMethod("PLACEBUEROR")]
+        [CommandMethod("PB")]
+        public void placebueror()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+
+            while (true)
+            {
+                try
+                {
+                    #region Get pipes
+                    HashSet<Oid> plOids = localDb.HashSetOfFjvPipeIds(true);
+                    if (plOids.Count == 0)
+                    {
+                        prdDbg("No DH pipes in drawing!");
+                        return;
+                    }
+                    #endregion
+
+                    #region Ask for point
+                    //message for the ask for point prompt
+                    string message = "Select location to place pipe fitting: ";
+                    var opt = new PromptPointOptions(message);
+
+                    Point3d location = Algorithms.NullPoint3d;
+                    do
+                    {
+                        var res = ed.GetPoint(opt);
+                        if (res.Status == PromptStatus.Cancel)
+                        {
+                            bringallblockstofront();
+                            return;
+                        }
+                        if (res.Status == PromptStatus.OK) location = res.Value;
+                    }
+                    while (location == Algorithms.NullPoint3d);
+                    #endregion
+
+                    #region Find nearest pline
+                    Oid nearestPlId;
+                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                    {
+                        Polyline pl = plOids.Select(x => x.Go<Polyline>(tx))
+                            .MinBy(x => location.DistanceHorizontalTo(
+                                x.GetClosestPointTo(location, false)))
+                            .FirstOrDefault();
+                        nearestPlId = pl.Id;
+                        tx.Commit();
+                    }
+
+                    if (nearestPlId == default)
+                    {
+                        prdDbg("Nearest pipe cannot be found!");
+                        return;
+                    }
+                    #endregion
+
+                    #region Place preinsulated elbow
+                    Bueror bueror = new Bueror(localDb, nearestPlId, location);
+                    Result result = bueror.Validate();
+                    if (result.Status != ResultStatus.OK)
+                    {
+                        prdDbg(result.ErrorMsg);
+                        continue;
+                    }
+                    result = bueror.Place();
+                    if (result.Status != ResultStatus.OK)
+                    {
+                        prdDbg(result.ErrorMsg);
+                        continue;
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    return;
+                }
             }
         }
     }

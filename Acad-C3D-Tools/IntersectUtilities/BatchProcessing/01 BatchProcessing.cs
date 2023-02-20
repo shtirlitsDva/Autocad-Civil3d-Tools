@@ -49,8 +49,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using System.Windows.Documents;
-using System.Security.Cryptography;
+using Result = IntersectUtilities.Result;
 
 namespace IntersectUtilities
 {
@@ -760,22 +759,30 @@ namespace IntersectUtilities
             }
             return new Result();
         }
-        private enum ResultStatus
-        {
-            OK,
-            FatalError, //Execution of processing must stop
-            SoftError //Exection may continue, changes to current drawing aborted
+    }
+
+    class Result
+    {
+        private ResultStatus _status = ResultStatus.OK;
+        internal ResultStatus Status { get { return _status; } set { if (_status != ResultStatus.FatalError) _status = value; } }
+        private string _errorMsg;
+        internal string ErrorMsg 
+        { 
+            get { return _errorMsg + "\n"; }
+            set { if (_errorMsg.IsNoE()) _errorMsg = value;
+                else _errorMsg += "\n" + value; } 
         }
-        private class Result
+        internal Result() { }
+        internal Result(ResultStatus status, string errorMsg)
         {
-            internal ResultStatus Status = ResultStatus.OK;
-            internal string ErrorMsg;
-            internal Result() { }
-            internal Result(ResultStatus status, string errorMsg)
-            {
-                Status = status;
-                ErrorMsg = errorMsg;
-            }
+            Status = status;
+            ErrorMsg = errorMsg;
         }
+    }
+    internal enum ResultStatus
+    {
+        OK,
+        FatalError, //Execution of processing must stop
+        SoftError //Exection may continue, changes to current drawing aborted
     }
 }

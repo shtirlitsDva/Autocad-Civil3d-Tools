@@ -2066,7 +2066,6 @@ namespace LERImporter.Schema
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public partial class SurfacePropertyType
     {
-        public AbstractSurfaceType AbstractSurface { get; set; }
         [XmlAttribute]
         public string nilReason { get; set; }
         [XmlAttribute(Form = System.Xml.Schema.XmlSchemaForm.Qualified, DataType = "anyURI")]
