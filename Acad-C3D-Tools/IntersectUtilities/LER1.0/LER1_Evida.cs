@@ -200,6 +200,9 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    var forbiddenValues = DataQa.Gas.ForbiddenValues();
+                    var replaceValues = DataQa.Gas.ReplaceValues();
+
                     #region GatherObjects
                     HashSet<Entity> allEnts = localDb.HashSetOfType<Entity>(tx);
 
@@ -254,10 +257,10 @@ namespace IntersectUtilities
                     {
                         string label = value.ToUpper();
                         //Check if value is handled by filters
-                        if (DataQa.Gas.ForbiddenValues.Contains(label))
+                        if (forbiddenValues.Contains(label))
                             label += " <--- OK - Forbidden";
-                        if (DataQa.Gas.ReplaceLabelParts.ContainsKey(label))
-                            label += $" <--- OK - Replaced by {DataQa.Gas.ReplaceLabelParts[label]}";
+                        if (replaceValues.ContainsKey(label))
+                            label += $" <--- OK - Replaced by {replaceValues[label]}";
                         prdDbg(label);
                     }
                     #endregion
@@ -339,6 +342,9 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    var forbiddenValues = DataQa.Gas.ForbiddenValues();
+                    var replaceValues = DataQa.Gas.ReplaceValues();
+
                     #region Create layers
                     List<string> layerNames = new List<string>()
                     {   "GAS-Stikrør",
@@ -394,11 +400,11 @@ namespace IntersectUtilities
                         string label = PropertySetManager.ReadNonDefinedPropertySetString(ent, "LABEL", "LABEL");
 
                         ////Filter out unwanted values
-                        if (DataQa.Gas.ForbiddenValues.Contains(label.ToUpper())) continue;
+                        if (forbiddenValues.Contains(label.ToUpper())) continue;
 
                         //Modify labels with excess data
-                        if (DataQa.Gas.ReplaceLabelParts.ContainsKey(label.ToUpper()))
-                            label = DataQa.Gas.ReplaceLabelParts[label.ToUpper()];
+                        if (replaceValues.ContainsKey(label.ToUpper()))
+                            label = replaceValues[label.ToUpper()];
 
                         allLabels.Add((
                             Convert.ToInt32(
