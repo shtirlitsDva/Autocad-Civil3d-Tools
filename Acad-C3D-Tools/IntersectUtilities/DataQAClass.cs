@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,70 +11,35 @@ namespace IntersectUtilities.UtilsCommon
     {
         public static class Gas
         {
-            public static HashSet<string> ForbiddenValues = new HashSet<string>()
+            public static HashSet<string> ForbiddenValues()
             {
-                "ALLE STIK ER",
-                "IKKE FJERNES",
-                "UDLUFTNING MÅ",
-                "1843B TYPE D",
-                "ALLE STIK = Ø40 PM",
-                "ANV. SOM TRÆKRØR",
-                "ANVENDT SOM TRÆKRØR",
-                "ARMA-FLEX",
-                "ARMAFLEX",
-                "B-RØR",
-                "BELIGGENHED USIKKER",
-                "BELIG. USIKKER",
-                "EXISTENS USIKKER",
-                "FLEXOPFØRINGSRØR",
-                "FRIT R-SKAB",
-                "FRITST.M/R SKAB",
-                "G10",
-                "I GAMMELT STIK",
-                "M/R G40/65",
-                "M/R SKAB TYPE G25",
-                "M/R SKAB",
-                "MÅSKE RELINET",
-                "PC-COATET",
-                "R-SKAB",
-                "REG.1843B",
-                "SKAB RS 830",
-                "SÆNKET 40 CM",
-                "SÆNKET",
-                "T=0.0",
-                "T=0.1",
-                "T=0.2",
-                "T=0.3",
-                "T=0.4",
-                "T=0.7",
-                "TERRASSE",
-                "TRAPPE",
-                "TYPE G 16/25",
-                "TYPE G25",
-                "TYPE G65",
-                "VENTILSKAB",
-                "VINDUE",
-                "M/R G100",
-                "SKAB RS 1000"
-            };
-            public static Dictionary<string, string> ReplaceLabelParts = new Dictionary<string, string>()
+                HashSet<string> values = new HashSet<string>();
+
+                var data = CsvReader.ReadCsvToDataTable(
+                    @"X:\AutoCAD DRI - 01 Civil 3D\LER1.0\GasQaData\DataQa.Gas.ForbiddenValues.csv",
+                    "ForbiddenValues");
+                foreach (var value in data.AsEnumerable())
+                {
+                    values.Add(value[0].ToString());
+                }
+
+                return values;
+            }
+
+            public static Dictionary<string, string> ReplaceValues()
             {
-                { "B-RØR 63 PM", "63 PM" },
-                { "40 PC 026", "40 PC" },
-                { "40 PM 026", "40 PM" },
-                { "40 PM 20 MBAR", "40 PM" },
-                { "63PM", "63 PM" },
-                { "63 PM 026", "63 PM" },
-                { "63 PM 50 MB", "63 PM" },
-                { "90 PM 50 MBAR", "90 PM" },
-                { "90 PM 0.1", "90 PM" },
-                { "75 ST/63 PM 026", "75 ST" },
-                { "ALLE STIK = 20 PM", "20 PM" },
-                { "ALLE STIK 20 PM", "20 PM" },
-                { "ALLAE STIK 20 PM", "20 PM" },
-                { "ALLE STIK ER 20 PM 4.0", "20 PM" },
-                { "LIGGER UNDER 63 PM", "63 PM" }
-            };
+                Dictionary<string, string> values = new Dictionary<string, string>();
+
+                var data = CsvReader.ReadCsvToDataTable(
+                    @"X:\AutoCAD DRI - 01 Civil 3D\LER1.0\GasQaData\DataQa.Gas.ReplaceValues.csv",
+                    "ReplaceValues");
+                foreach (var value in data.AsEnumerable())
+                {
+                    values.Add(value[0].ToString(), value[1].ToString());
+                }
+
+                return values;
+            }
         }
         public static class Gis
         {
