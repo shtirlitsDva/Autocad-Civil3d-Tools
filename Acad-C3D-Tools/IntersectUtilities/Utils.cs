@@ -1418,24 +1418,6 @@ namespace IntersectUtilities
         }
     }
 
-    public class SizeManager
-    {
-        public string FirstPosition { get; private set; }
-        public string SecondPosition { get; private set; } = "0";
-        public SizeManager(string input)
-        {
-            if (input.Contains("x"))
-            {
-                var output = input.Split('x');
-                int firstNumber = int.Parse(output[0]);
-                int secondNumber = int.Parse(output[1]);
-                FirstPosition = firstNumber >= secondNumber ? firstNumber.ToString() : secondNumber.ToString();
-                SecondPosition = firstNumber >= secondNumber ? secondNumber.ToString() : firstNumber.ToString();
-            }
-            else FirstPosition = input;
-        }
-    }
-
     public class ProfileViewCollection : Collection<ProfileView>
     {
         public ProfileViewCollection(ICollection<ProfileView> sourceCollection)
