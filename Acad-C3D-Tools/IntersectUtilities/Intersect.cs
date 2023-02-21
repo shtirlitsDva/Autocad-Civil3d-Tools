@@ -6797,7 +6797,8 @@ namespace IntersectUtilities
                         ents = localDb
                             .ListOfType<Entity>(tx, true)
                             .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                                x, propertySetName, propertyName).Contains(data, StringComparison.OrdinalIgnoreCase));
+                                x, propertySetName, propertyName)
+                            .Contains(data, StringComparison.OrdinalIgnoreCase));
                     }
 
                     editor.SetImpliedSelection(ents.Select(x => x.Id).ToArray());
