@@ -6813,59 +6813,6 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("COLORENTSMISSINGPS")]
-        public void colorentsmissingps()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    var ents = localDb.ListOfType<Polyline>(tx);
-                    var manglerPs = new List<Entity>();
-                    foreach (var item in ents)
-                    {
-                        ObjectIdCollection propertySetIds = PropertyDataServices.GetPropertySets(item);
-
-                        if (propertySetIds.Count == 0)
-                        {
-                            manglerPs.Add(item);
-                        }
-                        else
-                        {
-                            bool foundPs = false;
-                            foreach (Oid oid in propertySetIds)
-                            {
-                                PropertySet ps = oid.Go<PropertySet>(tx);
-                                if (ps.PropertySetDefinitionName == "DriGasDimOgMat") foundPs = true;
-                            }
-
-                            if (foundPs == false) manglerPs.Add(item);
-                        }
-                    }
-
-                    foreach (var item in manglerPs)
-                    {
-                        item.CheckOrOpenForWrite();
-                        item.Color = ColorByName("white");
-                    }
-
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.ToString());
-                    return;
-                }
-                tx.Commit();
-            }
-        }
-
         [CommandMethod("DIVIDEPLINE")]
         public void dividepline()
         {
