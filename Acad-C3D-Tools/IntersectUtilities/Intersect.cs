@@ -6776,15 +6776,29 @@ namespace IntersectUtilities
             if (pr3.Status != PromptStatus.OK) return;
             else data = pr3.StringResult;
 
+            string kwd = Interaction.GetKeywords("Exact or partial match: ", new string[] { "Exact", "Partial" });
+            if (kwd == null) return;
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
                     prdDbg("Frozen entities are discarded!");
-                    var ents = localDb
-                        .ListOfType<Entity>(tx, true)
-                        .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                            x, propertySetName, propertyName) == data);
+                    IEnumerable<Entity> ents;
+                    if (kwd == "Exact")
+                    {
+                        ents = localDb
+                            .ListOfType<Entity>(tx, true)
+                            .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                                x, propertySetName, propertyName) == data);
+                    }
+                    else
+                    {
+                        ents = localDb
+                            .ListOfType<Entity>(tx, true)
+                            .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                                x, propertySetName, propertyName).Contains(data, StringComparison.OrdinalIgnoreCase));
+                    }
 
                     editor.SetImpliedSelection(ents.Select(x => x.Id).ToArray());
                 }
