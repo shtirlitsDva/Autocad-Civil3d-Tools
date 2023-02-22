@@ -6775,31 +6775,31 @@ namespace IntersectUtilities
                             int localFull = 0;
                             int duplicatePoints = 0;
 
-                            foreach (var remotePline in remotePlines)
-                            {
-                                foreach (var localPline in localPlines)
-                                {
-                                    var overlap = GetOverlapStatus(remotePline, localPline);
+                            //foreach (var remotePline in remotePlines)
+                            //{
+                            //    foreach (var localPline in localPlines)
+                            //    {
+                            //        var overlap = GetOverlapStatus(remotePline, localPline);
 
-                                    switch (overlap)
-                                    {
-                                        case OverlapStatusEnum.None:
-                                            break;
-                                        case OverlapStatusEnum.Partial:
-                                            remotePline.CheckOrOpenForWrite();
-                                            remotePline.Color = ColorByName("yellow");
-                                            remotePartial++;
-                                            break;
-                                        case OverlapStatusEnum.Full:
-                                            remotePline.CheckOrOpenForWrite();
-                                            remotePline.Color = ColorByName("red");
-                                            remoteFull++;
-                                            break;
-                                        default:
-                                            break;
-                                    }
-                                }
-                            }
+                            //        switch (overlap)
+                            //        {
+                            //            case OverlapStatusEnum.None:
+                            //                break;
+                            //            case OverlapStatusEnum.Partial:
+                            //                remotePline.CheckOrOpenForWrite();
+                            //                remotePline.Color = ColorByName("yellow");
+                            //                remotePartial++;
+                            //                break;
+                            //            case OverlapStatusEnum.Full:
+                            //                remotePline.CheckOrOpenForWrite();
+                            //                remotePline.Color = ColorByName("red");
+                            //                remoteFull++;
+                            //                break;
+                            //            default:
+                            //                break;
+                            //        }
+                            //    }
+                            //}
 
                             foreach (var localPline in localPlines)
                             {
@@ -6827,20 +6827,20 @@ namespace IntersectUtilities
                                 }
                             }
 
-                            foreach (var localPoint in localPoints)
-                            {
-                                foreach (var remotePoint in remotePoints)
-                                {
-                                    if (localPoint.Position.IsEqualTo(remotePoint.Position, Tolerance.Global))
-                                    {
-                                        localPoint.CheckOrOpenForWrite();
-                                        localPoint.Color = ColorByName("magenta");
-                                        remotePoint.CheckOrOpenForWrite();
-                                        remotePoint.Color = ColorByName("magenta");
-                                        duplicatePoints++;
-                                    }
-                                }
-                            }
+                            //foreach (var localPoint in localPoints)
+                            //{
+                            //    foreach (var remotePoint in remotePoints)
+                            //    {
+                            //        if (localPoint.Position.IsEqualTo(remotePoint.Position, Tolerance.Global))
+                            //        {
+                            //            localPoint.CheckOrOpenForWrite();
+                            //            localPoint.Color = ColorByName("magenta");
+                            //            remotePoint.CheckOrOpenForWrite();
+                            //            remotePoint.Color = ColorByName("magenta");
+                            //            duplicatePoints++;
+                            //        }
+                            //    }
+                            //}
 
                             prdDbg(
                                 $"Remote -> Partial overlaps {remotePartial}, Full overlaps {remoteFull}\n" +

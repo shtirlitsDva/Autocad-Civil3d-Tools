@@ -77,10 +77,6 @@ namespace ExportShapeFiles
                     string finalExportFileNamePipes = finalExportFileNameBase + "\\" + phaseNumber + ".shp";
                     string finalExportFileNameBlocks = finalExportFileNameBase + "\\" + phaseNumber + "-komponenter.shp";
 
-                    #region Create GIS Data
-                    GisData.creategisdata(); 
-                    #endregion
-
                     #region Export af rør
                     File.AppendAllLines(logFileName, new string[] { $"{DateTime.Now}: Exporting pipes to {finalExportFileNamePipes}." });
 
