@@ -1330,6 +1330,11 @@ namespace IntersectUtilities
         /// </summary>
         public static OverlapStatusEnum GetOverlapStatus(Polyline fP, Polyline sP)
         {
+            Extents3d ext1 = fP.GeometricExtents;
+            Extents3d ext2 = sP.GeometricExtents;
+            if (!ext1.ToExtents2d().IsOverlapping(ext2.ToExtents2d()))
+                return OverlapStatusEnum.None;
+
             Tolerance tol = new Tolerance(0.0001, 0.0001);
 
             var points1 = fP.GetPoints();

@@ -2169,6 +2169,16 @@ namespace IntersectUtilities.UtilsCommon
             foreach (string s in sc) list.Add(s);
             return list;
         }
+        public static bool IsOverlapping(this Extents2d ext1, Extents2d ext2)
+        {
+            //https://stackoverflow.com/questions/20925818/algorithm-to-check-if-two-boxes-overlap
+
+            return ProjectionOverlaps(ext1.MinPoint.X, ext1.MaxPoint.X, ext2.MinPoint.X, ext2.MaxPoint.X) &&
+                ProjectionOverlaps(ext1.MinPoint.Y, ext1.MaxPoint.Y, ext2.MinPoint.Y, ext2.MaxPoint.Y);
+
+            bool ProjectionOverlaps(double cmin1, double cmax1, double cmin2, double cmax2)
+                => cmax1 >= cmin2 && cmax2 >= cmin1;
+        }
     }
     public static class ExtensionMethods
     {

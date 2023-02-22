@@ -384,6 +384,9 @@ namespace IntersectUtilities
 
                         prdDbg(pline.Handle.ToString() + ": " + dia.ToString());
 
+                        //Quick hack to guard against 999 diameter for GAS
+                        if (dia == 999) dia = 100;
+
                         dia = dia / 1000;
 
                         if (dia == 0) dia = 0.09;
