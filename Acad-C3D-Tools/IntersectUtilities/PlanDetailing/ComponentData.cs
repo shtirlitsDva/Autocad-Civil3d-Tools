@@ -564,7 +564,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
 
-            //A workaround for parametric geometry not updating inside command
+            //A workaround for parametric geometry not updating inside command,
             //Application.DocumentManager.MdiActiveDocument.Editor.Command(
             //    "-PAN", new Point3d(), new Point3d());
 
