@@ -120,29 +120,6 @@ namespace IntersectUtilities
                 return false;
             }
         }
-        public static bool IsPropertySetAttached(Entity ent, string propertySetName)
-        {
-            var propertySetIds = PropertyDataServices.GetPropertySets(ent);
-            if (propertySetIds.Count == 0) return false;
-
-            bool foundPs = false;
-            using (var tx = ent.Database.TransactionManager.StartOpenCloseTransaction())
-            {
-                foreach (Oid oid in propertySetIds)
-                {
-
-                    PropertySet ps = oid.Go<PropertySet>(
-                        ent.Database.TransactionManager.TopTransaction);
-                    if (ps.PropertySetDefinitionName == propertySetName) 
-                        foundPs = true;
-                }
-            }
-            return foundPs;
-        }
-        public static bool IsPropertySetAttached(Entity ent, PSetDefs.DefinedSets propertySet)
-        {
-            return IsPropertySetAttached(ent, propertySet.ToString());
-        }
         private PropertySetDefinition GetPropertySetDefinition(PSetDefs.DefinedSets propertySetName, Transaction tx = null)
         {
             if (Db == null) throw new System.Exception("Database is null!");
@@ -605,6 +582,64 @@ namespace IntersectUtilities
 
             foreach (var item in values.OrderBy(x => x)) prdDbg(item);
             
+        }
+        public static bool IsPropertySetAttached(Entity ent, string propertySetName)
+        {
+            var propertySetIds = PropertyDataServices.GetPropertySets(ent);
+            if (propertySetIds.Count == 0) return false;
+
+            bool foundPs = false;
+            using (var tx = ent.Database.TransactionManager.StartOpenCloseTransaction())
+            {
+                foreach (Oid oid in propertySetIds)
+                {
+
+                    PropertySet ps = oid.Go<PropertySet>(
+                        ent.Database.TransactionManager.TopTransaction);
+                    if (ps.PropertySetDefinitionName == propertySetName)
+                        foundPs = true;
+                }
+            }
+            return foundPs;
+        }
+        public static bool IsPropertySetAttached(Entity ent, PSetDefs.DefinedSets propertySet)
+        {
+            return IsPropertySetAttached(ent, propertySet.ToString());
+        }
+        public static bool IsPropertySetAttached(Entity ent, string propertySetName, MatchTypeEnum matchType)
+        {
+            var propertySetIds = PropertyDataServices.GetPropertySets(ent);
+            if (propertySetIds.Count == 0) return false;
+
+            bool foundPs = false;
+            using (var tx = ent.Database.TransactionManager.StartOpenCloseTransaction())
+            {
+                foreach (Oid oid in propertySetIds)
+                {
+                    PropertySet ps = oid.Go<PropertySet>(
+                        ent.Database.TransactionManager.TopTransaction);
+                    switch (matchType)
+                    {
+                        case MatchTypeEnum.Exact:
+                            if (ps.PropertySetDefinitionName == propertySetName)
+                                foundPs = true;
+                            break;
+                        case MatchTypeEnum.Contains:
+                            if (ps.PropertySetDefinitionName.Contains(propertySetName))
+                                foundPs = true;
+                            break;
+                        default:
+                            break;
+                    }
+                    
+                }
+            }
+            return foundPs;
+        }
+        public enum MatchTypeEnum
+        {
+            Exact,
+            Contains
         }
     }
 

@@ -7584,6 +7584,82 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("DELETEBADENTITIES")]
+        public void deletebadentities()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
+                    HashSet<DBPoint> points = localDb.HashSetOfType<DBPoint>(tx);
+
+                    HashSet<Entity> ents = new HashSet<Entity>();
+                    ents.UnionWith(plines);
+                    ents.UnionWith(points);
+
+                    foreach (Entity ent in ents)
+                    {
+                        if (PropertySetManager.IsPropertySetAttached(ent, "(2)", PropertySetManager.MatchTypeEnum.Contains))
+                        {
+                            ent.CheckOrOpenForWrite();
+                            ent.Erase();
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("SELECTBADENTITIES")]
+        public void selectbadentities()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
+                    HashSet<DBPoint> points = localDb.HashSetOfType<DBPoint>(tx);
+
+                    HashSet<Entity> ents = new HashSet<Entity>();
+                    ents.UnionWith(plines);
+                    ents.UnionWith(points);
+
+                    HashSet<Entity> selectedEnts = new HashSet<Entity>();
+
+                    foreach (Entity ent in ents)
+                    {
+                        if (PropertySetManager.IsPropertySetAttached(ent, "(2)", PropertySetManager.MatchTypeEnum.Contains))
+                        {
+                            selectedEnts.Add(ent);
+                        }
+                    }
+
+                    editor.SetImpliedSelection(selectedEnts.Select(x => x.Id).ToArray());
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         //[CommandMethod("TESTENUMS")]
         public void testenums()
         {
