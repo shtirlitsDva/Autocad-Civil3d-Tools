@@ -564,6 +564,10 @@ namespace IntersectUtilities
                 tx.Commit();
             }
 
+            //A workaround for parametric geometry not updating inside command
+            //Application.DocumentManager.MdiActiveDocument.Editor.Command(
+            //    "-PAN", new Point3d(), new Point3d());
+
             if (result.Status == ResultStatus.OK) result = this.Cut(result);
             return result;
         }
@@ -573,7 +577,7 @@ namespace IntersectUtilities
             {
                 Polyline run = RunId.Go<Polyline>(tx);
                 BlockReference br = BrId.Go<BlockReference>(tx);
-
+                //CutPolylineWithBlocksToAccommodateBlock(tx, run, br, cutBlockName);
                 double angle = Convert.ToDouble(
                     br.ReadDynamicPropertyValue("Vinkel"), CultureInfo.InvariantCulture);
                 double ll = Math.Tan(angle.ToRadians() / 2) * radiusDict[Dn];
