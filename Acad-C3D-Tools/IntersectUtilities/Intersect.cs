@@ -7660,6 +7660,31 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("DUMPPSPROPERTYNAMES")]
+        public void dumppspropertynames()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    OutputWriter(
+                        "C:\\Temp\\names.txt",
+                        string.Join("\n", PropertySetManager.AllPropertyNamesAndDataType(localDb).OrderBy(x => x.Item1)),
+                        true);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         //[CommandMethod("TESTENUMS")]
         public void testenums()
         {

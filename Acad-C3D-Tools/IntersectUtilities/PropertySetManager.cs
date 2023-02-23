@@ -555,6 +555,18 @@ namespace IntersectUtilities
 
             return (psName, propName);
         }
+        private static string AskForSetName(Database db)
+        {
+            if (db.TransactionManager.TopTransaction == null)
+            {
+                prdDbg("AskForSetName(Database db) has to run inside a transaction!");
+                return default;
+            }
+            DictionaryPropertySetDefinitions dpsdict = new DictionaryPropertySetDefinitions(db);
+            string psName = GetKeywords("Select property set: ", dpsdict.NamesInUse.ToList());
+            if (psName == null) return default;
+            return psName;
+        }
         public static void ListUniquePsData(Database db)
         {
             var names = AskForSetAndProperty(db);
@@ -582,6 +594,58 @@ namespace IntersectUtilities
 
             foreach (var item in values.OrderBy(x => x)) prdDbg(item);
             
+        }
+        public static HashSet<string> AllPropertyNames(Database db)
+        {
+            var name = AskForSetName(db);
+            if (name == default)
+            {
+                prdDbg("Set name is null!");
+                return null;
+            }
+            Transaction tx = db.TransactionManager.TopTransaction;
+            var dpsd = new DictionaryPropertySetDefinitions(db);
+            Oid psDefId = dpsd.GetAt(name);
+
+            HashSet<string> values = new HashSet<string>();
+
+            PropertySetDefinition psDef = psDefId.Go<PropertySetDefinition>(tx);
+            PropertyDefinitionCollection defs = psDef.Definitions;
+
+            for (int i = 0; i < defs.Count; i++)
+            {
+                PropertyDefinition def = defs[i];
+                values.Add(def.Name);
+            }
+
+            return values;
+
+        }
+        public static HashSet<(string, string)> AllPropertyNamesAndDataType(Database db)
+        {
+            var name = AskForSetName(db);
+            if (name == default)
+            {
+                prdDbg("Set name is null!");
+                return null;
+            }
+            Transaction tx = db.TransactionManager.TopTransaction;
+            var dpsd = new DictionaryPropertySetDefinitions(db);
+            Oid psDefId = dpsd.GetAt(name);
+
+            HashSet<(string, string)> values = new HashSet<(string, string)>();
+
+            PropertySetDefinition psDef = psDefId.Go<PropertySetDefinition>(tx);
+            PropertyDefinitionCollection defs = psDef.Definitions;
+
+            for (int i = 0; i < defs.Count; i++)
+            {
+                PropertyDefinition def = defs[i];
+                values.Add((def.Name, def.DataType.ToString()));
+            }
+
+            return values;
+
         }
         public static bool IsPropertySetAttached(Entity ent, string propertySetName)
         {
