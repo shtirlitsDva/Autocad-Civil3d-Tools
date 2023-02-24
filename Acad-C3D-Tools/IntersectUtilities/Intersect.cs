@@ -3709,7 +3709,11 @@ namespace IntersectUtilities
                             foreach (Oid bRefId in btr.GetBlockReferenceIds(true, true))
                             {
                                 BlockReference bref = tx.GetObject(bRefId, OpenMode.ForWrite) as BlockReference;
-                                if (bref.Name.StartsWith("*")) ids.Add(bRefId);
+                                if (
+                                    bref.Name.StartsWith("*") &&
+                                    bref.OwnerId == btrModelSpace.Id
+                                    )
+                                    ids.Add(bRefId);
                             }
                         }
 
@@ -3718,7 +3722,7 @@ namespace IntersectUtilities
                     catch (System.Exception ex)
                     {
                         tx.Abort();
-                        ed.WriteMessage(ex.Message);
+                        prdDbg(ex);
                         throw;
                     }
 
