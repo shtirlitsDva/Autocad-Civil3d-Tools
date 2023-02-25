@@ -1987,5 +1987,87 @@ namespace IntersectUtilities
                 }
             }
         }
+        //[CommandMethod("PLACEBRANCH")]
+        //[CommandMethod("PA")]
+        public void placebranch()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+
+            while (true)
+            {
+                try
+                {
+                    #region Get pipes
+                    HashSet<Oid> plOids = localDb.HashSetOfFjvPipeIds(true);
+                    if (plOids.Count == 0)
+                    {
+                        prdDbg("No DH pipes in drawing!");
+                        return;
+                    }
+                    #endregion
+
+                    #region Ask for point
+                    //message for the ask for point prompt
+                    string message = "Select location to place pipe fitting: ";
+                    var opt = new PromptPointOptions(message);
+
+                    Point3d location = Algorithms.NullPoint3d;
+                    do
+                    {
+                        var res = ed.GetPoint(opt);
+                        if (res.Status == PromptStatus.Cancel)
+                        {
+                            bringallblockstofront();
+                            return;
+                        }
+                        if (res.Status == PromptStatus.OK) location = res.Value;
+                    }
+                    while (location == Algorithms.NullPoint3d);
+                    #endregion
+
+                    #region Find nearest pline
+                    Oid nearestPlId;
+                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                    {
+                        Polyline pl = plOids.Select(x => x.Go<Polyline>(tx))
+                            .MinBy(x => location.DistanceHorizontalTo(
+                                x.GetClosestPointTo(location, false)))
+                            .FirstOrDefault();
+                        nearestPlId = pl.Id;
+                        tx.Commit();
+                    }
+
+                    if (nearestPlId == default)
+                    {
+                        prdDbg("Nearest pipe cannot be found!");
+                        return;
+                    }
+                    #endregion
+
+                    #region Place branch
+                    Branch branch = new Branch(localDb, nearestPlId, location);
+                    Result result = branch.Validate();
+                    if (result.Status != ResultStatus.OK)
+                    {
+                        prdDbg(result.ErrorMsg);
+                        continue;
+                    }
+                    result = branch.Place();
+                    if (result.Status != ResultStatus.OK)
+                    {
+                        prdDbg(result.ErrorMsg);
+                        continue;
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    return;
+                }
+            }
+        }
     }
 }

@@ -914,4 +914,178 @@ namespace IntersectUtilities
             return result;
         }
     }
+    internal class Branch : ComponentData
+    {
+        private readonly string blockName = "BUEROR2";
+        private readonly string cutBlockName = "MuffeIntern";
+
+        public Branch(Database db, Oid runId, Point3d location) : base(db, runId, location) 
+        {
+            throw new NotImplementedException();
+        }
+        internal override Result Validate()
+        {
+            Result result = base.Validate();
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
+            {
+                Polyline run = RunId.Go<Polyline>(tx);
+
+                #region Test to see if block is present in DB or import
+                Db.CheckOrImportBlockRecord(BlockDb, blockName);
+                #endregion
+
+                #region Check to see if present block is latest version
+                CheckIfBlockPresentInDrawingIsLatestVersion(tx, blockName);
+                #endregion
+
+                #region Check number of cutblocks in BTR
+                CheckNumberOfNestedBlocks(tx, blockName, cutBlockName, 2);
+                #endregion
+
+                #region Test if location is on polyline
+                if (run.GetDistToPoint(Location) > 0.000001)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = "Location is not on a pipe. Select location on pipe.";
+                    tx.Commit();
+                    return result;
+                }
+                #endregion
+
+                #region Test to see if segment is a buerør
+                int idx = run.GetCoincidentIndexAtPoint(Location);
+
+                if (idx == run.NumberOfVertices - 1)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = "The command does not accept end points. Yet...";
+                    tx.Commit();
+                    return result;
+                }
+
+                double realIdx = run.GetParameterAtPoint(Location);
+                var segType = run.GetSegmentType((int)realIdx);
+
+                if (segType != SegmentType.Arc)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = "Buerør can only be placed on arc segments!";
+                    tx.Commit();
+                    return result;
+                }
+
+                var seg = run.GetArcSegmentAt((int)realIdx);
+
+                double actualRadius = seg.Radius;
+                double minElasticRadius = PipeSchedule.GetPipeMinElasticRadius(run);
+                double minBuerorRadius = PipeSchedule.GetBuerorMinRadius(run);
+
+                //Check arc segment radius to be whithin bueror range
+                if (actualRadius > minElasticRadius)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg =
+                        $"Arc's radius {actualRadius.ToString("#.##")} is larger than " +
+                        $"minimum elastic radius ({minElasticRadius.ToString("#.##")})!";
+                    tx.Commit();
+                    return result;
+                }
+                if (actualRadius < minBuerorRadius)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg =
+                        $"Arc's radius {actualRadius.ToString("#.##")} is smaller than " +
+                        $"minimum buerør radius ({minBuerorRadius.ToString("#.##")})!";
+                    tx.Commit();
+                    return result;
+                }
+                #endregion
+
+                tx.Commit();
+            }
+
+            if (result.Status == ResultStatus.OK) { Valid = true; }
+            return result;
+        }
+        internal override Result Place()
+        {
+            Result result = base.Place();
+            if (result.Status != ResultStatus.OK) { return result; }
+
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
+            {
+                Polyline run = RunId.Go<Polyline>(tx);
+
+                int idx = (int)run.GetParamAtPointX(Location);
+                double pipeStdLength = PipeSchedule.GetPipeStdLength(run);
+                var arc = run.GetArcSegmentAt(idx);
+                double radius = arc.Radius;
+                double arcLength = run.GetLengthOfSegmentAt(idx);
+                int nrOfPipes = (int)(arcLength / pipeStdLength) + 1;
+                double lengthUpToArc = run.GetDistanceAtParameter((double)idx);
+
+                //Determine if blocks must be mirrored
+                var dir1 = run.GetFirstDerivative((double)idx);
+                var dir2 = run.GetFirstDerivative((double)(idx + 1));
+                var cp = dir1.CrossProduct(dir2);
+                bool mustBeMirrored = false;
+                if (cp.Z < 0.0) mustBeMirrored = true;
+
+                for (int i = 0; i < nrOfPipes; i++)
+                {
+                    try
+                    {
+                        double curLength = lengthUpToArc + i * pipeStdLength;
+                        double curPar = run.GetParamAtDist(curLength);
+                        Vector3d dir = run.GetFirstDerivative(curPar);
+                        Point3d curLoc = run.GetPointAtParam(curPar);
+                        double rotation = Math.Atan2(dir.Y, dir.X);
+
+                        BlockReference br = Db.CreateBlockWithAttributes(blockName, curLoc, rotation);
+                        br.Layer = BlockLayerName;
+                        BrId = br.Id;
+                        SetDynBlockPropertyObject(br, "R", radius);
+                        SetDynBlockPropertyObject(br, "Type", Dn.ToString());
+                        SetDynBlockPropertyObject(br, "System", PipeType.ToString());
+                        SetDynBlockPropertyObject(br, "Serie", PipeSerie.ToString());
+                        if (i != nrOfPipes - 1)
+                            SetDynBlockPropertyObject(br, "L", pipeStdLength);
+                        else SetDynBlockPropertyObject(br, "L", arcLength % pipeStdLength);
+
+                        if (mustBeMirrored) br.ScaleFactors = new Scale3d(1, -1, 1);
+                        br.AttSync();
+                    }
+                    catch (System.Exception ex)
+                    {
+                        prdDbg(ex);
+                        tx.Abort();
+                        throw;
+                    }
+                }
+
+                tx.Commit();
+            }
+
+            if (result.Status == ResultStatus.OK) result = this.Cut(result);
+            return result;
+        }
+        internal override Result Cut(Result result)
+        {
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
+            {
+                Polyline run = RunId.Go<Polyline>(tx);
+                BlockReference br = BrId.Go<BlockReference>(tx);
+
+                int idx = (int)run.GetParamAtPointX(Location);
+                double p1 = run.GetParameterAtPoint(run.GetPoint3dAt(idx));
+                double p2 = run.GetParameterAtPoint(run.GetPoint3dAt(++idx));
+
+                CutPolylineWithDoublesToAccommodateBlock(run, new List<double> { p1, p2 });
+
+                tx.Commit();
+            }
+
+            return result;
+        }
+    }
 }
