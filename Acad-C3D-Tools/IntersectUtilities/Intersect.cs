@@ -7735,6 +7735,16 @@ namespace IntersectUtilities
             TestFith = 16,
         }
 
+        void AbortGracefully(Database db)
+        {
+            while (db.TransactionManager.TopTransaction != null)
+            {
+                Transaction tx = db.TransactionManager.TopTransaction;
+                tx.Abort();
+                tx.Dispose();
+            }
+        }
+
         void AbortGracefully(Transaction tx, string msg)
         {
             tx.Abort();

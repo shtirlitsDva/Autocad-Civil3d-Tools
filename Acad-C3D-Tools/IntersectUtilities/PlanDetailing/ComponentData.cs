@@ -919,9 +919,32 @@ namespace IntersectUtilities
         private readonly string blockName = "BUEROR2";
         private readonly string cutBlockName = "MuffeIntern";
 
-        public Branch(Database db, Oid runId, Point3d location) : base(db, runId, location) 
+        private readonly Oid main;
+        private readonly Oid branch;
+
+        public Branch(Database db, Oid runId, Point3d location) : base(db, runId, location)
         {
-            throw new NotImplementedException();
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
+            {
+                var pipes = db.GetFjvPipes(tx);
+                var twoNearest = pipes
+                    .MinBy(x => location.DistanceHorizontalTo(
+                        x.GetClosestPointTo(location, false)))
+                    .Take(2);
+
+                if (twoNearest.Count() != 2)
+                    throw new System.Exception("twoNearest did not contain two pipes!");
+
+                var first = twoNearest.First();
+                var last = twoNearest.Last();
+
+                //Determine run and branch
+                double startParam = first
+                    .GetParameterAtPoint(
+                    first.GetClosestPointTo(location, false));
+
+                tx.Commit();
+            }
         }
         internal override Result Validate()
         {

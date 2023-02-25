@@ -1724,6 +1724,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     prdDbg(ex);
+                    AbortGracefully(localDb);
                     return;
                 }
             }
@@ -1807,6 +1808,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     prdDbg(ex);
+                    AbortGracefully(localDb);
                     return;
                 }
             }
@@ -1901,6 +1903,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     prdDbg(ex);
+                    AbortGracefully(localDb);
                     return;
                 }
             }
@@ -2027,27 +2030,8 @@ namespace IntersectUtilities
                     while (location == Algorithms.NullPoint3d);
                     #endregion
 
-                    #region Find nearest pline
-                    Oid nearestPlId;
-                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                    {
-                        Polyline pl = plOids.Select(x => x.Go<Polyline>(tx))
-                            .MinBy(x => location.DistanceHorizontalTo(
-                                x.GetClosestPointTo(location, false)))
-                            .FirstOrDefault();
-                        nearestPlId = pl.Id;
-                        tx.Commit();
-                    }
-
-                    if (nearestPlId == default)
-                    {
-                        prdDbg("Nearest pipe cannot be found!");
-                        return;
-                    }
-                    #endregion
-
                     #region Place branch
-                    Branch branch = new Branch(localDb, nearestPlId, location);
+                    Branch branch = new Branch(localDb, location);
                     Result result = branch.Validate();
                     if (result.Status != ResultStatus.OK)
                     {
@@ -2065,6 +2049,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     prdDbg(ex);
+                    AbortGracefully(localDb);
                     return;
                 }
             }
