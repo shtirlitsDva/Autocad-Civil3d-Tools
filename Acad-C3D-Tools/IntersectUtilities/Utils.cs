@@ -763,19 +763,28 @@ namespace IntersectUtilities
             double length = al.Length;
             double step = 0.05;
             int nrOfSteps = (int)(length / step);
+            double station = 0;
 
             for (int i = 0; i < length + 1; i++)
             {
-                double station = 0;
-                if (forwardOrBackward == Enums.TypeOfIteration.Forward)
-                    station = i * step;
-                else station = length - i * step;
-                double x = 0;
-                double y = 0;
-                al.PointLocation(station, 0, ref x, ref y);
-                var tuples = CreateDistTuples(new Point3d(x, y, 0), ents);
-                var min = tuples.OrderBy(t => t.dist);
-                if (min.First().ent is T) return min.First().ent as T;
+                try
+                {
+                    station = 0;
+                    if (forwardOrBackward == Enums.TypeOfIteration.Forward)
+                        station = i * step;
+                    else station = length - i * step;
+                    double x = 0;
+                    double y = 0;
+                    al.PointLocation(station, 0, ref x, ref y);
+                    var tuples = CreateDistTuples(new Point3d(x, y, 0), ents);
+                    var min = tuples.OrderBy(t => t.dist);
+                    if (min.First().ent is T) return min.First().ent as T;
+                }
+                catch (System.Exception)
+                {
+                    prdDbg($"Failing ST: {station}");
+                    throw;
+                }
             }
             return null;
         }
