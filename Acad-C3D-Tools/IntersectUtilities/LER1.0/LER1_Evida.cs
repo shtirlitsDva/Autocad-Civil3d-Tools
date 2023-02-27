@@ -955,14 +955,17 @@ namespace IntersectUtilities
                     #endregion
 
                     //Points to intersect
-                    HashSet<DBPoint> points = new HashSet<DBPoint>(localDb.ListOfType<DBPoint>(tx)
-                                                  .Where(x => 
-                                                  x.Position.Z > -98.0 &&
-                                                  !x.Position.Z.IsZero(0.0001)),
-                                                  new PointDBHorizontalComparer());
+                    HashSet<DBPoint> points = new HashSet<DBPoint>(
+                        localDb.ListOfType<DBPoint>(tx)
+                        .Where(x => 
+                        x.Position.Z > -98.0 
+                        && !x.Position.Z.IsZero(0.0001)
+                        ),
+                        new PointDBHorizontalComparer());
+
                     editor.WriteMessage($"\nNr. of local points: {points.Count}");
                     editor.WriteMessage($"\nTotal number of combinations: " +
-                        $"{points.Count * (localPlines3d.Count)}");
+                        $"{points.Count * localPlines3d.Count}");
 
                     foreach (Polyline3d pline3d in localPlines3d)
                     {
