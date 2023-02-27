@@ -2031,7 +2031,7 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Place branch
-                    Branch branch = new Branch(localDb, location);
+                    Branch branch = new Branch(localDb, Oid.Null, location);
                     Result result = branch.Validate();
                     if (result.Status != ResultStatus.OK)
                     {
