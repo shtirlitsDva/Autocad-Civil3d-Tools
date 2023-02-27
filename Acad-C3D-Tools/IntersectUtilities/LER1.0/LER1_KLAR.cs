@@ -71,19 +71,30 @@ namespace IntersectUtilities
                         .Where(x => x.Layer == "DDG_ledning")
                         .ToHashSet();
 
-                    string layerName = "KLAR_Spildevand";
+                    string layerSpildevand = "KLAR_Spildevand";
+                    string layerRegnvand = "KLAR_Regnvand";
 
-                    localDb.CheckOrCreateLayer(layerName);
+                    localDb.CheckOrCreateLayer(layerSpildevand);
+                    localDb.CheckOrCreateLayer(layerRegnvand);
 
                     foreach (var pline in plines)
                     {
-                        //string system =
-                        //    PropertySetManager.ReadNonDefinedPropertySetString(
-                        //        pline, "DDG_ledning", "system");
+                        string system =
+                            PropertySetManager.ReadNonDefinedPropertySetString(
+                                pline, "DDG_ledning", "system");
 
-                        pline.CheckOrOpenForWrite();
-                        pline.Layer = layerName;
+                        if (system == "Regnvand")
+                        {
+                            pline.CheckOrOpenForWrite();
+                            pline.Layer = layerRegnvand;
+                        }else
+                        {
+                            pline.CheckOrOpenForWrite();
+                            pline.Layer = layerSpildevand;
+                        }
                     }
+
+                    fixlerlayers();
                 }
                 catch (System.Exception ex)
                 {
@@ -121,7 +132,7 @@ namespace IntersectUtilities
             HashSet<Polyline3d> linesWithMissingBothNodes = new HashSet<Polyline3d>();
 
             //Data
-            string propSetNamePipes = "Spildevand_ledning";
+            string propSetNamePipes = "DDG_ledning";
             string propSetNameNodes = "DDG_knude";
 
             //Process all lines and detect with nodes at both ends
@@ -1438,13 +1449,22 @@ namespace IntersectUtilities
                 try
                 {
                     localDb.CheckOrCreateLayer("KLAR_Spildevand-2D");
+                    localDb.CheckOrCreateLayer("KLAR_Regnvand-2D");
 
                     var polies = localDb.HashSetOfType<Polyline3d>(tx);
                     foreach (var item in polies)
                     {
                         if (!item.IsAtZeroElevation()) continue;
                         item.CheckOrOpenForWrite();
-                        item.Layer = "KLAR_Spildevand-2D";
+                        if (item.Layer == "KLAR_Regnvand")
+                        {
+                            item.Layer = "KLAR_Regnvand-2D";
+                        }
+                        else
+                        {
+                            item.Layer = "KLAR_Spildevand-2D";
+                        }
+                        
                         //item.Color = ColorByName("cyan");
                     }
                 }
