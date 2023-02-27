@@ -950,19 +950,19 @@ namespace IntersectUtilities
                 try
                 {
                     #region Load linework from local db
-                    HashSet<Line> localLines = localDb.HashSetOfType<Line>(tx);
-                    editor.WriteMessage($"\nNr. of local lines: {localLines.Count}");
                     HashSet<Polyline3d> localPlines3d = localDb.HashSetOfType<Polyline3d>(tx);
                     editor.WriteMessage($"\nNr. of local 3D polies: {localPlines3d.Count}");
                     #endregion
 
                     //Points to intersect
                     HashSet<DBPoint> points = new HashSet<DBPoint>(localDb.ListOfType<DBPoint>(tx)
-                                                  .Where(x => x.Position.Z > 0.1),
+                                                  .Where(x => 
+                                                  x.Position.Z > -98.0 &&
+                                                  !x.Position.Z.IsZero(0.0001)),
                                                   new PointDBHorizontalComparer());
                     editor.WriteMessage($"\nNr. of local points: {points.Count}");
                     editor.WriteMessage($"\nTotal number of combinations: " +
-                        $"{points.Count * (localLines.Count + localPlines3d.Count)}");
+                        $"{points.Count * (localPlines3d.Count)}");
 
                     foreach (Polyline3d pline3d in localPlines3d)
                     {
