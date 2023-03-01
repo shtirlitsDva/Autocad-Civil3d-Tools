@@ -7691,6 +7691,49 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("RENAMEPROFILESTOMATCHALIGNMENT")]
+        public void renameprofilestomatchalignment()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            Regex regex = new Regex(@"(?<number>^\d{2,3}\s)");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var als = localDb.HashSetOfType<Alignment>(tx);
+                    foreach (var al in als)
+                    {
+                        string alName = al.Name;
+                        if (regex.IsMatch(alName))
+                        {
+                            string alNumber = regex.Match(alName).Groups["number"].Value;
+
+                            foreach (Profile prof in al.GetProfileIds().Entities<Profile>(tx))
+                            {
+                                if (prof.Name.StartsWith(alNumber)) continue;
+
+                                string profName = prof.Name;
+                                string newProfName = regex.Replace(profName, alNumber);
+
+                                prof.CheckOrOpenForWrite();
+                                prof.Name = newProfName;
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         //[CommandMethod("TESTENUMS")]
         public void testenums()
         {
