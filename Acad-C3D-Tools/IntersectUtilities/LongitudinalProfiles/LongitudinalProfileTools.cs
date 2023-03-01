@@ -1038,7 +1038,7 @@ namespace IntersectUtilities
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                #region Open fremtidig db
+                #region Open fremtidig db and get entities
                 DataReferencesOptions dro = new DataReferencesOptions();
                 string projectName = dro.ProjectName;
                 string etapeName = dro.EtapeName;
@@ -1048,7 +1048,8 @@ namespace IntersectUtilities
                 fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
                     FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction fremTx = fremDb.TransactionManager.StartTransaction();
-                HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
+
+                HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
                 #endregion
 
@@ -1414,7 +1415,7 @@ namespace IntersectUtilities
                 fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
                     FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction fremTx = fremDb.TransactionManager.StartTransaction();
-                HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
+                HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
                 #endregion
 
@@ -1940,7 +1941,7 @@ namespace IntersectUtilities
                 fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
                     FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction fremTx = fremDb.TransactionManager.StartTransaction();
-                HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
+                HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
                 #endregion
 

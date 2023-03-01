@@ -1363,7 +1363,7 @@ namespace IntersectUtilities
                             ltr.UpgradeOpen();
                             //Set color back to black
                             //ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 0);
-                            
+
                             //Set color
                             ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, curNode.Value);
                             if (curNode.Next == null) curNode = colorSequence.First;
@@ -1382,6 +1382,73 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("SETPROFILEVIEWSTYLE")]
+        public void setprofileviewstyle()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor ed = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+
+                    #region Stylize Profile Views
+                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
+
+                    foreach (ProfileView pv in pvs)
+                    {
+                        pv.CheckOrOpenForWrite();
+
+                        ObjectIdCollection psIds = pv.AlignmentId.Go<Alignment>(tx).GetProfileIds();
+                        HashSet<Profile> ps = new HashSet<Profile>();
+                        foreach (Oid oid in psIds) ps.Add(oid.Go<Profile>(tx));
+
+                        Profile surfaceProfile = ps.Where(x => x.Name.Contains("surface")).FirstOrDefault();
+                        Oid surfaceProfileId = Oid.Null;
+                        if (surfaceProfile != null) surfaceProfileId = surfaceProfile.ObjectId;
+                        else ed.WriteMessage("\nSurface profile not found!");
+
+                        //this doesn't quite work
+                        Oid pvbsId = civilDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"];
+                        ProfileViewBandSet pvbs = pv.Bands;
+                        pvbs.ImportBandSetStyle(pvbsId);
+
+                        //try this
+                        Oid pvBSId1 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"];
+                        Oid pvBSId2 = civilDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"];
+                        ProfileViewBandItemCollection pvic = new ProfileViewBandItemCollection(pv.Id, BandLocationType.Bottom);
+                        pvic.Add(pvBSId1);
+                        pvic.Add(pvBSId2);
+                        pvbs.SetBottomBandItems(pvic);
+
+                        ProfileViewBandItemCollection pbic = pvbs.GetBottomBandItems();
+                        for (int i = 0; i < pbic.Count; i++)
+                        {
+                            ProfileViewBandItem pvbi = pbic[i];
+                            if (i == 0) pvbi.Gap = 0;
+                            else if (i == 1) pvbi.Gap = 0.016;
+                            if (surfaceProfileId != Oid.Null) pvbi.Profile1Id = surfaceProfileId;
+                            pvbi.LabelAtStartStation = true;
+                            pvbi.LabelAtEndStation = true;
+                        }
+                        pvbs.SetBottomBandItems(pbic);
+                    }
+                    #endregion
+
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    ed.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
     }
 }
