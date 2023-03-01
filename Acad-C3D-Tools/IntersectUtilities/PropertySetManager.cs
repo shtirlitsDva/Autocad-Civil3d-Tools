@@ -151,7 +151,15 @@ namespace IntersectUtilities
         }
         private PropertySet AttachPropertySet(Entity ent)
         {
-            ent.CheckOrOpenForWrite();
+            try
+            {
+                ent.CheckOrOpenForWrite();
+            }
+            catch (System.Exception)
+            {
+                prdDbg(ent.Handle);
+                throw;
+            }
             PropertyDataServices.AddPropertySet(ent, PropertySetDefinition.Id);
 
             return PropertyDataServices.GetPropertySet(ent, this.PropertySetDefinition.Id)

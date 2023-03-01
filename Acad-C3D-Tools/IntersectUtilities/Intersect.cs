@@ -982,7 +982,7 @@ namespace IntersectUtilities
             fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
                 FileOpenMode.OpenForReadAndAllShare, false, null);
             Transaction fremTx = fremDb.TransactionManager.StartTransaction();
-            HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
+            HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
             HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
             // open the LER database
             Database lerDb = new Database(false, true);
@@ -2136,7 +2136,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("importlabelstyles")]
+        [CommandMethod("IMPORTCIVILSTYLES")]
         public void importlabelstyles()
         {
             try
@@ -2201,12 +2201,13 @@ namespace IntersectUtilities
                             objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"]);
                             objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"]);
                             objIds.Add(stylesDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"]);
-
+                            
                             //Matchline styles
                             objIds.Add(stylesDoc.Styles.MatchLineStyles["Basic"]);
 
                             //Point styles
                             objIds.Add(stylesDoc.Styles.PointStyles["PIL"]);
+                            objIds.Add(stylesDoc.Styles.PointStyles["LER KRYDS"]);
 
                             //Point label styles
                             objIds.Add(stylesDoc.Styles.LabelStyles.PointLabelStyles.LabelStyles["_No labels"]);
@@ -2224,7 +2225,8 @@ namespace IntersectUtilities
                             //}
 
                             //prdDbg("Stylebase.ExportTo() doesn't work!");
-                            Autodesk.Civil.DatabaseServices.Styles.StyleBase.ExportTo(objIds, localDb, Autodesk.Civil.StyleConflictResolverType.Override);
+                            Autodesk.Civil.DatabaseServices.Styles.StyleBase.ExportTo(
+                                objIds, localDb, Autodesk.Civil.StyleConflictResolverType.Override);
                         }
                         catch (System.Exception)
                         {
