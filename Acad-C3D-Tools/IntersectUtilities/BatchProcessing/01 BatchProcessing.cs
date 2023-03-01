@@ -99,7 +99,7 @@ namespace IntersectUtilities
 
                     foreach (string fileName in fileList)
                     {
-                        prdDbg(fileName);
+                        //prdDbg(fileName);
                         string file = path + fileName;
                         using (Database xDb = new Database(false, true))
                         {
@@ -204,7 +204,7 @@ namespace IntersectUtilities
                                     //result = fixlongitudinalprofiles(xDb);
 
                                     //List viewFrame numbers
-                                    //result = listvfnumbers(xDb);
+                                    result = listvfnumbers(xDb);
 
                                     //Renumber viewframes
                                     //result = renumbervfs(xDb, ref count);
@@ -231,7 +231,7 @@ namespace IntersectUtilities
                                     //result = fixdrawings(xDb);
 
                                     //vpfreeze c-anno-mtch in minipam
-                                    result = vpfreezecannomtch(xDb);
+                                    //result = vpfreezecannomtch(xDb);
 
                                     switch (result.Status)
                                     {
@@ -260,7 +260,7 @@ namespace IntersectUtilities
                                 }
                                 xTx.Commit();
                             }
-                            xDb.SaveAs(xDb.Filename, true, DwgVersion.Newest, xDb.SecurityParameters);
+                            //xDb.SaveAs(xDb.Filename, true, DwgVersion.Newest, xDb.SecurityParameters);
                         }
                         System.Windows.Forms.Application.DoEvents();
                     }
