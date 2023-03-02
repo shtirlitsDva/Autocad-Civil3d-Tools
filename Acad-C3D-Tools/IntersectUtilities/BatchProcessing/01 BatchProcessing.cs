@@ -204,10 +204,10 @@ namespace IntersectUtilities
                                     //result = fixlongitudinalprofiles(xDb);
 
                                     //List viewFrame numbers
-                                    //result = listvfnumbers(xDb);
+                                    //result = listvfnumbers(xDb, ref count);
 
                                     //Renumber viewframes
-                                    result = renumbervfs(xDb, ref count);
+                                    //result = renumbervfs(xDb, ref count);
 
                                     //Correct field in blocks
                                     //result = correctfieldinblock(xDb);
@@ -219,7 +219,7 @@ namespace IntersectUtilities
                                     //result = alignmentsnoshow(xDb);
 
                                     //Set alignment to NO SHOW and add LABELS 20-5
-                                    //result = alignmentsnoshowandlabels(xDb);
+                                    result = alignmentsnoshowandlabels(xDb);
 
                                     //Freeze layers in viewport
                                     //result = vpfreezelayers(xDb);
@@ -526,7 +526,7 @@ namespace IntersectUtilities
 
             return new Result();
         }
-        private Result listvfnumbers(Database xDb)
+        private Result listvfnumbers(Database xDb, ref int count)
         {
             Transaction xTx = xDb.TransactionManager.TopTransaction;
 
@@ -537,7 +537,10 @@ namespace IntersectUtilities
                 var ents = ids.Entities<ViewFrame>(xTx);
                 foreach (var item in ents)
                 {
-                    prdDbg(item.Name);
+                    count++;
+                    int vfNumber = Convert.ToInt32(item.Name);
+                    if (count != vfNumber) prdDbg(item.Name + " <- Fejl! Skal være " + count + ".");
+                    else prdDbg(item.Name);
                 }
             }
             return new Result();
