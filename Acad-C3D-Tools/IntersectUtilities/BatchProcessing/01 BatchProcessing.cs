@@ -204,10 +204,10 @@ namespace IntersectUtilities
                                     //result = fixlongitudinalprofiles(xDb);
 
                                     //List viewFrame numbers
-                                    result = listvfnumbers(xDb);
+                                    //result = listvfnumbers(xDb);
 
                                     //Renumber viewframes
-                                    //result = renumbervfs(xDb, ref count);
+                                    result = renumbervfs(xDb, ref count);
 
                                     //Correct field in blocks
                                     //result = correctfieldinblock(xDb);
@@ -217,6 +217,9 @@ namespace IntersectUtilities
 
                                     //Set alignment to NO SHOW
                                     //result = alignmentsnoshow(xDb);
+
+                                    //Set alignment to NO SHOW and add LABELS 20-5
+                                    //result = alignmentsnoshowandlabels(xDb);
 
                                     //Freeze layers in viewport
                                     //result = vpfreezelayers(xDb);
@@ -260,7 +263,7 @@ namespace IntersectUtilities
                                 }
                                 xTx.Commit();
                             }
-                            //xDb.SaveAs(xDb.Filename, true, DwgVersion.Newest, xDb.SecurityParameters);
+                            xDb.SaveAs(xDb.Filename, true, DwgVersion.Newest, xDb.SecurityParameters);
                         }
                         System.Windows.Forms.Application.DoEvents();
                     }
@@ -549,9 +552,13 @@ namespace IntersectUtilities
                 var ids = vfg.GetViewFrameIds();
                 var ents = ids.Entities<ViewFrame>(xTx);
 
+                Dictionary<Oid, string> oNames = new Dictionary<Oid, string>();
+
                 Random rnd = new Random();
                 foreach (var item in ents)
                 {
+                    oNames.Add(item.Id, item.Name);
+
                     item.CheckOrOpenForWrite();
                     item.Name = rnd.Next(1, 999999).ToString("000000");
                 }
@@ -562,7 +569,7 @@ namespace IntersectUtilities
                     string previousName = item.Name;
                     item.CheckOrOpenForWrite();
                     item.Name = count.ToString("000");
-                    prdDbg($"{previousName} -> {item.Name}");
+                    prdDbg($"{oNames[item.Id]} -> {item.Name}");
                 }
             }
             return new Result();
@@ -636,6 +643,24 @@ namespace IntersectUtilities
             {
                 al.CheckOrOpenForWrite();
                 al.StyleId = alStyle;
+            }
+            return new Result();
+        }
+        private Result alignmentsnoshowandlabels(Database xDb)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+
+            var cDoc = CivilDocument.GetCivilDocument(xDb);
+            Oid alStyle = cDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
+            Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
+            
+            HashSet<Alignment> als = xDb.HashSetOfType<Alignment>(xTx);
+
+            foreach (Alignment al in als)
+            {
+                al.CheckOrOpenForWrite();
+                al.StyleId = alStyle;
+                al.ImportLabelSet(labelSetStyle);
             }
             return new Result();
         }

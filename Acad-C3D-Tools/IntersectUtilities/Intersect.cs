@@ -5891,7 +5891,7 @@ namespace IntersectUtilities
                     //    var ents = ids.Entities<ViewFrame>(tx);
                     //    foreach (var item in ents)
                     //    {
-                    //        prdDbg(item.Name);
+                    //        prdDbg(item.Name + " " + item.StartStation);
                     //    }
                     //}
                     #endregion
