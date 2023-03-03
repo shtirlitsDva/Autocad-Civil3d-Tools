@@ -1382,6 +1382,206 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("HALXREFS")]
+        public void halxrefs()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var bt = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForRead);
+                    var ms = (BlockTableRecord)tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+
+                    foreach (Oid id in ms)
+                    {
+                        var br = tx.GetObject(id, OpenMode.ForRead) as BlockReference;
+                        if (br == null) continue;
+
+                        var bd = (BlockTableRecord)tx.GetObject(br.BlockTableRecord, OpenMode.ForRead);
+                        if (!bd.IsFromExternalReference) continue;
+
+                        var xdb = bd.GetXrefDatabase(false);
+                        if (xdb == null) continue;
+                        string fileName = xdb.Filename;
+
+                        editor.WriteMessage($"\n{xdb.Filename}.");
+                        System.Windows.Forms.Application.DoEvents();
+                        if (IsFileLockedOrReadOnly(new FileInfo(fileName)))
+                        {
+                            editor.WriteMessage("\nUnable to modify the external reference. " +
+                                                  "It may be open in the editor or read-only.");
+                            System.Windows.Forms.Application.DoEvents();
+                        }
+                        else
+                        {
+                            using (var xf = XrefFileLock.LockFile(xdb.XrefBlockId))
+                            {
+                                //Make sure the original symbols are loaded
+                                xdb.RestoreOriginalXrefSymbols();
+                                // Depending on the operation you're performing,
+                                // you may need to set the WorkingDatabase to
+                                // be that of the Xref
+                                //HostApplicationServices.WorkingDatabase = xdb;
+
+                                using (Transaction xTx = xdb.TransactionManager.StartTransaction())
+                                {
+                                    try
+                                    {
+                                        CivilDocument sDoc = CivilDocument.GetCivilDocument(xdb);
+                                        Oid alStyle;
+                                        Oid labelSetStyle;
+                                        if (sDoc.Styles.AlignmentStyles.Contains("FJV TRACE NO SHOW") &&
+                                            sDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles
+                                            .Contains("_No Labels"))
+                                        {
+                                            alStyle = sDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
+                                            labelSetStyle = sDoc.Styles.LabelSetStyles
+                                                .AlignmentLabelSetStyles["_No Labels"];
+
+                                            HashSet<Alignment> als = xdb.HashSetOfType<Alignment>(xTx);
+
+                                            foreach (Alignment al in als)
+                                            {
+                                                al.CheckOrOpenForWrite();
+                                                al.StyleId = alStyle;
+                                                al.ImportLabelSet(labelSetStyle);
+                                            }
+                                        }
+                                    }
+                                    catch (System.Exception)
+                                    {
+                                        xTx.Abort();
+                                        tx.Abort();
+                                        xdb.RestoreForwardingXrefSymbols();
+                                        return;
+                                        //throw;
+                                    }
+
+                                    xTx.Commit();
+                                }
+                                // And then set things back, afterwards
+                                //HostApplicationServices.WorkingDatabase = db;
+                                xdb.RestoreForwardingXrefSymbols();
+                            }
+                        }
+
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("RALXREFS")]
+        public void ralxrefs()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var bt = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForRead);
+                    var ms = (BlockTableRecord)tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+
+                    foreach (Oid id in ms)
+                    {
+                        var br = tx.GetObject(id, OpenMode.ForRead) as BlockReference;
+                        if (br == null) continue;
+
+                        var bd = (BlockTableRecord)tx.GetObject(br.BlockTableRecord, OpenMode.ForRead);
+                        if (!bd.IsFromExternalReference) continue;
+
+                        var xdb = bd.GetXrefDatabase(false);
+                        if (xdb == null) continue;
+                        string fileName = xdb.Filename;
+
+                        editor.WriteMessage($"\n{xdb.Filename}.");
+                        System.Windows.Forms.Application.DoEvents();
+                        if (IsFileLockedOrReadOnly(new FileInfo(fileName)))
+                        {
+                            editor.WriteMessage("\nUnable to modify the external reference. " +
+                                                  "It may be open in the editor or read-only.");
+                            System.Windows.Forms.Application.DoEvents();
+                        }
+                        else
+                        {
+                            using (var xf = XrefFileLock.LockFile(xdb.XrefBlockId))
+                            {
+                                //Make sure the original symbols are loaded
+                                xdb.RestoreOriginalXrefSymbols();
+                                // Depending on the operation you're performing,
+                                // you may need to set the WorkingDatabase to
+                                // be that of the Xref
+                                //HostApplicationServices.WorkingDatabase = xdb;
+
+                                using (Transaction xTx = xdb.TransactionManager.StartTransaction())
+                                {
+                                    try
+                                    {
+                                        CivilDocument sDoc = CivilDocument.GetCivilDocument(xdb);
+                                        Oid alStyle;
+                                        Oid labelSetStyle;
+                                        if (sDoc.Styles.AlignmentStyles.Contains("FJV TRACÉ SHOW") &&
+                                            sDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles
+                                            .Contains("STD 20-5"))
+                                        {
+                                            alStyle = sDoc.Styles.AlignmentStyles["FJV TRACÉ SHOW"];
+                                            labelSetStyle = sDoc.Styles.LabelSetStyles
+                                                .AlignmentLabelSetStyles["STD 20-5"];
+
+                                            HashSet<Alignment> als = xdb.HashSetOfType<Alignment>(xTx);
+
+                                            foreach (Alignment al in als)
+                                            {
+                                                al.CheckOrOpenForWrite();
+                                                al.StyleId = alStyle;
+                                                al.ImportLabelSet(labelSetStyle);
+                                            }
+                                        }
+                                    }
+                                    catch (System.Exception)
+                                    {
+                                        xTx.Abort();
+                                        tx.Abort();
+                                        xdb.RestoreForwardingXrefSymbols();
+                                        return;
+                                        //throw;
+                                    }
+
+                                    xTx.Commit();
+                                }
+                                // And then set things back, afterwards
+                                //HostApplicationServices.WorkingDatabase = db;
+                                xdb.RestoreForwardingXrefSymbols();
+                            }
+                        }
+
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("SETPROFILEVIEWSTYLE")]
         public void setprofileviewstyle()
         {
