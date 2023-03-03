@@ -7734,6 +7734,52 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("SELECTCUSTOMREDUCERS")]
+        [CommandMethod("SCR")]
+        public void selectcustomreducers()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
+                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var brs = localDb.GetFjvEntities(tx, dt)
+                        .Where(x => x is BlockReference).Cast<BlockReference>();
+
+                    var query = brs.Where(x =>
+                    {
+                        if (x.RealName() != "RED KDLR" &&
+                            x.RealName() != "RED KDLR x2") return false;
+
+                        string type = x.ReadDynamicPropertyValue("Type");
+
+                        if (type == "Custom") return true;
+                        else return false;
+                    }).Select(x => x.Id);
+
+                    var result = query.ToArray(); 
+
+                    if (result.Length > 0)
+                        editor.SetImpliedSelection(result);
+
+                }
+                catch (System.Exception ex)
+                {
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         //[CommandMethod("TESTENUMS")]
         public void testenums()
         {

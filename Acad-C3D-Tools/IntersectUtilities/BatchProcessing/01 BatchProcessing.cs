@@ -213,7 +213,7 @@ namespace IntersectUtilities
                                     //result = correctfieldinblock(xDb);
 
                                     //Hide alignments in files (run hal)
-                                    //result = hidealignments(xDb);
+                                    result = hidealignments(xDb);
 
                                     //Set alignment to NO SHOW
                                     //result = alignmentsnoshow(xDb);
