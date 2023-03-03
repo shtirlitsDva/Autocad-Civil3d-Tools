@@ -749,8 +749,9 @@ namespace IntersectUtilities
                                 }
                                 catch (System.Exception)
                                 {
-                                    editor.WriteMessage($"\nBottom profile at {pvStStart + delta * i} threw an exception! " +
-                                        $"PV: {pv.StationStart}-{pv.StationEnd}.");
+                                    editor.WriteMessage($"\nBottom profile {bottomProfile.Name} at " +
+                                        $"{pvStStart + delta * i} threw an exception! " +
+                                        $"PV {pv.Name}: {pv.StationStart}-{pv.StationEnd}.");
                                     continue;
                                 }
                                 minElevs.Add(bottomTestEl);

@@ -186,6 +186,7 @@ namespace IntersectUtilities
                             Vector3d brDir = new Vector3d(Math.Cos(rotation), Math.Sin(rotation), 0);
 
                             //First
+                            prdDbg(first.al.Name);
                             Point3d firstClosestPoint = first.al.GetClosestPointTo(br.Position, false);
                             Vector3d firstDeriv = first.al.GetFirstDerivative(firstClosestPoint);
                             double firstDotProduct = Math.Abs(brDir.DotProduct(firstDeriv));
@@ -193,6 +194,7 @@ namespace IntersectUtilities
                             //prdDbg($"Dot product: {brDir.DotProduct(firstDeriv)}");
 
                             //Second
+                            prdDbg(second.al.Name);
                             Point3d secondClosestPoint = second.al.GetClosestPointTo(br.Position, false);
                             Vector3d secondDeriv = second.al.GetFirstDerivative(secondClosestPoint);
                             double secondDotProduct = Math.Abs(brDir.DotProduct(secondDeriv));

@@ -281,7 +281,7 @@ namespace IntersectUtilities.UtilsCommon
             Kobberflex,
             AluPex
         }
-        public enum DynamiskProperty
+        public enum DynamicProperty
         {
             None,
             Navn,
@@ -1771,34 +1771,7 @@ namespace IntersectUtilities.UtilsCommon
             //    tr.AddNewlyCreatedDBObject(attRef, true);
             //}
         }
-        public static string ReadDynamiskCsvProperty(
-            this BlockReference br, DynamiskProperty prop,
-            System.Data.DataTable dt, bool parseProperty = true)
-        {
-            string key = br.RealName();
-            string parameter = prop.ToString();
-            string version = br.GetAttributeStringValue("VERSION");
-            //int keyColumnIdx = 0
-            {
-                if (dt.AsEnumerable().Any(row => row.Field<string>(0) == key))
-                {
-                    var query = dt.AsEnumerable()
-                        .Where(x =>
-                        x.Field<string>(0) == key &&
-                        x.Field<string>("Version") == version)
-                        .Select(x => x.Field<string>(parameter));
-
-                    string value = query.FirstOrDefault();
-                    if (parseProperty)
-                    {
-                        value = ConstructStringByRegex(br, value);
-                        return value;
-                    }
-                    else return value;
-                }
-                else return default;
-            }
-        }
+        
         private static string ConstructStringByRegex(BlockReference br, string stringToProcess)
         {
             //Construct pattern which matches the parameter definition
