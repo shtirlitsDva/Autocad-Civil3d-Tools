@@ -1451,7 +1451,7 @@ namespace IntersectUtilities
                     localDb.CheckOrCreateLayer("KLAR_Spildevand-2D");
                     localDb.CheckOrCreateLayer("KLAR_Regnvand-2D");
 
-                    var polies = localDb.HashSetOfType<Polyline3d>(tx);
+                    var polies = localDb.HashSetOfType<Polyline3d>(tx, true);
                     foreach (var item in polies)
                     {
                         if (!item.IsAtZeroElevation()) continue;
