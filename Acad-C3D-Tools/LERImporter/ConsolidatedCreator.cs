@@ -20,6 +20,7 @@ using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using DataTable = System.Data.DataTable;
 using static IntersectUtilities.UtilsCommon.Utils;
 using Autodesk.AutoCAD.Geometry;
+using MoreLinq;
 
 namespace LERImporter
 {
@@ -75,6 +76,7 @@ namespace LERImporter
                         throw new System.Exception($"Unexpected type encountered {fm.item.GetType().Name}!");
                 }
             }
+            ownersRegister = ownersRegister.DistinctBy(x => x.ledningsejer).ToHashSet();
             #endregion
 
             #region Draw graveforesp polygon

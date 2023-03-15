@@ -107,7 +107,10 @@
     <Compile Include="..\IntersectUtilities\FolderSelectDialog.cs">
       <Link>FolderSelectDialog.cs</Link>
     </Compile>
-    <Compile Include="..\IntersectUtilities\MoreLinq.cs">
+    <Compile Include="..\IntersectUtilities\MoreLinq\DistinctBy.cs">
+      <Link>DistinctBy.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\MoreLinq\MoreLinq.cs">
       <Link>MoreLinq.cs</Link>
     </Compile>
     <Compile Include="..\IntersectUtilities\PipeSchedule.cs">
@@ -115,6 +118,9 @@
     </Compile>
     <Compile Include="..\IntersectUtilities\PropertySetManager.cs">
       <Link>PropertySetManager.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\Reflector.cs">
+      <Link>Reflector.cs</Link>
     </Compile>
     <Compile Include="..\IntersectUtilities\UtilsCommon.cs">
       <Link>UtilsCommon.cs</Link>

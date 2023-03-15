@@ -231,11 +231,12 @@
     <Compile Include="LER1.0\LER1_Fibia.cs" />
     <Compile Include="LER1.0\Partial_Template.cs" />
     <Compile Include="LongitudinalProfiles\LongitudinalProfileTools.cs" />
+    <Compile Include="MoreLinq\DistinctBy.cs" />
     <Compile Include="MyGraphQA.cs" />
     <Compile Include="MyGraph.cs" />
     <Compile Include="ObsoleteMethods.cs" />
     <Compile Include="Intersect.cs" />
-    <Compile Include="MoreLinq.cs" />
+    <Compile Include="MoreLinq\MoreLinq.cs" />
     <Compile Include="ODDataConverter.cs" />
     <Compile Include="ODDataReader.cs" />
     <Compile Include="PipeSchedule.cs" />
