@@ -401,6 +401,7 @@ namespace LERImporter
 
                 #region Deserialize gml
                 Schema.FeatureCollection gfCombined = new Schema.FeatureCollection();
+                gfCombined.featureCollection = new List<Schema.FeatureMember>();
                 foreach (var file in modList)
                 {
                     var serializer = new XmlSerializer(typeof(Schema.FeatureCollection));
