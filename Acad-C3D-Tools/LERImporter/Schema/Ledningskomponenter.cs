@@ -169,6 +169,40 @@ namespace LERImporter.Schema
         public double Bundkote { get => this.bundkote?.GetDouble() ?? 0.0; }
         [PsInclude]
         public double Topkote { get => this.topkote?.GetDouble() ?? 0.0; }
+        [PsInclude]
+        public string MedieType { get => this.getMedietype().ToString() ?? string.Empty; }
+        public string medietype { get; set; }
+        private MedietypeEnum getMedietype()
+        {
+            if (this.medietype.IsNoE())
+            {
+                Log.log($"WARNING! Element id {gmlid} has NO Medietype specified!");
+                return MedietypeEnum.ukendt;
+            }
+
+            MedietypeEnum type;
+            if (Enum.TryParse(this.medietype, out type)) return type;
+            else
+            {
+                Log.log($"WARNING! Element id {gmlid} has non-standard Medietype {this.medietype}!");
+                return MedietypeEnum.ukendt;
+            }
+        }
+        public enum MedietypeEnum
+        {
+            ukendt,
+            drænvand,
+            fællesvand,
+            [XmlEnumAttribute("industri/procesvand")]
+            industriprocesvand,
+            [XmlEnumAttribute("intet medie")]
+            intetmedie,
+            perkolat,
+            regnvand,
+            spildevand,
+            [XmlEnumAttribute("vand uden rensekrav")]
+            vandudenrensekrav,
+        }
         #endregion
         public ObjectId DrawComponent(Database database)
         {

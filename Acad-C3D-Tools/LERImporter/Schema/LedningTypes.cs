@@ -48,6 +48,7 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
 using Log = LERImporter.SimpleLogger;
+using static LERImporter.Schema.ElledningType;
 
 namespace LERImporter.Schema
 {
@@ -429,7 +430,9 @@ namespace LERImporter.Schema
             /// vand til fjernkøling
             /// </summary>
             [XmlEnumAttribute("koldt vand")]
-            koldtvand
+            koldtvand,
+            glykol,
+            sprit
         }
     }
     public partial class GasledningType : ILerLedning
@@ -573,7 +576,40 @@ namespace LERImporter.Schema
         public bool HarFod { get => this.harFod?.Value ?? false; }
         [PsInclude]
         public string LedningstransportType { get => this.ledningstransporttype?.Value.ToString() ?? ""; }
-        public LedningstransporttypeType? ledningstransportType { get => this.ledningstransporttype?.Value; }
+        [PsInclude]
+        public string MedieType { get => this.getMedietype().ToString() ?? string.Empty; }
+        public string medietype { get; set; }
+        private MedietypeEnum getMedietype()
+        {
+            if (this.medietype.IsNoE())
+            {
+                Log.log($"WARNING! Element id {gmlid} has NO Medietype specified!");
+                return MedietypeEnum.ukendt;
+            }
+
+            MedietypeEnum type;
+            if (Enum.TryParse(this.medietype, out type)) return type;
+            else
+            {
+                Log.log($"WARNING! Element id {gmlid} has non-standard Medietype {this.medietype}!");
+                return MedietypeEnum.ukendt;
+            }
+        }
+        public enum MedietypeEnum
+        {
+            ukendt,
+            drænvand,
+            fællesvand,
+            [XmlEnumAttribute("industri/procesvand")]
+            industriprocesvand,
+            [XmlEnumAttribute("intet medie")]
+            intetmedie,
+            perkolat,
+            regnvand,
+            spildevand,
+            [XmlEnumAttribute("vand uden rensekrav")]
+            vandudenrensekrav,
+        }
         private string DetermineLayerName(Database database, bool _3D = false)
         {
             string layerName = "Afløbsledning";
@@ -808,7 +844,10 @@ namespace LERImporter.Schema
             forsyningskabel,
             luftledning,
             stikkabel,
-            vejbelysningskabel
+            vejbelysningskabel,
+            [XmlEnumAttribute("KB-kabel")]
+            KBkabel,
+            signalkabel
         }
     }
     public partial class AndenLedningType : ILerLedning

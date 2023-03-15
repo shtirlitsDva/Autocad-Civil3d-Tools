@@ -192,6 +192,10 @@ namespace LERImporter.Schema
         /// konstruktion omfattende en udskillerfunktion, tilslutninger evt. overløbskanter mv
         /// </summary>
         udskillerbygværk,
+        [XmlEnumAttribute("permeabel belægning")]
+        permeabelbelægning,
+        regnbed,
+        wadi
     }
 
     /// <summary>
@@ -5922,6 +5926,18 @@ namespace LERImporter.Schema
         /// komponent der sidder på en ledning og bruges til aflukning og evt. aftapning
         /// </summary>
         ventil,
+        alarmudtag,
+        anodebed,
+        beskyttelsesplade,
+        betonkanal,
+        bukserør,
+        bygværk,
+        dæksel,
+        fundament,
+        pælefundering,
+        reduktion,
+        spunsvæg,
+        tunnel
     }
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
@@ -6043,11 +6059,6 @@ namespace LERImporter.Schema
         /// komponent der bruges til at jorde en stålledning eller et ktb-anlæg
         /// </summary>
         jordspyd,
-        /// <summary>
-        /// del af anlæg til katodisk beskyttelse
-        /// </summary>
-        [XmlEnumAttribute("KB-kabel")]
-        KBkabel,
         [XmlEnumAttribute("målepunkt på stålrør")]
         målepunktpåstålrør,
         /// <summary>
@@ -6094,6 +6105,11 @@ namespace LERImporter.Schema
         /// brøndkonstruktion til at få adgang til at betjene en ventil
         /// </summary>
         ventilbrønd,
+        afmærkningsstander,
+        beskyttelsesplade,
+        boring,
+        gasbehandlingsanlæg,
+        tunnel
     }
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
@@ -6159,6 +6175,10 @@ namespace LERImporter.Schema
         /// </summary>
         [XmlEnumAttribute("mastefundament uden mast")]
         mastefundamentudenmast,
+        [XmlEnumAttribute("signalmast med galge")]
+        signalmastmedgalge,
+        [XmlEnumAttribute("signalmast uden galge")]
+        signalmastudengalge,
         /// <summary>
         /// muffe der benyttes til at samle to kabler på en måde, så den ikke kan åbnes igen
         /// </summary>
@@ -6193,11 +6213,14 @@ namespace LERImporter.Schema
         /// <summary>
         /// lampe til gadebelysning
         /// </summary>
-        vejbelysningsarmatur,
+        belysningsarmatur,
         /// <summary>
         /// kraftværk som omdanner vindenergi til elektricitet
         /// </summary>
         vindmølle,
+        kvejl,
+        sensor,
+        spole
     }
 
     /// <summary>
