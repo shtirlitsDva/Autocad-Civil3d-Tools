@@ -88,7 +88,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\IntersectUtilities\MoreLinq.cs">
+    <Compile Include="..\IntersectUtilities\MoreLinq\MoreLinq.cs">
       <Link>MoreLinq.cs</Link>
     </Compile>
     <Compile Include="..\IntersectUtilities\PipeSchedule.cs">
