@@ -725,7 +725,7 @@ namespace LERImporter.Schema
     public partial class ElledningType : ILerLedning
     {
         [PsInclude]
-        public string Type { get => Type2.ToString(); }
+        public string Type { get => getLedningsType(); }
         [PsInclude]
         public string Afdækning { get => this.afdaekning; }
         [PsInclude]
@@ -736,23 +736,22 @@ namespace LERImporter.Schema
         public string KabelType { get => this.kabeltype; }
         [PsInclude]
         public string SpædningsNiveau { get => this.spaendingsniveau?.Value.ToString() + this.spaendingsniveau?.uom ?? ""; }
-        public ElledningTypeEnum Type2 { get => getElledningTypeType(); }
-        private ElledningTypeEnum getElledningTypeType()
+        private string getLedningsType()
         {
-            if (this.type.Value.IsNoE())
+            if (this.type.IsNoE()) return "";
+            if (this.type.StartsWith("other:"))
             {
-                Log.log($"WARNING! Element id {gmlid} has NO ElledningType specified!");
-                return ElledningTypeEnum.none;
+                string tmp = this.type.Replace("other:", "");
+                tmp = tmp.Trim();
+                return tmp;
             }
-
-            ElledningTypeEnum type;
-            if (Enum.TryParse(this.type.Value, out type)) return type;
-            else
-            {
-                Log.log($"WARNING! Element id {gmlid} has non-standard ElledningType {this.type.Value}!");
-                return ElledningTypeEnum.other;
-            }
+            else return this.type;
         }
+        /// <summary>
+        /// kategori
+        /// </summary>
+        [XmlElement(IsNullable = true)]
+        public string type { get; set; }
         private string DetermineLayerName(Database database, bool _3D = false)
         {
             #region Determine correct layer name
@@ -772,13 +771,18 @@ namespace LERImporter.Schema
                         $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus.ToString()}!");
             }
 
-            switch (getElledningTypeType())
+            ElledningTypeEnum type;
+            if (Enum.TryParse(this.getLedningsType(), out type)) { }
+            else { type = ElledningTypeEnum.other; }
+                
+
+            switch (type)
             {
                 case ElledningTypeEnum.none:
                     layerName = "0-ERROR-ElledningType-none";
                     break;
                 case ElledningTypeEnum.other:
-                    layerName = "0-ERROR-ElledningType-other";
+                    layerName = "EL-ElledningType-other";
                     break;
                 case ElledningTypeEnum.beskyttelsesleder:
                     layerName = "EL-Beskyttelsesleder";
@@ -794,6 +798,12 @@ namespace LERImporter.Schema
                     break;
                 case ElledningTypeEnum.vejbelysningskabel:
                     layerName = "EL-Vejbelysningskabel";
+                    break;
+                case ElledningTypeEnum.KBkabel:
+                    layerName = "EL-KBkabel";
+                    break;
+                case ElledningTypeEnum.signalkabel:
+                    layerName = "EL-Signalkabel";
                     break;
                 default:
                     layerName = "0-ERROR-ElledningType-other";

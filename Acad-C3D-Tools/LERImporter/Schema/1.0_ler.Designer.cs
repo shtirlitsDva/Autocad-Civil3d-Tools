@@ -7031,11 +7031,6 @@ namespace LERImporter.Schema
     public partial class ElledningType : LedningType
     {
         /// <summary>
-        /// kategori
-        /// </summary>
-        [XmlElement(IsNullable = true)]
-        public ElledningTypeType type { get; set; }
-        /// <summary>
         /// det at dække noget til for at beskytte det
         /// </summary>
         public string afdaekning { get; set; }
