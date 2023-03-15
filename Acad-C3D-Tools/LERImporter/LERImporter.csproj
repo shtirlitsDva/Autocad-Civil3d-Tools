@@ -104,6 +104,9 @@
     <Compile Include="..\IntersectUtilities\CsvReader.cs">
       <Link>CsvReader.cs</Link>
     </Compile>
+    <Compile Include="..\IntersectUtilities\FolderSelectDialog.cs">
+      <Link>FolderSelectDialog.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\MoreLinq.cs">
       <Link>MoreLinq.cs</Link>
     </Compile>

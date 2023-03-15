@@ -27,6 +27,7 @@ using System.Xml.Serialization;
 //using MoreLinq;
 //using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
+using FolderSelect;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 //using static IntersectUtilities.Enums;
@@ -322,6 +323,126 @@ namespace LERImporter
                         try
                         {
                             LERImporter.ConsolidatedCreator.CreateLerData(ler2dDb, ler3dDb, gf);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            Log.log(ex.ToString());
+                            ler2dTx.Abort();
+                            ler2dDb.Dispose();
+                            ler3dTx.Abort();
+                            ler3dDb.Dispose();
+                            throw;
+                        }
+
+                        ler2dTx.Commit();
+                        ler3dTx.Commit();
+                    }
+
+                    //Save the new dwg file
+                    ler2dDb.SaveAs(new2dFilename, DwgVersion.Current);
+                    ler3dDb.SaveAs(new3dFilename, DwgVersion.Current);
+                    //ler2dDb.Dispose();
+                }
+                #endregion
+
+            }
+            catch (System.Exception ex)
+            {
+                Log.log(ex.ToString());
+                return;
+            }
+        }
+
+        [CommandMethod("IMPORTCONSOLIDATEDGMLBATCH")]
+        public void importconsolidatedbatch()
+        {
+            try
+            {
+                #region Get file and folder of gml
+                string pathToTopFolder = string.Empty;
+                FolderSelectDialog fsd = new FolderSelectDialog()
+                {
+                    Title = "Choose folder where gml files are stored: ",
+                    InitialDirectory = @"C:\"
+                };
+                if (fsd.ShowDialog(IntPtr.Zero))
+                {
+                    pathToTopFolder = fsd.FileName + "\\";
+                }
+                else return;
+
+                var files = Directory.EnumerateFiles(pathToTopFolder, "consolidated.gml", SearchOption.AllDirectories);
+                #endregion
+
+                Log.LogFileName = pathToTopFolder + "LerImport.log";
+
+                #region Replace ler:id with ler:lerid
+                List<string> modList = new List<string>();
+                foreach (var file in files)
+                {
+                    string fileName = Path.GetFileNameWithoutExtension(file);
+                    string extension = Path.GetExtension(file);
+                    string folderPath = Path.GetDirectoryName(file) + "\\";
+
+                    Log.log($"Importing {file}");
+
+                    
+                    string str = File.ReadAllText(file);
+                    str = str.Replace("<ler:id>", "<ler:lerid>");
+                    str = str.Replace("</ler:id>", "</ler:lerid>");
+
+                    string modifiedFileName =
+                        folderPath + "\\" + fileName + "_mod" + extension;
+
+                    File.WriteAllText(modifiedFileName, str);
+                    modList.Add(modifiedFileName);
+                }
+                #endregion
+
+                #region Deserialize gml
+                Schema.FeatureCollection gfCombined = new Schema.FeatureCollection();
+                foreach (var file in modList)
+                {
+                    var serializer = new XmlSerializer(typeof(Schema.FeatureCollection));
+                    Schema.FeatureCollection gf;
+
+                    using (var fileStream = new FileStream(file, FileMode.Open))
+                    {
+                        gf = (Schema.FeatureCollection)serializer.Deserialize(fileStream);
+                    }
+
+                    gfCombined.featureCollection.AddRange(gf.featureCollection);
+                }
+                #endregion
+
+                #region Create database for 2D ler
+                using (Database ler2dDb = new Database(false, true))
+                using (Database ler3dDb = new Database(false, true))
+                {
+                    ler2dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Templates\LerTemplate.dwt",
+                                FileOpenMode.OpenForReadAndAllShare, false, null);
+                    ler3dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Templates\LerTemplate.dwt",
+                                FileOpenMode.OpenForReadAndAllShare, false, null);
+                    //Build the new future file name of the drawing
+                    var query = gfCombined.featureCollection.Where(x => x.item is Schema.Graveforesp);
+                    string bemaerkning = default;
+                    if (query.Count() > 0)
+                    {
+                        Schema.Graveforesp gfsp = query.First().item as Schema.Graveforesp;
+                        bemaerkning = gfsp.bemaerkning;
+                        if (bemaerkning.IsNotNoE()) bemaerkning += "_";
+                    }
+                    string new2dFilename = $"{pathToTopFolder}{bemaerkning ?? ""}LER_2D.dwg";
+                    Log.log($"Writing Ler 2D to new dwg file:\n" + $"{new2dFilename}.");
+                    string new3dFilename = $"{pathToTopFolder}{bemaerkning ?? ""}LER_3D.dwg";
+                    Log.log($"Writing Ler 3D to new dwg file:\n" + $"{new3dFilename}.");
+
+                    using (Transaction ler2dTx = ler2dDb.TransactionManager.StartTransaction())
+                    using (Transaction ler3dTx = ler3dDb.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            LERImporter.ConsolidatedCreator.CreateLerData(ler2dDb, ler3dDb, gfCombined);
                         }
                         catch (System.Exception ex)
                         {
