@@ -414,7 +414,7 @@ namespace LERImporter.Schema
         /// </summary>
         [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
         [Serializable]
-        [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+        [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
         public enum TermiskledningsindholdstypeType
         {
             /// <summary>
