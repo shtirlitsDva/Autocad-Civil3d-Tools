@@ -1771,7 +1771,7 @@ namespace IntersectUtilities.UtilsCommon
             //    tr.AddNewlyCreatedDBObject(attRef, true);
             //}
         }
-        
+
         private static string ConstructStringByRegex(BlockReference br, string stringToProcess)
         {
             //Construct pattern which matches the parameter definition
@@ -2323,6 +2323,21 @@ namespace IntersectUtilities.UtilsCommon
             bt.Dispose();
 
             return result;
+        }
+        public static HashSet<Oid> HashSetIdsOfType<T>(this Database db) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        {
+            HashSet<Oid> objs = new HashSet<Oid>();
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                var blockTable = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+                RXClass theClass = RXObject.GetClass(typeof(T));
+                foreach (Oid oid in modelSpace)
+                    if (oid.ObjectClass.IsDerivedFrom(theClass))
+                        objs.Add(oid);
+                tr.Commit();
+            }
+            return objs;
         }
         public static List<T> ListOfType<T>(this Database database, Transaction tr, bool discardFrozen = false) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
