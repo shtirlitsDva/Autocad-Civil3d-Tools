@@ -585,11 +585,14 @@ namespace ExportShapeFiles
                     {
                         try
                         {
+                            int counter = 0;
                             foreach (var f in files)
                             {
                                 string dir = Path.GetDirectoryName(f);
-                                string fileName = Path.GetFileName(f);
+                                string fileName = Path.GetFileNameWithoutExtension(f);
                                 string unzipDir = dir + "\\" + fileName;
+
+                                if (Directory.Exists(unzipDir)) Directory.Delete(unzipDir, true);
 
                                 ZipFile.ExtractToDirectory(f, unzipDir, System.Text.Encoding.UTF8);
 
@@ -602,23 +605,27 @@ namespace ExportShapeFiles
                                     switch (shapeType)
                                     {
                                         case ShapeType.PolyLine:
-                                            int numberOfRecords = shape.RecordCount;
-                                            ShapeFileEnumerator sfe = shape.GetShapeFileEnumerator();
-                                            while (sfe.MoveNext())
+                                        case ShapeType.PolyLineZ:
                                             {
-                                                Polyline pl = new Polyline();
-                                                ReadOnlyCollection<PointD[]> current = sfe.Current;
-                                                foreach (PointD[] parray in current)
+                                                prdDbg(shapeType);
+                                                ShapeFileEnumerator sfe = shape.GetShapeFileEnumerator();
+                                                while (sfe.MoveNext())
                                                 {
-                                                    foreach(PointD p in parray)
+                                                    counter++;
+                                                    Polyline pl = new Polyline();
+                                                    ReadOnlyCollection<PointD[]> current = sfe.Current;
+                                                    foreach (PointD[] parray in current)
                                                     {
-                                                        pl.AddVertexAt(
-                                                            pl.NumberOfVertices,
-                                                            new Point2d(p.X, p.Y),
-                                                            0, 0, 0);
+                                                        foreach (PointD p in parray)
+                                                        {
+                                                            pl.AddVertexAt(
+                                                                pl.NumberOfVertices,
+                                                                new Point2d(p.X, p.Y),
+                                                                0, 0, 0);
+                                                        }
                                                     }
+                                                    pl.AddEntityToDbModelSpace(xDb);
                                                 }
-                                                pl.AddEntityToDbModelSpace(xDb);
                                             }
                                             break;
                                         case ShapeType.NullShape:
@@ -626,7 +633,6 @@ namespace ExportShapeFiles
                                         case ShapeType.Polygon:
                                         case ShapeType.MultiPoint:
                                         case ShapeType.PointZ:
-                                        case ShapeType.PolyLineZ:
                                         case ShapeType.PolygonZ:
                                         case ShapeType.MultiPointZ:
                                         case ShapeType.PointM:
@@ -638,7 +644,7 @@ namespace ExportShapeFiles
                                     }
                                 }
                             }
-
+                            prdDbg($"Total shapes imported: {counter}");
                             System.Windows.Forms.Application.DoEvents();
 
                         }
