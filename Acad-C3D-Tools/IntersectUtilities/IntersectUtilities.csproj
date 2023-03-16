@@ -98,6 +98,10 @@
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\AdUiPalettes.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="AdWindows">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\AdWindows.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="AecBaseMgd">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\ACA\AecBaseMgd.dll</HintPath>
       <Private>False</Private>
