@@ -3,6 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections.ObjectModel;
 
 using System.Text.RegularExpressions;
 using Autodesk.AutoCAD.ApplicationServices;
@@ -579,7 +580,6 @@ namespace ExportShapeFiles
 
                     #endregion
 
-
                     using (Database xDb = new Database(true, true))
                     using (Transaction xTx = xDb.TransactionManager.StartTransaction())
                     {
@@ -590,6 +590,53 @@ namespace ExportShapeFiles
                                 string dir = Path.GetDirectoryName(f);
                                 string fileName = Path.GetFileName(f);
                                 string unzipDir = dir + "\\" + fileName;
+
+                                ZipFile.ExtractToDirectory(f, unzipDir, System.Text.Encoding.UTF8);
+
+                                var shapes = Directory.EnumerateFiles(unzipDir, "*.shp");
+
+                                foreach (var sf in shapes) 
+                                { 
+                                    ShapeFile shape = new ShapeFile(sf);
+                                    ShapeType shapeType = shape.ShapeType;
+                                    switch (shapeType)
+                                    {
+                                        case ShapeType.PolyLine:
+                                            int numberOfRecords = shape.RecordCount;
+                                            ShapeFileEnumerator sfe = shape.GetShapeFileEnumerator();
+                                            while (sfe.MoveNext())
+                                            {
+                                                Polyline pl = new Polyline();
+                                                ReadOnlyCollection<PointD[]> current = sfe.Current;
+                                                foreach (PointD[] parray in current)
+                                                {
+                                                    foreach(PointD p in parray)
+                                                    {
+                                                        pl.AddVertexAt(
+                                                            pl.NumberOfVertices,
+                                                            new Point2d(p.X, p.Y),
+                                                            0, 0, 0);
+                                                    }
+                                                }
+                                                pl.AddEntityToDbModelSpace(xDb);
+                                            }
+                                            break;
+                                        case ShapeType.NullShape:
+                                        case ShapeType.Point:
+                                        case ShapeType.Polygon:
+                                        case ShapeType.MultiPoint:
+                                        case ShapeType.PointZ:
+                                        case ShapeType.PolyLineZ:
+                                        case ShapeType.PolygonZ:
+                                        case ShapeType.MultiPointZ:
+                                        case ShapeType.PointM:
+                                        case ShapeType.PolyLineM:
+                                            prdDbg($"Encountered unhandled ShapeType: {shapeType}");
+                                            break;
+                                        default:
+                                            break;
+                                    }
+                                }
                             }
 
                             System.Windows.Forms.Application.DoEvents();
