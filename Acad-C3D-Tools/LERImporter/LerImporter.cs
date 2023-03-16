@@ -65,7 +65,7 @@ namespace LERImporter
         }
         #endregion
 
-        public static readonly string ImplementedVersion = "1.0.1";
+        public static readonly string ImplementedVersion = "2.0.0";
 
         //[CommandMethod("TESTLER")]
         public void testler()
