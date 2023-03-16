@@ -1,7 +1,9 @@
-﻿using System.IO;
-using System;
+﻿using System;
+using System.IO;
+using System.IO.Compression;
 using System.Collections.Generic;
 using System.Linq;
+
 using System.Text.RegularExpressions;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Runtime;
@@ -26,6 +28,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Log = ExportShapeFiles.ExportShapeFiles.SimpleLogger;
 using System.Data;
 using Autodesk.AutoCAD.EditorInput;
+
 
 namespace ExportShapeFiles
 {
@@ -313,7 +316,7 @@ namespace ExportShapeFiles
                     string path = Path.GetDirectoryName(dbFilename);
                     string shapeExportPath = path + "\\SHP\\";
                     if (Directory.Exists(shapeExportPath) == false) Directory.CreateDirectory(shapeExportPath);
-                    
+
                     string shapeName = "Områder";
 
                     Log.log($"Exporting to {shapeExportPath}.");
@@ -547,6 +550,70 @@ namespace ExportShapeFiles
             }
             Log.log("Export completed!");
             //Console.ReadKey();
+        }
+
+        [CommandMethod("MASSIMPORTSHAPEFILESINZIPS")]
+        public void massimportshapefilesinzips()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Get file and folder of gml
+                    string pathToTopFolder = string.Empty;
+                    FolderSelectDialog fsd = new FolderSelectDialog()
+                    {
+                        Title = "Choose folder where shape files are stored: ",
+                        InitialDirectory = @"C:\"
+                    };
+                    if (fsd.ShowDialog(IntPtr.Zero))
+                    {
+                        pathToTopFolder = fsd.FileName + "\\";
+                    }
+                    else return;
+
+                    var files = Directory.EnumerateFiles(pathToTopFolder, "*.zip", SearchOption.AllDirectories);
+
+                    #endregion
+
+
+                    using (Database xDb = new Database(true, true))
+                    using (Transaction xTx = xDb.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            foreach (var f in files)
+                            {
+                                string dir = Path.GetDirectoryName(f);
+                                string fileName = Path.GetFileName(f);
+                                string unzipDir = dir + "\\" + fileName;
+                            }
+
+                            System.Windows.Forms.Application.DoEvents();
+
+                        }
+                        catch (System.Exception ex)
+                        {
+                            prdDbg(ex);
+                            //xDb.CloseInput(true);
+                            xTx.Abort();
+                            throw;
+                        }
+                        xTx.Commit();
+                        xDb.SaveAs(pathToTopFolder + "SAMLET.dwg", true, DwgVersion.Newest, xDb.SecurityParameters);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
         }
 
         public static class SimpleLogger
