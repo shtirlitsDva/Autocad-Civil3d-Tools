@@ -596,7 +596,7 @@ namespace ExportShapeFiles
 
                                 ZipFile.ExtractToDirectory(f, unzipDir, System.Text.Encoding.UTF8);
 
-                                var shapes = Directory.EnumerateFiles(unzipDir, "*.shp");
+                                var shapes = Directory.EnumerateFiles(unzipDir, "*.shp", SearchOption.AllDirectories);
 
                                 foreach (var sf in shapes) 
                                 { 
@@ -607,7 +607,16 @@ namespace ExportShapeFiles
                                         case ShapeType.PolyLine:
                                         case ShapeType.PolyLineZ:
                                             {
-                                                prdDbg(shapeType);
+                                                prdDbg($"{shapeType} - Name: {shape.Name} - Tag: {shape.Tag}");
+                                                string sfn = Path.GetFileName(sf);
+
+                                                #region Ownerspecific layer handling #1
+                                                if (sfn.StartsWith("Drikkevand"))
+                                                    xDb.CheckOrCreateLayer("Drikkevand");
+                                                else if (sfn.StartsWith("Spildevand"))
+                                                    xDb.CheckOrCreateLayer("Spildevand");
+                                                #endregion
+
                                                 ShapeFileEnumerator sfe = shape.GetShapeFileEnumerator();
                                                 while (sfe.MoveNext())
                                                 {
@@ -625,6 +634,13 @@ namespace ExportShapeFiles
                                                         }
                                                     }
                                                     pl.AddEntityToDbModelSpace(xDb);
+
+                                                    #region Ownerspecific layer handling #2
+                                                    if (sfn.StartsWith("Drikkevand"))
+                                                        pl.Layer = "Drikkevand";
+                                                    else if (sfn.StartsWith("Spildevand"))
+                                                        pl.Layer = "Spildevand";
+                                                    #endregion
                                                 }
                                             }
                                             break;
