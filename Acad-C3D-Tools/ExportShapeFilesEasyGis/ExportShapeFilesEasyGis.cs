@@ -559,6 +559,26 @@ namespace ExportShapeFiles
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
+            #region Definition of specific "layers"
+            Dictionary<string, string> layers = new Dictionary<string, string>()
+            {
+                { "Drikkevand", "Drikkevand" },
+                { "Spildevand", "Spildevand" },
+                { "AFL_ikke_ibrug", "AFL_ikke_ibrug" },
+                { "AFL_knude", "AFL_knude" },
+                { "AFL_ledning_andet", "AFL_ledning_andet" },
+                { "AFL_ledning_draen", "AFL_ledning_draen" },
+                { "AFL_ledning_faelles", "AFL_ledning_faelles" },
+                { "AFL_ledning_regn", "AFL_ledning_regn" },
+                { "AFL_ledning_spild", "AFL_ledning_spild" },
+                { "VAND_brandhane", "VAND_brandhane" },
+                { "VAND_komponent", "VAND_komponent" },
+                { "VAND_ledning", "VAND_ledning" },
+                { "VAND_ledning_ikke_i_brug", "VAND_ledning_ikke_i_brug" },
+                { "VAND_punkt", "VAND_punkt" },
+            };
+            #endregion
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -598,67 +618,73 @@ namespace ExportShapeFiles
 
                                 var shapes = Directory.EnumerateFiles(unzipDir, "*.shp", SearchOption.AllDirectories);
 
-                                foreach (var sf in shapes) 
-                                { 
-                                    ShapeFile shape = new ShapeFile(sf);
-                                    ShapeType shapeType = shape.ShapeType;
-                                    switch (shapeType)
+                                foreach (var sf in shapes)
+                                {
+                                    using (ShapeFile shape = new ShapeFile(sf))
                                     {
-                                        case ShapeType.PolyLine:
-                                        case ShapeType.PolyLineZ:
-                                            {
-                                                prdDbg($"{shapeType} - Name: {shape.Name} - Tag: {shape.Tag}");
-                                                string sfn = Path.GetFileName(sf);
-
-                                                #region Ownerspecific layer handling #1
-                                                if (sfn.StartsWith("Drikkevand"))
-                                                    xDb.CheckOrCreateLayer("Drikkevand");
-                                                else if (sfn.StartsWith("Spildevand"))
-                                                    xDb.CheckOrCreateLayer("Spildevand");
-                                                #endregion
-
-                                                ShapeFileEnumerator sfe = shape.GetShapeFileEnumerator();
-                                                while (sfe.MoveNext())
+                                        ShapeType shapeType = shape.ShapeType;
+                                        switch (shapeType)
+                                        {
+                                            case ShapeType.PolyLine:
+                                            case ShapeType.PolyLineZ:
                                                 {
-                                                    counter++;
-                                                    Polyline pl = new Polyline();
-                                                    ReadOnlyCollection<PointD[]> current = sfe.Current;
-                                                    foreach (PointD[] parray in current)
-                                                    {
-                                                        foreach (PointD p in parray)
-                                                        {
-                                                            pl.AddVertexAt(
-                                                                pl.NumberOfVertices,
-                                                                new Point2d(p.X, p.Y),
-                                                                0, 0, 0);
-                                                        }
-                                                    }
-                                                    pl.AddEntityToDbModelSpace(xDb);
+                                                    prdDbg($"{shapeType} - Name: {shape.Name} - Tag: {shape.Tag}");
+                                                    string sfn = Path.GetFileName(sf);
 
-                                                    #region Ownerspecific layer handling #2
-                                                    if (sfn.StartsWith("Drikkevand"))
-                                                        pl.Layer = "Drikkevand";
-                                                    else if (sfn.StartsWith("Spildevand"))
-                                                        pl.Layer = "Spildevand";
+                                                    #region Ownerspecific layer handling #1
+                                                    if (layers.Any(x => sfn.StartsWith(x.Key)))
+                                                        xDb.CheckOrCreateLayer(
+                                                            layers.Where(x => sfn.StartsWith(x.Key))
+                                                            .FirstOrDefault().Value);
                                                     #endregion
+
+                                                    ShapeFileEnumerator sfe = shape.GetShapeFileEnumerator();
+                                                    while (sfe.MoveNext())
+                                                    {
+                                                        counter++;
+                                                        Polyline pl = new Polyline();
+                                                        ReadOnlyCollection<PointD[]> current = sfe.Current;
+                                                        foreach (PointD[] parray in current)
+                                                        {
+                                                            foreach (PointD p in parray)
+                                                            {
+                                                                pl.AddVertexAt(
+                                                                    pl.NumberOfVertices,
+                                                                    new Point2d(p.X, p.Y),
+                                                                    0, 0, 0);
+                                                            }
+                                                        }
+                                                        pl.AddEntityToDbModelSpace(xDb);
+
+                                                        #region Ownerspecific layer handling #2
+                                                        if (layers.Any(x => sfn.StartsWith(x.Key)))
+                                                            pl.Layer = layers
+                                                                .Where(x => sfn.StartsWith(x.Key))
+                                                                .FirstOrDefault().Value;
+                                                        #endregion
+                                                    }
                                                 }
-                                            }
-                                            break;
-                                        case ShapeType.NullShape:
-                                        case ShapeType.Point:
-                                        case ShapeType.Polygon:
-                                        case ShapeType.MultiPoint:
-                                        case ShapeType.PointZ:
-                                        case ShapeType.PolygonZ:
-                                        case ShapeType.MultiPointZ:
-                                        case ShapeType.PointM:
-                                        case ShapeType.PolyLineM:
-                                            prdDbg($"Encountered unhandled ShapeType: {shapeType}");
-                                            break;
-                                        default:
-                                            break;
+                                                break;
+                                            case ShapeType.NullShape:
+                                            case ShapeType.Point:
+                                            case ShapeType.Polygon:
+                                            case ShapeType.MultiPoint:
+                                            case ShapeType.PointZ:
+                                            case ShapeType.PolygonZ:
+                                            case ShapeType.MultiPointZ:
+                                            case ShapeType.PointM:
+                                            case ShapeType.PolyLineM:
+                                                prdDbg($"Encountered unhandled ShapeType: {shapeType}");
+                                                break;
+                                            default:
+                                                break;
+                                        }
                                     }
+
+
                                 }
+
+                                Directory.Delete(unzipDir, true);
                             }
                             prdDbg($"Total shapes imported: {counter}");
                             System.Windows.Forms.Application.DoEvents();
