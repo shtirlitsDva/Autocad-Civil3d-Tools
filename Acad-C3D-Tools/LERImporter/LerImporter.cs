@@ -431,7 +431,7 @@ namespace LERImporter
                     //Build the new future file name of the drawing
                     string new2dFilename = $"{pathToTopFolder}SAMLET_LER_2D.dwg";
                     Log.log($"Writing Ler 2D to new dwg file:\n" + $"{new2dFilename}.");
-                    string new3dFilename = $"{pathToTopFolder}SAMLET_LER_3D.dwg";
+                    string new3dFilename = $"{pathToTopFolder}SAMLET_LER_3D_KUN_TIL_TEST.dwg";
                     Log.log($"Writing Ler 3D to new dwg file:\n" + $"{new3dFilename}.");
 
                     using (Transaction ler2dTx = ler2dDb.TransactionManager.StartTransaction())
