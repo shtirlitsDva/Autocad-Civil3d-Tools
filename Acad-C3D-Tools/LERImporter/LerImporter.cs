@@ -316,7 +316,7 @@ namespace LERImporter
                     }
                     string new2dFilename = $"{folderPath}{bemaerkning ?? ""}LER_2D.dwg";
                     Log.log($"Writing Ler 2D to new dwg file:\n" + $"{new2dFilename}.");
-                    string new3dFilename = $"{folderPath}{bemaerkning ?? ""}LER_3D.dwg";
+                    string new3dFilename = $"{folderPath}{bemaerkning ?? ""}LER_3D_KUN_TIL_TEST.dwg";
                     Log.log($"Writing Ler 3D to new dwg file:\n" + $"{new3dFilename}.");
 
                     using (Transaction ler2dTx = ler2dDb.TransactionManager.StartTransaction())
