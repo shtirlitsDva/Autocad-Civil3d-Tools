@@ -274,10 +274,12 @@ namespace LERImporter
                 Log.LogFileName = folderPath + "LerImport.log";
                 Log.log($"Importing {pathToGml}");
 
-                #region Replace ler:id with ler:lerid
+                #region Replace ler:id with ler:lerid, ler1 with ler2
                 string str = File.ReadAllText(pathToGml);
                 str = str.Replace("<ler:id>", "<ler:lerid>");
                 str = str.Replace("</ler:id>", "</ler:lerid>");
+
+                str = str.Replace("http://data.gov.dk/schemas/LER/1/gml", "http://data.gov.dk/schemas/LER/2/gml");
 
                 string modifiedFileName =
                     folderPath + "\\" + fileName + "_mod" + extension;
@@ -376,7 +378,7 @@ namespace LERImporter
 
                 Log.LogFileName = pathToTopFolder + "LerImport.log";
 
-                #region Replace ler:id with ler:lerid
+                #region Replace ler:id with ler:lerid, ler1 with ler2
                 List<string> modList = new List<string>();
                 foreach (var file in files)
                 {
@@ -390,6 +392,8 @@ namespace LERImporter
                     string str = File.ReadAllText(file);
                     str = str.Replace("<ler:id>", "<ler:lerid>");
                     str = str.Replace("</ler:id>", "</ler:lerid>");
+
+                    str = str.Replace("http://data.gov.dk/schemas/LER/1/gml", "http://data.gov.dk/schemas/LER/2/gml");
 
                     string modifiedFileName =
                         folderPath + "\\" + fileName + "_mod" + extension;
