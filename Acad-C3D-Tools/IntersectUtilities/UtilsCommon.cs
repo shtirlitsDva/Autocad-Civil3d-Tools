@@ -1832,6 +1832,29 @@ namespace IntersectUtilities.UtilsCommon
         public static bool IsPointInsideXY(this Extents3d extents, Point3d pnt)
         => pnt.X >= extents.MinPoint.X && pnt.X <= extents.MaxPoint.X
             && pnt.Y >= extents.MinPoint.Y && pnt.Y <= extents.MaxPoint.Y;
+        public static Oid DrawExtents(this Extents3d extents, Database db)
+        {
+            if (extents == null) return Oid.Null;
+            Polyline pline = new Polyline(4);
+            List<Point2d> point2Ds = new List<Point2d>
+            {
+                new Point2d(extents.MinPoint.X, extents.MinPoint.Y),
+                new Point2d(extents.MinPoint.X, extents.MaxPoint.Y),
+                new Point2d(extents.MaxPoint.X, extents.MaxPoint.Y),
+                new Point2d(extents.MaxPoint.X, extents.MinPoint.Y)
+            };
+            foreach (Point2d p2d in point2Ds)
+            {
+                pline.AddVertexAt(pline.NumberOfVertices, p2d, 0, 0, 0);
+            }
+            pline.Closed = true;
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                Oid id = pline.AddEntityToDbModelSpace(db);
+                tx.Commit();
+                return id;
+            }
+        }
         public static Polyline DrawExtents(this Entity entity)
         {
             Extents3d extents = entity.GeometricExtents;

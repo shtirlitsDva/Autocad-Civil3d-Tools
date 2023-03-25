@@ -2492,7 +2492,7 @@ namespace IntersectUtilities
                                     newWeldNumberBlocks.Add(brWeldNumber);
                                     brWeldNumber.SetAttributeStringValue("NUMMER", nummer);
                                 }
-                                
+
                                 psmSource.WritePropertyString(brWeld,
                                     driSourceReference.SourceEntityHandle, br.Handle.ToString());
                                 #endregion
@@ -2590,7 +2590,7 @@ namespace IntersectUtilities
                                         else { item.Erase(true); }
                                         i++;
                                     }
-                                } 
+                                }
                             }
                             #endregion
 
@@ -3774,75 +3774,113 @@ namespace IntersectUtilities
                     Extents3d extents = default;
                     var labelsInView = labelsSet.Where(x => extents.IsPointInsideXY(x.LabelLocation));
 
-                    Oid styleId = profileProjection_RIGHT_Style;
+                    Oid rightStyleId = profileProjection_RIGHT_Style;
+                    Oid leftStyleId = profileProjection_LEFT_Style;
 
                     foreach (var pv in pvs)
                     {
-                        ProfileProjectionLabel[] labels;
+                        ProfileProjectionLabel[] allLabels;
                         extents = pv.GeometricExtents;
-                        labels = labelsInView.OrderByDescending(x => x.LabelLocation.X).ToArray();
+                        allLabels = labelsInView.OrderBy(x => x.LabelLocation.X).ToArray();
+
+                        //split allLabels into tow arrays with exactly half elements in each
+                        //left array is ordered by X ascending
+                        //right array is ordere by X descending
+                        int half = allLabels.Length / 2;
+                        ProfileProjectionLabel[] leftLabels =
+                            allLabels.Take(half).ToArray();
+                        ProfileProjectionLabel[] rightLabels =
+                            allLabels.Skip(half).OrderByDescending(x => x.LabelLocation.X).ToArray();
 
                         var pIds = pv.AlignmentId.Go<Alignment>(tx).GetProfileIds();
                         Profile surfaceP = default;
                         foreach (Oid oid in pIds) if (oid.Go<Profile>(tx).Name.EndsWith("_surface_P"))
                                 surfaceP = oid.Go<Profile>(tx);
-                        double calculatedLengthOfFirstLabel = 0;
-                        if (surfaceP != default && labels.Length > 0)
-                        {
-                            //get the first label which is setting the start elevation
-                            ProfileProjectionLabel label = labels[0];
-                            double station = 0;
-                            double labelElevation = 0;
-                            //Get station and elevation of label
-                            pv.FindStationAndElevationAtXY(
-                                label.LabelLocation.X, label.LabelLocation.Y, ref station, ref labelElevation);
-                            //Update elevation to be that of surface
-                            double surfaceElevation = surfaceP.ElevationAt(station);
-                            double labelDepthUnderSurface = (surfaceElevation - labelElevation) * 2.5;
-                            double userSpecifiedLabelHeightOverSurfaceM = 5;
-                            double deltaM = labelDepthUnderSurface + userSpecifiedLabelHeightOverSurfaceM;
-                            calculatedLengthOfFirstLabel = deltaM / 250;
-                            prdDbg($"{surfaceElevation}, {labelElevation}, {labelDepthUnderSurface}, {deltaM}, {calculatedLengthOfFirstLabel}");
-                        }
 
-                        if (labels.Length == 1)
-                        {
-                            ProfileProjectionLabel label = labels.First();
-                            label.CheckOrOpenForWrite();
-                            label.DimensionAnchorValue = calculatedLengthOfFirstLabel;
-                            label.StyleId = styleId;
-                        }
+                        SortLabels(leftLabels, surfaceP, leftStyleId);
+                        SortLabels(rightLabels, surfaceP, rightStyleId);
 
-                        for (int i = 0; i < labels.Length - 1; i++)
+                        double FirstLabelCalculateLength(
+                            ProfileProjectionLabel label, Profile sP)
                         {
-                            ProfileProjectionLabel firstLabel = labels[i];
-                            ProfileProjectionLabel secondLabel = labels[i + 1];
-
-                            //Handle first label
-                            if (i == 0)
+                            if (sP != default)
                             {
-                                firstLabel.CheckOrOpenForWrite();
-                                firstLabel.DimensionAnchorValue = calculatedLengthOfFirstLabel;
-                                firstLabel.StyleId = styleId;
+                                //get the first label which is setting the start elevation
+                                double station = 0;
+                                double labelElevation = 0;
+                                //Get station and elevation of label
+                                pv.FindStationAndElevationAtXY(
+                                    label.LabelLocation.X, label.LabelLocation.Y, ref station, ref labelElevation);
+                                //Update elevation to be that of surface
+                                double surfaceElevation = sP.ElevationAt(station);
+                                double labelDepthUnderSurface = (surfaceElevation - labelElevation) * 2.5;
+                                double userSpecifiedLabelHeightOverSurfaceM = 5;
+                                double deltaM = labelDepthUnderSurface + userSpecifiedLabelHeightOverSurfaceM;
+                                double calculatedLengthOfFirstLabel = deltaM / 250;
+                                prdDbg($"{surfaceElevation}, {labelElevation}, {labelDepthUnderSurface}, {deltaM}, {calculatedLengthOfFirstLabel}");
+                                return calculatedLengthOfFirstLabel;
+                            }
+                            else return 0;
+                        }
+
+                        void SortLabels(
+                            ProfileProjectionLabel[] labels, Profile sP, Oid styleId)
+                        {
+                            if (labels.Length < 1) return;
+                            double calculatedLengthOfFirstLabel =
+                                FirstLabelCalculateLength(labels[0], sP);
+
+                            if (labels.Length == 1)
+                            {
+                                ProfileProjectionLabel label = labels.First();
+                                label.CheckOrOpenForWrite();
+                                label.DimensionAnchorValue = calculatedLengthOfFirstLabel;
+                                label.StyleId = styleId;
                             }
 
-                            Point3d firstLocationPoint = firstLabel.LabelLocation;
-                            Point3d secondLocationPoint = secondLabel.LabelLocation;
+                            for (int i = 0; i < labels.Length - 1; i++)
+                            {
+                                ProfileProjectionLabel firstLabel = labels[i];
+                                ProfileProjectionLabel secondLabel = labels[i + 1];
 
-                            double firstAnchorDimensionInMeters = firstLabel.DimensionAnchorValue * 250 + 0.0625;
+                                //Handle first label
+                                if (i == 0)
+                                {
+                                    firstLabel.CheckOrOpenForWrite();
+                                    firstLabel.DimensionAnchorValue = calculatedLengthOfFirstLabel;
+                                    firstLabel.StyleId = styleId;
+                                }
 
-                            double locationDelta = firstLocationPoint.Y - secondLocationPoint.Y;
+                                Point3d firstLocationPoint = firstLabel.LabelLocation;
+                                Point3d secondLocationPoint = secondLabel.LabelLocation;
 
-                            double secondAnchorDimensionInMeters = (locationDelta + firstAnchorDimensionInMeters + 0.75) / 250;
+                                //secondLabel.GeometricExtents.DrawExtents(localDb);
+                                //Check to see if extents overlap
+                                double secondAnchorDimensionInMeters = 0;
+                                if (!secondLabel.GeometricExtents.ToExtents2d().IsOverlapping(
+                                    firstLabel.GeometricExtents.ToExtents2d()))
+                                {//Labels do not overlap, get length from surface
+                                    secondAnchorDimensionInMeters =
+                                        FirstLabelCalculateLength(secondLabel, sP);
+                                }
+                                else
+                                {//Labels overlap, get length from previous
+                                    double firstAnchorDimensionInMeters =
+                                        firstLabel.DimensionAnchorValue * 250 + 0.0625;
+                                    double locationDelta =
+                                        firstLocationPoint.Y - secondLocationPoint.Y;
+                                    secondAnchorDimensionInMeters =
+                                        (locationDelta + firstAnchorDimensionInMeters + 0.75) / 250;
+                                }
 
-                            secondLabel.CheckOrOpenForWrite();
-                            secondLabel.DimensionAnchorValue = secondAnchorDimensionInMeters;
-                            secondLabel.StyleId = styleId;
-                            secondLabel.DowngradeOpen();
+                                secondLabel.CheckOrOpenForWrite();
+                                secondLabel.DimensionAnchorValue = secondAnchorDimensionInMeters;
+                                secondLabel.StyleId = styleId;
+                                secondLabel.DowngradeOpen();
 
-                            //editor.WriteMessage($"\nAnchorDimensionValue: {firstLabel.DimensionAnchorValue}.");
+                                //editor.WriteMessage($"\nAnchorDimensionValue: {firstLabel.DimensionAnchorValue}.");
+                            }
                         }
-
                     }
                     #endregion
                 }
@@ -4112,8 +4150,8 @@ namespace IntersectUtilities
                     promptEntityOptions1.AddAllowedClass(typeof(Profile), true);
                     PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
                     if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    Profile profile  = entity1.ObjectId.Go<Profile>(tx);
-                    
+                    Profile profile = entity1.ObjectId.Go<Profile>(tx);
+
                     PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select a ProfileView: ");
                     promptEntityOptions2.SetRejectMessage("\n Not a ProfileView");
                     promptEntityOptions2.AddAllowedClass(typeof(ProfileView), true);
