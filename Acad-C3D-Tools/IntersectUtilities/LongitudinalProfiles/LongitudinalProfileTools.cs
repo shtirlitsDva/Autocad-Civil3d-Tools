@@ -3742,7 +3742,7 @@ namespace IntersectUtilities
 
                     #region Setup styles
                     LabelStyleCollection stc = civilDoc.Styles.LabelStyles
-                                                                   .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
+                        .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
 
                     Oid profileProjection_RIGHT_Style = Oid.Null;
                     Oid profileProjection_LEFT_Style = Oid.Null;
