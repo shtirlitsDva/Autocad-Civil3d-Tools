@@ -3777,6 +3777,9 @@ namespace IntersectUtilities
                     Oid rightStyleId = profileProjection_RIGHT_Style;
                     Oid leftStyleId = profileProjection_LEFT_Style;
 
+                    var pm = new ProgressMeter();
+                    pm.Start("Staggering labels...");
+                    pm.SetLimit(pvs.Count);
                     foreach (var pv in pvs)
                     {
                         ProfileProjectionLabel[] allLabels;
@@ -3842,7 +3845,8 @@ namespace IntersectUtilities
                             {
                                 ProfileProjectionLabel firstLabel = labels[i];
                                 ProfileProjectionLabel secondLabel = labels[i + 1];
-
+                                secondLabel.CheckOrOpenForWrite();
+                                secondLabel.StyleId = styleId;
                                 //Handle first label
                                 if (i == 0)
                                 {
@@ -3872,16 +3876,17 @@ namespace IntersectUtilities
                                     secondAnchorDimensionInMeters =
                                         (locationDelta + firstAnchorDimensionInMeters + 0.75) / 250;
                                 }
-
-                                secondLabel.CheckOrOpenForWrite();
+                                
                                 secondLabel.DimensionAnchorValue = secondAnchorDimensionInMeters;
-                                secondLabel.StyleId = styleId;
                                 secondLabel.DowngradeOpen();
 
                                 //editor.WriteMessage($"\nAnchorDimensionValue: {firstLabel.DimensionAnchorValue}.");
                             }
                         }
+                        pm.MeterProgress();
+                        System.Windows.Forms.Application.DoEvents();
                     }
+                    pm.Stop();
                     #endregion
                 }
                 catch (System.Exception ex)
