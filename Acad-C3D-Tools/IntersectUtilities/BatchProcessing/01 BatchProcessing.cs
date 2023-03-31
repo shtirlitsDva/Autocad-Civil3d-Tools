@@ -213,13 +213,19 @@ namespace IntersectUtilities
                                     //result = correctfieldinblock(xDb);
 
                                     //Hide alignments in files (run hal)
-                                    result = hidealignments(xDb);
+                                    //result = hidealignments(xDb);
 
                                     //Set alignment to NO SHOW
                                     //result = alignmentsnoshow(xDb);
 
                                     //Set alignment to NO SHOW and add LABELS 20-5
-                                    result = alignmentsnoshowandlabels(xDb);
+                                    //result = alignmentsnoshowandlabels(xDb);
+
+                                    //Set ler 2d plotstyles til Nedtonet 50%
+                                    //result = fixler2dplotstyles(xDb);
+                                    
+                                    //Detaches certain dwgs and sends ortofoto to lowest draworder
+                                    //result = detachdwg(xDb);
 
                                     //Freeze layers in viewport
                                     //result = vpfreezelayers(xDb);
@@ -276,6 +282,32 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+        }
+        private Result fixler2dplotstyles(Database xDb)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+
+            #region Set linetypes of xref
+            LayerTable extLt = xDb.LayerTableId.Go<LayerTable>(xTx);
+            foreach (Oid oid in extLt)
+            {
+                LayerTableRecord ltr = oid.Go<LayerTableRecord>(xTx);
+                if (ltr.Name.Contains("|"))
+                {
+                    var split = ltr.Name.Split('|');
+                    string xrefName = split[0];
+                    string layerName = split[1];
+                    if (xrefName == "LER_2D")
+                    {
+                        prdDbg(ltr.Name);
+                        ltr.CheckOrOpenForWrite();
+                        ltr.PlotStyleName = "Nedtonet 50%";
+                    }
+                }
+            }
+            #endregion
+
+            return new Result();
         }
         private Result fixdrawings(Database xDb)
         {
@@ -369,6 +401,39 @@ namespace IntersectUtilities
             catch (System.Exception ex)
             {
                 return new Result(ResultStatus.FatalError, ex.ToString());
+            }
+
+            return new Result();
+        }
+        private Result detachdwg(Database xDb)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+
+            BlockTable bt = xDb.BlockTableId.Go<BlockTable>(xTx, OpenMode.ForRead);
+            var modelSpace = xDb.GetModelspaceForWrite();
+            DrawOrderTable dot = modelSpace.DrawOrderTableId.Go<DrawOrderTable>(
+                xTx, OpenMode.ForWrite);
+
+            foreach (Oid oid in bt)
+            {
+                BlockTableRecord btr = xTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
+                //if (btr.Name.Contains("_alignment"))
+                if (btr.Name == "1.1 Alignment" && btr.IsFromExternalReference)
+                {
+                    prdDbg("Found alignment xref!");
+                    xDb.DetachXref(btr.ObjectId);
+                }
+
+                if (btr.Name == "1.1 Ortofoto" && btr.IsFromExternalReference)
+                {
+                    prdDbg("Found ortofoto!");
+                    var ids = btr.GetBlockReferenceIds(true, false);
+                    foreach (Oid id in ids)
+                    {
+                        prdDbg("Sending to bottom!");
+                        dot.MoveToBottom(new ObjectIdCollection() { id });
+                    }
+                }
             }
 
             return new Result();
@@ -656,7 +721,7 @@ namespace IntersectUtilities
             var cDoc = CivilDocument.GetCivilDocument(xDb);
             Oid alStyle = cDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
             Oid labelSetStyle = cDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["STD 20-5"];
-            
+
             HashSet<Alignment> als = xDb.HashSetOfType<Alignment>(xTx);
 
             foreach (Alignment al in als)
@@ -794,11 +859,14 @@ namespace IntersectUtilities
         private ResultStatus _status = ResultStatus.OK;
         internal ResultStatus Status { get { return _status; } set { if (_status != ResultStatus.FatalError) _status = value; } }
         private string _errorMsg;
-        internal string ErrorMsg 
-        { 
+        internal string ErrorMsg
+        {
             get { return _errorMsg + "\n"; }
-            set { if (_errorMsg.IsNoE()) _errorMsg = value;
-                else _errorMsg += "\n" + value; } 
+            set
+            {
+                if (_errorMsg.IsNoE()) _errorMsg = value;
+                else _errorMsg += "\n" + value;
+            }
         }
         internal Result() { }
         internal Result(ResultStatus status, string errorMsg)

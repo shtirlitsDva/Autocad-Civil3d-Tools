@@ -12,10 +12,10 @@ namespace AcCoreConsoleAutomation
     {
         static void Main(string[] args)
         {
-            string pathToFileList = @"X:\018-1257 - Resurseudlån – Vindinge - Dokumenter\01 Intern\" +
-                          @"02 Tegninger\01 Autocad\Sheets\fileList.txt";
-            string path = @"X:\018-1257 - Resurseudlån – Vindinge - Dokumenter\01 Intern\" +
-                          @"02 Tegninger\01 Autocad\Sheets\";
+            string pathToFileList =
+                @"X:\069-1306 - Fase 1 - udbygning af fjernvarme - Dokumenter\01 Intern\02 Tegninger\01 Autocad - xxx\Sheets\1.1\fileList.txt";
+            string path =
+                @"X:\069-1306 - Fase 1 - udbygning af fjernvarme - Dokumenter\01 Intern\02 Tegninger\01 Autocad - xxx\Sheets\1.1\";
             List<string> names = File.ReadAllLines(pathToFileList).ToList();
 
             foreach (string name in names)
