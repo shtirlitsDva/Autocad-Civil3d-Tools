@@ -7666,6 +7666,41 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("DELETEEMPTYTEXT")]
+        public void selectemptytext()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            int count = 0;
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<DBText> text = localDb.HashSetOfType<DBText>(tx);
+
+                    foreach (DBText txt in text)
+                    {
+                        if (txt.TextString.IsNoE())
+                        {
+                            count++;
+                            txt.CheckOrOpenForWrite();
+                            txt.Erase();
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+            prdDbg($"Erased {count} emtpy text object(s)!");
+        }
+
         [CommandMethod("DUMPPSPROPERTYNAMES")]
         public void dumppspropertynames()
         {

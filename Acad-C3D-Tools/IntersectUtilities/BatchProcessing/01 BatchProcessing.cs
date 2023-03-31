@@ -219,7 +219,7 @@ namespace IntersectUtilities
                                     //result = alignmentsnoshow(xDb);
 
                                     //Set alignment to NO SHOW and add LABELS 20-5
-                                    //result = alignmentsnoshowandlabels(xDb);
+                                    result = alignmentsnoshowandlabels(xDb);
 
                                     //Set ler 2d plotstyles til Nedtonet 50%
                                     //result = fixler2dplotstyles(xDb);
