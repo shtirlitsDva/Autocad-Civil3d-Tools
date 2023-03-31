@@ -281,6 +281,14 @@ namespace IntersectUtilities
                     #region Curves
                     foreach (Curve curve in mainPipes)
                     {
+                        //Detect zero length curves
+                        if (curve is Polyline pline)
+                        {
+                            if (pline.Length < 0.001)
+                                throw new System.Exception(
+                                    $"Polyline {curve.Handle} has ZERO length! Delete, please.");
+                        }
+
                         //Skip if record already exists
                         if (!overwrite)
                         {
