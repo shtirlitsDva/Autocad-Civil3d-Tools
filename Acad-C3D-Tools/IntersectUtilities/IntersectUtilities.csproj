@@ -207,6 +207,12 @@
       <Link>ACC\SymbolPack.cs</Link>
     </Compile>
     <Compile Include="BatchProcessing\01 BatchProcessing.cs" />
+    <Compile Include="BatchProcessing\Form1.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="BatchProcessing\Form1.Designer.cs">
+      <DependentUpon>Form1.cs</DependentUpon>
+    </Compile>
     <Compile Include="ColorUtils.cs" />
     <Compile Include="ComponentSchedule.cs" />
     <Compile Include="CreateGisData.cs" />
