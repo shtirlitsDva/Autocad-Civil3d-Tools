@@ -1407,7 +1407,7 @@ namespace IntersectUtilities
             System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
                 @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
-            PropertySetManager.UpdatePropertySetDefinition(dB, PSetDefs.DefinedSets.DriSourceReference);
+            //PropertySetManager.UpdatePropertySetDefinition(dB, PSetDefs.DefinedSets.DriSourceReference);
 
             using (Transaction tx = dB.TransactionManager.StartTransaction())
             {

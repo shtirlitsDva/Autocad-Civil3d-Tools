@@ -1080,8 +1080,9 @@ namespace IntersectUtilities
             "Kan bruges ved tomme længdeprofiler, når der ikke er tegnet rør.\n" +
             "Sætter alle profile views til min 3 meters dybde og giver\n" +
             "terrænprofilet rigtig farve. Ellers kan man køre finalize,\n" +
-            "hvis man vil have detaljering på tegningen.")]
-        public static Result fixlongitudinalprofiles(Database xDb)
+            "hvis man vil have detaljering på tegningen.",
+            new string[1] { "Vælg projekt og etape" })]
+        public static Result fixlongitudinalprofiles(Database xDb, DataReferencesOptions dro)
         {
             //Used when no pipe profiles have been drawn to make default profile views look good
             CivilDocument cDoc = CivilDocument.GetCivilDocument(xDb);
@@ -1154,6 +1155,7 @@ namespace IntersectUtilities
                 pSurface.CheckOrOpenForWrite();
                 pSurface.StyleId = profileStyleId;
             }
+            new Intersect().createdetailingpreliminarymethod(dro, xDb);
 
             return new Result();
         }
