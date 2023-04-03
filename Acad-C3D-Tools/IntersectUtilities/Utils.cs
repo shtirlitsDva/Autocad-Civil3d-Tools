@@ -1073,7 +1073,8 @@ namespace IntersectUtilities
             }
             return fp.DistanceHorizontalTo(sp);
         }
-        public static void RemoveColinearVerticesPolyline(Polyline pline)
+        public static void RemoveColinearVerticesPolyline(
+            Polyline pline, ref int guiltyPlineCount, ref int removedVerticesCount)
         {
             List<int> verticesToRemove = new List<int>();
 
@@ -1096,11 +1097,50 @@ namespace IntersectUtilities
                 if (st1 == SegmentType.Coincident) verticesToRemove.Add(i);
             }
 
-            verticesToRemove.Sort();
-            verticesToRemove.Reverse();
-            pline.CheckOrOpenForWrite();
-            for (int j = 0; j < verticesToRemove.Count; j++)
-                pline.RemoveVertexAt(verticesToRemove[j]);
+            if (verticesToRemove.Count > 0)
+            {
+                guiltyPlineCount++;
+                removedVerticesCount += verticesToRemove.Count;
+
+                verticesToRemove.Sort();
+                verticesToRemove.Reverse();
+                pline.CheckOrOpenForWrite();
+                for (int j = 0; j < verticesToRemove.Count; j++)
+                    pline.RemoveVertexAt(verticesToRemove[j]);
+            }
+        }
+        public static void RemoveColinearVerticesPolyline(
+            Polyline pline)
+        {
+            List<int> verticesToRemove = new List<int>();
+
+            for (int i = 0; i < pline.NumberOfVertices - 1; i++)
+            {
+                SegmentType st1 = pline.GetSegmentType(i);
+                SegmentType st2 = pline.GetSegmentType(i + 1);
+                if (st1 == SegmentType.Line && st1 == st2)
+                {
+                    LineSegment2d ls2d1 = pline.GetLineSegment2dAt(i);
+                    LineSegment2d ls2d2 = pline.GetLineSegment2dAt(i + 1);
+
+                    if (ls2d1.IsColinearTo(ls2d2)) verticesToRemove.Add(i + 1);
+                }
+            }
+
+            for (int i = 0; i < pline.NumberOfVertices; i++)
+            {
+                SegmentType st1 = pline.GetSegmentType(i);
+                if (st1 == SegmentType.Coincident) verticesToRemove.Add(i);
+            }
+
+            if (verticesToRemove.Count > 0)
+            {
+                verticesToRemove.Sort();
+                verticesToRemove.Reverse();
+                pline.CheckOrOpenForWrite();
+                for (int j = 0; j < verticesToRemove.Count; j++)
+                    pline.RemoveVertexAt(verticesToRemove[j]);
+            }
         }
         /// <summary>
         /// Requires called inside a transaction and creates new Polyline3d

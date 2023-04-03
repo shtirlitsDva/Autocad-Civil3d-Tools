@@ -5943,6 +5943,42 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        
+        [CommandMethod("CLEANPLINES")]
+        public void cleanplins()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var plines = localDb.HashSetOfType<Polyline>(tx);
+                    int guiltyPlinesCount = 0;
+                    int removedVerticesCount = 0;
+
+                    foreach (Polyline pline in plines)
+                    {
+                        RemoveColinearVerticesPolyline(
+                            pline, ref guiltyPlinesCount, ref removedVerticesCount);
+                    }
+
+                    prdDbg(
+                        $"Found {guiltyPlinesCount} guilty plines and " +
+                        $"removed {removedVerticesCount} vertices.");
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
 
         //[CommandMethod("CREATEPROPERTYSETSFROMODTABLES")]
         public void createpropertysetsfromodtables()

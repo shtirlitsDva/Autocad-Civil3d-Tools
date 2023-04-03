@@ -723,7 +723,8 @@ namespace AcadOverrules
                         {
                             Point3d loc = pline.GetPoint3dAt(i);
 
-                            drawCoincidentEmptyPointPolygon(wd, loc, pline.GetFirstDerivative(loc));
+                            drawCoincidentEmptyPointPolygon(wd, loc, pline.GetFirstDerivative(
+                                pline.GetClosestPointTo(loc, false)));
                         }
                     }
                 }
