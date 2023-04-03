@@ -449,6 +449,7 @@ namespace IntersectUtilities
                         }
 
                         editor.WriteMessage($"\nTotal intersecting pipes detected: {intersections}");
+                        if (intersections == 0) continue;
                         #endregion
 
                         #region Prepare variables
