@@ -1162,6 +1162,7 @@ namespace IntersectUtilities
                             Curve curve = ll.First.Value;
                             curve.CheckOrOpenForWrite();
                             ll.RemoveFirst();
+                            if (brs.Count == 0) { continue; }
 
                             //Detect the component at curve end
                             //If it is a transition --> analyze and correct
