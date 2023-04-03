@@ -50,6 +50,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
+using System.Security.Cryptography;
 
 namespace IntersectUtilities
 {
@@ -4520,7 +4521,6 @@ namespace IntersectUtilities
         [CommandMethod("testing")]
         public void testing()
         {
-
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
@@ -4531,6 +4531,55 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test viewport orientation
+                    //string blockName = "Nordpil2";
+
+                    //BlockTableRecord paperspace = 
+                    //    localDb.BlockTableId.Go<BlockTable>(tx)
+                    //    [BlockTableRecord.PaperSpace].Go<BlockTableRecord>(
+                    //        tx, OpenMode.ForWrite);
+
+                    //BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    //Oid btrId = bt[blockName];
+
+                    //var br = new BlockReference(new Point3d(808,326,0), btrId);
+
+                    //paperspace.AppendEntity(br);
+                    //tx.AddNewlyCreatedDBObject(br, true);
+                    
+                    //DBDictionary layoutDict = localDb.LayoutDictionaryId.Go<DBDictionary>(tx);
+                    //var enumerator = layoutDict.GetEnumerator();
+                    //while (enumerator.MoveNext())
+                    //{
+                    //    DBDictionaryEntry item = enumerator.Current;
+                    //    prdDbg(item.Key);
+                    //    if (item.Key == "Model")
+                    //    {
+                    //        prdDbg("Skipping model...");
+                    //        continue;
+                    //    }
+                    //    Layout layout = item.Value.Go<Layout>(tx);
+                    //    BlockTableRecord layBlock = layout.BlockTableRecordId.Go<BlockTableRecord>(tx);
+
+                    //    foreach (Oid id in layBlock)
+                    //    {
+                    //        if (id.IsDerivedFrom<Viewport>())
+                    //        {
+                    //            Viewport vp = id.Go<Viewport>(tx);
+                    //            //Truncate doubles to whole numebers for easier comparison
+                    //            int centerX = (int)vp.CenterPoint.X;
+                    //            int centerY = (int)vp.CenterPoint.Y;
+                    //            if (centerX == 424 && centerY == 222)
+                    //            {
+                    //                prdDbg("Found main viewport!");
+                    //                br.Rotation = vp.TwistAngle;
+
+                    //            }
+                    //        }
+                    //    }
+                    //}
+                    #endregion
+
                     #region Test getting versions
                     //string pathToCatalogue = 
                     //    @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv";

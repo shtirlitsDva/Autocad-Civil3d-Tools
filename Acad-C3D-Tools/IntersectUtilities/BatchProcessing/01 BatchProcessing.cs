@@ -1461,6 +1461,65 @@ namespace IntersectUtilities
             }
             return new Result();
         }
+        [MethodDescription(
+            "Place block on paperspace",
+            "Placerer specificeret block på paperspace.\n" +
+            "Blocken skal findes i tegningen.\n" +
+            "Angiv viewportens center X og Y til hele tal.\n" +
+            "Blokkens rotation sættes til ViewPortens twistangle.\n" +
+            "Dette bruges specifikt til at placere nordpilsblokke",
+            new string[5] { "Block name", "Block X", "Block Y",
+                "ViewPort Center X", "ViewPort Center Y"})]
+        public static Result placeblockpaperspace(
+            Database xDb, string blockName, int brX, int brY, int X, int Y)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+
+            BlockTableRecord paperspace =
+                xDb.BlockTableId.Go<BlockTable>(xTx)
+                [BlockTableRecord.PaperSpace].Go<BlockTableRecord>(
+                    xTx, OpenMode.ForWrite);
+
+            BlockTable bt = xTx.GetObject(xDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+            Oid btrId = bt[blockName];
+
+            var br = new BlockReference(new Point3d(brX, brY, 0), btrId);
+
+            paperspace.AppendEntity(br);
+            xTx.AddNewlyCreatedDBObject(br, true);
+
+            DBDictionary layoutDict = xDb.LayoutDictionaryId.Go<DBDictionary>(xTx);
+            var enumerator = layoutDict.GetEnumerator();
+            while (enumerator.MoveNext())
+            {
+                DBDictionaryEntry item = enumerator.Current;
+                prdDbg(item.Key);
+                if (item.Key == "Model")
+                {
+                    prdDbg("Skipping model...");
+                    continue;
+                }
+                Layout layout = item.Value.Go<Layout>(xTx);
+                BlockTableRecord layBlock = layout.BlockTableRecordId.Go<BlockTableRecord>(xTx);
+
+                foreach (Oid id in layBlock)
+                {
+                    if (id.IsDerivedFrom<Viewport>())
+                    {
+                        Viewport vp = id.Go<Viewport>(xTx);
+                        //Truncate doubles to whole numebers for easier comparison
+                        int centerX = (int)vp.CenterPoint.X;
+                        int centerY = (int)vp.CenterPoint.Y;
+                        if (centerX == X && centerY == Y)
+                        {
+                            prdDbg("Found main viewport!");
+                            br.Rotation = vp.TwistAngle;
+                        }
+                    }
+                }
+            }
+            return new Result();
+        }
     }
 
     public class Result

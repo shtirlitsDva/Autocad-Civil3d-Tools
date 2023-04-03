@@ -171,7 +171,7 @@ namespace IntersectUtilities
                 var form = new Form()
                 {
                     Text = methodDescription.ShortDescription,
-                    Size = new Size(400, 200),
+                    Size = new Size(400, 300),
                     StartPosition = FormStartPosition.CenterParent,
                     FormBorderStyle = FormBorderStyle.FixedSingle,
                     ShowInTaskbar = false,
