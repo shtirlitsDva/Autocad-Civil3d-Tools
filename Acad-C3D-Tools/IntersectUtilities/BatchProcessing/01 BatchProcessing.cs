@@ -59,12 +59,22 @@ namespace IntersectUtilities
         [CommandMethod("BATCHPROCESSDRAWINGS")]
         public void processallsheets()
         {
-
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            //Ref variables
+            Counter counter = new Counter();
+
+            BatchProccessingForm bpf = new BatchProccessingForm(counter);
+            bpf.ShowDialog();
+            if (bpf.MethodsToExecute == null ||
+                bpf.MethodsToExecute.Count == 0)
+            {
+                return;
+            }
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -94,12 +104,6 @@ namespace IntersectUtilities
                     //Project and etape selection object
                     //Comment out if not needed
                     //DataReferencesOptions dro = new DataReferencesOptions();
-
-                    BatchProccessingForm bpf = new BatchProccessingForm();
-                    bpf.ShowDialog();
-
-                    //Specific variables
-                    int count = 0;
 
                     foreach (string fileName in fileList)
                     {
@@ -204,9 +208,12 @@ namespace IntersectUtilities
                                     //} 
                                     #endregion
 
-                                    foreach (var method in bpf.methodsToExecute)
+                                    foreach (var method in bpf.MethodsToExecute)
                                     {
+                                        var args = bpf.ArgsToExecute[method.Name];
+                                        args[0] = xDb;
 
+                                        result = (Result)method.Invoke(null, args);
 
                                         switch (result.Status)
                                         {
@@ -236,7 +243,7 @@ namespace IntersectUtilities
                                 }
                                 xTx.Commit();
                             }
-                            //xDb.SaveAs(xDb.Filename, true, DwgVersion.Newest, xDb.SecurityParameters);
+                            xDb.SaveAs(xDb.Filename, true, DwgVersion.Newest, xDb.SecurityParameters);
                         }
                         System.Windows.Forms.Application.DoEvents();
                     }
@@ -825,10 +832,10 @@ namespace IntersectUtilities
 
     public static class BatchProcesses
     {
-        private static int count = 0;
         [MethodDescription(
             "Fix Ler2D plot styles",
-            "Sætter alle lag fra angivet Ler 2D xref til plotstyle Nedtonet 50%",
+            "Sætter alle lag fra angivet Ler 2D\n" +
+            "xref til plotstyle Nedtonet 50%",
             new string[1] { "Ler2D Xref Navn (uden .dwg)" })]
         public static Result fixler2dplotstyles(Database xDb, string ler2dXrefName)
         {
@@ -858,7 +865,9 @@ namespace IntersectUtilities
         }
         [MethodDescription(
             "Fix profile styles",
-            "Sætter alle profil styles til DRI standard og sætter profiles views til DRI standard")]
+            "Sætter alle profil styles til DRI\n" +
+            "standard og sætter profiles views\n" +
+            "til DRI standard")]
         public static Result fixdrawings(Database xDb)
         {
             try
@@ -957,7 +966,8 @@ namespace IntersectUtilities
         }
         [MethodDescription(
             "Detach an xref by name",
-            "Detacher en xref i tegningen ved navn (uden .dwg)",
+            "Detacher en xref i tegningen\n" +
+            "ved navn (uden .dwg)",
             new string[1] { "Xref Navn (uden .dwg)" })]
         public static Result detachdwg(Database xDb, string detachXrefName)
         {
@@ -984,7 +994,8 @@ namespace IntersectUtilities
         }
         [MethodDescription(
             "Recreate detailing",
-            "Sletter eksisterende detaljering af længdeprofiler og laver ny",
+            "Sletter eksisterende detaljering\n" +
+            "af længdeprofiler og laver ny",
             new string[1] { "Vælg projekt og etape" })]
         public static Result createdetailing(Database xDb, DataReferencesOptions dro)
         {
@@ -995,7 +1006,8 @@ namespace IntersectUtilities
         }
         [MethodDescription(
             "Create reference to pipe profiles",
-            "Opretter alle rør-profiler fra shortcuts. Springer terrænprofil over. " +
+            "Opretter alle rør-profiler fra shortcuts.\n" +
+            "Springer terrænprofil over.\n" +
             "Husk at sætte shortcuts folder!")]
         public static Result createreferencetopipeprofiles(Database xDb)
         {
@@ -1065,9 +1077,9 @@ namespace IntersectUtilities
         }
         [MethodDescription(
             "Fix surface profile and longitudinal profile view",
-            "Kan bruges ved tomme længdeprofiler, når der ikke er tegnet rør. " +
-            "Sætter alle profile views til min 3 meters dybde og giver " +
-            "terrænprofilet rigtig farve. Ellers kan man køre finalize, " +
+            "Kan bruges ved tomme længdeprofiler, når der ikke er tegnet rør.\n" +
+            "Sætter alle profile views til min 3 meters dybde og giver\n" +
+            "terrænprofilet rigtig farve. Ellers kan man køre finalize,\n" +
             "hvis man vil have detaljering på tegningen.")]
         public static Result fixlongitudinalprofiles(Database xDb)
         {
@@ -1147,8 +1159,10 @@ namespace IntersectUtilities
         }
         [MethodDescription(
             "Lists all ViewFrame numbers",
-            "Viser alle ViewFrame numre og advarer hvis ikke de følger rækkefølgen.")]
-        public static Result listvfnumbers(Database xDb, ref int count)
+            "Viser alle ViewFrame numre og advarer\n" +
+            "hvis ikke de følger rækkefølgen.",
+            new string[1] { "Tæller" })]
+        public static Result listvfnumbers(Database xDb, Counter count)
         {
             Transaction xTx = xDb.TransactionManager.TopTransaction;
 
@@ -1159,9 +1173,9 @@ namespace IntersectUtilities
                 var ents = ids.Entities<ViewFrame>(xTx);
                 foreach (var item in ents)
                 {
-                    count++;
+                    count.counter++;
                     int vfNumber = Convert.ToInt32(item.Name);
-                    if (count != vfNumber) prdDbg(item.Name + " <- Fejl! Skal være " + count + ".");
+                    if (count.counter != vfNumber) prdDbg(item.Name + " <- Fejl! Skal være " + count + ".");
                     else prdDbg(item.Name);
                 }
             }
@@ -1169,10 +1183,11 @@ namespace IntersectUtilities
         }
         [MethodDescription(
             "Renumber all ViewFrame numbers",
-            "Omnummererer alle ViewFrame numre til at følge rækkefølgen. " +
-            "Bruges når der har været indsat ekstra ViewFrames under KS " +
-            "og dermed ødelagt rækkefølgen.")]
-        public static Result renumbervfs(Database xDb, ref int count)
+            "Omnummererer alle ViewFrame numre til at følge rækkefølgen.\n" +
+            "Bruges når der har været indsat ekstra ViewFrames under KS\n" +
+            "og dermed ødelagt rækkefølgen.",
+            new string[1] { "Tæller" })]
+        public static Result renumbervfs(Database xDb, Counter count)
         {
             Transaction xTx = xDb.TransactionManager.TopTransaction;
 
@@ -1195,10 +1210,10 @@ namespace IntersectUtilities
 
                 foreach (var item in ents)
                 {
-                    count++;
+                    count.counter++;
                     string previousName = item.Name;
                     item.CheckOrOpenForWrite();
-                    item.Name = count.ToString("000");
+                    item.Name = count.counter.ToString("000");
                     prdDbg($"{oNames[item.Id]} -> {item.Name}");
                 }
             }
@@ -1206,9 +1221,9 @@ namespace IntersectUtilities
         }
         [MethodDescription(
             "Corrects SAG2 field in the block Tegningsskilt",
-            "Retter feltet SAG2 i blokken Tegningsskilt. Dette bruges hvis " +
-            "ét af felter har været manuelt redigeret og referencen til " +
-            "SSM har været fjernet. Hvis der ønskes at rette på andre " +
+            "Retter feltet SAG2 i blokken Tegningsskilt. Dette bruges hvis\n" +
+            "ét af felter har været manuelt redigeret og referencen til\n" +
+            "SSM har været fjernet. Hvis der ønskes at rette på andre\n" +
             "felter, så skal koden revideres.")]
         public static Result correctfieldinblock(Database xDb)
         {
@@ -1250,7 +1265,8 @@ namespace IntersectUtilities
         }
         [MethodDescription(
             "Run HAL",
-            "Skjuler alle alignments og fjerner labels. Det samme som at køre HAL.")]
+            "Skjuler alle alignments og fjerner labels.\n" +
+            "Det samme som at køre HAL.")]
         public static Result hidealignments(Database xDb)
         {
             Transaction xTx = xDb.TransactionManager.TopTransaction;
@@ -1271,7 +1287,8 @@ namespace IntersectUtilities
         }
         [MethodDescription(
             "Set alignment style to NO SHOW",
-            "Sætter alignment style til NO SHOW. Rører ikke ved labels.")]
+            "Sætter alignment style til NO SHOW.\n" +
+            "Rører ikke ved labels.")]
         public static Result alignmentsnoshow(Database xDb)
         {
             Transaction xTx = xDb.TransactionManager.TopTransaction;
@@ -1290,7 +1307,8 @@ namespace IntersectUtilities
         }
         [MethodDescription(
             "Set NO SHOW and STD 20-5",
-            "Sætter alignment style til NO SHOW og sætter labels STD 20-5.")]
+            "Sætter alignment style til NO SHOW\n" +
+            "og sætter labels STD 20-5.")]
         public static Result alignmentsnoshowandlabels(Database xDb)
         {
             Transaction xTx = xDb.TransactionManager.TopTransaction;
@@ -1311,7 +1329,8 @@ namespace IntersectUtilities
         }
         [MethodDescription(
             "Freeze LER points in minimap",
-            "Finder alle lag brugt af LER punkter og freezer dem i minikortets ViewPort. " +
+            "Finder alle lag brugt af LER punkter og\n" +
+            "freezer dem i minikortets ViewPort.\n" +
             "Angiv viewportens center X og Y til hele tal.",
             new string[2] { "ViewPort Center X", "ViewPort Center Y" })]
         public static Result vpfreezelayers(Database xDb, int X, int Y)
@@ -1371,7 +1390,8 @@ namespace IntersectUtilities
         }
         [MethodDescription(
             "Freeze match line in minimap",
-            "Freezer match linje i minikortet. Match linje er det stiplede " +
+            "Freezer match linje i minikortet.\n" +
+            "Match linje er det stiplede\n" +
             "linje, som angiver grænsen mellem delplaner.",
             new string[2] { "ViewPort Center X", "ViewPort Center Y" })]
         public static Result vpfreezecannomtch(Database xDb, int X, int Y)
@@ -1484,5 +1504,9 @@ namespace IntersectUtilities
         public string ShortDescription { get; set; }
         public string LongDescription { get; set; }
         public string[] ArgDescriptions { get; set; }
+    }
+    public class Counter
+    {
+        public int counter = 0;
     }
 }

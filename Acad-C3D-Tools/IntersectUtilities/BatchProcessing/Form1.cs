@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Reflection;
+using Autodesk.AutoCAD.DatabaseServices;
 
 namespace IntersectUtilities
 {
@@ -19,9 +20,13 @@ namespace IntersectUtilities
         private int w2 = 300;
         private int w3 = 70;
         private TableLayoutPanel tblp;
-        public List<MethodInfo> methodsToExecute = new List<MethodInfo>();
+        private Dictionary<string, Dictionary<string, object>> _argsDict =
+            new Dictionary<string, Dictionary<string, object>>();
+        public List<MethodInfo> MethodsToExecute = new List<MethodInfo>();
+        public Dictionary<string, object[]> ArgsToExecute =
+            new Dictionary<string, object[]>();
 
-        public BatchProccessingForm()
+        public BatchProccessingForm(Counter counter)
         {
             InitializeComponent();
 
@@ -30,6 +35,18 @@ namespace IntersectUtilities
             _methods = _classType.GetMethods(
                 BindingFlags.Public | BindingFlags.Static)
                 .ToList();
+
+            //Populate methods arguments dict
+            //this dict is needed to keep track of MethodInfos and their arguments
+            foreach (var method in _methods)
+            {
+                _argsDict.Add(method.Name, new Dictionary<string, object>());
+
+                foreach (var param in method.GetParameters())
+                {
+                    _argsDict[method.Name].Add(param.Name, new object());
+                }
+            }
 
             //Measure longest label
             foreach (var method in _methods)
@@ -88,11 +105,11 @@ namespace IntersectUtilities
                 tblp.RowCount++;
                 tblp.RowStyles.Add(
                     new RowStyle(SizeType.AutoSize));
-                AddControlsForMethod(i);
+                AddControlsForMethod(i, counter);
             }
         }
 
-        private void AddControlsForMethod(int index)
+        private void AddControlsForMethod(int index, Counter counter)
         {
             var method = _methods[index];
             int rowIdx = index + 2;
@@ -133,6 +150,8 @@ namespace IntersectUtilities
             tblp.Controls.Add(checkbox, 0, rowIdx);
             tblp.Controls.Add(label, 1, rowIdx);
             tblp.Controls.Add(settingsButton, 2, rowIdx);
+            if (method.GetParameters().Length < 2)
+                settingsButton.Text = "N/A";
 
             //Add events
             checkbox.CheckedChanged += (sender, args) =>
@@ -144,55 +163,125 @@ namespace IntersectUtilities
             //Event to run settings
             settingsButton.Click += (sender, args) =>
             {
+                var parameters = method.GetParameters();
+                //check to see if method has parameters that need to be set
+                if (parameters.Length == 1) return;
+
                 //Create form to input method arguments
                 var form = new Form()
                 {
-                    Text = method.Name + " Settings",
+                    Text = methodDescription.ShortDescription,
                     Size = new Size(400, 200),
                     StartPosition = FormStartPosition.CenterParent,
                     FormBorderStyle = FormBorderStyle.FixedSingle,
-                    ControlBox = true,
                     ShowInTaskbar = false,
                 };
-                form.Controls.Add(new Label()
-                {
-                    Text = "Enter arguments:",
-                    AutoSize = true,
-                    Dock = DockStyle.Top,
-                });
+
+                TableLayoutPanel tblSet = new TableLayoutPanel();
+                tblSet.ColumnCount = 2;
+                tblSet.Dock = DockStyle.Fill;
+                tblSet.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+                tblSet.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+                form.Controls.Add(tblSet);
 
                 // create input controls for each method parameter
-                var parameters = method.GetParameters();
                 for (int i = 0; i < parameters.Length; i++)
                 {
                     var parameter = parameters[i];
-                    form.Controls.Add(new Label()
+                    //First parameter is always database
+                    if (parameter.ParameterType == typeof(Database)) continue;
+
+                    //Add row to tblSet
+                    tblSet.RowCount++;
+
+                    tblSet.Controls.Add(new Label()
                     {
-                        Text = parameter.Name + ":",
+                        Text = methodDescription.ArgDescriptions[i - 1] + ":",
                         AutoSize = true,
                         Dock = DockStyle.Top,
-                    });
+                    }, 0, tblSet.RowCount - 1);
 
-                    var textBox = new TextBox()
+                    switch (parameter.ParameterType)
                     {
-                        Dock = DockStyle.Top,
-                    };
-                    if (parameter.ParameterType == typeof(List<string>))
-                    {
-                        textBox.Text = "arg1,arg2,arg3";
+                        case Type t when t == typeof(string):
+                            {
+                                var textBox = new TextBox()
+                                {
+                                    Name = parameter.Name,
+                                    Dock = DockStyle.Fill,
+                                };
+                                textBox.TextChanged += (sender2, args2) =>
+                                {
+                                    _argsDict[method.Name][parameter.Name] = textBox.Text;
+                                };
+                                tblSet.Controls.Add(textBox, 1, tblSet.RowCount - 1);
+                            }
+                            break;
+                        case Type t when t == typeof(DataReferencesOptions):
+                            {
+                                var droBtn = new Button()
+                                {
+                                    Text = "Click",
+                                    AutoSize = true,
+                                    Dock = DockStyle.Fill,
+                                };
+                                tblSet.Controls.Add(droBtn, 1, tblSet.RowCount - 1);
+                                droBtn.Click += (sender3, args3) =>
+                                {
+                                    DataReferencesOptions dro = new DataReferencesOptions();
+                                    _argsDict[method.Name][parameter.Name] = dro;
+                                };
+                            }
+                            break;
+                        case Type t when t == typeof(Counter):
+                            {
+                                var counterBox = new TextBox()
+                                {
+                                    Dock = DockStyle.Fill,
+                                    Text = "Counter",
+                                    ReadOnly = true,
+                                    Enabled = false,
+                                };
+                                tblSet.Controls.Add(counterBox, 1, tblSet.RowCount - 1);
+
+                                _argsDict[method.Name][parameter.Name] = counter;
+                            }
+                            break;
+                        case Type t when t == typeof(int):
+                            {
+                                var intBox = new TextBox()
+                                {
+                                    Dock = DockStyle.Fill,
+                                };
+
+                                intBox.TextChanged += (sender4, args4) =>
+                                {
+                                    int value = 0;
+                                    if (int.TryParse(intBox.Text, out value))
+                                    {
+                                        _argsDict[method.Name][parameter.Name] = value;
+                                    }
+                                };
+                                tblSet.Controls.Add(intBox, 1, tblSet.RowCount - 1);
+                            }
+                            break;
+
+                        default:
+                            throw new Exception(
+                                $"Type {parameter.ParameterType.Name} " +
+                                $"is not implemented! (Error 0x02394054)");
                     }
-                    form.Controls.Add(textBox);
                 }
 
                 form.ShowDialog();
             };
         }
+
         private void ExecuteSelectedMethods()
         {
+            #region Gather checked methods
             List<MethodInfo> methods = new List<MethodInfo>();
-
             var checkboxes = tblp.Controls.OfType<CheckBox>();
-
             foreach (CheckBox checkbox in checkboxes)
             {
                 if (checkbox.Checked)
@@ -201,8 +290,22 @@ namespace IntersectUtilities
                     methods.Add(_methods[rowNumber - 2]);
                 }
             }
+            MethodsToExecute = methods;
+            #endregion
 
-            methodsToExecute = methods;
+            foreach (MethodInfo method in MethodsToExecute)
+            {
+                var parameters = method.GetParameters();
+                object[] args = new object[parameters.Length];
+                for (int i = 0; i < parameters.Length; i++)
+                {
+                    args[i] = _argsDict[method.Name][parameters[i].Name];
+                }
+
+                ArgsToExecute.Add(method.Name, args);
+            }
+
+            this.Close();
         }
     }
 }
