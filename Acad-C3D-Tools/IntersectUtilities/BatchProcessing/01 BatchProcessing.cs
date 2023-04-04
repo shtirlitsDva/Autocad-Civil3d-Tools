@@ -109,6 +109,7 @@ namespace IntersectUtilities
                     {
                         //prdDbg(fileName);
                         string file = path + fileName;
+                        if (!File.Exists(file)) continue;
                         using (Database xDb = new Database(false, true))
                         {
                             xDb.ReadDwgFile(file, System.IO.FileShare.ReadWrite, false, "");
@@ -1349,14 +1350,11 @@ namespace IntersectUtilities
             prdDbg($"Number of oids: {oids.Count}");
 
             DBDictionary layoutDict = xDb.LayoutDictionaryId.Go<DBDictionary>(xTx);
-            var enumerator = layoutDict.GetEnumerator();
-            while (enumerator.MoveNext())
+            foreach (DBDictionaryEntry item in layoutDict)
             {
-                DBDictionaryEntry item = enumerator.Current;
-                prdDbg(item.Key);
                 if (item.Key == "Model")
                 {
-                    prdDbg("Skipping model...");
+                    //prdDbg("Skipping model...");
                     continue;
                 }
                 Layout layout = item.Value.Go<Layout>(xTx);
@@ -1411,18 +1409,16 @@ namespace IntersectUtilities
                     if (ltr.Name.EndsWith("_VF|C-ANNO-MTCH"))
                     {
                         oids.Add(loid);
-                        prdDbg(ltr.Name);
+                        //prdDbg(ltr.Name);
                     }
                 }
 
                 DBDictionary layoutDict = xDb.LayoutDictionaryId.Go<DBDictionary>(xTx);
-                var enumerator = layoutDict.GetEnumerator();
-                while (enumerator.MoveNext())
+                foreach (DBDictionaryEntry item in layoutDict)
                 {
-                    DBDictionaryEntry item = enumerator.Current;
                     if (item.Key == "Model")
                     {
-                        prdDbg("Skipping model...");
+                        //prdDbg("Skipping model...");
                         continue;
                     }
                     Layout layout = item.Value.Go<Layout>(xTx);
@@ -1445,9 +1441,10 @@ namespace IntersectUtilities
                                     if (vp.IsLayerFrozenInViewport(oid)) continue;
                                     notFrozenIds.Add(oid);
                                 }
-                                prdDbg($"Number of not frozen layers: {notFrozenIds.Count}");
+                                
                                 if (notFrozenIds.Count == 0) continue;
 
+                                prdDbg("Freezing C-ANNO-MTCH!");
                                 vp.CheckOrOpenForWrite();
                                 vp.FreezeLayersInViewport(notFrozenIds.GetEnumerator());
                             }
@@ -1462,7 +1459,7 @@ namespace IntersectUtilities
             return new Result();
         }
         [MethodDescription(
-            "Place block on paperspace",
+            "Place block on paperspace\n",
             "Placerer specificeret block på paperspace.\n" +
             "Blocken skal findes i tegningen.\n" +
             "Angiv viewportens center X og Y til hele tal.\n" +
@@ -1475,28 +1472,17 @@ namespace IntersectUtilities
         {
             Transaction xTx = xDb.TransactionManager.TopTransaction;
 
-            BlockTableRecord paperspace =
-                xDb.BlockTableId.Go<BlockTable>(xTx)
-                [BlockTableRecord.PaperSpace].Go<BlockTableRecord>(
-                    xTx, OpenMode.ForWrite);
-
             BlockTable bt = xTx.GetObject(xDb.BlockTableId, OpenMode.ForRead) as BlockTable;
             Oid btrId = bt[blockName];
 
-            var br = new BlockReference(new Point3d(brX, brY, 0), btrId);
-
-            paperspace.AppendEntity(br);
-            xTx.AddNewlyCreatedDBObject(br, true);
-
             DBDictionary layoutDict = xDb.LayoutDictionaryId.Go<DBDictionary>(xTx);
-            var enumerator = layoutDict.GetEnumerator();
-            while (enumerator.MoveNext())
+            
+            foreach (DBDictionaryEntry item in layoutDict)
             {
-                DBDictionaryEntry item = enumerator.Current;
-                prdDbg(item.Key);
+                //prdDbg(item.Key);
                 if (item.Key == "Model")
                 {
-                    prdDbg("Skipping model...");
+                    //prdDbg("Skipping model...");
                     continue;
                 }
                 Layout layout = item.Value.Go<Layout>(xTx);
@@ -1512,7 +1498,13 @@ namespace IntersectUtilities
                         int centerY = (int)vp.CenterPoint.Y;
                         if (centerX == X && centerY == Y)
                         {
-                            prdDbg("Found main viewport!");
+                            prdDbg($"Found main viewport, placing {blockName}!");
+
+                            var br = new BlockReference(new Point3d(brX, brY, 0), btrId);
+                            layBlock.CheckOrOpenForWrite();
+                            layBlock.AppendEntity(br);
+                            xTx.AddNewlyCreatedDBObject(br, true);
+
                             br.Rotation = vp.TwistAngle;
                         }
                     }
