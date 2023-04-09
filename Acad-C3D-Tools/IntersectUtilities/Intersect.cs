@@ -50,7 +50,6 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using System.Security.Cryptography;
 
 namespace IntersectUtilities
 {
@@ -63,6 +62,11 @@ namespace IntersectUtilities
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
+            if (doc != null)
+            {
+                SystemObjects.DynamicLinker.LoadModule(
+                    "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
+            }
             prdDbg("IntersectUtilites loaded!");
         }
 
@@ -7899,6 +7903,138 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        [CommandMethod("CLIPPLINESOUTSIDEPLINE")]
+        public void ClipPlineOutsidePline()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            PromptEntityOptions peo = new PromptEntityOptions("\nSelect polyline to clip: ");
+            peo.SetRejectMessage("\nNot a polyline!");
+            peo.AddAllowedClass(typeof(Polyline), true);
+            PromptEntityResult per = editor.GetEntity(peo);
+            if (per.Status != PromptStatus.OK) return;
+            Oid clipPlineId = per.ObjectId;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Polyline clipPolyline = tx.GetObject(per.ObjectId, OpenMode.ForRead) as Polyline;
+                    if (clipPolyline == null) { tx.Abort(); return; };
+
+                    HashSet<Polyline> plines = new HashSet<Polyline>();
+                    foreach (Polyline ent in localDb.HashSetOfType<Polyline>(tx))
+                    {
+                        if (ent.ObjectId == per.ObjectId) continue;
+                        if (ent is Polyline)
+                        {
+                            plines.Add(ent as Polyline);
+                        }
+                    }
+
+                    foreach (Polyline pline in plines)
+                    {
+                        List<double> splitPts = new List<double>();
+                        Point3dCollection ints = new Point3dCollection();
+                        Plane plane = new Plane();
+                        clipPolyline.IntersectWith(
+                            pline, Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                            plane, ints, new IntPtr(0), new IntPtr(0));
+                        if (ints.Count == 0) continue;
+                        foreach (Point3d intPoint in ints)
+                        {
+                            try
+                            {
+                                double param = pline.GetParameterAtPoint(intPoint);
+                                splitPts.Add(param);
+                            }
+                            catch (System.Exception)
+                            {
+                                prdDbg($"Pline: {pline.Handle}, intPoint: {intPoint}");
+                                continue;
+                            }
+                        }
+                        if (splitPts.Count == 0) continue;
+                        DBObjectCollection objs = pline.GetSplitCurves(
+                                new DoubleCollection(splitPts.ToArray()));
+                        foreach (DBObject obj in objs)
+                        {
+                            if (obj is Polyline newPline)
+                            {
+                                if (newPline.Length < 0.1) continue;
+                                newPline.AddEntityToDbModelSpace(localDb);
+                                PropertySetManager.CopyAllProperties(pline, newPline);
+                                newPline.Layer = pline.Layer;
+                            }
+                        }
+                        pline.CheckOrOpenForWrite();
+                        pline.Erase(true);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Polyline clipPolyline = tx.GetObject(per.ObjectId, OpenMode.ForRead) as Polyline;
+                    if (clipPolyline == null) { tx.Abort(); return; };
+
+                    HashSet<Polyline> plines = new HashSet<Polyline>();
+                    foreach (Polyline ent in localDb.HashSetOfType<Polyline>(tx))
+                    {
+                        if (ent.ObjectId == per.ObjectId) continue;
+                        if (ent is Polyline)
+                        {
+                            plines.Add(ent as Polyline);
+                        }
+                    }
+
+                    //Determine if the polyline is inside or outside the clip polyline
+                    using (MPolygon mpg = new MPolygon())
+                    {
+                        mpg.AppendLoopFromBoundary(clipPolyline, true, Tolerance.Global.EqualPoint);
+
+                        foreach (Polyline pline in plines)
+                        {
+                            bool isInside = true;
+
+                            for (int i = 0; i < pline.NumberOfVertices; i++)
+                            {
+                                if (i == 0 || i == pline.NumberOfVertices - 1) continue;
+
+                                isInside = (mpg.IsPointInsideMPolygon(
+                                    pline.GetPoint3dAt(i), Tolerance.Global.EqualPoint).Count == 1);
+                                if (!isInside)
+                                {
+                                    pline.CheckOrOpenForWrite();
+                                    pline.Erase(true);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
 
         //[CommandMethod("TESTENUMS")]
         public void testenums()

@@ -78,6 +78,10 @@
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\acmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="AcMPolygonMGD">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\AcMPolygonMGD.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="AcMr">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\AcMr.DLL</HintPath>
       <Private>False</Private>
