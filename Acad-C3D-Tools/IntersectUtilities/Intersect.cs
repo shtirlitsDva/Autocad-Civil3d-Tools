@@ -2206,7 +2206,7 @@ namespace IntersectUtilities
                             objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"]);
                             objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"]);
                             objIds.Add(stylesDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"]);
-                            
+
                             //Matchline styles
                             objIds.Add(stylesDoc.Styles.MatchLineStyles["Basic"]);
 
@@ -4550,7 +4550,7 @@ namespace IntersectUtilities
 
                     //paperspace.AppendEntity(br);
                     //tx.AddNewlyCreatedDBObject(br, true);
-                    
+
                     //DBDictionary layoutDict = localDb.LayoutDictionaryId.Go<DBDictionary>(tx);
                     //var enumerator = layoutDict.GetEnumerator();
                     //while (enumerator.MoveNext())
@@ -5996,7 +5996,7 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-        
+
         [CommandMethod("CLEANPLINES")]
         public void cleanplins()
         {
@@ -7889,7 +7889,7 @@ namespace IntersectUtilities
                         else return false;
                     }).Select(x => x.Id);
 
-                    var result = query.ToArray(); 
+                    var result = query.ToArray();
 
                     if (result.Length > 0)
                         editor.SetImpliedSelection(result);
@@ -7917,33 +7917,78 @@ namespace IntersectUtilities
             PromptEntityResult per = editor.GetEntity(peo);
             if (per.Status != PromptStatus.OK) return;
             Oid clipPlineId = per.ObjectId;
-
+            HashSet<Oid> plineOidsToCheckForDisjunction;
+            
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
-                    Polyline clipPolyline = tx.GetObject(per.ObjectId, OpenMode.ForRead) as Polyline;
+                    Polyline clipPolyline = tx.GetObject(clipPlineId, OpenMode.ForRead) as Polyline;
                     if (clipPolyline == null) { tx.Abort(); return; };
 
-                    HashSet<Polyline> plines = new HashSet<Polyline>();
-                    foreach (Polyline ent in localDb.HashSetOfType<Polyline>(tx))
+                    //Try to optimize the intersection algorithm
+                    double splitLength = 500.0;
+                    int nrOfSegments = (int)(clipPolyline.Length / splitLength);
+                    HashSet<Extents2d> bboxes = new HashSet<Extents2d>();
+
+                    double previousDist = 0;
+                    double dist = 0;
+                    for (int i = 0; i <= nrOfSegments; i++)
                     {
-                        if (ent.ObjectId == per.ObjectId) continue;
-                        if (ent is Polyline)
+                        if (i != nrOfSegments) // Not the last iteration
                         {
-                            plines.Add(ent as Polyline);
+                            dist += splitLength;
                         }
+                        else // Last iteration
+                        {
+                            dist = clipPolyline.Length;
+                        }
+
+                        Point2d p1 = clipPolyline.GetPointAtDist(previousDist).To2D();
+                        Point2d p2 = clipPolyline.GetPointAtDist(dist).To2D();
+                        double minX = p1.X < p2.X ? p1.X : p2.X;
+                        double minY = p1.Y < p2.Y ? p1.Y : p2.Y;
+                        double maxX = p1.X > p2.X ? p1.X : p2.X;
+                        double maxY = p1.Y > p2.Y ? p1.Y : p2.Y;
+                        bboxes.Add(new Extents2d(minX, minY, maxX, maxY));
+
+                        previousDist = dist;
                     }
 
-                    foreach (Polyline pline in plines)
+                    HashSet<Polyline> allPlines = new HashSet<Polyline>();
+                    
+                    foreach (Polyline ent in localDb.HashSetOfType<Polyline>(tx, true))
                     {
-                        List<double> splitPts = new List<double>();
-                        Point3dCollection ints = new Point3dCollection();
-                        Plane plane = new Plane();
+                        if (ent.ObjectId == clipPlineId) continue;
+                        allPlines.Add(ent);
+                    }
+
+                    HashSet<Polyline> plinesToIntersect = new HashSet<Polyline>();
+                    HashSet<Polyline> plinesThatDoNotOverlap = new HashSet<Polyline>();
+
+                    foreach (Polyline pline in allPlines)
+                    {
+                        if (bboxes.Any(x => x.IsOverlapping(
+                            pline.GeometricExtents.ToExtents2d())))
+                        {
+                            plinesToIntersect.Add(pline);
+                        }
+                        else plinesThatDoNotOverlap.Add(pline);
+                    }
+
+                    Plane plane = new Plane();
+                    List<double> splitPts = new List<double>();
+                    Point3dCollection ints = new Point3dCollection();
+                    IntPtr zero = new IntPtr(0);
+                    foreach (Polyline pline in plinesToIntersect)
+                    {
+                        splitPts.Clear();
+                        ints.Clear();
+                        
                         clipPolyline.IntersectWith(
                             pline, Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
-                            plane, ints, new IntPtr(0), new IntPtr(0));
-                        if (ints.Count == 0) continue;
+                            plane, ints, zero, zero);
+                        if (ints.Count == 0) plinesThatDoNotOverlap.Add(pline);
                         foreach (Point3d intPoint in ints)
                         {
                             try
@@ -7954,10 +7999,20 @@ namespace IntersectUtilities
                             catch (System.Exception)
                             {
                                 prdDbg($"Pline: {pline.Handle}, intPoint: {intPoint}");
-                                continue;
+                                if (ints.Count == 1)
+                                {
+                                    plinesThatDoNotOverlap.Add(pline);
+                                    continue;
+                                }
+                                else 
+                                {
+                                    prdDbg("Unhandled edge case encountered! " +
+                                    $"H: {pline.Handle} - {intPoint}"); 
+                                }
                             }
                         }
                         if (splitPts.Count == 0) continue;
+                        splitPts.Sort();
                         DBObjectCollection objs = pline.GetSplitCurves(
                                 new DoubleCollection(splitPts.ToArray()));
                         foreach (DBObject obj in objs)
@@ -7968,11 +8023,14 @@ namespace IntersectUtilities
                                 newPline.AddEntityToDbModelSpace(localDb);
                                 PropertySetManager.CopyAllProperties(pline, newPline);
                                 newPline.Layer = pline.Layer;
+                                plinesThatDoNotOverlap.Add(newPline);
                             }
                         }
                         pline.CheckOrOpenForWrite();
                         pline.Erase(true);
                     }
+                    plineOidsToCheckForDisjunction = plinesThatDoNotOverlap
+                        .Select(x => x.Id).ToHashSet();
                 }
                 catch (System.Exception ex)
                 {
@@ -7990,36 +8048,47 @@ namespace IntersectUtilities
                     Polyline clipPolyline = tx.GetObject(per.ObjectId, OpenMode.ForRead) as Polyline;
                     if (clipPolyline == null) { tx.Abort(); return; };
 
-                    HashSet<Polyline> plines = new HashSet<Polyline>();
-                    foreach (Polyline ent in localDb.HashSetOfType<Polyline>(tx))
-                    {
-                        if (ent.ObjectId == per.ObjectId) continue;
-                        if (ent is Polyline)
-                        {
-                            plines.Add(ent as Polyline);
-                        }
-                    }
-
                     //Determine if the polyline is inside or outside the clip polyline
                     using (MPolygon mpg = new MPolygon())
                     {
                         mpg.AppendLoopFromBoundary(clipPolyline, true, Tolerance.Global.EqualPoint);
 
-                        foreach (Polyline pline in plines)
+                        foreach (Oid oid in plineOidsToCheckForDisjunction)
                         {
+                            Polyline pline = oid.Go<Polyline>(tx);
+
                             bool isInside = true;
 
-                            for (int i = 0; i < pline.NumberOfVertices; i++)
+                            if (pline.NumberOfVertices == 2)
                             {
-                                if (i == 0 || i == pline.NumberOfVertices - 1) continue;
+                                //Next for misses plines with only two vertici
+                                //Handle those
 
-                                isInside = (mpg.IsPointInsideMPolygon(
-                                    pline.GetPoint3dAt(i), Tolerance.Global.EqualPoint).Count == 1);
-                                if (!isInside)
+                                bool firstIsInside = (mpg.IsPointInsideMPolygon(
+                                        pline.GetPoint3dAt(0), Tolerance.Global.EqualPoint).Count == 1);
+                                bool secondIsInside = (mpg.IsPointInsideMPolygon(
+                                        pline.GetPoint3dAt(1), Tolerance.Global.EqualPoint).Count == 1);
+
+                                if (!firstIsInside && !secondIsInside)
                                 {
                                     pline.CheckOrOpenForWrite();
                                     pline.Erase(true);
-                                    break;
+                                }
+                            }
+                            else
+                            {
+                                for (int i = 0; i < pline.NumberOfVertices; i++)
+                                {
+                                    if (i == 0 || i == pline.NumberOfVertices - 1) continue;
+
+                                    isInside = (mpg.IsPointInsideMPolygon(
+                                        pline.GetPoint3dAt(i), Tolerance.Global.EqualPoint).Count == 1);
+                                    if (!isInside)
+                                    {
+                                        pline.CheckOrOpenForWrite();
+                                        pline.Erase(true);
+                                        break;
+                                    }
                                 }
                             }
                         }

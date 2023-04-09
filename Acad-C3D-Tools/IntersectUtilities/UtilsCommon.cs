@@ -188,7 +188,6 @@ namespace IntersectUtilities.UtilsCommon
             var ocsXAxis = Vector3d.XAxis.TransformBy(Matrix3d.PlaneToWorld(plane));
             return ocsXAxis.GetAngleTo(vector.ProjectTo(normal, normal), normal);
         }
-
         private static Random random = new Random();
         public static string RandomStringLetters(int length)
         {
@@ -197,7 +196,6 @@ namespace IntersectUtilities.UtilsCommon
                 .Select(s => s[random.Next(s.Length)]).ToArray());
         }
         private static string mColumnLetters = "zabcdefghijklmnopqrstuvwxyz";
-
         public static string ColumnNameByIndex(int ColumnIndex)
         {
             int ModOf26, Subtract;
@@ -221,7 +219,16 @@ namespace IntersectUtilities.UtilsCommon
             }
             return NumberInLetters.ToString().ToUpper();
         }
-
+        public static Extents2d CreateExtents2DByTwoPoints(Point2d p1, Point2d p2)
+        {
+            List<double> xs = new List<double>() { p1.X, p2.X };
+            List<double> ys = new List<double>() { p1.Y, p2.Y };
+            return new Extents2d(
+                p1.X < p2.X ? p1.X : p2.X,
+                p1.Y < p2.Y ? p1.Y : p2.Y,
+                p1.X > p2.X ? p1.X : p2.X,
+                p1.Y > p2.Y ? p1.Y : p2.Y);
+        }
         public enum EndType
         {
             None,            //0:
