@@ -1884,6 +1884,19 @@ namespace IntersectUtilities.UtilsCommon
             }
             return pline;
         }
+        public static Extents3d GetBufferedXYGeometricExtents(
+            this Entity entity, double buffer)
+        {
+            if (buffer == 0) return entity.GeometricExtents;
+            var bbox = entity.GeometricExtents;
+
+            //Apply buffer to the bbox and create new extents
+            var newMin = new Point3d(
+                bbox.MinPoint.X - buffer, bbox.MinPoint.Y - buffer, 0);
+            var newMax = new Point3d(
+                bbox.MaxPoint.X + buffer, bbox.MaxPoint.Y + buffer, 0);
+            return new Extents3d(newMin, newMax);
+        }
         public static double ConstantWidthSafe(this Polyline pline)
         {
             double plineWidth;
@@ -2181,6 +2194,24 @@ namespace IntersectUtilities.UtilsCommon
 
             bool ProjectionOverlaps(double cmin1, double cmax1, double cmin2, double cmax2)
                 => cmax1 >= cmin2 && cmax2 >= cmin1;
+        }
+        public static HashSet<BlockReference> GetDetailingBlocks(
+            this ProfileView pv, Database db, double buffer = 0)
+        {
+            Transaction tx = db.TransactionManager.TopTransaction;
+            HashSet<BlockReference> brs = 
+                db.HashSetOfType<BlockReference>(tx);
+
+            HashSet<BlockReference> detailBlocks = 
+                new HashSet<BlockReference>();
+
+            Extents3d bbox = pv.GetBufferedXYGeometricExtents(buffer);
+            foreach (var item in brs)
+            {
+                if (!bbox.IsPointInsideXY(item.Position)) continue;
+                detailBlocks.Add(item);
+            }
+            return detailBlocks;
         }
     }
     public static class ExtensionMethods

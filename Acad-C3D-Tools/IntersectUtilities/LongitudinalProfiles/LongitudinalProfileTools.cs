@@ -49,9 +49,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using System.Windows.Documents;
 using Color = Autodesk.AutoCAD.Colors.Color;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace IntersectUtilities
 {
@@ -1593,7 +1591,7 @@ namespace IntersectUtilities
                                         dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                     brInt.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i].DN}");
                                     brInt.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[i + 1].DN}");
-                                    
+
                                     psmSourceReference.WritePropertyObject(
                                         brInt, driSourceReference.AlignmentStation, curStationBL);
                                 }
@@ -3799,7 +3797,7 @@ namespace IntersectUtilities
                         extents = pv.GeometricExtents;
                         allLabels = labelsInView.OrderBy(x => x.LabelLocation.X).ToArray();
 
-                        //split allLabels into tow arrays with exactly half elements in each
+                        //split allLabels into two arrays with exactly half elements in each
                         //left array is ordered by X ascending
                         //right array is ordere by X descending
                         int half = allLabels.Length / 2;
@@ -3889,7 +3887,7 @@ namespace IntersectUtilities
                                     secondAnchorDimensionInMeters =
                                         (locationDelta + firstAnchorDimensionInMeters + 0.75) / 250;
                                 }
-                                
+
                                 secondLabel.DimensionAnchorValue = secondAnchorDimensionInMeters;
                                 secondLabel.DowngradeOpen();
 
@@ -4203,6 +4201,108 @@ namespace IntersectUtilities
                     }
 
                     pline.AddEntityToDbModelSpace(database);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("UPDATESINGLEPROFILEVIEW")]
+        public void updatesingleprofileview()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
+                        "\n Select a ProfileView to update: ");
+            promptEntityOptions2.SetRejectMessage("\n Not a ProfileView");
+            promptEntityOptions2.AddAllowedClass(typeof(ProfileView), true);
+            PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+            if (((PromptResult)entity2).Status != PromptStatus.OK) return;
+
+            DataReferencesOptions dro = new DataReferencesOptions();
+            if (dro.ProjectName.IsNoE() || dro.EtapeName.IsNoE())
+                return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Get Profile view and location
+                    ProfileView pv = entity2.ObjectId.Go<ProfileView>(tx);
+
+                    Point3d originalProfileViewLocation =
+                        pv.Location;
+                    double stStart = pv.StationStart;
+                    double stEnd = pv.StationEnd;
+                    #endregion
+
+                    #region Erase detailing block
+                    var detailingBlock =
+                                   localDb.GetBlockReferenceByName(pv.Name)
+                                   .FirstOrDefault();
+
+                    if (detailingBlock == default)
+                        throw new System.Exception(
+                            $"Detailing block {pv.Name} was not found!");
+
+                    detailingBlock.CheckOrOpenForWrite();
+                    detailingBlock.Erase(true);
+                    #endregion
+
+                    //Gather all CogoPoints that show up in this
+                    //Particular profile view
+
+                    Alignment al = pv.AlignmentId.Go<Alignment>(tx);
+                    Polyline alPline = al.GetPolyline().Go<Polyline>(tx);
+
+                    #region Erase PV CogoPoints
+                    PropertySetManager psm = new PropertySetManager(
+                        localDb, PSetDefs.DefinedSets.DriCrossingData);
+                    PSetDefs.DriCrossingData psDef =
+                        new PSetDefs.DriCrossingData();
+
+                    //Delete all pv cogos
+                    var allCogos = localDb.HashSetOfType<CogoPoint>(tx);
+                    var alCogos = allCogos.Where(
+                        x => psm.FilterPropetyString(
+                            x, psDef.Alignment, al.Name));
+                    foreach (var item in alCogos)
+                    {
+                        double cogoStation =
+                            alPline.GetDistAtPoint(
+                                alPline.GetClosestPointTo(item.Location, false));
+
+                        if (cogoStation >= stStart && cogoStation <= stEnd)
+                        { item.CheckOrOpenForWrite(); item.Erase(); }
+                    }
+                    #endregion
+
+                    #region Erase detailing blocks
+                    HashSet<BlockReference> pvDetailingBrs =
+                        pv.GetDetailingBlocks(localDb, 5.0);
+                    foreach (var item in pvDetailingBrs)
+                    {
+                        item.CheckOrOpenForWrite();
+                        item.Erase();
+                    }
+                    #endregion
+
+                    #region Erase preliminary profile
+                    #endregion
+
+                    #region Erase PV
+                    pv.CheckOrOpenForWrite();
+                    pv.Erase(true);
+                    #endregion
+
+                    alPline.CheckOrOpenForWrite();
+                    alPline.Erase(true);
                 }
                 catch (System.Exception ex)
                 {
