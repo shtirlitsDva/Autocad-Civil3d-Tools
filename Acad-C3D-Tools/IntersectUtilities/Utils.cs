@@ -1328,7 +1328,7 @@ namespace IntersectUtilities
                 string psName = match.Groups["psname"].Value;
                 string propName = match.Groups["propname"].Value;
                 //Read the value from PS
-                string parameterValue = 
+                string parameterValue =
                     PropertySetManager.ReadNonDefinedPropertySetString(
                         ent, psName, propName);
                 //Replace the captured group in original string with the parameter value
@@ -1421,7 +1421,7 @@ namespace IntersectUtilities
             Partial,
             Full
         }
-        
+
         /// <param name="name">byblock, red, yellow, green, cyan, blue, magenta, white, grey, bylayer</param>
         public static Color ColorByName(string name) => UtilsCommon.Utils.AutocadStdColors[name];
     }
@@ -1629,6 +1629,7 @@ namespace IntersectUtilities
 
             #region Direction
             //Determine pipe size direction
+            //This is a flawed method using only curves, see below
             int maxDn = PipeSchedule.GetPipeDN(curves.MaxBy(x => PipeSchedule.GetPipeDN(x)).FirstOrDefault());
             int minDn = PipeSchedule.GetPipeDN(curves.MinBy(x => PipeSchedule.GetPipeDN(x)).FirstOrDefault());
 
@@ -1649,6 +1650,27 @@ namespace IntersectUtilities
             Curve closestCurve = curveDistTuples.MinBy(x => x.dist).FirstOrDefault().curve;
 
             StartingDn = PipeSchedule.GetPipeDN(closestCurve);
+
+            //2023.04.12: A case discovered where there's a reducer after which there's only blocks
+            //till the alignment's end. This confuses the code to think that the last size
+            //don't exists, as it looks only at polylines present.
+            //So, we need to check for presence of reducers to definitely rule out one size case.
+            var reducers = brs.Where(
+                x => x.ReadDynamicCsvProperty(DynamicProperty.Type, dynBlocks, false) == "Reduktion");
+            if (reducers.Count() != 0)
+            {
+                List<int> sizes = new List<int>();
+                foreach (var reducer in reducers)
+                {
+                    sizes.Add(Convert.ToInt32(
+                        reducer.ReadDynamicCsvProperty(DynamicProperty.DN1, dynBlocks)));
+                    sizes.Add(Convert.ToInt32(
+                        reducer.ReadDynamicCsvProperty(DynamicProperty.DN2, dynBlocks)));
+                }
+
+                minDn = sizes.Min();
+                maxDn = sizes.Max();
+            }
 
             if (maxDn == minDn) Direction = PipelineSizesDirection.OneSize;
             else if (StartingDn == minDn) Direction = PipelineSizesDirection.SmallToLargeAscending;
@@ -1816,7 +1838,7 @@ namespace IntersectUtilities
                         dn = GetDirectionallyCorrectDn(curBr, Side.Left, dt);
                         //Point3d p3d = al.GetClosestPointTo(curBr.Position, false);
                         //al.StationOffset(p3d.X, p3d.Y, ref end, ref offset);
-                        kod = GetDirectionallyCorrectKod(curBr, Side.Left, dt); 
+                        kod = GetDirectionallyCorrectKod(curBr, Side.Left, dt);
                     }
                     else
                     {//F-Model og Y-Model
@@ -1846,7 +1868,7 @@ namespace IntersectUtilities
                         if (PipelineSizeArray.IsTransition(curBr, dt))
                         {
                             dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
-                            kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt); 
+                            kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
                         }
                         else
                         {//F-Model og Y-Model
@@ -1882,7 +1904,7 @@ namespace IntersectUtilities
                         dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
                         //Point3d p3d = al.GetClosestPointTo(nextBr.Position, false);
                         //al.StationOffset(p3d.X, p3d.Y, ref end, ref offset);
-                        kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt); 
+                        kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
                     }
                     else
                     {
@@ -1912,7 +1934,7 @@ namespace IntersectUtilities
                 if (PipelineSizeArray.IsTransition(curBr, dt))
                 {
                     dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
-                    kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt); 
+                    kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
                 }
                 else
                 {

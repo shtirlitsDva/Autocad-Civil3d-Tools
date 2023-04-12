@@ -184,6 +184,9 @@
     <Compile Include="..\AutoCADCommands\Test.cs">
       <Link>ACC\Test.cs</Link>
     </Compile>
+    <Compile Include="..\IntersectUtilities\ComponentSchedule.cs">
+      <Link>ComponentSchedule.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\CsvReader.cs">
       <Link>CsvReader.cs</Link>
     </Compile>
