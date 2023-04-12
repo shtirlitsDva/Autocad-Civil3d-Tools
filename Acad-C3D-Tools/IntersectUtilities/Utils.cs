@@ -31,6 +31,7 @@ using Autodesk.Aec.PropertyData;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.Colors;
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.DynamicBlocks;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
@@ -1662,10 +1663,10 @@ namespace IntersectUtilities
                 List<int> sizes = new List<int>();
                 foreach (var reducer in reducers)
                 {
-                    sizes.Add(Convert.ToInt32(
-                        reducer.ReadDynamicCsvProperty(DynamicProperty.DN1, dynBlocks)));
-                    sizes.Add(Convert.ToInt32(
-                        reducer.ReadDynamicCsvProperty(DynamicProperty.DN2, dynBlocks)));
+                    sizes.Add(
+                        ReadComponentDN1Int(reducer, dynBlocks));
+                    sizes.Add(
+                        ReadComponentDN2Int(reducer, dynBlocks));
                 }
 
                 minDn = sizes.Min();

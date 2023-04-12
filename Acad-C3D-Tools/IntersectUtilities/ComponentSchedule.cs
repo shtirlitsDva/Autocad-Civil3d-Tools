@@ -98,6 +98,7 @@ namespace IntersectUtilities
         private static string ConstructStringByRegex(BlockReference br, string stringToProcess)
         {
             //Construct pattern which matches the parameter definition
+            //Example definition it matches: $Præisoleret bøjning, 90gr, L {$L1}x{$L2} m
             Regex variablePattern = new Regex(@"{\$(?<Parameter>[a-zæøåA-ZÆØÅ0-9_:-]*)}");
             
             //Test if a pattern matches in the input string
