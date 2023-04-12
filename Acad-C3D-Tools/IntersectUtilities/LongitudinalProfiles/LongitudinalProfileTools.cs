@@ -1489,7 +1489,7 @@ namespace IntersectUtilities
                     //}
                     #endregion
 
-                    foreach (Alignment al in als)
+                    foreach (Alignment al in als.OrderBy(x => x.Name))
                     {
                         prdDbg($"\nProcessing: {al.Name}...");
                         #region If exist get surface profile and profile view
