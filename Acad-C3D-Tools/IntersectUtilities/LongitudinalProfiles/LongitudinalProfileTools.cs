@@ -1593,6 +1593,9 @@ namespace IntersectUtilities
                                         dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                     brInt.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i].DN}");
                                     brInt.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[i + 1].DN}");
+                                    
+                                    psmSourceReference.WritePropertyObject(
+                                        brInt, driSourceReference.AlignmentStation, curStationBL);
                                 }
                                 //Special cases
                                 if (i == 0)
@@ -1607,6 +1610,9 @@ namespace IntersectUtilities
                                     brAt0.SetAttributeStringValue("LEFTSIZE", "");
                                     brAt0.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[0].DN}");
 
+                                    psmSourceReference.WritePropertyObject(
+                                        brAt0, driSourceReference.AlignmentStation, curStationBL);
+
                                     if (pvSizeArray.Length == 1)
                                     {//If only one size in the array also place block at end
                                         curStationBL = pvStEnd;
@@ -1618,6 +1624,9 @@ namespace IntersectUtilities
                                             dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                         brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[0].DN}");
                                         brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
+
+                                        psmSourceReference.WritePropertyObject(
+                                        brAtEnd, driSourceReference.AlignmentStation, curStationBL);
                                     }
                                 }
                                 if (i == pvSizeArray.Length - 2)
@@ -1631,6 +1640,9 @@ namespace IntersectUtilities
                                         dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                     brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i + 1].DN}");
                                     brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
+
+                                    psmSourceReference.WritePropertyObject(
+                                        brAtEnd, driSourceReference.AlignmentStation, curStationBL);
                                 }
                             }
                             #endregion
