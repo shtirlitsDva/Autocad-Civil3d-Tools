@@ -102,7 +102,8 @@ namespace AcadOverrules
             #region Last tick
             {
                 Point3d pt = pline.EndPoint;
-                Vector3d deriv = pline.GetFirstDerivative(pt);
+                Vector3d deriv = pline.GetFirstDerivative(
+                    pline.GetClosestPointTo(pt, false));
                 deriv = deriv.GetNormal();
                 Vector3d perp = deriv.GetPerpendicularVector();
 

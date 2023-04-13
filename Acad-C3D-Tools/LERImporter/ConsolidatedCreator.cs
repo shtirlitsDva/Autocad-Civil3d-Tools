@@ -20,6 +20,7 @@ using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using DataTable = System.Data.DataTable;
 using static IntersectUtilities.UtilsCommon.Utils;
 using Autodesk.AutoCAD.Geometry;
+using MoreLinq;
 
 namespace LERImporter
 {
@@ -35,7 +36,7 @@ namespace LERImporter
             HashSet<LedningType> ledninger = new HashSet<LedningType>();
             HashSet<LedningstraceType> ledningstrace = new HashSet<LedningstraceType>();
             HashSet<LedningskomponentType> ledningskomponenter = new HashSet<LedningskomponentType>();
-            Graveforesp graveforesp = null;
+            HashSet<Graveforesp> graveforesps = new HashSet<Graveforesp>();
 
             #region Redirect objects to collections
             //Redirect objects to collections
@@ -50,7 +51,7 @@ namespace LERImporter
                         ownersRegister.Add(uo);
                         break;
                     case Graveforesp gvfsp:
-                        graveforesp = gvfsp;
+                        graveforesps.Add(gvfsp);
                         break;
                     case UtilityPackageInfo upi:
                         break;
@@ -75,36 +76,40 @@ namespace LERImporter
                         throw new System.Exception($"Unexpected type encountered {fm.item.GetType().Name}!");
                 }
             }
+            ownersRegister = ownersRegister.DistinctBy(x => x.ledningsejer).ToHashSet();
             #endregion
 
             #region Draw graveforesp polygon
             Db2d.CheckOrCreateLayer("GraveforespPolygon");
 
-            PolygonType polygon = graveforesp.polygonProperty.Item as PolygonType;
-            LinearRingType lrt = polygon.exterior.Item as LinearRingType;
-            DirectPositionListType dplt = lrt.Items[0] as DirectPositionListType;
-
-            var points = dplt.Get2DPoints();
-
-            Point2dCollection points2d = new Point2dCollection();
-            DoubleCollection dc = new DoubleCollection();
-            for (int i = 0; i < points.Length; i++)
+            foreach (var graveforesp in graveforesps)
             {
-                points2d.Add(points[i]);
-                dc.Add(0.0);
+                PolygonType polygon = graveforesp.polygonProperty.Item as PolygonType;
+                LinearRingType lrt = polygon.exterior.Item as LinearRingType;
+                DirectPositionListType dplt = lrt.Items[0] as DirectPositionListType;
+
+                var points = dplt.Get2DPoints();
+
+                Point2dCollection points2d = new Point2dCollection();
+                DoubleCollection dc = new DoubleCollection();
+                for (int i = 0; i < points.Length; i++)
+                {
+                    points2d.Add(points[i]);
+                    dc.Add(0.0);
+                }
+
+                Hatch hatch = new Hatch();
+                hatch.Normal = new Vector3d(0.0, 0.0, 1.0);
+                hatch.Elevation = 0.0;
+                hatch.PatternScale = 1.0;
+                hatch.SetHatchPattern(HatchPatternType.PreDefined, "SOLID");
+                Oid hatchId = hatch.AddEntityToDbModelSpace(Db2d);
+
+                hatch.AppendLoop(HatchLoopTypes.Default, points2d, dc);
+                hatch.EvaluateHatch(true);
+
+                hatch.Layer = "GraveforespPolygon"; 
             }
-
-            Hatch hatch = new Hatch();
-            hatch.Normal = new Vector3d(0.0, 0.0, 1.0);
-            hatch.Elevation = 0.0;
-            hatch.PatternScale = 1.0;
-            hatch.SetHatchPattern(HatchPatternType.PreDefined, "SOLID");
-            Oid hatchId = hatch.AddEntityToDbModelSpace(Db2d);
-
-            hatch.AppendLoop(HatchLoopTypes.Default, points2d, dc);
-            hatch.EvaluateHatch(true);
-
-            hatch.Layer = "GraveforespPolygon";
             #endregion
 
             #region Populate Company Name

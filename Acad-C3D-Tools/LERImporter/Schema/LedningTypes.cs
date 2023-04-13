@@ -48,6 +48,7 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
 using Log = LERImporter.SimpleLogger;
+using static LERImporter.Schema.ElledningType;
 
 namespace LERImporter.Schema
 {
@@ -413,7 +414,7 @@ namespace LERImporter.Schema
         /// </summary>
         [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
         [Serializable]
-        [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+        [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
         public enum TermiskledningsindholdstypeType
         {
             /// <summary>
@@ -429,7 +430,9 @@ namespace LERImporter.Schema
             /// vand til fjernkøling
             /// </summary>
             [XmlEnumAttribute("koldt vand")]
-            koldtvand
+            koldtvand,
+            glykol,
+            sprit
         }
     }
     public partial class GasledningType : ILerLedning
@@ -573,7 +576,40 @@ namespace LERImporter.Schema
         public bool HarFod { get => this.harFod?.Value ?? false; }
         [PsInclude]
         public string LedningstransportType { get => this.ledningstransporttype?.Value.ToString() ?? ""; }
-        public LedningstransporttypeType? ledningstransportType { get => this.ledningstransporttype?.Value; }
+        [PsInclude]
+        public string MedieType { get => this.getMedietype().ToString() ?? string.Empty; }
+        public string medietype { get; set; }
+        private MedietypeEnum getMedietype()
+        {
+            if (this.medietype.IsNoE())
+            {
+                Log.log($"WARNING! Element id {gmlid} has NO Medietype specified!");
+                return MedietypeEnum.ukendt;
+            }
+
+            MedietypeEnum type;
+            if (Enum.TryParse(this.medietype, out type)) return type;
+            else
+            {
+                Log.log($"WARNING! Element id {gmlid} has non-standard Medietype {this.medietype}!");
+                return MedietypeEnum.ukendt;
+            }
+        }
+        public enum MedietypeEnum
+        {
+            ukendt,
+            drænvand,
+            fællesvand,
+            [XmlEnumAttribute("industri/procesvand")]
+            industriprocesvand,
+            [XmlEnumAttribute("intet medie")]
+            intetmedie,
+            perkolat,
+            regnvand,
+            spildevand,
+            [XmlEnumAttribute("vand uden rensekrav")]
+            vandudenrensekrav,
+        }
         private string DetermineLayerName(Database database, bool _3D = false)
         {
             string layerName = "Afløbsledning";
@@ -689,7 +725,7 @@ namespace LERImporter.Schema
     public partial class ElledningType : ILerLedning
     {
         [PsInclude]
-        public string Type { get => Type2.ToString(); }
+        public string Type { get => getLedningsType(); }
         [PsInclude]
         public string Afdækning { get => this.afdaekning; }
         [PsInclude]
@@ -700,23 +736,22 @@ namespace LERImporter.Schema
         public string KabelType { get => this.kabeltype; }
         [PsInclude]
         public string SpædningsNiveau { get => this.spaendingsniveau?.Value.ToString() + this.spaendingsniveau?.uom ?? ""; }
-        public ElledningTypeEnum Type2 { get => getElledningTypeType(); }
-        private ElledningTypeEnum getElledningTypeType()
+        private string getLedningsType()
         {
-            if (this.type.Value.IsNoE())
+            if (this.type.IsNoE()) return "";
+            if (this.type.StartsWith("other:"))
             {
-                Log.log($"WARNING! Element id {gmlid} has NO ElledningType specified!");
-                return ElledningTypeEnum.none;
+                string tmp = this.type.Replace("other:", "");
+                tmp = tmp.Trim();
+                return tmp;
             }
-
-            ElledningTypeEnum type;
-            if (Enum.TryParse(this.type.Value, out type)) return type;
-            else
-            {
-                Log.log($"WARNING! Element id {gmlid} has non-standard ElledningType {this.type.Value}!");
-                return ElledningTypeEnum.other;
-            }
+            else return this.type;
         }
+        /// <summary>
+        /// kategori
+        /// </summary>
+        [XmlElement(IsNullable = true)]
+        public string type { get; set; }
         private string DetermineLayerName(Database database, bool _3D = false)
         {
             #region Determine correct layer name
@@ -736,13 +771,18 @@ namespace LERImporter.Schema
                         $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus.ToString()}!");
             }
 
-            switch (getElledningTypeType())
+            ElledningTypeEnum type;
+            if (Enum.TryParse(this.getLedningsType(), out type)) { }
+            else { type = ElledningTypeEnum.other; }
+                
+
+            switch (type)
             {
                 case ElledningTypeEnum.none:
                     layerName = "0-ERROR-ElledningType-none";
                     break;
                 case ElledningTypeEnum.other:
-                    layerName = "0-ERROR-ElledningType-other";
+                    layerName = "EL-ElledningType-other";
                     break;
                 case ElledningTypeEnum.beskyttelsesleder:
                     layerName = "EL-Beskyttelsesleder";
@@ -758,6 +798,12 @@ namespace LERImporter.Schema
                     break;
                 case ElledningTypeEnum.vejbelysningskabel:
                     layerName = "EL-Vejbelysningskabel";
+                    break;
+                case ElledningTypeEnum.KBkabel:
+                    layerName = "EL-KBkabel";
+                    break;
+                case ElledningTypeEnum.signalkabel:
+                    layerName = "EL-Signalkabel";
                     break;
                 default:
                     layerName = "0-ERROR-ElledningType-other";
@@ -808,7 +854,10 @@ namespace LERImporter.Schema
             forsyningskabel,
             luftledning,
             stikkabel,
-            vejbelysningskabel
+            vejbelysningskabel,
+            [XmlEnumAttribute("KB-kabel")]
+            KBkabel,
+            signalkabel
         }
     }
     public partial class AndenLedningType : ILerLedning

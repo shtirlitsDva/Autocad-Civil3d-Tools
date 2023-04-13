@@ -6,9 +6,9 @@
   xmlns:dim="http://data.gov.dk/schemas/dimensions/1/gml"
   xmlns:gml="http://www.opengis.net/gml/3.2"
   xmlns:gmx="http://www.isotc211.org/2005/gmx"
-  xmlns:ler="http://data.gov.dk/schemas/LER/1/gml"
+  xmlns:ler="http://data.gov.dk/schemas/LER/2/gml"
   elementFormDefault="qualified"
-  targetNamespace="http://data.gov.dk/schemas/LER/1/gml"
+  targetNamespace="http://data.gov.dk/schemas/LER/2/gml"
   version="1.0.1">
   <import namespace="http://data.gov.dk/schemas/annotations/1/gml" schemaLocation="1.0_annotations.xsd"/>
   <import namespace="http://data.gov.dk/schemas/dimensions/1/gml" schemaLocation="1.0_dimensions.xsd"/>

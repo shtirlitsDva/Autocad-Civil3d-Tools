@@ -20,8 +20,8 @@ namespace LERImporter.Schema
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Afloebskomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Afloebskomponent", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class AfloebskomponentType : LedningskomponentType
     {
         /// <summary>
@@ -56,7 +56,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum AfloebskomponenttypeType
     {
         /// <summary>
@@ -192,6 +192,10 @@ namespace LERImporter.Schema
         /// konstruktion omfattende en udskillerfunktion, tilslutninger evt. overløbskanter mv
         /// </summary>
         udskillerbygværk,
+        [XmlEnumAttribute("permeabel belægning")]
+        permeabelbelægning,
+        regnbed,
+        wadi
     }
 
     /// <summary>
@@ -201,7 +205,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class AfloebskomponentTypeBroendform
     {
         [XmlAttribute]
@@ -215,7 +219,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum BroendformtypeType
     {
         /// <summary>
@@ -5270,8 +5274,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Informationsressource", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Informationsressource", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class InformationsressourceType : AbstractFeatureType
     {
         [XmlElement("alternative", typeof(SimpleLiteral), Namespace = "http://purl.org/dc/terms/")]
@@ -5331,7 +5335,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml", IncludeInSchema = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml", IncludeInSchema = false)]
     public enum ItemChoiceType1
     {
         [XmlEnumAttribute("http://purl.org/dc/terms/:alternative")]
@@ -5347,7 +5351,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class InformationsressourceTypeFormat : MimeFileType_Type
     {
     }
@@ -5367,7 +5371,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml", IncludeInSchema = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml", IncludeInSchema = false)]
     public enum Item1ChoiceType
     {
         [XmlEnumAttribute("http://purl.org/dc/terms/:available")]
@@ -5392,7 +5396,7 @@ namespace LERImporter.Schema
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml", IncludeInSchema = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml", IncludeInSchema = false)]
     public enum ItemsChoiceType10
     {
         [XmlEnumAttribute("http://purl.org/dc/terms/:bibliographicCitation")]
@@ -5412,8 +5416,8 @@ namespace LERImporter.Schema
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Ledningskomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Ledningskomponent", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public abstract partial class LedningskomponentType : AbstractFeatureType
     {
         /// <summary>
@@ -5482,7 +5486,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class LedningskomponentTypeDriftsstatus
     {
         [XmlAttribute]
@@ -5496,7 +5500,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum DriftsstatusType
     {
         /// <summary>
@@ -5523,7 +5527,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class LedningskomponentTypeFareklasse
     {
         [XmlAttribute]
@@ -5537,7 +5541,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum FareklasseType
     {
         /// <summary>
@@ -5563,7 +5567,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class LedningskomponentTypeNoejagtighedsklasse
     {
         [XmlAttribute]
@@ -5577,7 +5581,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum NoejagtighedsklasseType
     {
         [XmlEnumAttribute("<= 0.25 m")]
@@ -5597,7 +5601,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum NiveautypeType
     {
         [XmlEnumAttribute("delvist under terræn")]
@@ -5612,8 +5616,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Vandkomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Vandkomponent", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class VandkomponentType : LedningskomponentType
     {
         /// <summary>
@@ -5649,7 +5653,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum VandkomponenttypeType
     {
         /// <summary>
@@ -5774,7 +5778,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class VandkomponentTypeTapstedstype
     {
         [XmlAttribute]
@@ -5788,7 +5792,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum TapstedstypeType
     {
         /// <summary>
@@ -5837,7 +5841,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class VandkomponentTypeAnborsted
     {
         [XmlAttribute]
@@ -5851,7 +5855,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum AnborstedtypeType
     {
         /// <summary>
@@ -5872,8 +5876,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("TermiskKomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("TermiskKomponent", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class TermiskKomponentType : LedningskomponentType
     {
         /// <summary>
@@ -5887,7 +5891,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum TermiskkomponenttypeType
     {
         /// <summary>
@@ -5922,14 +5926,26 @@ namespace LERImporter.Schema
         /// komponent der sidder på en ledning og bruges til aflukning og evt. aftapning
         /// </summary>
         ventil,
+        alarmudtag,
+        anodebed,
+        beskyttelsesplade,
+        betonkanal,
+        bukserør,
+        bygværk,
+        dæksel,
+        fundament,
+        pælefundering,
+        reduktion,
+        spunsvæg,
+        tunnel
     }
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Telekommunikationskomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Telekommunikationskomponent", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class TelekommunikationskomponentType : LedningskomponentType
     {
         /// <summary>
@@ -5943,7 +5959,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum TelekommunikationskomponenttypeType
     {
         /// <summary>
@@ -5981,8 +5997,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Oliekomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Oliekomponent", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class OliekomponentType : LedningskomponentType
     {
         /// <summary>
@@ -5995,8 +6011,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Gaskomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Gaskomponent", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class GaskomponentType : LedningskomponentType
     {
         /// <summary>
@@ -6014,7 +6030,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum GaskomponenttypeType
     {
         /// <summary>
@@ -6043,11 +6059,6 @@ namespace LERImporter.Schema
         /// komponent der bruges til at jorde en stålledning eller et ktb-anlæg
         /// </summary>
         jordspyd,
-        /// <summary>
-        /// del af anlæg til katodisk beskyttelse
-        /// </summary>
-        [XmlEnumAttribute("KB-kabel")]
-        KBkabel,
         [XmlEnumAttribute("målepunkt på stålrør")]
         målepunktpåstålrør,
         /// <summary>
@@ -6094,14 +6105,19 @@ namespace LERImporter.Schema
         /// brøndkonstruktion til at få adgang til at betjene en ventil
         /// </summary>
         ventilbrønd,
+        afmærkningsstander,
+        beskyttelsesplade,
+        boring,
+        gasbehandlingsanlæg,
+        tunnel
     }
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Elkomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Elkomponent", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class ElkomponentType : LedningskomponentType
     {
         /// <summary>
@@ -6123,7 +6139,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum ElkomponenttypeType
     {
         /// <summary>
@@ -6159,6 +6175,10 @@ namespace LERImporter.Schema
         /// </summary>
         [XmlEnumAttribute("mastefundament uden mast")]
         mastefundamentudenmast,
+        [XmlEnumAttribute("signalmast med galge")]
+        signalmastmedgalge,
+        [XmlEnumAttribute("signalmast uden galge")]
+        signalmastudengalge,
         /// <summary>
         /// muffe der benyttes til at samle to kabler på en måde, så den ikke kan åbnes igen
         /// </summary>
@@ -6193,11 +6213,14 @@ namespace LERImporter.Schema
         /// <summary>
         /// lampe til gadebelysning
         /// </summary>
-        vejbelysningsarmatur,
+        belysningsarmatur,
         /// <summary>
         /// kraftværk som omdanner vindenergi til elektricitet
         /// </summary>
         vindmølle,
+        kvejl,
+        sensor,
+        spole
     }
 
     /// <summary>
@@ -6205,7 +6228,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum RelativNiveauTypeType
     {
         /// <summary>
@@ -6226,8 +6249,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("AndenKomponent", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("AndenKomponent", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class AndenKomponentType : LedningskomponentType
     {
         /// <summary>
@@ -6257,8 +6280,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("LedningEllerLedningstrace", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("LedningEllerLedningstrace", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public abstract partial class LedningEllerLedningstraceType : AbstractFeatureType
     {
         /// <summary>
@@ -6323,7 +6346,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class LedningEllerLedningstraceTypeDriftsstatus
     {
         [XmlAttribute]
@@ -6339,7 +6362,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class LedningEllerLedningstraceTypeFareklasse
     {
         [XmlAttribute]
@@ -6353,7 +6376,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum IndtegningsmetodetypeType
     {
         /// <summary>
@@ -6377,7 +6400,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class LedningEllerLedningstraceTypeNoejagtighedsklasse
     {
         [XmlAttribute]
@@ -6390,8 +6413,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Ledningstrace", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Ledningstrace", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class LedningstraceType : LedningEllerLedningstraceType
     {
         /// <summary>
@@ -6450,7 +6473,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class LedningstraceTypeBredde : MeasureType
     {
         [XmlAttribute]
@@ -6464,7 +6487,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class LedningstraceTypeForsyningsart
     {
         [XmlAttribute]
@@ -6488,8 +6511,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Ledning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Ledning", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public abstract partial class LedningType : LedningEllerLedningstraceType
     {
         /// <summary>
@@ -6549,7 +6572,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class LedningTypeIndeholderLedninger
     {
         [XmlAttribute]
@@ -6563,7 +6586,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum LedningsetableringsmetodetypeType
     {
         /// <summary>
@@ -6629,7 +6652,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class LedningTypeUdvendigDiameter : MeasureType
     {
         [XmlAttribute]
@@ -6640,8 +6663,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Telekommunikationsledning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Telekommunikationsledning", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class TelekommunikationsledningType : LedningType
     {
         /// <summary>
@@ -6658,7 +6681,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class TelekommunikationsledningTypeType
     {
         [XmlAttribute]
@@ -6677,8 +6700,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Roerledning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Roerledning", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public abstract partial class RoerledningType : LedningType
     {
         /// <summary>
@@ -6705,7 +6728,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class RoerledningTypeTvaersnitsform
     {
         [XmlAttribute]
@@ -6721,7 +6744,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class RoerledningTypeUdvendigBredde : MeasureType
     {
         [XmlAttribute]
@@ -6735,7 +6758,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class RoerledningTypeUdvendigHoejde : MeasureType
     {
         [XmlAttribute]
@@ -6746,8 +6769,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Vandledning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Vandledning", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class VandledningType : RoerledningType
     {
     }
@@ -6756,8 +6779,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("TermiskLedning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("TermiskLedning", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class TermiskLedningType : RoerledningType
     {
         /// <summary>
@@ -6790,7 +6813,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class TermiskLedningTypeType
     {
         [XmlAttribute]
@@ -6804,7 +6827,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum TermiskledningstypeType
     {
         /// <summary>
@@ -6830,7 +6853,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum TermiskledningkonstruktiontypeType
     {
         /// <summary>
@@ -6847,8 +6870,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Olieledning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Olieledning", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class OlieledningType : RoerledningType
     {
         /// <summary>
@@ -6865,8 +6888,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Gasledning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Gasledning", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class GasledningType : RoerledningType
     {
         /// <summary>
@@ -6887,7 +6910,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class GasledningTypeType
     {
         [XmlAttribute]
@@ -6900,8 +6923,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Foeringsroer", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Foeringsroer", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class FoeringsroerType : RoerledningType
     {
         /// <summary>
@@ -6915,8 +6938,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Afloebsledning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Afloebsledning", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class AfloebsledningType : RoerledningType
     {
         /// <summary>
@@ -6938,7 +6961,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class AfloebsledningTypeHarFod
     {
         [XmlAttribute]
@@ -6954,7 +6977,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class AfloebsledningTypeLedningstransporttype
     {
         [XmlAttribute]
@@ -6968,7 +6991,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum LedningstransporttypeType
     {
         /// <summary>
@@ -6989,8 +7012,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("LedningUkendtForsyningsart", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("LedningUkendtForsyningsart", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class LedningUkendtForsyningsartType : LedningType
     {
         /// <summary>
@@ -7003,15 +7026,10 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Elledning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Elledning", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class ElledningType : LedningType
     {
-        /// <summary>
-        /// kategori
-        /// </summary>
-        [XmlElement(IsNullable = true)]
-        public ElledningTypeType type { get; set; }
         /// <summary>
         /// det at dække noget til for at beskytte det
         /// </summary>
@@ -7037,7 +7055,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class ElledningTypeType
     {
         [XmlAttribute]
@@ -7050,8 +7068,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("AndenLedning", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("AndenLedning", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class AndenLedningType : LedningType
     {
         /// <summary>
@@ -7084,7 +7102,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class AndenLedningTypeTvaersnitsform
     {
         [XmlAttribute]
@@ -7182,8 +7200,8 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Kontaktprofil", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Kontaktprofil", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class KontaktprofilType : AbstractFeatureType
     {
         /// <summary>
@@ -7203,8 +7221,8 @@ namespace LERImporter.Schema
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [XmlRootAttribute("Graveforespoergselssvar", Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [XmlRootAttribute("Graveforespoergselssvar", Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class GraveforespoergselssvarType : AbstractFeatureType
     {
         /// <summary>
@@ -7276,7 +7294,7 @@ namespace LERImporter.Schema
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]
     [Serializable]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum GraveforespoergselssvartypeType
     {
         [XmlEnumAttribute("ingen ledninger i graveområde")]
@@ -7309,7 +7327,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class GraveforespoergselssvarTypeKontaktprofilTilTekniskeSpoergsmaal
     {
         public KontaktprofilType Kontaktprofil { get; set; }
@@ -7333,7 +7351,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class GraveforespoergselssvarTypeLedningstraceMember : AbstractFeatureMemberType
     {
         public LedningstraceType Ledningstrace { get; set; }
@@ -7346,7 +7364,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class GraveforespoergselssvarTypeLedningMember : AbstractFeatureMemberType
     {
         //Item moved to custom part
@@ -7359,7 +7377,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class GraveforespoergselssvarTypeLedningskomponentMember : AbstractFeatureMemberType
     {
         [XmlElement("Afloebskomponent", typeof(AfloebskomponentType))]
@@ -7380,7 +7398,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class GraveforespoergselssvarTypeBilagMember : AbstractFeatureMemberType
     {
         public InformationsressourceType Informationsressource { get; set; }
@@ -7393,7 +7411,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class GraveforespoergselssvarTypeLineaerMaalsaetningMember : AbstractFeatureMemberType
     {
         [XmlElement(Namespace = "http://data.gov.dk/schemas/dimensions/1/gml")]
@@ -7407,7 +7425,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class GraveforespoergselssvarTypeTekstannotationMember : AbstractFeatureMemberType
     {
         [XmlElement(Namespace = "http://data.gov.dk/schemas/annotations/1/gml")]
@@ -7421,7 +7439,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class GraveforespoergselssvarTypeLinjeannotationMember : AbstractFeatureMemberType
     {
         [XmlElement(Namespace = "http://data.gov.dk/schemas/annotations/1/gml")]
@@ -16098,7 +16116,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class VandledningPropertyType
     {
         public VandledningType Vandledning { get; set; }
@@ -16123,7 +16141,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class VandkomponentPropertyType
     {
         public VandkomponentType Vandkomponent { get; set; }
@@ -16148,7 +16166,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class TermiskLedningPropertyType
     {
         public TermiskLedningType TermiskLedning { get; set; }
@@ -16173,7 +16191,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class TermiskKomponentPropertyType
     {
         public TermiskKomponentType TermiskKomponent { get; set; }
@@ -16198,7 +16216,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class TelekommunikationsledningPropertyType
     {
         public TelekommunikationsledningType Telekommunikationsledning { get; set; }
@@ -16223,7 +16241,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class TelekommunikationskomponentPropertyType
     {
         public TelekommunikationskomponentType Telekommunikationskomponent { get; set; }
@@ -16248,7 +16266,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class RoerledningPropertyType
     {
         [XmlElement("Afloebsledning", typeof(AfloebsledningType))]
@@ -16279,7 +16297,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class OlieledningPropertyType
     {
         public OlieledningType Olieledning { get; set; }
@@ -16304,7 +16322,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class OliekomponentPropertyType
     {
         public OliekomponentType Oliekomponent { get; set; }
@@ -16329,7 +16347,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class LedningstracePropertyType
     {
         public LedningstraceType Ledningstrace { get; set; }
@@ -16354,7 +16372,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class LedningskomponentPropertyType
     {
         [XmlElement("Afloebskomponent", typeof(AfloebskomponentType))]
@@ -16387,7 +16405,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class LedningUkendtForsyningsartPropertyType
     {
         public LedningUkendtForsyningsartType LedningUkendtForsyningsart { get; set; }
@@ -16412,7 +16430,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class LedningEllerLedningstracePropertyType
     {
         [XmlElement("Ledningstrace")]
@@ -16438,7 +16456,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class LedningPropertyType
     {
         [XmlElement("AndenLedning", typeof(AndenLedningType))]
@@ -16467,7 +16485,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class KontaktprofilPropertyType
     {
         public KontaktprofilType Kontaktprofil { get; set; }
@@ -16492,7 +16510,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class InformationsressourcePropertyType
     {
         public InformationsressourceType Informationsressource { get; set; }
@@ -16517,7 +16535,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class GraveforespoergselssvarPropertyType
     {
         public GraveforespoergselssvarType Graveforespoergselssvar { get; set; }
@@ -16542,7 +16560,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class GasledningPropertyType
     {
         public GasledningType Gasledning { get; set; }
@@ -16567,7 +16585,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class GaskomponentPropertyType
     {
         public GaskomponentType Gaskomponent { get; set; }
@@ -16592,7 +16610,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class FoeringsroerPropertyType
     {
         public FoeringsroerType Foeringsroer { get; set; }
@@ -16617,7 +16635,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class ElledningPropertyType
     {
         public ElledningType Elledning { get; set; }
@@ -16642,7 +16660,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class ElkomponentPropertyType
     {
         public ElkomponentType Elkomponent { get; set; }
@@ -16667,7 +16685,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class AndenLedningPropertyType
     {
         public AndenLedningType AndenLedning { get; set; }
@@ -16692,7 +16710,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class AndenKomponentPropertyType
     {
         public AndenKomponentType AndenKomponent { get; set; }
@@ -16717,7 +16735,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class AfloebsledningPropertyType
     {
         public AfloebsledningType Afloebsledning { get; set; }
@@ -16742,7 +16760,7 @@ namespace LERImporter.Schema
     [Serializable]
     
     [DesignerCategoryAttribute("code")]
-    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class AfloebskomponentPropertyType
     {
         public AfloebskomponentType Afloebskomponent { get; set; }

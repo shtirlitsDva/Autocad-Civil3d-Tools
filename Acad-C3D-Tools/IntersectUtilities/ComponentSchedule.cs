@@ -2,6 +2,7 @@
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using System;
+using System.Linq;
 using System.Text.RegularExpressions;
 using IntersectUtilities.UtilsCommon;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
@@ -10,6 +11,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.Utils;
 using System.Security.Cryptography;
+using System.Data;
 
 namespace IntersectUtilities
 {
@@ -96,8 +98,9 @@ namespace IntersectUtilities
         private static string ConstructStringByRegex(BlockReference br, string stringToProcess)
         {
             //Construct pattern which matches the parameter definition
+            //Example definition it matches: $Præisoleret bøjning, 90gr, L {$L1}x{$L2} m
             Regex variablePattern = new Regex(@"{\$(?<Parameter>[a-zæøåA-ZÆØÅ0-9_:-]*)}");
-
+            
             //Test if a pattern matches in the input string
             if (variablePattern.IsMatch(stringToProcess))
             {
@@ -289,6 +292,34 @@ namespace IntersectUtilities
             if (scale.X > 0) return "_PN";
             if (scale.Y > 0) return "_NP";
             return "_PP";
+        }
+        public static string ReadDynamicCsvProperty(
+            this BlockReference br, DynamicProperty prop,
+            System.Data.DataTable dt, bool parseProperty = true)
+        {
+            string key = br.RealName();
+            string parameter = prop.ToString();
+            string version = br.GetAttributeStringValue("VERSION");
+            //int keyColumnIdx = 0
+            {
+                if (dt.AsEnumerable().Any(row => row.Field<string>(0) == key))
+                {
+                    var query = dt.AsEnumerable()
+                        .Where(x =>
+                        x.Field<string>(0) == key &&
+                        x.Field<string>("Version") == version)
+                        .Select(x => x.Field<string>(parameter));
+
+                    string value = query.FirstOrDefault();
+                    if (parseProperty)
+                    {
+                        value = ConstructStringByRegex(br, value);
+                        return value;
+                    }
+                    else return value;
+                }
+                else return default;
+            }
         }
     }
 }

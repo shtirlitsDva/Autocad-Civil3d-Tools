@@ -16,6 +16,7 @@ using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
 using IntersectUtilities.UtilsCommon;
+using System.Diagnostics;
 
 namespace IntersectUtilities
 {
@@ -574,6 +575,33 @@ namespace IntersectUtilities
             string psName = GetKeywords("Select property set: ", dpsdict.NamesInUse.ToList());
             if (psName == null) return default;
             return psName;
+        }
+        public static Oid[] SelectByPsValue(
+            Database db, MatchTypeEnum matchType, string valueToFind = null)
+        {
+            IEnumerable<Entity> ents;
+            Transaction tx = db.TransactionManager.TopTransaction;
+            var sNp = AskForSetAndProperty(db);
+
+            switch (matchType)
+            {
+                case MatchTypeEnum.Exact:
+                    ents = db
+                    .ListOfType<Entity>(tx, true)
+                    .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                        x, sNp.PsSetName, sNp.PropertyName) == valueToFind);
+                    break;
+                case MatchTypeEnum.Contains:
+                    ents = db
+                    .ListOfType<Entity>(tx, true)
+                    .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
+                        x, sNp.PsSetName, sNp.PropertyName)
+                    .Contains(valueToFind, StringComparison.OrdinalIgnoreCase));
+                    break;
+                default:
+                    throw new System.Exception($"MatchTypeEnum {matchType} undefined!");
+            }
+            return ents.Select(x => x.Id).ToArray();
         }
         public static void ListUniquePsData(Database db)
         {

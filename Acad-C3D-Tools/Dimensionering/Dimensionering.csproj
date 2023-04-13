@@ -184,6 +184,9 @@
     <Compile Include="..\AutoCADCommands\Test.cs">
       <Link>ACC\Test.cs</Link>
     </Compile>
+    <Compile Include="..\IntersectUtilities\ComponentSchedule.cs">
+      <Link>ComponentSchedule.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\CsvReader.cs">
       <Link>CsvReader.cs</Link>
     </Compile>
@@ -196,7 +199,7 @@
     <Compile Include="..\IntersectUtilities\GroupByCluster.cs">
       <Link>GroupByCluster.cs</Link>
     </Compile>
-    <Compile Include="..\IntersectUtilities\MoreLinq.cs">
+    <Compile Include="..\IntersectUtilities\MoreLinq\MoreLinq.cs">
       <Link>MoreLinq.cs</Link>
     </Compile>
     <Compile Include="..\IntersectUtilities\PipeSchedule.cs">

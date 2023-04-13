@@ -62,6 +62,11 @@ namespace IntersectUtilities
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
+            if (doc != null)
+            {
+                SystemObjects.DynamicLinker.LoadModule(
+                    "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
+            }
             prdDbg("IntersectUtilites loaded!");
         }
 
@@ -2201,7 +2206,7 @@ namespace IntersectUtilities
                             objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["Elevations and Stations"]);
                             objIds.Add(stylesDoc.Styles.BandStyles.ProfileViewProfileDataBandStyles["TitleBuffer"]);
                             objIds.Add(stylesDoc.Styles.ProfileViewBandSetStyles["EG-FG Elevations and Stations"]);
-                            
+
                             //Matchline styles
                             objIds.Add(stylesDoc.Styles.MatchLineStyles["Basic"]);
 
@@ -4520,7 +4525,6 @@ namespace IntersectUtilities
         [CommandMethod("testing")]
         public void testing()
         {
-
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
@@ -4531,6 +4535,55 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test viewport orientation
+                    //string blockName = "Nordpil2";
+
+                    //BlockTableRecord paperspace = 
+                    //    localDb.BlockTableId.Go<BlockTable>(tx)
+                    //    [BlockTableRecord.PaperSpace].Go<BlockTableRecord>(
+                    //        tx, OpenMode.ForWrite);
+
+                    //BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    //Oid btrId = bt[blockName];
+
+                    //var br = new BlockReference(new Point3d(808,326,0), btrId);
+
+                    //paperspace.AppendEntity(br);
+                    //tx.AddNewlyCreatedDBObject(br, true);
+
+                    //DBDictionary layoutDict = localDb.LayoutDictionaryId.Go<DBDictionary>(tx);
+                    //var enumerator = layoutDict.GetEnumerator();
+                    //while (enumerator.MoveNext())
+                    //{
+                    //    DBDictionaryEntry item = enumerator.Current;
+                    //    prdDbg(item.Key);
+                    //    if (item.Key == "Model")
+                    //    {
+                    //        prdDbg("Skipping model...");
+                    //        continue;
+                    //    }
+                    //    Layout layout = item.Value.Go<Layout>(tx);
+                    //    BlockTableRecord layBlock = layout.BlockTableRecordId.Go<BlockTableRecord>(tx);
+
+                    //    foreach (Oid id in layBlock)
+                    //    {
+                    //        if (id.IsDerivedFrom<Viewport>())
+                    //        {
+                    //            Viewport vp = id.Go<Viewport>(tx);
+                    //            //Truncate doubles to whole numebers for easier comparison
+                    //            int centerX = (int)vp.CenterPoint.X;
+                    //            int centerY = (int)vp.CenterPoint.Y;
+                    //            if (centerX == 424 && centerY == 222)
+                    //            {
+                    //                prdDbg("Found main viewport!");
+                    //                br.Rotation = vp.TwistAngle;
+
+                    //            }
+                    //        }
+                    //    }
+                    //}
+                    #endregion
+
                     #region Test getting versions
                     //string pathToCatalogue = 
                     //    @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv";
@@ -5944,6 +5997,42 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("CLEANPLINES")]
+        public void cleanplins()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var plines = localDb.HashSetOfType<Polyline>(tx);
+                    int guiltyPlinesCount = 0;
+                    int removedVerticesCount = 0;
+
+                    foreach (Polyline pline in plines)
+                    {
+                        RemoveColinearVerticesPolyline(
+                            pline, ref guiltyPlinesCount, ref removedVerticesCount);
+                    }
+
+                    prdDbg(
+                        $"Found {guiltyPlinesCount} guilty plines and " +
+                        $"removed {removedVerticesCount} vertices.");
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         //[CommandMethod("CREATEPROPERTYSETSFROMODTABLES")]
         public void createpropertysetsfromodtables()
         {
@@ -6167,61 +6256,32 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-            PromptStringOptions opts1 = new PromptStringOptions("\nEnter name of Property Set: ");
-            opts1.AllowSpaces = true;
-            PromptResult pr1 = editor.GetString(opts1);
-            string propertySetName = "";
-            if (pr1.Status != PromptStatus.OK) return;
-            else propertySetName = pr1.StringResult;
-
-            PromptStringOptions opts2 = new PromptStringOptions("\nEnter name of Property: ");
-            opts2.AllowSpaces = true;
-            PromptResult pr2 = editor.GetString(opts2);
-            string propertyName = "";
-            if (pr2.Status != PromptStatus.OK) return;
-            else propertyName = pr2.StringResult;
-
+            string kwd = Interaction.GetKeywords("Exact or contains match: ", new string[] { "Exact", "Contains" });
+            if (kwd == null) return;
+            PropertySetManager.MatchTypeEnum matchType;
+            if (!Enum.TryParse(kwd, out matchType)) return;
+            
+            string valueToFind;
             PromptStringOptions opts3 = new PromptStringOptions("\nEnter data to search: ");
             opts3.AllowSpaces = true;
             PromptResult pr3 = editor.GetString(opts3);
-            string data = "";
             if (pr3.Status != PromptStatus.OK) return;
-            else data = pr3.StringResult;
-
-            string kwd = Interaction.GetKeywords("Exact or partial match: ", new string[] { "Exact", "Partial" });
-            if (kwd == null) return;
+            else valueToFind = pr3.StringResult;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
                     prdDbg("Frozen entities are discarded!");
-                    IEnumerable<Entity> ents;
-                    if (kwd == "Exact")
-                    {
-                        ents = localDb
-                            .ListOfType<Entity>(tx, true)
-                            .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                                x, propertySetName, propertyName) == data);
-                    }
-                    else
-                    {
-                        ents = localDb
-                            .ListOfType<Entity>(tx, true)
-                            .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
-                                x, propertySetName, propertyName)
-                            .Contains(data, StringComparison.OrdinalIgnoreCase));
-                    }
-
-                    editor.SetImpliedSelection(ents.Select(x => x.Id).ToArray());
+                    editor.SetImpliedSelection(
+                        PropertySetManager.SelectByPsValue(
+                            localDb, matchType, valueToFind));
                 }
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    editor.WriteMessage("\n" + ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -7666,6 +7726,41 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("DELETEEMPTYTEXT")]
+        public void selectemptytext()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            int count = 0;
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<DBText> text = localDb.HashSetOfType<DBText>(tx);
+
+                    foreach (DBText txt in text)
+                    {
+                        if (txt.TextString.IsNoE())
+                        {
+                            count++;
+                            txt.CheckOrOpenForWrite();
+                            txt.Erase();
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+            prdDbg($"Erased {count} emtpy text object(s)!");
+        }
+
         [CommandMethod("DUMPPSPROPERTYNAMES")]
         public void dumppspropertynames()
         {
@@ -7765,7 +7860,7 @@ namespace IntersectUtilities
                         else return false;
                     }).Select(x => x.Id);
 
-                    var result = query.ToArray(); 
+                    var result = query.ToArray();
 
                     if (result.Length > 0)
                         editor.SetImpliedSelection(result);
@@ -7779,6 +7874,207 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        [CommandMethod("CLIPPLINESOUTSIDEPLINE")]
+        public void ClipPlineOutsidePline()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            PromptEntityOptions peo = new PromptEntityOptions("\nSelect polyline to clip: ");
+            peo.SetRejectMessage("\nNot a polyline!");
+            peo.AddAllowedClass(typeof(Polyline), true);
+            PromptEntityResult per = editor.GetEntity(peo);
+            if (per.Status != PromptStatus.OK) return;
+            Oid clipPlineId = per.ObjectId;
+            HashSet<Oid> plineOidsToCheckForDisjunction;
+            
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Polyline clipPolyline = tx.GetObject(clipPlineId, OpenMode.ForRead) as Polyline;
+                    if (clipPolyline == null) { tx.Abort(); return; };
+
+                    //Try to optimize the intersection algorithm
+                    double splitLength = 500.0;
+                    int nrOfSegments = (int)(clipPolyline.Length / splitLength);
+                    HashSet<Extents2d> bboxes = new HashSet<Extents2d>();
+
+                    double previousDist = 0;
+                    double dist = 0;
+                    for (int i = 0; i <= nrOfSegments; i++)
+                    {
+                        if (i != nrOfSegments) // Not the last iteration
+                        {
+                            dist += splitLength;
+                        }
+                        else // Last iteration
+                        {
+                            dist = clipPolyline.Length;
+                        }
+
+                        Point2d p1 = clipPolyline.GetPointAtDist(previousDist).To2D();
+                        Point2d p2 = clipPolyline.GetPointAtDist(dist).To2D();
+                        double minX = p1.X < p2.X ? p1.X : p2.X;
+                        double minY = p1.Y < p2.Y ? p1.Y : p2.Y;
+                        double maxX = p1.X > p2.X ? p1.X : p2.X;
+                        double maxY = p1.Y > p2.Y ? p1.Y : p2.Y;
+                        bboxes.Add(new Extents2d(minX, minY, maxX, maxY));
+
+                        previousDist = dist;
+                    }
+
+                    HashSet<Polyline> allPlines = new HashSet<Polyline>();
+                    
+                    foreach (Polyline ent in localDb.HashSetOfType<Polyline>(tx, true))
+                    {
+                        if (ent.ObjectId == clipPlineId) continue;
+                        allPlines.Add(ent);
+                    }
+
+                    HashSet<Polyline> plinesToIntersect = new HashSet<Polyline>();
+                    HashSet<Polyline> plinesThatDoNotOverlap = new HashSet<Polyline>();
+
+                    foreach (Polyline pline in allPlines)
+                    {
+                        if (bboxes.Any(x => x.IsOverlapping(
+                            pline.GeometricExtents.ToExtents2d())))
+                        {
+                            plinesToIntersect.Add(pline);
+                        }
+                        else plinesThatDoNotOverlap.Add(pline);
+                    }
+
+                    Plane plane = new Plane();
+                    List<double> splitPts = new List<double>();
+                    Point3dCollection ints = new Point3dCollection();
+                    IntPtr zero = new IntPtr(0);
+                    foreach (Polyline pline in plinesToIntersect)
+                    {
+                        splitPts.Clear();
+                        ints.Clear();
+                        
+                        clipPolyline.IntersectWith(
+                            pline, Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                            plane, ints, zero, zero);
+                        if (ints.Count == 0) plinesThatDoNotOverlap.Add(pline);
+                        foreach (Point3d intPoint in ints)
+                        {
+                            try
+                            {
+                                double param = pline.GetParameterAtPoint(intPoint);
+                                splitPts.Add(param);
+                            }
+                            catch (System.Exception)
+                            {
+                                prdDbg($"Pline: {pline.Handle}, intPoint: {intPoint}");
+                                if (ints.Count == 1)
+                                {
+                                    plinesThatDoNotOverlap.Add(pline);
+                                    continue;
+                                }
+                                else 
+                                {
+                                    prdDbg("Unhandled edge case encountered! " +
+                                    $"H: {pline.Handle} - {intPoint}"); 
+                                }
+                            }
+                        }
+                        if (splitPts.Count == 0) continue;
+                        splitPts.Sort();
+                        DBObjectCollection objs = pline.GetSplitCurves(
+                                new DoubleCollection(splitPts.ToArray()));
+                        foreach (DBObject obj in objs)
+                        {
+                            if (obj is Polyline newPline)
+                            {
+                                if (newPline.Length < 0.1) continue;
+                                newPline.AddEntityToDbModelSpace(localDb);
+                                PropertySetManager.CopyAllProperties(pline, newPline);
+                                newPline.Layer = pline.Layer;
+                                plinesThatDoNotOverlap.Add(newPline);
+                            }
+                        }
+                        pline.CheckOrOpenForWrite();
+                        pline.Erase(true);
+                    }
+                    plineOidsToCheckForDisjunction = plinesThatDoNotOverlap
+                        .Select(x => x.Id).ToHashSet();
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Polyline clipPolyline = tx.GetObject(per.ObjectId, OpenMode.ForRead) as Polyline;
+                    if (clipPolyline == null) { tx.Abort(); return; };
+
+                    //Determine if the polyline is inside or outside the clip polyline
+                    using (MPolygon mpg = new MPolygon())
+                    {
+                        mpg.AppendLoopFromBoundary(clipPolyline, true, Tolerance.Global.EqualPoint);
+
+                        foreach (Oid oid in plineOidsToCheckForDisjunction)
+                        {
+                            Polyline pline = oid.Go<Polyline>(tx);
+
+                            bool isInside = true;
+
+                            if (pline.NumberOfVertices == 2)
+                            {
+                                //Next for misses plines with only two vertici
+                                //Handle those
+
+                                bool firstIsInside = (mpg.IsPointInsideMPolygon(
+                                        pline.GetPoint3dAt(0), Tolerance.Global.EqualPoint).Count == 1);
+                                bool secondIsInside = (mpg.IsPointInsideMPolygon(
+                                        pline.GetPoint3dAt(1), Tolerance.Global.EqualPoint).Count == 1);
+
+                                if (!firstIsInside && !secondIsInside)
+                                {
+                                    pline.CheckOrOpenForWrite();
+                                    pline.Erase(true);
+                                }
+                            }
+                            else
+                            {
+                                for (int i = 0; i < pline.NumberOfVertices; i++)
+                                {
+                                    if (i == 0 || i == pline.NumberOfVertices - 1) continue;
+
+                                    isInside = (mpg.IsPointInsideMPolygon(
+                                        pline.GetPoint3dAt(i), Tolerance.Global.EqualPoint).Count == 1);
+                                    if (!isInside)
+                                    {
+                                        pline.CheckOrOpenForWrite();
+                                        pline.Erase(true);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
 
         //[CommandMethod("TESTENUMS")]
         public void testenums()

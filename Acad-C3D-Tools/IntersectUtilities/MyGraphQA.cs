@@ -180,8 +180,8 @@ namespace IntersectUtilities
                 if (ent1 is BlockReference br1)
                     if (br1 != default)
                     {
-                        string type1 = br1.ReadDynamiskCsvProperty(
-                            DynamiskProperty.Type, dt, false);
+                        string type1 = br1.ReadDynamicCsvProperty(
+                            DynamicProperty.Type, dt, false);
 
                         //1. Reduktion
                         if (type1 == "Reduktion")
@@ -227,8 +227,8 @@ namespace IntersectUtilities
                         if (ent2 is BlockReference br2)
                             if (br2 != default)
                             {
-                                string type2 = br2.ReadDynamiskCsvProperty(
-                                    DynamiskProperty.Type, dt, false);
+                                string type2 = br2.ReadDynamicCsvProperty(
+                                    DynamicProperty.Type, dt, false);
 
                                 HashSet<string> types = new HashSet<string>()
                                 { "Afgrening med spring", "Afgrening, parallel", "Lige afgrening", "Parallelafgrening"};

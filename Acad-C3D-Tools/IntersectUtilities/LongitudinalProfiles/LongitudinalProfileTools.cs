@@ -49,9 +49,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using System.Windows.Documents;
 using Color = Autodesk.AutoCAD.Colors.Color;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace IntersectUtilities
 {
@@ -449,6 +447,7 @@ namespace IntersectUtilities
                         }
 
                         editor.WriteMessage($"\nTotal intersecting pipes detected: {intersections}");
+                        if (intersections == 0) continue;
                         #endregion
 
                         #region Prepare variables
@@ -749,8 +748,9 @@ namespace IntersectUtilities
                                 }
                                 catch (System.Exception)
                                 {
-                                    editor.WriteMessage($"\nBottom profile at {pvStStart + delta * i} threw an exception! " +
-                                        $"PV: {pv.StationStart}-{pv.StationEnd}.");
+                                    editor.WriteMessage($"\nBottom profile {bottomProfile.Name} at " +
+                                        $"{pvStStart + delta * i} threw an exception! " +
+                                        $"PV {pv.Name}: {pv.StationStart}-{pv.StationEnd}.");
                                     continue;
                                 }
                                 minElevs.Add(bottomTestEl);
@@ -1405,7 +1405,7 @@ namespace IntersectUtilities
             System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
                 @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
-            PropertySetManager.UpdatePropertySetDefinition(dB, PSetDefs.DefinedSets.DriSourceReference);
+            //PropertySetManager.UpdatePropertySetDefinition(dB, PSetDefs.DefinedSets.DriSourceReference);
 
             using (Transaction tx = dB.TransactionManager.StartTransaction())
             {
@@ -1487,7 +1487,7 @@ namespace IntersectUtilities
                     //}
                     #endregion
 
-                    foreach (Alignment al in als)
+                    foreach (Alignment al in als.OrderBy(x => x.Name))
                     {
                         prdDbg($"\nProcessing: {al.Name}...");
                         #region If exist get surface profile and profile view
@@ -1591,6 +1591,9 @@ namespace IntersectUtilities
                                         dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                     brInt.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i].DN}");
                                     brInt.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[i + 1].DN}");
+
+                                    psmSourceReference.WritePropertyObject(
+                                        brInt, driSourceReference.AlignmentStation, curStationBL);
                                 }
                                 //Special cases
                                 if (i == 0)
@@ -1605,6 +1608,9 @@ namespace IntersectUtilities
                                     brAt0.SetAttributeStringValue("LEFTSIZE", "");
                                     brAt0.SetAttributeStringValue("RIGHTSIZE", $"DN {pvSizeArray[0].DN}");
 
+                                    psmSourceReference.WritePropertyObject(
+                                        brAt0, driSourceReference.AlignmentStation, curStationBL);
+
                                     if (pvSizeArray.Length == 1)
                                     {//If only one size in the array also place block at end
                                         curStationBL = pvStEnd;
@@ -1616,6 +1622,9 @@ namespace IntersectUtilities
                                             dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                         brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[0].DN}");
                                         brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
+
+                                        psmSourceReference.WritePropertyObject(
+                                        brAtEnd, driSourceReference.AlignmentStation, curStationBL);
                                     }
                                 }
                                 if (i == pvSizeArray.Length - 2)
@@ -1629,6 +1638,9 @@ namespace IntersectUtilities
                                         dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(curX, curY, 0));
                                     brAtEnd.SetAttributeStringValue("LEFTSIZE", $"DN {pvSizeArray[i + 1].DN}");
                                     brAtEnd.SetAttributeStringValue("RIGHTSIZE", "");
+
+                                    psmSourceReference.WritePropertyObject(
+                                        brAtEnd, driSourceReference.AlignmentStation, curStationBL);
                                 }
                             }
                             #endregion
@@ -2491,7 +2503,7 @@ namespace IntersectUtilities
                                     newWeldNumberBlocks.Add(brWeldNumber);
                                     brWeldNumber.SetAttributeStringValue("NUMMER", nummer);
                                 }
-                                
+
                                 psmSource.WritePropertyString(brWeld,
                                     driSourceReference.SourceEntityHandle, br.Handle.ToString());
                                 #endregion
@@ -2589,7 +2601,7 @@ namespace IntersectUtilities
                                         else { item.Erase(true); }
                                         i++;
                                     }
-                                } 
+                                }
                             }
                             #endregion
 
@@ -3741,7 +3753,7 @@ namespace IntersectUtilities
 
                     #region Setup styles
                     LabelStyleCollection stc = civilDoc.Styles.LabelStyles
-                                                                   .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
+                        .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
 
                     Oid profileProjection_RIGHT_Style = Oid.Null;
                     Oid profileProjection_LEFT_Style = Oid.Null;
@@ -3773,76 +3785,119 @@ namespace IntersectUtilities
                     Extents3d extents = default;
                     var labelsInView = labelsSet.Where(x => extents.IsPointInsideXY(x.LabelLocation));
 
-                    Oid styleId = profileProjection_RIGHT_Style;
+                    Oid rightStyleId = profileProjection_RIGHT_Style;
+                    Oid leftStyleId = profileProjection_LEFT_Style;
 
+                    var pm = new ProgressMeter();
+                    pm.Start("Staggering labels...");
+                    pm.SetLimit(pvs.Count);
                     foreach (var pv in pvs)
                     {
-                        ProfileProjectionLabel[] labels;
+                        ProfileProjectionLabel[] allLabels;
                         extents = pv.GeometricExtents;
-                        labels = labelsInView.OrderByDescending(x => x.LabelLocation.X).ToArray();
+                        allLabels = labelsInView.OrderBy(x => x.LabelLocation.X).ToArray();
+
+                        //split allLabels into two arrays with exactly half elements in each
+                        //left array is ordered by X ascending
+                        //right array is ordere by X descending
+                        int half = allLabels.Length / 2;
+                        ProfileProjectionLabel[] leftLabels =
+                            allLabels.Take(half).ToArray();
+                        ProfileProjectionLabel[] rightLabels =
+                            allLabels.Skip(half).OrderByDescending(x => x.LabelLocation.X).ToArray();
 
                         var pIds = pv.AlignmentId.Go<Alignment>(tx).GetProfileIds();
                         Profile surfaceP = default;
                         foreach (Oid oid in pIds) if (oid.Go<Profile>(tx).Name.EndsWith("_surface_P"))
                                 surfaceP = oid.Go<Profile>(tx);
-                        double calculatedLengthOfFirstLabel = 0;
-                        if (surfaceP != default && labels.Length > 0)
-                        {
-                            //get the first label which is setting the start elevation
-                            ProfileProjectionLabel label = labels[0];
-                            double station = 0;
-                            double labelElevation = 0;
-                            //Get station and elevation of label
-                            pv.FindStationAndElevationAtXY(
-                                label.LabelLocation.X, label.LabelLocation.Y, ref station, ref labelElevation);
-                            //Update elevation to be that of surface
-                            double surfaceElevation = surfaceP.ElevationAt(station);
-                            double labelDepthUnderSurface = (surfaceElevation - labelElevation) * 2.5;
-                            double userSpecifiedLabelHeightOverSurfaceM = 5;
-                            double deltaM = labelDepthUnderSurface + userSpecifiedLabelHeightOverSurfaceM;
-                            calculatedLengthOfFirstLabel = deltaM / 250;
-                            prdDbg($"{surfaceElevation}, {labelElevation}, {labelDepthUnderSurface}, {deltaM}, {calculatedLengthOfFirstLabel}");
-                        }
 
-                        if (labels.Length == 1)
-                        {
-                            ProfileProjectionLabel label = labels.First();
-                            label.CheckOrOpenForWrite();
-                            label.DimensionAnchorValue = calculatedLengthOfFirstLabel;
-                            label.StyleId = styleId;
-                        }
+                        SortLabels(leftLabels, surfaceP, leftStyleId);
+                        SortLabels(rightLabels, surfaceP, rightStyleId);
 
-                        for (int i = 0; i < labels.Length - 1; i++)
+                        double FirstLabelCalculateLength(
+                            ProfileProjectionLabel label, Profile sP)
                         {
-                            ProfileProjectionLabel firstLabel = labels[i];
-                            ProfileProjectionLabel secondLabel = labels[i + 1];
-
-                            //Handle first label
-                            if (i == 0)
+                            if (sP != default)
                             {
-                                firstLabel.CheckOrOpenForWrite();
-                                firstLabel.DimensionAnchorValue = calculatedLengthOfFirstLabel;
-                                firstLabel.StyleId = styleId;
+                                //get the first label which is setting the start elevation
+                                double station = 0;
+                                double labelElevation = 0;
+                                //Get station and elevation of label
+                                pv.FindStationAndElevationAtXY(
+                                    label.LabelLocation.X, label.LabelLocation.Y, ref station, ref labelElevation);
+                                //Update elevation to be that of surface
+                                double surfaceElevation = sP.ElevationAt(station);
+                                double labelDepthUnderSurface = (surfaceElevation - labelElevation) * 2.5;
+                                double userSpecifiedLabelHeightOverSurfaceM = 5;
+                                double deltaM = labelDepthUnderSurface + userSpecifiedLabelHeightOverSurfaceM;
+                                double calculatedLengthOfFirstLabel = deltaM / 250;
+                                prdDbg($"{surfaceElevation}, {labelElevation}, {labelDepthUnderSurface}, {deltaM}, {calculatedLengthOfFirstLabel}");
+                                return calculatedLengthOfFirstLabel;
+                            }
+                            else return 0;
+                        }
+
+                        void SortLabels(
+                            ProfileProjectionLabel[] labels, Profile sP, Oid styleId)
+                        {
+                            if (labels.Length < 1) return;
+                            double calculatedLengthOfFirstLabel =
+                                FirstLabelCalculateLength(labels[0], sP);
+
+                            if (labels.Length == 1)
+                            {
+                                ProfileProjectionLabel label = labels.First();
+                                label.CheckOrOpenForWrite();
+                                label.DimensionAnchorValue = calculatedLengthOfFirstLabel;
+                                label.StyleId = styleId;
                             }
 
-                            Point3d firstLocationPoint = firstLabel.LabelLocation;
-                            Point3d secondLocationPoint = secondLabel.LabelLocation;
+                            for (int i = 0; i < labels.Length - 1; i++)
+                            {
+                                ProfileProjectionLabel firstLabel = labels[i];
+                                ProfileProjectionLabel secondLabel = labels[i + 1];
+                                secondLabel.CheckOrOpenForWrite();
+                                secondLabel.StyleId = styleId;
+                                //Handle first label
+                                if (i == 0)
+                                {
+                                    firstLabel.CheckOrOpenForWrite();
+                                    firstLabel.DimensionAnchorValue = calculatedLengthOfFirstLabel;
+                                    firstLabel.StyleId = styleId;
+                                }
 
-                            double firstAnchorDimensionInMeters = firstLabel.DimensionAnchorValue * 250 + 0.0625;
+                                Point3d firstLocationPoint = firstLabel.LabelLocation;
+                                Point3d secondLocationPoint = secondLabel.LabelLocation;
 
-                            double locationDelta = firstLocationPoint.Y - secondLocationPoint.Y;
+                                //secondLabel.GeometricExtents.DrawExtents(localDb);
+                                //Check to see if extents overlap
+                                double secondAnchorDimensionInMeters = 0;
+                                if (!secondLabel.GeometricExtents.ToExtents2d().IsOverlapping(
+                                    firstLabel.GeometricExtents.ToExtents2d()))
+                                {//Labels do not overlap, get length from surface
+                                    secondAnchorDimensionInMeters =
+                                        FirstLabelCalculateLength(secondLabel, sP);
+                                }
+                                else
+                                {//Labels overlap, get length from previous
+                                    double firstAnchorDimensionInMeters =
+                                        firstLabel.DimensionAnchorValue * 250 + 0.0625;
+                                    double locationDelta =
+                                        firstLocationPoint.Y - secondLocationPoint.Y;
+                                    secondAnchorDimensionInMeters =
+                                        (locationDelta + firstAnchorDimensionInMeters + 0.75) / 250;
+                                }
 
-                            double secondAnchorDimensionInMeters = (locationDelta + firstAnchorDimensionInMeters + 0.75) / 250;
+                                secondLabel.DimensionAnchorValue = secondAnchorDimensionInMeters;
+                                secondLabel.DowngradeOpen();
 
-                            secondLabel.CheckOrOpenForWrite();
-                            secondLabel.DimensionAnchorValue = secondAnchorDimensionInMeters;
-                            secondLabel.StyleId = styleId;
-                            secondLabel.DowngradeOpen();
-
-                            //editor.WriteMessage($"\nAnchorDimensionValue: {firstLabel.DimensionAnchorValue}.");
+                                //editor.WriteMessage($"\nAnchorDimensionValue: {firstLabel.DimensionAnchorValue}.");
+                            }
                         }
-
+                        pm.MeterProgress();
+                        System.Windows.Forms.Application.DoEvents();
                     }
+                    pm.Stop();
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -4111,8 +4166,8 @@ namespace IntersectUtilities
                     promptEntityOptions1.AddAllowedClass(typeof(Profile), true);
                     PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
                     if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    Profile profile  = entity1.ObjectId.Go<Profile>(tx);
-                    
+                    Profile profile = entity1.ObjectId.Go<Profile>(tx);
+
                     PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions("\n Select a ProfileView: ");
                     promptEntityOptions2.SetRejectMessage("\n Not a ProfileView");
                     promptEntityOptions2.AddAllowedClass(typeof(ProfileView), true);
@@ -4146,6 +4201,108 @@ namespace IntersectUtilities
                     }
 
                     pline.AddEntityToDbModelSpace(database);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("UPDATESINGLEPROFILEVIEW")]
+        public void updatesingleprofileview()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            PromptEntityOptions promptEntityOptions2 = new PromptEntityOptions(
+                        "\n Select a ProfileView to update: ");
+            promptEntityOptions2.SetRejectMessage("\n Not a ProfileView");
+            promptEntityOptions2.AddAllowedClass(typeof(ProfileView), true);
+            PromptEntityResult entity2 = editor.GetEntity(promptEntityOptions2);
+            if (((PromptResult)entity2).Status != PromptStatus.OK) return;
+
+            DataReferencesOptions dro = new DataReferencesOptions();
+            if (dro.ProjectName.IsNoE() || dro.EtapeName.IsNoE())
+                return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Get Profile view and location
+                    ProfileView pv = entity2.ObjectId.Go<ProfileView>(tx);
+
+                    Point3d originalProfileViewLocation =
+                        pv.Location;
+                    double stStart = pv.StationStart;
+                    double stEnd = pv.StationEnd;
+                    #endregion
+
+                    #region Erase detailing block
+                    var detailingBlock =
+                                   localDb.GetBlockReferenceByName(pv.Name)
+                                   .FirstOrDefault();
+
+                    if (detailingBlock == default)
+                        throw new System.Exception(
+                            $"Detailing block {pv.Name} was not found!");
+
+                    detailingBlock.CheckOrOpenForWrite();
+                    detailingBlock.Erase(true);
+                    #endregion
+
+                    //Gather all CogoPoints that show up in this
+                    //Particular profile view
+
+                    Alignment al = pv.AlignmentId.Go<Alignment>(tx);
+                    Polyline alPline = al.GetPolyline().Go<Polyline>(tx);
+
+                    #region Erase PV CogoPoints
+                    PropertySetManager psm = new PropertySetManager(
+                        localDb, PSetDefs.DefinedSets.DriCrossingData);
+                    PSetDefs.DriCrossingData psDef =
+                        new PSetDefs.DriCrossingData();
+
+                    //Delete all pv cogos
+                    var allCogos = localDb.HashSetOfType<CogoPoint>(tx);
+                    var alCogos = allCogos.Where(
+                        x => psm.FilterPropetyString(
+                            x, psDef.Alignment, al.Name));
+                    foreach (var item in alCogos)
+                    {
+                        double cogoStation =
+                            alPline.GetDistAtPoint(
+                                alPline.GetClosestPointTo(item.Location, false));
+
+                        if (cogoStation >= stStart && cogoStation <= stEnd)
+                        { item.CheckOrOpenForWrite(); item.Erase(); }
+                    }
+                    #endregion
+
+                    #region Erase detailing blocks
+                    HashSet<BlockReference> pvDetailingBrs =
+                        pv.GetDetailingBlocks(localDb, 5.0);
+                    foreach (var item in pvDetailingBrs)
+                    {
+                        item.CheckOrOpenForWrite();
+                        item.Erase();
+                    }
+                    #endregion
+
+                    #region Erase preliminary profile
+                    #endregion
+
+                    #region Erase PV
+                    pv.CheckOrOpenForWrite();
+                    pv.Erase(true);
+                    #endregion
+
+                    alPline.CheckOrOpenForWrite();
+                    alPline.Erase(true);
                 }
                 catch (System.Exception ex)
                 {

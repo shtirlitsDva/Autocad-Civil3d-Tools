@@ -300,7 +300,7 @@ namespace IntersectUtilities
                     case Polyline pline:
                         return GetPipeDN(pline);
                     case BlockReference br:
-                        return Convert.ToInt32(ReadComponentDN1(br, componentTable));
+                        return Convert.ToInt32(ReadComponentDN1Str(br, componentTable));
                 }
                 return 0;
             }
@@ -586,8 +586,8 @@ namespace IntersectUtilities
                             sb.AppendLine($"[label=\"{{{handle}|Rør L{pline.Length.ToString("0.##")}}}|{system}\\n{dn}\"];");
                             break;
                         case BlockReference br:
-                            string dn1 = ReadComponentDN1(br, Table);
-                            string dn2 = ReadComponentDN2(br, Table);
+                            string dn1 = ReadComponentDN1Str(br, Table);
+                            string dn2 = ReadComponentDN2Str(br, Table);
                             string dnStr = dn2 == "0" ? dn1 : dn1 + "/" + dn2;
                             system = ComponentSchedule.ReadComponentSystem(br, Table);
                             string type = ComponentSchedule.ReadComponentType(br, Table);

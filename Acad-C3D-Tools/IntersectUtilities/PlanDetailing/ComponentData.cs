@@ -47,10 +47,6 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using DataTable = System.Data.DataTable;
-using Autodesk.AutoCAD.MacroRecorder;
-using System.Runtime.CompilerServices;
-using System.Windows.Documents;
-using Microsoft.Office.Interop.Excel;
 
 namespace IntersectUtilities
 {

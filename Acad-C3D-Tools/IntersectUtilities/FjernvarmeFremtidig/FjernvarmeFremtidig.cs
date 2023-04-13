@@ -186,6 +186,7 @@ namespace IntersectUtilities
                             Vector3d brDir = new Vector3d(Math.Cos(rotation), Math.Sin(rotation), 0);
 
                             //First
+                            prdDbg(first.al.Name);
                             Point3d firstClosestPoint = first.al.GetClosestPointTo(br.Position, false);
                             Vector3d firstDeriv = first.al.GetFirstDerivative(firstClosestPoint);
                             double firstDotProduct = Math.Abs(brDir.DotProduct(firstDeriv));
@@ -193,6 +194,7 @@ namespace IntersectUtilities
                             //prdDbg($"Dot product: {brDir.DotProduct(firstDeriv)}");
 
                             //Second
+                            prdDbg(second.al.Name);
                             Point3d secondClosestPoint = second.al.GetClosestPointTo(br.Position, false);
                             Vector3d secondDeriv = second.al.GetFirstDerivative(secondClosestPoint);
                             double secondDotProduct = Math.Abs(brDir.DotProduct(secondDeriv));
@@ -279,6 +281,14 @@ namespace IntersectUtilities
                     #region Curves
                     foreach (Curve curve in mainPipes)
                     {
+                        //Detect zero length curves
+                        if (curve is Polyline pline)
+                        {
+                            if (pline.Length < 0.001)
+                                throw new System.Exception(
+                                    $"Polyline {curve.Handle} has ZERO length! Delete, please.");
+                        }
+
                         //Skip if record already exists
                         if (!overwrite)
                         {
@@ -918,6 +928,40 @@ namespace IntersectUtilities
                             }
                         }
                     }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+
+            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
+        }
+
+        [CommandMethod("CREATEALIGNMENT")]
+        public void createalignment()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+                    HashSet<Entity> ents = localDb.GetFjvEntities(tx, fjvKomponenter, true, true);
+
+                    graphclear();
+                    graphpopulate();
+
+
+
+                    
                 }
                 catch (System.Exception ex)
                 {

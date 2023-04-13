@@ -26,31 +26,31 @@ namespace LERImporter.Schema
     [XmlTypeAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
     public class FeatureMember
     {
-        [XmlElement("Ledningstrace", typeof(LedningstraceType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("Afloebskomponent", typeof(AfloebskomponentType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("AndenKomponent", typeof(AndenKomponentType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("Elkomponent", typeof(ElkomponentType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("Gaskomponent", typeof(GaskomponentType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("Oliekomponent", typeof(OliekomponentType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("Telekommunikationskomponent", typeof(TelekommunikationskomponentType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("TermiskKomponent", typeof(TermiskKomponentType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("Vandkomponent", typeof(VandkomponentType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("AndenLedning", typeof(AndenLedningType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("Elledning", typeof(ElledningType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("LedningUkendtForsyningsart", typeof(LedningUkendtForsyningsartType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("Telekommunikationsledning", typeof(TelekommunikationsledningType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("Vandledning", typeof(VandledningType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("TermiskLedning", typeof(TermiskLedningType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("Olieledning", typeof(OlieledningType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("Gasledning", typeof(GasledningType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("Foeringsroer", typeof(FoeringsroerType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("Afloebsledning", typeof(AfloebsledningType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-        [XmlElement("Roerledning", typeof(RoerledningType), Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+        [XmlElement("Ledningstrace", typeof(LedningstraceType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("Afloebskomponent", typeof(AfloebskomponentType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("AndenKomponent", typeof(AndenKomponentType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("Elkomponent", typeof(ElkomponentType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("Gaskomponent", typeof(GaskomponentType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("Oliekomponent", typeof(OliekomponentType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("Telekommunikationskomponent", typeof(TelekommunikationskomponentType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("TermiskKomponent", typeof(TermiskKomponentType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("Vandkomponent", typeof(VandkomponentType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("AndenLedning", typeof(AndenLedningType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("Elledning", typeof(ElledningType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("LedningUkendtForsyningsart", typeof(LedningUkendtForsyningsartType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("Telekommunikationsledning", typeof(TelekommunikationsledningType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("Vandledning", typeof(VandledningType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("TermiskLedning", typeof(TermiskLedningType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("Olieledning", typeof(OlieledningType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("Gasledning", typeof(GasledningType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("Foeringsroer", typeof(FoeringsroerType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("Afloebsledning", typeof(AfloebsledningType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+        [XmlElement("Roerledning", typeof(RoerledningType), Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
         [XmlElement(typeof(Graveforesp), Namespace = "http://www.ler.dk/ler", ElementName = "Graveforesp")]
-        [XmlElement(typeof(Kontaktprofil), Namespace = "http://data.gov.dk/schemas/LER/1/gml", ElementName = "Kontaktprofil")]
-        [XmlElement(typeof(UtilityPackageInfo), Namespace = "http://data.gov.dk/schemas/LER/1/gml", ElementName = "UtilityPackageInfo")]
-        [XmlElement(typeof(UtilityOwner), Namespace = "http://data.gov.dk/schemas/LER/1/gml", ElementName = "UtilityOwner")]
-        [XmlElement(typeof(Informationsressource), Namespace = "http://data.gov.dk/schemas/LER/1/gml", ElementName = "Informationsressource")]
+        [XmlElement(typeof(Kontaktprofil), Namespace = "http://data.gov.dk/schemas/LER/2/gml", ElementName = "Kontaktprofil")]
+        [XmlElement(typeof(UtilityPackageInfo), Namespace = "http://data.gov.dk/schemas/LER/2/gml", ElementName = "UtilityPackageInfo")]
+        [XmlElement(typeof(UtilityOwner), Namespace = "http://data.gov.dk/schemas/LER/2/gml", ElementName = "UtilityOwner")]
+        [XmlElement(typeof(Informationsressource), Namespace = "http://data.gov.dk/schemas/LER/2/gml", ElementName = "Informationsressource")]
         public AbstractGMLType item { get; set; }
     }
 
@@ -74,8 +74,8 @@ namespace LERImporter.Schema
     /// <remarks/>
     [System.SerializableAttribute()]
     [System.ComponentModel.DesignerCategoryAttribute("code")]
-    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class Informationsressource : AbstractGMLType
     {
         //[System.Xml.Serialization.XmlElementAttribute(Namespace = "http://purl.org/dc/terms/")]
@@ -87,7 +87,7 @@ namespace LERImporter.Schema
 
     [System.SerializableAttribute()]
     [System.ComponentModel.DesignerCategoryAttribute("code")]
-    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class InformationsressourceFormat
     {
         [System.Xml.Serialization.XmlAttributeAttribute()]
@@ -98,7 +98,7 @@ namespace LERImporter.Schema
     
     [System.SerializableAttribute()]
     [System.ComponentModel.DesignerCategoryAttribute("code")]
-    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
+    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public partial class InformationsressourceGeometri
     {
         [System.Xml.Serialization.XmlElementAttribute(Namespace = "http://www.opengis.net/gml/3.2")]
@@ -108,8 +108,8 @@ namespace LERImporter.Schema
 
     [System.SerializableAttribute()]
     [System.ComponentModel.DesignerCategoryAttribute("code")]
-    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class Kontaktprofil : AbstractGMLType
     {
         public string navn { get; set; }
@@ -119,8 +119,8 @@ namespace LERImporter.Schema
 
     [System.SerializableAttribute()]
     [System.ComponentModel.DesignerCategoryAttribute("code")]
-    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class UtilityPackageInfo : AbstractGMLType
     {
 
@@ -135,8 +135,8 @@ namespace LERImporter.Schema
 
     [System.SerializableAttribute()]
     [System.ComponentModel.DesignerCategoryAttribute("code")]
-    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/1/gml")]
-    [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://data.gov.dk/schemas/LER/1/gml", IsNullable = false)]
+    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
+    [System.Xml.Serialization.XmlRootAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml", IsNullable = false)]
     public partial class UtilityOwner : AbstractGMLType
     {
         public uint cvr { get; set; }

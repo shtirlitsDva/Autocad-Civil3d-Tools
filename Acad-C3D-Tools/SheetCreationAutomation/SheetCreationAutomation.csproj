@@ -105,7 +105,7 @@
     <Compile Include="..\IntersectUtilities\FolderSelectDialog.cs">
       <Link>FolderSelectDialog.cs</Link>
     </Compile>
-    <Compile Include="..\IntersectUtilities\MoreLinq.cs">
+    <Compile Include="..\IntersectUtilities\MoreLinq\MoreLinq.cs">
       <Link>MoreLinq.cs</Link>
     </Compile>
     <Compile Include="..\IntersectUtilities\PipeSchedule.cs">

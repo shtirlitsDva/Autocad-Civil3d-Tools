@@ -726,7 +726,7 @@ namespace IntersectUtilities
             HashSet<Polyline3d> linesWithMissingBothNodes = new HashSet<Polyline3d>();
 
             //Data
-            string propSetNamePipes = "Spildevand_Greve_line_SHP";
+            string propSetNamePipes = "Spildevand_Greve_line";
             string propOpst = "Bundloebsk";
             string propNedst = "Bundloebs0";
 
@@ -1451,7 +1451,7 @@ namespace IntersectUtilities
                     localDb.CheckOrCreateLayer("KLAR_Spildevand-2D");
                     localDb.CheckOrCreateLayer("KLAR_Regnvand-2D");
 
-                    var polies = localDb.HashSetOfType<Polyline3d>(tx);
+                    var polies = localDb.HashSetOfType<Polyline3d>(tx, true);
                     foreach (var item in polies)
                     {
                         if (!item.IsAtZeroElevation()) continue;

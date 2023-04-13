@@ -188,7 +188,6 @@ namespace IntersectUtilities.UtilsCommon
             var ocsXAxis = Vector3d.XAxis.TransformBy(Matrix3d.PlaneToWorld(plane));
             return ocsXAxis.GetAngleTo(vector.ProjectTo(normal, normal), normal);
         }
-
         private static Random random = new Random();
         public static string RandomStringLetters(int length)
         {
@@ -197,7 +196,6 @@ namespace IntersectUtilities.UtilsCommon
                 .Select(s => s[random.Next(s.Length)]).ToArray());
         }
         private static string mColumnLetters = "zabcdefghijklmnopqrstuvwxyz";
-
         public static string ColumnNameByIndex(int ColumnIndex)
         {
             int ModOf26, Subtract;
@@ -221,7 +219,16 @@ namespace IntersectUtilities.UtilsCommon
             }
             return NumberInLetters.ToString().ToUpper();
         }
-
+        public static Extents2d CreateExtents2DByTwoPoints(Point2d p1, Point2d p2)
+        {
+            List<double> xs = new List<double>() { p1.X, p2.X };
+            List<double> ys = new List<double>() { p1.Y, p2.Y };
+            return new Extents2d(
+                p1.X < p2.X ? p1.X : p2.X,
+                p1.Y < p2.Y ? p1.Y : p2.Y,
+                p1.X > p2.X ? p1.X : p2.X,
+                p1.Y > p2.Y ? p1.Y : p2.Y);
+        }
         public enum EndType
         {
             None,            //0:
@@ -281,7 +288,7 @@ namespace IntersectUtilities.UtilsCommon
             Kobberflex,
             AluPex
         }
-        public enum DynamiskProperty
+        public enum DynamicProperty
         {
             None,
             Navn,
@@ -1771,34 +1778,7 @@ namespace IntersectUtilities.UtilsCommon
             //    tr.AddNewlyCreatedDBObject(attRef, true);
             //}
         }
-        public static string ReadDynamiskCsvProperty(
-            this BlockReference br, DynamiskProperty prop,
-            System.Data.DataTable dt, bool parseProperty = true)
-        {
-            string key = br.RealName();
-            string parameter = prop.ToString();
-            string version = br.GetAttributeStringValue("VERSION");
-            //int keyColumnIdx = 0
-            {
-                if (dt.AsEnumerable().Any(row => row.Field<string>(0) == key))
-                {
-                    var query = dt.AsEnumerable()
-                        .Where(x =>
-                        x.Field<string>(0) == key &&
-                        x.Field<string>("Version") == version)
-                        .Select(x => x.Field<string>(parameter));
 
-                    string value = query.FirstOrDefault();
-                    if (parseProperty)
-                    {
-                        value = ConstructStringByRegex(br, value);
-                        return value;
-                    }
-                    else return value;
-                }
-                else return default;
-            }
-        }
         private static string ConstructStringByRegex(BlockReference br, string stringToProcess)
         {
             //Construct pattern which matches the parameter definition
@@ -1859,6 +1839,29 @@ namespace IntersectUtilities.UtilsCommon
         public static bool IsPointInsideXY(this Extents3d extents, Point3d pnt)
         => pnt.X >= extents.MinPoint.X && pnt.X <= extents.MaxPoint.X
             && pnt.Y >= extents.MinPoint.Y && pnt.Y <= extents.MaxPoint.Y;
+        public static Oid DrawExtents(this Extents3d extents, Database db)
+        {
+            if (extents == null) return Oid.Null;
+            Polyline pline = new Polyline(4);
+            List<Point2d> point2Ds = new List<Point2d>
+            {
+                new Point2d(extents.MinPoint.X, extents.MinPoint.Y),
+                new Point2d(extents.MinPoint.X, extents.MaxPoint.Y),
+                new Point2d(extents.MaxPoint.X, extents.MaxPoint.Y),
+                new Point2d(extents.MaxPoint.X, extents.MinPoint.Y)
+            };
+            foreach (Point2d p2d in point2Ds)
+            {
+                pline.AddVertexAt(pline.NumberOfVertices, p2d, 0, 0, 0);
+            }
+            pline.Closed = true;
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                Oid id = pline.AddEntityToDbModelSpace(db);
+                tx.Commit();
+                return id;
+            }
+        }
         public static Polyline DrawExtents(this Entity entity)
         {
             Extents3d extents = entity.GeometricExtents;
@@ -1880,6 +1883,19 @@ namespace IntersectUtilities.UtilsCommon
                 tx.Commit();
             }
             return pline;
+        }
+        public static Extents3d GetBufferedXYGeometricExtents(
+            this Entity entity, double buffer)
+        {
+            if (buffer == 0) return entity.GeometricExtents;
+            var bbox = entity.GeometricExtents;
+
+            //Apply buffer to the bbox and create new extents
+            var newMin = new Point3d(
+                bbox.MinPoint.X - buffer, bbox.MinPoint.Y - buffer, 0);
+            var newMax = new Point3d(
+                bbox.MaxPoint.X + buffer, bbox.MaxPoint.Y + buffer, 0);
+            return new Extents3d(newMin, newMax);
         }
         public static double ConstantWidthSafe(this Polyline pline)
         {
@@ -2179,6 +2195,24 @@ namespace IntersectUtilities.UtilsCommon
             bool ProjectionOverlaps(double cmin1, double cmax1, double cmin2, double cmax2)
                 => cmax1 >= cmin2 && cmax2 >= cmin1;
         }
+        public static HashSet<BlockReference> GetDetailingBlocks(
+            this ProfileView pv, Database db, double buffer = 0)
+        {
+            Transaction tx = db.TransactionManager.TopTransaction;
+            HashSet<BlockReference> brs = 
+                db.HashSetOfType<BlockReference>(tx);
+
+            HashSet<BlockReference> detailBlocks = 
+                new HashSet<BlockReference>();
+
+            Extents3d bbox = pv.GetBufferedXYGeometricExtents(buffer);
+            foreach (var item in brs)
+            {
+                if (!bbox.IsPointInsideXY(item.Position)) continue;
+                detailBlocks.Add(item);
+            }
+            return detailBlocks;
+        }
     }
     public static class ExtensionMethods
     {
@@ -2350,6 +2384,21 @@ namespace IntersectUtilities.UtilsCommon
             bt.Dispose();
 
             return result;
+        }
+        public static HashSet<Oid> HashSetIdsOfType<T>(this Database db) where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        {
+            HashSet<Oid> objs = new HashSet<Oid>();
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                var blockTable = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+                RXClass theClass = RXObject.GetClass(typeof(T));
+                foreach (Oid oid in modelSpace)
+                    if (oid.ObjectClass.IsDerivedFrom(theClass))
+                        objs.Add(oid);
+                tr.Commit();
+            }
+            return objs;
         }
         public static List<T> ListOfType<T>(this Database database, Transaction tr, bool discardFrozen = false) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
