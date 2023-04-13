@@ -1839,6 +1839,14 @@ namespace IntersectUtilities.UtilsCommon
         public static bool IsPointInsideXY(this Extents3d extents, Point3d pnt)
         => pnt.X >= extents.MinPoint.X && pnt.X <= extents.MaxPoint.X
             && pnt.Y >= extents.MinPoint.Y && pnt.Y <= extents.MaxPoint.Y;
+        public static bool IsExtentsInsideXY(this Extents3d original, Extents3d other)
+        {
+            // Check if the other Extents3d is inside the original Extents3d
+            bool insideX = original.MinPoint.X <= other.MinPoint.X && original.MaxPoint.X >= other.MaxPoint.X;
+            bool insideY = original.MinPoint.Y <= other.MinPoint.Y && original.MaxPoint.Y >= other.MaxPoint.Y;
+
+            return insideX && insideY;
+        }
         public static Oid DrawExtents(this Extents3d extents, Database db)
         {
             if (extents == null) return Oid.Null;
@@ -2178,6 +2186,15 @@ namespace IntersectUtilities.UtilsCommon
         public static IEnumerable<T> Entities<T>(this ObjectIdCollection col, Transaction tx) where T : DBObject
         {
             foreach (Oid oid in col) yield return oid.Go<T>(tx);
+        }
+        public static HashSet<Oid> ToHashSet(this ObjectIdCollection col)
+        {
+            HashSet<Oid> ids = new HashSet<Oid>();
+            foreach (Oid item in col)
+            {
+                ids.Add(item);
+            }
+            return ids;
         }
         public static List<string> ToList(this StringCollection sc)
         {

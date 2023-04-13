@@ -1659,67 +1659,67 @@ namespace IntersectUtilities
             {
                 try
                 {
-                #region Get pipes
-                HashSet<Oid> plOids = localDb.HashSetOfFjvPipeIds(true);
-                if (plOids.Count == 0)
-                {
-                    prdDbg("No DH pipes in drawing!");
-                    return;
-                }
-                #endregion
-
-                #region Ask for point
-                //message for the ask for point prompt
-                string message = "Select location to place pipe fitting: ";
-                var opt = new PromptPointOptions(message);
-
-                Point3d location = Algorithms.NullPoint3d;
-                do
-                {
-                    var res = ed.GetPoint(opt);
-                    if (res.Status == PromptStatus.Cancel)
+                    #region Get pipes
+                    HashSet<Oid> plOids = localDb.HashSetOfFjvPipeIds(true);
+                    if (plOids.Count == 0)
                     {
-                        bringallblockstofront();
+                        prdDbg("No DH pipes in drawing!");
                         return;
                     }
-                    if (res.Status == PromptStatus.OK) location = res.Value;
-                }
-                while (location == Algorithms.NullPoint3d);
-                #endregion
+                    #endregion
 
-                #region Find nearest pline
-                Oid nearestPlId;
-                using (Transaction tx = localDb.TransactionManager.StartTransaction())
-                {
-                    Polyline pl = plOids.Select(x => x.Go<Polyline>(tx))
-                        .MinBy(x => location.DistanceHorizontalTo(
-                            x.GetClosestPointTo(location, false)))
-                        .FirstOrDefault();
-                    nearestPlId = pl.Id;
-                    tx.Commit();
-                }
+                    #region Ask for point
+                    //message for the ask for point prompt
+                    string message = "Select location to place pipe fitting: ";
+                    var opt = new PromptPointOptions(message);
 
-                if (nearestPlId == default)
-                {
-                    prdDbg("Nearest pipe cannot be found!");
-                    return;
-                }
-                #endregion
+                    Point3d location = Algorithms.NullPoint3d;
+                    do
+                    {
+                        var res = ed.GetPoint(opt);
+                        if (res.Status == PromptStatus.Cancel)
+                        {
+                            bringallblockstofront();
+                            return;
+                        }
+                        if (res.Status == PromptStatus.OK) location = res.Value;
+                    }
+                    while (location == Algorithms.NullPoint3d);
+                    #endregion
 
-                #region Place preinsulated elbow
-                ElbowPreinsulated elbow = new ElbowPreinsulated(localDb, nearestPlId, location);
-                Result result = elbow.Validate();
-                if (result.Status != ResultStatus.OK)
-                {
-                    prdDbg(result.ErrorMsg);
-                    continue;
-                }
-                result = elbow.Place();
-                if (result.Status != ResultStatus.OK)
-                {
-                    prdDbg(result.ErrorMsg);
-                    continue;
-                }
+                    #region Find nearest pline
+                    Oid nearestPlId;
+                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                    {
+                        Polyline pl = plOids.Select(x => x.Go<Polyline>(tx))
+                            .MinBy(x => location.DistanceHorizontalTo(
+                                x.GetClosestPointTo(location, false)))
+                            .FirstOrDefault();
+                        nearestPlId = pl.Id;
+                        tx.Commit();
+                    }
+
+                    if (nearestPlId == default)
+                    {
+                        prdDbg("Nearest pipe cannot be found!");
+                        return;
+                    }
+                    #endregion
+
+                    #region Place preinsulated elbow
+                    ElbowPreinsulated elbow = new ElbowPreinsulated(localDb, nearestPlId, location);
+                    Result result = elbow.Validate();
+                    if (result.Status != ResultStatus.OK)
+                    {
+                        prdDbg(result.ErrorMsg);
+                        continue;
+                    }
+                    result = elbow.Place();
+                    if (result.Status != ResultStatus.OK)
+                    {
+                        prdDbg(result.ErrorMsg);
+                        continue;
+                    }
                     #endregion
                 }
                 catch (System.Exception ex)

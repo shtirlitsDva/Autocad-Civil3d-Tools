@@ -58,6 +58,11 @@ namespace IntersectUtilities
         [CommandMethod("CREATESURFACEPROFILES")]
         public void createsurfaceprofiles()
         {
+            createsurfaceprofilesmethod();
+        }
+        private void createsurfaceprofilesmethod(
+            DataReferencesOptions dro = null, List<Alignment> allAlignments = null)
+        {
             DocumentCollection docCol = Application.DocumentManager;
             Database db = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
@@ -66,7 +71,9 @@ namespace IntersectUtilities
 
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
-                DataReferencesOptions dro = new DataReferencesOptions();
+                if (dro == null)
+                    dro = new DataReferencesOptions();
+
                 string projectName = dro.ProjectName;
                 string etapeName = dro.EtapeName;
 
@@ -89,7 +96,6 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception)
                 {
-                    xRefSurfaceTx.Abort();
                     throw;
                 }
 
@@ -103,7 +109,9 @@ namespace IntersectUtilities
 
                 try
                 {
-                    List<Alignment> allAlignments = db.ListOfType<Alignment>(tx).OrderBy(x => x.Name).ToList();
+                    if (allAlignments == null)
+                        allAlignments = db.ListOfType<Alignment>(tx)
+                            .OrderBy(x => x.Name).ToList();
 
                     #region Create surface profiles
 
@@ -188,6 +196,10 @@ namespace IntersectUtilities
         [CommandMethod("CREATEPROFILEVIEWS")]
         public void createprofileviews()
         {
+            createprofileviewsmethod();
+        }
+        private void createprofileviewsmethod(Point3d selectedPoint = default)
+        {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
@@ -212,7 +224,7 @@ namespace IntersectUtilities
                     HashSet<string> pvNames = pvSetExisting.Select(x => x.Name).ToHashSet();
                     //Filter out already created profile views
                     allAlignments = allAlignments.Where(x => !pvNames.Contains(x.Name + "_PV")).OrderBy(x => x.Name).ToList();
-                    prdDbg($"Number of alignmes with existing removed: {allAlignments.Count}");
+                    prdDbg($"Number of alignments without profile view: {allAlignments.Count}");
                     #endregion
 
                     #region Create profile views
@@ -224,14 +236,19 @@ namespace IntersectUtilities
                     int index = 1;
 
                     #region Select point
-                    PromptPointOptions pPtOpts = new PromptPointOptions("");
-                    // Prompt for the start point
-                    pPtOpts.Message = "\nSelect location where to draw first profile view:";
-                    PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
-                    Point3d selectedPoint = pPtRes.Value;
-                    // Exit if the user presses ESC or cancels the command
-                    if (pPtRes.Status != PromptStatus.OK) throw new System.Exception("Aborted by user!");
+                    if (selectedPoint == default)
+                    {
+                        PromptPointOptions pPtOpts = new PromptPointOptions("");
+                        // Prompt for the start point
+                        pPtOpts.Message = "\nSelect location where to draw first profile view:";
+                        PromptPointResult pPtRes = editor.GetPoint(pPtOpts);
+                        selectedPoint = pPtRes.Value;
+                        // Exit if the user presses ESC or cancels the command
+                        if (pPtRes.Status != PromptStatus.OK) throw new System.Exception("Aborted by user!");
+                    }
                     #endregion
+
+                    editor.Regen();
 
                     if (allAlignments.Count == 0) throw new System.Exception("Selection of alignment(s) failed!");
 
@@ -244,9 +261,13 @@ namespace IntersectUtilities
                         editor.WriteMessage($"\n_-*-_ | Processing alignment {alignment.Name}. | _-*-_");
                         System.Windows.Forms.Application.DoEvents();
 
-                        Point3d insertionPoint = new Point3d(selectedPoint.X, selectedPoint.Y + (index - 1) * -120, 0);
+                        prdDbg($"Creating ProfileView: {alignment.Name}_PV");
+                        Point3d insertionPoint = new Point3d(
+                            selectedPoint.X, selectedPoint.Y + (index - 1) * -120, 0);
                         pvId = ProfileView.Create(alignment.ObjectId, insertionPoint,
-                            $"{alignment.Name}_PV", profileViewBandSetStyleId, profileViewStyleId);
+                            $"{alignment.Name}_PV_temp", profileViewBandSetStyleId, profileViewStyleId);
+                        ProfileView pv = pvId.Go<ProfileView>(tx, OpenMode.ForWrite);
+                        pv.Name = $"{alignment.Name}_PV";
                         index++;
                         #endregion
 
@@ -256,7 +277,7 @@ namespace IntersectUtilities
                 catch (System.Exception e)
                 {
                     tx.Abort();
-                    prdDbg(e.ToString());
+                    prdDbg(e);
                     return;
                 }
 
@@ -278,7 +299,8 @@ namespace IntersectUtilities
             DataReferencesOptions dro = new DataReferencesOptions();
             createlerdatapssmethod(dro);
         }
-        public void createlerdatapssmethod(DataReferencesOptions dro)
+        public void createlerdatapssmethod(
+            DataReferencesOptions dro, List<Alignment> allAlignments = null)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -342,10 +364,13 @@ namespace IntersectUtilities
 
                 try
                 {
-                    List<Alignment> allAlignments = localDb.ListOfType<Alignment>(tx)
+                    if (allAlignments == null)
+                    {
+                        allAlignments = localDb.ListOfType<Alignment>(tx)
                         .OrderBy(x => x.Name)
-                        //.Where(x => x.Name == "20 Rybjerg Allé")
                         .ToList();
+                    }
+
                     HashSet<ProfileView> pvSetExisting = localDb.HashSetOfType<ProfileView>(tx);
 
                     #region Check or create propertysetdata to store crossing data
@@ -847,6 +872,10 @@ namespace IntersectUtilities
         [CommandMethod("POPULATEPROFILES")]
         public void populateprofiles()
         {
+            populateprofilesmethod();
+        }
+        public void populateprofilesmethod(HashSet<Oid> pvs = null)
+        {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
@@ -875,9 +904,10 @@ namespace IntersectUtilities
                     PSetDefs.DriCrossingData dcd = new PSetDefs.DriCrossingData();
                     #endregion
 
-                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
+                    if (pvs == null)
+                        pvs = localDb.HashSetIdsOfType<ProfileView>();
 
-                    foreach (ProfileView pv in pvs)
+                    foreach (ProfileView pv in pvs.Select(x => x.Go<ProfileView>(tx)))
                     {
                         #region Create a block for profile view detailing
                         //First, get the profile view
@@ -1030,6 +1060,11 @@ namespace IntersectUtilities
         [CommandMethod("CREATEPROFILES")]
         public void createprofiles()
         {
+            createprofilesmethod();
+        }
+        public void createprofilesmethod(
+            DataReferencesOptions dro = null, HashSet<Alignment> als = null)
+        {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
@@ -1039,7 +1074,8 @@ namespace IntersectUtilities
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 #region Open fremtidig db and get entities
-                DataReferencesOptions dro = new DataReferencesOptions();
+                if (dro == null)
+                    dro = new DataReferencesOptions();
                 string projectName = dro.ProjectName;
                 string etapeName = dro.EtapeName;
 
@@ -1088,7 +1124,8 @@ namespace IntersectUtilities
                     BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                     Plane plane = new Plane(); //For intersecting
-                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+                    if (als == null) 
+                        als = localDb.HashSetOfType<Alignment>(tx);
                     #endregion
 
                     #region Delete previous lines
@@ -1390,7 +1427,8 @@ namespace IntersectUtilities
         {
             createdetailingpreliminarymethod();
         }
-        public void createdetailingpreliminarymethod(DataReferencesOptions dataReferencesOptions = default, Database database = default)
+        public void createdetailingpreliminarymethod(
+            DataReferencesOptions dataReferencesOptions = default, Database database = default)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database dB = database ?? docCol.MdiActiveDocument.Database;
@@ -2768,7 +2806,7 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("CREATEPOINTSATVERTICES")]
-        public void createpointsatvertices()
+        public void createpointsatvertices(Extents3d bbox = default)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -2782,46 +2820,17 @@ namespace IntersectUtilities
                 {
                     #region Load linework
                     HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx);
+                    if (bbox != default)
+                    {
+                        plines = plines.Where(
+                            x => bbox.IsExtentsInsideXY(x.GeometricExtents))
+                            .ToHashSet();
+                    }
                     #endregion
 
                     #region Layer handling
-                    string localLayerName = "0-PLDECORATOR";
-                    bool localLayerExists = false;
-
-                    LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
-                    if (lt.Has(localLayerName))
-                    {
-                        localLayerExists = true;
-                    }
-                    else
-                    {
-                        //Create layer if it doesn't exist
-                        try
-                        {
-                            //Validate the name of layer
-                            //It throws an exception if not, so need to catch it
-                            SymbolUtilityServices.ValidateSymbolName(localLayerName, false);
-
-                            LayerTableRecord ltr = new LayerTableRecord();
-                            ltr.Name = localLayerName;
-
-                            //Make layertable writable
-                            lt.UpgradeOpen();
-
-                            //Add the new layer to layer table
-                            Oid ltId = lt.Add(ltr);
-                            tx.AddNewlyCreatedDBObject(ltr, true);
-
-                            //Flag that the layer exists now
-                            localLayerExists = true;
-
-                        }
-                        catch (System.Exception)
-                        {
-                            //Eat the exception and continue
-                            //localLayerExists must remain false
-                        }
-                    }
+                    string localLayerName = "0-POINTS_FOR_PL_VERTICES";
+                    localDb.CheckOrCreateLayer(localLayerName);
                     #endregion
 
                     #region Decorate polyline vertices
@@ -3736,7 +3745,8 @@ namespace IntersectUtilities
         {
             staggerlabelsallmethod();
         }
-        public void staggerlabelsallmethod(Database db = default)
+        public void staggerlabelsallmethod(
+            Database db = default, HashSet<Oid> pvs = null)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = db ?? docCol.MdiActiveDocument.Database;
@@ -3748,8 +3758,9 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
-                    HashSet<ProfileProjectionLabel> labelsSet = localDb.HashSetOfType<ProfileProjectionLabel>(tx);
+                    if (pvs == null) pvs = localDb.HashSetIdsOfType<ProfileView>();
+                    HashSet<ProfileProjectionLabel> labelsSet = 
+                        localDb.HashSetOfType<ProfileProjectionLabel>(tx);
 
                     #region Setup styles
                     LabelStyleCollection stc = civilDoc.Styles.LabelStyles
@@ -3791,7 +3802,7 @@ namespace IntersectUtilities
                     var pm = new ProgressMeter();
                     pm.Start("Staggering labels...");
                     pm.SetLimit(pvs.Count);
-                    foreach (var pv in pvs)
+                    foreach (var pv in pvs.Select(x => x.Go<ProfileView>(tx)))
                     {
                         ProfileProjectionLabel[] allLabels;
                         extents = pv.GeometricExtents;
@@ -4211,6 +4222,368 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("POPULATEDISTANCES")]
+        public void populatedistances()
+        {
+            populatedistancesmethod();
+        }
+        public void populatedistancesmethod(
+            DataReferencesOptions dro = null, HashSet<Oid> pvs = null)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
+
+            #region Open fremtidig db
+            if (dro == null) dro = new DataReferencesOptions();
+            string projectName = dro.ProjectName;
+            string etapeName = dro.EtapeName;
+
+            // open the xref database
+            Database fremDb = new Database(false, true);
+            fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
+                FileOpenMode.OpenForReadAndAllShare, false, null);
+            Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+            HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
+            HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+            // open the LER database
+            Database lerDb = new Database(false, true);
+            lerDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
+                FileOpenMode.OpenForReadAndAllShare, false, null);
+            Transaction lerTx = lerDb.TransactionManager.StartTransaction();
+            #endregion
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Read Csv Data for Layers
+                    //Establish the pathnames to files
+                    //Files should be placed in a specific folder on desktop
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    string pathDistnces = "X:\\AutoCAD DRI - 01 Civil 3D\\Distances.csv";
+
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    System.Data.DataTable dtDistances = CsvReader.ReadCsvToDataTable(pathDistnces, "Distancer");
+                    #endregion
+
+                    BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
+                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+
+                    #region Create layer for draft profile
+                    string afstandsMarkeringLayerName = "0-PROFILE_AFSTANDS_MARKERING";
+                    using (Transaction txLag = localDb.TransactionManager.StartTransaction())
+                    {
+                        LayerTable lt = txLag.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+
+                        if (!lt.Has(afstandsMarkeringLayerName))
+                        {
+                            LayerTableRecord ltr = new LayerTableRecord();
+                            ltr.Name = afstandsMarkeringLayerName;
+                            ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 0);
+                            ltr.LineWeight = LineWeight.LineWeight000;
+
+                            //Make layertable writable
+                            lt.CheckOrOpenForWrite();
+
+                            //Add the new layer to layer table
+                            Oid ltId = lt.Add(ltr);
+                            txLag.AddNewlyCreatedDBObject(ltr, true);
+                        }
+                        txLag.Commit();
+                    }
+                    #endregion
+
+                    #region Instantiate property set manager
+                    PSetDefs.DriCrossingData driCrossingData = new PSetDefs.DriCrossingData();
+                    PropertySetManager psmDriCrossingData =
+                        new PropertySetManager(localDb, driCrossingData.SetName);
+
+                    PropertySetManager psmPipeLineData = new PropertySetManager(
+                        fremDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineData =
+                        new PSetDefs.DriPipelineData();
+                    #endregion
+
+                    if (pvs == null) pvs = localDb.HashSetIdsOfType<ProfileView>();
+                    foreach (ProfileView pv in pvs.Select(x => x.Go<ProfileView>(tx)))
+                    {
+                        #region Variables declaration
+                        System.Windows.Forms.Application.DoEvents();
+                        Alignment al = pv.AlignmentId.Go<Alignment>(tx);
+                        Point3d pvOrigin = pv.Location;
+                        double originX = pvOrigin.X;
+                        double originY = pvOrigin.Y;
+
+                        double pvStStart = pv.StationStart;
+                        double pvStEnd = pv.StationEnd;
+                        double pvElBottom = pv.ElevationMin;
+                        double pvElTop = pv.ElevationMax;
+                        double pvLength = pvStEnd - pvStStart;
+                        double stepLength = 0.1;
+                        int nrOfSteps = (int)(pvLength / stepLength);
+                        #endregion
+
+                        #region GetCurvesAndBRs from fremtidig
+                        HashSet<Curve> curves = allCurves
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                            .ToHashSet();
+
+                        HashSet<BlockReference> brs = allBrs
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                            .ToHashSet();
+                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                        #endregion
+
+                        #region Build size array
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        prdDbg(sizeArray.ToString());
+                        #endregion
+
+                        #region Blockrefs and labels
+                        BlockTableRecord btr;
+                        if (bt.Has(pv.Name))
+                        {
+                            btr = bt[pv.Name].Go<BlockTableRecord>(tx, OpenMode.ForWrite);
+                        }
+                        else throw new System.Exception($"Block {pv.Name} is missing!");
+
+                        ObjectIdCollection brefIds = btr.GetBlockReferenceIds(true, true);
+                        if (brefIds.Count == 0) throw new System.Exception($"Block {pv.Name} does not have any references!");
+                        Oid brefId = brefIds[0];
+                        BlockReference bref = brefId.Go<BlockReference>(tx);
+
+                        HashSet<ProfileProjectionLabel> ppls = localDb.HashSetOfType<ProfileProjectionLabel>(tx);
+                        #endregion
+
+                        foreach (ProfileProjectionLabel ppl in ppls)
+                        {
+                            Oid pId = ppl.FeatureId;
+                            if (!pId.IsDerivedFrom<CogoPoint>()) continue;
+                            CogoPoint cp = pId.Go<CogoPoint>(tx);
+                            //if (ReadStringPropertyValue(tables, pId, "CrossingData", "Alignment")
+                            //!= al.Name) continue;
+                            if (psmDriCrossingData.ReadPropertyString(cp,
+                                driCrossingData.Alignment) != al.Name) continue;
+
+                            //Get original object from LER dwg
+                            //string handle = ReadStringPropertyValue(tables, pId, "IdRecord", "Handle");
+                            string handle = psmDriCrossingData.ReadPropertyString(
+                                cp, driCrossingData.SourceEntityHandle);
+                            //If returned handle string is empty
+                            //For any reason, fx missing OD data
+                            //Fall back to the name of the cogopoint
+                            //else continue
+                            if (handle.IsNoE())
+                            {
+                                string pName = cp.PointName;
+                                string[] res = pName.Split('_');
+                                handle = res[0];
+                            }
+                            if (handle.IsNoE()) continue;
+                            long ln;
+                            Handle hn;
+                            try
+                            {
+                                ln = Convert.ToInt64(handle, 16);
+                                hn = new Handle(ln);
+                            }
+                            catch (System.Exception ex)
+                            {
+                                prdDbg("Creation of handle failed!");
+                                throw;
+                            }
+                            Oid originalId = Oid.Null;
+                            try
+                            { originalId = lerDb.GetObjectId(false, hn, 0); }
+                            catch (System.Exception ex)
+                            {
+                                prdDbg($"Getting object by handle failed! {ex.Message}");
+                                throw;
+                            }
+                            Entity originalEnt = originalId.Go<Entity>(lerTx);
+
+                            //Determine type and distance
+                            string distanceType = ReadStringParameterFromDataTable(originalEnt.Layer, dtKrydsninger, "Distance", 0);
+                            string blockType = ReadStringParameterFromDataTable(originalEnt.Layer, dtKrydsninger, "Block", 0);
+                            double distance = ReadDoubleParameterFromDataTable(distanceType, dtDistances, "Distance", 0);
+                            int originalDia = psmDriCrossingData.ReadPropertyInt(
+                                cp, driCrossingData.Diameter);
+                            //int originalDia = ReadIntPropertyValue(tables, pId, "CrossingData", "Diameter");
+                            double dia = Convert.ToDouble(originalDia) / 1000;
+                            if (dia == 0) dia = 0.11;
+
+                            //Determine kOd
+                            double station = 0;
+                            double elevation = 0;
+                            if (!pv.FindStationAndElevationAtXY(ppl.LabelLocation.X, ppl.LabelLocation.Y, ref station, ref elevation))
+                                throw new System.Exception($"Point {ppl.Handle} couldn't finde elevation and station!!!");
+
+                            //Determine dn
+                            double kappeOd = 0;
+                            for (int i = 0; i < sizeArray.Length; i++)
+                            {
+                                if (station <= sizeArray[i].EndStation) { kappeOd = sizeArray[i].Kod / 1000; break; }
+                            }
+
+                            Circle circle = null;
+                            switch (blockType)
+                            {
+                                case "Cirkel, Bund":
+                                    {
+                                        foreach (Oid oid in btr)
+                                        {
+                                            if (!oid.IsDerivedFrom<Circle>()) continue;
+                                            Circle tempC = oid.Go<Circle>(tx);
+                                            //prdDbg("C: " + tempC.Center.ToString());
+                                            Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y + (dia / 2), 0);
+                                            theoreticalLocation = theoreticalLocation.TransformBy(bref.BlockTransform.Inverse());
+                                            //prdDbg("T: " + theoreticalLocation.ToString());
+                                            //prdDbg($"dX: {tempC.Center.X - theoreticalLocation.X}, dY: {tempC.Center.Y - theoreticalLocation.Y}");
+                                            if (tempC.Center.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
+                                            {
+                                                //prdDbg("Found Cirkel, Bund!");
+                                                circle = tempC;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    break;
+                                case "Cirkel, Top":
+                                    {
+                                        foreach (Oid oid in btr)
+                                        {
+                                            if (!oid.IsDerivedFrom<Circle>()) continue;
+                                            Circle tempC = oid.Go<Circle>(tx);
+                                            Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y - (dia / 2), 0);
+                                            theoreticalLocation = theoreticalLocation.TransformBy(bref.BlockTransform.Inverse());
+                                            if (tempC.Center.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
+                                            {
+                                                //prdDbg("Found Cirkel, Top!");
+                                                circle = tempC;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    break;
+                                case "EL 0.4kV":
+                                    foreach (Oid oid in btr)
+                                    {
+                                        if (!oid.IsDerivedFrom<BlockReference>()) continue;
+                                        BlockReference tempBref = oid.Go<BlockReference>(tx);
+                                        //prdDbg("C: " + tempBref.Position.ToString());
+                                        BlockTableRecord tempBtr = tempBref.BlockTableRecord.Go<BlockTableRecord>(tx);
+                                        Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y, 0);
+                                        theoreticalLocation = theoreticalLocation.TransformBy(bref.BlockTransform.Inverse());
+                                        //prdDbg("T: " + theoreticalLocation.ToString());
+                                        //prdDbg($"dX: {tempBref.Position.X - theoreticalLocation.X}, dY: {tempBref.Position.Y - theoreticalLocation.Y}");
+                                        if (tempBref.Position.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
+                                        {
+                                            //prdDbg("Found block!");
+                                            Extents3d ext = tempBref.GeometricExtents;
+                                            //prdDbg(ext.ToString());
+                                            using (Polyline pl = new Polyline(4))
+                                            {
+                                                pl.AddVertexAt(0, new Point2d(ext.MinPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
+                                                pl.AddVertexAt(1, new Point2d(ext.MinPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
+                                                pl.AddVertexAt(2, new Point2d(ext.MaxPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
+                                                pl.AddVertexAt(3, new Point2d(ext.MaxPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
+                                                pl.Closed = true;
+                                                pl.SetDatabaseDefaults();
+                                                pl.ReverseCurve();
+
+                                                using (DBObjectCollection col = pl.GetOffsetCurves(distance))
+                                                {
+                                                    foreach (var obj in col)
+                                                    {
+                                                        Entity ent = (Entity)obj;
+                                                        ent.Layer = afstandsMarkeringLayerName;
+                                                        btr.AppendEntity(ent);
+                                                        tx.AddNewlyCreatedDBObject(ent, true);
+                                                    }
+                                                }
+                                                using (DBObjectCollection col = pl.GetOffsetCurves(distance + kappeOd / 2))
+                                                {
+                                                    foreach (var obj in col)
+                                                    {
+                                                        Entity ent = (Entity)obj;
+                                                        ent.Layer = afstandsMarkeringLayerName;
+                                                        btr.AppendEntity(ent);
+                                                        tx.AddNewlyCreatedDBObject(ent, true);
+                                                    }
+                                                }
+                                            }
+                                            break;
+                                        }
+                                    }
+                                    break;
+                                default:
+                                    break;
+                            }
+
+                            if (circle != null)
+                            {
+                                using (DBObjectCollection col = circle.GetOffsetCurves(distance))
+                                {
+                                    foreach (var obj in col)
+                                    {
+                                        Entity ent = (Entity)obj;
+                                        ent.Layer = afstandsMarkeringLayerName;
+                                        btr.AppendEntity(ent);
+                                        tx.AddNewlyCreatedDBObject(ent, true);
+                                    }
+                                }
+                                using (DBObjectCollection col = circle.GetOffsetCurves(distance + kappeOd / 2))
+                                {
+                                    foreach (var obj in col)
+                                    {
+                                        Entity ent = (Entity)obj;
+                                        ent.Layer = afstandsMarkeringLayerName;
+                                        btr.AppendEntity(ent);
+                                        tx.AddNewlyCreatedDBObject(ent, true);
+                                    }
+                                }
+                            }
+                        }
+
+                        //Update block references
+                        ObjectIdCollection brsToUpdate = btr.GetBlockReferenceIds(true, true);
+                        foreach (Oid oid in brsToUpdate)
+                        {
+                            BlockReference br = oid.Go<BlockReference>(tx, OpenMode.ForWrite);
+                            br.RecordGraphicsModified(true);
+                        }
+                    }
+                }
+
+                catch (System.Exception ex)
+                {
+                    fremTx.Abort();
+                    fremTx.Dispose();
+                    fremDb.Dispose();
+                    lerTx.Abort();
+                    lerTx.Dispose();
+                    lerDb.Dispose();
+                    tx.Abort();
+                    editor.WriteMessage(ex.ToString());
+                    return;
+                }
+                fremTx.Abort();
+                fremTx.Dispose();
+                fremDb.Dispose();
+                lerTx.Abort();
+                lerTx.Dispose();
+                lerDb.Dispose();
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("UPDATESINGLEPROFILEVIEW")]
         public void updatesingleprofileview()
         {
@@ -4229,6 +4602,12 @@ namespace IntersectUtilities
             if (dro.ProjectName.IsNoE() || dro.EtapeName.IsNoE())
                 return;
 
+            Point3d originalProfileViewLocation = default;
+            double originalStStart;
+            double originalStEnd;
+            Extents3d bufferedOriginalBbox = default;
+            Oid alId = Oid.Null;
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -4236,10 +4615,10 @@ namespace IntersectUtilities
                     #region Get Profile view and location
                     ProfileView pv = entity2.ObjectId.Go<ProfileView>(tx);
 
-                    Point3d originalProfileViewLocation =
-                        pv.Location;
-                    double stStart = pv.StationStart;
-                    double stEnd = pv.StationEnd;
+                    originalProfileViewLocation = pv.Location;
+                    originalStStart = pv.StationStart;
+                    originalStEnd = pv.StationEnd;
+                    bufferedOriginalBbox = pv.GetBufferedXYGeometricExtents(5.0);
                     #endregion
 
                     #region Erase detailing block
@@ -4255,10 +4634,8 @@ namespace IntersectUtilities
                     detailingBlock.Erase(true);
                     #endregion
 
-                    //Gather all CogoPoints that show up in this
-                    //Particular profile view
-
                     Alignment al = pv.AlignmentId.Go<Alignment>(tx);
+                    alId = al.Id;
                     Polyline alPline = al.GetPolyline().Go<Polyline>(tx);
 
                     #region Erase PV CogoPoints
@@ -4278,7 +4655,7 @@ namespace IntersectUtilities
                             alPline.GetDistAtPoint(
                                 alPline.GetClosestPointTo(item.Location, false));
 
-                        if (cogoStation >= stStart && cogoStation <= stEnd)
+                        if (cogoStation >= originalStStart && cogoStation <= originalStEnd)
                         { item.CheckOrOpenForWrite(); item.Erase(); }
                     }
                     #endregion
@@ -4293,16 +4670,47 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    #region Erase preliminary profile
-                    #endregion
-
                     #region Erase PV
                     pv.CheckOrOpenForWrite();
                     pv.Erase(true);
                     #endregion
 
+                    #region Erase polylines and points from prelim profile
+                    HashSet<Polyline> prelim = localDb.HashSetOfType<Polyline>(tx);
+                    foreach (var item in prelim)
+                    {
+                        if (!bufferedOriginalBbox.IsExtentsInsideXY(
+                            item.GeometricExtents)) continue;
+
+                        item.CheckOrOpenForWrite();
+                        item.Erase(true);
+                    }
+                    HashSet<DBPoint> points = localDb.HashSetOfType<DBPoint>(tx);
+                    foreach (var item in points)
+                    {
+                        if (!bufferedOriginalBbox.IsPointInsideXY(
+                            item.Position)) continue;
+
+                        item.CheckOrOpenForWrite();
+                        item.Erase(true);
+                    }
+                    #endregion
+
+                    #region Erase existing surface profile and create new one
+                    ObjectIdCollection profs = al.GetProfileIds();
+                    string surfaceProfName;
+                    foreach (Oid item in profs)
+                    {
+                        Profile prof = item.Go<Profile>(tx);
+                        if (!prof.Name.EndsWith("_surface_P")) continue;
+                        surfaceProfName = prof.Name;
+                        prof.CheckOrOpenForWrite();
+                        prof.Erase(true);
+                    }
+                    #endregion
+
                     alPline.CheckOrOpenForWrite();
-                    alPline.Erase(true);
+                    alPline.Erase();
                 }
                 catch (System.Exception ex)
                 {
@@ -4311,6 +4719,48 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+
+            //docCol.MdiActiveDocument.TransactionManager.QueueForGraphicsFlush();
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Alignment al = alId.Go<Alignment>(tx);
+                    createsurfaceprofilesmethod(dro, new List<Alignment>() { al });
+                    createprofileviewsmethod(originalProfileViewLocation);
+                    createlerdatapssmethod(dro, new List<Alignment>() { al });
+                    populateprofilesmethod(al.GetProfileViewIds().ToHashSet());
+                    colorizealllerlayersmethod();
+                    createprofilesmethod(dro, new HashSet<Alignment> { al });
+                    createpointsatvertices(bufferedOriginalBbox);
+                    createdetailingpreliminarymethod(dro);
+                    staggerlabelsallmethod(null, al.GetProfileViewIds().ToHashSet());
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                }
+                tx.Commit();
+            }
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Alignment al = alId.Go<Alignment>(tx);
+                    populatedistancesmethod(dro, al.GetProfileViewIds().ToHashSet());
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                }
+                tx.Commit();
+            }
+
+            prdDbg("Update finished! Run AUDIT (Y) to clean up drawing!");
         }
     }
 }
