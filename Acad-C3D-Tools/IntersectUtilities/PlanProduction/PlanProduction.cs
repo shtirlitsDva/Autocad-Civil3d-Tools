@@ -50,6 +50,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using System.Windows.Documents;
+using System.Text.Json;
 
 namespace IntersectUtilities
 {
@@ -1582,6 +1583,99 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+        }
+
+        [CommandMethod("EXPORTVIEWFRAMESTOGEOJSON")]
+        public void exportviewframestogeojson()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            GeoJsonFeatureCollection gjfc = new GeoJsonFeatureCollection("ViewFrames");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var bt = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForRead);
+                    var ms = (BlockTableRecord)tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+
+                    foreach (Oid id in ms)
+                    {
+                        var br = tx.GetObject(id, OpenMode.ForRead) as BlockReference;
+                        if (br == null) continue;
+
+                        var bd = (BlockTableRecord)tx.GetObject(br.BlockTableRecord, OpenMode.ForRead);
+                        if (!bd.IsFromExternalReference) continue;
+
+                        var xdb = bd.GetXrefDatabase(false);
+                        if (xdb == null) continue;
+                        string fileName = xdb.Filename;
+
+                        //editor.WriteMessage($"\n{xdb.Filename}.");
+                        System.Windows.Forms.Application.DoEvents();
+                        if (IsFileLockedOrReadOnly(new FileInfo(fileName)))
+                        {
+                            editor.WriteMessage("\nUnable to modify the external reference. " +
+                                                  "It may be open in the editor or read-only.");
+                            System.Windows.Forms.Application.DoEvents();
+                        }
+                        else
+                        {
+                            using (var xf = XrefFileLock.LockFile(xdb.XrefBlockId))
+                            {
+                                //Make sure the original symbols are loaded
+                                xdb.RestoreOriginalXrefSymbols();
+                                // Depending on the operation you're performing,
+                                // you may need to set the WorkingDatabase to
+                                // be that of the Xref
+                                //HostApplicationServices.WorkingDatabase = xdb;
+
+                                using (Transaction xTx = xdb.TransactionManager.StartTransaction())
+                                {
+                                    try
+                                    {
+                                        var vfs = xdb.HashSetOfType<ViewFrame>(xTx);
+                                        foreach (var vf in vfs)
+                                        {
+                                            gjfc.AddViewFrameToFeatures(vf);
+                                        }
+                                    }
+                                    catch (System.Exception)
+                                    {
+                                        xTx.Abort();
+                                        tx.Abort();
+                                        xdb.RestoreForwardingXrefSymbols();
+                                        return;
+                                        //throw;
+                                    }
+
+                                    xTx.Commit();
+                                }
+                                // And then set things back, afterwards
+                                //HostApplicationServices.WorkingDatabase = db;
+                                xdb.RestoreForwardingXrefSymbols();
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+            };
+
+            string json = JsonSerializer.Serialize(gjfc, options);
+            File.WriteAllText("C:\\Temp\\vf.geojson", json);
         }
 
         [CommandMethod("SETPROFILEVIEWSTYLE")]

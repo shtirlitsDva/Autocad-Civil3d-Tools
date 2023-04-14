@@ -4181,6 +4181,32 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test view frame numbers
+                    var vfs = localDb.ListOfType<ViewFrame>(tx);
+                    if (vfs != null)
+                    {
+                        foreach (var vf in vfs)
+                        {
+                            DBObjectCollection dboc1 = new DBObjectCollection();
+                            vf.Explode(dboc1);
+                            foreach (var item in dboc1)
+                            {
+                                if (item is BlockReference br)
+                                {
+                                    DBObjectCollection dboc2 = new DBObjectCollection();
+                                    br.Explode(dboc2);
+
+                                    foreach (var item2 in dboc2)
+                                    {
+                                        if (item2 is Polyline pline)
+                                            prdDbg($"EndParam: {pline.EndParam} - {(int)pline.EndParam}");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    #endregion
+
                     #region Test stikafgreninger DN2
                     //PromptEntityOptions peo = new PromptEntityOptions("\nSelect block to read parameter: ");
                     //peo.SetRejectMessage("\nNot a block!");
@@ -5602,19 +5628,6 @@ namespace IntersectUtilities
                     //    Oid profileStyleId = cDoc.Styles.ProfileStyles["Terræn"];
                     //    pSurface.CheckOrOpenForWrite();
                     //    pSurface.StyleId = profileStyleId;
-                    //}
-                    #endregion
-
-                    #region Test view frame numbers
-                    //ViewFrameGroup vfg = localDb.ListOfType<ViewFrameGroup>(tx).FirstOrDefault();
-                    //if (vfg != null)
-                    //{
-                    //    var ids = vfg.GetViewFrameIds();
-                    //    var ents = ids.Entities<ViewFrame>(tx);
-                    //    foreach (var item in ents)
-                    //    {
-                    //        prdDbg(item.Name + " " + item.StartStation);
-                    //    }
                     //}
                     #endregion
                 }
