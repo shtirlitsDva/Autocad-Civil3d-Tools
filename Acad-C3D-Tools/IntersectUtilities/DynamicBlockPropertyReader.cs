@@ -36,7 +36,7 @@ namespace IntersectUtilities.DynamicBlocks
 {
     public static partial class PropertyReader
     {
-        private static DynamicBlockReferenceProperty GetDynamicPropertyByName(this BlockReference br, string name)
+        public static DynamicBlockReferenceProperty GetDynamicPropertyByName(this BlockReference br, string name)
         {
             DynamicBlockReferencePropertyCollection pc = br.DynamicBlockReferencePropertyCollection;
             foreach (DynamicBlockReferenceProperty property in pc)
@@ -139,7 +139,8 @@ namespace IntersectUtilities.DynamicBlocks
             string propertyToExtractName = "DN2";
             //Versioning
             string version = br.GetAttributeStringValue("VERSION");
-            string valueToReturn = ReadStringParameterFromDataTable(br.RealName(), fjvTable, propertyToExtractName, 0, version);
+            string valueToReturn = ReadStringParameterFromDataTable(
+                br.RealName(), fjvTable, propertyToExtractName, 0, version);
 
             if (valueToReturn.StartsWith("$"))
             {
@@ -150,7 +151,7 @@ namespace IntersectUtilities.DynamicBlocks
                     valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
                 }
                 //Else the value is parameter literal to read
-                else return br.GetDynamicPropertyByName(valueToReturn).Value as string ?? "";
+                else return br.GetDynamicPropertyByName(valueToReturn).Value.ToString() ?? "";
             }
             return valueToReturn ?? "";
         }

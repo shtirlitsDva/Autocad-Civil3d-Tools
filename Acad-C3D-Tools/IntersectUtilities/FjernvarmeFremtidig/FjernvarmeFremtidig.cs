@@ -50,6 +50,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using System.Windows.Documents;
+using static IntersectUtilities.Graph;
 
 namespace IntersectUtilities
 {
@@ -386,6 +387,59 @@ namespace IntersectUtilities
                             line.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
                             line.AddEntityToDbModelSpace(localDb);
                         }
+                    }
+                    #endregion
+
+                    #region Group NAs by spatial relation
+                    graphclear();
+                    graphpopulate();
+
+                    //Get all NAs
+                    List<Entity> allNas =
+                        allPipes.Where(x => psm.ReadPropertyString(
+                            x, driPipelineData.BelongsToAlignment).StartsWith("NA"))
+                        .Cast<Entity>().ToList();
+                    allNas.AddRange(
+                        brs.Where(x => psm.ReadPropertyString(
+                            x, driPipelineData.BelongsToAlignment).StartsWith("NA"))
+                        .Cast<Entity>().ToList());
+
+                    PropertySetManager psmGraph = new PropertySetManager(
+                        localDb, PSetDefs.DefinedSets.DriGraph);
+                    PSetDefs.DriGraph defGraph = new PSetDefs.DriGraph();
+
+                    //Group NAs by spatial relation
+                    var naGroups = allNas.GroupByCluster((x, y) => isASpatialGroup(x, y), 0.5);
+                    double isASpatialGroup(Entity x, Entity y)
+                    {
+                        string conString1 = psmGraph.ReadPropertyString(
+                                    x, defGraph.ConnectedEntities);
+                        string conString2 = psmGraph.ReadPropertyString(
+                                    y, defGraph.ConnectedEntities);
+
+                        if (conString1.IsNoE())
+                            throw new System.Exception(
+                                $"Malformend constring: {conString1}, entity: {x.Handle}.");
+                        if (conString2.IsNoE())
+                            throw new System.Exception(
+                                $"Malformend constring: {conString2}, entity: {y.Handle}.");
+
+                        Con[] cons1 = GraphEntity.parseConString(conString1);
+                        Con[] cons2 = GraphEntity.parseConString(conString2);
+
+                        if (cons1.Any(l => l.ConHandle == y.Handle) ||
+                            cons2.Any(m => m.ConHandle == x.Handle)) return 0.0;
+                        else return 1.0;
+                    }
+
+                    int idx = 0;
+                    foreach (IGrouping<Entity, Entity> group in naGroups)
+                    {
+                        idx++;
+                        foreach (Entity item in group)
+                            psm.WritePropertyString(
+                                item, driPipelineData.BelongsToAlignment,
+                                $"NA {idx.ToString("00")}");
                     }
                     #endregion
 

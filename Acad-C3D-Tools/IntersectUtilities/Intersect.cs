@@ -50,6 +50,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
+using IntersectUtilities.DynamicBlocks;
 
 namespace IntersectUtilities
 {
@@ -4180,6 +4181,29 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test stikafgreninger DN2
+                    //PromptEntityOptions peo = new PromptEntityOptions("\nSelect block to read parameter: ");
+                    //peo.SetRejectMessage("\nNot a block!");
+                    //peo.AddAllowedClass(typeof(BlockReference), true);
+                    //PromptEntityResult per = editor.GetEntity(peo);
+                    //BlockReference br = per.ObjectId.Go<BlockReference>(tx);
+
+                    //string pathToCatalogue =
+                    //    @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv";
+                    //if (!File.Exists(pathToCatalogue))
+                    //    throw new System.Exception("ComponentData cannot access " + pathToCatalogue + "!");
+
+                    //System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(pathToCatalogue, "DynKomps");
+
+                    //string dn1 = PropertyReader.ReadComponentDN1Str(br, dt);
+                    ////prdDbg(dn1);
+
+                    ////string dn2 = PropertyReader.ReadComponentDN2Str(br, dt);
+                    ////prdDbg(dn2);
+
+                    //prdDbg(PropertyReader.GetDynamicPropertyByName(br, "DN2").Value.ToString());
+                    #endregion
+
                     #region Test viewport orientation
                     //string blockName = "Nordpil2";
 
