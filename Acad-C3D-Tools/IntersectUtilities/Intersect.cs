@@ -4182,29 +4182,29 @@ namespace IntersectUtilities
                 try
                 {
                     #region Test view frame numbers
-                    var vfs = localDb.ListOfType<ViewFrame>(tx);
-                    if (vfs != null)
-                    {
-                        foreach (var vf in vfs)
-                        {
-                            DBObjectCollection dboc1 = new DBObjectCollection();
-                            vf.Explode(dboc1);
-                            foreach (var item in dboc1)
-                            {
-                                if (item is BlockReference br)
-                                {
-                                    DBObjectCollection dboc2 = new DBObjectCollection();
-                                    br.Explode(dboc2);
+                    //var vfs = localDb.ListOfType<ViewFrame>(tx);
+                    //if (vfs != null)
+                    //{
+                    //    foreach (var vf in vfs)
+                    //    {
+                    //        DBObjectCollection dboc1 = new DBObjectCollection();
+                    //        vf.Explode(dboc1);
+                    //        foreach (var item in dboc1)
+                    //        {
+                    //            if (item is BlockReference br)
+                    //            {
+                    //                DBObjectCollection dboc2 = new DBObjectCollection();
+                    //                br.Explode(dboc2);
 
-                                    foreach (var item2 in dboc2)
-                                    {
-                                        if (item2 is Polyline pline)
-                                            prdDbg($"EndParam: {pline.EndParam} - {(int)pline.EndParam}");
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    //                foreach (var item2 in dboc2)
+                    //                {
+                    //                    if (item2 is Polyline pline)
+                    //                        prdDbg($"EndParam: {pline.EndParam} - {(int)pline.EndParam}");
+                    //                }
+                    //            }
+                    //        }
+                    //    }
+                    //}
                     #endregion
 
                     #region Test stikafgreninger DN2
