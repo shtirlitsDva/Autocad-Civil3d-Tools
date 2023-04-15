@@ -74,7 +74,7 @@ namespace IntersectUtilities
             Name = name;
         }
 
-        public void AddViewFrameToFeatures(ViewFrame viewFrame)
+        public void AddViewFrameAsLineString(ViewFrame viewFrame)
         {
             var feature = new GeoJsonFeature();
             feature.Properties.Add("DwgNumber", viewFrame.Name);
@@ -155,13 +155,19 @@ namespace IntersectUtilities
                         if (item2 is Polyline pline)
                         {
                             Coordinates = new double[5][];
-
+                            Point3d p;
                             for (int i = 0; i < pline.NumberOfVertices + 1; i++)
                             {
-                                var p = pline.GetPoint3dAt(i);
-                                if (i == 4) p = pline.GetPoint3dAt(0);
-                                else Coordinates[i] =
-                                        new double[] { p.X, p.Y };
+                                switch (i)
+                                {
+                                    case 4:
+                                        p = pline.GetPoint3dAt(0);
+                                        break;
+                                    default:
+                                        p = pline.GetPoint3dAt(i);
+                                        break;
+                                }
+                                Coordinates[i] = new double[] { p.X, p.Y };
                             }
                         }
                     }

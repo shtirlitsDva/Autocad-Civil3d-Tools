@@ -1639,7 +1639,7 @@ namespace IntersectUtilities
                                         var vfs = xdb.HashSetOfType<ViewFrame>(xTx);
                                         foreach (var vf in vfs)
                                         {
-                                            gjfc.AddViewFrameToFeatures(vf);
+                                            gjfc.AddViewFrameAsLineString(vf);
                                         }
                                     }
                                     catch (System.Exception)
