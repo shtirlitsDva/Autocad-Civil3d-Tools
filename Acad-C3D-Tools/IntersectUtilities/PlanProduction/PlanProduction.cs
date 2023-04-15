@@ -1719,6 +1719,7 @@ namespace IntersectUtilities
                                 }
                                 break;
                             case BlockReference br:
+
                                 break;
                             default:
                                 break;
