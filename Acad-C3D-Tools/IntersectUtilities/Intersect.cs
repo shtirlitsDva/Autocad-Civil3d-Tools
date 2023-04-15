@@ -68,6 +68,7 @@ namespace IntersectUtilities
                 SystemObjects.DynamicLinker.LoadModule(
                     "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
             }
+
             prdDbg("IntersectUtilites loaded!");
         }
 
