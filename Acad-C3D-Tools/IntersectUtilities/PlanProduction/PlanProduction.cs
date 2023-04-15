@@ -1672,10 +1672,67 @@ namespace IntersectUtilities
             var options = new JsonSerializerOptions
             {
                 WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             };
 
+            string path = Path.GetDirectoryName(localDb.Filename);
+            string geoJsonFileName = Path.Combine(path, "ViewFrames.geojson");
+
             string json = JsonSerializer.Serialize(gjfc, options);
-            File.WriteAllText("C:\\Temp\\vf.geojson", json);
+            File.WriteAllText(geoJsonFileName, json);
+        }
+
+        [CommandMethod("EXPORTFJVTOGEOJSON")]
+        public void exportfjvtogeojson()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
+                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+            GeoJsonFeatureCollection gjfc = new GeoJsonFeatureCollection("FjernVarme");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var ents = localDb.GetFjvEntities(tx, dt, true);
+
+                    foreach (var ent in ents)
+                    {
+                        switch (ent)
+                        {
+                            case Polyline pl:
+                                {
+                                    Dictionary<string, object> props = new Dictionary<string, object>
+                                    {
+                                        { "DN", GetPipeDN(pl) },
+                                        { "System", GetPipeType(pl) },
+                                        { "Serie", GetPipeSeriesV2(pl) },
+                                        { "Type", GetPipeSystem(pl) },
+                                        { "KOd", GetPipeKOd(pl) },
+                                    };
+
+                                    gjfc.AddFjvPolylineAsLineString(pl, props);
+                                }
+                                break;
+                            case BlockReference br:
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
         }
 
         [CommandMethod("SETPROFILEVIEWSTYLE")]

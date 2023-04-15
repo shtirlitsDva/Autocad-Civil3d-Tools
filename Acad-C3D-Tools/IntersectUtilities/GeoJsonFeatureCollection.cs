@@ -81,6 +81,43 @@ namespace IntersectUtilities
             feature.Geometry = new GeoJsonLineString(viewFrame);
             Features.Add(feature);
         }
+
+        public void AddFjvPolylineAsLineString(
+            Polyline polyline, Dictionary<string, object> props)
+        {
+            var feature = new GeoJsonFeature();
+            feature.Properties = props;
+            feature.Geometry = new GeoJsonLineString(polyline);
+            Features.Add(feature);
+        }
+
+        public void AddFjvBlockAsGeometryCollection(
+            List<Entity> ents, Dictionary<string, object> props)
+        {
+            var feature = new GeoJsonFeature();
+            feature.Properties = props;
+            var gjgc = new GeoJsonGeometryCollection();
+            foreach (var ent in ents)
+            {
+                switch (ent)
+                {
+                    case Line line:
+                        gjgc.Geometries.Add(
+                            new GeoJsonLineString(line));
+                        break;
+                    case Polyline polyline:
+                        gjgc.Geometries.Add(
+                            new GeoJsonLineString(polyline));
+                        break;
+                    case Hatch hatch:
+                        break;
+                    default:
+                        break;
+                }
+            }
+            feature.Geometry = gjgc;
+            Features.Add(feature);
+        }
     }
 
     public class GeoJsonCRS
@@ -112,6 +149,10 @@ namespace IntersectUtilities
         public GeoJsonGeometry Geometry { get; set; }
     }
 
+    [JsonDerivedType(typeof(GeoJsonPoint))]
+    [JsonDerivedType(typeof(GeoJsonLineString))]
+    [JsonDerivedType(typeof(GeoJsonPolygon))]
+    [JsonDerivedType(typeof(GeoJsonGeometryCollection))]
     public abstract class GeoJsonGeometry
     {
         [JsonPropertyName("type")]
@@ -138,7 +179,64 @@ namespace IntersectUtilities
 
         [JsonPropertyName("coordinates")]
         public double[][] Coordinates { get; set; }
-
+        public GeoJsonLineString(Line line)
+        {
+            Coordinates = new double[2][];
+            Coordinates[0] = new double[]
+                {line.StartPoint.X, line.StartPoint.Y};
+            Coordinates[1] = new double[]
+                {line.EndPoint.X, line.EndPoint.Y};
+        }
+        public GeoJsonLineString(Polyline polyline) : this()
+        {
+            List<Point2d> points = new List<Point2d>();
+            int numOfVert = polyline.NumberOfVertices - 1;
+            if (polyline.Closed) numOfVert++;
+            for (int i = 0; i < numOfVert; i++)
+            {
+                switch (polyline.GetSegmentType(i))
+                {
+                    case SegmentType.Line:
+                        LineSegment2d ls = polyline.GetLineSegment2dAt(i);
+                        if (i == 0)
+                        {//First iteration
+                            points.Add(ls.StartPoint);
+                        }
+                        points.Add(ls.EndPoint);
+                        break;
+                    case SegmentType.Arc:
+                        CircularArc2d arc = polyline.GetArcSegment2dAt(i);
+                        double sPar = arc.GetParameterOf(arc.StartPoint);
+                        double ePar = arc.GetParameterOf(arc.EndPoint);
+                        double length = arc.GetLength(sPar, ePar);
+                        double radians = length / arc.Radius;
+                        int nrOfSamples = (int)(radians / 0.04);
+                        if (nrOfSamples < 3)
+                        {
+                            if (i == 0) points.Add(arc.StartPoint);
+                            points.Add(arc.EndPoint);
+                        }
+                        else
+                        {
+                            Point2d[] samples = arc.GetSamplePoints(nrOfSamples);
+                            if (i != 0) samples = samples.Skip(1).ToArray();
+                            foreach (Point2d p2d in samples) points.Add(p2d);
+                        }
+                        break;
+                    case SegmentType.Coincident:
+                    case SegmentType.Point:
+                    case SegmentType.Empty:
+                    default:
+                        continue;
+                }
+            }
+            Coordinates = new double[points.Count][];
+            for (int i = 0; i < points.Count; i++)
+            {
+                Coordinates[i] = new double[]
+                    {points[i].X, points[i].Y};
+            }
+        }
         public GeoJsonLineString(ViewFrame viewFrame) : this()
         {
             DBObjectCollection dboc1 = new DBObjectCollection();
