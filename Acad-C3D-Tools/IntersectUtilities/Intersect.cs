@@ -4182,6 +4182,53 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test sampling
+                    //Arc arc = new Arc(new Point3d(0, 0, 0), new Vector3d(0, 0, 1), 0.22, Math.PI, 2 * Math.PI);
+                    //arc.AddEntityToDbModelSpace(localDb);
+
+                    //DBPoint p = new DBPoint(arc.GetPointAtDist(
+                    //    arc.Length / 2));
+                    //p.AddEntityToDbModelSpace(localDb);
+
+                    //double length = arc.Length;
+                    //double radians = length / arc.Radius;
+                    //int nrOfSamples = (int)(radians / 0.25);
+
+                    //prdDbg($"Nr of samples: {nrOfSamples}.");
+
+                    //var gecurve = arc.GetGeCurve();
+                    //PointOnCurve3d[] samplePs = gecurve.GetSamplePoints(nrOfSamples);
+                    //foreach (PointOnCurve3d item in samplePs)
+                    //{
+                    //    DBPoint p = new DBPoint(item.Point);
+                    //    p.AddEntityToDbModelSpace(localDb);
+                    //}
+                    #endregion
+
+                    #region Test hatch loop retreival
+                    //int nrOfSamples = (int)(2 * Math.PI / 0.25);
+                    //Point2dCollection points = new Point2dCollection(nrOfSamples);
+                    //DoubleCollection dc = new DoubleCollection(nrOfSamples);
+
+                    //Circle circle = new Circle(new Point3d(), new Vector3d(0,0,1), 0.22);
+                    //Curve3d curve = circle.GetGeCurve();
+
+                    //PointOnCurve3d[] samplePs = curve.GetSamplePoints(nrOfSamples);
+                    //foreach (var item in samplePs)
+                    //{
+                    //    Point3d p3d = item.GetPoint();
+                    //    points.Add(new Point2d(p3d.X, p3d.Y));
+                    //    dc.Add(0);
+                    //}
+
+                    //Hatch hatch = new Hatch();
+                    //hatch.AppendLoop(HatchLoopTypes.Default, points, dc);
+
+                    //hatch.AddEntityToDbModelSpace(localDb);
+                    //hatch.SetDatabaseDefaults();
+                    //hatch.EvaluateHatch(true);
+                    #endregion
+
                     #region Test view frame numbers
                     //var vfs = localDb.ListOfType<ViewFrame>(tx);
                     //if (vfs != null)
@@ -5944,7 +5991,7 @@ namespace IntersectUtilities
             if (kwd == null) return;
             PropertySetManager.MatchTypeEnum matchType;
             if (!Enum.TryParse(kwd, out matchType)) return;
-            
+
             string valueToFind;
             PromptStringOptions opts3 = new PromptStringOptions("\nEnter data to search: ");
             opts3.AllowSpaces = true;
@@ -7572,7 +7619,7 @@ namespace IntersectUtilities
             if (per.Status != PromptStatus.OK) return;
             Oid clipPlineId = per.ObjectId;
             HashSet<Oid> plineOidsToCheckForDisjunction;
-            
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -7610,7 +7657,7 @@ namespace IntersectUtilities
                     }
 
                     HashSet<Polyline> allPlines = new HashSet<Polyline>();
-                    
+
                     foreach (Polyline ent in localDb.HashSetOfType<Polyline>(tx, true))
                     {
                         if (ent.ObjectId == clipPlineId) continue;
@@ -7638,7 +7685,7 @@ namespace IntersectUtilities
                     {
                         splitPts.Clear();
                         ints.Clear();
-                        
+
                         clipPolyline.IntersectWith(
                             pline, Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
                             plane, ints, zero, zero);
@@ -7658,10 +7705,10 @@ namespace IntersectUtilities
                                     plinesThatDoNotOverlap.Add(pline);
                                     continue;
                                 }
-                                else 
+                                else
                                 {
                                     prdDbg("Unhandled edge case encountered! " +
-                                    $"H: {pline.Handle} - {intPoint}"); 
+                                    $"H: {pline.Handle} - {intPoint}");
                                 }
                             }
                         }

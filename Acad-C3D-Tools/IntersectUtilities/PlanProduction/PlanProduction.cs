@@ -51,6 +51,9 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using System.Windows.Documents;
 using System.Text.Json;
+using IntersectUtilities.DynamicBlocks;
+using System.Text.Encodings.Web;
+using System.Text.Unicode;
 
 namespace IntersectUtilities
 {
@@ -1719,9 +1722,98 @@ namespace IntersectUtilities
                                 }
                                 break;
                             case BlockReference br:
+                                {
+                                    Dictionary<string, object> props = new Dictionary<string, object>
+                                    {
+                                        { "BlockName", br.RealName() },
+                                        { "Type", ComponentSchedule.ReadComponentType(br, dt) },
+                                        { "Rotation", ComponentSchedule.ReadBlockRotation(br, dt).ToString("0.00") },
+                                        { "System", ComponentSchedule.ReadComponentSystem(br, dt) },
+                                        { "DN1", ComponentSchedule.ReadComponentDN1(br, dt) },
+                                        { "DN2", ComponentSchedule.ReadComponentDN2(br, dt) },
+                                        { "Serie", PropertyReader.ReadComponentSeries(br, dt) },
+                                        { "Vinkel", ComponentSchedule.ReadComponentVinkel(br, dt) },
+                                    };
 
+                                    List<Entity> members = new List<Entity>();
+
+                                    BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+                                    foreach (Oid id in btr)
+                                    {
+                                        Entity member = id.Go<Entity>(tx);
+                                        if (member == null) continue;
+
+                                        switch (member)
+                                        {
+                                            case Arc arc:
+                                                members.Add(new Arc(
+                                                    arc.Center.TransformBy(br.BlockTransform),
+                                                    arc.Radius, arc.StartAngle, arc.EndAngle));
+                                                continue;
+                                            case Line line:
+                                                members.Add(new Line(
+                                                    line.StartPoint.TransformBy(br.BlockTransform),
+                                                    line.EndPoint.TransformBy(br.BlockTransform)));
+                                                continue;
+                                            case BlockReference nestedBr:
+                                                {
+                                                    if (!nestedBr.RealName().StartsWith("MuffeIntern"))
+                                                        throw new System.Exception(
+                                                            $"Unhandled block name {nestedBr.RealName()} " +
+                                                            $"encountered in block {br.RealName()}.");
+
+                                                    int nrOfSamples = (int)(2 * Math.PI / 0.25);
+                                                    Point2dCollection points = new Point2dCollection(nrOfSamples);
+                                                    DoubleCollection dc = new DoubleCollection(nrOfSamples);
+
+                                                    Circle circle = new Circle(
+                                                        nestedBr.Position.TransformBy(br.BlockTransform),
+                                                        new Vector3d(0, 0, 1), 0.22);
+                                                    Curve3d curve = circle.GetGeCurve();
+
+                                                    PointOnCurve3d[] samplePs = curve.GetSamplePoints(nrOfSamples);
+                                                    foreach (var item in samplePs)
+                                                    {
+                                                        Point3d p3d = item.GetPoint();
+                                                        points.Add(new Point2d(p3d.X, p3d.Y));
+                                                        dc.Add(0);
+                                                    }
+
+                                                    Hatch hatch = new Hatch();
+                                                    hatch.AppendLoop(HatchLoopTypes.Default, points, dc);
+
+                                                    members.Add(hatch);
+                                                }
+                                                continue;
+                                            case Hatch hatch:
+                                                {
+                                                    Hatch newHatch = new Hatch();
+
+                                                    for (int i = 0; i < hatch.NumberOfLoops; i++)
+                                                    {
+                                                        throw new NotImplementedException();
+                                                    }
+                                                }
+                                                continue;
+                                            case AttributeDefinition atrDef:
+                                            case DBText text:
+                                            case DBPoint point:
+                                                continue;
+
+                                            default:
+                                                prdDbg($"BR {br.Handle} has unhandled member " +
+                                                    $"of type {member}");
+                                                continue;
+                                        }
+                                    }
+
+                                    gjfc.AddFjvBlockAsGeometryCollection(
+                                        members, props);
+                                }
                                 break;
                             default:
+                                prdDbg($"Entity {ent.Handle} is unhandled " +
+                                       $"type {ent}");
                                 break;
                         }
                     }
@@ -1734,6 +1826,22 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+
+            var encoderSettings = new TextEncoderSettings();
+            encoderSettings.AllowRange(UnicodeRanges.All);
+
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Encoder = JavaScriptEncoder.Create(encoderSettings)
+            };
+
+            string path = Path.GetDirectoryName(localDb.Filename);
+            string geoJsonFileName = Path.Combine(path, "Fjernvarme.geojson");
+
+            string json = JsonSerializer.Serialize(gjfc, options);
+            File.WriteAllText(geoJsonFileName, json);
         }
 
         [CommandMethod("SETPROFILEVIEWSTYLE")]

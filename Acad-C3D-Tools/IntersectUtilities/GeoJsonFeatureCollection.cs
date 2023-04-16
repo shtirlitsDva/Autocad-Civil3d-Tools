@@ -101,6 +101,10 @@ namespace IntersectUtilities
             {
                 switch (ent)
                 {
+                    case Arc arc:
+                        gjgc.Geometries.Add(
+                            new GeoJsonLineString(arc));
+                        break;
                     case Line line:
                         gjgc.Geometries.Add(
                             new GeoJsonLineString(line));
@@ -110,6 +114,8 @@ namespace IntersectUtilities
                             new GeoJsonLineString(polyline));
                         break;
                     case Hatch hatch:
+                        gjgc.Geometries.Add(
+                            new GeoJsonPolygon(hatch));
                         break;
                     default:
                         break;
@@ -179,7 +185,35 @@ namespace IntersectUtilities
 
         [JsonPropertyName("coordinates")]
         public double[][] Coordinates { get; set; }
-        public GeoJsonLineString(Line line)
+        public GeoJsonLineString(Arc arc) : this()
+        {
+            double length = arc.Length;
+            double radians = length / arc.Radius;
+            int nrOfSamples = (int)(radians / 0.1);
+            if (nrOfSamples < 3)
+            {
+                Coordinates = new double[3][];
+                Coordinates[0] = new double[]
+                    { arc.StartPoint.X, arc.StartPoint.Y };
+                Coordinates[1] = new double[]
+                    { arc.GetPointAtDist(arc.Length/2).X,
+                      arc.GetPointAtDist(arc.Length/2).Y };
+                Coordinates[2] = new double[]
+                    { arc.EndPoint.X, arc.EndPoint.Y };
+            }
+            else
+            {
+                Curve3d geCurve = arc.GetGeCurve();
+                PointOnCurve3d[] samples = geCurve.GetSamplePoints(nrOfSamples);
+                Coordinates = new double[samples.Length][];
+                for (int i = 0; i < samples.Length; i++)
+                {
+                    Coordinates[i] = new double[2]
+                        {samples[i].Point.X, samples[i].Point.Y};
+                }
+            }
+        }
+        public GeoJsonLineString(Line line) : this()
         {
             Coordinates = new double[2][];
             Coordinates[0] = new double[]
@@ -282,7 +316,24 @@ namespace IntersectUtilities
         }
 
         [JsonPropertyName("coordinates")]
-        public double[][][] Coordinates { get; set; }
+        public List<double[][]> Coordinates { get; set; } = new List<double[][]>();
+        public GeoJsonPolygon(Hatch hatch) : this()
+        {
+            int nrOfLoops = hatch.NumberOfLoops;
+
+            for (int i = 0; i < nrOfLoops; i++)
+            {
+                HatchLoop loop = hatch.GetLoopAt(i);
+                BulgeVertexCollection bvc = loop.Polyline;
+                double[][] coordinates = new double[bvc.Count][];
+                for (int j = 0; j < bvc.Count; j++)
+                {
+                    coordinates[j] = new double[]
+                        {bvc[j].Vertex.X, bvc[j].Vertex.Y};
+                }
+                Coordinates.Add(coordinates);
+            }
+        }
     }
 
     public class GeoJsonGeometryCollection : GeoJsonGeometry
