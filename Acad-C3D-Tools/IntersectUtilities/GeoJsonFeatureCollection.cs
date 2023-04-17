@@ -118,6 +118,7 @@ namespace IntersectUtilities
                             new GeoJsonPolygon(hatch));
                         break;
                     default:
+                        prdDbg($"GeoJson AddFjvBlockAsGeometryCollection encountered non-handled Entity type {ent}");
                         break;
                 }
             }
@@ -244,7 +245,7 @@ namespace IntersectUtilities
                         double ePar = arc.GetParameterOf(arc.EndPoint);
                         double length = arc.GetLength(sPar, ePar);
                         double radians = length / arc.Radius;
-                        int nrOfSamples = (int)(radians / 0.04);
+                        int nrOfSamples = (int)(radians / 0.25);
                         if (nrOfSamples < 3)
                         {
                             if (i == 0) points.Add(arc.StartPoint);
@@ -332,6 +333,77 @@ namespace IntersectUtilities
                         {bvc[j].Vertex.X, bvc[j].Vertex.Y};
                 }
                 Coordinates.Add(coordinates);
+            }
+
+            for (int i = 0; i < hatch.NumberOfLoops; i++)
+            {
+                HatchLoop loop = hatch.GetLoopAt(i);
+
+                if (loop.IsPolyline)
+                {
+                    HashSet<Point2d> points = new HashSet<Point2d>(
+                        new Point2dEqualityComparer());
+                    HashSet<BulgeVertex> bvc = loop.Polyline.ToHashSet();
+                    foreach (BulgeVertex item in bvc)
+                        points.Add(item.Vertex);
+                    List<Point2d> sorted = points.SortAndEnsureCounterclockwiseOrder();
+                    double[][] coordinates = new double[sorted.Count][];
+                    for (int j = 0; j < sorted.Count; j++)
+                    {
+                        coordinates[j] = new double[] { sorted[j].X, sorted[j].Y};
+                    }
+
+                }
+                else
+                {
+                    HashSet<Point2d> points = new HashSet<Point2d>(
+                        new Point2dEqualityComparer());
+
+                    DoubleCollection dc = new DoubleCollection();
+                    Curve2dCollection curves = loop.Curves;
+                    foreach (Curve2d curve in curves)
+                    {
+                        switch (curve)
+                        {
+                            //case LineSegment2d l2d:
+                            //    points.Add(
+                            //        l2d.StartPoint.To3D().TransformBy(
+                            //            br.BlockTransform).To2D());
+                            //    points.Add(
+                            //        l2d.EndPoint.To3D().TransformBy(
+                            //            br.BlockTransform).To2D());
+                            //    continue;
+                            //case CircularArc2d ca2d:
+                            //    double sPar = ca2d.GetParameterOf(ca2d.StartPoint);
+                            //    double ePar = ca2d.GetParameterOf(ca2d.EndPoint);
+                            //    double length = ca2d.GetLength(sPar, ePar);
+                            //    double radians = length / ca2d.Radius;
+                            //    int nrOfSamples = (int)(radians / 0.25);
+                            //    if (nrOfSamples < 3)
+                            //    {
+                            //        points.Add(ca2d.StartPoint.To3D().TransformBy(
+                            //            br.BlockTransform).To2D());
+                            //        points.Add(ca2d.EndPoint.To3D().TransformBy(
+                            //            br.BlockTransform).To2D());
+                            //    }
+                            //    else
+                            //    {
+                            //        Point2d[] samples = ca2d.GetSamplePoints(nrOfSamples);
+                            //        foreach (Point2d p2d in samples) points.Add(
+                            //            p2d.To3D().TransformBy(br.BlockTransform).To2D());
+                            //    }
+
+                            //    Point2dCollection pointsCol = new Point2dCollection();
+                            //    foreach (var item in points.SortAndEnsureCounterclockwiseOrder())
+                            //        pointsCol.Add(item);
+
+                            //    newHatch.AppendLoop(HatchLoopTypes.Default, pointsCol, dc);
+                            //    continue;
+                            default:
+                                break;
+                        }
+                    }
+                }
             }
         }
     }

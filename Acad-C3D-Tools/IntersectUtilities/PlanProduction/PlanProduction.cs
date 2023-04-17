@@ -1755,6 +1755,18 @@ namespace IntersectUtilities
                                                     line.StartPoint.TransformBy(br.BlockTransform),
                                                     line.EndPoint.TransformBy(br.BlockTransform)));
                                                 continue;
+                                            case Polyline pline:
+                                                {
+                                                    Polyline newPline = new Polyline(pline.NumberOfVertices);
+                                                    for (int i = 0; i < pline.NumberOfVertices; i++)
+                                                    {
+                                                        newPline.AddVertexAt(newPline.NumberOfVertices,
+                                                            pline.GetPoint3dAt(i).TransformBy(br.BlockTransform).To2D(),
+                                                            pline.GetBulgeAt(i),0,0);
+                                                    }
+                                                    members.Add(newPline);
+                                                }
+                                                continue;
                                             case BlockReference nestedBr:
                                                 {
                                                     if (!nestedBr.RealName().StartsWith("MuffeIntern"))
@@ -1791,8 +1803,75 @@ namespace IntersectUtilities
 
                                                     for (int i = 0; i < hatch.NumberOfLoops; i++)
                                                     {
-                                                        throw new NotImplementedException();
+                                                        HatchLoop loop = hatch.GetLoopAt(i);
+
+                                                        if (loop.IsPolyline)
+                                                        {
+                                                            BulgeVertexCollection bvc = loop.Polyline;
+                                                            Point2dCollection points = new Point2dCollection();
+                                                            DoubleCollection dc = new DoubleCollection();
+                                                            foreach (BulgeVertex item in bvc)
+                                                            {
+                                                                points.Add(item.Vertex.To3D().TransformBy(
+                                                                    br.BlockTransform).To2D());
+                                                                dc.Add(0);
+                                                            }
+
+                                                            newHatch.AppendLoop(HatchLoopTypes.Default, points, dc);
+                                                        } 
+                                                        else
+                                                        {
+                                                            HashSet<Point2d> points = new HashSet<Point2d>(
+                                                                new Point2dEqualityComparer());
+                                                            
+                                                            DoubleCollection dc = new DoubleCollection();
+                                                            Curve2dCollection curves = loop.Curves;
+                                                            foreach (Curve2d curve in curves)
+                                                            {
+                                                                switch (curve)
+                                                                {
+                                                                    case LineSegment2d l2d:
+                                                                        points.Add(
+                                                                            l2d.StartPoint.To3D().TransformBy(
+                                                                                br.BlockTransform).To2D());
+                                                                        points.Add(
+                                                                            l2d.EndPoint.To3D().TransformBy(
+                                                                                br.BlockTransform).To2D());
+                                                                        continue;
+                                                                    case CircularArc2d ca2d:
+                                                                        double sPar = ca2d.GetParameterOf(ca2d.StartPoint);
+                                                                        double ePar = ca2d.GetParameterOf(ca2d.EndPoint);
+                                                                        double length = ca2d.GetLength(sPar, ePar);
+                                                                        double radians = length / ca2d.Radius;
+                                                                        int nrOfSamples = (int)(radians / 0.25);
+                                                                        if (nrOfSamples < 3)
+                                                                        {
+                                                                            points.Add(ca2d.StartPoint.To3D().TransformBy(
+                                                                                br.BlockTransform).To2D());
+                                                                            points.Add(ca2d.EndPoint.To3D().TransformBy(
+                                                                                br.BlockTransform).To2D());
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            Point2d[] samples = ca2d.GetSamplePoints(nrOfSamples);
+                                                                            foreach (Point2d p2d in samples) points.Add(
+                                                                                p2d.To3D().TransformBy(br.BlockTransform).To2D());
+                                                                        }
+
+                                                                        Point2dCollection pointsCol = new Point2dCollection();
+                                                                        foreach (var item in points.SortAndEnsureCounterclockwiseOrder())
+                                                                            pointsCol.Add(item);
+
+                                                                        newHatch.AppendLoop(HatchLoopTypes.Default, pointsCol, dc);
+                                                                        continue;
+                                                                    default:
+                                                                        break;
+                                                                }
+                                                            }
+                                                        }
                                                     }
+
+                                                    members.Add(newHatch);
                                                 }
                                                 continue;
                                             case AttributeDefinition atrDef:

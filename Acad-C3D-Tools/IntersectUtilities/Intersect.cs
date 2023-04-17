@@ -4183,6 +4183,77 @@ namespace IntersectUtilities
                 try
                 {
                     #region Test sampling
+                    var hatch = localDb.HashSetOfType<Hatch>(tx).FirstOrDefault();
+                    for (int i = 0; i < hatch.NumberOfLoops; i++)
+                    {
+                        HatchLoop loop = hatch.GetLoopAt(i);
+
+                        if (loop.IsPolyline)
+                        {
+                            HashSet<BulgeVertex> bvc = loop.Polyline.ToHashSet();
+                            Point2dCollection points = new Point2dCollection();
+                            DoubleCollection dc = new DoubleCollection();
+
+                            foreach (BulgeVertex item in bvc)
+                            {
+                                //if (item.Bulge > 0.0000001)
+                                //{
+
+                                //}
+                                prdDbg($"Bulge: {item.Bulge}.");
+                                DBPoint p = new DBPoint(item.Vertex.To3D());
+                                p.AddEntityToDbModelSpace(localDb);
+                            }
+                        }
+                        else
+                        {
+                            HashSet<Point2d> points = new HashSet<Point2d>(
+                                new Point2dEqualityComparer());
+
+                            DoubleCollection dc = new DoubleCollection();
+                            Curve2dCollection curves = loop.Curves;
+                            foreach (Curve2d curve in curves)
+                            {
+                                switch (curve)
+                                {
+                                    case LineSegment2d l2d:
+                                        points.Add(l2d.StartPoint);
+                                        points.Add(l2d.EndPoint);
+                                        continue;
+                                    case CircularArc2d ca2d:
+                                        double sPar = ca2d.GetParameterOf(ca2d.StartPoint);
+                                        double ePar = ca2d.GetParameterOf(ca2d.EndPoint);
+                                        double length = ca2d.GetLength(sPar, ePar);
+                                        double radians = length / ca2d.Radius;
+                                        int nrOfSamples = (int)(radians / 0.25);
+                                        if (nrOfSamples < 3)
+                                        {
+                                            points.Add(ca2d.StartPoint);
+                                            points.Add(curve.GetSamplePoints(3)[1]);
+                                            points.Add(ca2d.EndPoint);
+                                        }
+                                        else
+                                        {
+                                            Point2d[] samples = ca2d.GetSamplePoints(nrOfSamples);
+                                            foreach (Point2d p2d in samples) points.Add(p2d);
+                                        }
+
+                                        //Point2dCollection pointsCol = new Point2dCollection();
+                                        foreach (var item in points.SortAndEnsureCounterclockwiseOrder())
+                                        {
+                                            DBPoint p = new DBPoint(item.To3D());
+                                            p.AddEntityToDbModelSpace(localDb);
+                                        }
+
+                                        
+                                        continue;
+                                    default:
+                                        break;
+                                }
+                            }
+                        }
+                    }
+
                     //Arc arc = new Arc(new Point3d(0, 0, 0), new Vector3d(0, 0, 1), 0.22, Math.PI, 2 * Math.PI);
                     //arc.AddEntityToDbModelSpace(localDb);
 

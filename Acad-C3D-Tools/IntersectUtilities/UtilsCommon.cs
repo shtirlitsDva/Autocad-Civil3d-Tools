@@ -2230,6 +2230,48 @@ namespace IntersectUtilities.UtilsCommon
             }
             return detailBlocks;
         }
+        public static List<Point2d> SortAndEnsureCounterclockwiseOrder(this List<Point2d> points)
+        {
+            if (points.Count < 3)
+            {
+                throw new ArgumentException("A polygon must have at least 3 points.");
+            }
+
+            // Find the point with the lowest Y-coordinate (leftmost in case of a tie)
+            Point2d referencePoint = points.Aggregate((p1, p2) =>
+            {
+                double tolerance = 1e-12;
+                bool yEqual = Math.Abs(p1.Y - p2.Y) < tolerance;
+                bool xLess = p1.X < p2.X;
+
+                return (p1.Y < p2.Y || (yEqual && xLess)) ? p1 : p2;
+            });
+
+            // Sort the points by their polar angle with respect to the reference point
+            points.Sort((p1, p2) => Math.Atan2(
+                p1.Y - referencePoint.Y, p1.X - referencePoint.X).CompareTo(
+                Math.Atan2(p2.Y - referencePoint.Y, p2.X - referencePoint.X)));
+
+            List<Point2d> sortedPoints =
+                points.OrderBy(p => Math.Atan2(p.Y - referencePoint.Y, p.X - referencePoint.X)).ToList();
+            //Add the first point at the end of the list to comply with the RFC 7946
+            sortedPoints.Add(sortedPoints[0]);
+            return sortedPoints;
+        }
+        public static List<Point2d> SortAndEnsureCounterclockwiseOrder(this HashSet<Point2d> points) =>
+            SortAndEnsureCounterclockwiseOrder(points.ToList());
+        public static HashSet<BulgeVertex> ToHashSet(this BulgeVertexCollection col)
+        {
+            HashSet<BulgeVertex> set = new HashSet<BulgeVertex>();
+            foreach (BulgeVertex item in col) set.Add(item);
+            return set;
+        }
+        public static List<BulgeVertex> ToList(this BulgeVertexCollection col)
+        {
+            List<BulgeVertex> set = new List<BulgeVertex>();
+            foreach (BulgeVertex item in col) set.Add(item);
+            return set;
+        }
     }
     public static class ExtensionMethods
     {
@@ -2587,5 +2629,26 @@ namespace IntersectUtilities.UtilsCommon
 
         public int GetHashCode(Point3d a) => Tuple.Create(
         Math.Round(a.X, 3), Math.Round(a.Y, 3)).GetHashCode();
+    }
+    public class Point2dEqualityComparer : IEqualityComparer<Point2d>
+    {
+        private readonly int _scale;
+
+        public Point2dEqualityComparer(int scale = 1000)
+        {
+            _scale = scale;
+        }
+
+        public bool Equals(Point2d p1, Point2d p2)
+        {
+            return (int)(p1.X * _scale) == (int)(p2.X * _scale) && (int)(p1.Y * _scale) == (int)(p2.Y * _scale);
+        }
+
+        public int GetHashCode(Point2d point)
+        {
+            int xHash = ((int)(point.X * _scale)).GetHashCode();
+            int yHash = ((int)(point.Y * _scale)).GetHashCode();
+            return xHash ^ yHash;
+        }
     }
 }
