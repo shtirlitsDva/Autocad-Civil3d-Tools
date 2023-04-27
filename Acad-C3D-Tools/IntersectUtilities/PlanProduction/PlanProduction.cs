@@ -1762,7 +1762,7 @@ namespace IntersectUtilities
                                                     {
                                                         newPline.AddVertexAt(newPline.NumberOfVertices,
                                                             pline.GetPoint3dAt(i).TransformBy(br.BlockTransform).To2D(),
-                                                            pline.GetBulgeAt(i),0,0);
+                                                            pline.GetBulgeAt(i), 0, 0);
                                                     }
                                                     members.Add(newPline);
                                                 }
@@ -1783,7 +1783,8 @@ namespace IntersectUtilities
                                                         new Vector3d(0, 0, 1), 0.22);
                                                     Curve3d curve = circle.GetGeCurve();
 
-                                                    PointOnCurve3d[] samplePs = curve.GetSamplePoints(nrOfSamples);
+                                                    var samplePs = curve.GetSamplePoints(nrOfSamples).ToList();
+                                                    samplePs.Add(samplePs[0]);
                                                     foreach (var item in samplePs)
                                                     {
                                                         Point3d p3d = item.GetPoint();
@@ -1807,23 +1808,24 @@ namespace IntersectUtilities
 
                                                         if (loop.IsPolyline)
                                                         {
-                                                            BulgeVertexCollection bvc = loop.Polyline;
+                                                            List<BulgeVertex> bvc = loop.Polyline.ToList();
+                                                            var pointsBvc = bvc.GetSamplePoints();
                                                             Point2dCollection points = new Point2dCollection();
                                                             DoubleCollection dc = new DoubleCollection();
-                                                            foreach (BulgeVertex item in bvc)
+                                                            foreach (Point2d item in pointsBvc)
                                                             {
-                                                                points.Add(item.Vertex.To3D().TransformBy(
+                                                                points.Add(item.To3D().TransformBy(
                                                                     br.BlockTransform).To2D());
                                                                 dc.Add(0);
                                                             }
 
                                                             newHatch.AppendLoop(HatchLoopTypes.Default, points, dc);
-                                                        } 
+                                                        }
                                                         else
                                                         {
                                                             HashSet<Point2d> points = new HashSet<Point2d>(
                                                                 new Point2dEqualityComparer());
-                                                            
+
                                                             DoubleCollection dc = new DoubleCollection();
                                                             Curve2dCollection curves = loop.Curves;
                                                             foreach (Curve2d curve in curves)
@@ -1834,9 +1836,11 @@ namespace IntersectUtilities
                                                                         points.Add(
                                                                             l2d.StartPoint.To3D().TransformBy(
                                                                                 br.BlockTransform).To2D());
+                                                                        dc.Add(0);
                                                                         points.Add(
                                                                             l2d.EndPoint.To3D().TransformBy(
                                                                                 br.BlockTransform).To2D());
+                                                                        dc.Add(0);
                                                                         continue;
                                                                     case CircularArc2d ca2d:
                                                                         double sPar = ca2d.GetParameterOf(ca2d.StartPoint);
@@ -1848,26 +1852,37 @@ namespace IntersectUtilities
                                                                         {
                                                                             points.Add(ca2d.StartPoint.To3D().TransformBy(
                                                                                 br.BlockTransform).To2D());
+                                                                            dc.Add(0);
+                                                                            points.Add(ca2d.GetSamplePoints(3)[1].To3D().TransformBy(
+                                                                                br.BlockTransform).To2D());
+                                                                            dc.Add(0);
                                                                             points.Add(ca2d.EndPoint.To3D().TransformBy(
                                                                                 br.BlockTransform).To2D());
+                                                                            dc.Add(0);
                                                                         }
                                                                         else
                                                                         {
                                                                             Point2d[] samples = ca2d.GetSamplePoints(nrOfSamples);
-                                                                            foreach (Point2d p2d in samples) points.Add(
-                                                                                p2d.To3D().TransformBy(br.BlockTransform).To2D());
+                                                                            foreach (Point2d p2d in samples)
+                                                                            {
+                                                                                points.Add(
+                                                                                    p2d.To3D().TransformBy(
+                                                                                        br.BlockTransform).To2D());
+                                                                                dc.Add(0);
+                                                                            }
                                                                         }
-
-                                                                        Point2dCollection pointsCol = new Point2dCollection();
-                                                                        foreach (var item in points.SortAndEnsureCounterclockwiseOrder())
-                                                                            pointsCol.Add(item);
-
-                                                                        newHatch.AppendLoop(HatchLoopTypes.Default, pointsCol, dc);
                                                                         continue;
                                                                     default:
+                                                                        prdDbg("WRN:2023:3 Unhandled type " + curve);
                                                                         break;
                                                                 }
                                                             }
+
+                                                            Point2dCollection pointsCol = new Point2dCollection();
+                                                            foreach (var item in points.SortAndEnsureCounterclockwiseOrder())
+                                                                pointsCol.Add(item);
+
+                                                            newHatch.AppendLoop(HatchLoopTypes.Default, pointsCol, dc);
                                                         }
                                                     }
 

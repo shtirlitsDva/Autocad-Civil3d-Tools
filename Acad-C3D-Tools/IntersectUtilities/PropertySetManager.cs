@@ -384,6 +384,7 @@ namespace IntersectUtilities
             }
             //Fall through
             //If no PS found return null
+            prdDbg($"WARNING: PS {propertySetName} not found!");
             return null;
         }
         private static object WriteNonDefinedPropertySetObject(Entity ent, string propertySetName, string propertyName, object value)

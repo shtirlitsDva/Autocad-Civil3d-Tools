@@ -52,6 +52,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Result = IntersectUtilities.Result;
+using csdot.Attributes.Types;
 
 namespace IntersectUtilities
 {
@@ -114,8 +115,9 @@ namespace IntersectUtilities
                             new GeoJsonLineString(polyline));
                         break;
                     case Hatch hatch:
-                        gjgc.Geometries.Add(
-                            new GeoJsonPolygon(hatch));
+                        GeoJsonPolygon pgon = new GeoJsonPolygon(hatch);
+                        if (pgon.Coordinates != default)
+                            gjgc.Geometries.Add(pgon);
                         break;
                     default:
                         prdDbg($"GeoJson AddFjvBlockAsGeometryCollection encountered non-handled Entity type {ent}");
@@ -317,94 +319,83 @@ namespace IntersectUtilities
         }
 
         [JsonPropertyName("coordinates")]
-        public List<double[][]> Coordinates { get; set; } = new List<double[][]>();
+        public double[][][] Coordinates { get; set; }
         public GeoJsonPolygon(Hatch hatch) : this()
         {
-            int nrOfLoops = hatch.NumberOfLoops;
-
-            for (int i = 0; i < nrOfLoops; i++)
-            {
-                HatchLoop loop = hatch.GetLoopAt(i);
-                BulgeVertexCollection bvc = loop.Polyline;
-                double[][] coordinates = new double[bvc.Count][];
-                for (int j = 0; j < bvc.Count; j++)
-                {
-                    coordinates[j] = new double[]
-                        {bvc[j].Vertex.X, bvc[j].Vertex.Y};
-                }
-                Coordinates.Add(coordinates);
-            }
-
+            List<double[][]> coordinatesGatherer = new List<double[][]>();
+            hatch.EvaluateHatch(true);
             for (int i = 0; i < hatch.NumberOfLoops; i++)
             {
-                HatchLoop loop = hatch.GetLoopAt(i);
+                HatchLoop loop;
+                try
+                {
+                    loop = hatch.GetLoopAt(i);
+                }
+                catch (System.ArgumentException)
+                {
+                    continue;
+                }
 
                 if (loop.IsPolyline)
                 {
-                    HashSet<Point2d> points = new HashSet<Point2d>(
-                        new Point2dEqualityComparer());
-                    HashSet<BulgeVertex> bvc = loop.Polyline.ToHashSet();
-                    foreach (BulgeVertex item in bvc)
-                        points.Add(item.Vertex);
-                    List<Point2d> sorted = points.SortAndEnsureCounterclockwiseOrder();
-                    double[][] coordinates = new double[sorted.Count][];
-                    for (int j = 0; j < sorted.Count; j++)
+                    List<BulgeVertex> bvc = loop.Polyline.ToList();
+                    var pointsBvc = bvc.GetSamplePoints();
+                    double[][] coordinates = new double[pointsBvc.Count][];
+                    for (int j = 0; j < pointsBvc.Count; j++)
                     {
-                        coordinates[j] = new double[] { sorted[j].X, sorted[j].Y};
+                        coordinates[j] = new double[] { pointsBvc[j].X, pointsBvc[j].Y};
                     }
-
+                    coordinatesGatherer.Add(coordinates);
                 }
                 else
                 {
                     HashSet<Point2d> points = new HashSet<Point2d>(
                         new Point2dEqualityComparer());
 
-                    DoubleCollection dc = new DoubleCollection();
                     Curve2dCollection curves = loop.Curves;
                     foreach (Curve2d curve in curves)
                     {
                         switch (curve)
                         {
-                            //case LineSegment2d l2d:
-                            //    points.Add(
-                            //        l2d.StartPoint.To3D().TransformBy(
-                            //            br.BlockTransform).To2D());
-                            //    points.Add(
-                            //        l2d.EndPoint.To3D().TransformBy(
-                            //            br.BlockTransform).To2D());
-                            //    continue;
-                            //case CircularArc2d ca2d:
-                            //    double sPar = ca2d.GetParameterOf(ca2d.StartPoint);
-                            //    double ePar = ca2d.GetParameterOf(ca2d.EndPoint);
-                            //    double length = ca2d.GetLength(sPar, ePar);
-                            //    double radians = length / ca2d.Radius;
-                            //    int nrOfSamples = (int)(radians / 0.25);
-                            //    if (nrOfSamples < 3)
-                            //    {
-                            //        points.Add(ca2d.StartPoint.To3D().TransformBy(
-                            //            br.BlockTransform).To2D());
-                            //        points.Add(ca2d.EndPoint.To3D().TransformBy(
-                            //            br.BlockTransform).To2D());
-                            //    }
-                            //    else
-                            //    {
-                            //        Point2d[] samples = ca2d.GetSamplePoints(nrOfSamples);
-                            //        foreach (Point2d p2d in samples) points.Add(
-                            //            p2d.To3D().TransformBy(br.BlockTransform).To2D());
-                            //    }
-
-                            //    Point2dCollection pointsCol = new Point2dCollection();
-                            //    foreach (var item in points.SortAndEnsureCounterclockwiseOrder())
-                            //        pointsCol.Add(item);
-
-                            //    newHatch.AppendLoop(HatchLoopTypes.Default, pointsCol, dc);
-                            //    continue;
+                            case LineSegment2d l2d:
+                                points.Add(l2d.StartPoint);
+                                points.Add(l2d.EndPoint);
+                                continue;
+                            case CircularArc2d ca2d:
+                                double sPar = ca2d.GetParameterOf(ca2d.StartPoint);
+                                double ePar = ca2d.GetParameterOf(ca2d.EndPoint);
+                                double length = ca2d.GetLength(sPar, ePar);
+                                double radians = length / ca2d.Radius;
+                                int nrOfSamples = (int)(radians / 0.25);
+                                if (nrOfSamples < 3)
+                                {
+                                    points.Add(ca2d.StartPoint);
+                                    points.Add(ca2d.GetSamplePoints(3)[1]);
+                                    points.Add(ca2d.EndPoint);
+                                }
+                                else
+                                {
+                                    Point2d[] samples = ca2d.GetSamplePoints(nrOfSamples);
+                                    foreach (Point2d p2d in samples)
+                                        points.Add(p2d);
+                                }
+                                continue;
                             default:
+                                prdDbg("(WRN:2023:1) Non handled type " + curve);
                                 break;
                         }
                     }
+
+                    var pointsBvc = points.SortAndEnsureCounterclockwiseOrder();
+                    double[][] coordinates = new double[pointsBvc.Count][];
+                    for (int j = 0; j < pointsBvc.Count; j++)
+                    {
+                        coordinates[j] = new double[] { pointsBvc[j].X, pointsBvc[j].Y };
+                    }
+                    coordinatesGatherer.Add(coordinates);
                 }
             }
+            Coordinates = coordinatesGatherer.ToArray();
         }
     }
 

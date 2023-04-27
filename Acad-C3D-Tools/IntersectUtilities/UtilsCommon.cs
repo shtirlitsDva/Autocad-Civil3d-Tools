@@ -229,6 +229,18 @@ namespace IntersectUtilities.UtilsCommon
                 p1.X > p2.X ? p1.X : p2.X,
                 p1.Y > p2.Y ? p1.Y : p2.Y);
         }
+        public static Point2d GetArcCenter(Point2d p1, Point2d p2, double bulge)
+        {
+            Vector2d delta = p2 - p1;
+            double length = p1.GetDistanceTo(p2);
+            double alpha = 4 * Math.Atan(bulge);
+            double radius = length / (2d * Math.Abs(Math.Sin(alpha * 0.5)));
+            Vector2d lnormalized = delta.GetNormal();
+            double bulgeSign = Math.Sign(bulge);
+            Vector2d lnormal = new Vector2d(-lnormalized.Y, lnormalized.X) * bulgeSign;
+            return Point2d.Origin + ((p2.GetAsVector() + p1.GetAsVector()) * 0.5) +
+              lnormal * Math.Cos(alpha * 0.5) * radius;
+        }
         public enum EndType
         {
             None,            //0:
@@ -2260,17 +2272,91 @@ namespace IntersectUtilities.UtilsCommon
         }
         public static List<Point2d> SortAndEnsureCounterclockwiseOrder(this HashSet<Point2d> points) =>
             SortAndEnsureCounterclockwiseOrder(points.ToList());
+        public static List<Point3d> SortAndEnsureCounterclockwiseOrder(this List<Point3d> points)
+        {
+            if (points.Count < 3)
+            {
+                throw new ArgumentException("A polygon must have at least 3 points.");
+            }
+
+            // Find the point with the lowest Y-coordinate (leftmost in case of a tie)
+            Point3d referencePoint = points.Aggregate((p1, p2) =>
+            {
+                double tolerance = 1e-12;
+                bool yEqual = Math.Abs(p1.Y - p2.Y) < tolerance;
+                bool xLess = p1.X < p2.X;
+
+                return (p1.Y < p2.Y || (yEqual && xLess)) ? p1 : p2;
+            });
+
+            // Sort the points by their polar angle with respect to the reference point
+            points.Sort((p1, p2) => Math.Atan2(
+                p1.Y - referencePoint.Y, p1.X - referencePoint.X).CompareTo(
+                Math.Atan2(p2.Y - referencePoint.Y, p2.X - referencePoint.X)));
+
+            List<Point3d> sortedPoints =
+                points.OrderBy(p => Math.Atan2(p.Y - referencePoint.Y, p.X - referencePoint.X)).ToList();
+            //Add the first point at the end of the list to comply with the RFC 7946
+            sortedPoints.Add(sortedPoints[0]);
+            return sortedPoints;
+        }
         public static HashSet<BulgeVertex> ToHashSet(this BulgeVertexCollection col)
         {
             HashSet<BulgeVertex> set = new HashSet<BulgeVertex>();
             foreach (BulgeVertex item in col) set.Add(item);
             return set;
         }
+        public static List<BulgeVertex> ToDistinctList(this BulgeVertexCollection col)
+        {
+            HashSet<BulgeVertex> set = new HashSet<BulgeVertex>(
+                new BulgeVertexEqualityComparer());
+            foreach (BulgeVertex item in col) set.Add(item);
+            return set.ToList();
+        }
         public static List<BulgeVertex> ToList(this BulgeVertexCollection col)
         {
             List<BulgeVertex> set = new List<BulgeVertex>();
             foreach (BulgeVertex item in col) set.Add(item);
-            return set;
+            return set.ToList();
+        }
+        public static List<Point2d> GetSamplePoints(this List<BulgeVertex> bulgeVertices, double radianStep = 0.25)
+        {
+            HashSet<Point2d> samplePoints =
+                new HashSet<Point2d>(
+                    new Point2dEqualityComparer());
+
+            for (int i = 0; i < bulgeVertices.Count - 1; i++)
+            {
+                BulgeVertex start = bulgeVertices[i];
+                BulgeVertex end = bulgeVertices[i + 1];
+
+                // Add start vertex to the list
+                samplePoints.Add(start.Vertex);
+
+                if (Math.Abs(start.Bulge) > 1e-6) // Arc segment
+                {
+                    CircularArc2d ca2d = new CircularArc2d(start.Vertex, end.Vertex, start.Bulge, false);
+
+                    double sPar = ca2d.GetParameterOf(ca2d.StartPoint);
+                    double ePar = ca2d.GetParameterOf(ca2d.EndPoint);
+                    double length = ca2d.GetLength(sPar, ePar);
+                    double radians = length / ca2d.Radius;
+                    int nrOfSamples = (int)(radians / radianStep);
+                    if (nrOfSamples < 3)
+                    {
+                        samplePoints.Add(ca2d.StartPoint);
+                        samplePoints.Add(ca2d.GetSamplePoints(3)[1]);
+                        samplePoints.Add(ca2d.EndPoint);
+                    }
+                    else
+                    {
+                        Point2d[] samples = ca2d.GetSamplePoints(nrOfSamples);
+                        foreach (Point2d p2d in samples) samplePoints.Add(p2d);
+                    }
+                }
+            }
+
+            return samplePoints.SortAndEnsureCounterclockwiseOrder();
         }
     }
     public static class ExtensionMethods
@@ -2617,19 +2703,24 @@ namespace IntersectUtilities.UtilsCommon
     }
     public class Point3dHorizontalComparer : IEqualityComparer<Point3d>
     {
-        double Tol;
+        private readonly int _scale;
 
-        public Point3dHorizontalComparer(double tol = 0.001)
+        public Point3dHorizontalComparer(int scale = 1000)
         {
-            Tol = tol;
+            _scale = scale;
         }
 
-        public bool Equals(Point3d a, Point3d b) => null != a && null != b &&
-            a.HorizontalEqualz(b, Tol);
+        public bool Equals(Point3d p1, Point3d p2) =>
+            (int)(p1.X * _scale) == (int)(p2.X * _scale) && (int)(p1.Y * _scale) == (int)(p2.Y * _scale);
 
-        public int GetHashCode(Point3d a) => Tuple.Create(
-        Math.Round(a.X, 3), Math.Round(a.Y, 3)).GetHashCode();
+        public int GetHashCode(Point3d a)
+        {
+            int xHash = ((int)(a.X * _scale)).GetHashCode();
+            int yHash = ((int)(a.Y * _scale)).GetHashCode();
+            return xHash ^ yHash;
+        } 
     }
+
     public class Point2dEqualityComparer : IEqualityComparer<Point2d>
     {
         private readonly int _scale;
@@ -2639,15 +2730,35 @@ namespace IntersectUtilities.UtilsCommon
             _scale = scale;
         }
 
-        public bool Equals(Point2d p1, Point2d p2)
-        {
-            return (int)(p1.X * _scale) == (int)(p2.X * _scale) && (int)(p1.Y * _scale) == (int)(p2.Y * _scale);
-        }
+        public bool Equals(Point2d p1, Point2d p2) =>
+            (int)(p1.X * _scale) == (int)(p2.X * _scale) && (int)(p1.Y * _scale) == (int)(p2.Y * _scale);
 
         public int GetHashCode(Point2d point)
         {
             int xHash = ((int)(point.X * _scale)).GetHashCode();
             int yHash = ((int)(point.Y * _scale)).GetHashCode();
+            return xHash ^ yHash;
+        }
+    }
+
+    public class BulgeVertexEqualityComparer : IEqualityComparer<BulgeVertex>
+    {
+        private readonly int _scale;
+        private Point2dEqualityComparer _equality;
+
+        public BulgeVertexEqualityComparer(int scale = 1000)
+        {
+            _scale = scale;
+            _equality = new Point2dEqualityComparer(scale);
+        }
+
+        public bool Equals(BulgeVertex v1, BulgeVertex v2) =>
+            _equality.Equals(v1.Vertex, v2.Vertex);
+
+        public int GetHashCode(BulgeVertex bv)
+        {
+            int xHash = ((int)(bv.Vertex.X * _scale)).GetHashCode();
+            int yHash = ((int)(bv.Vertex.Y * _scale)).GetHashCode();
             return xHash ^ yHash;
         }
     }
