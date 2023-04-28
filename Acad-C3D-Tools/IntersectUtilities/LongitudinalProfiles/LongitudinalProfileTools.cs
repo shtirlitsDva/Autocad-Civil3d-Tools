@@ -2806,7 +2806,8 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("CREATEPOINTSATVERTICES")]
-        public void createpointsatvertices(Extents3d bbox = default)
+        public void createpointsatvertices() => createpointsatverticesmethod();
+        public void createpointsatverticesmethod(Extents3d bbox = default)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -4733,7 +4734,7 @@ namespace IntersectUtilities
                     populateprofilesmethod(al.GetProfileViewIds().ToHashSet());
                     colorizealllerlayersmethod();
                     createprofilesmethod(dro, new HashSet<Alignment> { al });
-                    createpointsatvertices(bufferedOriginalBbox);
+                    createpointsatverticesmethod(bufferedOriginalBbox);
                     createdetailingpreliminarymethod(dro);
                     staggerlabelsallmethod(null, al.GetProfileViewIds().ToHashSet());
                 }
