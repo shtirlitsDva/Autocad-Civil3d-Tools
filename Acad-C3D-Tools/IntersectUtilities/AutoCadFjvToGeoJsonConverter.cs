@@ -129,6 +129,7 @@ namespace IntersectUtilities
             ssPoints.Reverse();
             points.AddRange(ssPoints);
             points.Add(fsPoints[0]);
+            points = points.SortAndEnsureCounterclockwiseOrder();
 
             List<double[][]> coordinatesGatherer = new List<double[][]>();
             double[][] coordinates = new double[points.Count][];
