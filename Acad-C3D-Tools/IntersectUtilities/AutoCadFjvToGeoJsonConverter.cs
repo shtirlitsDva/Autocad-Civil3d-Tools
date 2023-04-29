@@ -62,14 +62,99 @@ namespace IntersectUtilities
         GeoJsonFeature Convert(Entity entity);
     }
 
-    public class PolylineToGeoJsonConverter : IAutoCadFjvToGeoJsonConverter
+    public class PolylineFjvToGeoJsonPolygonConverter : IAutoCadFjvToGeoJsonConverter
     {
         public GeoJsonFeature Convert(Entity entity)
         {
-            if (!(entity is Polyline))
+            if (!(entity is Polyline pl))
                 throw new ArgumentException($"Entity {entity.Handle} is not a polyline!");
 
+            var feature = new GeoJsonFeature
+            {
+                Properties = new Dictionary<string, object>
+                {
+                    { "DN", GetPipeDN(pl) },
+                    { "System", GetPipeType(pl) },
+                    { "Serie", GetPipeSeriesV2(pl) },
+                    { "Type", GetPipeSystem(pl) },
+                    { "KOd", GetPipeKOd(pl) },
+                },
 
+                Geometry = new GeoJsonPolygon() { },
+            };
+
+            switch (GetPipeType(pl))
+            {
+                case PipeTypeEnum.Twin:
+                    feature.Properties.Add("Color", "#FF00FF");
+                    break;
+                case PipeTypeEnum.Frem:
+                    feature.Properties.Add("Color", "#FF0000");
+                    break;
+                case PipeTypeEnum.Retur:
+                    feature.Properties.Add("Color", "#0000FF");
+                    break;
+                case PipeTypeEnum.Enkelt:
+                default:
+                    throw new System.Exception(
+                        $"{GetPipeType(pl)} of {pl.Handle} is not supported.");
+            }
+
+            if (pl.Closed) throw new System.NotSupportedException(
+                $"Polyline {pl.Handle} is closed! Closed polylines are not supported yet!");
+            if (pl.Length < 0.1) throw new System.NotSupportedException(
+                $"Polyline {pl.Handle} is too short! Polylines shorter than 0.1m are not allowed!");
+
+            var samplePoints = pl.GetSamplePoints();
+
+            List<Point2d> fsPoints = new List<Point2d>();
+            List<Point2d> ssPoints = new List<Point2d>();
+
+            double halfKOd = GetPipeKOd(pl, true) / 1000.0 / 2;
+
+            for (int i = 0; i < samplePoints.Count; i++)
+            {
+                Point3d samplePoint = samplePoints[i].To3D();
+                var v = pl.GetFirstDerivative(samplePoint);
+
+                var v1 = v.GetPerpendicularVector().GetNormal();
+                var v2 = v1 * -1;
+
+                fsPoints.Add((samplePoint + v1 * halfKOd).To2D());
+                fsPoints.Add((samplePoint + v2 * halfKOd).To2D());
+            }
+
+            List<Point2d> points = new List<Point2d>();
+            points.AddRange(fsPoints);
+            ssPoints.Reverse();
+            points.AddRange(ssPoints);
+            points.Add(fsPoints[0]);
+
+            List<double[][]> coordinatesGatherer = new List<double[][]>();
+            double[][] coordinates = new double[points.Count][];
+            for (int i = 0; i < points.Count; i++)
+                coordinates[i] = new double[] { points[i].X, points[i].Y };
+            coordinatesGatherer.Add(coordinates);
+            (feature.Geometry as GeoJsonPolygon).Coordinates = coordinatesGatherer.ToArray();
+
+            return feature;
+        }
+    }
+
+    public static class FjvToGeoJsonConverterFactory
+    {
+        public static IAutoCadFjvToGeoJsonConverter CreateConverter(Entity entity)
+        {
+            switch (entity)
+            {
+                //case Hatch _:
+                //    return new HatchToGeoJsonPolygonConverter();
+                case Polyline _:
+                    return new PolylineFjvToGeoJsonPolygonConverter();
+                default:
+                    return null;
+                    //throw new NotSupportedException("Unsupported AutoCAD entity type.");
+            }
         }
     }
 }

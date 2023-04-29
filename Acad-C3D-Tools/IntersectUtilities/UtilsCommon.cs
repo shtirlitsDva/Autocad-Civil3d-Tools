@@ -2358,6 +2358,53 @@ namespace IntersectUtilities.UtilsCommon
 
             return samplePoints.SortAndEnsureCounterclockwiseOrder();
         }
+        public static List<Point2d> GetSamplePoints(this Polyline polyline)
+        {
+            List<Point2d> points = new List<Point2d>();
+            int numOfVert = polyline.NumberOfVertices - 1;
+            if (polyline.Closed) numOfVert++;
+            for (int i = 0; i < numOfVert; i++)
+            {
+                switch (polyline.GetSegmentType(i))
+                {
+                    case SegmentType.Line:
+                        LineSegment2d ls = polyline.GetLineSegment2dAt(i);
+                        if (i == 0)
+                        {//First iteration
+                            points.Add(ls.StartPoint);
+                        }
+                        points.Add(ls.EndPoint);
+                        break;
+                    case SegmentType.Arc:
+                        CircularArc2d arc = polyline.GetArcSegment2dAt(i);
+                        double sPar = arc.GetParameterOf(arc.StartPoint);
+                        double ePar = arc.GetParameterOf(arc.EndPoint);
+                        double length = arc.GetLength(sPar, ePar);
+                        double radians = length / arc.Radius;
+                        int nrOfSamples = (int)(radians / 0.25);
+                        if (nrOfSamples < 3)
+                        {
+                            if (i == 0) points.Add(arc.StartPoint);
+                            points.Add(arc.EndPoint);
+                        }
+                        else
+                        {
+                            Point2d[] samples = arc.GetSamplePoints(nrOfSamples);
+                            if (i != 0) samples = samples.Skip(1).ToArray();
+                            foreach (Point2d p2d in samples) points.Add(p2d);
+                        }
+                        break;
+                    case SegmentType.Coincident:
+                    case SegmentType.Point:
+                    case SegmentType.Empty:
+                    default:
+                        throw new System.Exception(
+                            $"Polyline {polyline.Handle} is not clean!\n" +
+                            $"Run CLEANPLINES!");
+                }
+            }
+            return points;
+        }
     }
     public static class ExtensionMethods
     {
