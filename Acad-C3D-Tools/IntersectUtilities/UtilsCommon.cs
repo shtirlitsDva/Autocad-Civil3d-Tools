@@ -2381,7 +2381,7 @@ namespace IntersectUtilities.UtilsCommon
                         double ePar = arc.GetParameterOf(arc.EndPoint);
                         double length = arc.GetLength(sPar, ePar);
                         double radians = length / arc.Radius;
-                        int nrOfSamples = (int)(radians / 0.25);
+                        int nrOfSamples = (int)(radians / 0.1);
                         if (nrOfSamples < 3)
                         {
                             if (i == 0) points.Add(arc.StartPoint);

@@ -4017,6 +4017,50 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test pline to polygon
+                    //var plines = localDb.HashSetOfType<Polyline>(tx);
+                    //foreach (Polyline pline in plines)
+                    //{
+                    //    var points = pline.GetSamplePoints();
+                    //    for (int i = 0; i < points.Count-1; i++)
+                    //    {
+                    //        var p1 = points[i];
+                    //        var p2 = points[i+1];
+                    //        Line line = new Line(p1.To3D(), p2.To3D());
+                    //        line.AddEntityToDbModelSpace(localDb);
+                    //        DBPoint p = new DBPoint(p1.To3D());
+                    //        p.AddEntityToDbModelSpace(localDb);
+                    //    }
+
+                    //    DBPoint p3 = new DBPoint(points.Last().To3D());
+                    //    p3.AddEntityToDbModelSpace(localDb);
+
+                    //    List<Point2d> fsPoints = new List<Point2d>();
+                    //    List<Point2d> ssPoints = new List<Point2d>();
+
+                    //    double halfKOd = GetPipeKOd(pline, true) / 1000.0 / 2;
+
+                    //    for (int i = 0; i < points.Count; i++)
+                    //    {
+                    //        Point3d samplePoint = points[i].To3D();
+                    //        var v = pline.GetFirstDerivative(samplePoint);
+
+                    //        var v1 = v.GetPerpendicularVector().GetNormal();
+                    //        var v2 = v1 * -1;
+
+                    //        fsPoints.Add((samplePoint + v1 * halfKOd).To2D());
+                    //        ssPoints.Add((samplePoint + v2 * halfKOd).To2D());
+                    //    }
+
+                    //    List<Point2d> points = new List<Point2d>();
+                    //    points.AddRange(fsPoints);
+                    //    ssPoints.Reverse();
+                    //    points.AddRange(ssPoints);
+                    //    points.Add(fsPoints[0]);
+                    //    points = points.SortAndEnsureCounterclockwiseOrder();
+                    //}
+                    #endregion
+
                     #region Test sampling
                     //var hatches = localDb.HashSetOfType<Hatch>(tx);
                     //foreach (Hatch hatch in hatches)

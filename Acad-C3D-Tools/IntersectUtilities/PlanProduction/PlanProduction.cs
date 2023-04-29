@@ -1708,7 +1708,7 @@ namespace IntersectUtilities
                         var converter = FjvToGeoJsonConverterFactory.CreateConverter(ent);
                         if (converter == null) continue;
                         var geoJsonFeature = converter.Convert(ent);
-                        gjfc.Features.Add(geoJsonFeature);
+                        gjfc.Features.AddRange(geoJsonFeature);
                     }
                 }
                 catch (System.Exception ex)
@@ -1742,8 +1742,7 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
 
-            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
-                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+            System.Data.DataTable dt = GetFjvBlocksDt();
 
             GeoJsonFeatureCollection gjfc = new GeoJsonFeatureCollection("FjernVarme");
 
