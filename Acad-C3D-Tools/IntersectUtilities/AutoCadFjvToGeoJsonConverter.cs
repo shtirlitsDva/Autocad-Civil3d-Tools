@@ -86,13 +86,13 @@ namespace IntersectUtilities
             switch (GetPipeType(pl))
             {
                 case PipeTypeEnum.Twin:
-                    feature.Properties.Add("Color", "#FF00FF");
+                    feature.Properties.Add("color", "#FF00FF");
                     break;
                 case PipeTypeEnum.Frem:
-                    feature.Properties.Add("Color", "#FF0000");
+                    feature.Properties.Add("color", "#FF0000");
                     break;
                 case PipeTypeEnum.Retur:
-                    feature.Properties.Add("Color", "#0000FF");
+                    feature.Properties.Add("color", "#0000FF");
                     break;
                 case PipeTypeEnum.Enkelt:
                 default:
@@ -160,7 +160,7 @@ namespace IntersectUtilities
                 { "DN2", ComponentSchedule.ReadComponentDN2(br, dt) },
                 { "Serie", PropertyReader.ReadComponentSeries(br, dt) },
                 { "Vinkel", ComponentSchedule.ReadComponentVinkel(br, dt) },
-                { "Color", "#000000" },
+                { "color", "#000000" },
             };
 
             BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
