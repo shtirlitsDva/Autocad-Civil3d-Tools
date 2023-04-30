@@ -1692,6 +1692,12 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
 
+            string kwd = Interaction.GetKeywords(
+                "One file or split by geometry type? [One/Split]",
+                new string[] { "One", "Split" });
+
+            if (kwd.IsNoE()) return;
+
             System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
                 @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
@@ -1731,10 +1737,62 @@ namespace IntersectUtilities
             };
 
             string path = Path.GetDirectoryName(localDb.Filename);
-            string geoJsonFileName = Path.Combine(path, "Fjernvarme.geojson");
 
-            string json = JsonSerializer.Serialize(gjfc, options);
-            File.WriteAllText(geoJsonFileName, json);
+            switch (kwd)
+            {
+                case "One":
+                    {
+                        string geoJsonFileName = Path.Combine(path, "Fjernvarme.geojson");
+                        string json = JsonSerializer.Serialize(gjfc, options);
+                        File.WriteAllText(geoJsonFileName, json);
+                    }
+                    break;
+                case "Split":
+                    {
+                        //Split the geojson file by geometry type to separate files
+                        GeoJsonFeatureCollection pointFC = new GeoJsonFeatureCollection("Fjernvarme-Point");
+                        GeoJsonFeatureCollection linestringFC = new GeoJsonFeatureCollection("Fjernvarme-LineString");
+                        GeoJsonFeatureCollection polygonFC = new GeoJsonFeatureCollection("Fjernvarme-Polygon");
+
+                        foreach (var feature in gjfc.Features)
+                        {
+                            switch (feature.Geometry)
+                            {
+                                case GeoJsonPoint point:
+                                    pointFC.Features.Add(feature);
+                                    break;
+                                case GeoJsonLineString lineString:
+                                    linestringFC.Features.Add(feature);
+                                    break;
+                                case GeoJsonPolygon polygon:
+                                    polygonFC.Features.Add(feature);
+                                    break;
+                            }
+                        }
+
+                        if (pointFC.Features.Count > 0)
+                        {
+                            string geoJsonFileName = Path.Combine(path, "Fjernvarme-Point.geojson");
+                            string json = JsonSerializer.Serialize(pointFC, options);
+                            File.WriteAllText(geoJsonFileName, json);
+                        }
+                        if (linestringFC.Features.Count > 0)
+                        {
+                            string geoJsonFileName = Path.Combine(path, "Fjernvarme-LineString.geojson");
+                            string json = JsonSerializer.Serialize(linestringFC, options);
+                            File.WriteAllText(geoJsonFileName, json);
+                        }
+                        if (polygonFC.Features.Count > 0)
+                        {
+                            string geoJsonFileName = Path.Combine(path, "Fjernvarme-Polygon.geojson");
+                            string json = JsonSerializer.Serialize(polygonFC, options);
+                            File.WriteAllText(geoJsonFileName, json);
+                        }
+                    }
+                    break;
+                default:
+                    break;
+            }
         }
         public void exportfjvtogeojson()
         {
