@@ -1178,7 +1178,7 @@ namespace IntersectUtilities
                 {
                     count.counter++;
                     int vfNumber = Convert.ToInt32(item.Name);
-                    if (count.counter != vfNumber) prdDbg(item.Name + " <- Fejl! Skal være " + count + ".");
+                    if (count.counter != vfNumber) prdDbg(item.Name + " <- Fejl! Skal være " + count.counter + ".");
                     else prdDbg(item.Name);
                 }
             }
