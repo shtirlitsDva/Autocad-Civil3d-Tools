@@ -234,7 +234,8 @@
     <Compile Include="..\AutoCADCommands\SymbolPack.cs">
       <Link>ACC\SymbolPack.cs</Link>
     </Compile>
-    <Compile Include="AutoCadFjvToGeoJsonConverter.cs" />
+    <Compile Include="GeoJsonConverters\AutoCadVFToGeoJsonConverter.cs" />
+    <Compile Include="GeoJsonConverters\AutoCadFjvToGeoJsonConverter.cs" />
     <Compile Include="BatchProcessing\01 BatchProcessing.cs" />
     <Compile Include="BatchProcessing\Form1.cs">
       <SubType>Form</SubType>

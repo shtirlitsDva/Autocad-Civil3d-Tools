@@ -1640,9 +1640,13 @@ namespace IntersectUtilities
                                     try
                                     {
                                         var vfs = xdb.HashSetOfType<ViewFrame>(xTx);
-                                        foreach (var vf in vfs)
+
+                                        foreach (Entity vf in vfs)
                                         {
-                                            //gjfc.AddViewFrameAsLineString(vf);
+                                            var converter = ViewFrameToGeoJsonConverterFactory.CreateConverter(vf);
+                                            if (converter == null) continue;
+                                            var geoJsonFeature = converter.Convert(vf);
+                                            gjfc.Features.AddRange(geoJsonFeature);
                                         }
                                     }
                                     catch (System.Exception)
