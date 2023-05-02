@@ -7847,7 +7847,7 @@ namespace IntersectUtilities
                 {
                     WriteIndented = true
                 };
-                string jsonString = JsonSerializer.Serialize(gjfc);
+                string jsonString = JsonSerializer.Serialize(gjfc, options);
                 File.WriteAllText(fileName, jsonString, Encoding.UTF8);
             }
         }
