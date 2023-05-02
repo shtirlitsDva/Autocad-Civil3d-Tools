@@ -51,6 +51,9 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using IntersectUtilities.DynamicBlocks;
+using System.Diagnostics;
+using System.Runtime;
+using System.Text.Json;
 
 namespace IntersectUtilities
 {
@@ -7734,6 +7737,119 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("CREATEMANUALVIEWFRAME")]
+        [CommandMethod("CMVF")]
+        public void createmanualviewframe()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            string kwd = Interaction.GetKeywords("New or add to existing? [New/Add]",
+                               new string[] { "New", "Add" });
+            if (kwd.IsNoE()) return;
+
+            string pathToFolder;
+            string fileName;
+            GeoJsonFeatureCollection gjfc;
+
+            if (kwd == "New")
+            {
+                string prevFolder = @"C:\";
+
+                if (File.Exists(
+                    @"X:\AutoCAD DRI - 01 Civil 3D\Netload\Support\CreateManualViewFrameLastDir.txt"))
+                {
+                    var lines = File.ReadAllLines(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\Netload\Support\CreateManualViewFrameLastDir.txt");
+                    if (lines.Length > 0) prevFolder = lines[0];
+                }
+
+                FolderSelectDialog fsd = new FolderSelectDialog()
+                {
+                    Title = "Choose folder where to store view frame GeoJSON: ",
+                    InitialDirectory = prevFolder
+                };
+
+                if (fsd.ShowDialog(IntPtr.Zero))
+                {
+                    pathToFolder = fsd.FileName;
+                    File.WriteAllText(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\Netload\Support\CreateManualViewFrameLastDir.txt",
+                        pathToFolder, Encoding.UTF8);
+                    fileName = Path.Combine(pathToFolder, "ViewFrames.geojson");
+                    gjfc = new GeoJsonFeatureCollection("ViewFrames");
+                }
+                else return;
+            }
+            else
+            {
+                string prevFolder = @"C:\";
+                if (File.Exists(
+                    @"X:\AutoCAD DRI - 01 Civil 3D\Netload\Support\CreateManualViewFrameLastDir.txt"))
+                {
+                    var lines = File.ReadAllLines(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\Netload\Support\CreateManualViewFrameLastDir.txt");
+                    if (lines.Length > 0) prevFolder = lines[0];
+                }
+
+                var ofd = new OpenFileDialog
+                {
+                    Title = "Select ViewFrames.geojson to add to: ",
+                    InitialDirectory = prevFolder,
+                    Filter = "GeoJSON files (*.geojson)|*.txt|All files (*.*)|*.*"
+                };
+
+                if (ofd.ShowDialog() == DialogResult.OK)
+                {
+                    fileName = ofd.FileName;
+                    File.WriteAllText(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\Netload\Support\CreateManualViewFrameLastDir.txt",
+                        Path.GetDirectoryName(fileName), Encoding.UTF8);
+                    var jsonString = File.ReadAllText(fileName, Encoding.UTF8);
+                    gjfc = JsonSerializer.Deserialize<GeoJsonFeatureCollection>(jsonString);
+                    if (gjfc == null) return;
+                }
+                else return;
+            }
+
+            int featureCountCached = gjfc.Features.Count;
+
+            bool cont = true;
+            while (cont)
+            {
+                string name = Interaction.GetString("Name of view frame: ");
+                if (name.IsNoE()) break;
+
+                double[][] coords = new double[5][];
+                for (int i = 0; i < 4; i++)
+                {
+                    Point3d p = Interaction.GetPoint($"Pick {i + 1}. corner of view frame: ");
+                    if (p == Algorithms.NullPoint3d) { cont = false; break; }
+                    coords[i] = new double[] { p.X, p.Y };
+                }
+
+                if (!cont)
+                {
+                    coords[4] = coords[0];
+
+                    GeoJsonLineString gjls = new GeoJsonLineString();
+                    gjls.Coordinates = coords;
+                    GeoJsonFeature feature = new GeoJsonFeature();
+                    feature.Geometry = gjls;
+                    feature.Properties.Add("DwgNumber", name);
+                }
+            }
+
+            if (gjfc.Features.Count > featureCountCached)
+            {
+                JsonSerializerOptions options = new JsonSerializerOptions()
+                {
+                    WriteIndented = true
+                };
+                string jsonString = JsonSerializer.Serialize(gjfc);
+                File.WriteAllText(fileName, jsonString, Encoding.UTF8);
+            }
+        }
 
         //[CommandMethod("TESTENUMS")]
         public void testenums()
