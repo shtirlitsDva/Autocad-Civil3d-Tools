@@ -17,6 +17,8 @@ namespace IntersectUtilities
         [JsonPropertyName("crs")]
         public GeoJsonCRS CRS { get; set; } = new GeoJsonCRS();
 
+        public GeoJsonFeatureCollection() { }
+
         public GeoJsonFeatureCollection(string name)
         {
             Name = name;
@@ -29,6 +31,7 @@ namespace IntersectUtilities
         public string Type { get; set; } = "name";
 
         [JsonPropertyName("properties")]
+        [JsonExtensionData]
         public Dictionary<string, object> Properties { get; set; }
 
         public GeoJsonCRS()
@@ -52,6 +55,8 @@ namespace IntersectUtilities
 
         [JsonPropertyName("geometry")]
         public GeoJsonGeometry Geometry { get; set; }
+
+        public GeoJsonFeature() { }
     }
 
     [JsonDerivedType(typeof(GeoJsonPoint))]
