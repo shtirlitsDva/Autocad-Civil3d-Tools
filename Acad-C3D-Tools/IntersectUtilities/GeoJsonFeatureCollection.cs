@@ -46,7 +46,9 @@ namespace IntersectUtilities
         public string Type { get; } = "Feature";
 
         [JsonPropertyName("properties")]
-        public Dictionary<string, object> Properties { get; set; } = new Dictionary<string, object>();
+        [JsonExtensionData]
+        public Dictionary<string, object> Properties { get; set; } 
+            = new Dictionary<string, object>();
 
         [JsonPropertyName("geometry")]
         public GeoJsonGeometry Geometry { get; set; }
