@@ -7796,7 +7796,7 @@ namespace IntersectUtilities
                 {
                     Title = "Select ViewFrames.geojson to add to: ",
                     InitialDirectory = prevFolder,
-                    Filter = "GeoJSON files (*.geojson)|*.txt|All files (*.*)|*.*"
+                    Filter = "GeoJSON files (*.geojson)|*.geojson|All files (*.*)|*.*"
                 };
 
                 if (ofd.ShowDialog() == DialogResult.OK)
