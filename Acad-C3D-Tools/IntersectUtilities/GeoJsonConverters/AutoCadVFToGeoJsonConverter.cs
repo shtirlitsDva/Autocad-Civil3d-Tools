@@ -76,7 +76,7 @@ namespace IntersectUtilities
                     { "DwgNumber", vf.Name },
                 },
 
-                Geometry = new GeoJsonLineString() { },
+                Geometry = new GeoJsonGeometryLineString() { },
             };
 
             DBObjectCollection dboc1 = new DBObjectCollection();
@@ -92,7 +92,7 @@ namespace IntersectUtilities
                     {
                         if (item2 is Polyline pline)
                         {
-                            ((GeoJsonLineString)feature.Geometry).Coordinates
+                            ((GeoJsonGeometryLineString)feature.Geometry).Coordinates
                                 = new double[5][];
                             Point3d p;
                             for (int i = 0; i < pline.NumberOfVertices + 1; i++)
@@ -106,7 +106,7 @@ namespace IntersectUtilities
                                         p = pline.GetPoint3dAt(i);
                                         break;
                                 }
-                                ((GeoJsonLineString)feature.Geometry).Coordinates[i]
+                                ((GeoJsonGeometryLineString)feature.Geometry).Coordinates[i]
                                     = new double[] { p.X, p.Y };
                             }
                         }

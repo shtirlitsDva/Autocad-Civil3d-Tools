@@ -7832,7 +7832,7 @@ namespace IntersectUtilities
                 {
                     coords[4] = coords[0];
 
-                    GeoJsonLineString gjls = new GeoJsonLineString();
+                    GeoJsonGeometryLineString gjls = new GeoJsonGeometryLineString();
                     gjls.Coordinates = coords;
                     GeoJsonFeature feature = new GeoJsonFeature();
                     feature.Geometry = gjls;

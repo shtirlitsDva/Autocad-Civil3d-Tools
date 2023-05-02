@@ -31,7 +31,6 @@ namespace IntersectUtilities
         public string Type { get; set; } = "name";
 
         [JsonPropertyName("properties")]
-        [JsonExtensionData]
         public Dictionary<string, object> Properties { get; set; }
 
         public GeoJsonCRS()
@@ -49,29 +48,32 @@ namespace IntersectUtilities
         public string Type { get; } = "Feature";
 
         [JsonPropertyName("properties")]
-        [JsonExtensionData]
         public Dictionary<string, object> Properties { get; set; } 
             = new Dictionary<string, object>();
 
         [JsonPropertyName("geometry")]
-        public GeoJsonGeometry Geometry { get; set; }
+        public GeoJsonGeometryBase Geometry { get; set; }
 
         public GeoJsonFeature() { }
     }
 
-    [JsonDerivedType(typeof(GeoJsonPoint))]
-    [JsonDerivedType(typeof(GeoJsonLineString))]
-    [JsonDerivedType(typeof(GeoJsonPolygon))]
-    [JsonDerivedType(typeof(GeoJsonGeometryCollection))]
-    public abstract class GeoJsonGeometry
+    [JsonDerivedType(typeof(GeoJsonGeometryPoint),
+        typeDiscriminator:"point")]
+    [JsonDerivedType(typeof(GeoJsonGeometryLineString),
+        typeDiscriminator:"lineString")]
+    [JsonDerivedType(typeof(GeoJsonGeometryPolygon), 
+        typeDiscriminator:"polygon")]
+    [JsonDerivedType(typeof(GeoJsonGeometryCollection),
+        typeDiscriminator:"collection")]
+    public abstract class GeoJsonGeometryBase
     {
         [JsonPropertyName("type")]
         public string Type { get; set; }
     }
 
-    public class GeoJsonPoint : GeoJsonGeometry
+    public class GeoJsonGeometryPoint : GeoJsonGeometryBase
     {
-        public GeoJsonPoint()
+        public GeoJsonGeometryPoint()
         {
             Type = "Point";
         }
@@ -80,9 +82,9 @@ namespace IntersectUtilities
         public double[] Coordinates { get; set; }
     }
 
-    public class GeoJsonLineString : GeoJsonGeometry
+    public class GeoJsonGeometryLineString : GeoJsonGeometryBase
     {
-        public GeoJsonLineString()
+        public GeoJsonGeometryLineString()
         {
             Type = "LineString";
         }
@@ -91,9 +93,9 @@ namespace IntersectUtilities
         public double[][] Coordinates { get; set; }
     }
 
-    public class GeoJsonPolygon : GeoJsonGeometry
+    public class GeoJsonGeometryPolygon : GeoJsonGeometryBase
     {
-        public GeoJsonPolygon()
+        public GeoJsonGeometryPolygon()
         {
             Type = "Polygon";
         }
@@ -102,7 +104,7 @@ namespace IntersectUtilities
         public double[][][] Coordinates { get; set; }
     }
 
-    public class GeoJsonGeometryCollection : GeoJsonGeometry
+    public class GeoJsonGeometryCollection : GeoJsonGeometryBase
     {
         public GeoJsonGeometryCollection()
         {
@@ -110,6 +112,6 @@ namespace IntersectUtilities
         }
 
         [JsonPropertyName("geometries")]
-        public List<GeoJsonGeometry> Geometries { get; set; } = new List<GeoJsonGeometry>();
+        public List<GeoJsonGeometryBase> Geometries { get; set; } = new List<GeoJsonGeometryBase>();
     }
 }

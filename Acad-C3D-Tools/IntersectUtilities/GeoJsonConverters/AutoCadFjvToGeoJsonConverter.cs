@@ -80,7 +80,7 @@ namespace IntersectUtilities
                     { "KOd", GetPipeKOd(pl) },
                 },
 
-                Geometry = new GeoJsonPolygon() { },
+                Geometry = new GeoJsonGeometryPolygon() { },
             };
 
             switch (GetPipeType(pl))
@@ -134,7 +134,7 @@ namespace IntersectUtilities
             for (int i = 0; i < points.Count; i++)
                 coordinates[i] = new double[] { points[i].X, points[i].Y };
             coordinatesGatherer.Add(coordinates);
-            (feature.Geometry as GeoJsonPolygon).Coordinates = coordinatesGatherer.ToArray();
+            (feature.Geometry as GeoJsonGeometryPolygon).Coordinates = coordinatesGatherer.ToArray();
 
             yield return feature;
         }
@@ -183,7 +183,7 @@ namespace IntersectUtilities
                             Arc arc = (Arc)arcOriginal.Clone();
                             arc.CheckOrOpenForWrite();
                             arc.TransformBy(br.BlockTransform);
-                            feature.Geometry = new GeoJsonLineString();
+                            feature.Geometry = new GeoJsonGeometryLineString();
                             double[][] Coordinates;
                             double length = arc.Length;
                             double radians = length / arc.Radius;
@@ -210,7 +210,7 @@ namespace IntersectUtilities
                                         {samples[i].Point.X, samples[i].Point.Y};
                                 }
                             }
-                            ((GeoJsonLineString)feature.Geometry).Coordinates = Coordinates;
+                            ((GeoJsonGeometryLineString)feature.Geometry).Coordinates = Coordinates;
                             yield return feature;
                         }
                         continue;
@@ -219,14 +219,14 @@ namespace IntersectUtilities
                             Line line = (Line)lineOriginal.Clone();
                             line.CheckOrOpenForWrite();
                             line.TransformBy(br.BlockTransform);
-                            feature.Geometry = new GeoJsonLineString();
+                            feature.Geometry = new GeoJsonGeometryLineString();
                             double[][] Coordinates;
                             Coordinates = new double[2][];
                             Coordinates[0] = new double[]
                                 {line.StartPoint.X, line.StartPoint.Y};
                             Coordinates[1] = new double[]
                                 {line.EndPoint.X, line.EndPoint.Y};
-                            ((GeoJsonLineString)feature.Geometry).Coordinates = Coordinates;
+                            ((GeoJsonGeometryLineString)feature.Geometry).Coordinates = Coordinates;
                             yield return feature;
                         }
                         continue;
@@ -235,7 +235,7 @@ namespace IntersectUtilities
                             Polyline polyline = (Polyline)polylineOrigianl.Clone();
                             polyline.CheckOrOpenForWrite();
                             polyline.TransformBy(br.BlockTransform);
-                            feature.Geometry = new GeoJsonLineString();
+                            feature.Geometry = new GeoJsonGeometryLineString();
                             double[][] Coordinates;
                             Coordinates = new double[2][];
                             List<Point2d> points = new List<Point2d>();
@@ -285,7 +285,7 @@ namespace IntersectUtilities
                                 Coordinates[i] = new double[]
                                     {points[i].X, points[i].Y};
                             }
-                            ((GeoJsonLineString)feature.Geometry).Coordinates = Coordinates;
+                            ((GeoJsonGeometryLineString)feature.Geometry).Coordinates = Coordinates;
                             yield return feature;
                         }
                         continue;
@@ -299,7 +299,7 @@ namespace IntersectUtilities
                             BlockReference nestedBr = (BlockReference)nestedBrOriginal.Clone();
                             nestedBr.CheckOrOpenForWrite();
                             nestedBr.TransformBy(br.BlockTransform);
-                            feature.Geometry = new GeoJsonPolygon();
+                            feature.Geometry = new GeoJsonGeometryPolygon();
                             List<double[][]> coordinatesGatherer = new List<double[][]>();
                             
                             int nrOfSamples = (int)(2 * Math.PI / 0.1);
@@ -322,7 +322,7 @@ namespace IntersectUtilities
                             for (int i = 0; i < points.Count; i++)
                                 coordinates[i] = new double[] { points[i].X, points[i].Y };
                             coordinatesGatherer.Add(coordinates);
-                            (feature.Geometry as GeoJsonPolygon).Coordinates = coordinatesGatherer.ToArray();
+                            (feature.Geometry as GeoJsonGeometryPolygon).Coordinates = coordinatesGatherer.ToArray();
 
                             yield return feature;
                         }
@@ -404,8 +404,8 @@ namespace IntersectUtilities
                                     coordinatesGatherer.Add(coordinates);
                                 }
                             }
-                            feature.Geometry = new GeoJsonPolygon();
-                            (feature.Geometry as GeoJsonPolygon).Coordinates = coordinatesGatherer.ToArray();
+                            feature.Geometry = new GeoJsonGeometryPolygon();
+                            (feature.Geometry as GeoJsonGeometryPolygon).Coordinates = coordinatesGatherer.ToArray();
                             yield return feature;
                         }
                         continue;

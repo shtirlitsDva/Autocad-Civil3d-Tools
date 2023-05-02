@@ -1762,13 +1762,13 @@ namespace IntersectUtilities
                         {
                             switch (feature.Geometry)
                             {
-                                case GeoJsonPoint point:
+                                case GeoJsonGeometryPoint point:
                                     pointFC.Features.Add(feature);
                                     break;
-                                case GeoJsonLineString lineString:
+                                case GeoJsonGeometryLineString lineString:
                                     linestringFC.Features.Add(feature);
                                     break;
-                                case GeoJsonPolygon polygon:
+                                case GeoJsonGeometryPolygon polygon:
                                     polygonFC.Features.Add(feature);
                                     break;
                             }
