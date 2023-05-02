@@ -7828,7 +7828,7 @@ namespace IntersectUtilities
                     coords[i] = new double[] { p.X, p.Y };
                 }
 
-                if (!cont)
+                if (cont)
                 {
                     coords[4] = coords[0];
 
