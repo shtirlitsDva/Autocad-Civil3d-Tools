@@ -7837,6 +7837,7 @@ namespace IntersectUtilities
                     GeoJsonFeature feature = new GeoJsonFeature();
                     feature.Geometry = gjls;
                     feature.Properties.Add("DwgNumber", name);
+                    gjfc.Features.Add(feature);
                 }
             }
 
