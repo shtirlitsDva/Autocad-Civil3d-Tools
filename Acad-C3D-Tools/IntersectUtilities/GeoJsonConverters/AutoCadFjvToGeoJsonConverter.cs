@@ -114,12 +114,23 @@ namespace IntersectUtilities
 
             for (int i = 0; i < samplePoints.Count; i++)
             {
-                Point3d samplePoint = samplePoints[i].To3D();
-                var v = pl.GetFirstDerivative(samplePoint)
-                    .GetPerpendicularVector().GetNormal();
+                try
+                {
+                    Point3d samplePoint = samplePoints[i].To3D();
+                    var v = pl.GetFirstDerivative(
+                        pl.GetClosestPointTo(samplePoint, false))
+                        .GetPerpendicularVector().GetNormal();
 
-                fsPoints.Add((samplePoint + v * halfKOd).To2D());
-                ssPoints.Add((samplePoint + v * -halfKOd).To2D());
+                    fsPoints.Add((samplePoint + v * halfKOd).To2D());
+                    ssPoints.Add((samplePoint + v * -halfKOd).To2D());
+                }
+                catch (System.Exception)
+                {
+                    prdDbg($"Getting derivative failed at:\n");
+                    prdDbg($"Polyline: {pl.Handle}\n");
+                    prdDbg($"Sample point: {samplePoints[i]}\n");
+                    throw;
+                }
             }
 
             List<Point2d> points = new List<Point2d>();
