@@ -4629,15 +4629,16 @@ namespace IntersectUtilities
 
                     #region Erase detailing block
                     var detailingBlock =
-                                   localDb.GetBlockReferenceByName(pv.Name)
-                                   .FirstOrDefault();
+                        localDb.GetBlockReferenceByName(pv.Name)
+                        .FirstOrDefault();
 
                     if (detailingBlock == default)
-                        throw new System.Exception(
-                            $"Detailing block {pv.Name} was not found!");
-
-                    detailingBlock.CheckOrOpenForWrite();
-                    detailingBlock.Erase(true);
+                        prdDbg($"Detailing block {pv.Name} was not found!");
+                    else
+                    {
+                        detailingBlock.CheckOrOpenForWrite();
+                        detailingBlock.Erase(true);
+                    }
                     #endregion
 
                     Alignment al = pv.AlignmentId.Go<Alignment>(tx);
@@ -4659,7 +4660,8 @@ namespace IntersectUtilities
                     {
                         double cogoStation =
                             alPline.GetDistAtPoint(
-                                alPline.GetClosestPointTo(item.Location, false));
+                                alPline.GetClosestPointTo(
+                                    item.Location, false));
 
                         if (cogoStation >= originalStStart && cogoStation <= originalStEnd)
                         { item.CheckOrOpenForWrite(); item.Erase(); }
@@ -4687,6 +4689,8 @@ namespace IntersectUtilities
                     {
                         if (!bufferedOriginalBbox.IsExtentsInsideXY(
                             item.GeometricExtents)) continue;
+
+                        if (item.Layer != "0-FJV-PROFILES-DRAFT") continue;
 
                         item.CheckOrOpenForWrite();
                         item.Erase(true);
