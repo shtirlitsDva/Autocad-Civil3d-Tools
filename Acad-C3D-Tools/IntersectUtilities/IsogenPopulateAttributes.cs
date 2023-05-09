@@ -49,7 +49,8 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-
+using Autodesk.AutoCAD.MacroRecorder;
+using Dreambuild.AutoCAD;
 
 namespace IntersectUtilities
 {
@@ -69,7 +70,7 @@ namespace IntersectUtilities
             // Declare an object variable of the type to be deserialized.
             BackingSheetData bsd;
 
-            using (Stream reader = new FileStream(@"X:\AC - Iso\IsoDir\1189\DRI_VEKS_ASBUILT\DRI_VEKS_ASBUILT.BDF", FileMode.Open))
+            using (Stream reader = new FileStream(@"X:\AC - Iso\IsoDir\DRI\DRI-CUTLIST\DRI-CUTLIST.BDF", FileMode.Open))
             {
                 // Call the Deserialize method to restore the object's state.
                 bsd = (BackingSheetData)serializer.Deserialize(reader);
@@ -88,10 +89,20 @@ namespace IntersectUtilities
             {
                 fileName = dialog.FileName;
             }
-            else { throw new System.Exception("Cannot find BBR file!"); }
+            else { throw new System.Exception("Cannot find PCF file!"); }
             #endregion
 
             string[] pcf = File.ReadAllLines(fileName);
+
+            var pcfPipeLineData = IsogenPopulateAttributes.CollectPipeLineData(pcf);
+
+            string kwd = Interaction.GetKeywords("Select pipeline: ",
+                pcfPipeLineData.Select(x => x.Key)
+                .ToArray());
+
+            if (kwd.IsNoE()) return;
+
+            Dictionary<string, string> data = pcfPipeLineData[kwd];
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -101,26 +112,92 @@ namespace IntersectUtilities
 
                     if (tb == null) { prdDbg("Title Block not found!"); tx.Abort(); return; }
 
-                    bsd.ParseData(pcf);
-
                     foreach (var item in bsd.AttributeMapping)
                     {
-                        if (item.FinalData.IsNoE()) continue;
-                        prdDbg($"{item.BlockAttribute} > {item.FinalData}");
-                        tb.SetAttributeStringValue(item.BlockAttribute, item.FinalData);
+                        if (!data.ContainsKey(item.IsogenAttribute)) continue;
+
+                        prdDbg($"{item.BlockAttribute} > {data[item.IsogenAttribute]}");
+                        tb.SetAttributeStringValue(item.BlockAttribute, data[item.IsogenAttribute]);
                     }
                 }
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
             }
         }
-    }
 
+        private static Dictionary<string, Dictionary<string, string>> CollectPipeLineData(string[] pcf)
+        {
+            Dictionary<string, Dictionary<string, string>> col = new Dictionary<string, Dictionary<string, string>>();
+
+            bool keepElement = false;
+            string curElement = "";
+
+            HashSet<string> elementsToKeep = new HashSet<string>()
+        {
+            "PIPELINE-REFERENCE"
+        };
+
+            //The idea is to determine if element is kept
+            //Then populate the dict with it's properties
+            //If the element is not kept, the lines are skipped
+            //Until next element
+
+            Dictionary<string, string> dict = default;
+            for (int i = 0; i < pcf.Length; i++)
+            {
+                string curLine = pcf[i];
+
+                if (!curLine.StartsWith("    "))
+                {
+                    if (elementsToKeep.Any(x => curLine.StartsWith(x)))
+                    {
+                        if (dict != default) col.Add(dict[curElement.Replace(' ', '_')], dict);
+                        dict = new Dictionary<string, string>();
+                        var data = ExtractAttributeAndValue(curLine);
+                        dict.Add(data.Key, data.Value);
+                        curElement = data.Key;
+                        keepElement = true;
+                    }
+                    else keepElement = false;
+                }
+                else if (curLine.StartsWith("    "))
+                {
+                    if (!keepElement) continue;
+
+                    var data = ExtractAttributeAndValue(curLine.TrimStart());
+                    dict.Add(data.Key, data.Value);
+                }
+            }
+
+            return col;
+
+            KeyValuePair<string, string> ExtractAttributeAndValue(string input)
+            {
+                // Split the string based on the first space character
+                string[] parts = input.Split(new char[] { ' ' }, 2);
+
+                string attributeName = parts[0];
+                string value;
+
+                // If there's a second part, assign it to the value variable
+                if (parts.Length > 1)
+                {
+                    value = parts[1].Trim(); // Remove any additional whitespace
+                }
+                else
+                {
+                    value = "";
+                }
+
+                return new KeyValuePair<string, string>(attributeName, value);
+            }
+        }
+    }
 
     [System.SerializableAttribute()]
     [System.ComponentModel.DesignerCategoryAttribute("code")]
