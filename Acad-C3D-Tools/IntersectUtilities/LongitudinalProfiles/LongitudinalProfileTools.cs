@@ -1428,7 +1428,9 @@ namespace IntersectUtilities
             createdetailingpreliminarymethod();
         }
         public void createdetailingpreliminarymethod(
-            DataReferencesOptions dataReferencesOptions = default, Database database = default)
+            DataReferencesOptions dataReferencesOptions = default,
+            Database database = default,
+            HashSet<Alignment> alignments = default)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database dB = database ?? docCol.MdiActiveDocument.Database;
@@ -1481,7 +1483,7 @@ namespace IntersectUtilities
                     //BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
                     BlockTable bt = tx.GetObject(dB.BlockTableId, OpenMode.ForRead) as BlockTable;
                     //Plane plane = new Plane(); //For intersecting
-                    HashSet<Alignment> als = dB.HashSetOfType<Alignment>(tx);
+                    HashSet<Alignment> als = alignments ?? dB.HashSetOfType<Alignment>(tx);
                     #endregion
 
                     #region Import blocks if missing
@@ -4738,7 +4740,7 @@ namespace IntersectUtilities
                     colorizealllerlayersmethod();
                     createprofilesmethod(dro, new HashSet<Alignment> { al });
                     createpointsatverticesmethod(bufferedOriginalBbox);
-                    createdetailingpreliminarymethod(dro);
+                    createdetailingpreliminarymethod(dro, null, new HashSet<Alignment> { al });
                     staggerlabelsallmethod(null, al.GetProfileViewIds().ToHashSet());
                 }
                 catch (System.Exception ex)
