@@ -50,6 +50,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Color = Autodesk.AutoCAD.Colors.Color;
+using System.Diagnostics;
 
 namespace IntersectUtilities
 {
@@ -3820,8 +3821,11 @@ namespace IntersectUtilities
 
                         var pIds = pv.AlignmentId.Go<Alignment>(tx).GetProfileIds();
                         Profile surfaceP = default;
-                        foreach (Oid oid in pIds) if (oid.Go<Profile>(tx).Name.EndsWith("_surface_P"))
+                        foreach (Oid oid in pIds) 
+                            if (oid.Go<Profile>(tx).Name.EndsWith("_surface_P"))
                                 surfaceP = oid.Go<Profile>(tx);
+                        if (surfaceP == null)
+                            throw new System.Exception("Surface profile not found.");
 
                         SortLabels(leftLabels, surfaceP, leftStyleId);
                         SortLabels(rightLabels, surfaceP, rightStyleId);
@@ -4627,15 +4631,16 @@ namespace IntersectUtilities
 
                     #region Erase detailing block
                     var detailingBlock =
-                                   localDb.GetBlockReferenceByName(pv.Name)
-                                   .FirstOrDefault();
+                        localDb.GetBlockReferenceByName(pv.Name)
+                        .FirstOrDefault();
 
                     if (detailingBlock == default)
-                        throw new System.Exception(
-                            $"Detailing block {pv.Name} was not found!");
-
-                    detailingBlock.CheckOrOpenForWrite();
-                    detailingBlock.Erase(true);
+                        prdDbg($"Detailing block {pv.Name} was not found!");
+                    else
+                    {
+                        detailingBlock.CheckOrOpenForWrite();
+                        detailingBlock.Erase(true);
+                    }
                     #endregion
 
                     Alignment al = pv.AlignmentId.Go<Alignment>(tx);
