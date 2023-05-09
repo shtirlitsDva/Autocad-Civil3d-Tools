@@ -70,7 +70,10 @@ namespace IntersectUtilities
             // Declare an object variable of the type to be deserialized.
             BackingSheetData bsd;
 
-            using (Stream reader = new FileStream(@"X:\AC - Iso\IsoDir\DRI\DRI-CUTLIST\DRI-CUTLIST.BDF", FileMode.Open))
+            using (StreamReader reader = new StreamReader(
+                new FileStream(
+                    @"X:\AC - Iso\IsoDir\DRI\DRI-CUTLIST\DRI-CUTLIST.BDF", FileMode.Open),
+                Encoding.Default))
             {
                 // Call the Deserialize method to restore the object's state.
                 bsd = (BackingSheetData)serializer.Deserialize(reader);
@@ -92,13 +95,12 @@ namespace IntersectUtilities
             else { throw new System.Exception("Cannot find PCF file!"); }
             #endregion
 
-            string[] pcf = File.ReadAllLines(fileName);
+            string[] pcf = File.ReadAllLines(fileName, Encoding.Default);
 
             var pcfPipeLineData = IsogenPopulateAttributes.CollectPipeLineData(pcf);
 
-            string kwd = Interaction.GetKeywords("Select pipeline: ",
-                pcfPipeLineData.Select(x => x.Key)
-                .ToArray());
+            string kwd = GetKeywords("Select pipeline to populate: ",
+                pcfPipeLineData.Select(x => x.Key).ToArray());
 
             if (kwd.IsNoE()) return;
 
@@ -108,7 +110,9 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    BlockReference tb = localDb.GetBlockReferenceByName("Title Block").FirstOrDefault();
+                    var tb = localDb.ListOfType<BlockReference>(tx)
+                        .Where(x => x.RealName() == "Title Block")
+                        .FirstOrDefault();
 
                     if (tb == null) { prdDbg("Title Block not found!"); tx.Abort(); return; }
 
@@ -156,9 +160,10 @@ namespace IntersectUtilities
                 {
                     if (elementsToKeep.Any(x => curLine.StartsWith(x)))
                     {
-                        if (dict != default) col.Add(dict[curElement.Replace(' ', '_')], dict);
+                        if (dict != default) col.Add(dict[curElement].Replace(' ', '_'), dict);
                         dict = new Dictionary<string, string>();
                         var data = ExtractAttributeAndValue(curLine);
+                        prdDbg($"{data.Key} > {data.Value}");
                         dict.Add(data.Key, data.Value);
                         curElement = data.Key;
                         keepElement = true;
@@ -173,7 +178,7 @@ namespace IntersectUtilities
                     dict.Add(data.Key, data.Value);
                 }
             }
-
+            col.Add(dict[curElement].Replace(' ', '_'), dict);
             return col;
 
             KeyValuePair<string, string> ExtractAttributeAndValue(string input)

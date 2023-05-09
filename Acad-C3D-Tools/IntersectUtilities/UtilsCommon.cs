@@ -2705,26 +2705,27 @@ namespace IntersectUtilities.UtilsCommon
                 Utils.prdDbg("Block exists!");
                 ObjectId BlkRecId = blkTable[_BlockName];
 
-                if (BlkRecId != null)
+                if (BlkRecId != Oid.Null)
                 {
                     btr = tx.GetObject(BlkRecId, OpenMode.ForRead) as BlockTableRecord;
                     //Utils.prdDbg("Btr opened!");
 
                     ObjectIdCollection blockRefIds = btr.IsDynamicBlock ? btr.GetAnonymousBlockIds() : btr.GetBlockReferenceIds(true, true);
+                    prdDbg("Number of brefids: " + blockRefIds.Count);
 
                     foreach (ObjectId blockRefId in blockRefIds)
                     {
                         if (btr.IsDynamicBlock)
                         {
-                            ObjectIdCollection oids2 = blockRefId.Go<BlockTableRecord>(tx).GetBlockReferenceIds(true, true);
+                            ObjectIdCollection oids2 = blockRefId
+                                .Go<BlockTableRecord>(tx)
+                                .GetBlockReferenceIds(true, true);
                             foreach (Oid oid in oids2)
-                            {
                                 set.Add(oid.Go<BlockReference>(tx));
-                            }
                         }
                         else { set.Add(blockRefId.Go<BlockReference>(tx)); }
                     }
-                    //Utils.prdDbg($"Number of refs: {blockRefIds.Count}.");
+                    Utils.prdDbg($"Number of refs: {blockRefIds.Count}.");
                 }
 
             }
