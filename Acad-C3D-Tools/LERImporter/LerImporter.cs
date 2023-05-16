@@ -209,7 +209,7 @@ namespace LERImporter
                 #region Create database for 2D ler
                 using (Database ler2dDb = new Database(false, true))
                 {
-                    ler2dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Templates\LerTemplate.dwt",
+                    ler2dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt",
                                 FileOpenMode.OpenForReadAndAllShare, false, null);
                     //Build the new future file name of the drawing
                     string newFilename = $"{folderPath}{gf.Owner}_2D.dwg";
@@ -301,9 +301,9 @@ namespace LERImporter
                 using (Database ler2dDb = new Database(false, true))
                 using (Database ler3dDb = new Database(false, true))
                 {
-                    ler2dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Templates\LerTemplate.dwt",
+                    ler2dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt",
                                 FileOpenMode.OpenForReadAndAllShare, false, null);
-                    ler3dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Templates\LerTemplate.dwt",
+                    ler3dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt",
                                 FileOpenMode.OpenForReadAndAllShare, false, null);
                     //Build the new future file name of the drawing
                     var query = gf.featureCollection.Where(x => x.item is Schema.Graveforesp);
@@ -424,9 +424,9 @@ namespace LERImporter
                 using (Database ler2dDb = new Database(false, true))
                 using (Database ler3dDb = new Database(false, true))
                 {
-                    ler2dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Templates\LerTemplate.dwt",
+                    ler2dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt",
                                 FileOpenMode.OpenForReadAndAllShare, false, null);
-                    ler3dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Templates\LerTemplate.dwt",
+                    ler3dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt",
                                 FileOpenMode.OpenForReadAndAllShare, false, null);
                     //Build the new future file name of the drawing
                     string new2dFilename = $"{pathToTopFolder}SAMLET_LER_2D.dwg";
