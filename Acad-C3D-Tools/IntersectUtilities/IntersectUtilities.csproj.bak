@@ -17,7 +17,7 @@
     <AssemblyName>IntersectUtilities</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <Deterministic>true</Deterministic>
+    <Deterministic>false</Deterministic>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -55,74 +55,82 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="accoremgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\accoremgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\accoremgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="AcCui">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\AcCui.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\AcCui.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="acdbmgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\acdbmgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\acdbmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="AcDx, Version=24.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\AutoCAD.NET.24.1.51000\lib\net47\AcDx.dll</HintPath>
+    <Reference Include="acdbmgdbrep">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\acdbmgdbrep.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="AcDx">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\AcDx.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="acmgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\acmgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\acmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="AcMr, Version=24.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\AutoCAD.NET.24.1.51000\lib\net47\AcMr.dll</HintPath>
+    <Reference Include="AcMPolygonMGD">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\AcMPolygonMGD.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="AcSeamless, Version=24.1.0.0, Culture=neutral, processorArchitecture=AMD64">
-      <HintPath>..\packages\AutoCAD.NET.24.1.51000\lib\net47\AcSeamless.dll</HintPath>
+    <Reference Include="AcMr">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\AcMr.DLL</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="AcTcMgd, Version=24.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\AutoCAD.NET.24.1.51000\lib\net47\AcTcMgd.dll</HintPath>
+    <Reference Include="AcSeamless">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\AcSeamless.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="AcWindows, Version=24.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\AutoCAD.NET.24.1.51000\lib\net47\AcWindows.dll</HintPath>
+    <Reference Include="AcTcMgd">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\AcTcMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="AdUIMgd, Version=24.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\AutoCAD.NET.24.1.51000\lib\net47\AdUIMgd.dll</HintPath>
+    <Reference Include="AcWindows">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\AcWindows.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="AdUiPalettes, Version=24.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\AutoCAD.NET.24.1.51000\lib\net47\AdUiPalettes.dll</HintPath>
+    <Reference Include="AdUiPalettes">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\AdUiPalettes.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="AdWindows">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\AdWindows.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\AdWindows.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="AecBaseMgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\ACA\AecBaseMgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\ACA\AecBaseMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="AeccDataShortcutMgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\C3D\AeccDataShortcutMgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\C3D\AeccDataShortcutMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="AeccDbMgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\C3D\AeccDbMgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\C3D\AeccDbMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="AecPropDataMgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\ACA\AecPropDataMgd.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\ACA\AecPropDataMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="csdot, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\csdot.2.0.1\lib\net461\csdot.dll</HintPath>
     </Reference>
     <Reference Include="ManagedMapApi">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2022\Map\ManagedMapApi.dll</HintPath>
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2023\Map\ManagedMapApi.dll</HintPath>
       <Private>False</Private>
+    </Reference>
+    <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=7.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Bcl.AsyncInterfaces.7.0.0\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Office.Interop.Excel, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
       <EmbedInteropTypes>True</EmbedInteropTypes>
@@ -131,9 +139,30 @@
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
     <Reference Include="System" />
+    <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
+    </Reference>
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Memory.4.5.5\lib\net461\System.Memory.dll</HintPath>
+    </Reference>
     <Reference Include="System.Numerics" />
+    <Reference Include="System.Numerics.Vectors, Version=4.1.4.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Numerics.Vectors.4.5.0\lib\net46\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.6.0.0\lib\net461\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Text.Encodings.Web, Version=7.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Text.Encodings.Web.7.0.0\lib\net462\System.Text.Encodings.Web.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Text.Json, Version=7.0.0.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Text.Json.7.0.2\lib\net462\System.Text.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Threading.Tasks.Extensions.4.5.4\lib\net461\System.Threading.Tasks.Extensions.dll</HintPath>
+    </Reference>
     <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.ValueTuple.4.5.0\lib\net47\System.ValueTuple.dll</HintPath>
     </Reference>
@@ -205,6 +234,15 @@
     <Compile Include="..\AutoCADCommands\SymbolPack.cs">
       <Link>ACC\SymbolPack.cs</Link>
     </Compile>
+    <Compile Include="GeoJsonConverters\AutoCadVFToGeoJsonConverter.cs" />
+    <Compile Include="GeoJsonConverters\AutoCadFjvToGeoJsonConverter.cs" />
+    <Compile Include="BatchProcessing\01 BatchProcessing.cs" />
+    <Compile Include="BatchProcessing\Form1.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="BatchProcessing\Form1.Designer.cs">
+      <DependentUpon>Form1.cs</DependentUpon>
+    </Compile>
     <Compile Include="ColorUtils.cs" />
     <Compile Include="ComponentSchedule.cs" />
     <Compile Include="CreateGisData.cs" />
@@ -212,27 +250,46 @@
     <Compile Include="DataQAClass.cs" />
     <Compile Include="DouglasPeuckerReduction.cs" />
     <Compile Include="DynamicBlockPropertyReader.cs" />
+    <Compile Include="FjernvarmeFremtidig\FjernvarmeFremtidig.cs" />
     <Compile Include="FolderSelectDialog.cs" />
     <Compile Include="GroupByCluster.cs" />
     <Compile Include="IsogenPopulateAttributes.cs" />
+    <Compile Include="Jigs\FjvJig.cs" />
+    <Compile Include="Jigs\ExampleJigs.cs" />
+    <Compile Include="LER1.0\LER1_Evida.cs" />
+    <Compile Include="LER1.0\LER1_General.cs" />
+    <Compile Include="LER1.0\LER1_KLAR.cs" />
+    <Compile Include="LER1.0\LER1_Novafos.cs" />
+    <Compile Include="LER1.0\LER1_Fibia.cs" />
+    <Compile Include="LER1.0\LER1_MassImporter.cs" />
+    <Compile Include="LER1.0\Partial_Template.cs" />
+    <Compile Include="LongitudinalProfiles\LongitudinalProfileTools.cs" />
+    <Compile Include="MoreLinq\DistinctBy.cs" />
+    <Compile Include="MyGraphQA.cs" />
     <Compile Include="MyGraph.cs" />
     <Compile Include="ObsoleteMethods.cs" />
     <Compile Include="Intersect.cs" />
-    <Compile Include="MoreLinq.cs" />
+    <Compile Include="MoreLinq\MoreLinq.cs" />
     <Compile Include="ODDataConverter.cs" />
     <Compile Include="ODDataReader.cs" />
     <Compile Include="PipeSchedule.cs" />
+    <Compile Include="PlanDetailing\ComponentData.cs" />
+    <Compile Include="PlanDetailing\PlanDetailing.cs" />
+    <Compile Include="PlanProduction\PlanProduction.cs" />
     <Compile Include="PolylineCurvingDev.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PropertySetManager.cs" />
     <Compile Include="Reflector.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="UtilsCommon.cs" />
+    <Compile Include="GeoJsonFeatureCollection.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\.editorconfig">
       <Link>.editorconfig</Link>
     </None>
+    <None Include="app.config" />
+    <None Include="loadNet.scr" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -261,6 +318,12 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\netDxf\netDxf.csproj">
+      <Project>{4f67b4fc-98c1-412d-a149-87402fd6a913}</Project>
+      <Name>netDxf</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
