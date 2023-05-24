@@ -4020,6 +4020,13 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Print lineweights enum
+                    //foreach (string name in Enum.GetNames(typeof(LineWeight)))
+                    //{
+                    //    prdDbg(name);
+                    //}
+                    #endregion
+
                     #region Test pline to polygon
                     //var plines = localDb.HashSetOfType<Polyline>(tx);
                     //foreach (Polyline pline in plines)
