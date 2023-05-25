@@ -163,7 +163,7 @@ namespace IntersectUtilities
                         if (dict != default) col.Add(dict[curElement].Replace(' ', '_'), dict);
                         dict = new Dictionary<string, string>();
                         var data = ExtractAttributeAndValue(curLine);
-                        prdDbg($"{data.Key} > {data.Value}");
+                        //prdDbg($"{data.Key} > {data.Value}");
                         dict.Add(data.Key, data.Value);
                         curElement = data.Key;
                         keepElement = true;
