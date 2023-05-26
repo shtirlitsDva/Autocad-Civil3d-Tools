@@ -1129,16 +1129,6 @@ namespace IntersectUtilities
                         als = localDb.HashSetOfType<Alignment>(tx);
                     #endregion
 
-                    #region Delete previous lines
-                    //Delete previous blocks
-                    var existingPlines = localDb.HashSetOfType<Polyline>(tx, false).Where(x => x.Layer == draftProfileLayerName).ToHashSet();
-                    foreach (Entity ent in existingPlines)
-                    {
-                        ent.CheckOrOpenForWrite();
-                        ent.Erase(true);
-                    }
-                    #endregion
-
                     #region Initialize PS for Alignment
                     PropertySetManager psmPipeLineData = new PropertySetManager(
                         fremDb,
@@ -1165,6 +1155,22 @@ namespace IntersectUtilities
                             prdDbg($"No profile view found for alignment: {al.Name}, skip to next.");
                             continue;
                         }
+
+                        #region Delete previous lines
+                        //Delete previous blocks
+                        var existingPlines = localDb.HashSetOfType<Polyline>(tx, false)
+                            .Where(x => x.Layer == draftProfileLayerName).ToHashSet();
+
+                        var buffered = pv.GetBufferedXYGeometricExtents(5.0);
+
+                        foreach (Entity ent in existingPlines)
+                        {
+                            if (!buffered.IsExtentsInsideXY(ent.GeometricExtents)) continue;
+
+                            ent.CheckOrOpenForWrite();
+                            ent.Erase(true);
+                        }
+                        #endregion
 
                         Profile surfaceProfile = null;
                         foreach (Oid oid in profileIds)
@@ -1514,20 +1520,6 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    #region Delete previous blocks
-                    //Delete previous blocks
-                    deletedetailing();
-
-                    //var existingBlocks = localDb.GetBlockReferenceByName(komponentBlockName);
-                    //existingBlocks.UnionWith(localDb.GetBlockReferenceByName(bueBlockName));
-
-                    //foreach (BlockReference br in existingBlocks)
-                    //{
-                    //    br.CheckOrOpenForWrite();
-                    //    br.Erase(true);
-                    //}
-                    #endregion
-
                     foreach (Alignment al in als.OrderBy(x => x.Name))
                     {
                         prdDbg($"\nProcessing: {al.Name}...");
@@ -1583,6 +1575,11 @@ namespace IntersectUtilities
                         foreach (ProfileView pv in pvs)
                         {
                             prdDbg($"Processing PV {pv.Name}.");
+
+                            #region Delete previous blocks
+                            //Delete previous blocks
+                            deletedetailingmethod(dB, pv);
+                            #endregion
 
                             #region Variables and settings
                             Point3d pvOrigin = pv.Location;
@@ -2771,7 +2768,7 @@ namespace IntersectUtilities
         {
             deletedetailingmethod();
         }
-        public void deletedetailingmethod(Database db = default)
+        public void deletedetailingmethod(Database db = default, ProfileView pv = null)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = db ?? docCol.MdiActiveDocument.Database;
@@ -2796,6 +2793,10 @@ namespace IntersectUtilities
                     //prdDbg(existingBlocks.Count.ToString());
                     foreach (BlockReference br in existingBlocks)
                     {
+                        if (pv != null)
+                            if (!pv.GetBufferedXYGeometricExtents(5.0)
+                                .IsPointInsideXY(br.Position)) continue;
+
                         if (!br.IsErased && br.RealName() == name)
                         {
                             br.CheckOrOpenForWrite();
@@ -4629,6 +4630,8 @@ namespace IntersectUtilities
                     originalStStart = pv.StationStart;
                     originalStEnd = pv.StationEnd;
                     bufferedOriginalBbox = pv.GetBufferedXYGeometricExtents(5.0);
+                    //Debug
+                    //bufferedOriginalBbox.DrawExtents(localDb);
                     #endregion
 
                     #region Erase detailing block
@@ -4672,33 +4675,12 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    #region Erase detailing blocks
-                    HashSet<BlockReference> pvDetailingBrs =
-                        pv.GetDetailingBlocks(localDb, 5.0);
-                    foreach (var item in pvDetailingBrs)
-                    {
-                        item.CheckOrOpenForWrite();
-                        item.Erase();
-                    }
-                    #endregion
-
                     #region Erase PV
                     pv.CheckOrOpenForWrite();
                     pv.Erase(true);
                     #endregion
 
                     #region Erase polylines and points from prelim profile
-                    HashSet<Polyline> prelim = localDb.HashSetOfType<Polyline>(tx);
-                    foreach (var item in prelim)
-                    {
-                        if (!bufferedOriginalBbox.IsExtentsInsideXY(
-                            item.GeometricExtents)) continue;
-
-                        if (item.Layer != "0-FJV-PROFILES-DRAFT") continue;
-
-                        item.CheckOrOpenForWrite();
-                        item.Erase(true);
-                    }
                     HashSet<DBPoint> points = localDb.HashSetOfType<DBPoint>(tx);
                     foreach (var item in points)
                     {
