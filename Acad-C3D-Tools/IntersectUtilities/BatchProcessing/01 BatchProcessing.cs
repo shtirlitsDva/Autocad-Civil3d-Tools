@@ -1077,6 +1077,77 @@ namespace IntersectUtilities
             return new Result();
         }
         [MethodDescription(
+            "Create reference to SURFACE profiles",
+            "Opretter reference til SURFACE profile fra shortcuts.\n" +
+            "Husk at sætte shortcuts folder!")]
+        public static Result createreferencetosurfaceprofile(Database xDb)
+        {
+            //Used when sheets were created before pipe profiles were available
+            //Finds those profiles and creates a reference to them in drawing
+            //Then it deletes the detailing and recreates it
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+            var als = xDb.HashSetOfType<Alignment>(xTx);
+
+            Regex reg1 = new Regex(@"(?<number>\d{2,3}?\s)");
+
+            bool isValidCreation = false;
+            DataShortcuts.DataShortcutManager sm = DataShortcuts.CreateDataShortcutManager(ref isValidCreation);
+            if (isValidCreation != true)
+            {
+                prdDbg("DataShortcutManager failed to be created!");
+                return new Result(ResultStatus.FatalError, "DataShortcutManager failed to be created!");
+            }
+            int publishedCount = sm.GetPublishedItemsCount();
+
+            foreach (Alignment al in als)
+            {
+                string number = reg1.Match(al.Name).Groups["number"].Value;
+                prdDbg($"{al.Name} -> {number}");
+
+                for (int i = 0; i < publishedCount; i++)
+                {
+                    DataShortcuts.DataShortcutManager.PublishedItem item =
+                        sm.GetPublishedItemAt(i);
+
+                    if (item.DSEntityType == DataShortcutEntityType.Alignment)
+                    {
+                        if (item.Name.StartsWith(number))
+                        {
+                            var items = GetItemsByPipelineNumber(sm, number);
+
+                            foreach (int idx in items)
+                            {
+                                DataShortcuts.DataShortcutManager.PublishedItem entity =
+                                    sm.GetPublishedItemAt(idx);
+
+                                if (entity.DSEntityType == DataShortcutEntityType.Alignment) continue;
+                                if (entity.Name.Contains("surface"))
+                                {
+                                    sm.CreateReference(idx, xDb);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                IEnumerable<int> GetItemsByPipelineNumber(
+                    DataShortcuts.DataShortcutManager dsMan, string pipelineNumber)
+                {
+                    int count = dsMan.GetPublishedItemsCount();
+
+                    for (int j = 0; j < count; j++)
+                    {
+                        string name = dsMan.GetPublishedItemAt(j).Name;
+                        if (name.StartsWith(pipelineNumber)) yield return j;
+                    }
+                }
+            }
+
+            sm.Dispose();
+
+            return new Result();
+        }
+        [MethodDescription(
             "Fix surface profile and longitudinal profile view",
             "Kan bruges ved tomme længdeprofiler, når der ikke er tegnet rør.\n" +
             "Sætter alle profile views til min 3 meters dybde og giver\n" +
@@ -1441,7 +1512,7 @@ namespace IntersectUtilities
                                     if (vp.IsLayerFrozenInViewport(oid)) continue;
                                     notFrozenIds.Add(oid);
                                 }
-                                
+
                                 if (notFrozenIds.Count == 0) continue;
 
                                 prdDbg("Freezing C-ANNO-MTCH!");
@@ -1476,7 +1547,7 @@ namespace IntersectUtilities
             Oid btrId = bt[blockName];
 
             DBDictionary layoutDict = xDb.LayoutDictionaryId.Go<DBDictionary>(xTx);
-            
+
             foreach (DBDictionaryEntry item in layoutDict)
             {
                 //prdDbg(item.Key);

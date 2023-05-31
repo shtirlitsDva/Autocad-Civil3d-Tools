@@ -256,6 +256,7 @@
     <Compile Include="IsogenPopulateAttributes.cs" />
     <Compile Include="Jigs\FjvJig.cs" />
     <Compile Include="Jigs\ExampleJigs.cs" />
+    <Compile Include="LER1.0\Eksisterende_fjernvarme.cs" />
     <Compile Include="LER1.0\LER1_Evida.cs" />
     <Compile Include="LER1.0\LER1_General.cs" />
     <Compile Include="LER1.0\LER1_KLAR.cs" />
