@@ -619,6 +619,7 @@ namespace IntersectUtilities
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             resetprofileviews();
+            importlabelstyles();
 
             #region Fix wrong PV style at start
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
