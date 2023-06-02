@@ -54,6 +54,8 @@ using System.Text.Json;
 using IntersectUtilities.DynamicBlocks;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
+using System.Numerics;
+using Plane = Autodesk.AutoCAD.Geometry.Plane;
 
 namespace IntersectUtilities
 {
@@ -870,6 +872,117 @@ namespace IntersectUtilities
             #endregion
 
             Interaction.TaskDialog("Finilization finished!", "OK", "Not OK");
+        }
+
+        [CommandMethod("LISTNUMBEROFPROFILEVIEWS")]
+        public void listnumberofprofileviews()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Determine number of profileviews with LER data
+                    var droText = File.ReadAllLines(Environment.ExpandEnvironmentVariables("%temp%") + "\\DRO.txt");
+
+                    //Create crossing points first
+                    DataReferencesOptions dro = new DataReferencesOptions(droText[0], droText[1]);
+                    string projectName = dro.ProjectName;
+                    string etapeName = dro.EtapeName;
+
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+
+                    Plane plane = new Plane();
+
+                    #region Load linework from LER Xref
+                    // open the LER dwg database
+                    Database xRefLerDB = new Database(false, true);
+
+                    xRefLerDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
+                        FileOpenMode.OpenForReadAndAllShare, false, null);
+
+                    Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
+
+                    List<Polyline3d> remoteLerData = xRefLerDB.ListOfType<Polyline3d>(xRefLerTx);
+                    #endregion
+
+                    try
+                    {
+                        List<Alignment> als = localDb.ListOfType<Alignment>(tx);
+                        if (als.Count > 1) 
+                        { 
+                            prdDbg("Multiple alignments detected in drawing! Must only be one!");
+                            throw new System.Exception("Multiple alignments!");
+                        }
+                        Alignment alignment = als.First();
+                        var pvs = alignment.GetProfileViewIds().Entities<ProfileView>(tx);
+
+                        HashSet<double> stationsOfIntersection = new HashSet<double>();
+
+                        foreach (Entity ent in remoteLerData)
+                        {
+                            string type = ReadStringParameterFromDataTable(ent.Layer, dtKrydsninger, "Type", 0);
+                            if (type == "IGNORE") continue;
+
+                            using (Point3dCollection p3dcol = new Point3dCollection())
+                            {
+                                alignment.IntersectWith(
+                                    ent,
+                                    Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                                    plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+                                if (p3dcol.Count > 0)
+                                    foreach (Point3d p3d in p3dcol)
+                                        stationsOfIntersection.Add(
+                                            alignment.StationAtPoint(p3d));
+                            }
+                        }
+
+                        int pvsWithLer = 0;
+                        foreach (ProfileView pv in pvs)
+                        {
+                            if (stationsOfIntersection.Any(
+                                x => pv.StationStart <= x && pv.StationEnd >= x)) 
+                                pvsWithLer++;
+                        }
+
+                        prdDbg($"Number of PVs with LER: {{{pvsWithLer}}}");
+
+                        var path = Environment.ExpandEnvironmentVariables("%temp%");
+                        string fileName = path + "\\pvCount.txt";
+                        File.WriteAllText(fileName, pvsWithLer.ToString());
+
+                        xRefLerTx.Abort();
+                        xRefLerDB.Dispose();
+                    }
+                    catch (System.Exception ex)
+                    {
+                        xRefLerTx.Abort();
+                        xRefLerDB.Dispose();
+                        prdDbg(ex);
+                        throw;
+                    }
+
+                    System.Windows.Forms.Application.DoEvents();
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                finally
+                {
+                }
+                tx.Abort();
+            }
         }
 
         [CommandMethod("resetprofileviews")]

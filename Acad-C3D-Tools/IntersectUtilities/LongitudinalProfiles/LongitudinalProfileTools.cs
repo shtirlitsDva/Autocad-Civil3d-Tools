@@ -798,10 +798,15 @@ namespace IntersectUtilities
                             pv.ElevationMin = Math.Floor(minEl) - 1;
 
                             //Project the points
-                            editor.SetImpliedSelection(staPoints
+
+                            var selection = staPoints
                                 .Where(x => x.ProfileViewNumber == idx)
                                 .Select(x => x.CogoPoint.ObjectId)
-                                .ToArray());
+                                .ToArray();
+
+                            if (selection.Length == 0) continue;
+
+                            editor.SetImpliedSelection(selection);
                             prdDbg("");
                             editor.Command("_AeccProjectObjectsToProf", pv.ObjectId);
                         }
