@@ -300,43 +300,7 @@ namespace SheetCreationAutomation
                 tx.Abort();
             }
         }
-        [CommandMethod("LISTNUMBEROFPROFILEVIEWS")]
-        public void listnumberofprofileviews()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    #region List number of Vframes
-                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
-                    prdDbg($"Number of PVs: {{{pvs.Count}}}");
-
-                    var path = Environment.ExpandEnvironmentVariables("%temp%");
-                    string fileName = path + "\\pvCount.txt";
-                    File.WriteAllText(fileName, pvs.Count.ToString());
-
-                    System.Windows.Forms.Application.DoEvents();
-
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
-                    return;
-                }
-                finally
-                {
-                }
-                tx.Abort();
-            }
-        }
-
+        
         [CommandMethod("CREATEREFERENCETOPROFILES")]
         public void createreferencetoprofiles()
         {
