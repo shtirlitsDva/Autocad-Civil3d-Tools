@@ -784,10 +784,16 @@ namespace IntersectUtilities
 
                             double maxEl = topElevs.Max();
                             double profileMinEl = minElevs.Min();
-                            double pointsMinEl = staPoints.Where(x => x.ProfileViewNumber == idx)
-                                                    .Select(x => x.CogoPoint.Elevation)
-                                                    .Min();
-                            double minEl = profileMinEl > pointsMinEl ? pointsMinEl : profileMinEl;
+
+                            var query = staPoints.Where(x => x.ProfileViewNumber == idx)
+                                                    .Select(x => x.CogoPoint.Elevation);
+                            double pointsMinEl = default;
+                            if (query.Count() > 0) { pointsMinEl = query.Min(); }
+
+                            double minEl;
+                            if (pointsMinEl == default) minEl = profileMinEl;
+                            else minEl = profileMinEl > pointsMinEl ? pointsMinEl : profileMinEl;
+
                             prdDbg($"\nElevations of PV {pv.Name}> Max: {Math.Round(maxEl, 2)} | Min: {Math.Round(minEl, 2)}");
                             #endregion
 
@@ -795,7 +801,7 @@ namespace IntersectUtilities
                             pv.CheckOrOpenForWrite();
                             pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
                             pv.ElevationMax = Math.Ceiling(maxEl);
-                            pv.ElevationMin = Math.Floor(minEl) - 1;
+                            pv.ElevationMin = Math.Floor(minEl) - 2;
 
                             //Project the points
 
