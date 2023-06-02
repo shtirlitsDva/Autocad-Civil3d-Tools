@@ -621,49 +621,6 @@ namespace IntersectUtilities
             resetprofileviews();
             importlabelstyles();
 
-            #region Fix wrong PV style at start
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
-
-                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
-
-                    Oid pvStyleId = Oid.Null;
-                    try
-                    {
-                        pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R NO SCALE"];
-                        //pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R 1:250:100"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nProfile view style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    foreach (ProfileView pv in pvs)
-                    {
-                        Oid pvCurStyleId = pv.StyleId;
-                        ProfileViewStyle curPvStyle = pvCurStyleId.Go<ProfileViewStyle>(tx);
-                        if (curPvStyle.Name != "PROFILE VIEW L TO R NO SCALE")
-                        {
-                            pv.CheckOrOpenForWrite();
-                            pv.StyleId = pvStyleId;
-                        }
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    ed.WriteMessage("\n" + ex.ToString());
-                    return;
-                }
-                tx.Commit();
-            }
-            #endregion
-
             var droText = File.ReadAllLines(Environment.ExpandEnvironmentVariables("%temp%") + "\\DRO.txt");
 
             //Create crossing points first
