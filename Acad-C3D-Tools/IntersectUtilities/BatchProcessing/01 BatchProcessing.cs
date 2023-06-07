@@ -1582,6 +1582,7 @@ namespace IntersectUtilities
                     if (ltr.Name == layName)
                     {
                         ltr.CheckOrOpenForWrite();
+                        ltr.IsFrozen = false;
                         ltr.IsOff = false;
                     }
                 }
