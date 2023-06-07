@@ -140,29 +140,6 @@ namespace IntersectUtilities
                                     #region Stagger labels
                                     //staggerlabelsallmethod(xDb);
                                     #endregion
-                                    #region Unhide specific layer in DB
-                                    //LayerTable extLt = xDb.LayerTableId.Go<LayerTable>(xTx);
-                                    //foreach (Oid oid in extLt)
-                                    //{
-                                    //    LayerTableRecord ltr = oid.Go<LayerTableRecord>(xTx);
-                                    //    if (ltr.Name.Contains("|"))
-                                    //    {
-                                    //        var split = ltr.Name.Split('|');
-                                    //        string xrefName = split[0];
-                                    //        string layerName = split[1];
-                                    //        if (xrefName == "FJV-Fremtid-E1" &&
-                                    //            layerName.Contains("SVEJSEPKT-NR"))
-                                    //        {
-                                    //            prdDbg(ltr.Name);
-                                    //            prdDbg(ltr.IsDependent.ToString());
-                                    //            ltr.CheckOrOpenForWrite();
-                                    //            prdDbg(ltr.IsOff.ToString());
-                                    //            ltr.IsOff = false;
-                                    //            prdDbg(ltr.IsOff.ToString());
-                                    //        }
-                                    //    }
-                                    //}
-                                    #endregion
                                     #region Set linetypes of xref
                                     //LayerTable extLt = xDb.LayerTableId.Go<LayerTable>(xTx);
                                     //foreach (Oid oid in extLt)
@@ -1581,6 +1558,35 @@ namespace IntersectUtilities
                     }
                 }
             }
+            return new Result();
+        }
+        [MethodDescription(
+            "Unhide layer(s)\n",
+            "Unhide specifikke lag i tegningen.\n" +
+            "Ved input af flere lag skal\n" +
+            "skal de enkelte lagnavne deles op med \";\".\n",
+            new string[1] { "Layer name(s)" })]
+        public static Result unhidelayer(Database xDb, string layerNames)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+            LayerTable extLt = xDb.LayerTableId.Go<LayerTable>(xTx);
+
+            var split = layerNames.Split(';');
+
+            foreach (string layName in split)
+            {
+                foreach (Oid oid in extLt)
+                {
+                    LayerTableRecord ltr = oid.Go<LayerTableRecord>(xTx);
+
+                    if (ltr.Name == layName)
+                    {
+                        ltr.CheckOrOpenForWrite();
+                        ltr.IsOff = false;
+                    }
+                }
+            }
+
             return new Result();
         }
     }
