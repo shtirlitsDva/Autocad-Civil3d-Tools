@@ -481,7 +481,9 @@ namespace IntersectUtilities
                         ps.CheckOrOpenForWrite();
                         foreach (KeyValuePair<string, object> pair in psData)
                         {
+                            if (!PsContainsDef(ps, pair.Key)) continue;
                             i++;
+                            
                             int propertyId = ps.PropertyNameToId(pair.Key);
                             try
                             {
@@ -499,6 +501,22 @@ namespace IntersectUtilities
                 }
                 //Property set not attached
                 throw new System.Exception($"Property set {propertySetName} could not been found attached to entity!");
+            }
+
+            bool PsContainsDef(PropertySet ps, string name)
+            {
+                PropertySetDefinition propSetDef =
+                            ps.PropertySetDefinition.Go<PropertySetDefinition>(
+                                database.TransactionManager.TopTransaction);
+
+                PropertyDefinitionCollection defs = propSetDef.Definitions;
+
+                foreach (PropertyDefinition item in defs)
+                {
+                    if (item.Name == name) return true;
+                }
+
+                return false;
             }
         }
         public static void UpdatePropertySetDefinition(Database db, PSetDefs.DefinedSets propertySetName)
