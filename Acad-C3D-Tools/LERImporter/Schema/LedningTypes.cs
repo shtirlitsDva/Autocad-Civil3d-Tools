@@ -49,6 +49,7 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
 using Log = LERImporter.SimpleLogger;
 using static LERImporter.Schema.ElledningType;
+using static LERImporter.Schema.TermiskLedningType;
 
 namespace LERImporter.Schema
 {
@@ -437,14 +438,82 @@ namespace LERImporter.Schema
     }
     public partial class GasledningType : ILerLedning
     {
+        [PsInclude]
+        public string Type { get => this.type?.Value ?? "Ukendt"; }
+        [PsInclude]
+        public string Tryk { get => this.tryk?.getValueInStdUnits() + this.tryk?.uom ?? "Ukendt"; }
+
+        private string DetermineLayerName(Database database, bool _3D = false)
+        {
+            #region Determine correct layer name
+            string layerName = "GAS-";
+            string driftsstatusSuffix = "";
+
+            switch (this.Driftsstatus2)
+            {
+                case DriftsstatusType.underetablering:
+                case DriftsstatusType.idrift:
+                    break;
+                case DriftsstatusType.permanentudeafdrift:
+                    driftsstatusSuffix = "_UAD";
+                    break;
+                default:
+                    throw new System.Exception(
+                        $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus}!");
+            }
+
+            switch (Type)
+            {
+                case "transmissionsledning":
+                    layerName += "Transmissionsledning";
+                    break;
+                case "distributionsledning":
+                    layerName += "Distributionsledning";
+                    break;
+                case "fordelingsledning":
+                    layerName += "Fordelingsledning";
+                    break;
+                case "stikledning":
+                    layerName += "Stikledning";
+                    break;
+                case "Ukendt":
+                    layerName += "Ukendt";
+                    break;
+                default:
+                    layerName += Type;
+                    break;
+            }
+
+            layerName += driftsstatusSuffix;
+            if (_3D) layerName += "-3D";
+
+            database.CheckOrCreateLayer(layerName);
+            return layerName;
+            #endregion
+        }
+
         public Oid DrawEntity2D(Database database)
         {
-            throw new NotImplementedException();
+            //Create new polyline in the base class
+            Polyline pline = DrawPline2D(database).Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            pline.Layer = DetermineLayerName(database);
+
+            pline.ConstantWidth = this.UdvendigDiameterInStdUnits;
+
+            return pline.ObjectId;
         }
 
         public Oid DrawEntity3D(Database database)
         {
-            throw new NotImplementedException();
+            Polyline3d p3d = DrawPline3D(database)
+                .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            string layerName = DetermineLayerName(database, true);
+
+            p3d.Layer = layerName;
+
+            return p3d.Id;
         }
     }
     public partial class FoeringsroerType : ILerLedning
@@ -643,7 +712,7 @@ namespace LERImporter.Schema
         {
             if (this.medietype.IsNoE())
             {
-                Log.log($"WARNING! Element id {gmlid} has NO Medietype specified!");
+                //Log.log($"WARNING! Element id {gmlid} has NO Medietype specified!");
                 return MedietypeEnum.ukendt;
             }
 
@@ -834,7 +903,7 @@ namespace LERImporter.Schema
             ElledningTypeEnum type;
             if (Enum.TryParse(this.getLedningsType(), out type)) { }
             else { type = ElledningTypeEnum.other; }
-                
+
 
             switch (type)
             {

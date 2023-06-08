@@ -127,7 +127,19 @@ namespace LERImporter.Schema
         }
     }
     public partial class OliekomponentType : LedningskomponentType { }
-    public partial class GaskomponentType : LedningskomponentType { }
+    public partial class GaskomponentType : LedningskomponentType, ILerKomponent
+    {
+        [PsInclude]
+        public string Type { get => this.type.GetXmlEnumAttributeValueFromEnum(); }
+        [PsInclude]
+        public double Topkote { get => this.topkote?.GetDouble() ?? default; }
+
+        public Oid DrawComponent(Database database)
+        {
+            IEntityCreator creator = this.geometri.Item as IEntityCreator;
+            return creator.CreateEntity(database);
+        }
+    }
     public partial class ElkomponentType : LedningskomponentType, ILerKomponent
     {
         [PsInclude]
@@ -176,7 +188,7 @@ namespace LERImporter.Schema
         {
             if (this.medietype.IsNoE())
             {
-                Log.log($"WARNING! Element id {gmlid} has NO Medietype specified!");
+                //Log.log($"WARNING! Element id {gmlid} has NO Medietype specified!");
                 return MedietypeEnum.ukendt;
             }
 
