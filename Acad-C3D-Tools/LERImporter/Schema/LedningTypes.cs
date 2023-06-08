@@ -1006,7 +1006,9 @@ namespace LERImporter.Schema
     public partial class LedningstraceType : ILerLedning
     {
         [PsInclude]
-        public double Bredde { get => this.bredde?.Value ?? 0; }
+        public double Bredde { get => this.bredde?.getValueInStdUnits() ?? 0; }
+        [PsInclude]
+        public string BreddeUnits { get => this.bredde?.uom ?? ""; }
         [PsInclude]
         public string Forsyningsart { get => getForsyningsart(this.forsyningsart).ToString(); }
         [PsInclude]
@@ -1105,6 +1107,8 @@ namespace LERImporter.Schema
             Polyline pline = DrawPline2D(database).Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             pline.Layer = DetermineLayerName(database);
+
+            //Handle different units
 
             pline.ConstantWidth = this.Bredde;
 
