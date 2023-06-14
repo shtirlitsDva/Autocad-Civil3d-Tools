@@ -1114,7 +1114,7 @@ namespace IntersectUtilities.Dimensionering
                 try
                 {
                     #region Prepare sideloaded database
-                    dimDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\Templates\acadiso.dwt",
+                    dimDb.ReadDwgFile(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt",
                             FileOpenMode.OpenForReadAndAllShare, false, null);
                     #endregion
 
