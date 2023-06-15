@@ -13,7 +13,7 @@
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>LERImporter</RootNamespace>
-    <AssemblyName>uslwtlrj.1u4</AssemblyName>
+    <AssemblyName>LERImporter</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
