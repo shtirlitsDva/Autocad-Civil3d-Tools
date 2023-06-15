@@ -47,6 +47,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Log = LERImporter.SimpleLogger;
+using System.Xml.Linq;
 
 namespace LERImporter
 {
@@ -388,7 +389,7 @@ namespace LERImporter
 
                     Log.log($"Importing {file}");
 
-                    
+
                     string str = File.ReadAllText(file);
                     str = str.Replace("<ler:id>", "<ler:lerid>");
                     str = str.Replace("</ler:id>", "</ler:lerid>");
@@ -470,8 +471,8 @@ namespace LERImporter
             }
         }
 
-        [CommandMethod("TESTLER3DDATA")]
-        public void testler3ddata()
+        [CommandMethod("TESTLERDATA")]
+        public void testlerdata()
         {
             try
             {
@@ -496,31 +497,64 @@ namespace LERImporter
                 str = str.Replace("<ler:id>", "<ler:lerid>");
                 str = str.Replace("</ler:id>", "</ler:lerid>");
 
+                str = str.Replace("http://data.gov.dk/schemas/LER/1/gml", "http://data.gov.dk/schemas/LER/2/gml");
+
                 string modifiedFileName =
                     folderPath + "\\" + fileName + "_mod" + extension;
 
-                File.WriteAllText(modifiedFileName, str);
+                //Prepare a memory stream for translating
+                byte[] byteArray = Encoding.UTF8.GetBytes(str);
+
+                #region Modify the document to avoid errors on objects
+                using (MemoryStream ms = new MemoryStream(byteArray))
+                {
+                    var doc = XDocument.Load(ms);
+
+                    var gml = XNamespace.Get("http://www.opengis.net/gml/3.2");
+                    var ler = XNamespace.Get("http://data.gov.dk/schemas/LER/2/gml");
+
+                    // Find the offending elements
+                    var elkomponents = doc.Descendants(ler + "Elkomponent").ToList();
+
+                    foreach (var elkomponent in elkomponents)
+                    {
+                        // Check if this elkomponent has the offending enum value
+                        if (elkomponent.Element(ler + "type").Value == "other: føringsrør")
+                        {
+                            // Create a new Foeringsroer element
+                            var foeringsroer = new XElement(
+                                ler + "Foeringsroer",
+                                new XAttribute(XNamespace.Xmlns + "gml", gml),
+                                new XAttribute(gml + "lerid", elkomponent.Attribute(gml + "lerid").Value),
+                                // Copy or convert other elements as needed...
+                                // For example, to copy the id element:
+                                new XElement(elkomponent.Element(ler + "lerid")),
+                                // To convert the type element to a forsyningsart element:
+                                new XElement(ler + "forsyningsart", "el")  // Replace "el" with the actual value
+                            );
+
+                            // Replace the Elkomponent element with the Foeringsroer element
+                            elkomponent.ReplaceWith(foeringsroer);
+                            prdDbg(elkomponent.Element(ler + "lerid"));
+                        }
+                    }
+                    doc.Save(modifiedFileName);
+                }
+                #endregion
+
+
+
+
+                //File.WriteAllText(modifiedFileName, str);
                 #endregion
                 #endregion
 
                 Log.LogFileName = folderPath + "LerImport.log";
                 Log.log($"Importing {pathToGml}");
 
-                #region Deserialize gml
-                var serializer = new XmlSerializer(typeof(Schema.FeatureCollection));
-                Schema.FeatureCollection gf;
 
-                using (var fileStream = new FileStream(modifiedFileName, FileMode.Open))
-                {
-                    gf = (Schema.FeatureCollection)serializer.Deserialize(fileStream);
-                }
-                #endregion
 
-                #region Test LER data
 
-                LERImporter.ConsolidatedCreator.TestLerData(gf);
-
-                #endregion
 
             }
             catch (System.Exception ex)
