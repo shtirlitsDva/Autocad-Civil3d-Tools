@@ -13,7 +13,7 @@
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>LERImporter</RootNamespace>
-    <AssemblyName>LERImporter</AssemblyName>
+    <AssemblyName>uslwtlrj.1u4</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -127,6 +127,7 @@
       <Link>UtilsCommon.cs</Link>
     </Compile>
     <Compile Include="ConsolidatedCreator.cs" />
+    <Compile Include="Converters\Cerius.Elkomponent-Foeringsroer.cs" />
     <Compile Include="GmlToPropertySet.cs" />
     <Compile Include="LerImporter.cs" />
     <Compile Include="ObjectDumper\DumpOptions.cs" />

@@ -243,6 +243,7 @@ namespace LERImporter.Schema
         [XmlElement("Point", typeof(PointType))]
         [XmlElement("Surface", typeof(SurfaceType))]
         [XmlElement("MultiSurface", typeof(MultiSurfaceType))]
+        [XmlElement("LineString", typeof(LineStringType))]
         public AbstractGeometryType Item { get; set; }
     }
     [XmlRootAttribute("AbstractGeometry", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]

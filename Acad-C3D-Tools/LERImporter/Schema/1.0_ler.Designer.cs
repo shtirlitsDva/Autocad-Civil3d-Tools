@@ -5424,7 +5424,7 @@ namespace LERImporter.Schema
         /// status i relation til drift
         /// </summary>
         [XmlElement(IsNullable = true)]
-        public LedningskomponentTypeDriftsstatus driftsstatus { get; set; }
+        public DriftsstatusTypeType driftsstatus { get; set; }
         /// <summary>
         /// tidsangivelse der angiver hvornår etablering er færdig
         /// </summary>
@@ -5433,7 +5433,7 @@ namespace LERImporter.Schema
         /// kategori der angiver sikkerhedsrisiko for mennesker og/eller miljø ved skade på ledningskomponent
         /// </summary>
         [XmlElement(IsNullable = true)]
-        public LedningskomponentTypeFareklasse fareklasse { get; set; }
+        public FareklasseTypeType fareklasse { get; set; }
         /// <summary>
         /// sproglig uafhængig rækkefølge af tegn der er egnet til unikt og permanent at identificere det som det er knyttet til
         /// </summary>
@@ -5446,7 +5446,7 @@ namespace LERImporter.Schema
         /// kategori for nøjagtighed af angivelsen af et objekts placering i et koordinatreferencesystem
         /// </summary>
         [XmlElement(IsNullable = true)]
-        public LedningskomponentTypeNoejagtighedsklasse noejagtighedsklasse { get; set; }
+        public NoejagtighedsklasseTypeType noejagtighedsklasse { get; set; }
         /// <summary>
         /// tidspunkt hvor registrering er foretaget
         /// </summary>
@@ -5528,7 +5528,7 @@ namespace LERImporter.Schema
     
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
-    public partial class LedningskomponentTypeFareklasse
+    public partial class FareklasseTypeType
     {
         [XmlAttribute]
         public string nilReason { get; set; }
@@ -5568,7 +5568,7 @@ namespace LERImporter.Schema
     
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
-    public partial class LedningskomponentTypeNoejagtighedsklasse
+    public partial class NoejagtighedsklasseTypeType
     {
         [XmlAttribute]
         public string nilReason { get; set; }
@@ -6288,7 +6288,7 @@ namespace LERImporter.Schema
         /// status i relation til drift
         /// </summary>
         [XmlElement(IsNullable = true)]
-        public LedningEllerLedningstraceTypeDriftsstatus driftsstatus { get; set; }
+        public DriftsstatusTypeType driftsstatus { get; set; }
         /// <summary>
         /// tidsangivelse der angiver hvornår etablering er færdig
         /// </summary>
@@ -6297,7 +6297,7 @@ namespace LERImporter.Schema
         /// kategori der angiver sikkerhedsrisiko for mennesker og/eller miljø ved skade på ledning
         /// </summary>
         [XmlElement(IsNullable = true)]
-        public LedningEllerLedningstraceTypeFareklasse fareklasse { get; set; }
+        public FareklasseTypeType fareklasse { get; set; }
         /// <summary>
         /// måden et objekts geometri repræsenteres på, afhængig af formålet med en visualisering
         /// </summary>
@@ -6307,7 +6307,7 @@ namespace LERImporter.Schema
         /// kategori for nøjagtighed af angivelsen af et objekts placering i et koordinatreferencesystem
         /// </summary>
         [XmlElement(IsNullable = true)]
-        public LedningEllerLedningstraceTypeNoejagtighedsklasse noejagtighedsklasse { get; set; }
+        public NoejagtighedsklasseTypeType noejagtighedsklasse { get; set; }
         /// <summary>
         /// sproglig uafhængig rækkefølge af tegn der er egnet til unikt og permanent at identificere det som det er knyttet til
         /// </summary>
@@ -6347,7 +6347,7 @@ namespace LERImporter.Schema
     
     [DesignerCategoryAttribute("code")]
     [XmlTypeAttribute(AnonymousType = true, Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
-    public partial class LedningEllerLedningstraceTypeDriftsstatus
+    public partial class DriftsstatusTypeType
     {
         [XmlAttribute]
         public string nilReason { get; set; }
