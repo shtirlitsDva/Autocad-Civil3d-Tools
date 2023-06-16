@@ -277,7 +277,7 @@ namespace LERImporter
                 Log.LogFileName = folderPath + "LerImport.log";
                 Log.log($"Importing {pathToGml}");
 
-                #region Replace ler:id with ler:lerid, ler1 with ler2
+                #region Handle bad objects
                 string str = File.ReadAllText(pathToGml);
                 str = str.Replace("<ler:id>", "<ler:lerid>");
                 str = str.Replace("</ler:id>", "</ler:lerid>");
@@ -287,7 +287,17 @@ namespace LERImporter
                 string modifiedFileName =
                     folderPath + "\\" + fileName + "_mod" + extension;
 
-                File.WriteAllText(modifiedFileName, str);
+                //Prepare a memory stream for translating
+                byte[] byteArray = Encoding.UTF8.GetBytes(str);
+
+                using (MemoryStream ms = new MemoryStream(byteArray))
+                {
+                    var doc = XDocument.Load(ms);
+
+                    doc = Converter_Cerius_ElkomponentToFoeringsroer.Convert(doc);
+
+                    doc.Save(modifiedFileName);
+                }
                 #endregion
 
                 #region Deserialize gml
@@ -493,8 +503,8 @@ namespace LERImporter
                 string fileName = Path.GetFileNameWithoutExtension(pathToGml);
                 string extension = Path.GetExtension(pathToGml);
                 string folderPath = Path.GetDirectoryName(pathToGml) + "\\";
-
-                #region Replace ler:id with ler:lerid
+                #endregion
+                #region Handle bad objects
                 string str = File.ReadAllText(pathToGml);
                 str = str.Replace("<ler:id>", "<ler:lerid>");
                 str = str.Replace("</ler:id>", "</ler:lerid>");
@@ -507,19 +517,9 @@ namespace LERImporter
                 //Prepare a memory stream for translating
                 byte[] byteArray = Encoding.UTF8.GetBytes(str);
 
-                #region Modify the document to avoid errors on objects
-                using (MemoryStream ms = new MemoryStream(byteArray))
-                {
-                    var doc = XDocument.Load(ms);
-
-                    doc = Converter_Cerius_ElkomponentToFoeringsroer.Convert(doc);
-
-                    doc.Save(modifiedFileName);
-                }
-                #endregion
+                
 
                 //File.WriteAllText(modifiedFileName, str);
-                #endregion
                 #endregion
 
                 Log.LogFileName = folderPath + "LerImport.log";
