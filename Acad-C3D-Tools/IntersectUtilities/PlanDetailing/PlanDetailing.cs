@@ -205,6 +205,18 @@ namespace IntersectUtilities
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                         #endregion
 
+                        //Check to see if sequences contains anything
+                        if (curves.Count == 0 && brs.Count == 0)
+                        {
+                            prdDbg($"SKIP: Alignment {al.Name} does not have any components in the drawing!");
+                            continue;
+                        }
+                        if (curves.Count == 0 && brs.Count != 0)
+                        {
+                            prdDbg($"ERROR: Alignment {al.Name} has only {brs.Count} block(s) and 0 curves!");
+                            continue;
+                        }
+
                         TypeOfIteration iterType = 0;
 
                         //Sort curves according to their DN -> bigger DN at start
@@ -504,7 +516,16 @@ namespace IntersectUtilities
 
                             psm.WritePropertyString(wpBr, driPipelineData.BelongsToAlignment, wp.Alignment.Name);
 
-                            wpBr.AttSync();
+                            try
+                            {
+                                wpBr.AttSync();
+                            }
+                            catch (System.Exception)
+                            {
+                                prdDbg("ERROR: " + wpBr.Position);
+                                idx++;
+                                continue;
+                            }
 
                             idx++;
                         }
