@@ -521,8 +521,11 @@ namespace IntersectUtilities
         }
         public static void UpdatePropertySetDefinition(Database db, PSetDefs.DefinedSets propertySetName)
         {
-            if (db.TransactionManager.TopTransaction != null) throw new System.Exception(
-                "UpdatePropertySetDefinition must not run inside another Transaction!");
+            if (db.TransactionManager.TopTransaction != null)
+            {
+                prdDbg($"Some method tried to update PS Def {propertySetName} inside a transaction!");
+                return;
+            }
 
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
