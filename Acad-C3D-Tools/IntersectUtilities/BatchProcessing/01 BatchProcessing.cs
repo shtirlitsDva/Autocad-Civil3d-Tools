@@ -971,6 +971,109 @@ namespace IntersectUtilities
             return new Result();
         }
         [MethodDescription(
+            "Detach and attach an xref by name with optional draw order",
+            "Detacher en xref i tegningen og attacher den igen\n" +
+            "ved navn (uden .dwg), samtidig giver mulighed for\n" +
+            "at angive en anden xref den skal placeres under\n" +
+            "i draw order",
+            new string[2] { "Xref Navn (uden .dwg)", "Xref Navn til at placere under i draw order" })]
+        public static Result detachattachdwg(
+            Database xDb, string detachXrefName, string drawOrderXref)
+        {
+            string xrefPath = "";
+            string xrefLayerName = "";
+
+            using (Transaction nestedTx = xDb.TransactionManager.StartTransaction())
+            {
+                BlockTable bt = xDb.BlockTableId.Go<BlockTable>(nestedTx, OpenMode.ForRead);
+                BlockTableRecord ms = xDb.GetModelspaceForWrite();
+                DrawOrderTable dot = ms.DrawOrderTableId.Go<DrawOrderTable>(
+                    nestedTx, OpenMode.ForWrite);
+
+
+
+                foreach (Oid oid in ms)
+                {
+                    var br = oid.Go<BlockReference>(nestedTx);
+                    if (br == null) continue;
+                    BlockTableRecord btr = nestedTx.GetObject(br.BlockTableRecord, OpenMode.ForWrite) as BlockTableRecord;
+                    if (btr.IsFromExternalReference && btr.Name == detachXrefName)
+                    {
+                        prdDbg("Found specified xref!");
+                        xrefPath = btr.PathName;
+                        xrefLayerName = br.Layer;
+                        xDb.DetachXref(btr.ObjectId);
+                    }
+                }
+
+                if (xrefPath.IsNoE() || xrefLayerName.IsNoE())
+                {
+                    prdDbg("Specified xref NOT found or layer name is empty!");
+                    nestedTx.Abort();
+                    return new Result(
+                        ResultStatus.FatalError, $"Xref {detachXrefName} not found or layer name is empty!");
+                }
+
+                nestedTx.Commit();
+            }
+
+            using (Transaction nestedTx = xDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Oid xrefId = xDb.AttachXref(xrefPath, detachXrefName);
+                    if (xrefId == Oid.Null)
+                    {
+                        nestedTx.Abort();
+                        return new Result(
+                            ResultStatus.FatalError, $"Could not reattach xref {detachXrefName}!");
+                    }
+
+                    Point3d insPt = new Point3d(0, 0, 0);
+                    using (BlockReference br = new BlockReference(insPt, xrefId))
+                    {
+                        BlockTableRecord modelSpace = xDb.GetModelspaceForWrite();
+                        modelSpace.AppendEntity(br);
+                        nestedTx.AddNewlyCreatedDBObject(br, true);
+
+                        br.Layer = xrefLayerName;
+
+                        if (drawOrderXref.IsNotNoE())
+                        {
+                            foreach (Oid oid in modelSpace)
+                            {
+                                var doBr = oid.Go<BlockReference>(nestedTx);
+                                if (doBr == null) continue;
+                                BlockTableRecord btr = nestedTx.GetObject(doBr.BlockTableRecord, OpenMode.ForWrite) as BlockTableRecord;
+                                if (btr.IsFromExternalReference && btr.Name == drawOrderXref)
+                                {
+                                    prdDbg("Found specified draw order xref!");
+
+                                    DrawOrderTable dot = modelSpace.DrawOrderTableId.Go<DrawOrderTable>(nestedTx);
+                                    dot.CheckOrOpenForWrite();
+
+                                    ObjectIdCollection idCol = new ObjectIdCollection(new Oid[1] { br.Id });
+
+                                    dot.MoveBelow(idCol, doBr.Id);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    nestedTx.Abort();
+                    return new Result(
+                        ResultStatus.FatalError,
+                        ex.ToString());
+                }
+
+                nestedTx.Commit();
+            }
+
+            return new Result();
+        }
+        [MethodDescription(
             "Recreate detailing",
             "Sletter eksisterende detaljering\n" +
             "af længdeprofiler og laver ny",

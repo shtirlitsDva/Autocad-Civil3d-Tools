@@ -2412,7 +2412,9 @@ namespace IntersectUtilities.UtilsCommon
             Autodesk.AutoCAD.DatabaseServices.OpenMode openMode =
             Autodesk.AutoCAD.DatabaseServices.OpenMode.ForRead) where T : Autodesk.AutoCAD.DatabaseServices.DBObject
         {
-            return (T)tx.GetObject(oid, openMode, false);
+            var obj = tx.GetObject(oid, openMode, false);
+            if (obj is T) return (T)obj;
+            else return null;
         }
         public static T Go<T>(this Handle handle, Database database) where T : Autodesk.AutoCAD.DatabaseServices.DBObject
         {
