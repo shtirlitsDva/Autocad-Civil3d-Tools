@@ -523,6 +523,7 @@ namespace LERImporter.Schema
         public ForsyningsartEnum getForsyningsart2 { get => getForsyningsart(forsyningsart); }
         private ForsyningsartEnum getForsyningsart(string[] forsyningsart)
         {
+            if (forsyningsart == null) return ForsyningsartEnum.none;
             if (forsyningsart.Length == 0) return ForsyningsartEnum.none;
             if (forsyningsart.Length > 1) Log.log($"WARNING! Flere forsyningsarter på Føringsrør {this.GMLTypeID}.");
             string art = forsyningsart[0];
@@ -561,16 +562,16 @@ namespace LERImporter.Schema
                     break;
                 default:
                     throw new System.Exception(
-                        $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus.ToString()}!");
+                        $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus}!");
             }
 
             switch (this.getForsyningsart2)
             {
                 case ForsyningsartEnum.none:
-                    layerName = "0-ERROR-ForingsrørForsyningsArt-none";
+                    layerName = "Foringsrør-none";
                     break;
                 case ForsyningsartEnum.other:
-                    layerName = "0-ERROR-ForingsrørForsyningsArt-other";
+                    layerName = "Foringsrør-other";
                     break;
                 case ForsyningsartEnum.afløb:
                     layerName = "Foringsrør-Afløb";
@@ -594,7 +595,7 @@ namespace LERImporter.Schema
                     layerName = "Foringsrør-Vand";
                     break;
                 default:
-                    layerName = "0-ERROR-ForingsrørForsyningsArt-other";
+                    layerName = "0-ERROR-ForingsrørForsyningsArt-undefined";
                     break;
             }
 
