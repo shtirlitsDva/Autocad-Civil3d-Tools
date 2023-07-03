@@ -12,6 +12,27 @@ using LERImporter.Schema;
 
 namespace LERImporter.Converters
 {
+    internal static class Converter_TermiskKomponent_HandleNonStandardValuesForEnums
+    {
+        internal static XDocument Convert(XDocument doc)
+        {
+            var gml = XNamespace.Get("http://www.opengis.net/gml/3.2");
+            var ler = XNamespace.Get("http://data.gov.dk/schemas/LER/2/gml");
+
+            var items = doc.Descendants(ler + "TermiskKomponent").ToList();
+
+            foreach ( var item in items )
+            {
+                //Fix non-existing enum values, MUST RUN AFTER OTHER CONVERTERS
+                if (!Enum.IsDefined(typeof(TermiskkomponenttypeType), item.Element(ler + "type").Value))
+                {
+                    item.Element(ler + "type").Value = "custom";
+                }
+            }
+
+            return doc;
+        }
+    }
     internal static class Converter_Cerius_ElkomponentToFoeringsroer
     {
         internal static XDocument Convert(XDocument doc)
@@ -28,7 +49,7 @@ namespace LERImporter.Converters
             ElkomponentType elkomponentInstance;
             foreach (var elkomponentXml in elkomponents)
             {
-                // Check if this elkomponent has the offending enum value
+                // Check if this elkomponent is Cerius føringsrør
                 if (elkomponentXml.Element(ler + "type").Value == "other: føringsrør")
                 {
                     elkomponentXml.Element(ler + "type").Value = "muffe";
@@ -40,6 +61,7 @@ namespace LERImporter.Converters
 
                     if (elkomponentInstance == null)
                         throw new System.Exception("Micro deserialization of Elkomponent failed!");
+                    IntersectUtilities.UtilsCommon.Utils.prdDbg(elkomponentInstance.GmlId);
 
                     var foeringsroerInstance = new FoeringsroerType
                     {
@@ -52,12 +74,22 @@ namespace LERImporter.Converters
                         lerid = elkomponentInstance.lerid,
                         gmlid = elkomponentInstance.gmlid,
                         noejagtighedsklasse = elkomponentInstance.noejagtighedsklasse,
-                        geometri = new CurvePropertyType
-                        {
-                            AbstractCurve =
-                             (LineStringType)elkomponentInstance.geometri.Item,
-                        },
                     };
+
+                    if (elkomponentInstance.geometri.Item is LineStringType lst)
+                    {
+                        foeringsroerInstance.geometri = new GeometryPropertyType
+                        {
+                            Item = lst
+                        };
+                    }
+                    else if (elkomponentInstance.geometri.Item is PolygonType pt)
+                    {
+                        foeringsroerInstance.geometri = new GeometryPropertyType
+                        {
+                            Item = pt
+                        };
+                    }
 
                     XElement newFoeringsroer;
                     using (var memStream = new MemoryStream())
@@ -68,7 +100,12 @@ namespace LERImporter.Converters
                     }
 
                     elkomponentXml.ReplaceWith(newFoeringsroer);
-                    IntersectUtilities.UtilsCommon.Utils.prdDbg(foeringsroerInstance.GmlId);
+                }
+
+                //Fix Cerius non-existing enum values, MUST RUN AFTER OTHER CONVERTERS
+                else if (!Enum.IsDefined(typeof(ElkomponenttypeType), elkomponentXml.Element(ler + "type").Value))
+                {
+                    elkomponentXml.Element(ler + "type").Value = "custom";
                 }
             }
 

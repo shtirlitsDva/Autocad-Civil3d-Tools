@@ -287,6 +287,7 @@ namespace LERImporter
                 string modifiedFileName =
                     folderPath + "\\" + fileName + "_mod" + extension;
 
+                //Handling of various badly formed GML quirks
                 //Prepare a memory stream for translating
                 byte[] byteArray = Encoding.UTF8.GetBytes(str);
 
@@ -295,6 +296,7 @@ namespace LERImporter
                     var doc = XDocument.Load(ms);
 
                     doc = Converter_Cerius_ElkomponentToFoeringsroer.Convert(doc);
+                    doc = Converter_TermiskKomponent_HandleNonStandardValuesForEnums.Convert(doc);
 
                     doc.Save(modifiedFileName);
                 }

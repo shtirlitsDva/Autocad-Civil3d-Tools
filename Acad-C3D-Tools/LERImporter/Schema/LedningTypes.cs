@@ -112,7 +112,8 @@ namespace LERImporter.Schema
         public string UdvendigMateriale { get => this.udvendigMateriale ?? ""; }
         public Oid DrawPline2D(Database database)
         {
-            IPointParser parser = this.geometri.AbstractCurve as IPointParser;
+            //IPointParser parser = this.geometri.AbstractCurve as IPointParser;
+            IPointParser parser = this.geometri.Item as IPointParser;
 
             Point3d[] points = parser.Get3DPoints();
             Polyline polyline = new Polyline(points.Length);
@@ -126,7 +127,8 @@ namespace LERImporter.Schema
         }
         public Oid DrawPline3D(Database database)
         {
-            IPointParser parser = this.geometri.AbstractCurve as IPointParser;
+            //IPointParser parser = this.geometri.AbstractCurve as IPointParser;
+            IPointParser parser = this.geometri.Item as IPointParser;
 
             Point3d[] points = parser.Get3DPoints();
             Point3dCollection col = new Point3dCollection(points);

@@ -5895,6 +5895,10 @@ namespace LERImporter.Schema
     public enum TermiskkomponenttypeType
     {
         /// <summary>
+        /// Default value for non-standard values
+        /// </summary>
+        custom,
+        /// <summary>
         /// punkt hvor en ledning er påsat en anden, mindre ledning
         /// </summary>
         afgrening,
@@ -6142,6 +6146,10 @@ namespace LERImporter.Schema
     [XmlTypeAttribute(Namespace = "http://data.gov.dk/schemas/LER/2/gml")]
     public enum ElkomponenttypeType
     {
+        /// <summary>
+        /// værdi tilføjet for at undslippe ikke-definerede enumværdier i XML
+        /// </summary>
+        custom,
         /// <summary>
         /// mast der benyttes til ledninger med en spænding over 700V
         /// </summary>
@@ -6518,7 +6526,8 @@ namespace LERImporter.Schema
         /// <summary>
         /// geografisk placering af midterlinjen
         /// </summary>
-        public CurvePropertyType geometri { get; set; }
+        //public CurvePropertyType geometri { get; set; }
+        public GeometryPropertyType geometri { get; set; }
         /// <summary>
         /// placering i forhold til terræn
         /// </summary>
