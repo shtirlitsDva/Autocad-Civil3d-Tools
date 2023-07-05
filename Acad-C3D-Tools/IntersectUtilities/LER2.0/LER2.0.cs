@@ -49,7 +49,6 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using System.Windows.Documents;
 
 namespace IntersectUtilities
 {
@@ -66,13 +65,6 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    ///////////////////////////
-                    bool atZero(double value) => value > -0.0001 && value < 0.0001;
-                    bool at99(double value) => value < -98.0;
-                    bool is3D(double value) => !atZero(value) && !at99(value);
-                    bool is2D(double value) => atZero(value) || at99(value);
-                    ///////////////////////////
-
                     HashSet<Polyline3d> pls = localDb.HashSetOfType<Polyline3d>(tx, true);
                     foreach (Polyline3d pl in pls)
                     {
@@ -80,7 +72,7 @@ namespace IntersectUtilities
                         HashSet<double> elevs = new HashSet<double>();
                         for (int i = 0; i < vertices.Length; i++) elevs.Add(vertices[i].Position.Z);
 
-                        if (elevs.All(x => is2D(x)))
+                        if (elevs.All(x => x.is2D()))
                         {
                             for (int i = 0; i < vertices.Length; i++)
                             {
@@ -103,7 +95,7 @@ namespace IntersectUtilities
                             }
                         }
 
-                        if (elevs.All(x => is3D(x)))
+                        if (elevs.All(x => x.is3D()))
                         {
                             //Handle the layer name
                             string currentLayerName = pl.Layer;
@@ -135,11 +127,6 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
-
-            bool atZero(double value) => value > -0.0001 && value < 0.0001;
-            bool at99(double value) => value < -98.0;
-            bool is3D(double value) => !atZero(value) && !at99(value);
-            bool is2D(double value) => atZero(value) || at99(value);
 
             #region Read Csv Data for Layers and Depth
 
@@ -295,6 +282,215 @@ namespace IntersectUtilities
                 xRefSurfaceTx.Abort();
                 xRefSurfaceTx.Dispose();
                 xRefSurfaceDB.Dispose();
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("FLATTENPL3D")]
+        public void flattenpl3d()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            while (true)
+            {
+                var id = Interaction.GetEntity("Select Plyline3d to flatten: ", typeof(Polyline3d));
+                if (id == Oid.Null) return;
+
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        #region Polylines 3d
+                        Polyline3d p3d = id.Go<Polyline3d>(tx, OpenMode.ForWrite);
+
+                        PolylineVertex3d[] vertices = p3d.GetVertices(tx);
+
+                        for (int i = 0; i < vertices.Length; i++)
+                        {
+                            vertices[i].CheckOrOpenForWrite();
+                            vertices[i].Position = new Point3d(
+                                vertices[i].Position.X, vertices[i].Position.Y, -99);
+                        }
+                        #endregion
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        prdDbg(ex.ToString());
+                        return;
+                    }
+                    tx.Commit();
+                }
+            }
+        }
+
+        [CommandMethod("LER2INTERPOLATEPL3DS")]
+        public void ler2interpolatepl3ds()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            //Process all lines and detect with nodes at both ends
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Load linework from local db
+                    HashSet<Polyline3d> localPlines3d =
+                        localDb.HashSetOfType<Polyline3d>(tx, true);
+                    prdDbg($"\nNr. of local 3D polies: {localPlines3d.Count}");
+                    #endregion
+
+                    #region Poly3ds with knudepunkter at ends
+                    foreach (Polyline3d pline3d in localPlines3d)
+                    {
+                        var vertices = pline3d.GetVertices(tx);
+                        int endIdx = vertices.Length - 1;
+
+                        double startElevation = vertices[0].Position.Z;
+                        double endElevation = vertices[endIdx].Position.Z; ;
+
+                        if (startElevation.is3D() && endElevation.is3D())
+                        {
+                            //Trig
+                            //Start elevation is higher, thus we must start from backwards
+                            if (startElevation > endElevation)
+                            {
+                                double AB = pline3d.GetHorizontalLength(tx);
+                                //editor.WriteMessage($"\nAB: {AB}.");
+                                double AAmark = startElevation - endElevation;
+                                //editor.WriteMessage($"\nAAmark: {AAmark}.");
+                                double PB = 0;
+
+                                for (int i = endIdx; i >= 0; i--)
+                                {
+                                    //We don't need to interpolate start and end points,
+                                    //So skip them
+                                    if (i != 0 && i != endIdx)
+                                    {
+                                        PB += vertices[i + 1].Position.DistanceHorizontalTo(
+                                             vertices[i].Position);
+                                        //editor.WriteMessage($"\nPB: {PB}.");
+                                        double newElevation = endElevation + PB * (AAmark / AB);
+                                        //editor.WriteMessage($"\nNew elevation: {newElevation}.");
+                                        //Change the elevation
+                                        vertices[i].CheckOrOpenForWrite();
+                                        vertices[i].Position = new Point3d(
+                                            vertices[i].Position.X, vertices[i].Position.Y, newElevation);
+                                    }
+                                }
+                            }
+                            else if (startElevation < endElevation)
+                            {
+                                double AB = pline3d.GetHorizontalLength(tx);
+                                double AAmark = endElevation - startElevation;
+                                double PB = 0;
+
+                                for (int i = 0; i < endIdx + 1; i++)
+                                {
+                                    //We don't need to interpolate start and end points,
+                                    //So skip them
+                                    if (i != 0 && i != endIdx)
+                                    {
+                                        PB += vertices[i - 1].Position.DistanceHorizontalTo(
+                                             vertices[i].Position);
+                                        double newElevation = startElevation + PB * (AAmark / AB);
+                                        //editor.WriteMessage($"\nNew elevation: {newElevation}.");
+                                        //Change the elevation
+                                        vertices[i].CheckOrOpenForWrite();
+                                        vertices[i].Position = new Point3d(
+                                            vertices[i].Position.X, vertices[i].Position.Y, newElevation);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                prdDbg($"\nElevations are the same! " +
+                                    $"Start: {startElevation}, End: {endElevation}.");
+                                for (int i = 0; i < endIdx + 1; i++)
+                                {
+                                    //We don't need to interpolate start and end points,
+                                    //So skip them
+                                    if (i != 0 && i != endIdx)
+                                    {
+                                        //Change the elevation
+                                        vertices[i].CheckOrOpenForWrite();
+                                        vertices[i].Position = new Point3d(
+                                            vertices[i].Position.X, vertices[i].Position.Y, startElevation);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("LER2DETECTCOINCIDENTENDS")]
+        public void ler2detectcoincidentends()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            //Process all lines and detect ends, that are coincident with another vertex
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Load linework from local db
+                    HashSet<Polyline3d> localPlines3d =
+                        localDb.HashSetOfType<Polyline3d>(tx, true);
+                    prdDbg($"\nNr. of local 3D polies: {localPlines3d.Count}");
+
+                    //Gather all endpoints
+                    var locs3d = new HashSet<(Point3d loc, Polyline3d host, int idx)>();
+                    var locs2d = new HashSet<(Point3d loc, Polyline3d host, int idx)>();
+
+                    foreach (Polyline3d pline3d in localPlines3d)
+                    {
+                        var vertices = pline3d.GetVertices(tx);
+                        int endIdx = vertices.Length - 1;
+
+                        double startElevation = vertices[0].Position.Z;
+                        double endElevation = vertices[endIdx].Position.Z;
+
+                        if (startElevation.is2D()) locs2d.Add((vertices[0].Position, pline3d, 0));
+                        else locs3d.Add((vertices[0].Position, pline3d, 0));
+
+                        if (endElevation.is2D()) locs2d.Add((vertices[endIdx].Position, pline3d, endIdx));
+                        else locs3d.Add((vertices[endIdx].Position, pline3d, endIdx));
+                    }
+
+                    //Analyze points
+                    foreach (var loc2d in locs2d)
+                    {
+                        //Detect the coincident 3d location
+                        var loc3d = locs3d.Where(
+                            x => loc2d.loc.HorizontalEqualz(x.loc, 0.001)).FirstOrDefault();
+
+                        if (loc3d == default) continue;
+
+                        var vert = loc2d.host.GetVertices(tx)[loc2d.idx];
+                        vert.CheckOrOpenForWrite();
+                        vert.Position = loc3d.loc;
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
                 tx.Commit();
             }
         }

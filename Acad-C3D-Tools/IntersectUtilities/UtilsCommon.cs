@@ -66,6 +66,10 @@ namespace IntersectUtilities.UtilsCommon
     }
     public static class Utils
     {
+        public static bool atZero(this double value) => value > -0.0001 && value < 0.0001;
+        public static bool at99(this double value) => value < -98.0;
+        public static bool is3D(this double value) => !atZero(value) && !at99(value);
+        public static bool is2D(this double value) => atZero(value) || at99(value);
         public static void prdDbg(string msg)
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -122,12 +126,10 @@ namespace IntersectUtilities.UtilsCommon
 
             return null;
         }
-
         public static string RemoveSpecialCharacters(string str, string regex)
         {
             return Regex.Replace(str, regex, "", RegexOptions.Compiled);
         }
-
         public static Dictionary<string, Color> AutocadStdColors = new Dictionary<string, Color>()
         {
             {"byblock", Color.FromColorIndex(ColorMethod.ByAci, 0) },
@@ -141,7 +143,6 @@ namespace IntersectUtilities.UtilsCommon
             {"grey", Color.FromColorIndex(ColorMethod.ByAci, 8) },
             {"bylayer", Color.FromColorIndex(ColorMethod.ByAci, 256) },
         };
-
         /// <summary>
         /// Parses one of the following patterns to an Autocad Color:
         /// Index Color: ddd
