@@ -87,7 +87,7 @@ namespace IntersectUtilities
                             string currentLayerName = pl.Layer;
                             if (currentLayerName.Contains("-3D"))
                             {
-                                string newLayerName = currentLayerName.Replace("-3D", "");
+                                string newLayerName = currentLayerName.Replace("-3D", "-2D");
                                 localDb.CheckOrCreateLayer(newLayerName);
 
                                 pl.CheckOrOpenForWrite();
