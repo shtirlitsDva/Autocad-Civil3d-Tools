@@ -1655,7 +1655,7 @@ namespace IntersectUtilities
 
             foreach (Curve curve in curves)
             {
-                if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
+                if (curve.GetDistanceAtParameter(curve.EndParam) < 0.0001) continue;
                 Point3d closestPoint = curve.GetClosestPointTo(samplePoint, false);
                 if (closestPoint != default)
                     curveDistTuples.Add(
@@ -1682,7 +1682,7 @@ namespace IntersectUtilities
                     sizes.Add(
                         ReadComponentDN2Int(reducer, dynBlocks));
                 }
-
+                string name = al.Name;
                 minDn = sizes.Min();
                 maxDn = sizes.Max();
             }
