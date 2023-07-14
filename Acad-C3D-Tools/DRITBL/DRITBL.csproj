@@ -35,13 +35,27 @@
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2024\accoremgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="acdbmgd">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Autodesk\AutoCAD 2024\acdbmgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="acmgd">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2024\acmgd.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="AecBaseMgd">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Autodesk\AutoCAD 2024\ACA\AecBaseMgd.dll</HintPath>
+    </Reference>
+    <Reference Include="AeccDbMgd">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Autodesk\AutoCAD 2024\C3D\AeccDbMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="AecPropDataMgd">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2024\ACA\AecPropDataMgd.dll</HintPath>
       <Private>False</Private>
+    </Reference>
+    <Reference Include="ManagedMapApi">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Autodesk\AutoCAD 2024\Map\ManagedMapApi.dll</HintPath>
     </Reference>
     <Reference Include="NetTopologySuite, Version=2.0.0.0, Culture=neutral, PublicKeyToken=f580a05016ebada1, processorArchitecture=MSIL">
       <HintPath>..\packages\NetTopologySuite.2.5.0\lib\netstandard2.0\NetTopologySuite.dll</HintPath>
@@ -61,6 +75,7 @@
     <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=4.0.4.1, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.4.5.3\lib\net461\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
     </Reference>
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -69,7 +84,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Class1.cs" />
+    <Compile Include="..\IntersectUtilities\PipeSchedule.cs">
+      <Link>PipeSchedule.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\UtilsCommon.cs">
+      <Link>UtilsCommon.cs</Link>
+    </Compile>
+    <Compile Include="DRITBL.cs" />
+    <Compile Include="MoreLinq\DistinctBy.cs" />
+    <Compile Include="MoreLinq\MoreLinq.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
