@@ -57,6 +57,7 @@
     <Reference Include="ManagedMapApi">
       <HintPath>..\..\..\..\..\..\..\..\Program Files\Autodesk\AutoCAD 2024\Map\ManagedMapApi.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="NetTopologySuite, Version=2.0.0.0, Culture=neutral, PublicKeyToken=f580a05016ebada1, processorArchitecture=MSIL">
       <HintPath>..\packages\NetTopologySuite.2.5.0\lib\netstandard2.0\NetTopologySuite.dll</HintPath>
     </Reference>
@@ -84,6 +85,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\IntersectUtilities\CsvReader.cs">
+      <Link>CsvReader.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\DataReferenceOptions.cs">
+      <Link>DataReferenceOptions.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\PipeSchedule.cs">
       <Link>PipeSchedule.cs</Link>
     </Compile>

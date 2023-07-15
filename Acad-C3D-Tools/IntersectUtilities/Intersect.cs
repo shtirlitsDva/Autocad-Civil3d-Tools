@@ -6304,12 +6304,14 @@ namespace IntersectUtilities
                     promptEntityOptions1.SetRejectMessage("\n Not a XREF");
                     promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
                     PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) AbortGracefully(tx, "No input!");
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) 
+                    { AbortGracefully("No input!", localDb); return; }
                     Oid blkObjId = entity1.ObjectId;
                     BlockReference blkRef = tx.GetObject(blkObjId, OpenMode.ForRead, false) as BlockReference;
 
                     BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
-                    if (!blockDef.IsFromExternalReference) AbortGracefully(tx, "Selected object is not an XREF!");
+                    if (!blockDef.IsFromExternalReference)
+                    { AbortGracefully("Selected object is not an XREF!", localDb); return; }
 
                     // open the xref database
                     Database xrefDb = new Database(false, true);
@@ -6460,12 +6462,14 @@ namespace IntersectUtilities
                     promptEntityOptions1.SetRejectMessage("\n Not a XREF");
                     promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
                     PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) AbortGracefully(tx, "No input!");
+                    if (((PromptResult)entity1).Status != PromptStatus.OK)
+                    { AbortGracefully("No input!", localDb); return; }
                     Oid blkObjId = entity1.ObjectId;
                     BlockReference blkRef = tx.GetObject(blkObjId, OpenMode.ForRead, false) as BlockReference;
 
                     BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
-                    if (!blockDef.IsFromExternalReference) AbortGracefully(tx, "Selected object is not an XREF!");
+                    if (!blockDef.IsFromExternalReference)
+                    { AbortGracefully("Selected object is not an XREF!", localDb); return; }
 
                     // open the xref database
                     Database xrefDb = new Database(false, true);
@@ -6713,9 +6717,10 @@ namespace IntersectUtilities
                 {
                     int lines = Interaction.GetInteger("Enter number of lines for AutoCAD command line history: ");
 
-                    if (lines == -1) AbortGracefully(tx, "Number of lines cancelled!");
+                    if (lines == -1) { AbortGracefully("Number of lines cancelled!", localDb); return; }
 
-                    if (lines < 25 || lines > 2048) AbortGracefully(tx, "Number of lines must be between 25 and 2048!");
+                    if (lines < 25 || lines > 2048)
+                    { AbortGracefully("Number of lines must be between 25 and 2048!", localDb); return; }
 
                     doc.SendStringToExecute($"(SETENV \"CmdHistLines\" \"{lines}\")\n", true, false, false);
                 }
@@ -6744,7 +6749,7 @@ namespace IntersectUtilities
                 {
                     Oid oid = Interaction.GetEntity("Select polyline til TBL områder: ");
 
-                    if (oid == Oid.Null) AbortGracefully(tx, "Selection of entity aborted!");
+                    if (oid == Oid.Null) { AbortGracefully("Selection of entity aborted!", localDb); return; }
 
                     Entity ent = oid.Go<Entity>(tx, OpenMode.ForWrite);
 
@@ -6770,7 +6775,7 @@ namespace IntersectUtilities
                     //};
 
                     string kwd = Interaction.GetKeywords("Angiv belægning: ", kwds);
-                    if (kwd == null) AbortGracefully(tx, "Input annulleret!");
+                    if (kwd == null) { AbortGracefully("Input annulleret!", localDb); return; }
                     if (kwd == "FOrtov") kwd = "Fortov";
 
                     psm.WritePropertyString(ent, psDef.Belægning, kwd);
@@ -6785,7 +6790,7 @@ namespace IntersectUtilities
 
                     kwd = null;
                     kwd = Interaction.GetKeywords("Angiv vejklasse: ", kwds);
-                    if (kwd == null) AbortGracefully(tx, "Input annulleret!");
+                    if (kwd == null) { AbortGracefully("Input annulleret!", localDb); return; }
 
                     psm.WritePropertyString(ent, psDef.Vejklasse, kwd);
                 }
@@ -7742,50 +7747,6 @@ namespace IntersectUtilities
             TestThird = 4,
             TestFourth = 8,
             TestFith = 16,
-        }
-
-        void AbortGracefully(Database db)
-        {
-            while (db.TransactionManager.TopTransaction != null)
-            {
-                Transaction tx = db.TransactionManager.TopTransaction;
-                tx.Abort();
-                tx.Dispose();
-            }
-        }
-        void AbortGracefully(Transaction tx, string msg)
-        {
-            tx.Abort();
-            prdDbg(msg);
-        }
-        void AbortGracefully(Transaction[] txs, Database[] dbs, string exMsg)
-        {
-            foreach (Transaction tx in txs)
-            {
-                tx.Abort();
-                tx.Dispose();
-            }
-
-            foreach (var db in dbs)
-            {
-                db.Dispose();
-            }
-            prdDbg(exMsg);
-        }
-        void AbortGracefully(object exMsg, params Database[] dbs)
-        {
-            foreach (var db in dbs)
-            {
-                while (db.TransactionManager.TopTransaction != null)
-                {
-                    db.TransactionManager.TopTransaction.Abort();
-                    db.TransactionManager.TopTransaction.Dispose();
-                }
-
-                db.Dispose();
-            }
-            if (exMsg is string str) prdDbg(str);
-            else prdDbg(exMsg.ToString());
         }
     }
 }

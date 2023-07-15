@@ -111,7 +111,7 @@ namespace IntersectUtilities.DRITBL
                                     $"Pline 1 {plineI.Handle} and pline 2 {plineJ.Handle} overlap!\n" +
                                     $"Overlap area: {intersection.Area.ToString("0.000")}m².\n" +
                                     $"Percent of 1's area: {(percentageOfI * 100).ToString("0.00")}%\n" +
-                                    $"Percent of 2's area: {(percentageOfJ * 100).ToString("0.00")}%");
+                                    $"Percent of 2's area: {(percentageOfJ * 100).ToString("0.00")}%\n");
                             }
                         }
                     }
@@ -123,6 +123,71 @@ namespace IntersectUtilities.DRITBL
                     return;
                 }
                 tx.Commit();
+            }
+        }
+
+        [CommandMethod("TBLEXPORTTBL")]
+        public void tblexporttbl()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            DataReferencesOptions dro = new DataReferencesOptions();
+            Database fremDb = new Database(false, true);
+            fremDb.ReadDwgFile(GetPathToDataFiles(dro.ProjectName, dro.EtapeName, "Fremtid"),
+                FileOpenMode.OpenForReadAndAllShare, false, null);
+            Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Gather entities for TBL Export
+                    List<Polyline> cplines =
+                        localDb.ListOfType<Polyline>(tx)
+                        .Where(x => x.Layer == "0-OMRÅDER-OK")
+                        .ToList();
+
+                    if (cplines.Count < 1)
+                    {
+                        AbortGracefully("Ingen lukkede polylinjer på lag 0-OMRÅDER-OK fundet!",
+                            fremDb, localDb);
+                        return;
+                    }
+
+                    HashSet<Polyline> pipes = fremDb.GetFjvPipes(fremTx);
+                    HashSet<BlockReference> comps = fremDb.HashSetOfType<BlockReference>(fremTx);
+
+                    #endregion
+
+                    for (int i = 0; i < cplines.Count; i++)
+                    {
+                        Polyline plineI = cplines[i];
+                        if (!plineI.Closed)
+                            throw new System.Exception($"Polyline {plineI.Handle} is not closed!");
+                        Polygon pgon = NTSConversion.ConvertClosedPlineToNTSPolygon(plineI);
+
+                        foreach (Polyline pipe in pipes)
+                        {
+                            LineString lineString = NTSConversion.ConvertPlineToNTSLineString(pipe);
+                            if (!pgon.Intersects(lineString)) continue;
+                            Geometry intersect = pgon.Intersection(lineString);
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    fremTx.Abort();
+                    fremTx.Dispose();
+                    fremDb.Dispose();
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+                fremTx.Abort();
+                fremTx.Dispose();
+                fremDb.Dispose();
             }
         }
     }

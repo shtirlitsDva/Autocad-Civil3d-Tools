@@ -507,11 +507,10 @@ namespace IntersectUtilities
                             if (type.IsNoE())
                             {//Exit, if a layer is not defined in Krydsninger.csv
                                 AbortGracefully(
-                                    new[] { xRefLerTx, xRefSurfaceTx },
-                                    new[] { xRefLerDB, xRefSurfaceDB },
                                     $"Fejl: For lag {ent.Layer} mangler der enten " +
-                                    $"selve definitionen eller 'Type'!");
-
+                                    $"selve definitionen eller 'Type'!",
+                                    xRefLerDB, xRefSurfaceDB
+                                    );
                                 tx.Abort();
                                 return;
                             }
@@ -540,11 +539,9 @@ namespace IntersectUtilities
                             if (descrFromKrydsninger.IsNoE())
                             {
                                 AbortGracefully(
-                                    new[] { xRefLerTx, xRefSurfaceTx },
-                                    new[] { xRefLerDB, xRefSurfaceDB },
                                     $"Fejl: For lag {ent.Layer} mangler der en 'Description'!" +
-                                    $"Fejl: Kan ikke fortsætte før dette er rettet i Krydsninger.csv");
-
+                                    $"Fejl: Kan ikke fortsætte før dette er rettet i Krydsninger.csv",
+                                    xRefLerDB, xRefSurfaceDB);
                                 tx.Abort();
                                 return;
                             }
@@ -671,9 +668,9 @@ namespace IntersectUtilities
                         if (pSurface == null)
                         {
                             AbortGracefully(
-                                new[] { xRefLerTx, xRefSurfaceTx },
-                                new[] { xRefLerDB, xRefSurfaceDB },
-                                $"No profile named {alignment.Name}_surface_P found!");
+                                $"No profile named {alignment.Name}_surface_P found!",
+                                xRefLerDB, xRefSurfaceDB
+                                );
 
                             tx.Abort();
                             return;
