@@ -7753,13 +7753,11 @@ namespace IntersectUtilities
                 tx.Dispose();
             }
         }
-
         void AbortGracefully(Transaction tx, string msg)
         {
             tx.Abort();
             prdDbg(msg);
         }
-
         void AbortGracefully(Transaction[] txs, Database[] dbs, string exMsg)
         {
             foreach (Transaction tx in txs)
@@ -7773,6 +7771,21 @@ namespace IntersectUtilities
                 db.Dispose();
             }
             prdDbg(exMsg);
+        }
+        void AbortGracefully(object exMsg, params Database[] dbs)
+        {
+            foreach (var db in dbs)
+            {
+                while (db.TransactionManager.TopTransaction != null)
+                {
+                    db.TransactionManager.TopTransaction.Abort();
+                    db.TransactionManager.TopTransaction.Dispose();
+                }
+
+                db.Dispose();
+            }
+            if (exMsg is string str) prdDbg(str);
+            else prdDbg(exMsg.ToString());
         }
     }
 }

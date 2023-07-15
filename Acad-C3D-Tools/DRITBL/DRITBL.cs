@@ -46,6 +46,8 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Line = Autodesk.AutoCAD.DatabaseServices.Line;
+using NetTopologySuite.Geometries;
+using NetTopologySuite.IO;
 
 namespace IntersectUtilities.DRITBL
 {
@@ -70,8 +72,58 @@ namespace IntersectUtilities.DRITBL
         [CommandMethod("TBLCHECKPOLYOVERLAP")]
         public void tblcheckpolyoverlap()
         {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
 
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    List<Polyline> cplines =
+                        localDb.ListOfType<Polyline>(tx)
+                        .Where(x => x.Layer == "0-OMRÅDER-OK")
+                        .ToList();
 
+                    for (int i = 0; i < cplines.Count; i++)
+                    {
+                        Polyline plineI = cplines[i];
+                        if (!plineI.Closed)
+                            throw new System.Exception($"Polyline {plineI.Handle} is not closed!");
+                        Polygon pgonI = NTSConversion.ConvertClosedPlineToNTSPolygon(plineI);
+                        for (int j = i + 1; j < cplines.Count; j++)
+                        {
+                            Polyline plineJ = cplines[j];
+                            if (!plineJ.Closed)
+                                throw new System.Exception($"Polyline {plineJ.Handle} is not closed!");
+                            Polygon pgonJ = NTSConversion.ConvertClosedPlineToNTSPolygon(plineJ);
+
+                            Geometry intersection = pgonI.Intersection(pgonJ);
+
+                            if (intersection.Area > 0.01)
+                            {
+                                //write that polyI and polyJ overlap (writing their handles)
+                                //Then calculate the percentage of overlap area
+                                //of each polygon's area and write it                                
+                                var percentageOfI = intersection.Area / pgonI.Area;
+                                var percentageOfJ = intersection.Area / pgonJ.Area;
+
+                                prdDbg(
+                                    $"Pline 1 {plineI.Handle} and pline 2 {plineJ.Handle} overlap!\n" +
+                                    $"Overlap area: {intersection.Area.ToString("0.000")}m².\n" +
+                                    $"Percent of 1's area: {(percentageOfI * 100).ToString("0.00")}%\n" +
+                                    $"Percent of 2's area: {(percentageOfJ * 100).ToString("0.00")}%");
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
         }
     }
 }

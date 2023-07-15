@@ -93,10 +93,12 @@
     <Compile Include="DRITBL.cs" />
     <Compile Include="MoreLinq\DistinctBy.cs" />
     <Compile Include="MoreLinq\MoreLinq.cs" />
+    <Compile Include="NTSConversion.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
+    <None Include="loadNet.scr" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
