@@ -48,6 +48,8 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Line = Autodesk.AutoCAD.DatabaseServices.Line;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.IO;
+using DRITBL;
+using Point = NetTopologySuite.Geometries.Point;
 
 namespace IntersectUtilities.DRITBL
 {
@@ -160,18 +162,56 @@ namespace IntersectUtilities.DRITBL
 
                     #endregion
 
+                    PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriOmråder);
+                    PSetDefs.DriOmråder psDef = new PSetDefs.DriOmråder();
+
+                    HashSet<IntersectResultPipe> pipeResults = new HashSet<IntersectResultPipe>();
+                    HashSet<IntersectResultComponent> compResults = new HashSet<IntersectResultComponent>();
+
+                    System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
                     for (int i = 0; i < cplines.Count; i++)
                     {
-                        Polyline plineI = cplines[i];
-                        if (!plineI.Closed)
-                            throw new System.Exception($"Polyline {plineI.Handle} is not closed!");
-                        Polygon pgon = NTSConversion.ConvertClosedPlineToNTSPolygon(plineI);
+                        Polyline polygonPline = cplines[i];
+                        if (!polygonPline.Closed)
+                            throw new System.Exception($"Polyline {polygonPline.Handle} is not closed!");
+                        Polygon pgon = NTSConversion.ConvertClosedPlineToNTSPolygon(polygonPline);
 
                         foreach (Polyline pipe in pipes)
                         {
-                            LineString lineString = NTSConversion.ConvertPlineToNTSLineString(pipe);
-                            if (!pgon.Intersects(lineString)) continue;
-                            Geometry intersect = pgon.Intersection(lineString);
+                            LineString pipeLineString = NTSConversion.ConvertPlineToNTSLineString(pipe);
+                            if (!pgon.Intersects(pipeLineString)) continue;
+                            Geometry intersect = pgon.Intersection(pipeLineString);
+
+                            IntersectResultPipe irp = new IntersectResultPipe();
+                            irp.Vejnavn = psm.ReadPropertyString(polygonPline, psDef.Vejnavn);
+                            irp.Vejklasse = psm.ReadPropertyString(polygonPline, psDef.Vejklasse);
+                            irp.Belægning = psm.ReadPropertyString(polygonPline, psDef.Belægning);
+                            irp.DN1 = PipeSchedule.GetPipeDN(pipe).ToString();
+                            irp.System = PipeSchedule.GetPipeType(pipe, true).ToString();
+                            irp.Serie = PipeSchedule.GetPipeSeriesV2(pipe, true).ToString();
+                            irp.Length = intersect.Length;
+
+                            pipeResults.Add(irp);
+                        }
+
+                        foreach (BlockReference br in comps)
+                        {
+                            Point compPoint = NTSConversion.ConvertBrToNTSPoint(br);
+                            if (!pgon.Intersects(compPoint)) continue;
+
+                            IntersectResultComponent irp = new IntersectResultComponent();
+                            irp.Vejnavn = psm.ReadPropertyString(polygonPline, psDef.Vejnavn);
+                            irp.Vejklasse = psm.ReadPropertyString(polygonPline, psDef.Vejklasse);
+                            irp.Belægning = psm.ReadPropertyString(polygonPline, psDef.Belægning);
+                            irp.Navn = "Component";
+                            irp.DN1 = br.ReadDynamicCsvProperty(DynamicProperty.DN1, dt, true);
+                            irp.DN2 = br.ReadDynamicCsvProperty(DynamicProperty.DN2, dt, true);
+                            irp.System = br.ReadDynamicCsvProperty(DynamicProperty.System, dt, true);
+                            irp.Serie = br.ReadDynamicCsvProperty(DynamicProperty.Serie, dt, true);
+
+                            compResults.Add(irp);
                         }
                     }
                 }

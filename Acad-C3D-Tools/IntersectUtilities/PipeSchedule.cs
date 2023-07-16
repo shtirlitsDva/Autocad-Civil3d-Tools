@@ -368,6 +368,23 @@ namespace IntersectUtilities
         {
             return GetPipeType(ExtractLayerName(ent));
         }
+        public static PipeTypeEnum GetPipeType(Entity ent, bool FRtoEnkelt = false)
+        {
+            var type = GetPipeType(ExtractLayerName(ent));
+            if (!FRtoEnkelt) return type;
+            switch (type)
+            {
+                case PipeTypeEnum.Ukendt:
+                case PipeTypeEnum.Twin:
+                    return type;
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
+                case PipeTypeEnum.Enkelt:
+                    return PipeTypeEnum.Enkelt;
+                default:
+                    return PipeTypeEnum.Ukendt;
+            }
+        }
         public static PipeTypeEnum GetPipeType(string layer)
         {
             layer = ExtractLayerName(layer);

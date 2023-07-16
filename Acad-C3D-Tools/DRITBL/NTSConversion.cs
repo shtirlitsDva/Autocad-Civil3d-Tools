@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
 
 using IntersectUtilities.UtilsCommon;
 
@@ -28,6 +29,22 @@ namespace IntersectUtilities.DRITBL
             foreach (var samplePoint in samplePoints)
                 points.Add(new Coordinate(samplePoint.X, samplePoint.Y));
             return new LineString(points.ToArray());
+        }
+        public static Polyline ConvertNTSLineStringToPline(LineString lineString)
+        {
+            Polyline polyline = new Polyline();
+
+            for (int i = 0; i < lineString.Coordinates.Length; i++)
+            {
+                Coordinate coord = lineString.Coordinates[i];
+                polyline.AddVertexAt(i, new Point2d(coord.X, coord.Y), 0, 0, 0);
+            }
+
+            return polyline;
+        }
+        public static Point ConvertBrToNTSPoint(BlockReference br)
+        {
+            return new Point(br.Position.X, br.Position.Y);
         }
     }
 }

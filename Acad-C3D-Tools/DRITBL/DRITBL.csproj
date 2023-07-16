@@ -85,6 +85,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\IntersectUtilities\ComponentSchedule.cs">
+      <Link>ComponentSchedule.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\CsvReader.cs">
       <Link>CsvReader.cs</Link>
     </Compile>
@@ -94,10 +97,14 @@
     <Compile Include="..\IntersectUtilities\PipeSchedule.cs">
       <Link>PipeSchedule.cs</Link>
     </Compile>
+    <Compile Include="..\IntersectUtilities\PropertySetManager.cs">
+      <Link>PropertySetManager.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\UtilsCommon.cs">
       <Link>UtilsCommon.cs</Link>
     </Compile>
     <Compile Include="DRITBL.cs" />
+    <Compile Include="IntersectResult.cs" />
     <Compile Include="MoreLinq\DistinctBy.cs" />
     <Compile Include="MoreLinq\MoreLinq.cs" />
     <Compile Include="NTSConversion.cs" />
