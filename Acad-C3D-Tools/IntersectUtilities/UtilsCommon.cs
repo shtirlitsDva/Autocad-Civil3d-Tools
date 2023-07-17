@@ -359,7 +359,8 @@ namespace IntersectUtilities.UtilsCommon
             System,
             Vinkel,
             Serie,
-            Version
+            Version,
+            TBLNavn
         }
     }
     public static class UtilsDataTables

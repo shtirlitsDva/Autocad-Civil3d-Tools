@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using NetTopologySuite.Algorithm;
 using NetTopologySuite.Geometries;
 
 namespace DRITBL
@@ -19,6 +21,8 @@ namespace DRITBL
         public string DN2 { get; set; }
         public string System { get; set; }
         public string Serie { get; set; }
+        public override string ToString() =>
+            $"{Vejnavn};Vejkl. {Vejklasse};{Belægning};{Navn};;;{DN1};{DN2};{System};{Serie};";
     }
 
     internal class IntersectResultPipe : IntersectResult
@@ -28,8 +32,8 @@ namespace DRITBL
             IntersectType = IntersectType.Pipe;
             Navn = "Rør præsioleret";
         }
-
         public double Length { get; set; }
+        public override string ToString() => base.ToString() + $"{Length.ToString(new CultureInfo("da-DK"))}";
     }
     internal class IntersectResultComponent : IntersectResult
     {
@@ -37,6 +41,8 @@ namespace DRITBL
         {
             IntersectType = IntersectType.Component;
         }
+        public int Count { get; set; }
+        public override string ToString() => base.ToString() + $"{Count};";
     }
     public enum IntersectType
     {

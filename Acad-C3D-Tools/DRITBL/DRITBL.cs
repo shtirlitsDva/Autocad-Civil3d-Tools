@@ -171,6 +171,7 @@ namespace IntersectUtilities.DRITBL
                     System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
                         @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
+                    #region Collect Intersection Results
                     for (int i = 0; i < cplines.Count; i++)
                     {
                         Polyline polygonPline = cplines[i];
@@ -205,7 +206,7 @@ namespace IntersectUtilities.DRITBL
                             irp.Vejnavn = psm.ReadPropertyString(polygonPline, psDef.Vejnavn);
                             irp.Vejklasse = psm.ReadPropertyString(polygonPline, psDef.Vejklasse);
                             irp.Belægning = psm.ReadPropertyString(polygonPline, psDef.Belægning);
-                            irp.Navn = "Component";
+                            irp.Navn = br.ReadDynamicCsvProperty(DynamicProperty.TBLNavn, dt, true);
                             irp.DN1 = br.ReadDynamicCsvProperty(DynamicProperty.DN1, dt, true);
                             irp.DN2 = br.ReadDynamicCsvProperty(DynamicProperty.DN2, dt, true);
                             irp.System = br.ReadDynamicCsvProperty(DynamicProperty.System, dt, true);
@@ -214,6 +215,70 @@ namespace IntersectUtilities.DRITBL
                             compResults.Add(irp);
                         }
                     }
+                    #endregion
+
+                    #region Process Intersection Results
+                    var pipeSummary = pipeResults
+                        .GroupBy(x => new
+                        {
+                            x.IntersectType,
+                            x.Vejnavn,
+                            x.Vejklasse,
+                            x.Belægning,
+                            x.Navn,
+                            x.DN1,
+                            x.System,
+                            x.Serie
+                        })
+                        .Select(g => new IntersectResultPipe
+                        {
+                            IntersectType = g.Key.IntersectType,
+                            Vejnavn = g.Key.Vejnavn,
+                            Vejklasse = g.Key.Vejklasse,
+                            Belægning = g.Key.Belægning,
+                            Navn = g.Key.Navn,
+                            DN1 = g.Key.DN1,
+                            System = g.Key.System,
+                            Serie = g.Key.Serie,
+                            Length = g.Sum(x => x.Length) // sum Length for each group
+                        })
+                        .ToList();
+                    var componentSummary = compResults
+                        .GroupBy(x => new
+                        {
+                            x.IntersectType,
+                            x.Vejnavn,
+                            x.Vejklasse,
+                            x.Belægning,
+                            x.Navn,
+                            x.DN1,
+                            x.DN2,
+                            x.System,
+                            x.Serie
+                        })
+                        .Select(g => new IntersectResultComponent
+                        {
+                            IntersectType = g.Key.IntersectType,
+                            Vejnavn = g.Key.Vejnavn,
+                            Vejklasse = g.Key.Vejklasse,
+                            Belægning = g.Key.Belægning,
+                            Navn = g.Key.Navn,
+                            DN1 = g.Key.DN1,
+                            DN2 = g.Key.DN2,
+                            System = g.Key.System,
+                            Serie = g.Key.Serie,
+                            Count = g.Count() // count items for each group
+                        })
+                        .ToList();
+                    #endregion
+                    #region Export Intersection Results
+                    StringBuilder sb = new StringBuilder();
+                    foreach (IntersectResultPipe irp in pipeSummary) sb.AppendLine(irp.ToString());
+                    foreach (IntersectResultComponent irc in componentSummary) sb.AppendLine(irc.ToString());
+
+                    File.WriteAllText(@"C:\Temp\IntersectResult.csv", sb.ToString(), Encoding.UTF8);
+                    prdDbg("Finished!");
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {

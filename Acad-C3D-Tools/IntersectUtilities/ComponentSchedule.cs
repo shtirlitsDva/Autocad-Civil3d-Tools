@@ -68,16 +68,19 @@ namespace IntersectUtilities
             //Extract property name
             Regex regex = new Regex(@"(?<Name>^[\w\s]+)");
             string propName = "";
-            if (!regex.IsMatch(valueToProcess)) throw new System.Exception("Property name not found!");
+            //if (!regex.IsMatch(valueToProcess)) throw new System.Exception("Property name not found!");
+            if (!regex.IsMatch(valueToProcess)) return valueToProcess;
             propName = regex.Match(valueToProcess).Groups["Name"].Value;
             //Read raw data from block
             //Debug 
-            if (br.RealName() == "BØJN KDLR v2")
-            {
-                prdDbg(br.GetDynamicPropertyByName(propName).UnitsType.ToString());
-            }
+            //if (br.RealName() == "BØJN KDLR v2")
+            //{
+            //    prdDbg(br.GetDynamicPropertyByName(propName).UnitsType.ToString());
+            //}
 
-            string rawContents = br.GetDynamicPropertyByName(propName).Value as string;
+            var prop = br.GetDynamicPropertyByName(propName);
+            if (prop == null) return valueToProcess;
+            string rawContents = prop.Value as string;
             //Safeguard against value not being set -> CUSTOM
             if (rawContents == "Custom" || rawContents == "ÆNDR MIG")
                 throw new System.Exception($"Parameter {propName} is not set for block handle {br.Handle}!");
@@ -98,14 +101,16 @@ namespace IntersectUtilities
         private static string ConstructStringByRegex(BlockReference br, string stringToProcess)
         {
             //Construct pattern which matches the parameter definition
-            //Example definition it matches: $Præisoleret bøjning, 90gr, L {$L1}x{$L2} m
-            Regex variablePattern = new Regex(@"{\$(?<Parameter>[a-zæøåA-ZÆØÅ0-9_:-]*)}");
-            
+            //Example definition r1 matches: $Præisoleret bøjning, 90gr, L {$L1}x{$L2} m
+            //Example definition r2 matches: $System
+            Regex r1 = new Regex(@"{\$(?<Parameter>[a-zæøåA-ZÆØÅ0-9_:-]*)}");
+            Regex r2 = new Regex(@"\$(?<Parameter>[a-zA-Z]*)$");
+
             //Test if a pattern matches in the input string
-            if (variablePattern.IsMatch(stringToProcess))
+            if (r1.IsMatch(stringToProcess))
             {
                 //Get the first match
-                Match match = variablePattern.Match(stringToProcess);
+                Match match = r1.Match(stringToProcess);
                 //Get the first capture
                 string capture = match.Captures[0].Value;
                 //Get the parameter name from the regex match
@@ -119,7 +124,24 @@ namespace IntersectUtilities
                 //Then it returns
                 stringToProcess = ConstructStringByRegex(br, stringToProcess);
             }
-            
+            if (r2.IsMatch(stringToProcess))
+            {
+                //Get the first match
+                Match match = r2.Match(stringToProcess);
+                //Get the first capture
+                string capture = match.Captures[0].Value;
+                //Get the parameter name from the regex match
+                string parameterName = match.Groups["Parameter"].Value;
+                //Read the parameter value from BR
+                string parameterValue = br.ReadDynamicPropertyValue(parameterName);
+                //Replace the captured group in original string with the parameter value
+                stringToProcess = stringToProcess.Replace(capture, parameterValue);
+                //Recursively call current function
+                //It runs on the string until no more captures remain
+                //Then it returns
+                stringToProcess = ConstructStringByRegex(br, stringToProcess);
+            }
+
             return stringToProcess;
         }
         public static string ReadBlockName(BlockReference br, System.Data.DataTable fjvTable) => br.RealName();
@@ -314,6 +336,18 @@ namespace IntersectUtilities
                     if (parseProperty)
                     {
                         value = ConstructStringByRegex(br, value);
+                        if (value.StartsWith("$"))
+                        {
+                            value = value.Substring(1);
+
+                            //If the value is a pattern to extract from string
+                            if (value.Contains("{"))
+                            {
+                                value = GetValueByRegex(br, parameter, value);
+                            }
+                            //Else the value is parameter literal to read
+                            else return br.GetDynamicPropertyByName(value).Value.ToString() ?? "";
+                        }
                         return value;
                     }
                     else return value;
