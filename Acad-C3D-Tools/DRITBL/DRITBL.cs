@@ -166,9 +166,6 @@ namespace IntersectUtilities.DRITBL
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriOmråder);
                     PSetDefs.DriOmråder psDef = new PSetDefs.DriOmråder();
 
-                    HashSet<IntersectResultPipe> pipeResults = new HashSet<IntersectResultPipe>();
-                    HashSet<IntersectResultComponent> compResults = new HashSet<IntersectResultComponent>();
-
                     System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
                         @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
@@ -195,7 +192,7 @@ namespace IntersectUtilities.DRITBL
                             irp.Serie = PipeSchedule.GetPipeSeriesV2(pipe, true).ToString();
                             irp.Length = intersect.Length;
 
-                            pipeResults.Add(irp);
+                            allResults.Add(irp);
                         }
 
                         foreach (BlockReference br in comps)
@@ -213,65 +210,9 @@ namespace IntersectUtilities.DRITBL
                             irp.System = br.ReadDynamicCsvProperty(DynamicProperty.System, dt, true);
                             irp.Serie = br.ReadDynamicCsvProperty(DynamicProperty.Serie, dt, true);
 
-                            compResults.Add(irp);
+                            allResults.Add(irp);
                         }
                     }
-                    #endregion
-
-                    #region Process Intersection Results
-                    var pipeSummary = pipeResults
-                        .GroupBy(x => new
-                        {
-                            x.IntersectType,
-                            x.Vejnavn,
-                            x.Vejklasse,
-                            x.Belægning,
-                            x.Navn,
-                            x.DN1,
-                            x.System,
-                            x.Serie
-                        })
-                        .Select(g => new IntersectResultPipe
-                        {
-                            IntersectType = g.Key.IntersectType,
-                            Vejnavn = g.Key.Vejnavn,
-                            Vejklasse = g.Key.Vejklasse,
-                            Belægning = g.Key.Belægning,
-                            Navn = g.Key.Navn,
-                            DN1 = g.Key.DN1,
-                            System = g.Key.System,
-                            Serie = g.Key.Serie,
-                            Length = g.Sum(x => x.Length) // sum Length for each group
-                        });
-                    var componentSummary = compResults
-                        .GroupBy(x => new
-                        {
-                            x.IntersectType,
-                            x.Vejnavn,
-                            x.Vejklasse,
-                            x.Belægning,
-                            x.Navn,
-                            x.DN1,
-                            x.DN2,
-                            x.System,
-                            x.Serie
-                        })
-                        .Select(g => new IntersectResultComponent
-                        {
-                            IntersectType = g.Key.IntersectType,
-                            Vejnavn = g.Key.Vejnavn,
-                            Vejklasse = g.Key.Vejklasse,
-                            Belægning = g.Key.Belægning,
-                            Navn = g.Key.Navn,
-                            DN1 = g.Key.DN1,
-                            DN2 = g.Key.DN2,
-                            System = g.Key.System,
-                            Serie = g.Key.Serie,
-                            Count = g.Count() // count items for each group
-                        });
-
-                    allResults.UnionWith(pipeSummary);
-                    allResults.UnionWith(componentSummary);
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -290,11 +231,151 @@ namespace IntersectUtilities.DRITBL
                 return allResults;
             }
         }
+        internal HashSet<IntersectResult> processintersectdataCWO()
+        {
+            var results = gatherintersectdata();
+            if (results == null)
+            {
+                prdDbg("Received null instead of results. Aborting.");
+                return null;
+            }
+            #region Process Intersection Results
+            var pipeSummary = results
+                .Where(x => x is IntersectResultPipe)
+                .Cast<IntersectResultPipe>()
+                .GroupBy(x => new
+                {
+                    x.IntersectType,
+                    x.Vejnavn,
+                    x.Vejklasse,
+                    x.Belægning,
+                    x.Navn,
+                    x.DN1,
+                    x.System,
+                    x.Serie
+                })
+                .Select(g => new IntersectResultPipe
+                {
+                    IntersectType = g.Key.IntersectType,
+                    Vejnavn = g.Key.Vejnavn,
+                    Vejklasse = g.Key.Vejklasse,
+                    Belægning = g.Key.Belægning,
+                    Navn = g.Key.Navn,
+                    DN1 = g.Key.DN1,
+                    System = g.Key.System,
+                    Serie = g.Key.Serie,
+                    Length = g.Sum(x => x.Length) // sum Length for each group
+                });
+            var componentSummary = results
+                .Where(x => x is IntersectResultComponent)
+                .Cast<IntersectResultComponent>()
+                .GroupBy(x => new
+                {
+                    x.IntersectType,
+                    x.Vejnavn,
+                    x.Vejklasse,
+                    x.Belægning,
+                    x.Navn,
+                    x.DN1,
+                    x.DN2,
+                    x.System,
+                    x.Serie
+                })
+                .Select(g => new IntersectResultComponent
+                {
+                    IntersectType = g.Key.IntersectType,
+                    Vejnavn = g.Key.Vejnavn,
+                    Vejklasse = g.Key.Vejklasse,
+                    Belægning = g.Key.Belægning,
+                    Navn = g.Key.Navn,
+                    DN1 = g.Key.DN1,
+                    DN2 = g.Key.DN2,
+                    System = g.Key.System,
+                    Serie = g.Key.Serie,
+                    Count = g.Count() // count items for each group
+                });
+
+            HashSet<IntersectResult> allResults = new HashSet<IntersectResult>();
+            allResults.UnionWith(pipeSummary);
+            allResults.UnionWith(componentSummary);
+            return allResults;
+            #endregion
+        }
+        internal HashSet<IntersectResult> processintersectdataJJR()
+        {
+            var results = gatherintersectdata();
+            if (results == null)
+            {
+                prdDbg("Received null instead of results. Aborting.");
+                return null;
+            }
+            #region Process Intersection Results
+            var pipeSummary = results
+                .Where(x => x is IntersectResultPipe)
+                .Cast<IntersectResultPipe>()
+                .GroupBy(x => new
+                {
+                    x.IntersectType,
+                    //x.Vejnavn,
+                    x.Vejklasse,
+                    x.Belægning,
+                    x.Navn,
+                    x.DN1,
+                    x.System,
+                    x.Serie
+                })
+                .Select(g => new IntersectResultPipe
+                {
+                    IntersectType = g.Key.IntersectType,
+                    //Vejnavn = g.Key.Vejnavn,
+                    Vejklasse = g.Key.Vejklasse,
+                    Belægning = g.Key.Belægning,
+                    Navn = g.Key.Navn,
+                    DN1 = g.Key.DN1,
+                    System = g.Key.System,
+                    Serie = g.Key.Serie,
+                    Length = g.Sum(x => x.Length) // sum Length for each group
+                });
+            var componentSummary = results
+                .Where(x => x is IntersectResultComponent)
+                .Cast<IntersectResultComponent>()
+                .GroupBy(x => new
+                {
+                    x.IntersectType,
+                    //x.Vejnavn,
+                    x.Vejklasse,
+                    x.Belægning,
+                    x.Navn,
+                    x.DN1,
+                    x.DN2,
+                    x.System,
+                    x.Serie
+                })
+                .Select(g => new IntersectResultComponent
+                {
+                    IntersectType = g.Key.IntersectType,
+                    //Vejnavn = g.Key.Vejnavn,
+                    Vejklasse = g.Key.Vejklasse,
+                    Belægning = g.Key.Belægning,
+                    Navn = g.Key.Navn,
+                    DN1 = g.Key.DN1,
+                    DN2 = g.Key.DN2,
+                    System = g.Key.System,
+                    Serie = g.Key.Serie,
+                    Count = g.Count() // count items for each group
+                });
+
+            HashSet<IntersectResult> allResults = new HashSet<IntersectResult>();
+            allResults.UnionWith(pipeSummary);
+            allResults.UnionWith(componentSummary);
+            return allResults;
+            #endregion
+        }
 
         [CommandMethod("TBLEXPORTCWO")]
         public void tblexportcwo()
         {
-            var results = gatherintersectdata();
+            var results = processintersectdataCWO();
             if (results == null)
             {
                 prdDbg("Received null instead of results. Aborting.");
@@ -305,7 +386,29 @@ namespace IntersectUtilities.DRITBL
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("BEMÆRK: Twin svejsninger bliver IKKE ganget med 2!");
 
-            foreach (IntersectResult ir in results) sb.AppendLine(ir.ToString());
+            foreach (IntersectResult ir in results) sb.AppendLine(ir.ToString(ExportType.CWO));
+
+            File.WriteAllText(@"C:\Temp\IntersectResult.csv", sb.ToString(), Encoding.UTF8);
+            prdDbg("I AM FINISH! (Results written to C:\\Temp\\IntersectResult.csv)");
+            #endregion
+        }
+
+        [CommandMethod("TBLEXPORTJJR")]
+        public void tblexportjjr()
+        {
+            var results = processintersectdataJJR();
+            if (results == null)
+            {
+                prdDbg("Received null instead of results. Aborting.");
+                return;
+            }
+
+            #region Export Intersection Results
+            StringBuilder sb = new StringBuilder();
+            //sb.AppendLine("BEMÆRK: Twin svejsninger bliver IKKE ganget med 2!");
+            sb.AppendLine("Vejklasse;Belægningstype;Komponent;DN1;DN2;Rørsystem;Serie;Længde/Antal");
+
+            foreach (IntersectResult ir in results.OrderBy(x => x.IntersectType)) sb.AppendLine(ir.ToString(ExportType.JJR));
 
             File.WriteAllText(@"C:\Temp\IntersectResult.csv", sb.ToString(), Encoding.UTF8);
             prdDbg("I AM FINISH! (Results written to C:\\Temp\\IntersectResult.csv)");
