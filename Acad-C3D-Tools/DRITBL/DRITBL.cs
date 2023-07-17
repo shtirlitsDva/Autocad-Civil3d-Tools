@@ -273,11 +273,12 @@ namespace IntersectUtilities.DRITBL
                     #endregion
                     #region Export Intersection Results
                     StringBuilder sb = new StringBuilder();
+                    sb.AppendLine("BEMÆRK: Twin svejsninger bliver IKKE ganget med 2!");
                     foreach (IntersectResultPipe irp in pipeSummary) sb.AppendLine(irp.ToString());
                     foreach (IntersectResultComponent irc in componentSummary) sb.AppendLine(irc.ToString());
 
                     File.WriteAllText(@"C:\Temp\IntersectResult.csv", sb.ToString(), Encoding.UTF8);
-                    prdDbg("Finished!");
+                    prdDbg("I AM FINISH! (Results written to C:\\Temp\\IntersectResult.csv)");
                     #endregion
                 }
                 catch (System.Exception ex)
