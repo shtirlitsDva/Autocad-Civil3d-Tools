@@ -276,7 +276,6 @@
     <Compile Include="Intersect.cs" />
     <Compile Include="MoreLinq\MoreLinq.cs" />
     <Compile Include="ODDataConverter.cs" />
-    <Compile Include="ODDataReader.cs" />
     <Compile Include="PipeSchedule.cs" />
     <Compile Include="PlanDetailing\ComponentData.cs" />
     <Compile Include="PlanDetailing\PlanDetailing.cs" />

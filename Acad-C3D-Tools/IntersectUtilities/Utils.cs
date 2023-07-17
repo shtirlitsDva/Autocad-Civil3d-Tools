@@ -2267,7 +2267,7 @@ namespace IntersectUtilities
         public Entity SourceEntity { get; set; }
         public int DN { get; set; }
         public string System { get; set; }
-
+        public string Serie { get; set; }
     }
 
     /// <summary>

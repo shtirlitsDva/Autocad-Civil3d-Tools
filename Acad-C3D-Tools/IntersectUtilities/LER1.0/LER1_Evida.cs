@@ -899,16 +899,16 @@ namespace IntersectUtilities
 
 
                     string dimString = Interaction.GetKeywords("Select dimension: ", gasDims.ToArray());
-                    if (dimString.IsNoE()) { AbortGracefully(tx, "User abort!"); return; }
+                    if (dimString.IsNoE()) { AbortGracefully("User abort!", localDb); return; }
                     string material = Interaction.GetKeywords("Select material: ", gasMats.ToArray());
-                    if (material.IsNoE()) { AbortGracefully(tx, "User abort!"); return; }
+                    if (material.IsNoE()) { AbortGracefully("User abort!", localDb); return; }
                     string status = Interaction.GetKeywords("Select status: ", gasStatus.ToArray());
-                    if (status.IsNoE()) { AbortGracefully(tx, "User abort!"); return; }
+                    if (status.IsNoE()) { AbortGracefully("User abort!", localDb); return; }
 
                     int dim = Convert.ToInt32(dimString);
 
                     Oid id = Interaction.GetEntity("Select gas pipe: ", typeof(Polyline));
-                    if (id == Oid.Null) { AbortGracefully(tx, "Pipe selection error!"); return; }
+                    if (id == Oid.Null) { AbortGracefully("Pipe selection error!", localDb); return; }
 
                     Polyline pline = id.Go<Polyline>(tx);
                     pline.CheckOrOpenForWrite();

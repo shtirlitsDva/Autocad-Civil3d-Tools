@@ -128,8 +128,7 @@ namespace IntersectUtilities.DRITBL
             }
         }
 
-        [CommandMethod("TBLEXPORTTBL")]
-        public void tblexporttbl()
+        internal HashSet<IntersectResult> gatherintersectdata()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -139,6 +138,8 @@ namespace IntersectUtilities.DRITBL
             fremDb.ReadDwgFile(GetPathToDataFiles(dro.ProjectName, dro.EtapeName, "Fremtid"),
                 FileOpenMode.OpenForReadAndAllShare, false, null);
             Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+
+            HashSet<IntersectResult> allResults = new HashSet<IntersectResult>();
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -154,7 +155,7 @@ namespace IntersectUtilities.DRITBL
                     {
                         AbortGracefully("Ingen lukkede polylinjer på lag 0-OMRÅDER-OK fundet!",
                             fremDb, localDb);
-                        return;
+                        return null;
                     }
 
                     HashSet<Polyline> pipes = fremDb.GetFjvPipes(fremTx);
@@ -241,8 +242,7 @@ namespace IntersectUtilities.DRITBL
                             System = g.Key.System,
                             Serie = g.Key.Serie,
                             Length = g.Sum(x => x.Length) // sum Length for each group
-                        })
-                        .ToList();
+                        });
                     var componentSummary = compResults
                         .GroupBy(x => new
                         {
@@ -268,17 +268,10 @@ namespace IntersectUtilities.DRITBL
                             System = g.Key.System,
                             Serie = g.Key.Serie,
                             Count = g.Count() // count items for each group
-                        })
-                        .ToList();
-                    #endregion
-                    #region Export Intersection Results
-                    StringBuilder sb = new StringBuilder();
-                    sb.AppendLine("BEMÆRK: Twin svejsninger bliver IKKE ganget med 2!");
-                    foreach (IntersectResultPipe irp in pipeSummary) sb.AppendLine(irp.ToString());
-                    foreach (IntersectResultComponent irc in componentSummary) sb.AppendLine(irc.ToString());
+                        });
 
-                    File.WriteAllText(@"C:\Temp\IntersectResult.csv", sb.ToString(), Encoding.UTF8);
-                    prdDbg("I AM FINISH! (Results written to C:\\Temp\\IntersectResult.csv)");
+                    allResults.UnionWith(pipeSummary);
+                    allResults.UnionWith(componentSummary);
                     #endregion
                 }
                 catch (System.Exception ex)
@@ -288,13 +281,35 @@ namespace IntersectUtilities.DRITBL
                     fremDb.Dispose();
                     tx.Abort();
                     prdDbg(ex);
-                    return;
+                    return null;
                 }
                 tx.Commit();
                 fremTx.Abort();
                 fremTx.Dispose();
                 fremDb.Dispose();
+                return allResults;
             }
+        }
+
+        [CommandMethod("TBLEXPORTCWO")]
+        public void tblexportcwo()
+        {
+            var results = gatherintersectdata();
+            if (results == null)
+            {
+                prdDbg("Received null instead of results. Aborting.");
+                return;
+            }
+
+            #region Export Intersection Results
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("BEMÆRK: Twin svejsninger bliver IKKE ganget med 2!");
+
+            foreach (IntersectResult ir in results) sb.AppendLine(ir.ToString());
+
+            File.WriteAllText(@"C:\Temp\IntersectResult.csv", sb.ToString(), Encoding.UTF8);
+            prdDbg("I AM FINISH! (Results written to C:\\Temp\\IntersectResult.csv)");
+            #endregion
         }
     }
 }

@@ -845,7 +845,7 @@ namespace IntersectUtilities
                 {
                     Oid oid1 = Interaction.GetEntity("Select first: ", typeof(Line));
                     Oid oid2 = Interaction.GetEntity("Select second: ", typeof(Line));
-                    if (oid1 == Oid.Null || oid2 == Oid.Null) AbortGracefully(tx, "Aborted!");
+                    if (oid1 == Oid.Null || oid2 == Oid.Null) { AbortGracefully("Aborted!", localDb); return; }
 
                     Line line1 = oid1.Go<Line>(tx);
                     Line line2 = oid2.Go<Line>(tx);

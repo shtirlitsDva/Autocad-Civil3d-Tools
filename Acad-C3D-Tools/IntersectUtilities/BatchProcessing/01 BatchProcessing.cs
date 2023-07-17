@@ -199,9 +199,8 @@ namespace IntersectUtilities
                                                 break;
                                             case ResultStatus.FatalError:
                                                 AbortGracefully(
-                                                new[] { xTx },
-                                                new[] { xDb },
-                                                result.ErrorMsg);
+                                                result.ErrorMsg,
+                                                xDb);
                                                 tx.Abort();
                                                 return;
                                             case ResultStatus.SoftError:

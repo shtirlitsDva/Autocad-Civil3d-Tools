@@ -35,6 +35,7 @@ using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
 using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.ComponentSchedule;
 
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.UtilsODData;
@@ -97,9 +98,9 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
             bool noNumbers = true;
             string[] kwds = new string[] { "Uden nummer", "Med nummer" };
@@ -269,7 +270,8 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = curve,
                                     DN = GetPipeDN(curve),
-                                    System = GetPipeType(curve).ToString()
+                                    System = GetPipeType(curve).ToString(),
+                                    Serie = GetPipeSeriesV2(curve, true).ToString()
                                 });
                             }
 
@@ -297,7 +299,8 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = curve,
                                     DN = GetPipeDN(curve),
-                                    System = GetPipeType(curve).ToString()
+                                    System = GetPipeType(curve).ToString(),
+                                    Serie = GetPipeSeriesV2(curve, true).ToString()
                                 });
 
 
@@ -311,7 +314,8 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = curve,
                                     DN = GetPipeDN(curve),
-                                    System = GetPipeType(curve).ToString()
+                                    System = GetPipeType(curve).ToString(),
+                                    Serie = GetPipeSeriesV2(curve, true).ToString()
                                 });
                             }
                             #region Debug
@@ -364,7 +368,8 @@ namespace IntersectUtilities
                                 #endregion
 
                                 #region Read System
-                                string system = ODDataReader.DynKomponenter.ReadComponentSystem(br, komponenter).StrValue;
+                                //string system = ODDataReader.DynKomponenter.ReadComponentSystem(br, komponenter).StrValue;
+                                string system = br.ReadDynamicCsvProperty(DynamicProperty.System, dt);
 
                                 if (system.IsNoE())
                                 {
@@ -425,7 +430,8 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = br,
                                     DN = DN,
-                                    System = system
+                                    System = system,
+                                    Serie = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.Serie, dt)
                                 });
                             }
                         }
@@ -513,6 +519,7 @@ namespace IntersectUtilities
                             //if (idx == 1) DisplayDynBlockProperties(editor, wpBr, wpBr.Name);
                             SetDynBlockProperty(wpBr, "Type", wp.DN.ToString());
                             SetDynBlockProperty(wpBr, "System", wp.System);
+                            SetDynBlockProperty(wpBr, "Serie", wp.Serie);
 
                             psm.WritePropertyString(wpBr, driPipelineData.BelongsToAlignment, wp.Alignment.Name);
 
