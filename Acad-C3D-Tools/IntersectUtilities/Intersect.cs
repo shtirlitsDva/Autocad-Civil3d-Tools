@@ -5676,8 +5676,6 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
 
             graphclear();
             graphpopulate();
