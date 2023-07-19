@@ -624,6 +624,156 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("AUTOREVERSEPLINES")]
+        public void autoreverseplines()
+        {
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            DataReferencesOptions dro = new DataReferencesOptions();
+            string projectName = dro.ProjectName;
+            string etapeName = dro.EtapeName;
+
+            // open the xref database
+            Database alDb = new Database(false, true);
+            alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
+                FileOpenMode.OpenForReadAndAllShare, false, null);
+            Transaction alTx = alDb.TransactionManager.StartTransaction();
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+                    graphclear();
+                    graphpopulate();
+
+                    HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
+                    HashSet<Polyline> allPipes = localDb.GetFjvPipes(tx);
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
+                    var ents = allPipes.Cast<Entity>().Union(brs);
+
+                    #region Initialize property set
+                    PropertySetManager psmPipeline = new PropertySetManager(localDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineDef = new PSetDefs.DriPipelineData();
+                    PropertySetManager psmGraph = new PropertySetManager(localDb,
+                        PSetDefs.DefinedSets.DriGraph);
+                    PSetDefs.DriGraph driGraphDef = new PSetDefs.DriGraph();
+                    #endregion
+
+                    List<Pipeline> pipelines = new List<Pipeline>();
+                    foreach (var al in als)
+                    {
+                        var alEnts = ents.Where(
+                            x => psmPipeline.ReadPropertyString(x, driPipelineDef.BelongsToAlignment) == al.Name);
+
+                        pipelines.Add(new Pipeline(al, alEnts));
+                    }
+                        
+
+                    #region Group NAs by spatial relation
+                    //Group NAs by spatial relation
+                    var naGroups = allNas.GroupByCluster((x, y) => isASpatialGroup(x, y), 0.5);
+                    double isASpatialGroup(Entity x, Entity y)
+                    {
+                        string conString1 = psmGraph.ReadPropertyString(
+                                    x, defGraph.ConnectedEntities);
+                        string conString2 = psmGraph.ReadPropertyString(
+                                    y, defGraph.ConnectedEntities);
+
+                        if (conString1.IsNoE())
+                            throw new System.Exception(
+                                $"Malformend constring: {conString1}, entity: {x.Handle}.");
+                        if (conString2.IsNoE())
+                            throw new System.Exception(
+                                $"Malformend constring: {conString2}, entity: {y.Handle}.");
+
+                        Con[] cons1 = GraphEntity.parseConString(conString1);
+                        Con[] cons2 = GraphEntity.parseConString(conString2);
+
+                        if (cons1.Any(l => l.ConHandle == y.Handle) ||
+                            cons2.Any(m => m.ConHandle == x.Handle)) return 0.0;
+                        else return 1.0;
+                    }
+
+                    int idx = 0;
+                    foreach (IGrouping<Entity, Entity> group in naGroups)
+                    {
+                        idx++;
+                        foreach (Entity item in group)
+                            psm.WritePropertyString(
+                                item, driPipelineData.BelongsToAlignment,
+                                $"NA {idx.ToString("00")}");
+                    }
+                    #endregion
+
+                    #region Take care of stik
+                    //Exit gracefully if no stiks
+                    if (conPipes.Count == 0)
+                    {
+                        alTx.Abort();
+                        alTx.Dispose();
+                        alDb.Dispose();
+                        tx.Commit();
+                        return;
+                    }
+
+                    prdDbg(
+                        "**************************************************************" +
+                        "Projektet indeholder stikledninger!\n" +
+                        "ADVARSEL: Stikledninger SKAL være forbundet i et TRÆ-struktur!\n" +
+                        "Dvs. der må ikke være gennemgående polylinjer ved afgreninger.\n" +
+                        "Stikledninger forbundet til komponenter skal afklares manuelt.\n" +
+                        "**************************************************************");
+
+                    var grouping = conPipes.GroupByCluster((x, y) => areConnected(x, y), 0.5);
+
+                    int stikGruppeCount = 0;
+                    
+
+                    double areConnected(Polyline pl1, Polyline pl2)
+                    {
+                        if (IsPointOnCurve(pl2, pl1.StartPoint)) return 0.0;
+                        if (IsPointOnCurve(pl2, pl1.EndPoint)) return 0.0;
+                        if (IsPointOnCurve(pl1, pl2.StartPoint)) return 0.0;
+                        if (IsPointOnCurve(pl1, pl2.EndPoint)) return 0.0;
+                        return 1.0;
+                    }
+                    bool IsPointOnCurve(Curve cv, Point3d pt)
+                    {
+                        try
+                        {
+                            // Return true if operation succeeds
+                            Point3d p = cv.GetClosestPointTo(pt, false);
+                            //return (p - pt).Length <= Tolerance.Global.EqualPoint;
+                            return (p - pt).Length <= 0.025;
+                        }
+                        catch { }
+                        // Otherwise we return false
+                        return false;
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    alTx.Abort();
+                    alTx.Dispose();
+                    alDb.Dispose();
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                alTx.Abort();
+                alTx.Dispose();
+                alDb.Dispose();
+                tx.Commit();
+            }
+        }
+
         //[CommandMethod("TESTASSIGNMENT")]
         public void testassignment()
         {
