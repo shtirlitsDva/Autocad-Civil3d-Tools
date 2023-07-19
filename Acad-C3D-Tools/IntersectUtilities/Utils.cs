@@ -813,12 +813,19 @@ namespace IntersectUtilities
                     if (prop.PropertyName == propertyName)
                     {
                         object[] allowedValues = prop.GetAllowedValues();
-                        for (int i = 0; i < allowedValues.Length; i++)
+                        if (allowedValues.Length == 0)
                         {
-                            if (allowedValues[i].ToString() == propertyValue)
+                            prop.Value = propertyValue;
+                        }
+                        else
+                        {
+                            for (int i = 0; i < allowedValues.Length; i++)
                             {
-                                prop.Value = allowedValues[i];
-                                break;
+                                if (allowedValues[i].ToString() == propertyValue)
+                                {
+                                    prop.Value = allowedValues[i];
+                                    break;
+                                }
                             }
                         }
                     }

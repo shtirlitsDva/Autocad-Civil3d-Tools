@@ -270,7 +270,7 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = curve,
                                     DN = GetPipeDN(curve),
-                                    System = GetPipeType(curve).ToString(),
+                                    System = GetPipeType(curve, true).ToString(),
                                     Serie = GetPipeSeriesV2(curve, true).ToString()
                                 });
                             }
@@ -299,7 +299,7 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = curve,
                                     DN = GetPipeDN(curve),
-                                    System = GetPipeType(curve).ToString(),
+                                    System = GetPipeType(curve, true).ToString(),
                                     Serie = GetPipeSeriesV2(curve, true).ToString()
                                 });
 
@@ -314,7 +314,7 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = curve,
                                     DN = GetPipeDN(curve),
-                                    System = GetPipeType(curve).ToString(),
+                                    System = GetPipeType(curve, true).ToString(),
                                     Serie = GetPipeSeriesV2(curve, true).ToString()
                                 });
                             }
@@ -516,12 +516,12 @@ namespace IntersectUtilities
                             if (!noNumbers)
                                 wpBr.SetAttributeStringValue("NUMMER", currentPipelineNumber + "." + idx.ToString("D3"));
 
+                            psm.WritePropertyString(wpBr, driPipelineData.BelongsToAlignment, wp.Alignment.Name);
+
                             //if (idx == 1) DisplayDynBlockProperties(editor, wpBr, wpBr.Name);
                             SetDynBlockProperty(wpBr, "Type", wp.DN.ToString());
                             SetDynBlockProperty(wpBr, "System", wp.System);
                             SetDynBlockProperty(wpBr, "Serie", wp.Serie);
-
-                            psm.WritePropertyString(wpBr, driPipelineData.BelongsToAlignment, wp.Alignment.Name);
 
                             try
                             {

@@ -64,7 +64,6 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             const string kwd1 = "Ja";
             const string kwd2 = "Nej";
