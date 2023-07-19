@@ -520,7 +520,7 @@ namespace IntersectUtilities
 
                             //if (idx == 1) DisplayDynBlockProperties(editor, wpBr, wpBr.Name);
                             SetDynBlockProperty(wpBr, "Type", wp.DN.ToString());
-                            SetDynBlockProperty(wpBr, "System", wp.System);
+                            SetDynBlockPropertyObject(wpBr, "System", (object)wp.System);
                             SetDynBlockProperty(wpBr, "Serie", wp.Serie);
 
                             try

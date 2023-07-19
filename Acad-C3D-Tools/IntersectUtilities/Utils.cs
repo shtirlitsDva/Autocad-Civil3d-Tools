@@ -801,7 +801,6 @@ namespace IntersectUtilities
         }
         public static void SetDynBlockProperty(BlockReference br, string propertyName, string propertyValue)
         {
-            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
             // Only continue is we have a valid dynamic block
             if (br != null && br.IsDynamicBlock)
             {
