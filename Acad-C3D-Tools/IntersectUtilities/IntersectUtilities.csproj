@@ -278,6 +278,7 @@
     <Compile Include="MoreLinq\MoreLinq.cs" />
     <Compile Include="ODDataConverter.cs" />
     <Compile Include="Pipeline.cs" />
+    <Compile Include="PipelineSizeArray.cs" />
     <Compile Include="PipeSchedule.cs" />
     <Compile Include="PlanDetailing\ComponentData.cs" />
     <Compile Include="PlanDetailing\PlanDetailing.cs" />

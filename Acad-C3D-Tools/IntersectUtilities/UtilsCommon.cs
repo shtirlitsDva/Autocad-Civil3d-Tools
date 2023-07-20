@@ -2184,6 +2184,51 @@ namespace IntersectUtilities.UtilsCommon
         }
         public static double StationAtPoint(this Alignment al, BlockReference br)
             => StationAtPoint(al, br.Position);
+        public static bool IsConnectedTo(this Alignment itself, Alignment other, double tolerance)
+        {
+            // Get the start and end points of the alignments
+            Point3d thisStart = itself.StartPoint;
+            Point3d thisEnd = itself.EndPoint;
+            Point3d otherStart = other.StartPoint;
+            Point3d otherEnd = other.EndPoint;
+
+            // Check if any of the endpoints of this alignment are on the other alignment
+            if (IsOn(other, thisStart, tolerance) || IsOn(other, thisEnd, tolerance))
+                return true;
+
+            // Check if any of the endpoints of the other alignment are on this alignment
+            if (IsOn(itself, otherStart, tolerance) || IsOn(itself, otherEnd, tolerance))
+                return true;
+
+            // If none of the checks passed, the alignments are not connected
+            return false;
+
+            bool IsOn(Alignment al, Point3d point, double tol)
+            {
+                //double station = 0;
+                //double offset = 0;
+
+                //try
+                //{
+                //    alignment.StationOffset(point.X, point.Y, tolerance, ref station, ref offset);
+                //}
+                //catch (Exception) { return false; }
+
+                Polyline pline = al.GetPolyline().Go<Polyline>(
+                    al.Database.TransactionManager.TopTransaction);
+
+                Point3d p = pline.GetClosestPointTo(point, false);
+                pline.UpgradeOpen();
+                pline.Erase(true);
+                //prdDbg($"{offset}, {Math.Abs(offset)} < {tolerance}, {Math.Abs(offset) <= tolerance}, {station}");
+
+                // If the offset is within the tolerance, the point is on the alignment
+                if (Math.Abs(p.DistanceTo(point)) <= tol) return true;
+
+                // Otherwise, the point is not on the alignment
+                return false;
+            }
+        }
         public static void UpdateElevationZ(this PolylineVertex3d vert, double newElevation)
         {
             if (!vert.Position.Z.Equalz(newElevation, Tolerance.Global.EqualPoint))
@@ -2455,6 +2500,49 @@ namespace IntersectUtilities.UtilsCommon
             }
             return points;
         }
+        /// <summary>
+        /// Remember that the grouped objects need to have Equals and GetHashCode implemented
+        /// </summary>
+        /// <returns>List of lists, hvere each list contains connected objects</returns>
+        public static List<List<T>> GroupConnected<T>(this IEnumerable<T> itemsToGroup, Func<T, T, bool> predicateIsConnected)
+        {
+            var visited = new HashSet<T>();
+            var groups = new List<List<T>>();
+
+            foreach (var item in itemsToGroup)
+            {
+                if (!visited.Contains(item))
+                {
+                    var group = new List<T>();
+                    Stack<T> stack = new Stack<T>();
+                    stack.Push(item);
+
+                    while (stack.Count > 0)
+                    {
+                        var current = stack.Pop();
+
+                        if (!visited.Contains(current))
+                        {
+                            visited.Add(current);
+                            group.Add(current);
+
+                            foreach (var neighbor in itemsToGroup)
+                            {
+                                if (!visited.Contains(neighbor) && predicateIsConnected(current, neighbor))
+                                {
+                                    stack.Push(neighbor);
+                                }
+                            }
+                        }
+                    }
+
+                    groups.Add(group);
+                }
+            }
+
+            return groups;
+        }
+
     }
     public static class ExtensionMethods
     {
@@ -2525,7 +2613,7 @@ namespace IntersectUtilities.UtilsCommon
                 return id;
             }
         }
-        public static bool CheckOrCreateLayer(this Database db, string layerName, short colorIdx = -1)
+        public static bool CheckOrCreateLayer(this Database db, string layerName, short colorIdx = -1, bool isPlottable = true)
         {
             Transaction txLag = db.TransactionManager.TopTransaction;
             LayerTable lt = txLag.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
@@ -2533,6 +2621,7 @@ namespace IntersectUtilities.UtilsCommon
             {
                 LayerTableRecord ltr = new LayerTableRecord();
                 ltr.Name = layerName;
+                ltr.IsPlottable = isPlottable;
                 if (colorIdx != -1)
                 {
                     ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, colorIdx);

@@ -624,10 +624,63 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("AUTOREVERSEPLINES")]
-        public void autoreverseplines()
+        [CommandMethod("CHECKALIGNMENTSCONNECTIVITY")]
+        public void checkalignmentsconnectivity()
         {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
 
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
+
+                    var spgroups = als.GroupConnected((x, y) => x.IsConnectedTo(y, 0.05));
+
+                    string layer = "0-Alignment-connectivity-check";
+                    localDb.CheckOrCreateLayer(layer, 2, false);
+
+                    int i = 0;
+                    foreach (var group in spgroups)
+                    {
+                        List<Point2d> pts = new List<Point2d>();
+
+                        i++;
+                        prdDbg($"Spatial group {i} - {group.Count} alignment(s):");
+                        foreach (var item in group)
+                        {
+                            prdDbg(item.Name);
+                            var pl = item.GetPolyline().Go<Polyline>(tx);
+                            pts.AddRange(pl.GetSamplePoints());
+                            pl.UpgradeOpen();
+                            pl.Erase();
+                        }
+                        prdDbg("");
+
+                        var hull = ConvexHull.Compute(pts);
+                        Polyline polyline = new Polyline();
+                        polyline.Layer = layer;
+                        foreach (var item in hull) polyline.AddVertexAt(polyline.NumberOfVertices, item, 0, 0, 0);
+                        polyline.Closed = true;
+                        polyline.ConstantWidth = 0.5;
+                        polyline.AddEntityToDbModelSpace(localDb);
+                    }
+                        
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("AUTOREVERSEPOLYLINES")]
+        public void autoreversepolylines()
+        {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
@@ -648,8 +701,8 @@ namespace IntersectUtilities
                     System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
                         @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
-                    graphclear();
-                    graphpopulate();
+                    //graphclear();
+                    //graphpopulate();
 
                     HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
                     var ents = localDb.GetFjvEntities(tx, fjvKomponenter, true, false);
@@ -675,70 +728,15 @@ namespace IntersectUtilities
                         pipelines.Add(new Pipeline(al, alEnts));
                     }
 
-                    var spgroups = GroupConnectedPipelines(pipelines, 0.05);
+                    var spgroups = pipelines.GroupConnected((x, y) => x.IsConnectedTo(y, 0.05));
 
-                    List<List<Pipeline>> GroupConnectedPipelines(List<Pipeline> toGroup, double tolerance)
-                    {
-                        var visited = new HashSet<Pipeline>();
-                        var groups = new List<List<Pipeline>>();
-
-                        foreach (var pipeline in toGroup)
-                        {
-                            if (!visited.Contains(pipeline))
-                            {
-                                var group = new List<Pipeline>();
-                                Stack<Pipeline> stack = new Stack<Pipeline>();
-                                stack.Push(pipeline);
-
-                                while (stack.Count > 0)
-                                {
-                                    var current = stack.Pop();
-
-                                    if (!visited.Contains(current))
-                                    {
-                                        visited.Add(current);
-                                        group.Add(current);
-
-                                        foreach (var neighbor in toGroup)
-                                        {
-                                            if (!visited.Contains(neighbor) && current.IsConnected(neighbor, tolerance))
-                                            {
-                                                stack.Push(neighbor);
-                                            }
-                                        }
-                                    }
-                                }
-
-                                groups.Add(group);
-                            }
-                        }
-
-                        return groups;
-                    }
-
-
-                    int i = 0;
                     foreach (var group in spgroups)
                     {
-                        List<Point2d> pts = new List<Point2d>();
-
-                        i++;
-                        prdDbg($"Spatial group {i}:");
-                        foreach (var item in group)
+                        if (group.Select(x => x.Sizes.MaxDn).Distinct().Count() == 1)
                         {
-                            prdDbg(item.Alignment.Name);
-                            var pl = item.Alignment.GetPolyline().Go<Polyline>(alTx);
-                            pts.AddRange(pl.GetSamplePoints());
+                            prdDbg("Group has same DN!");
                         }
-                        prdDbg("");
-
-                        var hull = ConvexHull.Compute(pts);
-                        Polyline polyline = new Polyline();
-                        foreach (var item in hull) polyline.AddVertexAt(polyline.NumberOfVertices, item, 0, 0, 0);
-                        polyline.Closed = true;
-                        polyline.AddEntityToDbModelSpace(localDb);
                     }
-                        
                 }
                 catch (System.Exception ex)
                 {

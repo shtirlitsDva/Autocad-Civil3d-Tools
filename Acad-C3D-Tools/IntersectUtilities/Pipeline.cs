@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web.WebSockets;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -16,16 +17,24 @@ using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 
 namespace IntersectUtilities
 {
-    internal class Pipeline
+    internal class Pipeline : IEquatable<Pipeline>
     {
         public Alignment Alignment { get; set; }
         public Entity[] Entities { get; set; }
+        public PipelineSizeArray Sizes { get; set; }
         public Pipeline(Alignment alignment, IEnumerable<Entity> entities)
         {
             Alignment = alignment;
             if (entities == null || entities.Count() == 0)
                 throw new Exception("No entities supplied!");
             Entities = entities.OrderBy(x => GetStation(x)).ToArray();
+
+            var curves = entities.OfType<Curve>().ToHashSet();
+            var brs = entities.OfType<BlockReference>().ToHashSet();
+
+            if (brs.Count > 0)
+                Sizes = new PipelineSizeArray(alignment, curves, brs);
+            else Sizes = new PipelineSizeArray(alignment, curves);
         }
 
         private double GetStation(Entity entity)
@@ -48,7 +57,7 @@ namespace IntersectUtilities
             }
             return station;
         }
-        public bool IsConnected(Pipeline other, double tolerance)
+        public bool IsConnectedTo(Pipeline other, double tolerance)
         {
             // Get the start and end points of the alignments
             Point3d thisStart = this.Alignment.StartPoint;
@@ -66,31 +75,33 @@ namespace IntersectUtilities
 
             // If none of the checks passed, the alignments are not connected
             return false;
+
+            bool IsOn(Alignment al, Point3d point, double tol)
+            {
+                //double station = 0;
+                //double offset = 0;
+
+                //try
+                //{
+                //    alignment.StationOffset(point.X, point.Y, tolerance, ref station, ref offset);
+                //}
+                //catch (Exception) { return false; }
+
+                Polyline pline = al.GetPolyline().Go<Polyline>(
+                    al.Database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+                Point3d p = pline.GetClosestPointTo(point, false);
+                pline.Erase(true);
+                //prdDbg($"{offset}, {Math.Abs(offset)} < {tolerance}, {Math.Abs(offset) <= tolerance}, {station}");
+
+                // If the offset is within the tolerance, the point is on the alignment
+                if (Math.Abs(p.DistanceTo(point)) <= tol) return true;
+
+                // Otherwise, the point is not on the alignment
+                return false;
+            }
         }
-        private bool IsOn(Alignment al, Point3d point, double tolerance)
-        {
-            //double station = 0;
-            //double offset = 0;
-
-            //try
-            //{
-            //    alignment.StationOffset(point.X, point.Y, tolerance, ref station, ref offset);
-            //}
-            //catch (Exception) { return false; }
-
-            Polyline pline = al.GetPolyline().Go<Polyline>(
-                al.Database.TransactionManager.TopTransaction, OpenMode.ForWrite);
-
-            Point3d p = pline.GetClosestPointTo(point, false);
-            pline.Erase(true);
-            //prdDbg($"{offset}, {Math.Abs(offset)} < {tolerance}, {Math.Abs(offset) <= tolerance}, {station}");
-
-            // If the offset is within the tolerance, the point is on the alignment
-            if (Math.Abs(p.DistanceTo(point)) <= tolerance) return true;
-
-            // Otherwise, the point is not on the alignment
-            return false;
-        }
+        
 
         public override string ToString()
         {
@@ -120,6 +131,22 @@ namespace IntersectUtilities
             sb.AppendLine("-------------------------------------------------");
 
             return sb.ToString();
+        }
+
+        public bool Equals(Pipeline other)
+        {
+            if (other == null) return false;
+            return this.Alignment.Name.Equals(other.Alignment.Name);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return Equals(obj as Pipeline);
+        }
+
+        public override int GetHashCode()
+        {
+            return this.Alignment.Name.GetHashCode();
         }
     }
 }
