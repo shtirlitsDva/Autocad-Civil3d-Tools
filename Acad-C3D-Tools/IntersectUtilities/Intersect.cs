@@ -3859,6 +3859,62 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test alignments connection
+                    PromptEntityOptions peo = new PromptEntityOptions("\nSelect first alignment: ");
+                    peo.SetRejectMessage("\nNot an alignment!");
+                    peo.AddAllowedClass(typeof(Alignment), true);
+                    PromptEntityResult per = editor.GetEntity(peo);
+                    Alignment al1 = per.ObjectId.Go<Alignment>(tx);
+
+                    peo = new PromptEntityOptions("\nSelect second alignment: ");
+                    peo.SetRejectMessage("\nNot an alignment!");
+                    peo.AddAllowedClass(typeof(Alignment), true);
+                    per = editor.GetEntity(peo);
+                    Alignment al2 = per.ObjectId.Go<Alignment>(tx);
+
+                    // Get the start and end points of the alignments
+                    Point3d thisStart = al1.StartPoint;
+                    Point3d thisEnd = al1.EndPoint;
+                    Point3d otherStart = al2.StartPoint;
+                    Point3d otherEnd = al2.EndPoint;
+
+                    double tol = 0.05;
+
+                    // Check if any of the endpoints of this alignment are on the other alignment
+                    if (IsOn(al2, thisStart, tol) || IsOn(al2, thisEnd, tol))
+                        prdDbg("Connected!");
+                    // Check if any of the endpoints of the other alignment are on this alignment
+                    else if (IsOn(al1, otherStart, tol) || IsOn(al1, otherEnd, tol))
+                        prdDbg("Connected!");
+                    else prdDbg("Not connected!");
+
+                    bool IsOn(Alignment al, Point3d point, double tolerance)
+                    {
+                        //double station = 0;
+                        //double offset = 0;
+
+                        //try
+                        //{
+                        //    alignment.StationOffset(point.X, point.Y, tolerance, ref station, ref offset);
+                        //}
+                        //catch (Exception) { return false; }
+
+                        Polyline pline = al.GetPolyline().Go<Polyline>(
+                            al.Database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+                        Point3d p = pline.GetClosestPointTo(point, false);
+                        pline.Erase(true);
+                        //prdDbg($"{offset}, {Math.Abs(offset)} < {tolerance}, {Math.Abs(offset) <= tolerance}, {station}");
+
+                        // If the offset is within the tolerance, the point is on the alignment
+                        if (Math.Abs(p.DistanceTo(point)) <= tolerance) return true;
+
+                        // Otherwise, the point is not on the alignment
+                        return false;
+                    }
+
+                    #endregion
+
                     #region Print lineweights enum
                     //foreach (string name in Enum.GetNames(typeof(LineWeight)))
                     //{

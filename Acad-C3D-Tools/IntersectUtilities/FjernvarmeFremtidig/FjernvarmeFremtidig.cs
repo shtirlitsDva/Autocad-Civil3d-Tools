@@ -652,9 +652,7 @@ namespace IntersectUtilities
                     graphpopulate();
 
                     HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
-                    HashSet<Polyline> allPipes = localDb.GetFjvPipes(tx);
-                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
-                    var ents = allPipes.Cast<Entity>().Union(brs);
+                    var ents = localDb.GetFjvEntities(tx, fjvKomponenter, true, false);
 
                     #region Initialize property set
                     PropertySetManager psmPipeline = new PropertySetManager(localDb,
@@ -669,94 +667,78 @@ namespace IntersectUtilities
                     foreach (var al in als)
                     {
                         var alEnts = ents.Where(
-                            x => psmPipeline.ReadPropertyString(x, driPipelineDef.BelongsToAlignment) == al.Name);
+                            x => psmPipeline.ReadPropertyString(
+                                x, driPipelineDef.BelongsToAlignment) == al.Name);
+
+                        if (alEnts.Count() == 0) continue;
 
                         pipelines.Add(new Pipeline(al, alEnts));
                     }
-                        
 
-                    #region Group NAs by spatial relation
-                    //Group NAs by spatial relation
-                    var naGroups = allNas.GroupByCluster((x, y) => isASpatialGroup(x, y), 0.5);
-                    double isASpatialGroup(Entity x, Entity y)
+                    var spgroups = GroupConnectedPipelines(pipelines, 0.05);
+
+                    List<List<Pipeline>> GroupConnectedPipelines(List<Pipeline> toGroup, double tolerance)
                     {
-                        string conString1 = psmGraph.ReadPropertyString(
-                                    x, defGraph.ConnectedEntities);
-                        string conString2 = psmGraph.ReadPropertyString(
-                                    y, defGraph.ConnectedEntities);
+                        var visited = new HashSet<Pipeline>();
+                        var groups = new List<List<Pipeline>>();
 
-                        if (conString1.IsNoE())
-                            throw new System.Exception(
-                                $"Malformend constring: {conString1}, entity: {x.Handle}.");
-                        if (conString2.IsNoE())
-                            throw new System.Exception(
-                                $"Malformend constring: {conString2}, entity: {y.Handle}.");
-
-                        Con[] cons1 = GraphEntity.parseConString(conString1);
-                        Con[] cons2 = GraphEntity.parseConString(conString2);
-
-                        if (cons1.Any(l => l.ConHandle == y.Handle) ||
-                            cons2.Any(m => m.ConHandle == x.Handle)) return 0.0;
-                        else return 1.0;
-                    }
-
-                    int idx = 0;
-                    foreach (IGrouping<Entity, Entity> group in naGroups)
-                    {
-                        idx++;
-                        foreach (Entity item in group)
-                            psm.WritePropertyString(
-                                item, driPipelineData.BelongsToAlignment,
-                                $"NA {idx.ToString("00")}");
-                    }
-                    #endregion
-
-                    #region Take care of stik
-                    //Exit gracefully if no stiks
-                    if (conPipes.Count == 0)
-                    {
-                        alTx.Abort();
-                        alTx.Dispose();
-                        alDb.Dispose();
-                        tx.Commit();
-                        return;
-                    }
-
-                    prdDbg(
-                        "**************************************************************" +
-                        "Projektet indeholder stikledninger!\n" +
-                        "ADVARSEL: Stikledninger SKAL være forbundet i et TRÆ-struktur!\n" +
-                        "Dvs. der må ikke være gennemgående polylinjer ved afgreninger.\n" +
-                        "Stikledninger forbundet til komponenter skal afklares manuelt.\n" +
-                        "**************************************************************");
-
-                    var grouping = conPipes.GroupByCluster((x, y) => areConnected(x, y), 0.5);
-
-                    int stikGruppeCount = 0;
-                    
-
-                    double areConnected(Polyline pl1, Polyline pl2)
-                    {
-                        if (IsPointOnCurve(pl2, pl1.StartPoint)) return 0.0;
-                        if (IsPointOnCurve(pl2, pl1.EndPoint)) return 0.0;
-                        if (IsPointOnCurve(pl1, pl2.StartPoint)) return 0.0;
-                        if (IsPointOnCurve(pl1, pl2.EndPoint)) return 0.0;
-                        return 1.0;
-                    }
-                    bool IsPointOnCurve(Curve cv, Point3d pt)
-                    {
-                        try
+                        foreach (var pipeline in toGroup)
                         {
-                            // Return true if operation succeeds
-                            Point3d p = cv.GetClosestPointTo(pt, false);
-                            //return (p - pt).Length <= Tolerance.Global.EqualPoint;
-                            return (p - pt).Length <= 0.025;
+                            if (!visited.Contains(pipeline))
+                            {
+                                var group = new List<Pipeline>();
+                                Stack<Pipeline> stack = new Stack<Pipeline>();
+                                stack.Push(pipeline);
+
+                                while (stack.Count > 0)
+                                {
+                                    var current = stack.Pop();
+
+                                    if (!visited.Contains(current))
+                                    {
+                                        visited.Add(current);
+                                        group.Add(current);
+
+                                        foreach (var neighbor in toGroup)
+                                        {
+                                            if (!visited.Contains(neighbor) && current.IsConnected(neighbor, tolerance))
+                                            {
+                                                stack.Push(neighbor);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                groups.Add(group);
+                            }
                         }
-                        catch { }
-                        // Otherwise we return false
-                        return false;
+
+                        return groups;
                     }
-                    #endregion
+
+
+                    int i = 0;
+                    foreach (var group in spgroups)
+                    {
+                        List<Point2d> pts = new List<Point2d>();
+
+                        i++;
+                        prdDbg($"Spatial group {i}:");
+                        foreach (var item in group)
+                        {
+                            prdDbg(item.Alignment.Name);
+                            var pl = item.Alignment.GetPolyline().Go<Polyline>(alTx);
+                            pts.AddRange(pl.GetSamplePoints());
+                        }
+                        prdDbg("");
+
+                        var hull = ConvexHull.Compute(pts);
+                        Polyline polyline = new Polyline();
+                        foreach (var item in hull) polyline.AddVertexAt(polyline.NumberOfVertices, item, 0, 0, 0);
+                        polyline.Closed = true;
+                        polyline.AddEntityToDbModelSpace(localDb);
+                    }
+                        
                 }
                 catch (System.Exception ex)
                 {

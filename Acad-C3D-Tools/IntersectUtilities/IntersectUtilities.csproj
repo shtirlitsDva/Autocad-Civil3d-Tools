@@ -235,6 +235,7 @@
     <Compile Include="..\AutoCADCommands\SymbolPack.cs">
       <Link>ACC\SymbolPack.cs</Link>
     </Compile>
+    <Compile Include="ConvexHull.cs" />
     <Compile Include="DataReferenceOptions.cs" />
     <Compile Include="GeoJsonConverters\AutoCadVFToGeoJsonConverter.cs" />
     <Compile Include="GeoJsonConverters\AutoCadFjvToGeoJsonConverter.cs" />
