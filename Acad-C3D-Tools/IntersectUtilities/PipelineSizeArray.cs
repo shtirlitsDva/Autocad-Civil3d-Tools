@@ -241,7 +241,7 @@ namespace IntersectUtilities
             //else brs.ToArray();
 
             //New ordering based on station on alignment
-            prdDbg("Using new SizeArray ordering method! Beware!");
+            //prdDbg("Using new SizeArray ordering method! Beware!");
             brsArray = brs.OrderBy(x => al.StationAtPoint(x)).ToArray();
 
             List<SizeEntry> sizes = new List<SizeEntry>();

@@ -735,6 +735,7 @@ namespace IntersectUtilities
                         if (group.Select(x => x.Sizes.MaxDn).Distinct().Count() == 1)
                         {
                             prdDbg("Group has same DN!");
+                            prdDbg(string.Join(", ", group.Select(x => x.Alignment.Name)));
                         }
                     }
                 }
