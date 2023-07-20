@@ -730,14 +730,22 @@ namespace IntersectUtilities
 
                     var spgroups = pipelines.GroupConnected((x, y) => x.IsConnectedTo(y, 0.05));
 
+                    List<GraphNodeV2> rootNodes = new List<GraphNodeV2>();
+
                     foreach (var group in spgroups)
                     {
                         if (group.Select(x => x.Sizes.MaxDn).Distinct().Count() == 1)
                         {
-                            prdDbg("Group has same DN!");
+                            prdDbg($"Group has same DN! {group.First().Sizes.MaxDn}");
                             prdDbg(string.Join(", ", group.Select(x => x.Alignment.Name)));
                         }
+                        else
+                        {
+                            rootNodes.Add(GraphNodeV2.CreateGraph(group, 0.05));
+                        }
                     }
+
+                    GraphNodeV2.ToDot(rootNodes);
                 }
                 catch (System.Exception ex)
                 {

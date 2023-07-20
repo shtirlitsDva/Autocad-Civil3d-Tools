@@ -273,6 +273,7 @@
     <Compile Include="MoreLinq\DistinctBy.cs" />
     <Compile Include="MyGraphQA.cs" />
     <Compile Include="MyGraph.cs" />
+    <Compile Include="MyGraphV2.cs" />
     <Compile Include="ObsoleteMethods.cs" />
     <Compile Include="Intersect.cs" />
     <Compile Include="MoreLinq\MoreLinq.cs" />

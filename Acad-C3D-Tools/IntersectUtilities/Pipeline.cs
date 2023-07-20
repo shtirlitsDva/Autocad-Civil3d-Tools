@@ -22,6 +22,8 @@ namespace IntersectUtilities
         public Alignment Alignment { get; set; }
         public Entity[] Entities { get; set; }
         public PipelineSizeArray Sizes { get; set; }
+        public int MaxDn { get => Sizes.MaxDn; }
+        public int MinDn { get => Sizes.MinDn; }
         public Pipeline(Alignment alignment, IEnumerable<Entity> entities)
         {
             Alignment = alignment;
@@ -36,7 +38,6 @@ namespace IntersectUtilities
                 Sizes = new PipelineSizeArray(alignment, curves, brs);
             else Sizes = new PipelineSizeArray(alignment, curves);
         }
-
         private double GetStation(Entity entity)
         {
             double station = 0;
@@ -101,8 +102,6 @@ namespace IntersectUtilities
                 return false;
             }
         }
-        
-
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
@@ -132,18 +131,15 @@ namespace IntersectUtilities
 
             return sb.ToString();
         }
-
         public bool Equals(Pipeline other)
         {
             if (other == null) return false;
             return this.Alignment.Name.Equals(other.Alignment.Name);
         }
-
         public override bool Equals(object obj)
         {
             return Equals(obj as Pipeline);
         }
-
         public override int GetHashCode()
         {
             return this.Alignment.Name.GetHashCode();
