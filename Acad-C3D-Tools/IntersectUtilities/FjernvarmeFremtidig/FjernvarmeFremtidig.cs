@@ -725,7 +725,7 @@ namespace IntersectUtilities
 
                         if (alEnts.Count() == 0) continue;
 
-                        pipelines.Add(new Pipeline(al, alEnts));
+                        pipelines.Add(new Pipeline(al, alEnts, fjvKomponenter));
                     }
 
                     var spgroups = pipelines.GroupConnected((x, y) => x.IsConnectedTo(y, 0.05));

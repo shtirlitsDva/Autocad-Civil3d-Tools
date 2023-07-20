@@ -3,17 +3,20 @@ using Autodesk.AutoCAD.Geometry;
 using Autodesk.Civil.DatabaseServices;
 
 using IntersectUtilities.UtilsCommon;
+using static IntersectUtilities.DynamicBlocks.PropertyReader;
+using static IntersectUtilities.PipeSchedule;
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Data;
 using System.Threading.Tasks;
-using System.Web.WebSockets;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using DataTable = System.Data.DataTable;
 
 namespace IntersectUtilities
 {
@@ -22,11 +25,13 @@ namespace IntersectUtilities
         public Alignment Alignment { get; set; }
         public Entity[] Entities { get; set; }
         public PipelineSizeArray Sizes { get; set; }
+        public DataTable Table { get; }
         public int MaxDn { get => Sizes.MaxDn; }
         public int MinDn { get => Sizes.MinDn; }
-        public Pipeline(Alignment alignment, IEnumerable<Entity> entities)
+        public Pipeline(Alignment alignment, IEnumerable<Entity> entities, DataTable table)
         {
             Alignment = alignment;
+            Table = table;
             if (entities == null || entities.Count() == 0)
                 throw new Exception("No entities supplied!");
             Entities = entities.OrderBy(x => GetStation(x)).ToArray();
@@ -102,6 +107,69 @@ namespace IntersectUtilities
                 return false;
             }
         }
+        public string GetLabel()
+        {
+            StringBuilder sb = new StringBuilder();
+            List<List<string>> labels = new List<List<string>>();
+
+            // First, generate all labels and find the maximum length of each part
+            foreach (Entity entity in Entities)
+            {
+                List<string> parts = new List<string>();
+                switch (entity)
+                {
+                    case Polyline pline:
+                        int dn = PipeSchedule.GetPipeDN(pline);
+                        string system = GetPipeType(pline).ToString();
+                        parts = new List<string> { pline.Handle.ToString(), $"Rør L{pline.Length.ToString("0.##")}", $"{system} DN{dn}" };
+                        break;
+                    case BlockReference br:
+                        string dn1 = ReadComponentDN1Str(br, Table);
+                        string dn2 = ReadComponentDN2Str(br, Table);
+                        string dnStr = dn2 == "0" ? dn1 : dn1 + "/" + dn2;
+                        system = ComponentSchedule.ReadComponentSystem(br, Table);
+                        string type = ComponentSchedule.ReadComponentType(br, Table);
+                        parts = new List<string> { br.Handle.ToString(), type, $"{system} DN{dnStr}" };
+                        break;
+                    default:
+                        continue;
+                }
+                labels.Add(parts);
+            }
+
+            // Find the maximum length of each part
+            List<int> maxLengths = new List<int>();
+            for (int i = 0; i < labels[0].Count; i++)
+            {
+                int maxLength = labels.Max(label => label[i].Length);
+                maxLengths.Add(maxLength);
+            }
+
+            // Now generate the output with right padding for each part
+            foreach (List<string> parts in labels)
+            {
+                List<string> paddedParts = new List<string>();
+                for (int i = 0; i < parts.Count; i++)
+                {
+                    // Calculate the amount of padding needed
+                    int paddingNeeded = maxLengths[i] - parts[i].Length;
+
+                    // Generate the padded part
+                    string paddedPart = parts[i] + new string(' ', paddingNeeded);
+
+                    // Replace spaces with escaped spaces
+                    paddedPart = paddedPart.Replace(" ", "\\ ");
+
+                    paddedParts.Add(paddedPart);
+                }
+
+                // Combine the parts into a single label and append to the output
+                sb.AppendLine($"|{{{string.Join("|", paddedParts)}}}");
+            }
+
+            return sb.ToString();
+        }
+
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();

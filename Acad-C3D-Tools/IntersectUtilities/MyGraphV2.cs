@@ -7,6 +7,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using static IntersectUtilities.UtilsCommon.Utils;
+
 namespace IntersectUtilities
 {
     internal class GraphNodeV2
@@ -35,9 +37,11 @@ namespace IntersectUtilities
 
                 foreach (var otherPipeline in group)
                 {
+                    // Ensure that we do not create a cycle in the graph
                     if (pipeline != otherPipeline && pipeline.IsConnectedTo(otherPipeline, tolerance))
                     {
-                        nodes[otherPipeline].Children.Add(node);  // the other node is the child of this node
+                        nodes[otherPipeline].Children.Add(node);
+                        nodes[pipeline].Children.Remove(nodes[otherPipeline]); // Ensure the child does not have the current node as a child
                     }
                 }
             }
@@ -56,25 +60,43 @@ namespace IntersectUtilities
             {
                 // Start a new subgraph for this group of pipelines
                 sb.AppendLine($"  subgraph G_{subGraphId} {{");
-                sb.AppendLine("    node [shape=record, fontname = \"monospace\"];");
+                sb.AppendLine("    node [shape=record, fontname=\"monospace bold\"];");
 
                 // Use a queue to perform a breadth-first traversal of this group
                 Queue<GraphNodeV2> queue = new Queue<GraphNodeV2>();
                 queue.Enqueue(rootNode);
 
-                HashSet<GraphNodeV2> visited = new HashSet<GraphNodeV2>();
-                visited.Add(rootNode);
+                HashSet<GraphNodeV2> visitedForEdges = new HashSet<GraphNodeV2>();
+                visitedForEdges.Add(rootNode);
 
+                Stack<GraphNodeV2> stack = new Stack<GraphNodeV2>();
+                stack.Push(rootNode);
+                //Print nodes and labels
+                int count = 0;
+                while (stack.Count > 0)
+                {
+                    count++;
+                    GraphNodeV2 current = stack.Pop();
+                    sb.AppendLine($"    " +
+                        $"\"{current.Node.Alignment.Name}\" " +
+                        $"[label=\"{{{current.Node.Alignment.Name}" +
+                        $"{current.Node.GetLabel()}" +
+                        $"}}\"];");
+                    foreach (GraphNodeV2 child in current.Children) stack.Push(child);
+                    if (count > 1000) break;
+                }
+
+                //print edges
                 while (queue.Count > 0)
                 {
                     GraphNodeV2 current = queue.Dequeue();
                     foreach (GraphNodeV2 child in current.Children)
                     {
-                        if (!visited.Contains(child))
+                        if (!visitedForEdges.Contains(child))
                         {
                             sb.AppendLine($"    \"{current.Node.Alignment.Name}\" -> \"{child.Node.Alignment.Name}\";");
                             queue.Enqueue(child);
-                            visited.Add(child);
+                            visitedForEdges.Add(child);
                         }
                     }
                 }
@@ -107,6 +129,5 @@ namespace IntersectUtilities
             cmd.StartInfo.Arguments = @"/c ""dot -Tpdf MyGraph.dot > MyGraph.pdf""";
             cmd.Start();
         }
-
     }
 }
