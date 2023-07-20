@@ -56,7 +56,7 @@ namespace IntersectUtilities
             {
                 // Start a new subgraph for this group of pipelines
                 sb.AppendLine($"  subgraph G_{subGraphId} {{");
-                sb.AppendLine("    node [shape=record];");
+                sb.AppendLine("    node [shape=record, fontname = \"monospace\"];");
 
                 // Use a queue to perform a breadth-first traversal of this group
                 Queue<GraphNodeV2> queue = new Queue<GraphNodeV2>();
@@ -72,7 +72,7 @@ namespace IntersectUtilities
                     {
                         if (!visited.Contains(child))
                         {
-                            //sb.AppendLine($"    \"{current.Node.Alignment.Name}\" -> \"{child.Node.Alignment.Name}\";");
+                            sb.AppendLine($"    \"{current.Node.Alignment.Name}\" -> \"{child.Node.Alignment.Name}\";");
                             queue.Enqueue(child);
                             visited.Add(child);
                         }
