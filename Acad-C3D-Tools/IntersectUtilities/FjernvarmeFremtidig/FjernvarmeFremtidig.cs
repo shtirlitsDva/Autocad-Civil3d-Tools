@@ -701,8 +701,8 @@ namespace IntersectUtilities
                     System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
                         @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
-                    //graphclear();
-                    //graphpopulate();
+                    graphclear();
+                    graphpopulate();
 
                     HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
                     var ents = localDb.GetFjvEntities(tx, fjvKomponenter, true, false);
@@ -717,15 +717,17 @@ namespace IntersectUtilities
                     #endregion
 
                     List<Pipeline> pipelines = new List<Pipeline>();
+                    int pipelineCount = 0;
                     foreach (var al in als)
                     {
+                        pipelineCount++;
                         var alEnts = ents.Where(
                             x => psmPipeline.ReadPropertyString(
                                 x, driPipelineDef.BelongsToAlignment) == al.Name);
 
                         if (alEnts.Count() == 0) continue;
 
-                        pipelines.Add(new Pipeline(al, alEnts, fjvKomponenter));
+                        pipelines.Add(new Pipeline(al, alEnts, fjvKomponenter, pipelineCount));
                     }
 
                     var spgroups = pipelines.GroupConnected((x, y) => x.IsConnectedTo(y, 0.05));

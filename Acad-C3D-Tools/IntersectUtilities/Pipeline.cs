@@ -28,10 +28,14 @@ namespace IntersectUtilities
         public DataTable Table { get; }
         public int MaxDn { get => Sizes.MaxDn; }
         public int MinDn { get => Sizes.MinDn; }
-        public Pipeline(Alignment alignment, IEnumerable<Entity> entities, DataTable table)
+        private Graph.Con[] Cons;
+        private int _portCount = 0;
+        public int PipelineNumber = 0;
+        public Pipeline(Alignment alignment, IEnumerable<Entity> entities, DataTable table, int pipelineNumber)
         {
             Alignment = alignment;
             Table = table;
+            PipelineNumber = pipelineNumber;
             if (entities == null || entities.Count() == 0)
                 throw new Exception("No entities supplied!");
             Entities = entities.OrderBy(x => GetStation(x)).ToArray();
@@ -42,6 +46,31 @@ namespace IntersectUtilities
             if (brs.Count > 0)
                 Sizes = new PipelineSizeArray(alignment, curves, brs);
             else Sizes = new PipelineSizeArray(alignment, curves);
+
+            //Reverse entities if sizes SmallToLargeAscending
+            if (Sizes.Direction == PipelineSizeArray.PipelineSizesDirection.SmallToLargeAscending)
+                Entities = Entities.Reverse().ToArray();
+
+            _labels = BuildLabel();
+
+            //Parse and build connections
+            PropertySetManager psmGraph = new PropertySetManager(Entities[0].Database,
+                        PSetDefs.DefinedSets.DriGraph);
+            PSetDefs.DriGraph driGraphDef = new PSetDefs.DriGraph();
+
+            List<Graph.Con> cons = new List<Graph.Con>();
+
+            foreach (var ent in Entities)
+            {
+                string conString = psmGraph.ReadPropertyString(ent, driGraphDef.ConnectedEntities);
+                var list = Graph.GraphEntity.parseConString(conString);
+                //Cache reference to entities own handle to be able to create connections
+                foreach (var item in list) item.OwnHandle = ent.Handle;
+                cons.AddRange(list);
+            }
+
+            //Clean cons from all own entities
+            Cons = cons.Where(x => !Entities.Any(y => x.ConHandle == y.Handle)).ToArray();
         }
         private double GetStation(Entity entity)
         {
@@ -107,21 +136,22 @@ namespace IntersectUtilities
                 return false;
             }
         }
-        public string GetLabel()
+        private List<Label> _labels = new List<Label>();
+        private List<string> _edges = new List<string>();
+        private List<Label> BuildLabel()
         {
-            StringBuilder sb = new StringBuilder();
-            List<List<string>> labels = new List<List<string>>();
-
-            // First, generate all labels and find the maximum length of each part
+            List<Label> labels = new List<Label>();
             foreach (Entity entity in Entities)
             {
-                List<string> parts = new List<string>();
+                Label label = new Label();
                 switch (entity)
                 {
                     case Polyline pline:
                         int dn = PipeSchedule.GetPipeDN(pline);
                         string system = GetPipeType(pline).ToString();
-                        parts = new List<string> { pline.Handle.ToString(), $"Rør L{pline.Length.ToString("0.##")}", $"{system} DN{dn}" };
+                        label.Handle = pline.Handle;
+                        label.Description = $"Rør L{pline.Length.ToString("0.##")}";
+                        label.SystemAndDN = $"{system} DN{dn}";
                         break;
                     case BlockReference br:
                         string dn1 = ReadComponentDN1Str(br, Table);
@@ -129,47 +159,41 @@ namespace IntersectUtilities
                         string dnStr = dn2 == "0" ? dn1 : dn1 + "/" + dn2;
                         system = ComponentSchedule.ReadComponentSystem(br, Table);
                         string type = ComponentSchedule.ReadComponentType(br, Table);
-                        parts = new List<string> { br.Handle.ToString(), type, $"{system} DN{dnStr}" };
+                        label.Handle = br.Handle;
+                        label.Description = type;
+                        label.SystemAndDN = $"{system} DN{dnStr}";
                         break;
                     default:
                         continue;
                 }
-                labels.Add(parts);
+                labels.Add(label);
             }
+            return labels;
+        }
+        public string GetLabel()
+        {
+            int maxHandleLength = _labels.Max(label => label.Handle.ToString().Length);
+            int maxDescLength = _labels.Max(label => label.Description.Length);
+            int maxSysAndDNLength = _labels.Max(label => label.SystemAndDN.Length);
 
-            // Find the maximum length of each part
-            List<int> maxLengths = new List<int>();
-            for (int i = 0; i < labels[0].Count; i++)
+            StringBuilder sb = new StringBuilder();
+
+            foreach (Label label in _labels)
             {
-                int maxLength = labels.Max(label => label[i].Length);
-                maxLengths.Add(maxLength);
-            }
+                string handle = label.Handle.ToString().PadRight(maxHandleLength).Replace(" ", "\\ ");
+                if (label.PortNumber != 0) handle = $"<p{label.PortNumber.ToString("D2")}> " + handle;
+                string description = label.Description.PadRight(maxDescLength).Replace(" ", "\\ ");
+                string sysAndDn = label.SystemAndDN.PadRight(maxSysAndDNLength).Replace(" ", "\\ ");
 
-            // Now generate the output with right padding for each part
-            foreach (List<string> parts in labels)
-            {
-                List<string> paddedParts = new List<string>();
-                for (int i = 0; i < parts.Count; i++)
-                {
-                    // Calculate the amount of padding needed
-                    int paddingNeeded = maxLengths[i] - parts[i].Length;
-
-                    // Generate the padded part
-                    string paddedPart = parts[i] + new string(' ', paddingNeeded);
-
-                    // Replace spaces with escaped spaces
-                    paddedPart = paddedPart.Replace(" ", "\\ ");
-
-                    paddedParts.Add(paddedPart);
-                }
-
-                // Combine the parts into a single label and append to the output
-                sb.AppendLine($"|{{{string.Join("|", paddedParts)}}}");
+                sb.AppendLine($"|{{{handle}|{description}|{sysAndDn}}}");
             }
 
             return sb.ToString();
         }
-
+        public string GetEdges()
+        {
+            return string.Join("\n", _edges);
+        }
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
@@ -211,6 +235,43 @@ namespace IntersectUtilities
         public override int GetHashCode()
         {
             return this.Alignment.Name.GetHashCode();
+        }
+        internal void EstablishConnections(List<GraphNodeV2> children)
+        {
+            foreach (var childNode in children)
+            {
+                Pipeline child = childNode.Node;
+
+                foreach (Graph.Con con in Cons)
+                {
+                    if (child.Entities.Any(x => x.Handle == con.ConHandle))
+                    {
+                        var p1 = AddPort(con.OwnHandle);
+                        var p2 = child.AddPort(con.ConHandle);
+
+                        if (p1 != null && p2 != null)
+                        {
+                            _edges.Add($"node{PipelineNumber}:{p1} -> node{child.PipelineNumber}:{p2};");
+                        }
+                    }
+                }
+            }
+        }
+        public string AddPort(Handle handle)
+        {
+            var label = _labels.FirstOrDefault(x => x.Handle == handle);
+            if (label == null) return null;
+            if (label.PortNumber != 0) return $"p{label.PortNumber.ToString("D2")}";
+            _portCount++;
+            label.PortNumber = _portCount;
+            return $"p{_portCount.ToString("D2")}";
+        }
+        private class Label
+        {
+            public Handle Handle { get; set; }
+            public string Description { get; set; }
+            public string SystemAndDN { get; set; }
+            public int PortNumber { get; set; } = 0;
         }
     }
 }

@@ -59,51 +59,48 @@ namespace IntersectUtilities
             foreach (GraphNodeV2 rootNode in rootNodes)
             {
                 // Start a new subgraph for this group of pipelines
-                sb.AppendLine($"  subgraph G_{subGraphId} {{");
-                sb.AppendLine("    node [shape=record, fontname=\"monospace bold\"];");
-
-                // Use a queue to perform a breadth-first traversal of this group
-                Queue<GraphNodeV2> queue = new Queue<GraphNodeV2>();
-                queue.Enqueue(rootNode);
+                sb.AppendLine($"subgraph G_{subGraphId} {{");
+                sb.AppendLine("node [shape=record, fontname=\"monospace bold\"];");
 
                 HashSet<GraphNodeV2> visitedForEdges = new HashSet<GraphNodeV2>();
                 visitedForEdges.Add(rootNode);
 
                 Stack<GraphNodeV2> stack = new Stack<GraphNodeV2>();
                 stack.Push(rootNode);
-                //Print nodes and labels
+                //Print edges
                 int count = 0;
                 while (stack.Count > 0)
                 {
                     count++;
                     GraphNodeV2 current = stack.Pop();
-                    sb.AppendLine($"    " +
-                        $"\"{current.Node.Alignment.Name}\" " +
-                        $"[label=\"{{{current.Node.Alignment.Name}" +
+                    current.Node.EstablishConnections(current.Children);
+
+                    sb.AppendLine(
+                        $"node{current.Node.PipelineNumber} " +
+                        $"[label=\"{{{current.Node.Alignment.Name}\n" +
                         $"{current.Node.GetLabel()}" +
                         $"}}\"];");
+
                     foreach (GraphNodeV2 child in current.Children) stack.Push(child);
                     if (count > 1000) break;
                 }
 
-                //print edges
-                while (queue.Count > 0)
+                stack.Clear();
+                stack.Push(rootNode);
+                //Print nodes and labels
+                count = 0;
+                while (stack.Count > 0)
                 {
-                    GraphNodeV2 current = queue.Dequeue();
-                    foreach (GraphNodeV2 child in current.Children)
-                    {
-                        if (!visitedForEdges.Contains(child))
-                        {
-                            sb.AppendLine($"    \"{current.Node.Alignment.Name}\" -> \"{child.Node.Alignment.Name}\";");
-                            queue.Enqueue(child);
-                            visitedForEdges.Add(child);
-                        }
-                    }
+                    count++;
+                    GraphNodeV2 current = stack.Pop();
+                    
+                    sb.AppendLine(current.Node.GetEdges());
+
+                    foreach (GraphNodeV2 child in current.Children) stack.Push(child);
+                    if (count > 1000) break;
                 }
 
-                // Here you can add attributes for the subgraph, like its label and color
-                //sb.AppendLine($"    label = \"Cluster {subGraphId}\";");
-                //sb.AppendLine("    color = red;");
+                
 
                 sb.AppendLine("  }");
 

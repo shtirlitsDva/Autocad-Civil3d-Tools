@@ -335,6 +335,7 @@ namespace IntersectUtilities
             public EndType OwnEndType { get; }
             public EndType ConEndType { get; }
             public Handle ConHandle { get; }
+            public Handle OwnHandle { get; set; }
             public Con(string ownEndType, string conEndType, string handle)
             {
                 int ownEndTypeInt = Convert.ToInt32(ownEndType);
