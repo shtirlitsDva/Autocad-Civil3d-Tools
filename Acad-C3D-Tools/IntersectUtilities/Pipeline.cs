@@ -286,7 +286,7 @@ namespace IntersectUtilities
 
             if (Math.Abs(os1) > Math.Abs(os2) && Sizes.Direction == PipelineSizeArray.PipelineSizesDirection.OneSize)
             {
-                prdDbg($"{parent.Alignment.Name} -> {this.Alignment.Name}: {Math.Abs(os1)} > {Math.Abs(os2)}");
+                //prdDbg($"{parent.Alignment.Name} -> {this.Alignment.Name}: {Math.Abs(os1)} > {Math.Abs(os2)}");
 
                 Entities = Entities.Reverse().ToArray();
                 _labels.Clear();

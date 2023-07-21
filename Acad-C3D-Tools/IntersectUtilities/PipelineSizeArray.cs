@@ -57,28 +57,39 @@ namespace IntersectUtilities
             #endregion
 
             #region Direction
-            //Determine pipe size direction
-            //This is a flawed method using only curves, see below
-            int maxDn = PipeSchedule.GetPipeDN(curves.MaxBy(x => PipeSchedule.GetPipeDN(x)).FirstOrDefault());
-            int minDn = PipeSchedule.GetPipeDN(curves.MinBy(x => PipeSchedule.GetPipeDN(x)).FirstOrDefault());
+            ////Determine pipe size direction
+            #region Old direction method
+            ////This is a flawed method using only curves, see below
+            //int maxDn = PipeSchedule.GetPipeDN(curves.MaxBy(x => PipeSchedule.GetPipeDN(x)).FirstOrDefault());
+            //int minDn = PipeSchedule.GetPipeDN(curves.MinBy(x => PipeSchedule.GetPipeDN(x)).FirstOrDefault());
 
-            HashSet<(Curve curve, double dist)> curveDistTuples =
-                            new HashSet<(Curve curve, double dist)>();
+            //HashSet<(Curve curve, double dist)> curveDistTuples =
+            //                new HashSet<(Curve curve, double dist)>();
 
-            Point3d samplePoint = al.GetPointAtDist(0);
+            //Point3d samplePoint = al.GetPointAtDist(0);
 
-            foreach (Curve curve in curves)
-            {
-                if (curve.GetDistanceAtParameter(curve.EndParam) < 0.0001) continue;
-                Point3d closestPoint = curve.GetClosestPointTo(samplePoint, false);
-                if (closestPoint != default)
-                    curveDistTuples.Add(
-                        (curve, samplePoint.DistanceHorizontalTo(closestPoint)));
-            }
+            //foreach (Curve curve in curves)
+            //{
+            //    if (curve.GetDistanceAtParameter(curve.EndParam) < 0.0001) continue;
+            //    Point3d closestPoint = curve.GetClosestPointTo(samplePoint, false);
+            //    if (closestPoint != default)
+            //        curveDistTuples.Add(
+            //            (curve, samplePoint.DistanceHorizontalTo(closestPoint)));
+            //}
 
-            Curve closestCurve = curveDistTuples.MinBy(x => x.dist).FirstOrDefault().curve;
+            //Curve closestCurve = curveDistTuples.MinBy(x => x.dist).FirstOrDefault().curve;
 
-            StartingDn = PipeSchedule.GetPipeDN(closestCurve);
+            //StartingDn = PipeSchedule.GetPipeDN(closestCurve); 
+            #endregion
+
+            HashSet<Entity> entities = new HashSet<Entity>();
+            entities.UnionWith(curves);
+            if (brs != default) entities.UnionWith(brs);
+
+            var sortedByStation = entities.OrderBy(x => GetStation(al, x)).ToList();
+            var maxDn = entities.Max(x => GetDn(x, dynBlocks));
+            var minDn = entities.Min(x => GetDn(x, dynBlocks));
+            StartingDn = GetDn(sortedByStation[0], dynBlocks);
 
             //2023.04.12: A case discovered where there's a reducer after which there's only blocks
             //till the alignment's end. This confuses the code to think that the last size
@@ -139,6 +150,34 @@ namespace IntersectUtilities
                 if (station < curEntry.EndStation) return curEntry;
             }
             return default;
+        }
+        private int GetDn(Entity entity, System.Data.DataTable dynBlocks)
+        {
+            if (entity is Polyline pline)
+                return PipeSchedule.GetPipeDN(pline);
+            else if (entity is BlockReference br)
+                return ReadComponentDN1Int(br, dynBlocks);
+            else throw new System.Exception("Invalid entity type");
+        }
+        private double GetStation(Alignment alignment, Entity entity)
+        {
+            double station = 0;
+            double offset = 0;
+
+            switch (entity)
+            {
+                case Polyline pline:
+                    double l = pline.Length;
+                    Point3d p = pline.GetPointAtDist(l / 2);
+                    alignment.StationOffset(p.X, p.Y, 5.0, ref station, ref offset);
+                    break;
+                case BlockReference block:
+                    alignment.StationOffset(block.Position.X, block.Position.Y, 5.0, ref station, ref offset);
+                    break;
+                default:
+                    throw new Exception("Invalid entity type");
+            }
+            return station;
         }
         public override string ToString()
         {
