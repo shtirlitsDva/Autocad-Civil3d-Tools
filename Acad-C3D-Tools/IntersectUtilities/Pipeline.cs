@@ -28,7 +28,7 @@ namespace IntersectUtilities
         public DataTable Table { get; }
         public int MaxDn { get => Sizes.MaxDn; }
         public int MinDn { get => Sizes.MinDn; }
-        private Graph.Con[] Cons;
+        public Graph.Con[] Cons;
         private int _portCount = 0;
         public int PipelineNumber = 0;
         public Pipeline(Alignment alignment, IEnumerable<Entity> entities, DataTable table, int pipelineNumber)
@@ -64,7 +64,7 @@ namespace IntersectUtilities
             {
                 string conString = psmGraph.ReadPropertyString(ent, driGraphDef.ConnectedEntities);
                 var list = Graph.GraphEntity.parseConString(conString);
-                //Cache reference to entities own handle to be able to create connections
+                //Cache reference to entities' own handle to be able to create connections
                 foreach (var item in list) item.OwnHandle = ent.Handle;
                 cons.AddRange(list);
             }
@@ -91,6 +91,18 @@ namespace IntersectUtilities
                     throw new Exception("Invalid entity type");
             }
             return station;
+        }
+        private Point3d GetPointFromEntity(Entity entity)
+        {
+            switch (entity)
+            {
+                case Polyline pline:
+                    return pline.GetPointAtDist(pline.Length / 2);
+                case BlockReference block:
+                    return block.Position;
+                default:
+                    throw new Exception("Invalid entity type");
+            }
         }
         public bool IsConnectedTo(Pipeline other, double tolerance)
         {
@@ -238,6 +250,8 @@ namespace IntersectUtilities
         }
         internal void EstablishConnections(List<GraphNodeV2> children)
         {
+            _edges.Clear();
+
             foreach (var childNode in children)
             {
                 Pipeline child = childNode.Node;
@@ -255,6 +269,28 @@ namespace IntersectUtilities
                         }
                     }
                 }
+            }
+        }
+        internal void CheckReverseDirection(Pipeline parent)
+        {
+            Point3d fp = GetPointFromEntity(Entities.First());
+            Point3d ep = GetPointFromEntity(Entities.Last());
+
+            double st1 = 0;
+            double os1 = 0;
+            double st2 = 0;
+            double os2 = 0;
+
+            parent.Alignment.StationOffset(fp.X, fp.Y, 9999, ref st1, ref os1);
+            parent.Alignment.StationOffset(ep.X, ep.Y, 9999, ref st2, ref os2);
+
+            if (Math.Abs(os1) > Math.Abs(os2) && Sizes.Direction == PipelineSizeArray.PipelineSizesDirection.OneSize)
+            {
+                prdDbg($"{parent.Alignment.Name} -> {this.Alignment.Name}: {Math.Abs(os1)} > {Math.Abs(os2)}");
+
+                Entities = Entities.Reverse().ToArray();
+                _labels.Clear();
+                _labels = BuildLabel();
             }
         }
         public string AddPort(Handle handle)

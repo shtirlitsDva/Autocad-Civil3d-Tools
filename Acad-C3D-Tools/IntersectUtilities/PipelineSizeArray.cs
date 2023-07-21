@@ -84,9 +84,9 @@ namespace IntersectUtilities
             //till the alignment's end. This confuses the code to think that the last size
             //don't exists, as it looks only at polylines present.
             //So, we need to check for presence of reducers to definitely rule out one size case.
-            var reducers = brs.Where(
+            var reducers = brs?.Where(
                 x => x.ReadDynamicCsvProperty(DynamicProperty.Type, dynBlocks, false) == "Reduktion");
-            if (reducers.Count() != 0)
+            if (reducers != null && reducers.Count() != 0)
             {
                 List<int> sizes = new List<int>();
                 foreach (var reducer in reducers)

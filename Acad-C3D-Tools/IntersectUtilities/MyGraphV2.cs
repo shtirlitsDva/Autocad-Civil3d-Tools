@@ -73,6 +73,8 @@ namespace IntersectUtilities
                 {
                     count++;
                     GraphNodeV2 current = stack.Pop();
+                    foreach (GraphNodeV2 child in current.Children)
+                        child.Node.CheckReverseDirection(current.Node);
                     current.Node.EstablishConnections(current.Children);
 
                     sb.AppendLine(
