@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -14,6 +15,7 @@ namespace IntersectUtilities
     internal class GraphNodeV2
     {
         public Pipeline Node { get; set; }
+        public GraphNodeV2 Parent { get; set; }
         public List<GraphNodeV2> Children { get; set; }
 
         public GraphNodeV2(Pipeline node)
@@ -30,18 +32,30 @@ namespace IntersectUtilities
             // Create a dictionary to hold the graph nodes for each pipeline
             var nodes = group.ToDictionary(pipeline => pipeline, pipeline => new GraphNodeV2(pipeline));
 
-            // Connect the graph nodes based on the IsConnected method of the pipelines
-            foreach (var pipeline in group)
+            // Create a set to hold the pipelines that have been visited
+            HashSet<Pipeline> visited = new HashSet<Pipeline>();
+
+            // Create a queue for the breadth-first search and add the root pipeline to it
+            Queue<Pipeline> queue = new Queue<Pipeline>();
+            queue.Enqueue(rootPipeline);
+
+            while (queue.Count > 0)
             {
-                var node = nodes[pipeline];
+                Pipeline currentPipeline = queue.Dequeue();
+                GraphNodeV2 currentNode = nodes[currentPipeline];
+
+                // Mark the current pipeline as visited
+                visited.Add(currentPipeline);
 
                 foreach (var otherPipeline in group)
                 {
-                    // Ensure that we do not create a cycle in the graph
-                    if (pipeline != otherPipeline && pipeline.IsConnectedTo(otherPipeline, tolerance))
+                    // Add the connected pipelines that have not been visited yet as children
+                    if (currentPipeline != otherPipeline && currentPipeline.IsConnectedTo(otherPipeline, tolerance) && !visited.Contains(otherPipeline))
                     {
-                        nodes[otherPipeline].Children.Add(node);
-                        nodes[pipeline].Children.Remove(nodes[otherPipeline]); // Ensure the child does not have the current node as a child
+                        GraphNodeV2 otherNode = nodes[otherPipeline];
+                        currentNode.Children.Add(otherNode);
+                        otherNode.Parent = currentNode; // Set the current node as the parent of the other node
+                        queue.Enqueue(otherPipeline); // Add the other pipeline to the queue to process its children
                     }
                 }
             }
@@ -49,6 +63,7 @@ namespace IntersectUtilities
             // Return the root node of the graph
             return nodes[rootPipeline];
         }
+
 
         public static void ToDot(List<GraphNodeV2> rootNodes)
         {
@@ -102,8 +117,6 @@ namespace IntersectUtilities
                     if (count > 1000) break;
                 }
 
-                
-
                 sb.AppendLine("  }");
 
                 subGraphId++;
@@ -127,6 +140,27 @@ namespace IntersectUtilities
             cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
             cmd.StartInfo.Arguments = @"/c ""dot -Tpdf MyGraph.dot > MyGraph.pdf""";
             cmd.Start();
+        }
+
+        internal void TraverseGraphAndReversePolylines()
+        {
+            Stack<GraphNodeV2> stack = new Stack<GraphNodeV2>();
+            
+            stack.Push(this);
+
+            int count = 0;
+            while (stack.Count > 0)
+            {
+                count++;
+                GraphNodeV2 current = stack.Pop();
+                //This check must be done here, because we have access to parent and children
+                foreach (GraphNodeV2 child in current.Children) child.Node.CheckReverseDirection(current.Node);
+                
+                if (count != 1) current.Node.ReversePolylines(current.Parent.Node);
+
+                foreach (GraphNodeV2 child in current.Children) stack.Push(child);
+                if (count > 1000) { prdDbg("Circular graph detected!"); break; }
+            }
         }
     }
 }

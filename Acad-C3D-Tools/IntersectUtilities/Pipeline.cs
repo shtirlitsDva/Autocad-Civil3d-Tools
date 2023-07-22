@@ -335,6 +335,73 @@ namespace IntersectUtilities
             label.PortNumber = _portCount;
             return $"p{_portCount.ToString("D2")}";
         }
+        internal void ReversePolylines(Pipeline parent)
+        {
+            Point3d sp = this.Alignment.StartPoint;
+            Point3d ep = this.Alignment.EndPoint;
+
+            double st1 = 0;
+            double osStart = 0;
+            double st2 = 0;
+            double osEnd = 0;
+
+            parent.Alignment.StationOffset(sp.X, sp.Y, 9999, ref st1, ref osStart);
+            parent.Alignment.StationOffset(ep.X, ep.Y, 9999, ref st2, ref osEnd);
+
+            AlignmentOrientation orientation;
+            if (Math.Abs(osEnd) > Math.Abs(osStart))
+                orientation = AlignmentOrientation.WithStationing;
+            else orientation = AlignmentOrientation.AgainstStationing;
+
+            string debug = $"Parent: {parent.Alignment.Name} {orientation} osStart:{Math.Abs(osStart)} osEnd:{Math.Abs(osEnd)}";
+
+            for (int i = 0; i < Entities.Length; i++)
+            {
+                Entity entity = Entities[i];
+                if (entity is Polyline pline)
+                {
+                    Point3d p1 = pline.StartPoint;
+                    Point3d p2 = pline.EndPoint;
+
+                    double stPlineStart = 0;
+                    double os = 0;
+                    this.Alignment.StationOffset(p1.X, p1.Y, 5, ref stPlineStart, ref os);
+                    double stPlineEnd = 0;
+                    this.Alignment.StationOffset(p2.X, p2.Y, 5, ref stPlineEnd, ref os);
+
+                    switch (orientation)
+                    {
+                        case AlignmentOrientation.WithStationing:
+                            if (stPlineStart > stPlineEnd)
+                            {
+                                pline.UpgradeOpen();
+                                pline.ReverseCurve();
+                                prdDbg($"Polyline reversed: {this.Alignment.Name}:{pline.Handle}");
+                            }
+                            break;
+                        case AlignmentOrientation.AgainstStationing:
+                            if (stPlineStart < stPlineEnd)
+                            {
+                                pline.UpgradeOpen();
+                                pline.ReverseCurve();
+                                prdDbg($"Polyline reversed: {this.Alignment.Name}:{pline.Handle}");
+                            }
+                            break;
+                    }
+                }
+            }
+            if (this.Alignment.Name == "77 Storevangen")
+            {
+                prdDbg(debug);
+            }
+        }
+        private enum AlignmentOrientation
+        {
+            Unknown,
+            WithStationing,
+            AgainstStationing
+        }
+
         private class Label
         {
             public Handle Handle { get; set; }

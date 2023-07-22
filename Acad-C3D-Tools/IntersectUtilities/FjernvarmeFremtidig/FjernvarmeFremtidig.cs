@@ -834,7 +834,10 @@ namespace IntersectUtilities
                         }
                     }
 
-                    GraphNodeV2.ToDot(rootNodes);
+                    foreach (var rootNode in rootNodes)
+                    {
+                        rootNode.TraverseGraphAndReversePolylines();
+                    }
                 }
                 catch (System.Exception ex)
                 {

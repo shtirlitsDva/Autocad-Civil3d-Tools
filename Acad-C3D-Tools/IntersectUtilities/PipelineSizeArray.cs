@@ -156,7 +156,12 @@ namespace IntersectUtilities
             if (entity is Polyline pline)
                 return PipeSchedule.GetPipeDN(pline);
             else if (entity is BlockReference br)
-                return ReadComponentDN1Int(br, dynBlocks);
+            {
+                if (br.ReadDynamicCsvProperty(DynamicProperty.Type, dynBlocks, false) == "Afgreningsstuds")
+                    return ReadComponentDN2Int(br, dynBlocks);
+                else return ReadComponentDN1Int(br, dynBlocks);
+            }
+                
             else throw new System.Exception("Invalid entity type");
         }
         private double GetStation(Alignment alignment, Entity entity)
