@@ -75,12 +75,12 @@ namespace IntersectUtilities
                     GraphNodeV2 current = stack.Pop();
                     foreach (GraphNodeV2 child in current.Children)
                         child.Node.CheckReverseDirection(current.Node);
-                    current.Node.EstablishConnections(current.Children);
+                    current.Node.EstablishCellConnections(current.Children);
 
                     sb.AppendLine(
                         $"node{current.Node.PipelineNumber} " +
                         $"[label=\"{{{current.Node.Alignment.Name}\n" +
-                        $"{current.Node.GetLabel()}" +
+                        $"{current.Node.GetEncompassingLabel()}" +
                         $"}}\"];");
 
                     foreach (GraphNodeV2 child in current.Children) stack.Push(child);

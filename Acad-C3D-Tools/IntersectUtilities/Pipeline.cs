@@ -149,6 +149,7 @@ namespace IntersectUtilities
             }
         }
         private List<Label> _labels = new List<Label>();
+        private List<Label> _individualLabels = new List<Label>();
         private List<string> _edges = new List<string>();
         private List<Label> BuildLabel()
         {
@@ -182,7 +183,39 @@ namespace IntersectUtilities
             }
             return labels;
         }
-        public string GetLabel()
+        private List<Label> BuildIndividualLabels()
+        {
+            List<Label> labels = new List<Label>();
+            foreach (Entity entity in Entities)
+            {
+                Label label = new Label();
+                switch (entity)
+                {
+                    case Polyline pline:
+                        int dn = PipeSchedule.GetPipeDN(pline);
+                        string system = GetPipeType(pline).ToString();
+                        label.Handle = pline.Handle;
+                        label.Description = $"Rør L{pline.Length.ToString("0.##")}";
+                        label.SystemAndDN = $"{system} DN{dn}";
+                        break;
+                    case BlockReference br:
+                        string dn1 = ReadComponentDN1Str(br, Table);
+                        string dn2 = ReadComponentDN2Str(br, Table);
+                        string dnStr = dn2 == "0" ? dn1 : dn1 + "/" + dn2;
+                        system = ComponentSchedule.ReadComponentSystem(br, Table);
+                        string type = ComponentSchedule.ReadComponentType(br, Table);
+                        label.Handle = br.Handle;
+                        label.Description = type;
+                        label.SystemAndDN = $"{system} DN{dnStr}";
+                        break;
+                    default:
+                        continue;
+                }
+                labels.Add(label);
+            }
+            return labels;
+        }
+        public string GetEncompassingLabel()
         {
             int maxHandleLength = _labels.Max(label => label.Handle.ToString().Length);
             int maxDescLength = _labels.Max(label => label.Description.Length);
@@ -248,7 +281,7 @@ namespace IntersectUtilities
         {
             return this.Alignment.Name.GetHashCode();
         }
-        internal void EstablishConnections(List<GraphNodeV2> children)
+        internal void EstablishCellConnections(List<GraphNodeV2> children)
         {
             _edges.Clear();
 

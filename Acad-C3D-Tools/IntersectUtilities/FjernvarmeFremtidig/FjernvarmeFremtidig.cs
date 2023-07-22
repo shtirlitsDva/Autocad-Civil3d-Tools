@@ -678,6 +678,93 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("GRAPHWRITEV2")]
+        public void graphwritev2()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            DataReferencesOptions dro = new DataReferencesOptions();
+            string projectName = dro.ProjectName;
+            string etapeName = dro.EtapeName;
+
+            // open the xref database
+            Database alDb = new Database(false, true);
+            alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
+                FileOpenMode.OpenForReadAndAllShare, false, null);
+            Transaction alTx = alDb.TransactionManager.StartTransaction();
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+                    graphclear();
+                    graphpopulate();
+
+                    HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
+                    var ents = localDb.GetFjvEntities(tx, fjvKomponenter, true, false);
+
+                    #region Initialize property set
+                    PropertySetManager psmPipeline = new PropertySetManager(localDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineDef = new PSetDefs.DriPipelineData();
+                    PropertySetManager psmGraph = new PropertySetManager(localDb,
+                        PSetDefs.DefinedSets.DriGraph);
+                    PSetDefs.DriGraph driGraphDef = new PSetDefs.DriGraph();
+                    #endregion
+
+                    List<Pipeline> pipelines = new List<Pipeline>();
+                    int pipelineCount = 0;
+                    foreach (var al in als)
+                    {
+                        pipelineCount++;
+                        var alEnts = ents.Where(
+                            x => psmPipeline.ReadPropertyString(
+                                x, driPipelineDef.BelongsToAlignment) == al.Name);
+
+                        if (alEnts.Count() == 0) continue;
+
+                        pipelines.Add(new Pipeline(al, alEnts, fjvKomponenter, pipelineCount));
+                    }
+
+                    var spgroups = pipelines.GroupConnected((x, y) => x.IsConnectedTo(y, 0.05));
+
+                    List<GraphNodeV2> rootNodes = new List<GraphNodeV2>();
+
+                    foreach (var group in spgroups)
+                    {
+                        if (group.Select(x => x.Sizes.MaxDn).Distinct().Count() == 1)
+                        {
+                            prdDbg($"Group has same DN! {group.First().Sizes.MaxDn}");
+                            prdDbg(string.Join(", ", group.Select(x => x.Alignment.Name)));
+                        }
+                        else
+                        {
+                            rootNodes.Add(GraphNodeV2.CreateGraph(group, 0.05));
+                        }
+                    }
+
+                    GraphNodeV2.ToDot(rootNodes);
+                }
+                catch (System.Exception ex)
+                {
+                    alTx.Abort();
+                    alTx.Dispose();
+                    alDb.Dispose();
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                alTx.Abort();
+                alTx.Dispose();
+                alDb.Dispose();
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("AUTOREVERSEPOLYLINES")]
         public void autoreversepolylines()
         {
