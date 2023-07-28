@@ -47,8 +47,6 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Line = Autodesk.AutoCAD.DatabaseServices.Line;
 using NetTopologySuite.Geometries;
-using NetTopologySuite.IO;
-using DRITBL;
 using Point = NetTopologySuite.Geometries.Point;
 
 namespace IntersectUtilities.DRITBL
