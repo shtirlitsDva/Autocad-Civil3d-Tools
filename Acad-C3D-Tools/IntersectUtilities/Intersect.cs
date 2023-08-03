@@ -7298,7 +7298,6 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
 
             int count = 0;
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
