@@ -1,7 +1,6 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 
 using System.Linq;
-using System.Security.Cryptography;
 
 namespace Dreambuild.AutoCAD
 {
