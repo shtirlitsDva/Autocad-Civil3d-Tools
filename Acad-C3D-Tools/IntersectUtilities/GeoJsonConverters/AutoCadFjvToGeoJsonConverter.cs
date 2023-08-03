@@ -54,6 +54,10 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using IntersectUtilities.DynamicBlocks;
 
 using Autodesk.Aec.DatabaseServices;
+using NetTopologySuite.Geometries;
+using NetTopologySuite.Operation.Buffer;
+using NetTopologySuite.Operation.Union;
+using Polygon = NetTopologySuite.Geometries.Polygon;
 
 namespace IntersectUtilities
 {
@@ -175,7 +179,8 @@ namespace IntersectUtilities
             };
 
             BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
-            
+
+            HashSet<GeoJsonFeature> featuresToMerge = new HashSet<GeoJsonFeature>();
 
             foreach (Oid id in btr)
             {
@@ -184,7 +189,7 @@ namespace IntersectUtilities
 
                 var feature = new GeoJsonFeature
                 {
-                    Properties = props,
+                    //Properties = props,
                 };
 
                 switch (member)
@@ -222,7 +227,7 @@ namespace IntersectUtilities
                                 }
                             }
                             ((GeoJsonGeometryLineString)feature.Geometry).Coordinates = Coordinates;
-                            yield return feature;
+                            featuresToMerge.Add(feature);
                         }
                         continue;
                     case Line lineOriginal:
@@ -238,7 +243,7 @@ namespace IntersectUtilities
                             Coordinates[1] = new double[]
                                 {line.EndPoint.X, line.EndPoint.Y};
                             ((GeoJsonGeometryLineString)feature.Geometry).Coordinates = Coordinates;
-                            yield return feature;
+                            featuresToMerge.Add(feature);
                         }
                         continue;
                     case Polyline polylineOrigianl:
@@ -297,7 +302,7 @@ namespace IntersectUtilities
                                     {points[i].X, points[i].Y};
                             }
                             ((GeoJsonGeometryLineString)feature.Geometry).Coordinates = Coordinates;
-                            yield return feature;
+                            featuresToMerge.Add(feature);
                         }
                         continue;
                     case BlockReference nestedBrOriginal:
@@ -312,7 +317,7 @@ namespace IntersectUtilities
                             nestedBr.TransformBy(br.BlockTransform);
                             feature.Geometry = new GeoJsonGeometryPolygon();
                             List<double[][]> coordinatesGatherer = new List<double[][]>();
-                            
+
                             int nrOfSamples = (int)(2 * Math.PI / 0.1);
                             Point2dCollection points = new Point2dCollection(nrOfSamples);
 
@@ -335,7 +340,7 @@ namespace IntersectUtilities
                             coordinatesGatherer.Add(coordinates);
                             (feature.Geometry as GeoJsonGeometryPolygon).Coordinates = coordinatesGatherer.ToArray();
 
-                            yield return feature;
+                            featuresToMerge.Add(feature);
                         }
                         continue;
                     case Hatch hatchOriginal:
@@ -417,7 +422,7 @@ namespace IntersectUtilities
                             }
                             feature.Geometry = new GeoJsonGeometryPolygon();
                             (feature.Geometry as GeoJsonGeometryPolygon).Coordinates = coordinatesGatherer.ToArray();
-                            yield return feature;
+                            featuresToMerge.Add(feature);
                         }
                         continue;
                     case AttributeDefinition atrDef:
@@ -428,6 +433,57 @@ namespace IntersectUtilities
                         prdDbg("(WRN:2023:2) Non handled type " + entity);
                         break;
                 }
+            }
+
+            //Consolidate features to a single polygon
+            var geometryFactory = new GeometryFactory();
+
+            var polygons = new List<Polygon>();
+
+            foreach (GeoJsonFeature geometry in featuresToMerge)
+            {
+                if (geometry.Geometry is GeoJsonGeometryLineString lineString)
+                {
+                    // Convert the coordinates to NetTopologySuite format
+                    var coordinates = lineString.Coordinates.Select(x => new Coordinate(x[0], x[1])).ToArray();
+
+                    // Create a LineString and buffer it to create a Polygon
+                    var line = geometryFactory.CreateLineString(coordinates);
+                    var buffer = line.Buffer(0.1, EndCapStyle.Flat);  // Adjust buffer distance as needed
+
+                    // Add the buffered Polygon to the list
+                    polygons.Add((Polygon)buffer);
+                }
+                else if (geometry.Geometry is GeoJsonGeometryPolygon polygon)
+                {
+                    // Convert the GeoJsonGeometryPolygon to a NetTopologySuite Polygon and add it to the list
+                    var coordinates = polygon.Coordinates[0].Select(x => new Coordinate(x[0], x[1])).ToArray();
+                    polygons.Add(geometryFactory.CreatePolygon(new LinearRing(coordinates)));
+                }
+                else
+                {
+                    prdDbg("(WRN:2023:3) Non handled type " + geometry.Geometry);
+                }
+            }
+
+            {
+                // Merge the polygons into a single polygon
+                var union = CascadedPolygonUnion.Union(polygons.ToArray());
+
+                // Convert the union Polygon back to GeoJsonGeometryPolygon format
+                var coordinates = union.Coordinates.Select(c => new double[] { c.X, c.Y }).ToArray();
+                var geoJsonUnion = new GeoJsonGeometryPolygon
+                {
+                    Coordinates = new double[][][] { coordinates }
+                };
+
+                var feature = new GeoJsonFeature
+                {
+                    Properties = props,
+                    Geometry = geoJsonUnion
+                };
+                
+                yield return feature;
             }
         }
     }

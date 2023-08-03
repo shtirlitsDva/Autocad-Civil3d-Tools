@@ -914,8 +914,8 @@ namespace IntersectUtilities
                     try
                     {
                         List<Alignment> als = localDb.ListOfType<Alignment>(tx);
-                        if (als.Count > 1) 
-                        { 
+                        if (als.Count > 1)
+                        {
                             prdDbg("Multiple alignments detected in drawing! Must only be one!");
                             throw new System.Exception("Multiple alignments!");
                         }
@@ -947,7 +947,7 @@ namespace IntersectUtilities
                         foreach (ProfileView pv in pvs)
                         {
                             if (stationsOfIntersection.Any(
-                                x => pv.StationStart <= x && pv.StationEnd >= x)) 
+                                x => pv.StationStart <= x && pv.StationEnd >= x))
                                 pvsWithLer++;
                         }
 
@@ -1561,6 +1561,56 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("EXPORTFJVTOGEOJSON")]
+        public void exportfjvtogeojson3()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
+                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+            GeoJsonFeatureCollection gjfc = new GeoJsonFeatureCollection("FjernVarme");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var ents = localDb.GetFjvEntities(tx, dt, true);
+
+                    foreach (var ent in ents)
+                    {
+                        var converter = FjvToGeoJsonConverterFactory.CreateConverter(ent);
+                        if (converter == null) continue;
+                        var geoJsonFeature = converter.Convert(ent);
+                        gjfc.Features.AddRange(geoJsonFeature);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+
+            var encoderSettings = new TextEncoderSettings();
+            encoderSettings.AllowRange(UnicodeRanges.All);
+
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Encoder = JavaScriptEncoder.Create(encoderSettings)
+            };
+
+            string path = Path.GetDirectoryName(localDb.Filename);
+
+            string geoJsonFileName = Path.Combine(path, "Fjernvarme.geojson");
+            string json = JsonSerializer.Serialize(gjfc, options);
+            File.WriteAllText(geoJsonFileName, json);
+        }
         public void exportfjvtogeojson2()
         {
             DocumentCollection docCol = Application.DocumentManager;
