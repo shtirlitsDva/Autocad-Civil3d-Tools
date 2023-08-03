@@ -232,6 +232,9 @@ namespace IntersectUtilities
                         continue;
                     case Line lineOriginal:
                         {
+                            FlexDataStore fds = lineOriginal.Id.FlexDataStore();
+                            if (fds != null && fds.GetValue("IsConstructionLine") == "True")
+                                continue;
                             Line line = (Line)lineOriginal.Clone();
                             line.CheckOrOpenForWrite();
                             line.TransformBy(br.BlockTransform);

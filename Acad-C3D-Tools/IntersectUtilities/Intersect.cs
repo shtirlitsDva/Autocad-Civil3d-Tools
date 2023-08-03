@@ -3846,6 +3846,99 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("CONSTRUCTIONLINESETMARK")]
+        public void constructionlinesetmark()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PromptEntityOptions peo = new PromptEntityOptions("Select construction line: ");
+                    peo.SetRejectMessage("Selected entity is not a Line!");
+                    peo.AddAllowedClass(typeof(Line), true);
+                    PromptEntityResult per = editor.GetEntity(peo);
+                    Oid lineId = per.ObjectId;
+                    if (lineId == Oid.Null) { tx.Abort(); return; }
+
+                    FlexDataStore fds = lineId.FlexDataStore(true);
+                    string value = fds.GetValue("IsConstructionLine");
+                    if (value.IsNoE()) fds.SetValue("IsConstructionLine", "True");
+                    else prdDbg("Construction line already marked!");
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("CONSTRUCTIONLINEREMOVEMARK")]
+        public void constructionlineremovemark()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PromptEntityOptions peo = new PromptEntityOptions("Select construction line: ");
+                    peo.SetRejectMessage("Selected entity is not a Line!");
+                    peo.AddAllowedClass(typeof(Line), true);
+                    PromptEntityResult per = editor.GetEntity(peo);
+                    Oid lineId = per.ObjectId;
+                    if (lineId == Oid.Null) { tx.Abort(); return; }
+
+                    FlexDataStore fds = lineId.FlexDataStore(false);
+                    if (fds == null) { tx.Abort(); return; }
+                    string value = fds.GetValue("IsConstructionLine");
+                    if (value.IsNotNoE()) fds.RemoveEntry("IsConstructionLine");
+                    else prdDbg("Construction line mark already removed!");
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+        public bool IsConstructionLine(Oid id)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    if (id == Oid.Null || !id.IsDerivedFrom<Line>()) { tx.Abort(); return false; }
+                    FlexDataStore fds = id.FlexDataStore(false);
+                    if (fds == null) { tx.Abort(); return false; }
+                    string value = fds.GetValue("IsConstructionLine");
+                    if (value.IsNoE()) { tx.Abort(); return false; }
+                    if (value == "True") { tx.Abort(); return true; }
+                    else { tx.Abort(); return false; }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return false;
+                }
+            }
+        }
+
         [CommandMethod("testing")]
         public void testing()
         {
@@ -3859,59 +3952,129 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test extension dictionary
+                    //PromptEntityOptions peo = new PromptEntityOptions("\nSelect object: ");
+                    //peo.SetRejectMessage("\nNot a DBObject!");
+                    //peo.AddAllowedClass(typeof(DBObject), false);
+                    //PromptEntityResult per = editor.GetEntity(peo);
+                    //DBObject obj = per.ObjectId.Go<DBObject>(tx);
+
+                    //Oid extId = obj.ExtensionDictionary;
+                    //if (extId != Oid.Null)
+                    //{
+                    //    DBDictionary extDict = extId.Go<DBDictionary>(tx);
+                    //    foreach (DBDictionaryEntry item in extDict)
+                    //    {
+                    //        prdDbg(item.Key);
+                    //    }
+
+                    //}else prdDbg("No extension dictionary found!");
+                    #endregion
+
+                    #region Test arc sample points
+                    //HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
+                    //foreach(BlockReference br in brs)
+                    //{
+                    //    BlockTableRecord btr = br.BlockTableRecord.GetObject(OpenMode.ForRead) as BlockTableRecord;
+                    //    if (btr == null) continue;
+
+                    //    foreach (Oid id in btr)
+                    //    {
+                    //        Entity member = id.Go<Entity>(tx);
+                    //        if (member == null) continue;
+
+                    //        switch (member)
+                    //        {
+                    //            case Arc arcOriginal:
+                    //                {
+                    //                    Arc arc = (Arc)arcOriginal.Clone();
+                    //                    arc.CheckOrOpenForWrite();
+                    //                    arc.TransformBy(br.BlockTransform);
+                    //                    double length = arc.Length;
+                    //                    double radians = length / arc.Radius;
+                    //                    int nrOfSamples = (int)(radians / 0.1);
+                    //                    if (nrOfSamples < 3)
+                    //                    {
+                    //                        DBPoint p = new DBPoint(arc.StartPoint);
+                    //                        p.AddEntityToDbModelSpace(localDb);
+                    //                        p = new DBPoint(arc.EndPoint);
+                    //                        p.AddEntityToDbModelSpace(localDb);
+                    //                        p = new DBPoint(arc.GetPointAtDist(arc.Length/2));
+                    //                        p.AddEntityToDbModelSpace(localDb);
+                    //                    }
+                    //                    else
+                    //                    {
+                    //                        Curve3d geCurve = arc.GetGeCurve();
+                    //                        PointOnCurve3d[] samples = geCurve.GetSamplePoints(nrOfSamples);
+                    //                        for (int i = 0; i < samples.Length; i++)
+                    //                        {
+                    //                            DBPoint p = new DBPoint(samples[i].Point);
+                    //                            p.AddEntityToDbModelSpace(localDb);
+                    //                        }
+                    //                    }
+                    //                }
+                    //                continue;
+                    //            default:
+                    //                prdDbg(member.GetType().ToString());
+                    //                break;
+                    //        }
+                    //    }
+                    //}
+                    #endregion
+
                     #region Test alignments connection
-                    PromptEntityOptions peo = new PromptEntityOptions("\nSelect first alignment: ");
-                    peo.SetRejectMessage("\nNot an alignment!");
-                    peo.AddAllowedClass(typeof(Alignment), true);
-                    PromptEntityResult per = editor.GetEntity(peo);
-                    Alignment al1 = per.ObjectId.Go<Alignment>(tx);
+                    //PromptEntityOptions peo = new PromptEntityOptions("\nSelect first alignment: ");
+                    //peo.SetRejectMessage("\nNot an alignment!");
+                    //peo.AddAllowedClass(typeof(Alignment), true);
+                    //PromptEntityResult per = editor.GetEntity(peo);
+                    //Alignment al1 = per.ObjectId.Go<Alignment>(tx);
 
-                    peo = new PromptEntityOptions("\nSelect second alignment: ");
-                    peo.SetRejectMessage("\nNot an alignment!");
-                    peo.AddAllowedClass(typeof(Alignment), true);
-                    per = editor.GetEntity(peo);
-                    Alignment al2 = per.ObjectId.Go<Alignment>(tx);
+                    //peo = new PromptEntityOptions("\nSelect second alignment: ");
+                    //peo.SetRejectMessage("\nNot an alignment!");
+                    //peo.AddAllowedClass(typeof(Alignment), true);
+                    //per = editor.GetEntity(peo);
+                    //Alignment al2 = per.ObjectId.Go<Alignment>(tx);
 
-                    // Get the start and end points of the alignments
-                    Point3d thisStart = al1.StartPoint;
-                    Point3d thisEnd = al1.EndPoint;
-                    Point3d otherStart = al2.StartPoint;
-                    Point3d otherEnd = al2.EndPoint;
+                    //// Get the start and end points of the alignments
+                    //Point3d thisStart = al1.StartPoint;
+                    //Point3d thisEnd = al1.EndPoint;
+                    //Point3d otherStart = al2.StartPoint;
+                    //Point3d otherEnd = al2.EndPoint;
 
-                    double tol = 0.05;
+                    //double tol = 0.05;
 
-                    // Check if any of the endpoints of this alignment are on the other alignment
-                    if (IsOn(al2, thisStart, tol) || IsOn(al2, thisEnd, tol))
-                        prdDbg("Connected!");
-                    // Check if any of the endpoints of the other alignment are on this alignment
-                    else if (IsOn(al1, otherStart, tol) || IsOn(al1, otherEnd, tol))
-                        prdDbg("Connected!");
-                    else prdDbg("Not connected!");
+                    //// Check if any of the endpoints of this alignment are on the other alignment
+                    //if (IsOn(al2, thisStart, tol) || IsOn(al2, thisEnd, tol))
+                    //    prdDbg("Connected!");
+                    //// Check if any of the endpoints of the other alignment are on this alignment
+                    //else if (IsOn(al1, otherStart, tol) || IsOn(al1, otherEnd, tol))
+                    //    prdDbg("Connected!");
+                    //else prdDbg("Not connected!");
 
-                    bool IsOn(Alignment al, Point3d point, double tolerance)
-                    {
-                        //double station = 0;
-                        //double offset = 0;
+                    //bool IsOn(Alignment al, Point3d point, double tolerance)
+                    //{
+                    //    //double station = 0;
+                    //    //double offset = 0;
 
-                        //try
-                        //{
-                        //    alignment.StationOffset(point.X, point.Y, tolerance, ref station, ref offset);
-                        //}
-                        //catch (Exception) { return false; }
+                    //    //try
+                    //    //{
+                    //    //    alignment.StationOffset(point.X, point.Y, tolerance, ref station, ref offset);
+                    //    //}
+                    //    //catch (Exception) { return false; }
 
-                        Polyline pline = al.GetPolyline().Go<Polyline>(
-                            al.Database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                    //    Polyline pline = al.GetPolyline().Go<Polyline>(
+                    //        al.Database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
-                        Point3d p = pline.GetClosestPointTo(point, false);
-                        pline.Erase(true);
-                        //prdDbg($"{offset}, {Math.Abs(offset)} < {tolerance}, {Math.Abs(offset) <= tolerance}, {station}");
+                    //    Point3d p = pline.GetClosestPointTo(point, false);
+                    //    pline.Erase(true);
+                    //    //prdDbg($"{offset}, {Math.Abs(offset)} < {tolerance}, {Math.Abs(offset) <= tolerance}, {station}");
 
-                        // If the offset is within the tolerance, the point is on the alignment
-                        if (Math.Abs(p.DistanceTo(point)) <= tolerance) return true;
+                    //    // If the offset is within the tolerance, the point is on the alignment
+                    //    if (Math.Abs(p.DistanceTo(point)) <= tolerance) return true;
 
-                        // Otherwise, the point is not on the alignment
-                        return false;
-                    }
+                    //    // Otherwise, the point is not on the alignment
+                    //    return false;
+                    //}
 
                     #endregion
 
