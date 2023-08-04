@@ -260,6 +260,7 @@
     <Compile Include="FolderSelectDialog.cs" />
     <Compile Include="GroupByCluster.cs" />
     <Compile Include="IsogenPopulateAttributes.cs" />
+    <Compile Include="Jigs\ProfileJig.cs" />
     <Compile Include="Jigs\FjvJig.cs" />
     <Compile Include="Jigs\ExampleJigs.cs" />
     <Compile Include="LER1.0\Eksisterende_fjernvarme.cs" />
