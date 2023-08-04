@@ -58,6 +58,7 @@ using NetTopologySuite.Geometries;
 using NetTopologySuite.Operation.Buffer;
 using NetTopologySuite.Operation.Union;
 using Polygon = NetTopologySuite.Geometries.Polygon;
+using NetTopologySuite.Operation.Linemerge;
 
 namespace IntersectUtilities
 {
@@ -178,9 +179,15 @@ namespace IntersectUtilities
                 { "color", "#000000" },
             };
 
+            string realName = br.RealName();
+
             BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
 
             HashSet<GeoJsonFeature> featuresToMerge = new HashSet<GeoJsonFeature>();
+
+            //Handle the collection of Lines
+            //The purpose is to join all lines to polylines
+            HashSet<Line> lines = new HashSet<Line>();
 
             foreach (Oid id in btr)
             {
@@ -238,15 +245,16 @@ namespace IntersectUtilities
                             Line line = (Line)lineOriginal.Clone();
                             line.CheckOrOpenForWrite();
                             line.TransformBy(br.BlockTransform);
-                            feature.Geometry = new GeoJsonGeometryLineString();
-                            double[][] Coordinates;
-                            Coordinates = new double[2][];
-                            Coordinates[0] = new double[]
-                                {line.StartPoint.X, line.StartPoint.Y};
-                            Coordinates[1] = new double[]
-                                {line.EndPoint.X, line.EndPoint.Y};
-                            ((GeoJsonGeometryLineString)feature.Geometry).Coordinates = Coordinates;
-                            featuresToMerge.Add(feature);
+                            lines.Add(line);
+                            //feature.Geometry = new GeoJsonGeometryLineString();
+                            //double[][] Coordinates;
+                            //Coordinates = new double[2][];
+                            //Coordinates[0] = new double[]
+                            //    {line.StartPoint.X, line.StartPoint.Y};
+                            //Coordinates[1] = new double[]
+                            //    {line.EndPoint.X, line.EndPoint.Y};
+                            //((GeoJsonGeometryLineString)feature.Geometry).Coordinates = Coordinates;
+                            //featuresToMerge.Add(feature);
                         }
                         continue;
                     case Polyline polylineOrigianl:
@@ -438,7 +446,7 @@ namespace IntersectUtilities
                 }
             }
 
-            //Consolidate features to a single polygon
+            //Convert all objects to polygons
             var geometryFactory = new GeometryFactory();
 
             var polygons = new List<Polygon>();
@@ -452,7 +460,7 @@ namespace IntersectUtilities
 
                     // Create a LineString and buffer it to create a Polygon
                     var line = geometryFactory.CreateLineString(coordinates);
-                    var buffer = line.Buffer(0.1, EndCapStyle.Flat);  // Adjust buffer distance as needed
+                    var buffer = line.Buffer(0.05, EndCapStyle.Flat);  // Adjust buffer distance as needed
 
                     // Add the buffered Polygon to the list
                     polygons.Add((Polygon)buffer);
@@ -469,6 +477,35 @@ namespace IntersectUtilities
                 }
             }
 
+            #region Separately handle lines
+            if (lines.Count != 0)
+            {
+                //Now convert lines to linestrings and merge them
+                // Convert them to NTS LineStrings
+                List<LineString> lineStrings = new List<LineString>();
+                foreach (var cadLine in lines)
+                {
+                    Coordinate[] coordinates = new Coordinate[]
+                    {
+                    new Coordinate(cadLine.StartPoint.X, cadLine.StartPoint.Y),
+                    new Coordinate(cadLine.EndPoint.X, cadLine.EndPoint.Y)
+                    };
+                    lineStrings.Add(new LineString(coordinates));
+                }
+
+                LineMerger lm = new LineMerger();
+                lm.Add(lineStrings);
+                var mergedLs = lm.GetMergedLineStrings();
+
+                foreach (var mls in mergedLs) 
+                {
+                    Polygon polygon = (Polygon)mls.Buffer(0.05, EndCapStyle.Flat);
+                    polygons.Add(polygon);
+                }
+            }
+            #endregion
+
+            //Now do the final merging
             {
                 // Merge the polygons into a single polygon
                 var union = CascadedPolygonUnion.Union(polygons.ToArray());
@@ -485,7 +522,7 @@ namespace IntersectUtilities
                     Properties = props,
                     Geometry = geoJsonUnion
                 };
-                
+
                 yield return feature;
             }
         }

@@ -2912,20 +2912,26 @@ namespace IntersectUtilities.UtilsCommon
 
     public class Point2dEqualityComparer : IEqualityComparer<Point2d>
     {
-        private readonly int _scale;
+        private readonly double _epsilon;
 
-        public Point2dEqualityComparer(int scale = 1000)
+        public Point2dEqualityComparer(double epsilon = 1e-3)
         {
-            _scale = scale;
+            _epsilon = epsilon;
         }
 
-        public bool Equals(Point2d p1, Point2d p2) =>
-            (int)(p1.X * _scale) == (int)(p2.X * _scale) && (int)(p1.Y * _scale) == (int)(p2.Y * _scale);
+        public bool Equals(Point2d p1, Point2d p2)
+        {
+            //prdDbg(
+            //    $"p1.X: {(int)(p1.X * _scale)} == p2.X: {(int)(p2.X * _scale)}\n" +
+            //    $"p1.Y: {(int)(p1.Y * _scale)} == p2.Y: {(int)(p2.Y * _scale)}\n");
+            return p1.X.Equalz(p2.X, _epsilon) && p1.Y.Equalz(p2.Y, _epsilon);
+        }
+            
 
         public int GetHashCode(Point2d point)
         {
-            int xHash = ((int)(point.X * _scale)).GetHashCode();
-            int yHash = ((int)(point.Y * _scale)).GetHashCode();
+            int xHash = ((int)(point.X / _epsilon)).GetHashCode();
+            int yHash = ((int)(point.Y / _epsilon)).GetHashCode();
             return xHash ^ yHash;
         }
     }

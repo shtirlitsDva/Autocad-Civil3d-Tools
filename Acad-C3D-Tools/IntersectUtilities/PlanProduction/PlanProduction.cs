@@ -1609,7 +1609,16 @@ namespace IntersectUtilities
 
             string geoJsonFileName = Path.Combine(path, "Fjernvarme.geojson");
             string json = JsonSerializer.Serialize(gjfc, options);
-            File.WriteAllText(geoJsonFileName, json);
+
+            try
+            {
+                File.WriteAllText(geoJsonFileName, json);
+            }
+            catch (System.IO.IOException)
+            {
+                prdDbg("File is locked for write! Abort operation.");
+                return;
+            }
         }
         public void exportfjvtogeojson2()
         {
