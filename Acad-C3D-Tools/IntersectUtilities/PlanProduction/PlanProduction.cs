@@ -49,12 +49,10 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using System.Windows.Documents;
 using System.Text.Json;
 using IntersectUtilities.DynamicBlocks;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
-using System.Numerics;
 using Plane = Autodesk.AutoCAD.Geometry.Plane;
 
 namespace IntersectUtilities
@@ -1558,6 +1556,149 @@ namespace IntersectUtilities
 
             string json = JsonSerializer.Serialize(gjfc, options);
             File.WriteAllText(geoJsonFileName, json);
+        }
+
+        [CommandMethod("EXPORTVIEWFRAMESTODWG")]
+        public void exportviewframestodwg()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            Database blockDb = new Database(true, true);
+
+            using (Transaction blockTx = blockDb.TransactionManager.StartTransaction())
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var bt = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForRead);
+                    var ms = (BlockTableRecord)tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+
+                    foreach (Oid id in ms)
+                    {
+                        var br = tx.GetObject(id, OpenMode.ForRead) as BlockReference;
+                        if (br == null) continue;
+
+                        var bd = (BlockTableRecord)tx.GetObject(br.BlockTableRecord, OpenMode.ForRead);
+                        if (!bd.IsFromExternalReference) continue;
+
+                        var xdb = bd.GetXrefDatabase(false);
+                        if (xdb == null) continue;
+                        string fileName = xdb.Filename;
+
+                        //editor.WriteMessage($"\n{xdb.Filename}.");
+                        System.Windows.Forms.Application.DoEvents();
+                        if (IsFileLockedOrReadOnly(new FileInfo(fileName)))
+                        {
+                            prdDbg("\nUnable to modify the external reference. " +
+                                "It may be open in the editor or read-only.");
+                            System.Windows.Forms.Application.DoEvents();
+                        }
+                        else
+                        {
+                            using (var xf = XrefFileLock.LockFile(xdb.XrefBlockId))
+                            {
+                                //Make sure the original symbols are loaded
+                                xdb.RestoreOriginalXrefSymbols();
+                                // Depending on the operation you're performing,
+                                // you may need to set the WorkingDatabase to
+                                // be that of the Xref
+                                //HostApplicationServices.WorkingDatabase = xdb;
+
+                                using (Transaction xTx = xdb.TransactionManager.StartTransaction())
+                                {
+                                    try
+                                    {
+                                        var vfs = xdb.HashSetOfType<ViewFrame>(xTx);
+
+                                        foreach (ViewFrame vf in vfs)
+                                        {
+                                            string name = vf.Name;
+
+                                            DBObjectCollection objs = new DBObjectCollection();
+                                            vf.Explode(objs);
+
+                                            foreach (DBObject obj in objs)
+                                            {
+                                                if (obj is BlockReference vfbr)
+                                                {
+                                                    objs = new DBObjectCollection();
+                                                    vfbr.Explode(objs);
+
+                                                    foreach (DBObject obj2 in objs)
+                                                    {
+                                                        if (obj2 is Polyline pline)
+                                                        {
+                                                            Polyline newPline = new Polyline(pline.NumberOfVertices);
+                                                            for (int i = 0; i < pline.NumberOfVertices; i++)
+                                                            {
+                                                                newPline.AddVertexAt(i, pline.GetPoint2dAt(i), 0, 0, 0);
+                                                            }
+
+                                                            newPline.Closed = true;
+                                                            newPline.AddEntityToDbModelSpace(blockDb);
+
+                                                            LineSegment2d seg = newPline.GetLineSegment2dAt(0);
+
+                                                            DBText text = new DBText();
+                                                            text.TextString = name;
+                                                            text.Height = 5;
+                                                            text.Rotation = seg.Direction.Angle;
+                                                            
+                                                            Extents3d extents = newPline.GeometricExtents;
+                                                            Point3d center = new Point3d(
+                                                                (extents.MaxPoint.X + extents.MinPoint.X) / 2.0,
+                                                                (extents.MaxPoint.Y + extents.MinPoint.Y) / 2.0,
+                                                                0);
+                                                            text.HorizontalMode = TextHorizontalMode.TextCenter;
+
+                                                            text.Position = center;
+                                                            text.AlignmentPoint = center;
+
+                                                            text.AddEntityToDbModelSpace(blockDb);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    catch (System.Exception)
+                                    {
+                                        xTx.Abort();
+                                        tx.Abort();
+                                        xdb.RestoreForwardingXrefSymbols();
+                                        blockTx.Abort();
+                                        blockTx.Dispose();
+                                        blockDb.Dispose();
+                                        return;
+                                        //throw;
+                                    }
+
+                                    xTx.Commit();
+                                }
+                                // And then set things back, afterwards
+                                //HostApplicationServices.WorkingDatabase = db;
+                                xdb.RestoreForwardingXrefSymbols();
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    blockTx.Abort();
+                    blockTx.Dispose();
+                    blockDb.Dispose();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+                blockTx.Commit();
+
+                blockDb.SaveAs("C:\\Temp\\VfDwg.dwg", DwgVersion.Newest);
+            }
+
+            blockDb.Dispose();
         }
 
         [CommandMethod("EXPORTFJVTOGEOJSON")]
