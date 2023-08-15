@@ -110,6 +110,9 @@ namespace IntersectUtilities
                 string name = al.Name;
                 minDn = sizes.Min();
                 maxDn = sizes.Max();
+
+                if (al.Name == "12 Aprilvej")
+                    prdDbg($"StartingDn: {StartingDn}; Sizes: " + string.Join(", ", sizes));
             }
 
             if (maxDn == minDn) Direction = PipelineSizesDirection.OneSize;
@@ -161,7 +164,7 @@ namespace IntersectUtilities
                     return ReadComponentDN2Int(br, dynBlocks);
                 else return ReadComponentDN1Int(br, dynBlocks);
             }
-                
+
             else throw new System.Exception("Invalid entity type");
         }
         private double GetStation(Alignment alignment, Entity entity)
@@ -177,7 +180,15 @@ namespace IntersectUtilities
                     alignment.StationOffset(p.X, p.Y, 5.0, ref station, ref offset);
                     break;
                 case BlockReference block:
-                    alignment.StationOffset(block.Position.X, block.Position.Y, 5.0, ref station, ref offset);
+                    try
+                    {
+                        alignment.StationOffset(block.Position.X, block.Position.Y, 5.0, ref station, ref offset);
+                    }
+                    catch (Autodesk.Civil.PointNotOnEntityException ex)
+                    {
+                        prdDbg($"Entity {block.Handle} throws {ex.Message}!");
+                        throw;
+                    }
                     break;
                 default:
                     throw new Exception("Invalid entity type");
@@ -186,16 +197,48 @@ namespace IntersectUtilities
         }
         public override string ToString()
         {
-            string output = "";
+            //string output = "";
+            //for (int i = 0; i < SizeArray.Length; i++)
+            //{
+            //    output +=
+            //        $"{SizeArray[i].DN.ToString("D3")} || " +
+            //        $"{SizeArray[i].StartStation.ToString("0000.00")} - {SizeArray[i].EndStation.ToString("0000.00")} || " +
+            //        $"{SizeArray[i].Kod.ToString("0")}" +
+            //        $"\n";
+            //}
+
+            // Convert the struct data to string[][] for easier processing
+            string[][] stringData = new string[SizeArray.Length][];
             for (int i = 0; i < SizeArray.Length; i++)
             {
-                output +=
-                    $"{SizeArray[i].DN.ToString("D3")} || " +
-                    $"{SizeArray[i].StartStation.ToString("0000.00")} - {SizeArray[i].EndStation.ToString("0000.00")} || " +
-                    $"{SizeArray[i].Kod.ToString("0")}\n";
+                stringData[i] = SizeArray[i].ToArray();
             }
 
-            return output;
+            // Find the maximum width for each column
+            int[] maxColumnWidths = new int[stringData[0].Length];
+            for (int col = 0; col < stringData[0].Length; col++)
+            {
+                maxColumnWidths[col] = stringData.Max(row => row[col].Length);
+            }
+
+            // Convert the array to a table string
+            string table = "";
+            for (int row = 0; row < stringData.Length; row++)
+            {
+                string line = "";
+                for (int col = 0; col < stringData[0].Length; col++)
+                {
+                    // Right-align each value and add || separator
+                    line += stringData[row][col].PadLeft(maxColumnWidths[col]);
+                    if (col < stringData[0].Length - 1)
+                    {
+                        line += " || ";
+                    }
+                }
+                table += line + Environment.NewLine;
+            }
+
+            return table;
         }
         private List<int> GetIndexesOfSizesAppearingInProfileView(double pvStationStart, double pvStationEnd)
         {
@@ -247,12 +290,22 @@ namespace IntersectUtilities
                     if (sizes.Count != 0)
                     {
                         SizeEntry toUpdate = sizes[sizes.Count - 1];
-                        sizes[sizes.Count - 1] = new SizeEntry(toUpdate.DN, toUpdate.StartStation, curStationBA, toUpdate.Kod);
+                        sizes[sizes.Count - 1] = new SizeEntry(
+                            toUpdate.DN, toUpdate.StartStation, curStationBA, toUpdate.Kod,
+                            PipeSchedule.GetPipeSystem(result.curve),
+                            PipeSchedule.GetPipeType(result.curve, true),
+                            PipeSchedule.GetPipeSeriesV2(result.curve, true));
                     }
                     //Add the new segment; remember, 0 is because the station will be set next iteration
                     //see previous line
-                    if (i == 0) sizes.Add(new SizeEntry(currentDn, 0, 0, result.kappeOd));
-                    else sizes.Add(new SizeEntry(currentDn, sizes[sizes.Count - 1].EndStation, 0, result.kappeOd));
+                    if (i == 0) sizes.Add(new SizeEntry(currentDn, 0, 0, result.kappeOd,
+                        PipeSchedule.GetPipeSystem(result.curve),
+                        PipeSchedule.GetPipeType(result.curve, true),
+                        PipeSchedule.GetPipeSeriesV2(result.curve, true)));
+                    else sizes.Add(new SizeEntry(currentDn, sizes[sizes.Count - 1].EndStation, 0, result.kappeOd,
+                        PipeSchedule.GetPipeSystem(result.curve),
+                        PipeSchedule.GetPipeType(result.curve, true),
+                        PipeSchedule.GetPipeSeriesV2(result.curve, true)));
                 }
                 //Hand over DN to cache in "previous" variable
                 previousDn = currentDn;
@@ -260,7 +313,10 @@ namespace IntersectUtilities
                 if (i == nrOfSteps)
                 {
                     SizeEntry toUpdate = sizes[sizes.Count - 1];
-                    sizes[sizes.Count - 1] = new SizeEntry(toUpdate.DN, toUpdate.StartStation, al.Length, toUpdate.Kod);
+                    sizes[sizes.Count - 1] = new SizeEntry(toUpdate.DN, toUpdate.StartStation, al.Length, toUpdate.Kod,
+                        PipeSchedule.GetPipeSystem(result.curve),
+                        PipeSchedule.GetPipeType(result.curve, true),
+                        PipeSchedule.GetPipeSeriesV2(result.curve, true));
                 }
             }
 
@@ -295,6 +351,9 @@ namespace IntersectUtilities
             double start = 0.0;
             double end = 0.0;
             double kod = 0.0;
+            PipeSystemEnum ps = default;
+            PipeTypeEnum pt = default;
+            PipeSeriesEnum series = default;
 
             for (int i = 0; i < brsArray.Length; i++)
             {
@@ -312,6 +371,11 @@ namespace IntersectUtilities
                         //Point3d p3d = al.GetClosestPointTo(curBr.Position, false);
                         //al.StationOffset(p3d.X, p3d.Y, ref end, ref offset);
                         kod = GetDirectionallyCorrectKod(curBr, Side.Left, dt);
+                        ps = PipeSystemEnum.Stål;
+                        pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
+                            curBr.ReadDynamicCsvProperty(DynamicProperty.System, dt), true);
+                        series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
+                            curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dt), true);
                     }
                     else
                     {//F-Model og Y-Model
@@ -325,11 +389,17 @@ namespace IntersectUtilities
                                     x.GetDistAtPoint(x.EndPoint) / 2.0)))
                             .FirstOrDefault();
 
+                        if (minCurve == default)
+                            prdDbg($"Br {curBr.Handle} does not find minCurve!");
+
                         dn = PipeSchedule.GetPipeDN(minCurve);
                         kod = PipeSchedule.GetPipeKOd(minCurve);
+                        ps = PipeSchedule.GetPipeSystem(minCurve);
+                        pt = PipeSchedule.GetPipeType(minCurve, true);
+                        series = PipeSchedule.GetPipeSeriesV2(minCurve, true);
                     }
 
-                    sizes.Add(new SizeEntry(dn, start, end, kod));
+                    sizes.Add(new SizeEntry(dn, start, end, kod, ps, pt, series));
 
                     //Only one member array case
                     //This is an edge case of first iteration
@@ -342,6 +412,11 @@ namespace IntersectUtilities
                         {
                             dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
                             kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
+                            ps = PipeSystemEnum.Stål;
+                            pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
+                                curBr.ReadDynamicCsvProperty(DynamicProperty.System, dt), true);
+                            series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
+                                curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dt), true);
                         }
                         else
                         {//F-Model og Y-Model
@@ -357,9 +432,12 @@ namespace IntersectUtilities
 
                             dn = PipeSchedule.GetPipeDN(maxCurve);
                             kod = PipeSchedule.GetPipeKOd(maxCurve);
+                            ps = PipeSchedule.GetPipeSystem(maxCurve);
+                            pt = PipeSchedule.GetPipeType(maxCurve, true);
+                            series = PipeSchedule.GetPipeSeriesV2(maxCurve, true);
                         }
 
-                        sizes.Add(new SizeEntry(dn, start, end, kod));
+                        sizes.Add(new SizeEntry(dn, start, end, kod, ps, pt, series));
                         //This guards against executing further code
                         continue;
                     }
@@ -378,6 +456,11 @@ namespace IntersectUtilities
                         //Point3d p3d = al.GetClosestPointTo(nextBr.Position, false);
                         //al.StationOffset(p3d.X, p3d.Y, ref end, ref offset);
                         kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
+                        ps = PipeSystemEnum.Stål;
+                        pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
+                            curBr.ReadDynamicCsvProperty(DynamicProperty.System, dt), true);
+                        series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
+                            curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dt), true);
                     }
                     else
                     {
@@ -393,9 +476,12 @@ namespace IntersectUtilities
 
                         dn = PipeSchedule.GetPipeDN(maxCurve);
                         kod = PipeSchedule.GetPipeKOd(maxCurve);
+                        ps = PipeSchedule.GetPipeSystem(maxCurve);
+                        pt = PipeSchedule.GetPipeType(maxCurve, true);
+                        series = PipeSchedule.GetPipeSeriesV2(maxCurve, true);
                     }
 
-                    sizes.Add(new SizeEntry(dn, start, end, kod));
+                    sizes.Add(new SizeEntry(dn, start, end, kod, ps, pt, series));
                     //This guards against executing further code
                     continue;
                 }
@@ -408,6 +494,11 @@ namespace IntersectUtilities
                 {
                     dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
                     kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
+                    ps = PipeSystemEnum.Stål;
+                    pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
+                        curBr.ReadDynamicCsvProperty(DynamicProperty.System, dt), true);
+                    series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
+                        curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dt), true);
                 }
                 else
                 {
@@ -421,11 +512,17 @@ namespace IntersectUtilities
                                 x.GetDistAtPoint(x.EndPoint) / 2.0)))
                         .FirstOrDefault();
 
+                    if (maxCurve == default)
+                        prdDbg($"Br {curBr.Handle} does not find maxCurve!");
+
                     dn = PipeSchedule.GetPipeDN(maxCurve);
                     kod = PipeSchedule.GetPipeKOd(maxCurve);
+                    ps = PipeSchedule.GetPipeSystem(maxCurve);
+                    pt = PipeSchedule.GetPipeType(maxCurve, true);
+                    series = PipeSchedule.GetPipeSeriesV2(maxCurve, true);
                 }
 
-                sizes.Add(new SizeEntry(dn, start, end, kod));
+                sizes.Add(new SizeEntry(dn, start, end, kod, ps, pt, series));
             }
 
             return sizes.ToArray();
@@ -536,10 +633,29 @@ namespace IntersectUtilities
         public readonly double StartStation;
         public readonly double EndStation;
         public readonly double Kod;
+        public readonly PipeSystemEnum System;
+        public readonly PipeTypeEnum Type;
+        public readonly PipeSeriesEnum Series;
 
-        public SizeEntry(int dn, double startStation, double endStation, double kod)
+        public SizeEntry(
+            int dn, double startStation, double endStation, double kod, PipeSystemEnum ps, PipeTypeEnum pt, PipeSeriesEnum series)
         {
-            DN = dn; StartStation = startStation; EndStation = endStation; Kod = kod;
+            DN = dn; StartStation = startStation; EndStation = endStation; Kod = kod; System = ps; Type = pt; Series = series;
+        }
+
+        // Get all properties as strings for table conversion
+        public string[] ToArray()
+        {
+            return new string[]
+            {
+                DN.ToString(),
+                StartStation.ToString("F2"),
+                EndStation.ToString("F2"),
+                Kod.ToString("F0"),
+                System.ToString(),
+                Type.ToString(),
+                Series.ToString()
+            };
         }
     }
 }

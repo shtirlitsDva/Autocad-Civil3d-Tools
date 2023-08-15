@@ -342,7 +342,7 @@ namespace IntersectUtilities.UtilsCommon
             DN500,
             DN600
         }
-        internal enum PipeSystemEnum
+        public enum PipeSystemEnum
         {
             Ukendt,
             Stål,

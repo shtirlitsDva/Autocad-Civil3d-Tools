@@ -346,7 +346,7 @@ namespace IntersectUtilities
                                 value = GetValueByRegex(br, parameter, value);
                             }
                             //Else the value is parameter literal to read
-                            else return br.GetDynamicPropertyByName(value).Value.ToString() ?? "";
+                            else return br.GetDynamicPropertyByName(value)?.Value?.ToString() ?? "";
                         }
                         return value;
                     }

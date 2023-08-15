@@ -2083,5 +2083,92 @@ namespace IntersectUtilities
                 }
             }
         }
+
+        [CommandMethod("CORRECTTRANSISIONSIZES")]
+        public void correcttransitionsizes()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<BlockReference> allbrs = localDb.HashSetOfType<BlockReference>(tx);
+                    HashSet<Curve> curves = localDb.ListOfType<Curve>(tx).ToHashSet();
+
+                    #region Read CSV
+                    System.Data.DataTable dt = default;
+                    try
+                    {
+                        dt = CsvReader.ReadCsvToDataTable(
+                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    }
+                    catch (System.Exception ex)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        prdDbg(ex);
+                        throw;
+                    }
+                    if (dt == default)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                    }
+                    #endregion
+
+                    var reducers = allbrs.Where(x => x.ReadDynamicCsvProperty(DynamicProperty.Type, dt) == "Reduktion");
+
+                    foreach (BlockReference r in reducers)
+                    {
+                        string type = r.ReadDynamicPropertyValue("Type");
+
+                        if (type != "Custom") continue;
+
+                        var endPoints = r.GetAllEndPoints();
+
+                        if (endPoints.Count > 2 || endPoints.Count < 2)
+                            throw new System.Exception($"Reducer {r.Handle} has unexpected number of endpoints: {endPoints.Count}!");
+
+                        List<int> dns = new List<int>();
+
+                        bool failed = false;
+                        foreach (Point3d end in endPoints)
+                        {
+                            var query = curves.Where(x => end.IsOnCurve(x, 0.05));
+                            if (query.Count() != 1)
+                            {
+                                prdDbg($"Reducer {r.Handle} cannot find connecting or finds multiple curve(s) at point {end}!");
+                                failed = true;
+                            }
+
+                            if (!failed)
+                            {
+                                Curve curve = query.First();
+                                dns.Add(PipeSchedule.GetPipeDN(curve));
+                            }
+                        }
+
+                        type = "";
+                        if (dns.Count > 0) type = $"{dns.Max()}x{dns.Min()}";
+
+                        prdDbg($"Failed: {failed}; {r.Handle} -> {type}");
+
+                        if (!failed)
+                        { 
+                            SetDynBlockProperty(r, "Type", type);
+                            r.AttSync();
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
     }
 }

@@ -3866,7 +3866,7 @@ namespace IntersectUtilities.Dimensionering
                             //Determine end
                             if (i != dimAr.Length - 1) end = dimAr[i].MaxBy(x => x.Station).First().Station;
                             else end = originalPipe.Length;
-                            sizes.Add(new SizeEntry(dn, start, end, kod));
+                            sizes.Add(new SizeEntry(dn, start, end, kod, default, default, default));
                         }
 
                         #region Consolidate sizes -> remove 0 length sizes

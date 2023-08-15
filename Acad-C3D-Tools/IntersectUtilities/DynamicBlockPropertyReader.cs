@@ -36,14 +36,15 @@ namespace IntersectUtilities.DynamicBlocks
 {
     public static partial class PropertyReader
     {
-        public static DynamicBlockReferenceProperty GetDynamicPropertyByName(this BlockReference br, string name)
+        public static object GetDynamicPropertyByName(this BlockReference br, string name)
         {
             DynamicBlockReferencePropertyCollection pc = br.DynamicBlockReferencePropertyCollection;
             foreach (DynamicBlockReferenceProperty property in pc)
             {
-                if (property.PropertyName == name) return property;
+                if (property.PropertyName == name) return property.Value;
             }
-            return null;
+
+            return null;            
         }
         private static string RealName(this BlockReference br)
         {
@@ -62,7 +63,7 @@ namespace IntersectUtilities.DynamicBlocks
             if (!regex.IsMatch(valueToProcess)) throw new System.Exception("Property name not found!");
             propName = regex.Match(valueToProcess).Groups["Name"].Value;
             //Read raw data from block
-            string rawContents = br.GetDynamicPropertyByName(propName).Value as string;
+            string rawContents = br.GetDynamicPropertyByName(propName).ToString();
             //Safeguard against value not being set -> CUSTOM
             if (rawContents == "Custom") throw new System.Exception($"Parameter {propName} is not set for block handle {br.Handle}!");
             //Extract regex def from the table
@@ -122,7 +123,7 @@ namespace IntersectUtilities.DynamicBlocks
                     valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
                 }
                 //Else the value is parameter literal to read
-                else return br.GetDynamicPropertyByName(valueToReturn).Value.ToString() ?? "";
+                else return br.GetDynamicPropertyByName(valueToReturn)?.ToString() ?? "";
             }
             return valueToReturn ?? "";
         }
@@ -151,7 +152,7 @@ namespace IntersectUtilities.DynamicBlocks
                     valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
                 }
                 //Else the value is parameter literal to read
-                else return br.GetDynamicPropertyByName(valueToReturn).Value.ToString() ?? "";
+                else return br.GetDynamicPropertyByName(valueToReturn)?.ToString() ?? "";
             }
             return valueToReturn ?? "";
         }
@@ -179,7 +180,7 @@ namespace IntersectUtilities.DynamicBlocks
                     valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
                 }
                 //Else the value is parameter literal to read
-                else return br.GetDynamicPropertyByName(valueToReturn).Value as string ?? "";
+                else return br.GetDynamicPropertyByName(valueToReturn)?.ToString() ?? "";
             }
             return valueToReturn ?? "";
         }
@@ -214,7 +215,7 @@ namespace IntersectUtilities.DynamicBlocks
                         valueToReturn = GetValueByRegex(br, propertyToExtractName, valueToReturn);
                     }
                     //Else the value is parameter literal to read
-                    else return br.GetDynamicPropertyByName(valueToReturn).Value as string ?? "";
+                    else return br.GetDynamicPropertyByName(valueToReturn)?.ToString() ?? "";
                 }
                 return valueToReturn ?? "";
             }
@@ -252,12 +253,12 @@ namespace IntersectUtilities.DynamicBlocks
                             return PipeSchedule.GetBondedPipeKOd(dn, series);
                         case PipeTypeEnum.Ukendt:
                         default:
-                            throw new System.Exception($"{br.RealName()} returned non-standard \"System\": (PipeTypeEnum) {systemString}!");
+                            throw new System.Exception($"{br.RealName()}:{br.Handle} returned non-standard \"System\": (PipeTypeEnum) {systemString}!");
                     }
                 }
-                else throw new System.Exception($"{br.RealName()} returned non-standard \"Serie\": {seriesString}!");
+                else throw new System.Exception($"{br.RealName()}:{br.Handle} returned non-standard \"Serie\": {seriesString}!");
             }
-            else throw new System.Exception($"{br.RealName()} returned non-standard \"System\": {systemString}!");
+            else throw new System.Exception($"{br.RealName()}:{br.Handle} returned non-standard \"System\": {systemString}!");
         }
         public static double ReadComponentDN2KodDouble(BlockReference br, System.Data.DataTable fjvTable)
         {
@@ -271,7 +272,7 @@ namespace IntersectUtilities.DynamicBlocks
             if (Enum.TryParse(systemString, out system))
             {
                 int dn = ReadComponentDN2Int(br, fjvTable);
-                if (dn == 0 || dn == 999) throw new System.Exception($"{br.RealName()} failed to read DN1!");
+                if (dn == 0 || dn == 999) throw new System.Exception($"{br.RealName()}:{br.Handle} failed to read DN1!");
 
                 string seriesString = ReadComponentSeries(br, fjvTable);
                 PipeSeriesEnum series;
@@ -287,12 +288,12 @@ namespace IntersectUtilities.DynamicBlocks
                             return PipeSchedule.GetBondedPipeKOd(dn, series);
                         case PipeTypeEnum.Ukendt:
                         default:
-                            throw new System.Exception($"{br.RealName()} returned non-standard \"System\": (PipeTypeEnum) {systemString}!");
+                            throw new System.Exception($"{br.RealName()}:{br.Handle} returned non-standard \"System\": (PipeTypeEnum) {systemString}!");
                     }
                 }
-                else throw new System.Exception($"{br.RealName()} returned non-standard \"Serie\": {seriesString}!");
+                else throw new System.Exception($"{br.RealName()}:{br.Handle} returned non-standard \"Serie\": {seriesString}!");
             }
-            else throw new System.Exception($"{br.RealName()} returned non-standard \"System\": {systemString}!");
+            else throw new System.Exception($"{br.RealName()}:{br.Handle} returned non-standard \"System\": {systemString}!");
         }
     }
 }

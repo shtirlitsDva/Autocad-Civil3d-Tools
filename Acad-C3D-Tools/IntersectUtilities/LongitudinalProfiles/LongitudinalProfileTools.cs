@@ -4766,5 +4766,136 @@ namespace IntersectUtilities
 
             prdDbg("Update finished! Run AUDIT (Y) to clean up drawing!");
         }
+
+        [CommandMethod("CALCULATEEXCAVATIONVOLUMES")]
+        public void calculateexcavationvolumes()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            #region Read CSV
+            System.Data.DataTable dt = default;
+            try
+            {
+                dt = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                prdDbg(ex);
+                throw;
+            }
+            if (dt == default)
+            {
+                prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+            }
+            #endregion
+
+            #region Open fremtidig db and get entities
+            var dro = new DataReferencesOptions();
+            string projectName = dro.ProjectName;
+            string etapeName = dro.EtapeName;
+
+            // open the xref database
+            Database fremDb = new Database(false, true);
+            fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
+                FileOpenMode.OpenForReadAndAllShare, false, null);
+            Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+
+            HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
+            var allBrs = fremDb.GetFjvEntities(fremTx, dt).Where(x => x is BlockReference).Cast<BlockReference>();
+            #endregion
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Initialize PS for Alignment
+                    PropertySetManager psmPipeLineData = new PropertySetManager(
+                        fremDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineData =
+                        new PSetDefs.DriPipelineData();
+                    #endregion
+
+                    var als = localDb.ListOfType<Alignment>(tx).OrderBy(x => x.Name);
+                    foreach (Alignment al in als)
+                    {
+                        #region Get alignment profiles and profileview
+                        ObjectIdCollection pids = al.GetProfileIds();
+                        ObjectIdCollection vids = al.GetProfileViewIds();
+
+                        Profile surfaceProfile = default;
+                        Profile bundProfile = default;
+
+                        foreach (Profile p in pids.Entities<Profile>(tx))
+                        {
+                            if (p.Name.Contains("_surface_P")) surfaceProfile = p;
+                            if (p.Name.Contains("BUND")) bundProfile = p;
+                        }
+
+                        if (surfaceProfile == default) throw new System.Exception($"Alignment {al.Name} cannot find surface profile!");
+                        if (bundProfile == default) throw new System.Exception($"Alignment {al.Name} cannot find surface profile!");
+
+                        var vs = vids.Entities<ProfileView>(tx);
+                        if (vs.Count() > 1 || vs.Count() < 1)
+                            throw new System.Exception(
+                                $"Alignment {al.Name} does not have required number of profile views!\n" +
+                                $"Has {vs.Count()} but we are expecting 1.");
+                        #endregion
+
+                        //Sample the profiles for depths
+                        #region GetCurvesAndBRs from fremtidig
+                        HashSet<Curve> curves = allCurves
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                            .ToHashSet();
+
+                        HashSet<BlockReference> brs = allBrs
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                            .ToHashSet();
+                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                        #endregion
+
+                        #region Build size array
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        prdDbg(sizeArray.ToString());
+                        #endregion
+
+                        System.Windows.Forms.Application.DoEvents();
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    fremTx.Abort();
+                    fremTx.Dispose();
+                    fremDb.Dispose();
+                    return;
+                }
+                tx.Commit();
+                fremTx.Abort();
+                fremTx.Dispose();
+                fremDb.Dispose();
+            }
+
+            //Local method to sample profiles
+            double SampleProfile(Profile profile, double station, ref bool success)
+            {
+                double sampledElevation = 0;
+                try { sampledElevation = profile.ElevationAt(station); }
+                catch (System.Exception)
+                {
+                    //prdDbg($"Station {station} threw an exception when sampling!");
+                    success = false;
+                    return 0;
+                }
+                return sampledElevation;
+            }
+        }
     }
 }
