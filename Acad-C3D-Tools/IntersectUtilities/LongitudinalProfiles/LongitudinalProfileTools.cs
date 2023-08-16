@@ -4849,7 +4849,6 @@ namespace IntersectUtilities
                                 $"Has {vs.Count()} but we are expecting 1.");
                         #endregion
 
-                        //Sample the profiles for depths
                         #region GetCurvesAndBRs from fremtidig
                         HashSet<Curve> curves = allCurves
                             .Where(x => psmPipeLineData
@@ -4961,6 +4960,40 @@ namespace IntersectUtilities
                     result += $"Total:".PadLeft(totalLabelPadding) + $"{totalVolume.ToString("F2").PadLeft(maxVolumenLength)}\n";
 
                     prdDbg(result);
+
+                    //CSV EXPORT
+                    separator = ";";
+
+                    // Initialize the result with headers
+                    StringBuilder resultBuilder = new StringBuilder();
+                    resultBuilder.AppendLine($"{headerTypeGrav}{separator}{headerBredde}{separator}{headerLængde}{separator}{headerGnsDybde}{separator}{headerVolumen}");
+
+                    foreach (var group in groups)
+                    {
+                        string typeGrav = group.Key;
+                        string bredde = (group.First().Width * 1000).ToString("F0");
+                        string længde = group.Sum(x => x.StepLength).ToString("F2");
+
+                        // Calculate the weighted average depth
+                        double weightedAverageDepth = group.Sum(x => x.Depth * x.StepLength) / group.Sum(x => x.StepLength);
+                        string gnsDybde = weightedAverageDepth.ToString("F4");
+
+                        string volumen = group.Sum(x => x.Volume).ToString("F2");
+
+                        resultBuilder.AppendLine($"{typeGrav}{separator}{bredde}{separator}{længde}{separator}{gnsDybde}{separator}{volumen}");
+                    }
+
+                    //Total of volumen
+                    //double totalVolume = trenchSamplingPoints.Sum(x => x.Volume);
+                    resultBuilder.AppendLine($"{separator}{separator}{separator}Total:{separator}{totalVolume.ToString("F2")}");
+
+                    result = resultBuilder.ToString();
+
+                    // After constructing the result string:
+                    string outputPath = @"C:\Temp\voluminer.csv";  // Replace with your desired path
+                    OutputWriter(outputPath, result, true);
+
+                    prdDbg($"Table exported to: {outputPath}");
 
                     string DumpGroupToString(IEnumerable<TrenchSamplingPoint> group)
                     {
