@@ -150,7 +150,7 @@ namespace IntersectUtilities
             {
                 SizeEntry curEntry = SizeArray[i];
                 //(stations are END stations!)
-                if (station < curEntry.EndStation) return curEntry;
+                if (station <= curEntry.EndStation) return curEntry;
             }
             return default;
         }

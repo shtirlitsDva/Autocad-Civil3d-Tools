@@ -274,6 +274,7 @@
     <Compile Include="LER1.0\Partial_Template.cs" />
     <Compile Include="LER2.0\LER2.0.cs" />
     <Compile Include="LongitudinalProfiles\LongitudinalProfileTools.cs" />
+    <Compile Include="LongitudinalProfiles\TrenchSamplingPoint.cs" />
     <Compile Include="MoreLinq\DistinctBy.cs" />
     <Compile Include="MyGraphQA.cs" />
     <Compile Include="MyGraph.cs" />

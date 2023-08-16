@@ -1659,6 +1659,16 @@ namespace IntersectUtilities.UtilsCommon
             pv.FindXYAtStationAndElevation(station, elevation, ref x, ref y);
             return new Point2d(x, y);
         }
+        public static bool SampleElevation(this Profile profile, double station, ref double sampledElevation)
+        {
+            try { sampledElevation = profile.ElevationAt(station); }
+            catch (System.Exception)
+            {
+                prdDbg($"Station {station} threw an exception when sampling {profile.Name}!");
+                return false;
+            }
+            return true;
+        }
         public static string ExceptionInfo(this System.Exception exception)
         {
             StackFrame stackFrame = (new StackTrace(exception, true)).GetFrame(0);

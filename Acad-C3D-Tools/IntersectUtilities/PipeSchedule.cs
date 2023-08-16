@@ -346,10 +346,20 @@ namespace IntersectUtilities
             //Stål, cu- el. aluflex
             PipeSystemEnum system = GetPipeSystem(ent);
 
-            TrenchKey tk = new TrenchKey(system, type, series);
-            if (trenchWidthsMap.ContainsKey(tk)) return trenchWidthsMap[tk].Invoke(dn);
+            double result = GetTrenchWidth(dn, system, type, series);
+            if (result > 0) return result;
             else throw new Exception($"Entity {ent.Handle} failed to get correct thrench width!");
-        } 
+        }
+        public static double GetTrenchWidth(int dn, PipeSystemEnum ps, PipeTypeEnum pt,  PipeSeriesEnum series)
+        {
+            TrenchKey tk = new TrenchKey(ps, pt, series);
+            if (trenchWidthsMap.ContainsKey(tk)) return trenchWidthsMap[tk].Invoke(dn);
+            else
+            {
+                prdDbg($"DN {dn}, System {ps}, Type {pt}, Series {series}: Could not get a Trench Width!");
+                return 0;
+            }
+        }
         #endregion
 
         private static string ExtractLayerName(Entity ent)

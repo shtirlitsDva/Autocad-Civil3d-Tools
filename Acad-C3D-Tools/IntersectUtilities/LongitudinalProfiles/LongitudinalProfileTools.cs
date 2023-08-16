@@ -1133,7 +1133,7 @@ namespace IntersectUtilities
                     BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                     Plane plane = new Plane(); //For intersecting
-                    if (als == null) 
+                    if (als == null)
                         als = localDb.HashSetOfType<Alignment>(tx);
                     #endregion
 
@@ -3772,7 +3772,7 @@ namespace IntersectUtilities
                 try
                 {
                     if (pvs == null) pvs = localDb.HashSetIdsOfType<ProfileView>();
-                    HashSet<ProfileProjectionLabel> labelsSet = 
+                    HashSet<ProfileProjectionLabel> labelsSet =
                         localDb.HashSetOfType<ProfileProjectionLabel>(tx);
 
                     #region Setup styles
@@ -3832,7 +3832,7 @@ namespace IntersectUtilities
 
                         var pIds = pv.AlignmentId.Go<Alignment>(tx).GetProfileIds();
                         Profile surfaceP = default;
-                        foreach (Oid oid in pIds) 
+                        foreach (Oid oid in pIds)
                             if (oid.Go<Profile>(tx).Name.EndsWith("_surface_P"))
                                 surfaceP = oid.Go<Profile>(tx);
                         if (surfaceP == null)
@@ -4820,9 +4820,12 @@ namespace IntersectUtilities
                         new PSetDefs.DriPipelineData();
                     #endregion
 
+                    List<TrenchSamplingPoint> trenchSamplingPoints = new List<TrenchSamplingPoint>();
+
                     var als = localDb.ListOfType<Alignment>(tx).OrderBy(x => x.Name);
                     foreach (Alignment al in als)
                     {
+                        prdDbg(al.Name);
                         #region Get alignment profiles and profileview
                         ObjectIdCollection pids = al.GetProfileIds();
                         ObjectIdCollection vids = al.GetProfileViewIds();
@@ -4862,11 +4865,118 @@ namespace IntersectUtilities
 
                         #region Build size array
                         PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
-                        prdDbg(sizeArray.ToString());
+                        //prdDbg(sizeArray.ToString());
+                        #endregion
+
+                        #region Gather sampling points
+                        double stepLength = 0.1;
+                        double alLength = al.Length;
+                        int nrOfSteps = (int)(alLength / stepLength);
+
+                        for (int i = 0; i < nrOfSteps + 1; i++)
+                        {
+                            double currentStation = stepLength * i;
+                            if (i == nrOfSteps) currentStation = al.Length;
+
+                            double tk = 0;
+                            double bk = 0;
+
+                            double sampledElevation = 0;
+                            if (surfaceProfile.SampleElevation(currentStation, ref sampledElevation))
+                                tk = sampledElevation;
+                            else continue;
+                            if (bundProfile.SampleElevation(currentStation, ref sampledElevation))
+                                bk = sampledElevation;
+                            else continue;
+
+                            SizeEntry se = sizeArray.GetSizeAtStation(currentStation);
+
+                            if (se.Equals(default(SizeEntry)))
+                            {
+                                prdDbg($"Station {currentStation} failed to get SizeEntry!");
+                                continue;
+                            }
+
+                            string key = $"{se.DN}-{se.System}-{se.Type}-{se.Series}";
+
+                            double tw = PipeSchedule.GetTrenchWidth(se.DN, se.System, se.Type, se.Series);
+                            if (tw == 0) continue;
+
+                            TrenchSamplingPoint tsp = new TrenchSamplingPoint(
+                                tk, bk, tw / 1000.0, stepLength, key);
+                            trenchSamplingPoints.Add(tsp);
+                        }
                         #endregion
 
                         System.Windows.Forms.Application.DoEvents();
                     }
+
+                    #region Analyze sampling points
+                    var groups = trenchSamplingPoints.GroupBy(x => x.Key).OrderBy(x => x.Key);
+
+                    // 1. Define headers for the table.
+                    string headerTypeGrav = "Type grav";
+                    string headerBredde = "Bredde [mm]";
+                    string headerLængde = "Længde [m]";
+                    string headerGnsDybde = "Gns. dybde [m]";
+                    string headerVolumen = "Volumen (m³)";
+                    string separator = " || ";
+
+                    // 2. Calculate the maximum width of each column.
+                    int maxTypeGravLength = Math.Max(headerTypeGrav.Length, trenchSamplingPoints.Max(p => p.Key.Length));
+                    int maxBreddeLength = Math.Max(headerBredde.Length, (trenchSamplingPoints.Max(p => p.Width * 1000).ToString("F0").Length));
+                    int maxLængdeLength = Math.Max(headerLængde.Length, (trenchSamplingPoints.Max(p => p.StepLength).ToString("F2").Length));
+                    int maxGnsDybdeLength = Math.Max(headerGnsDybde.Length, (trenchSamplingPoints.Max(p => p.Depth).ToString("F2").Length));
+                    int maxVolumenLength = Math.Max(headerVolumen.Length, (trenchSamplingPoints.Max(p => p.Volume).ToString("F2").Length));
+
+                    // Initialize the result with headers
+                    string result = $"{headerTypeGrav.PadLeft(maxTypeGravLength)}{separator}{headerBredde.PadLeft(maxBreddeLength)}{separator}{headerLængde.PadLeft(maxLængdeLength)}{separator}{headerGnsDybde.PadLeft(maxGnsDybdeLength)}{separator}{headerVolumen.PadLeft(maxVolumenLength)}\n";
+                    result += new string('-', maxTypeGravLength + maxBreddeLength + maxLængdeLength + maxGnsDybdeLength + maxVolumenLength + 4 * separator.Length) + "\n";
+
+                    foreach (var group in groups)
+                    {
+                        string typeGrav = group.Key.PadLeft(maxTypeGravLength);
+                        string bredde = (group.First().Width * 1000).ToString("F0").PadLeft(maxBreddeLength);
+                        string længde = group.Sum(x => x.StepLength).ToString("F2").PadLeft(maxLængdeLength);
+
+                        // Calculate the weighted average depth
+                        double weightedAverageDepth = group.Sum(x => x.Depth * x.StepLength) / group.Sum(x => x.StepLength);
+                        string gnsDybde = weightedAverageDepth.ToString("F4").PadLeft(maxGnsDybdeLength);
+
+                        string volumen = group.Sum(x => x.Volume).ToString("F2").PadLeft(maxVolumenLength);
+
+                        result += $"{typeGrav}{separator}{bredde}{separator}{længde}{separator}{gnsDybde}{separator}{volumen}\n";
+                    }
+
+                    //Total of volumen
+                    double totalVolume = trenchSamplingPoints.Sum(x => x.Volume);
+
+                    // Calculate the padding required for the "Total:" label
+                    int totalLabelPadding = maxTypeGravLength + separator.Length +
+                                            maxBreddeLength + separator.Length +
+                                            maxLængdeLength + separator.Length +
+                                            maxGnsDybdeLength + separator.Length;
+
+                    // Append the total to the result
+                    result += $"Total:".PadLeft(totalLabelPadding) + $"{totalVolume.ToString("F2").PadLeft(maxVolumenLength)}\n";
+
+                    prdDbg(result);
+
+                    string DumpGroupToString(IEnumerable<TrenchSamplingPoint> group)
+                    {
+                        StringBuilder sb = new StringBuilder();
+
+                        sb.AppendLine("Key | Depth | Width | StepLength | Calculated Volume");
+
+                        foreach (var point in group)
+                        {
+                            double calculatedVolume = point.Depth * point.Width * point.StepLength;
+                            sb.AppendLine($"{point.Key} | {point.Depth} | {point.Width} | {point.StepLength} | {calculatedVolume}");
+                        }
+
+                        return sb.ToString();
+                    }
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
@@ -4881,20 +4991,6 @@ namespace IntersectUtilities
                 fremTx.Abort();
                 fremTx.Dispose();
                 fremDb.Dispose();
-            }
-
-            //Local method to sample profiles
-            double SampleProfile(Profile profile, double station, ref bool success)
-            {
-                double sampledElevation = 0;
-                try { sampledElevation = profile.ElevationAt(station); }
-                catch (System.Exception)
-                {
-                    //prdDbg($"Station {station} threw an exception when sampling!");
-                    success = false;
-                    return 0;
-                }
-                return sampledElevation;
             }
         }
     }
