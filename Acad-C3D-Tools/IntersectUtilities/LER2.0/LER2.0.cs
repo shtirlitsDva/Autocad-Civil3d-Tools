@@ -317,7 +317,7 @@ namespace IntersectUtilities
                     catch (System.Exception ex)
                     {
                         tx.Abort();
-                        prdDbg(ex.ToString());
+                        prdDbg(ex);
                         return;
                     }
                     tx.Commit();
@@ -435,6 +435,115 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("LER2INTERPOLATEPL3D")]
+        public void ler2interpolatepl3d()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            #region Load linework from local db
+            var id = Interaction.GetEntity("Select polyline3d: ", typeof(Polyline3d));
+            if (id == Oid.Null) return;
+            #endregion
+
+            //Process all lines and detect with nodes at both ends
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Polyline3d pline3d = id.Go<Polyline3d>(tx);
+
+                    #region Poly3ds with knudepunkter at ends
+
+                    var vertices = pline3d.GetVertices(tx);
+                    int endIdx = vertices.Length - 1;
+
+                    double startElevation = vertices[0].Position.Z;
+                    double endElevation = vertices[endIdx].Position.Z; ;
+
+                    if (startElevation.is3D() && endElevation.is3D())
+                    {
+                        //Trig
+                        //Start elevation is higher, thus we must start from backwards
+                        if (startElevation > endElevation)
+                        {
+                            double AB = pline3d.GetHorizontalLength(tx);
+                            //editor.WriteMessage($"\nAB: {AB}.");
+                            double AAmark = startElevation - endElevation;
+                            //editor.WriteMessage($"\nAAmark: {AAmark}.");
+                            double PB = 0;
+
+                            for (int i = endIdx; i >= 0; i--)
+                            {
+                                //We don't need to interpolate start and end points,
+                                //So skip them
+                                if (i != 0 && i != endIdx)
+                                {
+                                    PB += vertices[i + 1].Position.DistanceHorizontalTo(
+                                         vertices[i].Position);
+                                    //editor.WriteMessage($"\nPB: {PB}.");
+                                    double newElevation = endElevation + PB * (AAmark / AB);
+                                    //editor.WriteMessage($"\nNew elevation: {newElevation}.");
+                                    //Change the elevation
+                                    vertices[i].CheckOrOpenForWrite();
+                                    vertices[i].Position = new Point3d(
+                                        vertices[i].Position.X, vertices[i].Position.Y, newElevation);
+                                }
+                            }
+                        }
+                        else if (startElevation < endElevation)
+                        {
+                            double AB = pline3d.GetHorizontalLength(tx);
+                            double AAmark = endElevation - startElevation;
+                            double PB = 0;
+
+                            for (int i = 0; i < endIdx + 1; i++)
+                            {
+                                //We don't need to interpolate start and end points,
+                                //So skip them
+                                if (i != 0 && i != endIdx)
+                                {
+                                    PB += vertices[i - 1].Position.DistanceHorizontalTo(
+                                         vertices[i].Position);
+                                    double newElevation = startElevation + PB * (AAmark / AB);
+                                    //editor.WriteMessage($"\nNew elevation: {newElevation}.");
+                                    //Change the elevation
+                                    vertices[i].CheckOrOpenForWrite();
+                                    vertices[i].Position = new Point3d(
+                                        vertices[i].Position.X, vertices[i].Position.Y, newElevation);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            prdDbg($"\nElevations are the same! " +
+                                $"Start: {startElevation}, End: {endElevation}.");
+                            for (int i = 0; i < endIdx + 1; i++)
+                            {
+                                //We don't need to interpolate start and end points,
+                                //So skip them
+                                if (i != 0 && i != endIdx)
+                                {
+                                    //Change the elevation
+                                    vertices[i].CheckOrOpenForWrite();
+                                    vertices[i].Position = new Point3d(
+                                        vertices[i].Position.X, vertices[i].Position.Y, startElevation);
+                                }
+                            }
+                        }
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("LER2DETECTCOINCIDENTENDS")]
         public void ler2detectcoincidentends()
         {
@@ -489,6 +598,35 @@ namespace IntersectUtilities
                 {
                     tx.Abort();
                     prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("LISTLAYERSOFSELECTION", CommandFlags.UsePickSet)]
+        public void listlayersofselection()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<string> layers = new HashSet<string>();
+                    var oids = Interaction.GetPickSet();
+                    foreach (var oid in oids)
+                    {
+                        Entity ent = oid.Go<Entity>(tx);
+                        layers.Add(ent.Layer);
+                    }
+                    prdDbg(string.Join("\n", layers));
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
