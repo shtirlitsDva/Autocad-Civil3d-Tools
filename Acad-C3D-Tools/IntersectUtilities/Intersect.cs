@@ -3751,9 +3751,6 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    //string layerName = "0-TRACE-3D";
-                    //localDb.CheckOrCreateLayer(layerName);
-
                     HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
                     foreach (Alignment al in als)
                     {
@@ -3793,6 +3790,7 @@ namespace IntersectUtilities
                                 prdDbg($"Elevation sampling failed at alignment {al.Name}, station {curStation}.");
                             }
 
+                            if (Z == 0) continue;
                             p3ds.Add(new Point3d(X, Y, Z));
                         }
 
