@@ -49,6 +49,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
+using System.Text.Json;
 
 namespace IntersectUtilities
 {
@@ -622,6 +623,159 @@ namespace IntersectUtilities
                         layers.Add(ent.Layer);
                     }
                     prdDbg(string.Join("\n", layers));
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("LER2COMBINEALLOVERLAPS")]
+        public void ler2combinealloverlaps()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            //Process all lines and detect with nodes at both ends
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Load linework from local db
+                    HashSet<Polyline3d> localPlines3d =
+                        localDb.HashSetOfType<Polyline3d>(tx, true);
+                    prdDbg($"\nNr. of local 3D polies: {localPlines3d.Count}");
+                    #endregion
+
+                    List<Polyline3d> nonOverlapping = new List<Polyline3d>();
+                    List<List<Polyline3d>> overlappingGroups = new List<List<Polyline3d>>();
+
+                    foreach (Polyline3d pline in localPlines3d)
+                    {
+                        // Check if the polyline is already categorized
+                        if (IsPolylineCategorized(pline, nonOverlapping, overlappingGroups))
+                            continue;
+
+                        var overlaps = GetOverlappingPolylines(pline, localPlines3d);
+
+                        if (overlaps.Count == 0)
+                        {
+                            nonOverlapping.Add(pline);
+                        }
+                        else
+                        {
+                            List<Polyline3d> newGroup = new List<Polyline3d> { pline };
+                            HashSet<Handle> processed = new HashSet<Handle>();
+                            Queue<Polyline3d> toProcess = new Queue<Polyline3d>(overlaps);
+
+                            // Iterate through the new group and add any polyline that overlaps 
+                            // with a member of the group but isn't already in the group
+                            while (toProcess.Count > 0)
+                            {
+                                var current = toProcess.Dequeue();
+                                if (!processed.Contains(current.Handle))
+                                {
+                                    newGroup.Add(current);
+                                    processed.Add(current.Handle);
+
+                                    var externalOverlaps = GetOverlappingPolylines(current, localPlines3d)
+                                        .ExceptWhere(x => 
+                                        newGroup.Any(y => x.Handle == y.Handle) || 
+                                        processed.Contains(x.Handle)).ToList();
+
+                                    foreach (var overlap in externalOverlaps)
+                                        toProcess.Enqueue(overlap);
+                                }
+
+                            }
+
+                            overlappingGroups.Add(newGroup);
+                        }
+                    }
+
+                    //Debug and test
+
+                    List<List<SerializablePolyline3d>> serializableGroups = new List<List<SerializablePolyline3d>>();
+                    foreach (var group in overlappingGroups)
+                    {
+                        List<SerializablePolyline3d> serializableGroup = new List<SerializablePolyline3d>();
+                        foreach (var item in group)
+                            serializableGroup.Add(new SerializablePolyline3d(item));
+                        serializableGroups.Add(serializableGroup);
+                    }
+
+                    string jsonString = JsonSerializer.Serialize(serializableGroups);
+                    OutputWriter("C:\\Temp\\overlappingGroups.json", jsonString, true);
+
+                    bool ArePolylines3dOverlapping(Polyline3d pl1, Polyline3d pl2, double tol)
+                    {
+                        // 1. BBOX and layer checks
+                        if (!pl1.GeometricExtents.Intersects2D(pl2.GeometricExtents)) return false;
+                        if (pl1.Layer != pl2.Layer) return false;
+
+                        // 2. Vertex Overlap Check
+                        List<PolylineVertex3d> ovP1 = new List<PolylineVertex3d>();
+                        List<PolylineVertex3d> ovP2 = new List<PolylineVertex3d>();
+
+                        var vs1 = pl1.GetVertices(tx);
+                        var vs2 = pl2.GetVertices(tx);
+
+                        foreach (PolylineVertex3d vertex in vs1)
+                        {
+                            double distance = vertex.Position.DistanceHorizontalTo(
+                                pl2.GetClosestPointTo(vertex.Position, false));
+                            if (distance <= tol) ovP1.Add(vertex);
+                        }
+
+                        foreach (PolylineVertex3d vertex in vs2)
+                        {
+                            double distance = vertex.Position.DistanceHorizontalTo(
+                                pl1.GetClosestPointTo(vertex.Position, false));
+                            if (distance <= tol) ovP2.Add(vertex);
+                        }
+
+                        if (ovP1.Count == 0 || ovP2.Count == 0) return false;
+
+                        // 3. Start/End Vertex Check
+                        bool hasStartOrEndP1 =
+                            ovP1.Any(x => x.HorizontalEqualz(vs1.First(), tol)) ||
+                            ovP1.Any(x => x.HorizontalEqualz(vs1.Last(), tol));
+                        bool hasStartOrEndP2 =
+                            ovP2.Any(x => x.HorizontalEqualz(vs2.First(), tol)) ||
+                            ovP2.Any(x => x.HorizontalEqualz(vs2.Last(), tol));
+
+                        if (!hasStartOrEndP1 || !hasStartOrEndP2) return false;
+
+                        // 4. Discard Touching Overlaps
+                        if (ovP1.Count == 1 && ovP2.Count == 1)
+                        {
+                            bool isStartOrEndP1 =
+                                ovP1[0].HorizontalEqualz(vs1.First(), tol) ||
+                                ovP1[0].HorizontalEqualz(vs1.Last(), tol);
+                            bool isStartOrEndP2 =
+                                ovP2[0].HorizontalEqualz(vs1.First(), tol) ||
+                                ovP2[0].HorizontalEqualz(vs1.Last(), tol);
+
+                            if (isStartOrEndP1 && isStartOrEndP2) return false;
+                        }
+
+                        return true;
+                    }
+
+                    bool IsPolylineCategorized(Polyline3d pl, List<Polyline3d> nonO, List<List<Polyline3d>> oG)
+                    {
+                        if (nonO.Any(x => x.Handle == pl.Handle)) return true;
+                        if (oG.Any(x => x.Any(y => y.Handle == pl.Handle))) return true;
+                        return false;
+                    }
+
+                    List<Polyline3d> GetOverlappingPolylines(Polyline3d pl, HashSet<Polyline3d> pls) =>
+                        pls.Where(x => ArePolylines3dOverlapping(pl, x, 1e-4)).ToList();
+
                 }
                 catch (System.Exception ex)
                 {

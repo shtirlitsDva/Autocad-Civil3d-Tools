@@ -16,7 +16,6 @@ using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
 using IntersectUtilities.UtilsCommon;
-using System.Diagnostics;
 
 namespace IntersectUtilities
 {
@@ -329,7 +328,7 @@ namespace IntersectUtilities
                 List<PropertySet> sourcePss = source.GetPropertySets();
                 DictionaryPropertySetDefinitions sourcePropDefDict
                     = new DictionaryPropertySetDefinitions(source.Database);
-                
+
                 foreach (PropertySet sourcePs in sourcePss)
                 {
                     int propertyId = -1;
@@ -483,7 +482,7 @@ namespace IntersectUtilities
                         {
                             if (!PsContainsDef(ps, pair.Key)) continue;
                             i++;
-                            
+
                             int propertyId = ps.PropertyNameToId(pair.Key);
                             try
                             {
@@ -638,7 +637,7 @@ namespace IntersectUtilities
             Oid psDefId = dpsd.GetAt(names.PsSetName);
 
             var setIdsCol = PropertyDataServices.GetAllPropertySetsUsingDefinition(psDefId, false);
-            
+
             HashSet<string> values = new HashSet<string>();
             foreach (Oid oid in setIdsCol)
             {
@@ -651,7 +650,7 @@ namespace IntersectUtilities
             if (values.Contains("")) { values.Remove(""); values.Add("<empty>"); };
 
             foreach (var item in values.OrderBy(x => x)) prdDbg(item);
-            
+
         }
         public static HashSet<string> AllPropertyNames(Database db)
         {
@@ -753,10 +752,41 @@ namespace IntersectUtilities
                         default:
                             break;
                     }
-                    
+
                 }
             }
             return foundPs;
+        }
+        public static Dictionary<string, Dictionary<string, object>> DumpAllProperties(Entity ent)
+        {
+            Dictionary<string, Dictionary<string, object>> completeData = new Dictionary<string, Dictionary<string, object>>();
+
+            Transaction tx = ent.Database.TransactionManager.TopTransaction;
+            if (tx == null) throw new System.Exception(
+                "PropertySetManager.DumpAllProperties(Entity ent) called outside Transaction!");
+
+            var propertySetIds = PropertyDataServices.GetPropertySets(ent);
+            if (propertySetIds.Count == 0) return null;
+
+            foreach (Oid oid in propertySetIds)
+            {
+                Dictionary<string, object> data = new Dictionary<string, object>();
+                
+                PropertySet ps = oid.Go<PropertySet>(tx);
+                completeData.Add(ps.PropertySetDefinitionName, data);
+
+                PropertySetDefinition psDef = ps.PropertySetDefinition.Go<PropertySetDefinition>(tx);
+                PropertyDefinitionCollection pDefs = psDef.Definitions;
+                foreach (PropertyDefinition def in pDefs)
+                {
+                    string propName = def.Name;
+                    int id = ps.PropertyNameToId(propName);
+                    PropertySetData storedData = ps.GetPropertySetDataAt(id);
+                    data.Add(propName, storedData.GetData());
+                }
+            }
+
+            return completeData;
         }
         public enum MatchTypeEnum
         {

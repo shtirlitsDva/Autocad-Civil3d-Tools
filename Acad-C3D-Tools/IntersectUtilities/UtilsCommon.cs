@@ -1197,6 +1197,8 @@ namespace IntersectUtilities.UtilsCommon
         public static bool Equalz(this double a, double b, double tol) => Math.Abs(a - b) <= tol;
         public static bool HorizontalEqualz(this Point3d a, Point3d b, double tol = 0.01) =>
             null != a && null != b && a.X.Equalz(b.X, tol) && a.Y.Equalz(b.Y, tol);
+        public static bool HorizontalEqualz(this PolylineVertex3d a, PolylineVertex3d b, double tol = 0.01) =>
+            null != a && null != b && HorizontalEqualz(a.Position, b.Position, tol);
         public static void CheckOrOpenForWrite(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject)
         {
             if (dbObject.IsWriteEnabled == false)
@@ -1918,6 +1920,19 @@ namespace IntersectUtilities.UtilsCommon
             bool insideY = original.MinPoint.Y <= other.MinPoint.Y && original.MaxPoint.Y >= other.MaxPoint.Y;
 
             return insideX && insideY;
+        }
+        public static bool Intersects2D(this Extents3d original, Extents3d other)
+        {
+            // Check if one box is to the left or right of the other
+            if (original.MaxPoint.X <= other.MinPoint.X || original.MinPoint.X >= other.MaxPoint.X)
+                return false;
+
+            // Check if one box is above or below the other
+            if (original.MaxPoint.Y <= other.MinPoint.Y || original.MinPoint.Y >= other.MaxPoint.Y)
+                return false;
+
+            // If none of the above conditions are met, then the boxes intersect in 2D space
+            return true;
         }
         public static Oid DrawExtents(this Extents3d extents, Database db)
         {
