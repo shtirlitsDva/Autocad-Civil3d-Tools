@@ -95,16 +95,34 @@ namespace IntersectUtilities
             //Clear the output file
             System.IO.File.WriteAllBytes(fullPathAndName, new byte[0]);
         }
-        public static void OutputWriter(string fullPathAndName, string sr, bool clearFile = false)
+        public static void OutputWriter(string fullPathAndName, string sr, bool clearFile = false, bool useBOM = true)
         {
             if (clearFile) System.IO.File.WriteAllBytes(fullPathAndName, new byte[0]);
 
-            // Write to output file
-            using (StreamWriter w = new StreamWriter(fullPathAndName, true, Encoding.UTF8))
+            if (useBOM)
             {
-                w.Write(sr);
-                w.Close();
+                // Write to output file
+                using (StreamWriter w = new StreamWriter(fullPathAndName, true, Encoding.UTF8))
+                {
+                    w.Write(sr);
+                    w.Close();
+                }
             }
+            else
+            {
+                // Create UTF-8 encoding without BOM
+                var utf8WithoutBom = new System.Text.UTF8Encoding(false);
+
+                // Write to output file
+                using (StreamWriter w = new StreamWriter(fullPathAndName, true, utf8WithoutBom))
+                {
+                    w.Write(sr);
+                    w.Close();
+                }
+            }
+
+
+            
         }
         /// <summary>
         /// Reads a string value from supplied datatable.

@@ -3950,6 +3950,12 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Testing value of Tolerance
+                    //prdDbg("EqualPoint: " + Tolerance.Global.EqualPoint); //2.54e-08
+                    //prdDbg("EqualVector: " + Tolerance.Global.EqualVector); //1e-08
+                    //prdDbg(Tolerance.Global.ToString());
+                    #endregion
+
                     #region Test extension dictionary
                     //PromptEntityOptions peo = new PromptEntityOptions("\nSelect object: ");
                     //peo.SetRejectMessage("\nNot a DBObject!");

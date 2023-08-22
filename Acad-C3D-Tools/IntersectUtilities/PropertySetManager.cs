@@ -16,6 +16,7 @@ using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
 using IntersectUtilities.UtilsCommon;
+using Autodesk.AutoCAD.ApplicationServices.Core;
 
 namespace IntersectUtilities
 {
@@ -757,9 +758,9 @@ namespace IntersectUtilities
             }
             return foundPs;
         }
-        public static Dictionary<string, Dictionary<string, object>> DumpAllProperties(Entity ent)
+        public static Dictionary<string, object> DumpAllProperties(Entity ent)
         {
-            Dictionary<string, Dictionary<string, object>> completeData = new Dictionary<string, Dictionary<string, object>>();
+            //Dictionary<string, Dictionary<string, object>> completeData = new Dictionary<string, Dictionary<string, object>>();
 
             Transaction tx = ent.Database.TransactionManager.TopTransaction;
             if (tx == null) throw new System.Exception(
@@ -767,16 +768,21 @@ namespace IntersectUtilities
 
             var propertySetIds = PropertyDataServices.GetPropertySets(ent);
             if (propertySetIds.Count == 0) return null;
+            if (propertySetIds.Count != 1) throw new System.Exception(
+                $"Entity {ent.Handle} cannot dump properties as the method expects only one property set per object!");
 
             foreach (Oid oid in propertySetIds)
             {
                 Dictionary<string, object> data = new Dictionary<string, object>();
                 
                 PropertySet ps = oid.Go<PropertySet>(tx);
-                completeData.Add(ps.PropertySetDefinitionName, data);
+                //completeData.Add(ps.PropertySetDefinitionName, data);
 
                 PropertySetDefinition psDef = ps.PropertySetDefinition.Go<PropertySetDefinition>(tx);
                 PropertyDefinitionCollection pDefs = psDef.Definitions;
+
+                data.Add("Ler2Type", ps.PropertySetDefinitionName);
+
                 foreach (PropertyDefinition def in pDefs)
                 {
                     string propName = def.Name;
@@ -784,9 +790,12 @@ namespace IntersectUtilities
                     PropertySetData storedData = ps.GetPropertySetDataAt(id);
                     data.Add(propName, storedData.GetData());
                 }
+
+                return data;
             }
 
-            return completeData;
+            return null;
+            //return completeData;
         }
         public enum MatchTypeEnum
         {

@@ -1195,10 +1195,17 @@ namespace IntersectUtilities.UtilsCommon
         public static bool IsNoE(this string s) => string.IsNullOrEmpty(s);
         public static bool IsNotNoE(this string s) => !string.IsNullOrEmpty(s);
         public static bool Equalz(this double a, double b, double tol) => Math.Abs(a - b) <= tol;
+        public static bool Equalz(this Point3d a, Point3d b, double tol = 0.01) =>
+            null != a && null != b && a.X.Equalz(b.X, tol) && a.Y.Equalz(b.Y, tol) && a.Z.Equalz(b.Z, tol);
+        public static bool Equalz(this PolylineVertex3d a, PolylineVertex3d b, double tol = 0.01) =>
+            null != a && null != b && Equalz(a.Position, b.Position, tol);
+        public static bool IsEqualTo(this PolylineVertex3d a, PolylineVertex3d b, Tolerance tol) =>
+            null != a && null != b && a.Position.IsEqualTo(b.Position, tol);
         public static bool HorizontalEqualz(this Point3d a, Point3d b, double tol = 0.01) =>
             null != a && null != b && a.X.Equalz(b.X, tol) && a.Y.Equalz(b.Y, tol);
         public static bool HorizontalEqualz(this PolylineVertex3d a, PolylineVertex3d b, double tol = 0.01) =>
             null != a && null != b && HorizontalEqualz(a.Position, b.Position, tol);
+
         public static void CheckOrOpenForWrite(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject)
         {
             if (dbObject.IsWriteEnabled == false)
