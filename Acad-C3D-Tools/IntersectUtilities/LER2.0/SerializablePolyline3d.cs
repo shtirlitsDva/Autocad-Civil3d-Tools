@@ -12,7 +12,10 @@ namespace IntersectUtilities
 {
     internal class SerializablePolyline3d
     {
-        public Dictionary<string, object> Properties { get; set; }
+        public Dictionary<string, Dictionary<string, object>> Properties { get; set; }
+        public string Type { get; set; }
+        public string Geometry { get; set; }
+        public string Layer { get; set; }
 
         public SerializablePolyline3d(Polyline3d pl3d)
         {
@@ -21,15 +24,12 @@ namespace IntersectUtilities
             var vs = pl3d.GetVertices(tx);
             string linestring = string.Join(", ", vs.Select(x => $"{x.Position.X} {x.Position.Y} {x.Position.Z}"));
 
-            Properties = new Dictionary<string, object>
-            {
-                { "Layer", pl3d.Layer },
-                { "Geometry", $"LINESTRING({linestring})" }
-            };
+            this.Type = typeof(Polyline3d).Name;
+            Layer = pl3d.Layer;
+            Geometry = $"LINESTRING({linestring})";
 
-            var moreData = PropertySetManager.DumpAllProperties(pl3d);
+            Properties = PropertySetManager.DumpAllProperties(pl3d);
 
-            Properties.Add("Properties", moreData);
         }
     }
 }
