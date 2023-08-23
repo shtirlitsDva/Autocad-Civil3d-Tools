@@ -97,7 +97,8 @@ namespace IntersectUtilities
         public static string GenerateHtmlReport(HashSet<HashSet<SerializablePolyline3d>> groups)
         {
             StringBuilder html = new StringBuilder();
-            html.Append("<html><head><style>table { border-collapse: collapse; } td, th { border: 1px solid black; padding: 8px; } hr { margin-top: 30px; }</style></head><body>");
+            html.Append("<html><head><style>table { border-collapse: collapse; } td, " +
+                "th { border: 1px solid black; padding: 8px; } hr { margin-top: 30px; }</style></head><body>");
 
             foreach (var group in groups)
             {
@@ -117,16 +118,19 @@ namespace IntersectUtilities
                     html.Append("</tr></thead><tbody>");
 
                     // Determine all unique property keys in the group
-                    var allKeys = group.SelectMany(p => p.Properties.Keys).Distinct();
+                    var allKeys = group.SelectMany(p => p.Properties.Keys);
 
                     foreach (var key in allKeys)
                     {
-                        html.Append($"<tr><td>{key}</td>");
+                        var values = group.Select(p => p.Properties.TryGetValue(key, out var propValue) ? propValue.ToString() : null).ToList();
+                        bool allMatch = !values.Any(v => v != values[0]);
+                        string color = allMatch ? "green" : "red";
 
-                        foreach (var polyline in group)
+                        html.Append($"<tr><td style='background-color: {color}'>{key}</td>");
+
+                        foreach (var value in values)
                         {
-                            var value = polyline.Properties.TryGetValue(key, out var propValue) ? propValue.ToString() : "";
-                            html.Append($"<td>{value}</td>");
+                            html.Append($"<td style='background-color: {color}'>{value}</td>");
                         }
 
                         html.Append("</tr>");
@@ -141,5 +145,6 @@ namespace IntersectUtilities
 
             return html.ToString();
         }
+
     }
 }

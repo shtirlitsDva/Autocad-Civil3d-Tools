@@ -89,7 +89,6 @@ namespace AcadOverrules
 
                 Vector3d deriv = pline.GetFirstDerivative(pt);
                 deriv = deriv.GetNormal();
-                Vector3d perp = deriv.GetPerpendicularVector();
 
                 Point3d p1 = pt - deriv.RotateBy(0.785398, Vector3d.ZAxis) * arrowSideL;
                 Point3d p2 = pt - deriv.RotateBy(-0.785398, Vector3d.ZAxis) * arrowSideL;
@@ -101,17 +100,20 @@ namespace AcadOverrules
 
             #region Last tick
             {
-                Point3d pt = pline.EndPoint;
-                Vector3d deriv = pline.GetFirstDerivative(
-                    pline.GetClosestPointTo(pt, false));
-                deriv = deriv.GetNormal();
-                Vector3d perp = deriv.GetPerpendicularVector();
+                try
+                {
+                    Point3d pt = pline.EndPoint;
+                    Vector3d deriv = pline.GetFirstDerivative(
+                        pline.GetClosestPointTo(pt, false));
+                    deriv = deriv.GetNormal();
 
-                Point3d p1 = pt - deriv.RotateBy(0.785398, Vector3d.ZAxis) * arrowSideL;
-                Point3d p2 = pt - deriv.RotateBy(-0.785398, Vector3d.ZAxis) * arrowSideL;
+                    Point3d p1 = pt - deriv.RotateBy(0.785398, Vector3d.ZAxis) * arrowSideL;
+                    Point3d p2 = pt - deriv.RotateBy(-0.785398, Vector3d.ZAxis) * arrowSideL;
 
-                wd.Geometry.WorldLine(pt, p1);
-                wd.Geometry.WorldLine(pt, p2);
+                    wd.Geometry.WorldLine(pt, p1);
+                    wd.Geometry.WorldLine(pt, p2);
+                }
+                catch (System.Exception) {}
             }
             #endregion
 

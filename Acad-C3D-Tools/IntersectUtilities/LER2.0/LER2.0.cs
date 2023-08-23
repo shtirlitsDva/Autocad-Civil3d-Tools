@@ -674,9 +674,12 @@ namespace IntersectUtilities
                             if (IsPolylineCategorized(pline, nonOverlapping, overlappingGroups))
                                 continue;
 
-                            var overlaps = GetOverlappingPolylines(pline, layerGroup, tolerance.EqualPoint)
+                            HashSet<Polyline3d> overlaps = GetOverlappingPolylines(
+                                pline,
+                                layerGroup.Where(x => !IsPolylineCategorized(x, nonOverlapping,overlappingGroups)).ToHashSet(),
+                                tolerance.EqualPoint)
                                 .Where(x => !IsPolylineCategorized(x, nonOverlapping, overlappingGroups))
-                                .ToList();
+                                .ToHashSet();
 
                             if (overlaps.Count == 0)
                             {
@@ -698,7 +701,10 @@ namespace IntersectUtilities
                                         newGroup.Add(current);
                                         processed.Add(current.Handle);
 
-                                        var externalOverlaps = GetOverlappingPolylines(current, layerGroup, tolerance.EqualPoint)
+                                        var externalOverlaps = GetOverlappingPolylines(
+                                            current,
+                                            layerGroup.Where(x => !IsPolylineCategorized(x, nonOverlapping, overlappingGroups)).ToHashSet(),
+                                            tolerance.EqualPoint)
                                             .ExceptWhere(x =>
                                             newGroup.Any(y => x.Handle == y.Handle) ||
                                             processed.Contains(x.Handle)).ToList();
@@ -706,7 +712,6 @@ namespace IntersectUtilities
                                         foreach (var overlap in externalOverlaps)
                                             toProcess.Enqueue(overlap);
                                     }
-
                                 }
 
                                 overlappingGroups.Add(newGroup);
