@@ -676,7 +676,7 @@ namespace IntersectUtilities
 
                             HashSet<Polyline3d> overlaps = GetOverlappingPolylines(
                                 pline,
-                                layerGroup.Where(x => !IsPolylineCategorized(x, nonOverlapping,overlappingGroups)).ToHashSet(),
+                                layerGroup, //.Where(x => !IsPolylineCategorized(x, nonOverlapping,overlappingGroups)).ToHashSet(),
                                 tolerance.EqualPoint)
                                 .Where(x => !IsPolylineCategorized(x, nonOverlapping, overlappingGroups))
                                 .ToHashSet();
@@ -703,7 +703,7 @@ namespace IntersectUtilities
 
                                         var externalOverlaps = GetOverlappingPolylines(
                                             current,
-                                            layerGroup.Where(x => !IsPolylineCategorized(x, nonOverlapping, overlappingGroups)).ToHashSet(),
+                                            layerGroup,//.Where(x => !IsPolylineCategorized(x, nonOverlapping, overlappingGroups)).ToHashSet(),
                                             tolerance.EqualPoint)
                                             .ExceptWhere(x =>
                                             newGroup.Any(y => x.Handle == y.Handle) ||
@@ -756,7 +756,12 @@ namespace IntersectUtilities
                     string jsonString = JsonSerializer.Serialize(serializableGroups);
                     OutputWriter("C:\\Temp\\overlappingGroups.json", jsonString, true);
 
-                    File.WriteAllText("C:\\Temp\\report.html", HtmlGenerator.GenerateHtmlReport(serializableGroups));
+                    var groups = serializableGroups.GroupBy(x => x.First().Properties["Ler2Type"]);
+
+                    foreach (var group in groups)
+                    {
+                        File.WriteAllText($"C:\\Temp\\report-{group.Key}.html", HtmlGenerator.GenerateHtmlReport(group.ToHashSet()));
+                    }
 
                     ////Analyze how properties are matching in the groups
                     //foreach (var group in serializableGroups)

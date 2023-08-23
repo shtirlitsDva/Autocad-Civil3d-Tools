@@ -118,7 +118,7 @@ namespace IntersectUtilities
                     html.Append("</tr></thead><tbody>");
 
                     // Determine all unique property keys in the group
-                    var allKeys = group.SelectMany(p => p.Properties.Keys);
+                    var allKeys = group.SelectMany(p => p.Properties.Keys).Distinct();
 
                     foreach (var key in allKeys)
                     {
