@@ -753,29 +753,26 @@ namespace IntersectUtilities
                         }
                     }
 
-                    string jsonString = JsonSerializer.Serialize(serializableGroups);
-                    OutputWriter("C:\\Temp\\overlappingGroups.json", jsonString, true);
+                    var encoderSettings = new TextEncoderSettings();
+                    encoderSettings.AllowRange(UnicodeRanges.All);
+
+                    var options = new JsonSerializerOptions
+                    {
+                        WriteIndented = false,
+                        Encoder = JavaScriptEncoder.Create(encoderSettings)
+                    };
+
+                    string jsonString = JsonSerializer.Serialize(serializableGroups, options);
+                    string path = Path.GetDirectoryName(localDb.Filename);
+                    OutputWriter(path + "\\OverlapsAnalysis.json", jsonString, true, false);
 
                     var groups = serializableGroups.GroupBy(x => x.First().Properties["Ler2Type"]);
 
                     foreach (var group in groups)
                     {
-                        File.WriteAllText($"C:\\Temp\\report-{group.Key}.html", HtmlGenerator.GenerateHtmlReport(group.ToHashSet()));
+                        File.WriteAllText($"{path}\\OverlapsReport-{group.Key}.html",
+                            HtmlGenerator.GenerateHtmlReport(group.ToHashSet()));
                     }
-
-                    ////Analyze how properties are matching in the groups
-                    //foreach (var group in serializableGroups)
-                    //{
-                    //    var referenceObject = group.First().Properties;
-                    //    if (!group.All(
-                    //        x => PropertiesAreEqual(referenceObject,
-                    //        x.Properties,
-                    //        new List<string> {
-                    //            "GmlId", "LerId", "EtableringsTidspunkt",
-                    //            "RegistreringFra",
-                    //        //    "UdvendigDiameter", "UdvendigDiameterUnits"
-                    //        }))) continue;
-                    //}
 
                     bool ArePolylines3dOverlapping(Polyline3d pl1, Polyline3d pl2, double tol)
                     {
@@ -869,6 +866,46 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("LER2MERGEOVERLAPS")]
+        public void ler2mergeoverlaps()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            Tolerance tolerance = new Tolerance(1e-6, 2.54 * 1e-6);
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    string path = Path.GetDirectoryName(localDb.Filename);
+                    string jsonString = File.ReadAllText(path + "\\OverlapsAnalysis.json");
+                    HashSet<HashSet<SerializablePolyline3d>> groups =
+                        (HashSet<HashSet<SerializablePolyline3d>>)JsonSerializer.Deserialize(
+                            jsonString, typeof(HashSet<HashSet<SerializablePolyline3d>>));
+
+                    StringBuilder sb = new StringBuilder();
+                    var ler2groups = groups.GroupBy(x => x.First().Properties["Ler2Type"].ToString());
+
+                    foreach (var group in ler2groups)
+                    {
+                        sb.AppendLine("----------------------");
+                        sb.AppendLine(group.Key.ToString());
+                        sb.AppendLine("----------------------");
+
+
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("LER2ANALYZEDUPLICATES")]
         public void ler2analyzeduplicates()
         {
@@ -943,11 +980,11 @@ namespace IntersectUtilities
 
                     //Debug and test
 
-                    List<List<SerializablePolyline3d>> serializableGroups = new List<List<SerializablePolyline3d>>();
+                    HashSet<HashSet<SerializablePolyline3d>> serializableGroups = new HashSet<HashSet<SerializablePolyline3d>>();
                     int groupCount = 0;
                     foreach (var group in duplicateGroups)
                     {
-                        List<SerializablePolyline3d> serializableGroup = new List<SerializablePolyline3d>();
+                        HashSet<SerializablePolyline3d> serializableGroup = new HashSet<SerializablePolyline3d>();
                         groupCount++;
                         foreach (var item in group)
                             serializableGroup.Add(new SerializablePolyline3d(item, groupCount));
@@ -985,13 +1022,22 @@ namespace IntersectUtilities
                         Encoder = JavaScriptEncoder.Create(encoderSettings)
                     };
 
-                    string jsonString = JsonSerializer.Serialize(serializableGroups, options);
-                    OutputWriter("C:\\Temp\\duplicateGroups.json", jsonString, true, false);
+                    string path = Path.GetDirectoryName(localDb.Filename);
 
-                    // Combine duplicate groups
+                    string jsonString = JsonSerializer.Serialize(serializableGroups, options);
+                    OutputWriter(path + "\\DuplicatesAnalysis.json", jsonString, true, false);
+
                     foreach (var item in serializableGroups.Select(x => x.First().Properties.First().Key).Distinct())
                     {
                         prdDbg(item);
+                    }
+
+                    var groups = serializableGroups.GroupBy(x => x.First().Properties["Ler2Type"]);
+
+                    foreach (var group in groups)
+                    {
+                        File.WriteAllText($"{path}\\DuplicatesReport-{group.Key}.html",
+                            HtmlGenerator.GenerateHtmlReport(group.ToHashSet()));
                     }
 
                     bool ArePolylines3dDuplicate(Polyline3d pl1, Polyline3d pl2, Tolerance tol)

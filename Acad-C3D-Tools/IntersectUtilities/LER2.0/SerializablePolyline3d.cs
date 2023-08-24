@@ -21,6 +21,7 @@ namespace IntersectUtilities
         public int GroupNumber { get; set; }
         private readonly Polyline3d _pl3d;
         public Polyline3d GetPolyline3d() => _pl3d;
+        public SerializablePolyline3d() {}
         public SerializablePolyline3d(Polyline3d pl3d, int groupNumber)
         {
             Transaction tx = pl3d.Database.TransactionManager.TopTransaction;
