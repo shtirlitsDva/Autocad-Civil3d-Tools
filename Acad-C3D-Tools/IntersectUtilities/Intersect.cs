@@ -3950,6 +3950,47 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Testing pl3d merging
+                    HashSet<Polyline3d> pls = localDb.HashSetOfType<Polyline3d>(tx);
+                    Queue<Polyline3d> queue = new Queue<Polyline3d>(pls);
+
+                    Polyline3d current;
+                    Polyline3d previous = queue.Dequeue();
+
+                    //Seed the newPl3d with data
+                    var seedVerts = previous.GetVertices(tx);
+                    for (int i = 0; i < seedVerts.Length; i++)
+                    {
+                        
+                    }
+
+                    while (queue.Count > 0)
+                    {
+                        current = queue.Dequeue();
+
+
+                    }
+                    #endregion
+
+                    #region Writing vertex values of poly3d
+                    //PromptEntityOptions peo = new PromptEntityOptions("\nSelect object: ");
+                    //peo.SetRejectMessage("\nNot a Polyline3d!");
+                    //peo.AddAllowedClass(typeof(Polyline3d), false);
+                    //PromptEntityResult per = editor.GetEntity(peo);
+                    //Polyline3d pl3d = per.ObjectId.Go<Polyline3d>(tx);
+
+                    //PolylineVertex3d[] verts = pl3d.GetVertices(tx);
+
+                    //string result = "";
+                    //for (int i = 0; i < verts.Length; i++)
+                    //{
+                    //    Point3d p = verts[i].Position;
+
+                    //    result += $"[{p.X.ToString("F5")} {p.Y.ToString("F5")} {p.Z.ToString("F5")}]";
+                    //}
+                    //prdDbg(result);
+                    #endregion
+
                     #region Testing value of Tolerance
                     //prdDbg("EqualPoint: " + Tolerance.Global.EqualPoint); //2.54e-08
                     //prdDbg("EqualVector: " + Tolerance.Global.EqualVector); //1e-08

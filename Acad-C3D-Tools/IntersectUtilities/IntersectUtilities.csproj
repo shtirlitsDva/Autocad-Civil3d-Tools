@@ -275,6 +275,7 @@
     <Compile Include="LER2.0\HtmlGenerator.cs" />
     <Compile Include="LER2.0\LER2.0.cs" />
     <Compile Include="LER2.0\Ler2MergeValidator.cs" />
+    <Compile Include="LER2.0\MyPl3d.cs" />
     <Compile Include="LER2.0\SerializablePolyline3d.cs" />
     <Compile Include="LongitudinalProfiles\LongitudinalProfileTools.cs" />
     <Compile Include="LongitudinalProfiles\TrenchSamplingPoint.cs" />
