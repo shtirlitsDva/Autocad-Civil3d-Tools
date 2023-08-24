@@ -53,6 +53,7 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using System.Text.Json;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
+using IntersectUtilities.LER2;
 
 namespace IntersectUtilities
 {
@@ -887,13 +888,18 @@ namespace IntersectUtilities
                     StringBuilder sb = new StringBuilder();
                     var ler2groups = groups.GroupBy(x => x.First().Properties["Ler2Type"].ToString());
 
+                    Ler2MergeValidator validator = new Ler2MergeValidator();
+                    string rulesPath = @"X:\AutoCAD DRI - 01 Civil 3D\LER2.0\01 MergeRules\";
+                    foreach (var group in ler2groups)
+                        validator.LoadRule(group.Key, rulesPath);
+
                     foreach (var group in ler2groups)
                     {
                         sb.AppendLine("----------------------");
                         sb.AppendLine(group.Key.ToString());
                         sb.AppendLine("----------------------");
 
-
+                        validator.Validate(group.ToList());
                     }
                 }
                 catch (System.Exception ex)

@@ -3951,25 +3951,24 @@ namespace IntersectUtilities
                 try
                 {
                     #region Testing pl3d merging
-                    HashSet<Polyline3d> pls = localDb.HashSetOfType<Polyline3d>(tx);
-                    Queue<Polyline3d> queue = new Queue<Polyline3d>(pls);
+                    ////This is for testing ONLY
+                    ////The supplied pl3d must be already overlapping
+                    ////If you try to merge non-overlapping pl3ds, it will exit with infinite loop
+                    //Tolerance tolerance = new Tolerance(1e-6, 2.54 * 1e-6);
+                    //List<Polyline3d> pls = localDb.ListOfType<Polyline3d>(tx);
+                    //var mypl3ds = pls.Select(x => new MyPl3d(x, tolerance)).ToList();
+                    //MyPl3d seed = mypl3ds[0];
+                    //var others = mypl3ds.Skip(1);
 
-                    Polyline3d current;
-                    Polyline3d previous = queue.Dequeue();
+                    //Polyline3d merged = new Polyline3d(
+                    //    Poly3dType.SimplePoly, seed.Merge(others), false);
+                    //merged.AddEntityToDbModelSpace(localDb);
 
-                    //Seed the newPl3d with data
-                    var seedVerts = previous.GetVertices(tx);
-                    for (int i = 0; i < seedVerts.Length; i++)
-                    {
-                        
-                    }
-
-                    while (queue.Count > 0)
-                    {
-                        current = queue.Dequeue();
-
-
-                    }
+                    //foreach (Polyline3d item in pls)
+                    //{
+                    //    item.UpgradeOpen();
+                    //    item.Erase();
+                    //}
                     #endregion
 
                     #region Writing vertex values of poly3d
