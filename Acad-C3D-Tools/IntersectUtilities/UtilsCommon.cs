@@ -290,6 +290,12 @@ namespace IntersectUtilities.UtilsCommon
             if (exMsg is string str) prdDbg(str);
             else prdDbg(exMsg.ToString());
         }
+        public static Entity GetEntityFromLocalDbByHandleString(string handle)
+        {
+            Database db = Application.DocumentManager.MdiActiveDocument.Database;
+            Handle h = new Handle(Convert.ToInt64(handle, 16));
+            return h.Go<Entity>(db);
+        }
         public enum EndType
         {
             None,            //0:

@@ -13,6 +13,9 @@ namespace IntersectUtilities.LER2
         public void LoadRule(string ler2Type, string basePath)
         {
             string csvPath = Path.Combine(basePath, $"{ler2Type}.csv");
+            if (!File.Exists(csvPath))
+                throw new Exception($"Merge rule for Ler2Type {ler2Type} does not exist!");
+
             MergeRules rules = new MergeRules();
 
             foreach (string line in File.ReadAllLines(csvPath).Skip(1))
@@ -37,18 +40,22 @@ namespace IntersectUtilities.LER2
             HashSet<HashSet<SerializablePolyline3d>> plines,
             StringBuilder log)
         {
-            HashSet<HashSet<SerializablePolyline3d>> result = 
+            if (_mergeRules.Count == 0)
+                throw new Exception("No merge rules loaded!");
+
+            HashSet<HashSet<SerializablePolyline3d>> result =
                 new HashSet<HashSet<SerializablePolyline3d>>();
 
             foreach (var group in plines)
             {
                 bool canMerge = true;
-
+                StringBuilder localLog = new StringBuilder();
                 // Compare all objects with the first one in the subcollection
                 var robj = group.First();
                 string ler2Type = robj.Properties["Ler2Type"].ToString();
                 MergeRules mergeRules = _mergeRules[ler2Type];
                 SerializablePolyline3d[] pl3ds = group.ToArray();
+                localLog.AppendLine($"Group {robj.GroupNumber} cannot be merged! Reasons:");
                 for (int i = 1; i < pl3ds.Length; i++)
                 {
                     foreach (var rule in mergeRules.PropertyRules)
@@ -61,33 +68,26 @@ namespace IntersectUtilities.LER2
                             object referenceValue;
                             object compareValue;
 
-                            robj.TryGetValue(propertyName, out referenceValue);
-                            subCollection[i].TryGetValue(propertyName, out compareValue);
+                            robj.Properties.TryGetValue(propertyName, out referenceValue);
+                            pl3ds[i].Properties.TryGetValue(propertyName, out compareValue);
 
                             if (!object.Equals(referenceValue, compareValue))
                             {
                                 canMerge = false;
-                                log.AppendLine($"Skipping merge: Property '{propertyName}' does not match.");
+                                localLog.AppendLine($"Property '{propertyName}' does not match: " +
+                                    $"{string.Join(", ", group.Select(x => x.Properties[propertyName].ToString()))}.");
                                 break;
                             }
                         }
                     }
-
-                    if (!canMerge) break;
                 }
 
-                if (canMerge)
-                {
-                    // Perform the merge here
-                }
-                else
-                {
-                    // Log the reason for skipping
-                    Console.WriteLine(log.ToString());
-                }
+                if (canMerge) result.Add(group);
+                else log.AppendLine(localLog.ToString());
             }
-        }
 
+            return result;
+        }
     }
 
     public enum MergeRuleType

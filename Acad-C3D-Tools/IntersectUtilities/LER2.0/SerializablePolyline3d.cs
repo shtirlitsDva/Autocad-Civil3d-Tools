@@ -20,7 +20,19 @@ namespace IntersectUtilities
         public string Handle { get; set; }
         public int GroupNumber { get; set; }
         private readonly Polyline3d _pl3d;
-        public Polyline3d GetPolyline3d() => _pl3d;
+        public Polyline3d GetPolyline3d()
+        { 
+            if (_pl3d != null) return _pl3d;
+
+            //Try to load the Polyline3d
+            Entity ent = UtilsCommon.Utils.GetEntityFromLocalDbByHandleString(Handle);
+            if (ent == null)
+                throw new Exception(
+                    $"Enity {Handle} cannot be loaded from local DB! Is your data stale?");
+            if (ent is Polyline3d pl3d) return pl3d;
+            else throw new Exception(
+                $"Entity {Handle} does not exist!");
+        }
         public SerializablePolyline3d() {}
         public SerializablePolyline3d(Polyline3d pl3d, int groupNumber)
         {

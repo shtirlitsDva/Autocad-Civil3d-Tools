@@ -885,7 +885,7 @@ namespace IntersectUtilities
                         (HashSet<HashSet<SerializablePolyline3d>>)JsonSerializer.Deserialize(
                             jsonString, typeof(HashSet<HashSet<SerializablePolyline3d>>));
 
-                    StringBuilder sb = new StringBuilder();
+                    StringBuilder log = new StringBuilder();
                     var ler2groups = groups.GroupBy(x => x.First().Properties["Ler2Type"].ToString());
 
                     Ler2MergeValidator validator = new Ler2MergeValidator();
@@ -893,13 +893,26 @@ namespace IntersectUtilities
                     foreach (var group in ler2groups)
                         validator.LoadRule(group.Key, rulesPath);
 
-                    foreach (var group in ler2groups)
+                    foreach (var ler2TypeGroup in ler2groups)
                     {
-                        sb.AppendLine("----------------------");
-                        sb.AppendLine(group.Key.ToString());
-                        sb.AppendLine("----------------------");
+                        log.AppendLine("----------------------");
+                        log.AppendLine(ler2TypeGroup.Key);
+                        log.AppendLine("----------------------");
 
-                        validator.Validate(group.ToList());
+                        var toMerge = validator.Validate(ler2TypeGroup.ToHashSet(), log);
+
+                        //REMEMBER TO WRITE RESULTS TO LOG!!!!
+                        foreach (var group in toMerge)
+                        {
+                            //Merge the pl3ds
+                            var mypl3ds = group.Select(x => new MyPl3d(x.GetPolyline3d(), tolerance)).ToList();
+
+                            MyPl3d seed = mypl3ds.First();
+                            var newPoints = seed.Merge(mypl3ds.Skip(1));
+
+                            //Continue merging here!
+                        }
+                        
                     }
                 }
                 catch (System.Exception ex)

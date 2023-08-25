@@ -54,6 +54,7 @@ using IntersectUtilities.DynamicBlocks;
 using System.Diagnostics;
 using System.Runtime;
 using System.Text.Json;
+using Autodesk.Aec.Modeler;
 
 namespace IntersectUtilities
 {
@@ -3950,6 +3951,26 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Martins opgave
+                    //HashSet<DBPoint> points = localDb.HashSetOfType<DBPoint>(tx);
+                    //CivSurface surface = localDb
+                    //    .HashSetOfType<TinSurface>(tx)
+                    //    .FirstOrDefault() as CivSurface;
+
+                    //foreach (DBPoint point in points)
+                    //{
+                    //    double depthToTop =
+                    //        PropertySetManager.ReadNonDefinedPropertySetDouble(
+                    //            point, "GSMeasurement", "Depth");
+                    //    double depthCl = depthToTop + 0.1143 / 2;
+                    //    double surfaceElev = surface.FindElevationAtXY(point.Position.X, point.Position.Y);
+                    //    double clElevation = surfaceElev - depthCl;
+
+                    //    point.UpgradeOpen();
+                    //    point.Position = new Point3d(point.Position.X, point.Position.Y, clElevation);
+                    //}
+                    #endregion
+
                     #region Testing pl3d merging
                     ////This is for testing ONLY
                     ////The supplied pl3d must be already overlapping
