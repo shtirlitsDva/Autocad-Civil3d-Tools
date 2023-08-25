@@ -893,15 +893,20 @@ namespace IntersectUtilities
                     foreach (var group in ler2groups)
                         validator.LoadRule(group.Key, rulesPath);
 
+                    int totalNewCount = 0;
+                    int totalDeletedCount = 0;
                     foreach (var ler2TypeGroup in ler2groups)
                     {
                         log.AppendLine("----------------------");
                         log.AppendLine(ler2TypeGroup.Key);
                         log.AppendLine("----------------------");
+                        prdDbg(ler2TypeGroup.Key);
 
                         var toMerge = validator.Validate(ler2TypeGroup.ToHashSet(), log);
 
                         //REMEMBER TO WRITE RESULTS TO LOG!!!!
+                        int newCount = 0;
+                        int deletedCount = 0;
                         foreach (var group in toMerge)
                         {
                             //Merge the pl3ds
@@ -911,9 +916,42 @@ namespace IntersectUtilities
                             var newPoints = seed.Merge(mypl3ds.Skip(1));
 
                             //Continue merging here!
+                            Polyline3d seedPl3d = group.First().GetPolyline3d();
+                            Polyline3d newPl3d = new Polyline3d(Poly3dType.SimplePoly, newPoints, false);
+
+                            newPl3d.AddEntityToDbModelSpace(localDb);
+                            newPl3d.Layer = seedPl3d.Layer;
+
+                            PropertySetManager.CopyAllProperties(seedPl3d, newPl3d);
+                            newCount++;
+                            //Delete the old pl3ds
+                            foreach (var item in group)
+                            {
+                                var pl3d = item.GetPolyline3d();
+                                pl3d.UpgradeOpen();
+                                pl3d.Erase();
+                                deletedCount++;
+                            }
                         }
-                        
+                        log.AppendLine($"New Polyline3d created: {newCount}.");
+                        log.AppendLine($"Old Polyline3d deleted: {deletedCount}.");
+                        totalNewCount += newCount;
+                        totalDeletedCount += deletedCount;
                     }
+
+                    log.AppendLine();
+                    log.AppendLine("----------------------");
+                    log.AppendLine("Summary");
+                    log.AppendLine($"Total New Polyline3d created: {totalNewCount}.");
+                    log.AppendLine($"Total Old Polyline3d deleted: {totalDeletedCount}.");
+                    prdDbg($"Total New Polyline3d created: {totalNewCount}.");
+                    prdDbg($"Total Old Polyline3d deleted: {totalDeletedCount}.");
+
+
+
+                    File.WriteAllText(path + 
+                        $"\\MergeOverlaps_{DateTime.Now.ToString("yyyy.MM.dd.HH.mm.ss")}.log",
+                        log.ToString());
                 }
                 catch (System.Exception ex)
                 {

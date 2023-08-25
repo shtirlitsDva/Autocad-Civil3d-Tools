@@ -71,12 +71,14 @@ namespace IntersectUtilities.LER2
                             robj.Properties.TryGetValue(propertyName, out referenceValue);
                             pl3ds[i].Properties.TryGetValue(propertyName, out compareValue);
 
-                            if (!object.Equals(referenceValue, compareValue))
+                            string referenceString = Convert.ToString(referenceValue);
+                            string compareString = Convert.ToString(compareValue);
+
+                            if (!referenceString.Equals(compareString))
                             {
                                 canMerge = false;
                                 localLog.AppendLine($"Property '{propertyName}' does not match: " +
                                     $"{string.Join(", ", group.Select(x => x.Properties[propertyName].ToString()))}.");
-                                break;
                             }
                         }
                     }
