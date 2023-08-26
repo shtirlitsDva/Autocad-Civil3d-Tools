@@ -816,19 +816,32 @@ namespace IntersectUtilities
                                 pl1.EndPoint.IsEqualTo(pl2.StartPoint, tol) ||
                                 pl1.EndPoint.IsEqualTo(pl2.EndPoint, tol))
                             {
-                                if (pl1.Vertices.Where(
-                                    x => pl2.Vertices.Any(
-                                        y => x.IsEqualTo(
-                                            y, tol)))
-                                    .Count() == 1) return false;
+                                if (pl1.Vertices.Where(x => pl2.Vertices.Any(
+                                        y => x.IsEqualTo(y, tol))).Count() == 1 &&
+                                        pl2.Vertices.Where(x => pl1.Vertices.Any(
+                                            y => x.IsEqualTo(y,tol))).Count() == 1) return false;
                             }
+
+                            //Now we need to filter cases where the other polyline
+                            //Is touching this polyline with one vertex
+
+                            if (pl1.Vertices.Where(x => pl2.IsPointOn(x)).Count() == 1 &&
+                                (!pl1.IsPointOn(pl2.StartPoint) && !pl1.IsPointOn(pl2.EndPoint)))
+                                return false;
+
+                            if (pl2.Vertices.Where(x => pl1.IsPointOn(x)).Count() == 1 &&
+                                (!pl2.IsPointOn(pl1.StartPoint) && !pl2.IsPointOn(pl1.EndPoint)))
+                                return false;
                         }
 
                         return true;
                     }
 
-                    HashSet<MyPl3d> GetOverlappingPolylines(MyPl3d pl, HashSet<MyPl3d> pls, Tolerance tol) =>
-                        pls.Where(x => ArePolylines3dOverlapping(pl, x, tol)).ToHashSet();
+                    HashSet<MyPl3d> GetOverlappingPolylines(MyPl3d pl, HashSet<MyPl3d> pls, Tolerance tol)
+                    {
+                        return pls.Where(x => ArePolylines3dOverlapping(pl, x, tol)).ToHashSet();
+                    }
+                        
 
                 }
                 catch (System.Exception ex)

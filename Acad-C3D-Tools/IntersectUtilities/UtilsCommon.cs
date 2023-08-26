@@ -1936,15 +1936,16 @@ namespace IntersectUtilities.UtilsCommon
         }
         public static bool Intersects(this Extents3d original, Extents3d other)
         {
-            // Check if one box is to the left or right of the other
-            if (original.MaxPoint.X <= other.MinPoint.X || original.MinPoint.X >= other.MaxPoint.X)
+            if ((original.MaxPoint.X != other.MinPoint.X && original.MinPoint.X != other.MaxPoint.X) && 
+                (original.MaxPoint.X <= other.MinPoint.X || original.MinPoint.X >= other.MaxPoint.X))
                 return false;
 
-            // Check if one box is above or below the other
-            if (original.MaxPoint.Y <= other.MinPoint.Y || original.MinPoint.Y >= other.MaxPoint.Y)
+            if ((original.MaxPoint.Y != other.MinPoint.Y && original.MinPoint.Y != other.MaxPoint.Y) &&
+                (original.MaxPoint.Y <= other.MinPoint.Y || original.MinPoint.Y >= other.MaxPoint.Y))
                 return false;
 
-            if (original.MaxPoint.Z <= other.MinPoint.Z || original.MinPoint.Z >= other.MaxPoint.Z)
+            if ((original.MaxPoint.Z != other.MinPoint.Z && original.MinPoint.Z != other.MaxPoint.Z) &&
+                (original.MaxPoint.Z <= other.MinPoint.Z || original.MinPoint.Z >= other.MaxPoint.Z))
                 return false;
 
             // If none of the above conditions are met, then the boxes intersect in 2D space
@@ -2980,7 +2981,7 @@ namespace IntersectUtilities.UtilsCommon
             //    $"p1.Y: {(int)(p1.Y * _scale)} == p2.Y: {(int)(p2.Y * _scale)}\n");
             return p1.X.Equalz(p2.X, _epsilon) && p1.Y.Equalz(p2.Y, _epsilon);
         }
-            
+
 
         public int GetHashCode(Point2d point)
         {

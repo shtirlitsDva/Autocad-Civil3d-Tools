@@ -3950,6 +3950,25 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Testing tolerance when comparing points
+                    //PromptEntityOptions peo1 = new PromptEntityOptions("\nSelect first point: ");
+                    //peo1.SetRejectMessage("\nNot a DBPoint!");
+                    //peo1.AddAllowedClass(typeof(DBPoint), false);
+                    //PromptEntityResult per1 = editor.GetEntity(peo1);
+                    //DBPoint p1 = per1.ObjectId.Go<DBPoint>(tx);
+
+                    //PromptEntityOptions peo2 = new PromptEntityOptions("\nSelect second point: ");
+                    //peo2.SetRejectMessage("\nNot a DBPoint!");
+                    //peo2.AddAllowedClass(typeof(DBPoint), false);
+                    //PromptEntityResult per2 = editor.GetEntity(peo2);
+                    //DBPoint p2 = per2.ObjectId.Go<DBPoint>(tx);
+
+                    //Tolerance tol = new Tolerance(1e-3, 2.54 * 1e-3);
+
+                    //prdDbg(p1.Position.IsEqualTo(p2.Position, tol) + 
+                    //    " -> Dist: " + p1.Position.DistanceTo(p2.Position));
+                    #endregion
+
                     #region Martins opgave
                     //HashSet<DBPoint> points = localDb.HashSetOfType<DBPoint>(tx);
                     //CivSurface surface = localDb
@@ -3971,42 +3990,42 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Testing pl3d merging
+                    ////List<Polyline3d> pls = localDb.ListOfType<Polyline3d>(tx);
+                    ////Polyline3d pl = pls.Where(x => x.GetVertices(tx).Length > 4).FirstOrDefault();
+
+                    ////HashSet<DBPoint> points = localDb.HashSetOfType<DBPoint>(tx);
+                    ////foreach (DBPoint p in points)
+                    ////{
+                    ////    Line l = new Line(p.Position, pl.GetClosestPointTo(p.Position, false));
+                    ////    l.AddEntityToDbModelSpace(localDb);
+                    ////}
+
+                    ////This is for testing ONLY
+                    ////The supplied pl3d must be already overlapping
+                    ////If you try to merge non - overlapping pl3ds, it will exit with infinite loop
+                    //Tolerance tolerance = new Tolerance(1e-3, 2.54 * 1e-3);
                     //List<Polyline3d> pls = localDb.ListOfType<Polyline3d>(tx);
-                    //Polyline3d pl = pls.Where(x => x.GetVertices(tx).Length > 4).FirstOrDefault();
 
-                    //HashSet<DBPoint> points = localDb.HashSetOfType<DBPoint>(tx);
-                    //foreach (DBPoint p in points)
+                    ////var pl = pls.First();
+                    ////var vertices = pl.GetVertices(tx);
+                    ////for (int i = 0; i < vertices.Length; i++)
+                    ////{
+                    ////    prdDbg(vertices[i].Position);
+                    ////}
+
+                    //var mypl3ds = pls.Select(x => new LER2.MyPl3d(x, tolerance)).ToList();
+                    //LER2.MyPl3d seed = mypl3ds[0];
+                    //var others = mypl3ds.Skip(1);
+
+                    //Polyline3d merged = new Polyline3d(
+                    //    Poly3dType.SimplePoly, seed.Merge(others), false);
+                    //merged.AddEntityToDbModelSpace(localDb);
+
+                    //foreach (Polyline3d item in pls)
                     //{
-                    //    Line l = new Line(p.Position, pl.GetClosestPointTo(p.Position, false));
-                    //    l.AddEntityToDbModelSpace(localDb);
+                    //    item.UpgradeOpen();
+                    //    item.Erase();
                     //}
-
-                    //This is for testing ONLY
-                    //The supplied pl3d must be already overlapping
-                    //If you try to merge non - overlapping pl3ds, it will exit with infinite loop
-                    Tolerance tolerance = new Tolerance(1e-3, 2.54 * 1e-3);
-                    List<Polyline3d> pls = localDb.ListOfType<Polyline3d>(tx);
-
-                    //var pl = pls.First();
-                    //var vertices = pl.GetVertices(tx);
-                    //for (int i = 0; i < vertices.Length; i++)
-                    //{
-                    //    prdDbg(vertices[i].Position);
-                    //}
-
-                    var mypl3ds = pls.Select(x => new LER2.MyPl3d(x, tolerance)).ToList();
-                    LER2.MyPl3d seed = mypl3ds[0];
-                    var others = mypl3ds.Skip(1);
-
-                    Polyline3d merged = new Polyline3d(
-                        Poly3dType.SimplePoly, seed.Merge(others), false);
-                    merged.AddEntityToDbModelSpace(localDb);
-
-                    foreach (Polyline3d item in pls)
-                    {
-                        item.UpgradeOpen();
-                        item.Erase();
-                    }
                     #endregion
 
                     #region Writing vertex values of poly3d
