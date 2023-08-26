@@ -644,7 +644,7 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            Tolerance tolerance = new Tolerance(1e-6, 2.54 * 1e-6);
+            Tolerance tolerance = new Tolerance(1e-3, 2.54 * 1e-3);
 
             prdDbg("Remember to run LER2ANALYZEDUPLICATES first!");
 
@@ -657,58 +657,55 @@ namespace IntersectUtilities
                     HashSet<Polyline3d> localPlines3d =
                         localDb.HashSetOfType<Polyline3d>(tx, true);
                     prdDbg($"\nNr. of local 3D polies: {localPlines3d.Count}");
+                    HashSet<MyPl3d> myPl3Ds = localPlines3d.Select(
+                        x => new MyPl3d(x, tolerance)).ToHashSet();
                     #endregion
 
-                    HashSet<Polyline3d> nonOverlapping = new HashSet<Polyline3d>(new Polyline3dHandleComparer());
-                    HashSet<HashSet<Polyline3d>> overlappingGroups = new HashSet<HashSet<Polyline3d>>();
+                    HashSet<MyPl3d> nonOverlapping = new HashSet<MyPl3d>(new MyPl3dHandleComparer());
+                    HashSet<HashSet<MyPl3d>> overlappingGroups = new HashSet<HashSet<MyPl3d>>();
+                    HashSet<Handle> categorized = new HashSet<Handle>();
 
-                    var layerGroups = localPlines3d.GroupBy(p => p.Layer);
+                    var layerGroups = myPl3Ds.GroupBy(x => x.Layer);
 
                     foreach (var layerGrouping in layerGroups)
                     {
                         prdDbg($"Processing Polylines3d on layer: {layerGrouping.Key}.");
                         System.Windows.Forms.Application.DoEvents();
                         var layerGroup = layerGrouping.ToHashSet();
-                        foreach (Polyline3d pline in layerGroup)
+                        foreach (MyPl3d pline in layerGroup)
                         {
                             // Check if the polyline is already categorized
-                            if (IsPolylineCategorized(pline, nonOverlapping, overlappingGroups))
+                            if (categorized.Contains(pline.Handle))
                                 continue;
 
-                            HashSet<Polyline3d> overlaps = GetOverlappingPolylines(
-                                pline,
-                                layerGroup, //.Where(x => !IsPolylineCategorized(x, nonOverlapping,overlappingGroups)).ToHashSet(),
-                                tolerance.EqualPoint)
-                                .Where(x => !IsPolylineCategorized(x, nonOverlapping, overlappingGroups))
+                            HashSet<MyPl3d> overlaps = GetOverlappingPolylines(pline, layerGroup, tolerance)
+                                .Where(x => !categorized.Contains(x.Handle))
                                 .ToHashSet();
 
                             if (overlaps.Count == 0)
                             {
                                 nonOverlapping.Add(pline);
+                                categorized.Add(pline.Handle);
                             }
                             else
                             {
-                                HashSet<Polyline3d> newGroup = new HashSet<Polyline3d>(new Polyline3dHandleComparer()) { pline };
-                                HashSet<Handle> processed = new HashSet<Handle>();
-                                Queue<Polyline3d> toProcess = new Queue<Polyline3d>(overlaps);
+                                HashSet<MyPl3d> newGroup = new HashSet<MyPl3d>(new MyPl3dHandleComparer()) { pline };
+                                Queue<MyPl3d> toProcess = new Queue<MyPl3d>(overlaps);
 
                                 // Iterate through the new group and add any polyline that overlaps 
                                 // with a member of the group but isn't already in the group
                                 while (toProcess.Count > 0)
                                 {
                                     var current = toProcess.Dequeue();
-                                    if (!processed.Contains(current.Handle))
+                                    if (!categorized.Contains(current.Handle))
                                     {
                                         newGroup.Add(current);
-                                        processed.Add(current.Handle);
+                                        categorized.Add(current.Handle);
 
                                         var externalOverlaps = GetOverlappingPolylines(
                                             current,
-                                            layerGroup,//.Where(x => !IsPolylineCategorized(x, nonOverlapping, overlappingGroups)).ToHashSet(),
-                                            tolerance.EqualPoint)
-                                            .ExceptWhere(x =>
-                                            newGroup.Any(y => x.Handle == y.Handle) ||
-                                            processed.Contains(x.Handle)).ToList();
+                                            layerGroup.Where(x => !categorized.Contains(x.Handle)).ToHashSet(),
+                                            tolerance).ToHashSet();
 
                                         foreach (var overlap in externalOverlaps)
                                             toProcess.Enqueue(overlap);
@@ -728,7 +725,7 @@ namespace IntersectUtilities
                         HashSet<SerializablePolyline3d> serializableGroup = new HashSet<SerializablePolyline3d>();
                         groupCount++;
                         foreach (var item in group)
-                            serializableGroup.Add(new SerializablePolyline3d(item, groupCount));
+                            serializableGroup.Add(new SerializablePolyline3d(item.Handle.Go<Polyline3d>(localDb), groupCount));
                         serializableGroups.Add(serializableGroup);
                     }
 
@@ -775,86 +772,63 @@ namespace IntersectUtilities
                             HtmlGenerator.GenerateHtmlReport(group.ToHashSet()));
                     }
 
-                    bool ArePolylines3dOverlapping(Polyline3d pl1, Polyline3d pl2, double tol)
+                    bool ArePolylines3dOverlapping(MyPl3d pl1, MyPl3d pl2, Tolerance tol)
                     {
                         // 1. BBOX and layer checks
                         if (pl1.Handle == pl2.Handle) return false;
-                        if (!pl1.GeometricExtents.Intersects2D(pl2.GeometricExtents)) return false;
+                        if (!pl1.GeometricExtents.Intersects(pl2.GeometricExtents)) return false;
                         if (pl1.Layer != pl2.Layer) return false;
 
                         // 2. Vertex Overlap Check
-                        List<PolylineVertex3d> ovP1 = new List<PolylineVertex3d>();
-                        List<PolylineVertex3d> ovP2 = new List<PolylineVertex3d>();
-
-                        var vs1 = pl1.GetVertices(tx);
-                        var vs2 = pl2.GetVertices(tx);
-
-                        foreach (PolylineVertex3d vertex in vs1)
+                        //prdDbg($"pl1: {pl1.Handle} pl2: {pl2.Handle}");
+                        var overlapType1to2 = pl1.GetOverlapType(pl2); //prdDbg(overlapType1to2);
+                        if (overlapType1to2 == MyPl3d.OverlapType.None) return false;
+                        var overlapType2to1 = pl2.GetOverlapType(pl1); //prdDbg(overlapType2to1);
+                        if (overlapType1to2 == MyPl3d.OverlapType.Full &&
+                            overlapType1to2 == overlapType2to1) return true;
+                        if (overlapType1to2 == MyPl3d.OverlapType.Partial &&
+                            overlapType1to2 == overlapType2to1)
                         {
-                            double distance = vertex.Position.DistanceTo(
-                                pl2.GetClosestPointTo(vertex.Position, false));
-                            if (distance <= tol)
+                            //This implementation assumes that the data is to some degree favorable
+                            //meaning that the partial overlaps in majority are co-linear
+                            //We do not anticipate highly complex overlaps with coincident vertices
+                            //but non-co-linear segments
+
+                            //One case found in the wild
+                            //Polylines touching both ends but not overlapping
+
+                            if (pl1.StartPoint.IsEqualTo(pl2.StartPoint, tol) &&
+                                pl1.EndPoint.IsEqualTo(pl2.EndPoint, tol))
                             {
-                                Vector3d der1 = pl1.GetFirstDerivative(vertex.Position);
-                                Vector3d der2 = pl2.GetFirstDerivative(
-                                    pl2.GetClosestPointTo(vertex.Position, false));
-
-                                if (der1.IsParallelTo(der2, tolerance)) ovP1.Add(vertex);
+                                var der1 = pl1.StartVector;
+                                var der2 = pl2.StartVector;
+                                if (!der1.IsParallelTo(der2, tol)) return false;
+                                der1 = pl1.EndVector;
+                                der2 = pl2.EndVector;
+                                if (!der1.IsParallelTo(der2, tol)) return false;
                             }
-                        }
 
-                        foreach (PolylineVertex3d vertex in vs2)
-                        {
-                            double distance = vertex.Position.DistanceTo(
-                                pl1.GetClosestPointTo(vertex.Position, false));
+                            //Now we need to filter cases where the overlap is only
+                            //One point at the end or start of the polyline
 
-                            if (distance <= tol)
+                            if (pl1.StartPoint.IsEqualTo(pl2.StartPoint, tol) ||
+                                pl1.StartPoint.IsEqualTo(pl2.EndPoint, tol) ||
+                                pl1.EndPoint.IsEqualTo(pl2.StartPoint, tol) ||
+                                pl1.EndPoint.IsEqualTo(pl2.EndPoint, tol))
                             {
-                                Vector3d der1 = pl1.GetFirstDerivative(
-                                    pl1.GetClosestPointTo(vertex.Position, false));
-                                Vector3d der2 = pl2.GetFirstDerivative(vertex.Position);
-
-                                if (der2.IsParallelTo(der1, tolerance)) ovP2.Add(vertex);
+                                if (pl1.Vertices.Where(
+                                    x => pl2.Vertices.Any(
+                                        y => x.IsEqualTo(
+                                            y, tol)))
+                                    .Count() == 1) return false;
                             }
-                        }
-
-                        if (ovP1.Count == 0 || ovP2.Count == 0) return false;
-
-                        // 3. Start/End Vertex Check
-                        bool hasStartOrEndP1 =
-                            ovP1.Any(x => x.Equalz(vs1.First(), tol)) ||
-                            ovP1.Any(x => x.Equalz(vs1.Last(), tol));
-                        bool hasStartOrEndP2 =
-                            ovP2.Any(x => x.Equalz(vs2.First(), tol)) ||
-                            ovP2.Any(x => x.Equalz(vs2.Last(), tol));
-
-                        if (!hasStartOrEndP1 || !hasStartOrEndP2) return false;
-
-                        // 4. Discard Touching Overlaps
-                        if (ovP1.Count == 1 && ovP2.Count == 1)
-                        {
-                            bool isStartOrEndP1 =
-                                ovP1[0].Equalz(vs1.First(), tol) ||
-                                ovP1[0].Equalz(vs1.Last(), tol);
-                            bool isStartOrEndP2 =
-                                ovP2[0].Equalz(vs1.First(), tol) ||
-                                ovP2[0].Equalz(vs1.Last(), tol);
-
-                            if (isStartOrEndP1 && isStartOrEndP2) return false;
                         }
 
                         return true;
                     }
 
-                    bool IsPolylineCategorized(Polyline3d pl, HashSet<Polyline3d> nonO, HashSet<HashSet<Polyline3d>> oG)
-                    {
-                        if (nonO.Any(x => x.Handle == pl.Handle)) return true;
-                        if (oG.Any(x => x.Any(y => y.Handle == pl.Handle))) return true;
-                        return false;
-                    }
-
-                    List<Polyline3d> GetOverlappingPolylines(Polyline3d pl, HashSet<Polyline3d> pls, double tol) =>
-                        pls.Where(x => ArePolylines3dOverlapping(pl, x, tol)).ToList();
+                    HashSet<MyPl3d> GetOverlappingPolylines(MyPl3d pl, HashSet<MyPl3d> pls, Tolerance tol) =>
+                        pls.Where(x => ArePolylines3dOverlapping(pl, x, tol)).ToHashSet();
 
                 }
                 catch (System.Exception ex)
@@ -873,7 +847,7 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            Tolerance tolerance = new Tolerance(1e-6, 2.54 * 1e-6);
+            Tolerance tolerance = new Tolerance(1e-3, 2.54 * 1e-3);
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -904,7 +878,6 @@ namespace IntersectUtilities
 
                         var toMerge = validator.Validate(ler2TypeGroup.ToHashSet(), log);
 
-                        //REMEMBER TO WRITE RESULTS TO LOG!!!!
                         int newCount = 0;
                         int deletedCount = 0;
                         foreach (var group in toMerge)
@@ -947,10 +920,8 @@ namespace IntersectUtilities
                     prdDbg($"Total New Polyline3d created: {totalNewCount}.");
                     prdDbg($"Total Old Polyline3d deleted: {totalDeletedCount}.");
 
-
-
-                    File.WriteAllText(path + 
-                        $"\\MergeOverlaps_{DateTime.Now.ToString("yyyy.MM.dd.HH.mm.ss")}.log",
+                    File.WriteAllText(path +
+                        $"\\MergeOverlaps_{DateTime.Now.ToString("yyyy.MM.dd-HH.mm.ss")}.log",
                         log.ToString());
                 }
                 catch (System.Exception ex)

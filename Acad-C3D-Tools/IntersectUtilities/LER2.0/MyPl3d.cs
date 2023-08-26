@@ -13,14 +13,21 @@ namespace IntersectUtilities.LER2
     public class MyPl3d
     {
         private LineSegment3d[] _segments;
+        public Handle Handle { get => _sourceHandle; }
         private Handle _sourceHandle;
-        private Point3d[] Vertices { get => getVertices(); }
+        public string Layer { get; }
+        public Extents3d GeometricExtents { get; }
+        public Point3d[] Vertices { get => getVertices(); }
+        public Vector3d StartVector { get => _segments[0].Direction; }
+        public Vector3d EndVector { get => _segments[_segments.Length - 1].Direction; }
         private Point3dCollection p3DCol { get => new Point3dCollection(Vertices); }
         private Tolerance _tolerance;
         public MyPl3d(Polyline3d source, Tolerance tolerance)
         {
             _sourceHandle = source.Handle;
             _tolerance = tolerance;
+            Layer = source.Layer;
+            GeometricExtents = source.GeometricExtents;
 
             Transaction tx = source.Database.TransactionManager.TopTransaction;
             var verts = source.GetVertices(tx);
@@ -31,7 +38,7 @@ namespace IntersectUtilities.LER2
                 _segments[i] = new LineSegment3d(verts[i].Position, verts[i + 1].Position);
             ;
         }
-        private OverlapType GetOverlapType(MyPl3d other)
+        public OverlapType GetOverlapType(MyPl3d other)
         {
             var otherVerts = other.Vertices;
             if (otherVerts.All(
@@ -76,11 +83,14 @@ namespace IntersectUtilities.LER2
         {
             Queue<MyPl3d> queue = new Queue<MyPl3d>(others);
 
+            //prdDbg(this._sourceHandle);
+
             int safetyCounter = 0;
             while (queue.Count > 0)
             {
                 var other = queue.Dequeue();
                 var overlapType = GetOverlapType(other);
+                prdDbg(overlapType);
                 switch (overlapType)
                 {
                     case OverlapType.Full:
@@ -91,6 +101,7 @@ namespace IntersectUtilities.LER2
                         //   Which means that the other is longer and covers both ends of this
                         if (other.IsPointOn(StartPoint) && other.IsPointOn(EndPoint))
                         {
+                            //prdDbg("This is a subset of the other");
                             //If this is a subset, then it safe to assume the supersets' segments
                             this._segments = other._segments;
                             continue; //Skip to the next iteration
@@ -111,6 +122,7 @@ namespace IntersectUtilities.LER2
                         else throw new Exception("Overlap direction not found! " +
                             $"{_sourceHandle}, {string.Join(", ", others.Select(x => x._sourceHandle))}");
 
+                        //prdDbg(direction);
                         switch (direction)
                         {
                             case OverlapDirection.None:
@@ -152,8 +164,8 @@ namespace IntersectUtilities.LER2
                                             foundUnMerged = true;
                                         }
                                     }
-                                    
-                                    _segments = newSegs.ToArray(); 
+
+                                    _segments = newSegs.ToArray();
                                 }
                                 break;
                             case OverlapDirection.OtherStartThisStart:
@@ -189,7 +201,7 @@ namespace IntersectUtilities.LER2
 
                                     //Now add this segments to the new collection
                                     newSegs.AddRange(_segments);
-                                    _segments = newSegs.ToArray(); 
+                                    _segments = newSegs.ToArray();
                                 }
                                 break;
                         }
@@ -224,11 +236,30 @@ namespace IntersectUtilities.LER2
             OtherStartThisStart, //Start of other overlaps start of this -> counter-directional
             OtherEndThisStart //End of other overlaps start of this -> co-directional
         }
-        private enum OverlapType
+        public enum OverlapType
         {
             None,
             Partial,
             Full
+        }
+    }
+
+    public class MyPl3dHandleComparer : IEqualityComparer<MyPl3d>
+    {
+        public bool Equals(MyPl3d x, MyPl3d y)
+        {
+            if (x == null || y == null)
+                return false;
+
+            return x.Handle == y.Handle;
+        }
+
+        public int GetHashCode(MyPl3d obj)
+        {
+            if (obj == null)
+                return 0;
+
+            return obj.Handle.GetHashCode();
         }
     }
 }

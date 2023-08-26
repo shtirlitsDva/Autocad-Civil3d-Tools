@@ -54,7 +54,6 @@ using IntersectUtilities.DynamicBlocks;
 using System.Diagnostics;
 using System.Runtime;
 using System.Text.Json;
-using Autodesk.Aec.Modeler;
 
 namespace IntersectUtilities
 {
@@ -3972,24 +3971,42 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Testing pl3d merging
-                    ////This is for testing ONLY
-                    ////The supplied pl3d must be already overlapping
-                    ////If you try to merge non-overlapping pl3ds, it will exit with infinite loop
-                    //Tolerance tolerance = new Tolerance(1e-6, 2.54 * 1e-6);
                     //List<Polyline3d> pls = localDb.ListOfType<Polyline3d>(tx);
-                    //var mypl3ds = pls.Select(x => new MyPl3d(x, tolerance)).ToList();
-                    //MyPl3d seed = mypl3ds[0];
-                    //var others = mypl3ds.Skip(1);
+                    //Polyline3d pl = pls.Where(x => x.GetVertices(tx).Length > 4).FirstOrDefault();
 
-                    //Polyline3d merged = new Polyline3d(
-                    //    Poly3dType.SimplePoly, seed.Merge(others), false);
-                    //merged.AddEntityToDbModelSpace(localDb);
-
-                    //foreach (Polyline3d item in pls)
+                    //HashSet<DBPoint> points = localDb.HashSetOfType<DBPoint>(tx);
+                    //foreach (DBPoint p in points)
                     //{
-                    //    item.UpgradeOpen();
-                    //    item.Erase();
+                    //    Line l = new Line(p.Position, pl.GetClosestPointTo(p.Position, false));
+                    //    l.AddEntityToDbModelSpace(localDb);
                     //}
+
+                    //This is for testing ONLY
+                    //The supplied pl3d must be already overlapping
+                    //If you try to merge non - overlapping pl3ds, it will exit with infinite loop
+                    Tolerance tolerance = new Tolerance(1e-3, 2.54 * 1e-3);
+                    List<Polyline3d> pls = localDb.ListOfType<Polyline3d>(tx);
+
+                    //var pl = pls.First();
+                    //var vertices = pl.GetVertices(tx);
+                    //for (int i = 0; i < vertices.Length; i++)
+                    //{
+                    //    prdDbg(vertices[i].Position);
+                    //}
+
+                    var mypl3ds = pls.Select(x => new LER2.MyPl3d(x, tolerance)).ToList();
+                    LER2.MyPl3d seed = mypl3ds[0];
+                    var others = mypl3ds.Skip(1);
+
+                    Polyline3d merged = new Polyline3d(
+                        Poly3dType.SimplePoly, seed.Merge(others), false);
+                    merged.AddEntityToDbModelSpace(localDb);
+
+                    foreach (Polyline3d item in pls)
+                    {
+                        item.UpgradeOpen();
+                        item.Erase();
+                    }
                     #endregion
 
                     #region Writing vertex values of poly3d
@@ -6586,7 +6603,7 @@ namespace IntersectUtilities
                     promptEntityOptions1.SetRejectMessage("\n Not a XREF");
                     promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
                     PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) 
+                    if (((PromptResult)entity1).Status != PromptStatus.OK)
                     { AbortGracefully("No input!", localDb); return; }
                     Oid blkObjId = entity1.ObjectId;
                     BlockReference blkRef = tx.GetObject(blkObjId, OpenMode.ForRead, false) as BlockReference;
