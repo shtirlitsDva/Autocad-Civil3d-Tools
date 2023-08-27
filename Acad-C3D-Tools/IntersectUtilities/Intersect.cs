@@ -742,6 +742,55 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("selectbyhandlemultiple")]
+        [CommandMethod("SBHM")]
+        public void selectbyhandlemultiple()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PromptStringOptions pso = new PromptStringOptions("\nEnter handles of objects to select (separate by space): ");
+                    pso.AllowSpaces = true;
+                    PromptResult pr = editor.GetString(pso);
+
+                    if (pr.Status == PromptStatus.OK)
+                    {
+                        string result = pr.StringResult;
+                        string[] handles = result.Split(' ');
+
+                        List<Oid> selection = new List<Oid>();
+
+                        for (int i = 0; i < handles.Length; i++)
+                        {
+                            string handle = handles[i];
+                            // Convert hexadecimal string to 64-bit integer
+                            long ln = Convert.ToInt64(pr.StringResult, 16);
+                            // Now create a Handle from the long integer
+                            Handle hn = new Handle(ln);
+                            // And attempt to get an ObjectId for the Handle
+                            Oid id = localDb.GetObjectId(false, hn, 0);
+
+                            selection.Add(id);
+                        }
+                        
+                        editor.SetImpliedSelection(selection.ToArray());
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("selectcrossings")]
         public void selectcrossings()
         {
