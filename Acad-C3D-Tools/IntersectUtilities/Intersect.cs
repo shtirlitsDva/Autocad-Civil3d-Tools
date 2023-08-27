@@ -769,7 +769,7 @@ namespace IntersectUtilities
                         {
                             string handle = handles[i];
                             // Convert hexadecimal string to 64-bit integer
-                            long ln = Convert.ToInt64(pr.StringResult, 16);
+                            long ln = Convert.ToInt64(handle, 16);
                             // Now create a Handle from the long integer
                             Handle hn = new Handle(ln);
                             // And attempt to get an ObjectId for the Handle
