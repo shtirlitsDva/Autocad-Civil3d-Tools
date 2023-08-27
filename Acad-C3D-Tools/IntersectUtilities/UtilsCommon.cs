@@ -1211,7 +1211,6 @@ namespace IntersectUtilities.UtilsCommon
             null != a && null != b && a.X.Equalz(b.X, tol) && a.Y.Equalz(b.Y, tol);
         public static bool HorizontalEqualz(this PolylineVertex3d a, PolylineVertex3d b, double tol = 0.01) =>
             null != a && null != b && HorizontalEqualz(a.Position, b.Position, tol);
-
         public static void CheckOrOpenForWrite(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject)
         {
             if (dbObject.IsWriteEnabled == false)

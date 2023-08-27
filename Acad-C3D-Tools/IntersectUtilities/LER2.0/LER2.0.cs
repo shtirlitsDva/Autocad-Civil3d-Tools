@@ -644,7 +644,7 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            Tolerance tolerance = new Tolerance(1e-3, 2.54 * 1e-3);
+            Tolerance tolerance = new Tolerance(1e-4, 2.54 * 1e-4);
 
             prdDbg("Remember to run LER2ANALYZEDUPLICATES first!");
 
@@ -797,8 +797,10 @@ namespace IntersectUtilities
                             //One case found in the wild
                             //Polylines touching both ends but not overlapping
 
-                            if (pl1.StartPoint.IsEqualTo(pl2.StartPoint, tol) &&
-                                pl1.EndPoint.IsEqualTo(pl2.EndPoint, tol))
+                            if ((pl1.StartPoint.IsEqualTo(pl2.StartPoint, tol) ||
+                                pl1.StartPoint.IsEqualTo(pl2.EndPoint, tol)) &&
+                                (pl1.EndPoint.IsEqualTo(pl2.EndPoint, tol) ||
+                                pl1.EndPoint.IsEqualTo(pl2.StartPoint, tol)))
                             {
                                 var der1 = pl1.StartVector;
                                 var der2 = pl2.StartVector;
@@ -816,22 +818,35 @@ namespace IntersectUtilities
                                 pl1.EndPoint.IsEqualTo(pl2.StartPoint, tol) ||
                                 pl1.EndPoint.IsEqualTo(pl2.EndPoint, tol))
                             {
-                                if (pl1.Vertices.Where(x => pl2.Vertices.Any(
-                                        y => x.IsEqualTo(y, tol))).Count() == 1 &&
-                                        pl2.Vertices.Where(x => pl1.Vertices.Any(
-                                            y => x.IsEqualTo(y,tol))).Count() == 1) return false;
+                                if (pl1.Vertices.Where(x => x.IsOn(pl2)).Count() == 1 &&
+                                    pl2.Vertices.Where(x => x.IsOn(pl1)).Count() == 1) return false;
                             }
 
                             //Now we need to filter cases where the other polyline
                             //Is touching this polyline with one vertex
 
-                            if (pl1.Vertices.Where(x => pl2.IsPointOn(x)).Count() == 1 &&
-                                (!pl1.IsPointOn(pl2.StartPoint) && !pl1.IsPointOn(pl2.EndPoint)))
-                                return false;
+                            if (pl1.StartPoint.IsOn(pl2) || pl1.EndPoint.IsOn(pl2))
+                            {
+                                //Firste case where pl1s' point is between pl2s' vertices
+                                if (pl2.Vertices.Where(x => x.IsOn(pl1)).Count() == 0) return false;
 
-                            if (pl2.Vertices.Where(x => pl1.IsPointOn(x)).Count() == 1 &&
-                                (!pl2.IsPointOn(pl1.StartPoint) && !pl2.IsPointOn(pl1.EndPoint)))
-                                return false;
+                                //Second case where pl1s' point is on one of pl2s' vertices, but not start or end
+                                if (pl2.Vertices.Where(x => x.IsOn(pl1)).Count() == 1)
+                                {
+                                    if (!pl2.StartPoint.IsOn(pl1) && !pl2.EndPoint.IsOn(pl1)) return false;
+                                }
+                            }
+
+                            if (pl2.StartPoint.IsOn(pl1) || pl2.EndPoint.IsOn(pl1))
+                            {
+                                if (pl1.Vertices.Where(x => x.IsOn(pl2)).Count() == 0) return false;
+
+                                //Second case where pl1s' point is on one of pl2s' vertices, but not start or end
+                                if (pl1.Vertices.Where(x => x.IsOn(pl2)).Count() == 1)
+                                {
+                                    if (!pl1.StartPoint.IsOn(pl2) && !pl1.EndPoint.IsOn(pl2)) return false;
+                                }
+                            }
                         }
 
                         return true;
@@ -841,7 +856,7 @@ namespace IntersectUtilities
                     {
                         return pls.Where(x => ArePolylines3dOverlapping(pl, x, tol)).ToHashSet();
                     }
-                        
+
 
                 }
                 catch (System.Exception ex)
