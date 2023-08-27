@@ -847,6 +847,16 @@ namespace IntersectUtilities
                                     if (!pl1.StartPoint.IsOn(pl2) && !pl1.EndPoint.IsOn(pl2)) return false;
                                 }
                             }
+
+                            //Now we need to filter cases where the polylines have one vertex in common
+                            //and it is not the start or end point that is they intersect in one common point
+
+                            if (pl1.Vertices.Where(x => x.IsOn(pl2)).Count() == 1 &&
+                                pl2.Vertices.Where(x => x.IsOn(pl1)).Count() == 1)
+                            {
+                                if (!pl1.StartPoint.IsOn(pl2) && !pl1.EndPoint.IsOn(pl2) && 
+                                    !pl2.StartPoint.IsOn(pl1) && !pl2.EndPoint.IsOn(pl1)) return false;
+                            }
                         }
 
                         return true;
@@ -875,7 +885,7 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            Tolerance tolerance = new Tolerance(1e-3, 2.54 * 1e-3);
+            Tolerance tolerance = new Tolerance(1e-4, 2.54 * 1e-4);
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -904,7 +914,13 @@ namespace IntersectUtilities
                         log.AppendLine("----------------------");
                         prdDbg(ler2TypeGroup.Key);
 
-                        var toMerge = validator.Validate(ler2TypeGroup.ToHashSet(), log);
+                        //Validate properties of each group
+                        var validated = validator.Validate(ler2TypeGroup.ToHashSet(), log);
+
+                        //Validate overlaps again because the validation process may have changed the groups
+                        var validatedChanged = Overlapvalidator.ValidateOverlaps(validated.Changed, tolerance); 
+
+                        var toMerge = validated.Unchanged.Concat(validatedChanged).ToHashSet();
 
                         int newCount = 0;
                         int deletedCount = 0;
@@ -916,7 +932,6 @@ namespace IntersectUtilities
                             MyPl3d seed = mypl3ds.First();
                             var newPoints = seed.Merge(mypl3ds.Skip(1));
 
-                            //Continue merging here!
                             Polyline3d seedPl3d = group.First().GetPolyline3d();
                             Polyline3d newPl3d = new Polyline3d(Poly3dType.SimplePoly, newPoints, false);
 

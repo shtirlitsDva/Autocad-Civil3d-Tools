@@ -296,6 +296,11 @@ namespace IntersectUtilities.UtilsCommon
             Handle h = new Handle(Convert.ToInt64(handle, 16));
             return h.Go<Entity>(db);
         }
+        public static Entity GetEntityFromLocalDbByHandle(Handle handle)
+        {
+            Database db = Application.DocumentManager.MdiActiveDocument.Database;
+            return handle.Go<Entity>(db);
+        }
         public enum EndType
         {
             None,            //0:

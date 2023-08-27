@@ -36,59 +36,71 @@ namespace IntersectUtilities.LER2
 
             _mergeRules.Add(ler2Type, rules);
         }
-        public HashSet<HashSet<SerializablePolyline3d>> Validate(
+        public (HashSet<HashSet<SerializablePolyline3d>> Unchanged,
+        HashSet<HashSet<SerializablePolyline3d>> Changed) Validate(
             HashSet<HashSet<SerializablePolyline3d>> plines,
             StringBuilder log)
         {
             if (_mergeRules.Count == 0)
                 throw new Exception("No merge rules loaded!");
 
-            HashSet<HashSet<SerializablePolyline3d>> result =
-                new HashSet<HashSet<SerializablePolyline3d>>();
+            HashSet<HashSet<SerializablePolyline3d>> unchanged = new HashSet<HashSet<SerializablePolyline3d>>();
+            HashSet<HashSet<SerializablePolyline3d>> changed = new HashSet<HashSet<SerializablePolyline3d>>();
 
             foreach (var group in plines)
             {
-                bool canMerge = true;
-                StringBuilder localLog = new StringBuilder();
-                // Compare all objects with the first one in the subcollection
-                var robj = group.First();
-                string ler2Type = robj.Properties["Ler2Type"].ToString();
-                MergeRules mergeRules = _mergeRules[ler2Type];
-                SerializablePolyline3d[] pl3ds = group.ToArray();
-                localLog.AppendLine($"Group {robj.GroupNumber} cannot be merged! Reasons:");
-                for (int i = 1; i < pl3ds.Length; i++)
+                Dictionary<string, HashSet<SerializablePolyline3d>> partitionedGroups = 
+                    new Dictionary<string, HashSet<SerializablePolyline3d>>();
+
+                foreach (var obj in group)
                 {
+                    StringBuilder keyBuilder = new StringBuilder();
+                    string ler2Type = obj.Properties["Ler2Type"].ToString();
+                    MergeRules mergeRules = _mergeRules[ler2Type];
+
                     foreach (var rule in mergeRules.PropertyRules)
                     {
-                        var propertyName = rule.Key;
-                        var mergeRule = rule.Value;
-
-                        if (mergeRule == MergeRuleType.MustMatch)
+                        if (rule.Value == MergeRuleType.MustMatch)
                         {
-                            object referenceValue;
-                            object compareValue;
+                            object value;
+                            obj.Properties.TryGetValue(rule.Key, out value);
+                            keyBuilder.Append(Convert.ToString(value));
+                            keyBuilder.Append("|");
+                        }
+                    }
 
-                            robj.Properties.TryGetValue(propertyName, out referenceValue);
-                            pl3ds[i].Properties.TryGetValue(propertyName, out compareValue);
+                    string key = keyBuilder.ToString();
+                    if (!partitionedGroups.ContainsKey(key))
+                    {
+                        partitionedGroups[key] = new HashSet<SerializablePolyline3d>();
+                    }
 
-                            string referenceString = Convert.ToString(referenceValue);
-                            string compareString = Convert.ToString(compareValue);
+                    partitionedGroups[key].Add(obj);
+                }
 
-                            if (!referenceString.Equals(compareString))
-                            {
-                                canMerge = false;
-                                localLog.AppendLine($"Property '{propertyName}' does not match: " +
-                                    $"{string.Join(", ", group.Select(x => x.Properties[propertyName].ToString()))}.");
-                            }
+                if (partitionedGroups.Count == 1 && partitionedGroups.First().Value.Count == group.Count)
+                {
+                    // The group has not changed, add it to 'unchanged'
+                    unchanged.Add(group);
+                }
+                else
+                {
+                    // The group has changed, add its sub-groups to 'changed'
+                    foreach (var newGroup in partitionedGroups.Values)
+                    {
+                        if (newGroup.Count > 1)
+                        {
+                            changed.Add(newGroup);
+                        }
+                        else
+                        {
+                            log.AppendLine($"Group with key {newGroup.First().Properties["Ler2Type"]} discarded due to single member.");
                         }
                     }
                 }
-
-                if (canMerge) result.Add(group);
-                else log.AppendLine(localLog.ToString());
             }
 
-            return result;
+            return (unchanged, changed);
         }
     }
 

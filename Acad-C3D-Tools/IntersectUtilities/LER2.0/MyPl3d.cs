@@ -7,6 +7,7 @@ using static IntersectUtilities.UtilsCommon.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using static IntersectUtilities.LER2.MyPl3d;
 
 namespace IntersectUtilities.LER2
 {
@@ -242,8 +243,44 @@ namespace IntersectUtilities.LER2
             Partial,
             Full
         }
-    }
+        public static bool operator ==(MyPl3d pl3d1, MyPl3d pl3d2)
+        {
+            if (ReferenceEquals(pl3d1, pl3d2))
+            {
+                return true;
+            }
 
+            if (ReferenceEquals(pl3d1, null) || ReferenceEquals(pl3d2, null))
+            {
+                return false;
+            }
+
+            return pl3d1.Handle == pl3d2.Handle;
+        }
+        public static bool operator !=(MyPl3d pl3d1, MyPl3d pl3d2)
+        {
+            return !(pl3d1 == pl3d2);
+        }
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            MyPl3d other = obj as MyPl3d;
+            if (other == null)
+            {
+                return false;
+            }
+
+            return this.Handle == other.Handle;
+        }
+        public override int GetHashCode()
+        {
+            return Handle.GetHashCode();
+        }
+    }
     public class MyPl3dHandleComparer : IEqualityComparer<MyPl3d>
     {
         public bool Equals(MyPl3d x, MyPl3d y)
@@ -261,5 +298,69 @@ namespace IntersectUtilities.LER2
 
             return obj.Handle.GetHashCode();
         }
+    }
+    public static class Overlapvalidator
+    {
+        public static HashSet<HashSet<SerializablePolyline3d>> ValidateOverlaps(
+            HashSet<HashSet<SerializablePolyline3d>> groups, Tolerance tolerance)
+        {
+            HashSet<HashSet<SerializablePolyline3d>> result = new HashSet<HashSet<SerializablePolyline3d>>();
+
+            int groupCount = 0;
+            foreach (var group in groups)
+            {
+                var mypl3ds = group.Select(x => new MyPl3d(x.GetPolyline3d(), tolerance)).ToList();
+
+                // List to hold the connected components (i.e., groups of overlapping polylines)
+                List<HashSet<MyPl3d>> connectedComponents = new List<HashSet<MyPl3d>>();
+
+                foreach (var pl3d1 in mypl3ds)
+                {
+                    // Find which connected components pl3d1 belongs to (it could be more than one due to partial overlaps)
+                    List<HashSet<MyPl3d>> belongingComponents = new List<HashSet<MyPl3d>>();
+                    foreach (var component in connectedComponents)
+                    {
+                        if (component.Any(pl3d2 => pl3d1.GetOverlapType(pl3d2) != OverlapType.None))
+                        {
+                            belongingComponents.Add(component);
+                        }
+                    }
+
+                    // Merge all belonging components into a single one and add pl3d1 to it
+                    if (belongingComponents.Count > 0)
+                    {
+                        var merged = new HashSet<MyPl3d>();
+                        foreach (var component in belongingComponents)
+                        {
+                            merged.UnionWith(component);
+                            connectedComponents.Remove(component);
+                        }
+                        merged.Add(pl3d1);
+                        connectedComponents.Add(merged);
+                    }
+                    else
+                    {
+                        // If pl3d1 doesn't belong to any existing component, start a new one
+                        var newComponent = new HashSet<MyPl3d> { pl3d1 };
+                        connectedComponents.Add(newComponent);
+                    }
+                }
+
+                // Add the connected components to the result
+                foreach (var component in connectedComponents)
+                {
+                    if (component.Count > 1)
+                    {
+                        groupCount--;
+                        result.Add(new HashSet<SerializablePolyline3d>(component.Select(
+                            x => new SerializablePolyline3d(x.Handle, groupCount))));
+                    }
+                }
+            }
+
+            return result;
+        }
+
+
     }
 }

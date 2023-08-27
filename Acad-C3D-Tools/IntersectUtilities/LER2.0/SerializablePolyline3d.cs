@@ -33,6 +33,17 @@ namespace IntersectUtilities
             else throw new Exception(
                 $"Entity {Handle} does not exist!");
         }
+        public Polyline3d GetPolyline3d(Handle handle)
+        {
+            //Try to load the Polyline3d
+            Entity ent = UtilsCommon.Utils.GetEntityFromLocalDbByHandle(handle);
+            if (ent == null)
+                throw new Exception(
+                    $"Enity {Handle} cannot be loaded from local DB! Is your data stale?");
+            if (ent is Polyline3d pl3d) return pl3d;
+            else throw new Exception(
+                $"Entity {Handle} does not exist!");
+        }
         public SerializablePolyline3d() {}
         public SerializablePolyline3d(Polyline3d pl3d, int groupNumber)
         {
@@ -51,5 +62,7 @@ namespace IntersectUtilities
             Properties = PropertySetManager.DumpAllProperties(pl3d);
 
         }
+        public SerializablePolyline3d(Handle handle, int groupNumber) : 
+            this((Polyline3d)UtilsCommon.Utils.GetEntityFromLocalDbByHandle(handle), groupNumber) {}
     }
 }
