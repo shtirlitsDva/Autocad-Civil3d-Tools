@@ -784,10 +784,13 @@ namespace IntersectUtilities
                         var overlapType1to2 = pl1.GetOverlapType(pl2); //prdDbg(overlapType1to2);
                         if (overlapType1to2 == MyPl3d.OverlapType.None) return false;
                         var overlapType2to1 = pl2.GetOverlapType(pl1); //prdDbg(overlapType2to1);
+                        if (overlapType2to1 == MyPl3d.OverlapType.None) return false;
                         if (overlapType1to2 == MyPl3d.OverlapType.Full &&
                             overlapType1to2 == overlapType2to1) return true;
-                        if (overlapType1to2 == MyPl3d.OverlapType.Partial &&
-                            overlapType1to2 == overlapType2to1)
+                        if ((overlapType1to2 == MyPl3d.OverlapType.Partial ||
+                            overlapType1to2 == MyPl3d.OverlapType.Full) &&
+                            (overlapType2to1 == MyPl3d.OverlapType.Partial ||
+                            overlapType2to1 == MyPl3d.OverlapType.Full))
                         {
                             //This implementation assumes that the data is to some degree favorable
                             //meaning that the partial overlaps in majority are co-linear
@@ -848,15 +851,25 @@ namespace IntersectUtilities
                                 }
                             }
 
-                            //Now we need to filter cases where the polylines have one vertex in common
-                            //and it is not the start or end point that is they intersect in one common point
+                            //Now we need to filter cases where the polylines cross
+                            //and it is not the start or end point
 
-                            if (pl1.Vertices.Where(x => x.IsOn(pl2)).Count() == 1 &&
-                                pl2.Vertices.Where(x => x.IsOn(pl1)).Count() == 1)
-                            {
-                                if (!pl1.StartPoint.IsOn(pl2) && !pl1.EndPoint.IsOn(pl2) && 
-                                    !pl2.StartPoint.IsOn(pl1) && !pl2.EndPoint.IsOn(pl1)) return false;
-                            }
+                            var vs1 = pl1.VerticesWithoutStartAndEndpoints;
+                            var vs2 = pl2.VerticesWithoutStartAndEndpoints;
+
+                            if (vs1.Length == 0 || vs2.Length == 0) return false;
+
+                            var coincidentVerts = vs1.SelectMany(v1 => vs2.Where(v2 => v1.IsEqualTo(v2, tol)),
+                                (v1, v2) => (V1: v1, V2: v2)).ToArray();
+
+                            if (coincidentVerts.Length == 0) return false;
+
+                            if (!coincidentVerts.Any(cr =>
+                            (cr.V1.DirectionAfter.IsParallelTo(cr.V2.DirectionAfter, tol) ||
+                            cr.V1.DirectionAfter.IsParallelTo(cr.V2.DirectionBefore, tol)) &&
+                            (cr.V1.DirectionBefore.IsParallelTo(cr.V2.DirectionAfter, tol) ||
+                            cr.V1.DirectionBefore.IsParallelTo(cr.V2.DirectionBefore, tol))
+                            )) return false;
                         }
 
                         return true;
@@ -879,13 +892,84 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("LER2CORRECTENDSBEFOREMERGE")]
+        public void ler2correctendsbeforemerge()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            Tolerance tolerance = new Tolerance(1e-4, 2.54 * 1e-4);
+
+            Tolerance toleranceMax = new Tolerance(1e-2, 2.54 * 1e-2);
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    string path = Path.GetDirectoryName(localDb.Filename);
+                    string jsonString = File.ReadAllText(path + "\\OverlapsAnalysis.json");
+                    HashSet<HashSet<SerializablePolyline3d>> groups =
+                        (HashSet<HashSet<SerializablePolyline3d>>)JsonSerializer.Deserialize(
+                            jsonString, typeof(HashSet<HashSet<SerializablePolyline3d>>));
+
+                    StringBuilder log = new StringBuilder();
+                    var ler2groups = groups.GroupBy(x => x.First().Properties["Ler2Type"].ToString());
+
+                    int totalNewCount = 0;
+                    int totalDeletedCount = 0;
+                    foreach (var ler2TypeGroup in ler2groups)
+                    {
+                        log.AppendLine("----------------------");
+                        log.AppendLine(ler2TypeGroup.Key);
+                        log.AppendLine("----------------------");
+                        prdDbg(ler2TypeGroup.Key);
+
+                        foreach (var group in ler2TypeGroup)
+                        {
+                            var mypl3ds = group.Select(x => new MyPl3d(x.GetPolyline3d(), tolerance)).ToList();
+
+                            var seed = mypl3ds.MaxBy(x => x.Length).First();
+                            var others = mypl3ds.Where(x => x.Handle != seed.Handle);
+
+
+                        }
+                        
+
+                        //log.AppendLine($"New Polyline3d created: {newCount}.");
+                        //log.AppendLine($"Old Polyline3d deleted: {deletedCount}.");
+                        //totalNewCount += newCount;
+                        //totalDeletedCount += deletedCount;
+                    }
+
+                    log.AppendLine();
+                    log.AppendLine("----------------------");
+                    log.AppendLine("Summary");
+                    log.AppendLine($"Total New Polyline3d created: {totalNewCount}.");
+                    log.AppendLine($"Total Old Polyline3d deleted: {totalDeletedCount}.");
+                    prdDbg($"Total New Polyline3d created: {totalNewCount}.");
+                    prdDbg($"Total Old Polyline3d deleted: {totalDeletedCount}.");
+
+                    File.WriteAllText(path +
+                        $"\\MergeOverlaps_{DateTime.Now.ToString("yyyy.MM.dd-HH.mm.ss")}.log",
+                        log.ToString());
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("LER2MERGEOVERLAPS")]
         public void ler2mergeoverlaps()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            Tolerance tolerance = new Tolerance(1e-4, 2.54 * 1e-4);
+            Tolerance tolerance = new Tolerance(5e-3, 2.54 * 5e-3);
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -918,7 +1002,7 @@ namespace IntersectUtilities
                         var validated = validator.Validate(ler2TypeGroup.ToHashSet(), log);
 
                         //Validate overlaps again because the validation process may have changed the groups
-                        var validatedChanged = Overlapvalidator.ValidateOverlaps(validated.Changed, tolerance); 
+                        var validatedChanged = Overlapvalidator.ValidateOverlaps(validated.Changed, tolerance);
 
                         var toMerge = validated.Unchanged.Concat(validatedChanged).ToHashSet();
 
