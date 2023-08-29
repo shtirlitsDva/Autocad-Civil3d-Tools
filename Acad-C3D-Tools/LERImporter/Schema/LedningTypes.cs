@@ -554,17 +554,20 @@ namespace LERImporter.Schema
             string layerName;
             string suffix = "";
 
-            switch (this.driftsstatus.Value)
+            if (this.driftsstatus != null)
             {
-                case DriftsstatusType.underetablering:
-                case DriftsstatusType.idrift:
-                    break;
-                case DriftsstatusType.permanentudeafdrift:
-                    suffix = "_UAD";
-                    break;
-                default:
-                    throw new System.Exception(
-                        $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus}!");
+                switch (this.driftsstatus.Value)
+                {
+                    case DriftsstatusType.underetablering:
+                    case DriftsstatusType.idrift:
+                        break;
+                    case DriftsstatusType.permanentudeafdrift:
+                        suffix = "_UAD";
+                        break;
+                    default:
+                        throw new System.Exception(
+                            $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus}!");
+                }
             }
 
             switch (this.getForsyningsart2)

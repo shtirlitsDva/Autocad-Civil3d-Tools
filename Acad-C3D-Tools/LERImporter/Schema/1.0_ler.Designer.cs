@@ -5518,6 +5518,11 @@ namespace LERImporter.Schema
         /// </summary>
         [XmlEnumAttribute("permanent ude af drift")]
         permanentudeafdrift,
+        /// <summary>
+        /// driftsstatus der angiver at det er ukendt
+        /// </summary>
+        [XmlEnumAttribute("permanent ude af drift")]
+        ukendt,
     }
 
     /// <summary>
