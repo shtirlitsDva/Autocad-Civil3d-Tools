@@ -8069,6 +8069,44 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("MODIFYPOINTSELEVATIONFROMSURFACE")]
+        public void modifypointselevationfromsurface()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<DBPoint> points = localDb.HashSetOfType<DBPoint>(tx);
+                    CivSurface surface = localDb
+                        .HashSetOfType<TinSurface>(tx)
+                        .FirstOrDefault() as CivSurface;
+
+                    foreach (DBPoint point in points)
+                    {
+                        double depthToTop =
+                            PropertySetManager.ReadNonDefinedPropertySetDouble(
+                                point, "GSMeasurement", "Depth");
+                        double depthCl = depthToTop + 0.1143 / 2;
+                        double surfaceElev = surface.FindElevationAtXY(point.Position.X, point.Position.Y);
+                        double clElevation = surfaceElev - depthCl;
+
+                        point.UpgradeOpen();
+                        point.Position = new Point3d(point.Position.X, point.Position.Y, clElevation);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         //[CommandMethod("TESTENUMS")]
         public void testenums()
         {
