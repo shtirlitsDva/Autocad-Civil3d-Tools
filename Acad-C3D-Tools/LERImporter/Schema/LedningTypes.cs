@@ -619,9 +619,7 @@ namespace LERImporter.Schema
 
             try
             {
-                if (this.UdvendigDiameterInStdUnits < 0)
-                    pline.ConstantWidth = -this.UdvendigDiameterInStdUnits;
-                else pline.ConstantWidth = this.UdvendigDiameterInStdUnits;
+                pline.ConstantWidth = this.UdvendigDiameterInStdUnits;
             }
             catch (System.Exception)
             {
