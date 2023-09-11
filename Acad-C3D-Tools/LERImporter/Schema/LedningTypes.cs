@@ -617,7 +617,17 @@ namespace LERImporter.Schema
 
             pline.Layer = DetermineLayerName(database);
 
-            pline.ConstantWidth = this.UdvendigDiameterInStdUnits;
+            try
+            {
+                if (this.UdvendigDiameterInStdUnits < 0)
+                    pline.ConstantWidth = -this.UdvendigDiameterInStdUnits;
+                else pline.ConstantWidth = this.UdvendigDiameterInStdUnits;
+            }
+            catch (System.Exception)
+            {
+                prdDbg($"Setting of ConstantWidt failed for {this.gmlid}!");
+                throw;
+            }
 
             return pline.ObjectId;
         }
