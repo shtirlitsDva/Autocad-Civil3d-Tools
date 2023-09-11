@@ -84,7 +84,10 @@ namespace IntersectUtilities
 
             HashSet<Entity> entities = new HashSet<Entity>();
             entities.UnionWith(curves);
-            if (brs != default) entities.UnionWith(brs);
+            if (brs != default) 
+            { 
+                entities.UnionWith(brs); 
+            }
 
             var sortedByStation = entities.OrderBy(x => GetStation(al, x)).ToList();
             var maxDn = entities.Max(x => GetDn(x, dynBlocks));
@@ -110,10 +113,17 @@ namespace IntersectUtilities
                 string name = al.Name;
                 minDn = sizes.Min();
                 maxDn = sizes.Max();
-
-                if (al.Name == "12 Aprilvej")
-                    prdDbg($"StartingDn: {StartingDn}; Sizes: " + string.Join(", ", sizes));
             }
+
+            if (al.Name == "89 Munkekærgård")
+            {
+                //prdDbg($"StartingDn: {StartingDn};\n" +
+                //    $"MaxDn: {maxDn}: MinDn: {minDn}:\n" + "");
+                ////$"Sizes: " + string.Join(", ", sizes.OrderBy(x => x)));
+
+                //prdDbg(string.Join("\n", sortedByStation));
+            }
+
 
             if (maxDn == minDn) Direction = PipelineSizesDirection.OneSize;
             else if (StartingDn == minDn) Direction = PipelineSizesDirection.SmallToLargeAscending;
