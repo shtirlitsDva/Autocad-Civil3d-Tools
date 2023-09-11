@@ -12,6 +12,29 @@ using LERImporter.Schema;
 
 namespace LERImporter.Converters
 {
+    internal static class Converter_Ledningstrace_TDC500mmTraceAsZeroWidth
+    {
+        /// <summary>
+        /// Sets any Ledningstrace found with 500 mm width to 0.
+        /// </summary>
+        internal static XDocument Convert(XDocument doc)
+        {
+            var ler = XNamespace.Get("http://data.gov.dk/schemas/LER/2/gml");
+
+            var items = doc.Descendants(ler + "Ledningstrace").ToList();
+
+            foreach (var item in items)
+            {
+                var breddeElement = item.Element(ler + "bredde");
+                if (breddeElement != null && breddeElement.Value == "500")
+                {
+                    breddeElement.Value = "0";
+                }
+            }
+
+            return doc;
+        }
+    }
     internal static class Converter_TermiskKomponent_HandleNonStandardValuesForEnums
     {
         internal static XDocument Convert(XDocument doc)

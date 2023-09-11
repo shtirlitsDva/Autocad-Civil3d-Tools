@@ -983,6 +983,8 @@ namespace LERImporter.Schema
             Polyline3d p3d = DrawPline3D(database)
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
+            //prdDbg(this.SpændingsNiveau);
+
             string layerName = DetermineLayerName(database, true);
 
             p3d.Layer = layerName;

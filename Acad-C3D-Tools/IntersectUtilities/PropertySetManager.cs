@@ -481,13 +481,18 @@ namespace IntersectUtilities
                         ps.CheckOrOpenForWrite();
                         foreach (KeyValuePair<string, object> pair in psData)
                         {
-                            if (!PsContainsDef(ps, pair.Key)) continue;
+                            if (!PsContainsDef(ps, pair.Key))
+                            {
+                                prdDbg($"For propertyset {propertySetName} property {pair.Key} not found!");
+                                continue;
+                            }
                             i++;
 
                             int propertyId = ps.PropertyNameToId(pair.Key);
                             try
                             {
-                                ps.SetAt(propertyId, pair.Value);
+                                if (pair.Value is string) ps.SetAt(propertyId, pair.Value.ToString());
+                                else ps.SetAt(propertyId, pair.Value);
                             }
                             catch (System.Exception)
                             {
