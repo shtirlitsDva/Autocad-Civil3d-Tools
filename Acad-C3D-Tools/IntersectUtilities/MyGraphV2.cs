@@ -17,13 +17,11 @@ namespace IntersectUtilities
         public Pipeline Node { get; set; }
         public GraphNodeV2 Parent { get; set; }
         public List<GraphNodeV2> Children { get; set; }
-
         public GraphNodeV2(Pipeline node)
         {
             Node = node;
             Children = new List<GraphNodeV2>();
         }
-
         public static GraphNodeV2 CreateGraph(List<Pipeline> group, double tolerance)
         {
             // Find the pipeline with the largest pipe size
@@ -63,8 +61,6 @@ namespace IntersectUtilities
             // Return the root node of the graph
             return nodes[rootPipeline];
         }
-
-
         public static void ToDot(List<GraphNodeV2> rootNodes)
         {
             StringBuilder sb = new StringBuilder();
@@ -141,7 +137,6 @@ namespace IntersectUtilities
             cmd.StartInfo.Arguments = @"/c ""dot -Tpdf MyGraph.dot > MyGraph.pdf""";
             cmd.Start();
         }
-
         internal void TraverseGraphAndReversePolylines()
         {
             Stack<GraphNodeV2> stack = new Stack<GraphNodeV2>();

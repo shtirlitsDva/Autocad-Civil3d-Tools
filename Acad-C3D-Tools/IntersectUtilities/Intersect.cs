@@ -5132,88 +5132,88 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Test size arrays
-                    Alignment al;
+                    //Alignment al;
 
-                    #region Select alignment
-                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select an alignment: ");
-                    promptEntityOptions1.SetRejectMessage("\n Not an alignment!");
-                    promptEntityOptions1.AddAllowedClass(typeof(Alignment), true);
-                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
-                    Autodesk.AutoCAD.DatabaseServices.ObjectId profileId = entity1.ObjectId;
-                    al = profileId.Go<Alignment>(tx);
-                    #endregion
+                    //#region Select alignment
+                    //PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions("\n Select an alignment: ");
+                    //promptEntityOptions1.SetRejectMessage("\n Not an alignment!");
+                    //promptEntityOptions1.AddAllowedClass(typeof(Alignment), true);
+                    //PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    //if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    //Autodesk.AutoCAD.DatabaseServices.ObjectId profileId = entity1.ObjectId;
+                    //al = profileId.Go<Alignment>(tx);
+                    //#endregion
 
-                    #region Open fremtidig db
-                    DataReferencesOptions dro = new DataReferencesOptions();
-                    string projectName = dro.ProjectName;
-                    string etapeName = dro.EtapeName;
+                    //#region Open fremtidig db
+                    //DataReferencesOptions dro = new DataReferencesOptions();
+                    //string projectName = dro.ProjectName;
+                    //string etapeName = dro.EtapeName;
 
-                    #region Read CSV
-                    System.Data.DataTable dynBlocks = default;
-                    try
-                    {
-                        dynBlocks = CsvReader.ReadCsvToDataTable(
-                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-                    }
-                    catch (System.Exception ex)
-                    {
-                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                        prdDbg(ex);
-                        throw;
-                    }
-                    if (dynBlocks == default)
-                    {
-                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                        throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
-                    }
-                    #endregion
+                    //#region Read CSV
+                    //System.Data.DataTable dynBlocks = default;
+                    //try
+                    //{
+                    //    dynBlocks = CsvReader.ReadCsvToDataTable(
+                    //            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    //}
+                    //catch (System.Exception ex)
+                    //{
+                    //    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                    //    prdDbg(ex);
+                    //    throw;
+                    //}
+                    //if (dynBlocks == default)
+                    //{
+                    //    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                    //    throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                    //}
+                    //#endregion
 
-                    // open the xref database
-                    Database fremDb = new Database(false, true);
-                    fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
-                        System.IO.FileShare.Read, false, string.Empty);
-                    Transaction fremTx = fremDb.TransactionManager.StartTransaction();
-                    var ents = fremDb.GetFjvEntities(fremTx, dynBlocks);
-                    var allCurves = ents.Where(x => x is Curve).ToHashSet();
-                    var allBrs = ents.Where(x => x is BlockReference).ToHashSet();
+                    //// open the xref database
+                    //Database fremDb = new Database(false, true);
+                    //fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
+                    //    System.IO.FileShare.Read, false, string.Empty);
+                    //Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+                    //var ents = fremDb.GetFjvEntities(fremTx, dynBlocks);
+                    //var allCurves = ents.Where(x => x is Curve).ToHashSet();
+                    //var allBrs = ents.Where(x => x is BlockReference).ToHashSet();
 
-                    PropertySetManager psmPipeLineData = new PropertySetManager(
-                        fremDb,
-                        PSetDefs.DefinedSets.DriPipelineData);
-                    PSetDefs.DriPipelineData driPipelineData =
-                        new PSetDefs.DriPipelineData();
-                    #endregion
+                    //PropertySetManager psmPipeLineData = new PropertySetManager(
+                    //    fremDb,
+                    //    PSetDefs.DefinedSets.DriPipelineData);
+                    //PSetDefs.DriPipelineData driPipelineData =
+                    //    new PSetDefs.DriPipelineData();
+                    //#endregion
 
-                    try
-                    {
-                        #region GetCurvesAndBRs from fremtidig
-                        HashSet<Curve> curves = allCurves.Cast<Curve>()
-                            .Where(x => psmPipeLineData
-                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
-                            .ToHashSet();
+                    //try
+                    //{
+                    //    #region GetCurvesAndBRs from fremtidig
+                    //    HashSet<Curve> curves = allCurves.Cast<Curve>()
+                    //        .Where(x => psmPipeLineData
+                    //        .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                    //        .ToHashSet();
 
-                        HashSet<BlockReference> brs = allBrs.Cast<BlockReference>()
-                            .Where(x => psmPipeLineData
-                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
-                            .ToHashSet();
-                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
-                        #endregion
+                    //    HashSet<BlockReference> brs = allBrs.Cast<BlockReference>()
+                    //        .Where(x => psmPipeLineData
+                    //        .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                    //        .ToHashSet();
+                    //    prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                    //    #endregion
 
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
-                        prdDbg(sizeArray.ToString());
-                    }
-                    catch (System.Exception ex)
-                    {
-                        fremTx.Abort();
-                        fremTx.Dispose();
-                        fremDb.Dispose();
-                        prdDbg(ex.ToString());
-                        throw;
-                    }
-                    fremTx.Abort();
-                    fremTx.Dispose();
-                    fremDb.Dispose();
+                    //    PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                    //    prdDbg(sizeArray.ToString());
+                    //}
+                    //catch (System.Exception ex)
+                    //{
+                    //    fremTx.Abort();
+                    //    fremTx.Dispose();
+                    //    fremDb.Dispose();
+                    //    prdDbg(ex.ToString());
+                    //    throw;
+                    //}
+                    //fremTx.Abort();
+                    //fremTx.Dispose();
+                    //fremDb.Dispose();
                     #endregion
 
                     #region RXClass to String test
