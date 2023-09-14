@@ -283,7 +283,8 @@ namespace IntersectUtilities.UtilsCommon
                 while (db.TransactionManager.TopTransaction != null)
                 {
                     db.TransactionManager.TopTransaction.Abort();
-                    db.TransactionManager.TopTransaction.Dispose();
+                    if (db.TransactionManager.TopTransaction != null)
+                        db.TransactionManager.TopTransaction.Dispose();
                 }
                 if (Application.DocumentManager.MdiActiveDocument.Database.Filename != db.Filename) db.Dispose();
             }
