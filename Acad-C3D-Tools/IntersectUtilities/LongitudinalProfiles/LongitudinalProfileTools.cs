@@ -1226,6 +1226,14 @@ namespace IntersectUtilities
                             .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                             .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                        if (curves.Count == 0 && brs.Count == 0)
+                        {
+                            AbortGracefully(
+                                "Ingen polylinjer og blokke fundet for alignmentet!",
+                                fremDb);
+                            tx.Abort();
+                            return;
+                        }
                         #endregion
 
                         #region Variables and settings
@@ -4447,6 +4455,14 @@ namespace IntersectUtilities
                             .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                             .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                        if (curves.Count == 0 && brs.Count == 0)
+                        {
+                            AbortGracefully(
+                                "Ingen polylinjer og blokke fundet for alignmentet!",
+                                fremDb);
+                            tx.Abort();
+                            return;
+                        }
                         #endregion
 
                         #region Build size array
