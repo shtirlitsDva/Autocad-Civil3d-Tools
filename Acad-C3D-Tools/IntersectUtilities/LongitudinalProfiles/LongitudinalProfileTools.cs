@@ -4331,7 +4331,6 @@ namespace IntersectUtilities
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
 
             #region Open fremtidig db
             if (dro == null) dro = new DataReferencesOptions();
@@ -4459,7 +4458,7 @@ namespace IntersectUtilities
                         {
                             AbortGracefully(
                                 "Ingen polylinjer og blokke fundet for alignmentet!",
-                                fremDb);
+                                fremDb, lerDb);
                             tx.Abort();
                             return;
                         }
