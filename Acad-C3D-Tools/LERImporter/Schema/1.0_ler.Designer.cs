@@ -195,7 +195,9 @@ namespace LERImporter.Schema
         [XmlEnumAttribute("permeabel belægning")]
         permeabelbelægning,
         regnbed,
-        wadi
+        wadi,
+        [XmlEnumAttribute("other: ukendt")]
+        ukendt
     }
 
     /// <summary>

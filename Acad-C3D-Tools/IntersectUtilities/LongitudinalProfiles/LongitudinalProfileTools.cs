@@ -1227,13 +1227,8 @@ namespace IntersectUtilities
                             .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                         if (curves.Count == 0 && brs.Count == 0)
-                        {
-                            AbortGracefully(
-                                "Ingen polylinjer og blokke fundet for alignmentet!",
-                                fremDb);
-                            tx.Abort();
-                            return;
-                        }
+                            throw new System.Exception(
+                                $"Alignment {al.Name} har ikke Polylinjer eller Blokke tilføjet!");
                         #endregion
 
                         #region Variables and settings
@@ -4455,13 +4450,8 @@ namespace IntersectUtilities
                             .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                         if (curves.Count == 0 && brs.Count == 0)
-                        {
-                            AbortGracefully(
-                                "Ingen polylinjer og blokke fundet for alignmentet!",
-                                fremDb, lerDb);
-                            tx.Abort();
-                            return;
-                        }
+                            throw new System.Exception(
+                                $"Alignment {al.Name} har ikke Polylinjer eller Blokke tilføjet!");
                         #endregion
 
                         #region Build size array
