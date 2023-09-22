@@ -27,6 +27,13 @@ namespace IntersectUtilities
         public SizeEntry this[int index] { get => SizeArray[index]; }
         public int MaxDn { get => SizeArray.MaxBy(x => x.DN).FirstOrDefault().DN; }
         public int MinDn { get => SizeArray.MinBy(x => x.DN).FirstOrDefault().DN; }
+        private System.Data.DataTable dynamicBlocks { get; }
+        private HashSet<string> unwantedTypes = new HashSet<string>()
+        {
+            "Svejsning",
+            "Stikafgrening",
+            "Muffetee"
+        };
         /// <summary>
         /// SizeArray listing sizes, station ranges and jacket diameters.
         /// Use empty brs collection or omit it to force size table based on curves.
@@ -37,10 +44,10 @@ namespace IntersectUtilities
         public PipelineSizeArray(Alignment al, HashSet<Curve> curves, HashSet<BlockReference> brs = default)
         {
             #region Read CSV
-            System.Data.DataTable dynBlocks = default;
+            dynamicBlocks = default;
             try
             {
-                dynBlocks = CsvReader.ReadCsvToDataTable(
+                dynamicBlocks = CsvReader.ReadCsvToDataTable(
                         @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
             }
             catch (System.Exception ex)
@@ -49,7 +56,7 @@ namespace IntersectUtilities
                 prdDbg(ex);
                 throw;
             }
-            if (dynBlocks == default)
+            if (dynamicBlocks == default)
             {
                 prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
                 throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
@@ -84,35 +91,43 @@ namespace IntersectUtilities
 
             HashSet<Entity> entities = new HashSet<Entity>();
             entities.UnionWith(curves);
-            if (brs != default) entities.UnionWith(brs);
+
+            //Combine curves and blocks
+            //Filter blocks for unwanted types
+            if (brs != default)
+            {
+                entities.UnionWith(
+                    brs.Where(x => x.ReadDynamicCsvProperty(
+                        DynamicProperty.Type, dynamicBlocks, false) != null &&
+                    !unwantedTypes.Contains(
+                        x.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false)))
+                    );
+            }
 
             var sortedByStation = entities.OrderBy(x => GetStation(al, x)).ToList();
-            var maxDn = entities.Max(x => GetDn(x, dynBlocks));
-            var minDn = entities.Min(x => GetDn(x, dynBlocks));
-            StartingDn = GetDn(sortedByStation[0], dynBlocks);
+            var maxDn = entities.Max(x => GetDn(x, dynamicBlocks));
+            var minDn = entities.Min(x => GetDn(x, dynamicBlocks));
+            StartingDn = GetDn(sortedByStation[0], dynamicBlocks);
 
             //2023.04.12: A case discovered where there's a reducer after which there's only blocks
             //till the alignment's end. This confuses the code to think that the last size
             //don't exists, as it looks only at polylines present.
             //So, we need to check for presence of reducers to definitely rule out one size case.
             var reducers = brs?.Where(
-                x => x.ReadDynamicCsvProperty(DynamicProperty.Type, dynBlocks, false) == "Reduktion");
+                x => x.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false) == "Reduktion");
             if (reducers != null && reducers.Count() != 0)
             {
                 List<int> sizes = new List<int>();
                 foreach (var reducer in reducers)
                 {
                     sizes.Add(
-                        ReadComponentDN1Int(reducer, dynBlocks));
+                        ReadComponentDN1Int(reducer, dynamicBlocks));
                     sizes.Add(
-                        ReadComponentDN2Int(reducer, dynBlocks));
+                        ReadComponentDN2Int(reducer, dynamicBlocks));
                 }
                 string name = al.Name;
                 minDn = sizes.Min();
                 maxDn = sizes.Max();
-
-                if (al.Name == "12 Aprilvej")
-                    prdDbg($"StartingDn: {StartingDn}; Sizes: " + string.Join(", ", sizes));
             }
 
             if (maxDn == minDn) Direction = PipelineSizesDirection.OneSize;
@@ -617,7 +632,8 @@ namespace IntersectUtilities
             Unknown, //Should throw an exception
             OneSize, //Cannot be constructed with blocks
             SmallToLargeAscending, //Blocks preferred
-            LargeToSmallDescending //Blocks preferred
+            LargeToSmallDescending, //Blocks preferred
+            MiddleDescendingToEnds //When a pipe is supplied from the middle
         }
         private enum Side
         {
