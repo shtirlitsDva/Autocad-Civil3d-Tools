@@ -1094,8 +1094,28 @@ namespace IntersectUtilities
                     FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction fremTx = fremDb.TransactionManager.StartTransaction();
 
+                #region Read CSV
+                System.Data.DataTable dynBlocks = default;
+                try
+                {
+                    dynBlocks = CsvReader.ReadCsvToDataTable(
+                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                    prdDbg(ex);
+                    throw;
+                }
+                if (dynBlocks == default)
+                {
+                    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                    throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                }
+                #endregion
+
                 HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
-                HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                HashSet<BlockReference> allBrs = fremDb.GetFjvBlocks(fremTx, dynBlocks);
                 #endregion
 
                 //////////////////////////////////////
@@ -1206,6 +1226,9 @@ namespace IntersectUtilities
                             .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                             .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                        if (curves.Count == 0 && brs.Count == 0)
+                            throw new System.Exception(
+                                $"Alignment {al.Name} har ikke Polylinjer eller Blokke tilføjet!");
                         #endregion
 
                         #region Variables and settings
@@ -1457,7 +1480,7 @@ namespace IntersectUtilities
             string projectName = dro.ProjectName;
             string etapeName = dro.EtapeName;
 
-            System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
                 @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
             PropertySetManager.UpdatePropertySetDefinition(dB, PSetDefs.DefinedSets.DriSourceReference);
@@ -1577,7 +1600,11 @@ namespace IntersectUtilities
                         #endregion
 
                         prdDbg("Blocks:");
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, 
+                            brs.Where(x => 
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Svejsning" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Stikafgrening" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Muffetee").ToHashSet());
                         prdDbg(sizeArray.ToString());
 
                         foreach (ProfileView pv in pvs)
@@ -1709,7 +1736,7 @@ namespace IntersectUtilities
                             #region Place component blocks
                             foreach (BlockReference br in brs)
                             {
-                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
+                                string type = ReadStringParameterFromDataTable(br.RealName(), dt, "Type", 0);
                                 if (type == "Reduktion" || type == "Svejsning") continue;
                                 //Buerør need special treatment
                                 if (br.RealName() == "BUEROR1" || br.RealName() == "BUEROR2") continue;
@@ -1743,7 +1770,7 @@ namespace IntersectUtilities
                                 //Write the type of augmentedType to the Left attribute
                                 string augmentedType = default;
                                 if (type.StartsWith("$"))
-                                    augmentedType = ComponentSchedule.ReadComponentType(br, fjvKomponenter);
+                                    augmentedType = ComponentSchedule.ReadComponentType(br, dt);
                                 if (augmentedType != default) brSign.SetAttributeStringValue("LEFTSIZE", augmentedType);
                                 else brSign.SetAttributeStringValue("LEFTSIZE", type);
 
@@ -1772,8 +1799,8 @@ namespace IntersectUtilities
                             {
                                 //Buerør need special treatment
                                 if (br.RealName() != "BUEROR1" && br.RealName() != "BUEROR2") continue;
-                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
-                                string augmentedType = ComponentSchedule.ReadComponentType(br, fjvKomponenter);
+                                string type = ReadStringParameterFromDataTable(br.RealName(), dt, "Type", 0);
+                                string augmentedType = ComponentSchedule.ReadComponentType(br, dt);
 
                                 BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(fremTx);
 
@@ -2003,6 +2030,26 @@ namespace IntersectUtilities
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
                 #endregion
 
+                #region Read CSV
+                System.Data.DataTable dt = default;
+                try
+                {
+                    dt = CsvReader.ReadCsvToDataTable(
+                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                    prdDbg(ex);
+                    throw;
+                }
+                if (dt == default)
+                {
+                    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                    throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                }
+                #endregion
+
                 //////////////////////////////////////
                 string komponentBlockName = "DRISizeChangeAnno";
                 string bueBlockName = "DRIPipeArcAnno";
@@ -2131,7 +2178,11 @@ namespace IntersectUtilities
                         #endregion
 
                         prdDbg("Blocks:");
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves,
+                            brs.Where(x =>
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Svejsning" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Stikafgrening" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Muffetee").ToHashSet());
                         prdDbg(sizeArray.ToString());
 
                         #region Explode midt profile for later sampling
@@ -3018,8 +3069,32 @@ namespace IntersectUtilities
                     //prdDbg("Curves:");
                     //prdDbg(sizeArray.ToString());
 
+                    #region Read CSV
+                    System.Data.DataTable dt = default;
+                    try
+                    {
+                        dt = CsvReader.ReadCsvToDataTable(
+                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    }
+                    catch (System.Exception ex)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        prdDbg(ex);
+                        throw;
+                    }
+                    if (dt == default)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                    }
+                    #endregion
+
                     prdDbg("Blocks:");
-                    PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                    PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves,
+                            brs.Where(x =>
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Svejsning" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Stikafgrening" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Muffetee").ToHashSet());
                     prdDbg(sizeArray.ToString());
 
                     #region Create polyline from centre profile
@@ -4251,7 +4326,6 @@ namespace IntersectUtilities
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
 
             #region Open fremtidig db
             if (dro == null) dro = new DataReferencesOptions();
@@ -4284,6 +4358,26 @@ namespace IntersectUtilities
 
                     System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
                     System.Data.DataTable dtDistances = CsvReader.ReadCsvToDataTable(pathDistnces, "Distancer");
+
+                    #region Read CSV
+                    System.Data.DataTable dt = default;
+                    try
+                    {
+                        dt = CsvReader.ReadCsvToDataTable(
+                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    }
+                    catch (System.Exception ex)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        prdDbg(ex);
+                        throw;
+                    }
+                    if (dt == default)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                    }
+                    #endregion
                     #endregion
 
                     BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
@@ -4355,10 +4449,17 @@ namespace IntersectUtilities
                             .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                             .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                        if (curves.Count == 0 && brs.Count == 0)
+                            throw new System.Exception(
+                                $"Alignment {al.Name} har ikke Polylinjer eller Blokke tilføjet!");
                         #endregion
 
                         #region Build size array
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves,
+                            brs.Where(x =>
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Svejsning" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Stikafgrening" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Muffetee").ToHashSet());
                         prdDbg(sizeArray.ToString());
                         #endregion
 

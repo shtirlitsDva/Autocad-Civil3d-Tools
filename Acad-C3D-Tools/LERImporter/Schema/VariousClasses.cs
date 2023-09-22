@@ -31,10 +31,10 @@ namespace LERImporter.Schema
                     case UnitsEnum.None:
                         throw new Exception($"Non defined units in MeasureType: uom = {this.uom}!");
                     case UnitsEnum.mm:
-                        return this.Value / 1000;
+                        return this.Value < 0 ? -this.Value / 1000 : this.Value / 1000;
                     case UnitsEnum.m:
                     case UnitsEnum.bar:
-                        return this.Value;
+                        return this.Value < 0 ? -this.Value : this.Value;
                     default:
                         throw new Exception($"Non defined units in MeasureType: uom = {this.uom}!");
                 }

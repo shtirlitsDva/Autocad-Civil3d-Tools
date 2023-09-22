@@ -617,7 +617,15 @@ namespace LERImporter.Schema
 
             pline.Layer = DetermineLayerName(database);
 
-            pline.ConstantWidth = this.UdvendigDiameterInStdUnits;
+            try
+            {
+                pline.ConstantWidth = this.UdvendigDiameterInStdUnits;
+            }
+            catch (System.Exception)
+            {
+                prdDbg($"Setting of ConstantWidt failed for {this.gmlid}!");
+                throw;
+            }
 
             return pline.ObjectId;
         }
@@ -974,6 +982,8 @@ namespace LERImporter.Schema
         {
             Polyline3d p3d = DrawPline3D(database)
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            //prdDbg(this.SpændingsNiveau);
 
             string layerName = DetermineLayerName(database, true);
 

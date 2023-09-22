@@ -54,6 +54,7 @@ using System.Text.Json;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
 using IntersectUtilities.LER2;
+using csdot.Attributes.Types;
 
 namespace IntersectUtilities
 {
@@ -291,31 +292,38 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("FLATTENPL3D")]
+        [CommandMethod("FLATTENPL3D", CommandFlags.UsePickSet)]
         public void flattenpl3d()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
 
-            while (true)
+            PromptSelectionResult acSSPrompt;
+            acSSPrompt = ed.SelectImplied();
+            SelectionSet acSSet;
+
+            if (acSSPrompt.Status == PromptStatus.OK)
             {
-                var id = Interaction.GetEntity("Select Plyline3d to flatten: ", typeof(Polyline3d));
-                if (id == Oid.Null) return;
-
                 using (Transaction tx = localDb.TransactionManager.StartTransaction())
                 {
                     try
                     {
                         #region Polylines 3d
-                        Polyline3d p3d = id.Go<Polyline3d>(tx, OpenMode.ForWrite);
-
-                        PolylineVertex3d[] vertices = p3d.GetVertices(tx);
-
-                        for (int i = 0; i < vertices.Length; i++)
+                        acSSet = acSSPrompt.Value;
+                        foreach (Oid id in acSSet.GetObjectIds())
                         {
-                            vertices[i].CheckOrOpenForWrite();
-                            vertices[i].Position = new Point3d(
-                                vertices[i].Position.X, vertices[i].Position.Y, -99);
+                            Polyline3d p3d = id.Go<Polyline3d>(tx, OpenMode.ForWrite);
+                            if (p3d == null) continue;
+
+                            PolylineVertex3d[] vertices = p3d.GetVertices(tx);
+
+                            for (int i = 0; i < vertices.Length; i++)
+                            {
+                                vertices[i].CheckOrOpenForWrite();
+                                vertices[i].Position = new Point3d(
+                                    vertices[i].Position.X, vertices[i].Position.Y, -99);
+                            }
                         }
                         #endregion
                     }
@@ -326,6 +334,40 @@ namespace IntersectUtilities
                         return;
                     }
                     tx.Commit();
+                }
+            }
+            else
+            {
+                while (true)
+                {
+                    var id = Interaction.GetEntity("Select Plyline3d to flatten: ", typeof(Polyline3d));
+                    if (id == Oid.Null) return;
+
+                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            #region Polylines 3d
+                            Polyline3d p3d = id.Go<Polyline3d>(tx, OpenMode.ForWrite);
+
+                            PolylineVertex3d[] vertices = p3d.GetVertices(tx);
+
+                            for (int i = 0; i < vertices.Length; i++)
+                            {
+                                vertices[i].CheckOrOpenForWrite();
+                                vertices[i].Position = new Point3d(
+                                    vertices[i].Position.X, vertices[i].Position.Y, -99);
+                            }
+                            #endregion
+                        }
+                        catch (System.Exception ex)
+                        {
+                            tx.Abort();
+                            prdDbg(ex);
+                            return;
+                        }
+                        tx.Commit();
+                    }
                 }
             }
         }

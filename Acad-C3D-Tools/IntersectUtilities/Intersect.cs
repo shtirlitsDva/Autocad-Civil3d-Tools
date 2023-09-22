@@ -5149,57 +5149,59 @@ namespace IntersectUtilities
                     //string projectName = dro.ProjectName;
                     //string etapeName = dro.EtapeName;
 
+                    //#region Read CSV
+                    //System.Data.DataTable dynBlocks = default;
+                    //try
+                    //{
+                    //    dynBlocks = CsvReader.ReadCsvToDataTable(
+                    //            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    //}
+                    //catch (System.Exception ex)
+                    //{
+                    //    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                    //    prdDbg(ex);
+                    //    throw;
+                    //}
+                    //if (dynBlocks == default)
+                    //{
+                    //    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                    //    throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                    //}
+                    //#endregion
+
                     //// open the xref database
                     //Database fremDb = new Database(false, true);
                     //fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
                     //    System.IO.FileShare.Read, false, string.Empty);
                     //Transaction fremTx = fremDb.TransactionManager.StartTransaction();
-                    //HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
-                    //HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                    //var ents = fremDb.GetFjvEntities(fremTx, dynBlocks);
+                    //var allCurves = ents.Where(x => x is Curve).ToHashSet();
+                    //var allBrs = ents.Where(x => x is BlockReference).ToHashSet();
+
+                    //PropertySetManager psmPipeLineData = new PropertySetManager(
+                    //    fremDb,
+                    //    PSetDefs.DefinedSets.DriPipelineData);
+                    //PSetDefs.DriPipelineData driPipelineData =
+                    //    new PSetDefs.DriPipelineData();
                     //#endregion
 
                     //try
                     //{
                     //    #region GetCurvesAndBRs from fremtidig
-                    //    HashSet<Curve> curves = allCurves
-                    //        .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                    //    HashSet<Curve> curves = allCurves.Cast<Curve>()
+                    //        .Where(x => psmPipeLineData
+                    //        .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                     //        .ToHashSet();
-                    //    HashSet<BlockReference> brs = allBrs
-                    //        .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+
+                    //    HashSet<BlockReference> brs = allBrs.Cast<BlockReference>()
+                    //        .Where(x => psmPipeLineData
+                    //        .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                     //        .ToHashSet();
                     //    prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                     //    #endregion
 
-                    //    //PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves);
-                    //    //prdDbg("Curves:");
-                    //    //prdDbg(sizeArray.ToString());
-
-                    //    prdDbg("Blocks:");
                     //    PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
                     //    prdDbg(sizeArray.ToString());
-
-                    //    //Determine direction
-                    //    HashSet<(Curve curve, double dist)> curveDistTuples =
-                    //            new HashSet<(Curve curve, double dist)>();
-                    //    prdDbg($"{al.Name}");
-                    //    Point3d samplePoint = al.GetPointAtDist(0);
-
-                    //    foreach (Curve curve in curves)
-                    //    {
-                    //        if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
-                    //        Point3d closestPoint = curve.GetClosestPointTo(samplePoint, false);
-                    //        if (closestPoint != default)
-                    //            curveDistTuples.Add(
-                    //                (curve, samplePoint.DistanceHorizontalTo(closestPoint)));
-                    //        prdDbg($"Dist: {samplePoint.DistanceHorizontalTo(closestPoint)}");
-                    //    }
-
-                    //    Curve closestCurve = curveDistTuples.MinBy(x => x.dist).FirstOrDefault().curve;
-
-                    //    int startingDn = PipeSchedule.GetPipeDN(closestCurve);
-                    //    prdDbg($"startingDn: {startingDn}");
-
-                    //    //if (sizeArray[0].DN != startingDn) sizeArray.Reverse();
                     //}
                     //catch (System.Exception ex)
                     //{

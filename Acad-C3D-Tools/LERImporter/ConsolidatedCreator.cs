@@ -21,6 +21,7 @@ using DataTable = System.Data.DataTable;
 using static IntersectUtilities.UtilsCommon.Utils;
 using Autodesk.AutoCAD.Geometry;
 using MoreLinq;
+using System.Runtime.CompilerServices;
 
 namespace LERImporter
 {
@@ -349,7 +350,7 @@ namespace LERImporter
 
                     //Attach the property set
                     PropertySetManager.AttachNonDefinedPropertySet(Db3d, ent, psName);
-
+                    string gmlid = ledning.GmlId;
                     //Populate the property set
                     var psData = GmlToPropertySet.TranslateGmlToPs(ledning);
                     PropertySetManager.PopulateNonDefinedPropertySet(Db3d, ent, psName, psData);

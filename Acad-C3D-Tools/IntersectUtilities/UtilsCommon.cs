@@ -283,7 +283,8 @@ namespace IntersectUtilities.UtilsCommon
                 while (db.TransactionManager.TopTransaction != null)
                 {
                     db.TransactionManager.TopTransaction.Abort();
-                    db.TransactionManager.TopTransaction.Dispose();
+                    if (db.TransactionManager.TopTransaction != null)
+                        db.TransactionManager.TopTransaction.Dispose();
                 }
                 if (Application.DocumentManager.MdiActiveDocument.Database.Filename != db.Filename) db.Dispose();
             }
@@ -2862,6 +2863,33 @@ namespace IntersectUtilities.UtilsCommon
 
             entities.UnionWith(brQuery);
             entities.UnionWith(plineQuery);
+            return entities;
+        }
+        public static HashSet<BlockReference> GetFjvBlocks(this Database db, Transaction tr, System.Data.DataTable fjvKomponenter,
+            bool discardWelds = true, bool discardStikBlocks = true, bool discardFrozen = false)
+        {
+            HashSet<BlockReference> entities = new HashSet<BlockReference>();
+
+            var rawBrefs = db.ListOfType<BlockReference>(tr, discardFrozen);
+            var brQuery = rawBrefs.Where(x => UtilsDataTables.ReadStringParameterFromDataTable(
+                            x.RealName(), fjvKomponenter, "Navn", 0) != default);
+
+            HashSet<string> weldingBlocks = new HashSet<string>()
+            {
+                "SVEJSEPUNKT",
+                "SVEJSEPUNKT-NOTXT",
+            };
+
+            HashSet<string> stikBlocks = new HashSet<string>()
+            {
+                "STIKAFGRENING",
+                "STIKTEE"
+            };
+
+            if (discardWelds) brQuery = brQuery.Where(x => !weldingBlocks.Contains(x.RealName()));
+            if (discardStikBlocks) brQuery = brQuery.Where(x => !stikBlocks.Contains(x.RealName()));
+
+            entities.UnionWith(brQuery);
             return entities;
         }
         public static HashSet<Polyline> GetFjvPipes(this Database db, Transaction tr, bool discardFrozen = false)
