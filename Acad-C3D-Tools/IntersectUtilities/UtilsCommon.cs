@@ -47,6 +47,7 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
+using IntersectUtilities;
 
 namespace IntersectUtilities.UtilsCommon
 {
@@ -302,6 +303,42 @@ namespace IntersectUtilities.UtilsCommon
             Database db = Application.DocumentManager.MdiActiveDocument.Database;
             return handle.Go<Entity>(db);
         }
+        public static double GetStation(Alignment alignment, Entity entity)
+        {
+            double station = 0;
+            double offset = 0;
+
+            switch (entity)
+            {
+                case Polyline pline:
+                    double l = pline.Length;
+                    Point3d p = pline.GetPointAtDist(l / 2);
+                    try
+                    {
+                        alignment.StationOffset(p.X, p.Y, 5.0, ref station, ref offset);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        prdDbg($"GetStation: Entity {pline.Handle} throws {ex.Message}!");
+                        throw;
+                    }
+                    break;
+                case BlockReference block:
+                    try
+                    {
+                        alignment.StationOffset(block.Position.X, block.Position.Y, 5.0, ref station, ref offset);
+                    }
+                    catch (Autodesk.Civil.PointNotOnEntityException ex)
+                    {
+                        prdDbg($"GetStation: Entity {block.Handle} throws {ex.Message}!");
+                        throw;
+                    }
+                    break;
+                default:
+                    throw new System.Exception("GetStation: Invalid entity type");
+            }
+            return station;
+        }
         public enum EndType
         {
             None,            //0:
@@ -373,6 +410,56 @@ namespace IntersectUtilities.UtilsCommon
             Serie,
             Version,
             TBLNavn
+        }
+        public static Dictionary<string, PipelineElementType> PipelineElementTypeDict =
+            new Dictionary<string, PipelineElementType>()
+            {
+                { "Pipe", PipelineElementType.Pipe },
+                { "Afgrening med spring", PipelineElementType.AfgreningMedSpring },
+                { "Afgrening, parallel", PipelineElementType.AfgreningParallel },
+                { "Afgreningsstuds", PipelineElementType.Afgreningsstuds },
+                { "Endebund", PipelineElementType.Endebund },
+                { "Engangsventil", PipelineElementType.Engangsventil },
+                { "F-Model", PipelineElementType.F_Model },
+                { "Kedelrørsbøjning", PipelineElementType.Kedelrørsbøjning },
+                { "Kedelrørsbøjning, vertikal", PipelineElementType.Kedelrørsbøjning },
+                { "Lige afgrening", PipelineElementType.LigeAfgrening },
+                { "Parallelafgrening", PipelineElementType.ParallelAfgrening },
+                { "Præisoleret bøjning, 90gr", PipelineElementType.PræisoleretBøjning90gr },
+                { "$Præisoleret bøjning, L {$L1}x{$L2} m, V {$V}°", PipelineElementType.PræisoleretBøjningVariabel },
+                { "Præisoleret ventil", PipelineElementType.PræisoleretVentil },
+                { "Præventil med udluftning", PipelineElementType.PræventilMedUdluftning },
+                { "Reduktion", PipelineElementType.Reduktion },
+                { "Svanehals", PipelineElementType.Svanehals },
+                { "Svejsning", PipelineElementType.Svejsning },
+                { "Y-Model", PipelineElementType.Y_Model },
+                { "$Buerør V{$Vinkel}° R{$R} L{$L}", PipelineElementType.Buerør },
+                { "Stikafgrening", PipelineElementType.Stikafgrening },
+                { "Muffetee", PipelineElementType.Muffetee }
+            };
+        public enum PipelineElementType
+        {
+            Pipe,
+            AfgreningMedSpring,
+            AfgreningParallel,
+            Afgreningsstuds,
+            Endebund,
+            Engangsventil,
+            F_Model,
+            Kedelrørsbøjning,
+            LigeAfgrening,
+            ParallelAfgrening,
+            PræisoleretBøjning90gr,
+            PræisoleretBøjningVariabel,
+            PræisoleretVentil,
+            PræventilMedUdluftning,
+            Reduktion,
+            Svanehals,
+            Svejsning,
+            Y_Model,
+            Buerør,
+            Stikafgrening,
+            Muffetee
         }
     }
     public static class UtilsDataTables
@@ -1941,7 +2028,7 @@ namespace IntersectUtilities.UtilsCommon
         }
         public static bool Intersects(this Extents3d original, Extents3d other)
         {
-            if ((original.MaxPoint.X != other.MinPoint.X && original.MinPoint.X != other.MaxPoint.X) && 
+            if ((original.MaxPoint.X != other.MinPoint.X && original.MinPoint.X != other.MaxPoint.X) &&
                 (original.MaxPoint.X <= other.MinPoint.X || original.MinPoint.X >= other.MaxPoint.X))
                 return false;
 

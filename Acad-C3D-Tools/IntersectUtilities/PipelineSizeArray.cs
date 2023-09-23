@@ -104,6 +104,11 @@ namespace IntersectUtilities
                     );
             }
 
+            List<PipelineElement> orderedElements = 
+                entities.Select(x => new PipelineElement(x, al, dynamicBlocks))
+                .OrderBy(x => x.Station)
+                .ToList();
+
             var sortedByStation = entities.OrderBy(x => GetStation(al, x)).ToList();
             var maxDn = entities.Max(x => GetDn(x, dynamicBlocks));
             var minDn = entities.Min(x => GetDn(x, dynamicBlocks));
@@ -142,14 +147,14 @@ namespace IntersectUtilities
             //Filter brs
             if (brs != default)
                 brs = brs.Where(x =>
-                    IsTransition(x, dynBlocks) ||
-                    IsXModel(x, dynBlocks)
+                    IsTransition(x, dynamicBlocks) ||
+                    IsXModel(x, dynamicBlocks)
                     ).ToHashSet();
 
             //Dispatcher constructor
             if (brs == default || brs.Count == 0 || Direction == PipelineSizesDirection.OneSize)
                 SizeArray = ConstructWithCurves(al, curves);
-            else SizeArray = ConstructWithBlocks(al, curves, brs, dynBlocks);
+            else SizeArray = ConstructWithBlocks(al, curves, brs, dynamicBlocks);
         }
         public PipelineSizeArray(SizeEntry[] sizeArray) { SizeArray = sizeArray; }
         public PipelineSizeArray GetPartialSizeArrayForPV(ProfileView pv)
@@ -672,6 +677,34 @@ namespace IntersectUtilities
                 Type.ToString(),
                 Series.ToString()
             };
+        }
+    }
+    public struct PipelineElement
+    {
+        public readonly int DN1;
+        public readonly int DN2;
+        public readonly PipelineElementType Type;
+        public readonly double Station;
+        public PipelineElement(Entity entity, Alignment al, System.Data.DataTable dt)
+        {
+            switch (entity)
+            {
+                case Polyline pline:
+                    DN1 = PipeSchedule.GetPipeDN(pline);
+                    DN2 = 0;
+                    Type = PipelineElementType.Pipe;
+                    break;
+                case BlockReference br:
+                    DN1 = int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN1, dt));
+                    DN2 = int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN2, dt));
+                    Type = PipelineElementTypeDict[br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false)];
+                    break;
+                default:
+                    throw new System.Exception(
+                        $"Entity {entity.Handle} is not a valid pipeline element!");
+            }
+
+            Station = GetStation(al, entity);
         }
     }
 }
