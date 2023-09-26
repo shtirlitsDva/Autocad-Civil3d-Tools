@@ -3999,6 +3999,82 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test new PipeSizeArrays
+                    #region Open fremtidig db
+                    DataReferencesOptions dro = new DataReferencesOptions();
+                    string projectName = dro.ProjectName;
+                    string etapeName = dro.EtapeName;
+
+                    #region Read CSV
+                    System.Data.DataTable dt = default;
+                    try
+                    {
+                        dt = CsvReader.ReadCsvToDataTable(
+                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    }
+                    catch (System.Exception ex)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        prdDbg(ex);
+                        throw;
+                    }
+                    if (dt == default)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                    }
+                    #endregion
+
+                    // open the xref database
+                    Database alDb = new Database(false, true);
+                    alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
+                        System.IO.FileShare.Read, false, string.Empty);
+                    Transaction alTx = alDb.TransactionManager.StartTransaction();
+                    var als = alDb.HashSetOfType<Alignment>(alTx);
+                    var allCurves = localDb.GetFjvPipes(tx, true);
+                    var allBrs = localDb.GetFjvBlocks(tx, dt, true);
+
+                    PropertySetManager psmPipeLineData = new PropertySetManager(
+                        localDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineData =
+                        new PSetDefs.DriPipelineData();
+                    #endregion
+
+                    try
+                    {
+                        foreach (Alignment al in als)
+                        {
+                            #region GetCurvesAndBRs from fremtidig
+                            HashSet<Curve> curves = allCurves.Cast<Curve>()
+                                .Where(x => psmPipeLineData
+                                .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                                .ToHashSet();
+
+                            HashSet<BlockReference> brs = allBrs.Cast<BlockReference>()
+                                .Where(x => psmPipeLineData
+                                .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                                .ToHashSet();
+                            prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                            #endregion
+
+                            PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                            //prdDbg(sizeArray.ToString());
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        alTx.Abort();
+                        alTx.Dispose();
+                        alDb.Dispose();
+                        prdDbg(ex.ToString());
+                        throw;
+                    }
+                    alTx.Abort();
+                    alTx.Dispose();
+                    alDb.Dispose();
+                    #endregion
+
                     #region Testing tolerance when comparing points
                     //PromptEntityOptions peo1 = new PromptEntityOptions("\nSelect first point: ");
                     //peo1.SetRejectMessage("\nNot a DBPoint!");
@@ -8161,6 +8237,73 @@ namespace IntersectUtilities
                         point.UpgradeOpen();
                         point.Position = new Point3d(point.Position.X, point.Position.Y, clElevation);
                     }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("FINDALIGNMENT")]
+        public void findalignment()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            string alName = Interaction.GetString("Type alignment name: ", true);
+            if (alName.IsNoE()) return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Read CSV
+                    System.Data.DataTable dt = default;
+                    try
+                    {
+                        dt = CsvReader.ReadCsvToDataTable(
+                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    }
+                    catch (System.Exception ex)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        prdDbg(ex);
+                        throw;
+                    }
+                    if (dt == default)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                    }
+                    #endregion
+
+                    PropertySetManager psmPipeLineData = new PropertySetManager(
+                        localDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineData =
+                        new PSetDefs.DriPipelineData();
+
+                    var ents = localDb.GetFjvEntities(tx, dt, false, false, true);
+
+                    var result = ents.Where(x => psmPipeLineData
+                        .FilterPropetyString(x, driPipelineData.BelongsToAlignment, alName))
+                        .Select(x => x.Id)
+                        .ToArray();
+
+                    if (result.Length == 0)
+                    {
+                        prdDbg("No entities found with this alignment name!");
+                        tx.Abort();
+                        return;
+                    }
+
+                    docCol.MdiActiveDocument.Editor.SetImpliedSelection(
+                        result
+                        );
                 }
                 catch (System.Exception ex)
                 {

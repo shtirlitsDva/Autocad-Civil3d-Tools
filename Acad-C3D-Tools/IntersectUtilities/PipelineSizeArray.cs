@@ -15,6 +15,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using System.Windows.Documents;
 
 namespace IntersectUtilities
 {
@@ -22,7 +23,7 @@ namespace IntersectUtilities
     {
         public SizeEntry[] SizeArray;
         public int Length { get => SizeArray.Length; }
-        public PipelineSizesDirection Direction { get; }
+        public PipelineSizesArrangement Arrangement { get; }
         public int StartingDn { get; }
         public SizeEntry this[int index] { get => SizeArray[index]; }
         public int MaxDn { get => SizeArray.MaxBy(x => x.DN).FirstOrDefault().DN; }
@@ -33,6 +34,10 @@ namespace IntersectUtilities
             "Svejsning",
             "Stikafgrening",
             "Muffetee"
+        };
+        private HashSet<string> directionDefiningTypes = new HashSet<string>()
+        {
+            "Reduktion"
         };
         /// <summary>
         /// SizeArray listing sizes, station ranges and jacket diameters.
@@ -89,58 +94,39 @@ namespace IntersectUtilities
             //StartingDn = PipeSchedule.GetPipeDN(closestCurve); 
             #endregion
 
-            HashSet<Entity> entities = new HashSet<Entity>();
-            entities.UnionWith(curves);
-
-            //Combine curves and blocks
-            //Filter blocks for unwanted types
-            if (brs != default)
-            {
-                entities.UnionWith(
-                    brs.Where(x => x.ReadDynamicCsvProperty(
-                        DynamicProperty.Type, dynamicBlocks, false) != null &&
-                    !unwantedTypes.Contains(
-                        x.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false)))
-                    );
-            }
-
-            List<PipelineElement> orderedElements = 
-                entities.Select(x => new PipelineElement(x, al, dynamicBlocks))
-                .OrderBy(x => x.Station)
-                .ToList();
-
-            var sortedByStation = entities.OrderBy(x => GetStation(al, x)).ToList();
-            var maxDn = entities.Max(x => GetDn(x, dynamicBlocks));
-            var minDn = entities.Min(x => GetDn(x, dynamicBlocks));
-            StartingDn = GetDn(sortedByStation[0], dynamicBlocks);
-
             //2023.04.12: A case discovered where there's a reducer after which there's only blocks
             //till the alignment's end. This confuses the code to think that the last size
             //don't exists, as it looks only at polylines present.
             //So, we need to check for presence of reducers to definitely rule out one size case.
-            var reducers = brs?.Where(
-                x => x.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false) == "Reduktion");
-            if (reducers != null && reducers.Count() != 0)
+            var reducersOrdered = brs?.Where(
+                x => x.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false) == "Reduktion")
+                .OrderBy(x => al.StationAtPoint(x))
+                .ToArray();
+
+            List<int> dnsAlongAlignment = default;
+            if (reducersOrdered != null && reducersOrdered.Count() != 0)
             {
-                List<int> sizes = new List<int>();
-                foreach (var reducer in reducers)
+                dnsAlongAlignment = new List<int>();
+
+                for (int i = 0; i < reducersOrdered.Count(); i++)
                 {
-                    sizes.Add(
-                        ReadComponentDN1Int(reducer, dynamicBlocks));
-                    sizes.Add(
-                        ReadComponentDN2Int(reducer, dynamicBlocks));
+                    var reducer = reducersOrdered[i];
+
+                    if (i == 0) dnsAlongAlignment.Add(
+                        GetDirectionallyCorrectDn(reducer, Side.Left, dynamicBlocks));
+
+                    dnsAlongAlignment.Add(
+                        GetDirectionallyCorrectDn(reducer, Side.Right, dynamicBlocks));
                 }
-                string name = al.Name;
-                minDn = sizes.Min();
-                maxDn = sizes.Max();
+                prdDbg(string.Join(", ", dnsAlongAlignment));
+                Arrangement = DetectArrangement(dnsAlongAlignment);
+            }
+            else
+            {
+                Arrangement = PipelineSizesArrangement.OneSize;
             }
 
-            if (maxDn == minDn) Direction = PipelineSizesDirection.OneSize;
-            else if (StartingDn == minDn) Direction = PipelineSizesDirection.SmallToLargeAscending;
-            else if (StartingDn == maxDn) Direction = PipelineSizesDirection.LargeToSmallDescending;
-            else Direction = PipelineSizesDirection.Unknown;
-
-            if (Direction == PipelineSizesDirection.Unknown)
+            if (Arrangement == PipelineSizesArrangement.Unknown)
                 throw new System.Exception($"Alignment {al.Name} could not determine pipeline sizes direction!");
             #endregion
 
@@ -152,9 +138,37 @@ namespace IntersectUtilities
                     ).ToHashSet();
 
             //Dispatcher constructor
-            if (brs == default || brs.Count == 0 || Direction == PipelineSizesDirection.OneSize)
+            if (brs == default || brs.Count == 0 || Arrangement == PipelineSizesArrangement.OneSize)
                 SizeArray = ConstructWithCurves(al, curves);
             else SizeArray = ConstructWithBlocks(al, curves, brs, dynamicBlocks);
+        }
+        private PipelineSizesArrangement DetectArrangement(List<int> list)
+        {
+            if (list.Count < 2) return PipelineSizesArrangement.Unknown;
+
+            bool ascendingFlag = false;
+            bool descendingFlag = false;
+            bool climaxFlag = false;
+
+            for (int i = 1; i < list.Count; ++i)
+            {
+                if (list[i] > list[i - 1])
+                {
+                    if (climaxFlag) return PipelineSizesArrangement.MiddleDescendingToEnds;
+                    ascendingFlag = true;
+                }
+                else if (list[i] < list[i - 1])
+                {
+                    if (ascendingFlag) climaxFlag = true;
+                    descendingFlag = true;
+                }
+            }
+
+            if (ascendingFlag && !descendingFlag) return PipelineSizesArrangement.SmallToLargeAscending;
+            if (!ascendingFlag && descendingFlag) return PipelineSizesArrangement.LargeToSmallDescending;
+            if (ascendingFlag && descendingFlag) return PipelineSizesArrangement.MiddleDescendingToEnds;
+
+            return PipelineSizesArrangement.Unknown;
         }
         public PipelineSizeArray(SizeEntry[] sizeArray) { SizeArray = sizeArray; }
         public PipelineSizeArray GetPartialSizeArrayForPV(ProfileView pv)
@@ -410,7 +424,7 @@ namespace IntersectUtilities
                             .FirstOrDefault();
 
                         if (minCurve == default)
-                            prdDbg($"Br {curBr.Handle} does not find minCurve!");
+                            throw new Exception($"Br {curBr.Handle} does not find minCurve!");
 
                         dn = PipeSchedule.GetPipeDN(minCurve);
                         kod = PipeSchedule.GetPipeKOd(minCurve);
@@ -549,9 +563,9 @@ namespace IntersectUtilities
         }
         private int GetDirectionallyCorrectDn(BlockReference br, Side side, System.Data.DataTable dt)
         {
-            switch (Direction)
+            switch (Arrangement)
             {
-                case PipelineSizesDirection.SmallToLargeAscending:
+                case PipelineSizesArrangement.SmallToLargeAscending:
                     switch (side)
                     {
                         case Side.Left:
@@ -560,7 +574,7 @@ namespace IntersectUtilities
                             return ReadComponentDN1Int(br, dt);
                     }
                     break;
-                case PipelineSizesDirection.LargeToSmallDescending:
+                case PipelineSizesArrangement.LargeToSmallDescending:
                     switch (side)
                     {
                         case Side.Left:
@@ -574,9 +588,9 @@ namespace IntersectUtilities
         }
         private double GetDirectionallyCorrectKod(BlockReference br, Side side, System.Data.DataTable dt)
         {
-            switch (Direction)
+            switch (Arrangement)
             {
-                case PipelineSizesDirection.SmallToLargeAscending:
+                case PipelineSizesArrangement.SmallToLargeAscending:
                     switch (side)
                     {
                         case Side.Left:
@@ -585,7 +599,7 @@ namespace IntersectUtilities
                             return ReadComponentDN1KodDouble(br, dt);
                     }
                     break;
-                case PipelineSizesDirection.LargeToSmallDescending:
+                case PipelineSizesArrangement.LargeToSmallDescending:
                     switch (side)
                     {
                         case Side.Left:
@@ -632,7 +646,7 @@ namespace IntersectUtilities
         /// SmallToLargeAscending - Small sizes first, blocks preferred
         /// LargeToSmallAscending - Large sizes first, blocks preferred
         /// </summary>
-        public enum PipelineSizesDirection
+        public enum PipelineSizesArrangement
         {
             Unknown, //Should throw an exception
             OneSize, //Cannot be constructed with blocks
@@ -697,7 +711,9 @@ namespace IntersectUtilities
                 case BlockReference br:
                     DN1 = int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN1, dt));
                     DN2 = int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN2, dt));
-                    Type = PipelineElementTypeDict[br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false)];
+                    if (PipelineElementTypeDict.ContainsKey(br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false)))
+                        Type = PipelineElementTypeDict[br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false)];
+                    else throw new Exception($"Unknown Type: {br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false)}");
                     break;
                 default:
                     throw new System.Exception(

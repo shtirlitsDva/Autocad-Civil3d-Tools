@@ -48,7 +48,7 @@ namespace IntersectUtilities
             else Sizes = new PipelineSizeArray(alignment, curves);
 
             //Reverse entities if sizes SmallToLargeAscending
-            if (Sizes.Direction == PipelineSizeArray.PipelineSizesDirection.SmallToLargeAscending)
+            if (Sizes.Arrangement == PipelineSizeArray.PipelineSizesArrangement.SmallToLargeAscending)
                 Entities = Entities.Reverse().ToArray();
 
             _labels = BuildLabel();
@@ -317,7 +317,7 @@ namespace IntersectUtilities
             parent.Alignment.StationOffset(fp.X, fp.Y, 9999, ref st1, ref os1);
             parent.Alignment.StationOffset(ep.X, ep.Y, 9999, ref st2, ref os2);
 
-            if (Math.Abs(os1) > Math.Abs(os2) && Sizes.Direction == PipelineSizeArray.PipelineSizesDirection.OneSize)
+            if (Math.Abs(os1) > Math.Abs(os2) && Sizes.Arrangement == PipelineSizeArray.PipelineSizesArrangement.OneSize)
             {
                 //prdDbg($"{parent.Alignment.Name} -> {this.Alignment.Name}: {Math.Abs(os1)} > {Math.Abs(os2)}");
 
