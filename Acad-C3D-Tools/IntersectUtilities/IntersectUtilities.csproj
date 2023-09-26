@@ -142,6 +142,18 @@
     </Reference>
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
+    <Reference Include="QuikGraph, Version=2.5.0.0, Culture=neutral, PublicKeyToken=46bd58b0789759cb, processorArchitecture=MSIL">
+      <HintPath>..\packages\QuikGraph.2.5.0\lib\net45\QuikGraph.dll</HintPath>
+    </Reference>
+    <Reference Include="QuikGraph.Data, Version=2.5.0.0, Culture=neutral, PublicKeyToken=46bd58b0789759cb, processorArchitecture=MSIL">
+      <HintPath>..\packages\QuikGraph.Data.2.5.0\lib\net35\QuikGraph.Data.dll</HintPath>
+    </Reference>
+    <Reference Include="QuikGraph.Graphviz, Version=2.5.0.0, Culture=neutral, PublicKeyToken=46bd58b0789759cb, processorArchitecture=MSIL">
+      <HintPath>..\packages\QuikGraph.Graphviz.2.5.0\lib\net45\QuikGraph.Graphviz.dll</HintPath>
+    </Reference>
+    <Reference Include="QuikGraph.Serialization, Version=2.5.0.0, Culture=neutral, PublicKeyToken=46bd58b0789759cb, processorArchitecture=MSIL">
+      <HintPath>..\packages\QuikGraph.Serialization.2.5.0\lib\net461\QuikGraph.Serialization.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>

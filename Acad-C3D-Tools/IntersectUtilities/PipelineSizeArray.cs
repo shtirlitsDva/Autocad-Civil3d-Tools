@@ -7,7 +7,9 @@ using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.ComponentSchedule;
 using static IntersectUtilities.DynamicBlocks.PropertyReader;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
+using static IntersectUtilities.PipeSchedule;
 using IntersectUtilities.UtilsCommon;
+using GroupByCluster;
 
 using System;
 using System.Collections.Generic;
@@ -15,7 +17,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using System.Windows.Documents;
+using QuikGraph;
+using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+using csdot;
 
 namespace IntersectUtilities
 {
@@ -34,6 +38,10 @@ namespace IntersectUtilities
             "Svejsning",
             "Stikafgrening",
             "Muffetee"
+        };
+        private HashSet<string> graphUnwantedTypes = new HashSet<string>()
+        {
+            "Svejsning",
         };
         private HashSet<string> directionDefiningTypes = new HashSet<string>()
         {
@@ -66,6 +74,34 @@ namespace IntersectUtilities
                 prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
                 throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
             }
+            #endregion
+
+            #region Create graph
+            var entities = new HashSet<Entity>(curves);
+            if (brs != default) entities.UnionWith(brs);
+
+            HashSet<POI> POIs = new HashSet<POI>();
+            foreach (Entity ent in entities) AddEntityToPOIs(ent, POIs);
+
+            IEnumerable<IGrouping<POI, POI>> clusters
+                        = POIs.GroupByCluster((x, y) => x.Point.GetDistanceTo(y.Point), 0.01);
+
+            foreach (IGrouping<POI, POI> cluster in clusters)
+            {
+                //Create unique pairs
+                var pairs = cluster.SelectMany((value, index) => cluster.Skip(index + 1),
+                                               (first, second) => new { first, second });
+                //Create reference to each other for each pair
+                foreach (var pair in pairs)
+                {
+                    if (pair.first.Owner.Handle == pair.second.Owner.Handle) continue;
+                    pair.first.AddReference(pair.second);
+                    pair.second.AddReference(pair.first);
+                }
+            }
+
+            var groups = POIs.GroupBy(x => x.Owner.Handle);
+
             #endregion
 
             #region Direction
@@ -169,6 +205,50 @@ namespace IntersectUtilities
             if (ascendingFlag && descendingFlag) return PipelineSizesArrangement.MiddleDescendingToEnds;
 
             return PipelineSizesArrangement.Unknown;
+        }
+        private void AddEntityToPOIs(Entity ent, HashSet<POI> POIs)
+        {
+            switch (ent)
+            {
+                case Polyline pline:
+                    switch (GetPipeSystem(pline))
+                    {
+                        case PipeSystemEnum.Ukendt:
+                            prdDbg($"Wrong type of pline supplied: {pline.Handle}");
+                            return;
+                        case PipeSystemEnum.Stål:
+                        case PipeSystemEnum.Kobberflex:
+                        case PipeSystemEnum.AluPex:
+                            POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.Start));
+                            POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.End));
+                            break;
+                        default:
+                            throw new System.Exception("Supplied a new PipeSystemEnum! Add to code kthxbai.");
+                    }
+                    break;
+                case BlockReference br:
+                    Transaction tx = br.Database.TransactionManager.TopTransaction;
+                    BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+
+                    foreach (Oid oid in btr)
+                    {
+                        if (!oid.IsDerivedFrom<BlockReference>()) continue;
+                        BlockReference nestedBr = oid.Go<BlockReference>(tx);
+                        if (!nestedBr.Name.Contains("MuffeIntern")) continue;
+                        Point3d wPt = nestedBr.Position;
+                        wPt = wPt.TransformBy(br.BlockTransform);
+                        EndType endType;
+                        if (nestedBr.Name.Contains("BRANCH")) { endType = EndType.Branch; }
+                        else
+                        {
+                            endType = EndType.Main;
+                        }
+                        POIs.Add(new POI(br, wPt.To2D(), endType));
+                    }
+                    break;
+                default:
+                    throw new System.Exception("Wrong type of object supplied!");
+            }
         }
         public PipelineSizeArray(SizeEntry[] sizeArray) { SizeArray = sizeArray; }
         public PipelineSizeArray GetPartialSizeArrayForPV(ProfileView pv)
@@ -660,6 +740,17 @@ namespace IntersectUtilities
             Left,
             //Right means towards the end of alignment
             Right
+        }
+        private struct POI
+        {
+            public Entity Owner { get; }
+            public List<Entity> Neighbours { get; }
+            public Point2d Point { get; }
+            public EndType EndType { get; }
+            public POI(Entity owner, Point2d point, EndType endType)
+            { Owner = owner; Point = point; EndType = endType; Neighbours = new List<Entity>(); }
+            public bool IsSameOwner(POI toCompare) => Owner.Id == toCompare.Owner.Id;
+            internal void AddReference(POI connectedEntity) => Neighbours.Add(connectedEntity.Owner);
         }
     }
     public struct SizeEntry
