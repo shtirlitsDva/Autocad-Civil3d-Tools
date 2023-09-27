@@ -113,6 +113,12 @@
     </Reference>
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
+    <Reference Include="QuikGraph, Version=2.5.0.0, Culture=neutral, PublicKeyToken=46bd58b0789759cb, processorArchitecture=MSIL">
+      <HintPath>..\packages\QuikGraph.2.5.0\lib\net45\QuikGraph.dll</HintPath>
+    </Reference>
+    <Reference Include="QuikGraph.Graphviz, Version=2.5.0.0, Culture=neutral, PublicKeyToken=46bd58b0789759cb, processorArchitecture=MSIL">
+      <HintPath>..\packages\QuikGraph.Graphviz.2.5.0\lib\net45\QuikGraph.Graphviz.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Windows.Forms" />
