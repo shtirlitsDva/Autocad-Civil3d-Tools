@@ -72,6 +72,11 @@ namespace IntersectUtilities
                     "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
             }
 
+#if DEBUG
+            AppDomain.CurrentDomain.AssemblyResolve +=
+                new ResolveEventHandler(QuikGraph_AssemblyResolve);
+#endif
+
             prdDbg("IntersectUtilites loaded!");
         }
 
@@ -4055,7 +4060,7 @@ namespace IntersectUtilities
                                 .Where(x => psmPipeLineData
                                 .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                                 .ToHashSet();
-                            prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                            //prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                             #endregion
 
                             PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);

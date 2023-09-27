@@ -20,12 +20,17 @@ using System.Text;
 using System.Threading.Tasks;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+using System.IO;
+using System.Diagnostics;
+using QuikGraph.Algorithms.Search;
+using QuikGraph.Algorithms;
 
 namespace IntersectUtilities
 {
     public class PipelineSizeArray
     {
         public SizeEntry[] SizeArray;
+        public BidirectionalGraph<Entity, Edge<Entity>> Graph;
         public int Length { get => SizeArray.Length; }
         public PipelineSizesArrangement Arrangement { get; }
         public int StartingDn { get; }
@@ -100,23 +105,40 @@ namespace IntersectUtilities
                 }
             }
 
-            var graph = new UndirectedGraph<Entity, Edge<Entity>>();
+            //First crate a graph that start from a random entity
+            var startingGraph = new BidirectionalGraph<Entity, Edge<Entity>>();
+            var groups = POIs.GroupBy(x => x.Owner.Handle);
 
-            foreach (var group in POIs.GroupBy(x => x.Owner.Handle))
+            foreach (var group in groups)
+                startingGraph.AddVertex(group.First().Owner);
+
+            foreach (var group in groups)
             {
-                var owner = group.First().Owner;
-                graph.AddVertex(owner);
+                Entity owner = group.First().Owner;
 
                 foreach (var poi in group)
                 {
                     foreach (var neighbour in poi.Neighbours)
                     {
-                        graph.AddEdge(new Edge<Entity>(owner, neighbour));
+                        startingGraph.AddEdge(new Edge<Entity>(owner, neighbour));
                     }
                 }
             }
 
+            //Now find the ends, choose one and rearrange graph to start from that node
+            var endNodes = startingGraph.Vertices.Where(v => startingGraph.OutDegree(v) == 1 && startingGraph.InDegree(v) == 1);
+            var startingNode = endNodes.OrderBy(x => GetStation(al, x)).First();
 
+            var dfs = new DepthFirstSearchAlgorithm<Entity, Edge<Entity>>(startingGraph);
+            var verticesInNewOrder = new List<Entity>();
+            dfs.FinishVertex += verticesInNewOrder.Add;
+            dfs.Compute(startingNode);
+
+            var sortedGraph = new BidirectionalGraph<Entity, Edge<Entity>>();
+            sortedGraph.AddVertexRange(verticesInNewOrder);
+            foreach (var edge in startingGraph.Edges) sortedGraph.AddEdge(edge);
+
+            Graph = sortedGraph;
             #endregion
 
             #region Direction
@@ -149,49 +171,50 @@ namespace IntersectUtilities
             //till the alignment's end. This confuses the code to think that the last size
             //don't exists, as it looks only at polylines present.
             //So, we need to check for presence of reducers to definitely rule out one size case.
-            //var reducersOrdered = brs?.Where(
-            //    x => x.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false) == "Reduktion")
-            //    .OrderBy(x => al.StationAtPoint(x))
-            //    .ToArray();
+            var reducersOrdered = brs?.Where(
+                x => x.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false) == "Reduktion")
+                .OrderBy(x => al.StationAtPoint(x))
+                .ToArray();
+            
+            List<int> dnsAlongAlignment = default;
+            if (reducersOrdered != null && reducersOrdered.Count() != 0)
+            {
+                dnsAlongAlignment = new List<int>();
 
-            //List<int> dnsAlongAlignment = default;
-            //if (reducersOrdered != null && reducersOrdered.Count() != 0)
-            //{
-            //    dnsAlongAlignment = new List<int>();
+                for (int i = 0; i < reducersOrdered.Count(); i++)
+                {
+                    var reducer = reducersOrdered[i];
 
-            //    for (int i = 0; i < reducersOrdered.Count(); i++)
-            //    {
-            //        var reducer = reducersOrdered[i];
+                    if (i == 0) dnsAlongAlignment.Add(
+                        GetDirectionallyCorrectReducerDnWithGraph(al, reducer, Side.Left, dynamicBlocks));
 
-            //        if (i == 0) dnsAlongAlignment.Add(
-            //            GetDirectionallyCorrectDn(reducer, Side.Left, dynamicBlocks));
+                    dnsAlongAlignment.Add(
+                        GetDirectionallyCorrectReducerDnWithGraph(al, reducer, Side.Right, dynamicBlocks));
+                }
+                Arrangement = DetectArrangement(dnsAlongAlignment);
+                prdDbg(string.Join(", ", dnsAlongAlignment) + " -> " + Arrangement);
+            }
+            else
+            {
+                Arrangement = PipelineSizesArrangement.OneSize;
+                prdDbg(Arrangement);
+            }
 
-            //        dnsAlongAlignment.Add(
-            //            GetDirectionallyCorrectDn(reducer, Side.Right, dynamicBlocks));
-            //    }
-            //    prdDbg(string.Join(", ", dnsAlongAlignment));
-            //    Arrangement = DetectArrangement(dnsAlongAlignment);
-            //}
-            //else
-            //{
-            //    Arrangement = PipelineSizesArrangement.OneSize;
-            //}
-
-            //if (Arrangement == PipelineSizesArrangement.Unknown)
-            //    throw new System.Exception($"Alignment {al.Name} could not determine pipeline sizes direction!");
+            if (Arrangement == PipelineSizesArrangement.Unknown)
+                throw new System.Exception($"Alignment {al.Name} could not determine pipeline sizes direction!");
             #endregion
 
-            ////Filter brs
-            //if (brs != default)
-            //    brs = brs.Where(x =>
-            //        IsTransition(x, dynamicBlocks) ||
-            //        IsXModel(x, dynamicBlocks)
-            //        ).ToHashSet();
+            //Filter brs
+            if (brs != default)
+                brs = brs.Where(x =>
+                    IsTransition(x, dynamicBlocks) ||
+                    IsXModel(x, dynamicBlocks)
+                    ).ToHashSet();
 
-            ////Dispatcher constructor
-            //if (brs == default || brs.Count == 0 || Arrangement == PipelineSizesArrangement.OneSize)
-            //    SizeArray = ConstructWithCurves(al, curves);
-            //else SizeArray = ConstructWithBlocks(al, curves, brs, dynamicBlocks);
+            //Dispatcher constructor
+            if (brs == default || brs.Count == 0 || Arrangement == PipelineSizesArrangement.OneSize)
+                SizeArray = ConstructWithCurves(al, curves);
+            else SizeArray = ConstructWithBlocks(al, curves, brs, dynamicBlocks);
         }
         private PipelineSizesArrangement DetectArrangement(List<int> list)
         {
@@ -462,12 +485,6 @@ namespace IntersectUtilities
         private SizeEntry[] ConstructWithBlocks(Alignment al, HashSet<Curve> curves, HashSet<BlockReference> brs, System.Data.DataTable dt)
         {
             BlockReference[] brsArray = default;
-            //Old ordering
-            //if (Direction == PipelineSizesDirection.SmallToLargeAscending)
-            //    brsArray = brs.OrderBy(x => ReadComponentDN2Int(x, dt)).ToArray();
-            //else if (Direction == PipelineSizesDirection.LargeToSmallDescending)
-            //    brsArray = brs.OrderByDescending(x => ReadComponentDN2Int(x, dt)).ToArray();
-            //else brs.ToArray();
 
             //New ordering based on station on alignment
             //prdDbg("Using new SizeArray ordering method! Beware!");
@@ -655,6 +672,107 @@ namespace IntersectUtilities
             }
 
             return sizes.ToArray();
+        }
+        /// <summary>
+        /// This method should only be used with a graph that is sorted from the start of the alignment.
+        /// Also assuming working only with Reduktion
+        /// </summary>
+        private int GetDirectionallyCorrectReducerDnWithGraph(Alignment al, BlockReference br, Side side, System.Data.DataTable dt)
+        {
+            if (Graph == null) throw new Exception("Graph is not initialized!");
+            if (br.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false) != "Reduktion")
+                throw new Exception($"Method GetDirectionallyCorrectReducerDnWithGraph can only be used with \"Reduktion\"!");
+
+            //Left side means towards the start
+            //Right side means towards the end
+            double brStation = GetStation(al, br);
+            var reducerSizes = new List<int>()
+            {
+                int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN1,dynamicBlocks)),
+                int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN2,dynamicBlocks)),
+            };
+            
+            //Gather up- and downstream vertici
+            var upstreamVertices = new List<Entity>();
+            var downstreamVertices = new List<Entity>();
+
+            var dfs = new DepthFirstSearchAlgorithm<Entity, Edge<Entity>>(Graph);
+            dfs.TreeEdge += edge =>
+            {
+                if (GetStation(al, edge.Target) > brStation) downstreamVertices.Add(edge.Target);
+                else upstreamVertices.Add(edge.Target);
+            };
+            dfs.Compute(br);
+
+            bool specialCaseSideSearchFailed = false;
+            switch (side)
+            {
+                case Side.Left:
+                    {
+                        if (upstreamVertices.Count != 0)
+                        {
+                            for (int i = 0; i < upstreamVertices.Count; i++)
+                            {
+                                Entity cur = upstreamVertices[i];
+
+                                int candidate = GetDn(cur, dynamicBlocks);
+                                if (candidate == 0) continue;
+                                else if (reducerSizes.Contains(candidate)) return candidate;
+                            }
+                            //If this is reached it means somehow all elements failed to deliver a DN
+                            specialCaseSideSearchFailed = true;
+                        }
+                        else specialCaseSideSearchFailed = true; 
+                    }
+                    break;
+                case Side.Right:
+                    {
+                        if (downstreamVertices.Count != 0)
+                        {
+                            for (int i = 0; i < downstreamVertices.Count; i++)
+                            {
+                                Entity cur = downstreamVertices[i];
+
+                                int candidate = GetDn(cur, dynamicBlocks);
+                                if (candidate == 0) continue;
+                                else if (reducerSizes.Contains(candidate)) return candidate;
+                            }
+                            //If this is reached it means somehow all elements failed to deliver a DN
+                            specialCaseSideSearchFailed = true;
+                        }
+                        else specialCaseSideSearchFailed = true;
+                    }
+                    break;
+            }
+
+            #region Special case where the reducer is first or last element
+            if (specialCaseSideSearchFailed)
+            {
+                //Use the other side to determine the asked for size
+                List<Entity> list;
+                if (side == Side.Left) list = downstreamVertices;
+                else list = upstreamVertices;
+
+                if (list.Count != 0)
+                {
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        Entity cur = list[i];
+
+                        int candidate = GetDn(cur, dynamicBlocks);
+                        if (candidate == 0) continue;
+                        else if (reducerSizes.Contains(candidate)) 
+                            return reducerSizes[0] == candidate ? reducerSizes[1] : reducerSizes[0];
+                    }
+                    //If this is reached it means somehow BOTH sides failed to deliver a DN
+                    specialCaseSideSearchFailed = true;
+                }
+                else specialCaseSideSearchFailed = true;
+            }
+
+            //If this is reached, something is completely wrong
+            throw new Exception($"Finding directionally correct sizes for reducer {br.Handle} failed!");
+            #endregion
         }
         private int GetDirectionallyCorrectDn(BlockReference br, Side side, System.Data.DataTable dt)
         {
