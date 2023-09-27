@@ -725,20 +725,7 @@ namespace IntersectUtilities
         public static double GetTwinPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
-            switch (pipeSeries)
-            {
-                case PipeSeriesEnum.S1:
-                    if (kOdsS1Twin.ContainsKey(dn)) return kOdsS1Twin[dn];
-                    else return 0;
-                case PipeSeriesEnum.S2:
-                    if (kOdsS2Twin.ContainsKey(dn)) return kOdsS2Twin[dn];
-                    else return 0;
-                case PipeSeriesEnum.S3:
-                    if (kOdsS3Twin.ContainsKey(dn)) return kOdsS3Twin[dn];
-                    else return 0;
-                default:
-                    return 0;
-            }
+            return GetTwinPipeKOd(dn, pipeSeries);
         }
         public static double GetTwinPipeKOd(int dn, PipeSeriesEnum pipeSeries)
         {
@@ -790,6 +777,10 @@ namespace IntersectUtilities
         public static double GetCuEnkeltPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
+            return GetCuEnkeltPipeKOd(dn, pipeSeries);
+        }
+        public static double GetCuEnkeltPipeKOd(int dn, PipeSeriesEnum pipeSeries)
+        {
             switch (pipeSeries)
             {
                 case PipeSeriesEnum.S1:
@@ -806,6 +797,10 @@ namespace IntersectUtilities
         public static double GetCuTwinPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
+            return GetCuTwinPipeKOd(dn, pipeSeries);
+        }
+        public static double GetCuTwinPipeKOd(int dn, PipeSeriesEnum pipeSeries)
+        {
             switch (pipeSeries)
             {
                 case PipeSeriesEnum.S1:
@@ -822,6 +817,10 @@ namespace IntersectUtilities
         public static double GetAluPexEnkeltPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
+            return GetAluPexEnkeltPipeKOd(dn, pipeSeries);
+        }
+        public static double GetAluPexEnkeltPipeKOd(int dn, PipeSeriesEnum pipeSeries)
+        {
             switch (pipeSeries)
             {
                 case PipeSeriesEnum.S1:
@@ -841,6 +840,10 @@ namespace IntersectUtilities
         public static double GetAluPexTwinPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
+            return GetAluPexTwinPipeKOd(dn, pipeSeries);
+        }
+        public static double GetAluPexTwinPipeKOd(int dn, PipeSeriesEnum pipeSeries)
+        {
             switch (pipeSeries)
             {
                 case PipeSeriesEnum.S1:
@@ -927,6 +930,45 @@ namespace IntersectUtilities
                     return 0.0;
             }
 
+        }
+        public static double GetKOd(int dn, PipeTypeEnum pt, PipeSystemEnum ps, PipeSeriesEnum series)
+        {
+            switch (pt)
+            {
+                case PipeTypeEnum.Ukendt:
+                    return 0.0;
+                case PipeTypeEnum.Twin:
+                    switch (ps)
+                    {
+                        case PipeSystemEnum.Ukendt:
+                            return 0.0;
+                        case PipeSystemEnum.Stål:
+                            return GetTwinPipeKOd(dn, series);
+                        case PipeSystemEnum.Kobberflex:
+                            return GetCuTwinPipeKOd(dn, series);
+                        case PipeSystemEnum.AluPex:
+                            return GetAluPexTwinPipeKOd(dn, series);
+                        default:
+                            return 0.0;
+                    }
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
+                    switch (ps)
+                    {
+                        case PipeSystemEnum.Ukendt:
+                            return 0.0;
+                        case PipeSystemEnum.Stål:
+                            return GetBondedPipeKOd(dn, series);
+                        case PipeSystemEnum.Kobberflex:
+                            return GetCuEnkeltPipeKOd(dn, series);
+                        case PipeSystemEnum.AluPex:
+                            return GetAluPexEnkeltPipeKOd(dn, series);
+                        default:
+                            return 0.0;
+                    }
+                default:
+                    return 0.0;
+            }
         }
         public static double GetPipeKOd(Entity ent, bool hardFail = false)
         {

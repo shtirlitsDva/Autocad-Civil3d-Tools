@@ -89,7 +89,7 @@ namespace IntersectUtilities
             foreach (Entity ent in entities) AddEntityToPOIs(ent, POIs);
 
             IEnumerable<IGrouping<POI, POI>> clusters
-                        = POIs.GroupByCluster((x, y) => x.Point.GetDistanceTo(y.Point), 0.01);
+                = POIs.GroupByCluster((x, y) => x.Point.GetDistanceTo(y.Point), 0.01);
 
             foreach (IGrouping<POI, POI> cluster in clusters)
             {
@@ -175,7 +175,7 @@ namespace IntersectUtilities
                 x => x.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false) == "Reduktion")
                 .OrderBy(x => al.StationAtPoint(x))
                 .ToArray();
-            
+
             List<int> dnsAlongAlignment = default;
             if (reducersOrdered != null && reducersOrdered.Count() != 0)
             {
@@ -204,17 +204,55 @@ namespace IntersectUtilities
                 throw new System.Exception($"Alignment {al.Name} could not determine pipeline sizes direction!");
             #endregion
 
-            //Filter brs
-            if (brs != default)
-                brs = brs.Where(x =>
-                    IsTransition(x, dynamicBlocks) ||
-                    IsXModel(x, dynamicBlocks)
-                    ).ToHashSet();
-
             //Dispatcher constructor
             if (brs == default || brs.Count == 0 || Arrangement == PipelineSizesArrangement.OneSize)
                 SizeArray = ConstructWithCurves(al, curves);
-            else SizeArray = ConstructWithBlocks(al, curves, brs, dynamicBlocks);
+            //else SizeArray = ConstructWithBlocks(al, curves, brs, dynamicBlocks);
+            else
+            {
+                brs = brs.Where(x =>
+                    IsTransition(x, dynamicBlocks) ||
+                    IsXModel(x, dynamicBlocks)).ToHashSet();
+
+                BlockReference[] brsArray = 
+                    brs.OrderBy(x => al.StationAtPoint(x)).ToArray();
+
+                List<SizeEntry> sizes = new List<SizeEntry>();
+
+                int dn = 0;
+                double start = 0.0;
+                double end = 0.0;
+                double kod = 0.0;
+                PipeSystemEnum ps = default;
+                PipeTypeEnum pt = default;
+                PipeSeriesEnum series = default;
+
+                for (int i = 0; i < brsArray.Count(); i++)
+                {
+                    var br = brsArray[i];
+
+                    //First iteration case
+                    if (i == 0)
+                    {
+                        start = 0.0; end = al.StationAtPoint(br);
+
+                        if (IsTransition(br, dynamicBlocks))
+                        {
+                            dn = GetDirectionallyCorrectReducerDnWithGraph(al, br, Side.Left);
+                            ps = PipeSystemEnum.Stål;
+                            pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum), 
+                                br.ReadDynamicCsvProperty(DynamicProperty.System, dynamicBlocks), true);
+                            series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
+                                br.ReadDynamicCsvProperty(DynamicProperty.Serie, dynamicBlocks), true);
+                            kod = PipeSchedule.GetKOd(dn, pt, ps, series);
+                        }
+                        
+                    }
+
+                    dnsAlongAlignment.Add(
+                        GetDirectionallyCorrectReducerDnWithGraph(al, reducer, Side.Right, dynamicBlocks));
+                }
+            }
         }
         private PipelineSizesArrangement DetectArrangement(List<int> list)
         {
@@ -677,7 +715,7 @@ namespace IntersectUtilities
         /// This method should only be used with a graph that is sorted from the start of the alignment.
         /// Also assuming working only with Reduktion
         /// </summary>
-        private int GetDirectionallyCorrectReducerDnWithGraph(Alignment al, BlockReference br, Side side, System.Data.DataTable dt)
+        private int GetDirectionallyCorrectReducerDnWithGraph(Alignment al, BlockReference br, Side side)
         {
             if (Graph == null) throw new Exception("Graph is not initialized!");
             if (br.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false) != "Reduktion")
@@ -691,7 +729,7 @@ namespace IntersectUtilities
                 int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN1,dynamicBlocks)),
                 int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN2,dynamicBlocks)),
             };
-            
+
             //Gather up- and downstream vertici
             var upstreamVertices = new List<Entity>();
             var downstreamVertices = new List<Entity>();
@@ -722,7 +760,7 @@ namespace IntersectUtilities
                             //If this is reached it means somehow all elements failed to deliver a DN
                             specialCaseSideSearchFailed = true;
                         }
-                        else specialCaseSideSearchFailed = true; 
+                        else specialCaseSideSearchFailed = true;
                     }
                     break;
                 case Side.Right:
@@ -761,7 +799,7 @@ namespace IntersectUtilities
 
                         int candidate = GetDn(cur, dynamicBlocks);
                         if (candidate == 0) continue;
-                        else if (reducerSizes.Contains(candidate)) 
+                        else if (reducerSizes.Contains(candidate))
                             return reducerSizes[0] == candidate ? reducerSizes[1] : reducerSizes[0];
                     }
                     //If this is reached it means somehow BOTH sides failed to deliver a DN
