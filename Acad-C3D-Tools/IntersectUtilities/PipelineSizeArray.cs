@@ -10,6 +10,8 @@ using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.PipeSchedule;
 using IntersectUtilities.UtilsCommon;
 using GroupByCluster;
+using QuikGraph;
+using QuikGraph.Graphviz;
 
 using System;
 using System.Collections.Generic;
@@ -17,9 +19,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using QuikGraph;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using csdot;
 
 namespace IntersectUtilities
 {
@@ -100,7 +100,22 @@ namespace IntersectUtilities
                 }
             }
 
-            var groups = POIs.GroupBy(x => x.Owner.Handle);
+            var graph = new UndirectedGraph<Entity, Edge<Entity>>();
+
+            foreach (var group in POIs.GroupBy(x => x.Owner.Handle))
+            {
+                var owner = group.First().Owner;
+                graph.AddVertex(owner);
+
+                foreach (var poi in group)
+                {
+                    foreach (var neighbour in poi.Neighbours)
+                    {
+                        graph.AddEdge(new Edge<Entity>(owner, neighbour));
+                    }
+                }
+            }
+
 
             #endregion
 
@@ -134,49 +149,49 @@ namespace IntersectUtilities
             //till the alignment's end. This confuses the code to think that the last size
             //don't exists, as it looks only at polylines present.
             //So, we need to check for presence of reducers to definitely rule out one size case.
-            var reducersOrdered = brs?.Where(
-                x => x.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false) == "Reduktion")
-                .OrderBy(x => al.StationAtPoint(x))
-                .ToArray();
+            //var reducersOrdered = brs?.Where(
+            //    x => x.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false) == "Reduktion")
+            //    .OrderBy(x => al.StationAtPoint(x))
+            //    .ToArray();
 
-            List<int> dnsAlongAlignment = default;
-            if (reducersOrdered != null && reducersOrdered.Count() != 0)
-            {
-                dnsAlongAlignment = new List<int>();
+            //List<int> dnsAlongAlignment = default;
+            //if (reducersOrdered != null && reducersOrdered.Count() != 0)
+            //{
+            //    dnsAlongAlignment = new List<int>();
 
-                for (int i = 0; i < reducersOrdered.Count(); i++)
-                {
-                    var reducer = reducersOrdered[i];
+            //    for (int i = 0; i < reducersOrdered.Count(); i++)
+            //    {
+            //        var reducer = reducersOrdered[i];
 
-                    if (i == 0) dnsAlongAlignment.Add(
-                        GetDirectionallyCorrectDn(reducer, Side.Left, dynamicBlocks));
+            //        if (i == 0) dnsAlongAlignment.Add(
+            //            GetDirectionallyCorrectDn(reducer, Side.Left, dynamicBlocks));
 
-                    dnsAlongAlignment.Add(
-                        GetDirectionallyCorrectDn(reducer, Side.Right, dynamicBlocks));
-                }
-                prdDbg(string.Join(", ", dnsAlongAlignment));
-                Arrangement = DetectArrangement(dnsAlongAlignment);
-            }
-            else
-            {
-                Arrangement = PipelineSizesArrangement.OneSize;
-            }
+            //        dnsAlongAlignment.Add(
+            //            GetDirectionallyCorrectDn(reducer, Side.Right, dynamicBlocks));
+            //    }
+            //    prdDbg(string.Join(", ", dnsAlongAlignment));
+            //    Arrangement = DetectArrangement(dnsAlongAlignment);
+            //}
+            //else
+            //{
+            //    Arrangement = PipelineSizesArrangement.OneSize;
+            //}
 
-            if (Arrangement == PipelineSizesArrangement.Unknown)
-                throw new System.Exception($"Alignment {al.Name} could not determine pipeline sizes direction!");
+            //if (Arrangement == PipelineSizesArrangement.Unknown)
+            //    throw new System.Exception($"Alignment {al.Name} could not determine pipeline sizes direction!");
             #endregion
 
-            //Filter brs
-            if (brs != default)
-                brs = brs.Where(x =>
-                    IsTransition(x, dynamicBlocks) ||
-                    IsXModel(x, dynamicBlocks)
-                    ).ToHashSet();
+            ////Filter brs
+            //if (brs != default)
+            //    brs = brs.Where(x =>
+            //        IsTransition(x, dynamicBlocks) ||
+            //        IsXModel(x, dynamicBlocks)
+            //        ).ToHashSet();
 
-            //Dispatcher constructor
-            if (brs == default || brs.Count == 0 || Arrangement == PipelineSizesArrangement.OneSize)
-                SizeArray = ConstructWithCurves(al, curves);
-            else SizeArray = ConstructWithBlocks(al, curves, brs, dynamicBlocks);
+            ////Dispatcher constructor
+            //if (brs == default || brs.Count == 0 || Arrangement == PipelineSizesArrangement.OneSize)
+            //    SizeArray = ConstructWithCurves(al, curves);
+            //else SizeArray = ConstructWithBlocks(al, curves, brs, dynamicBlocks);
         }
         private PipelineSizesArrangement DetectArrangement(List<int> list)
         {
