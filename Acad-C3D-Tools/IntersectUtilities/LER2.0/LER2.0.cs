@@ -9,9 +9,6 @@ using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.Civil.DatabaseServices.Styles;
 using Autodesk.Civil.DataShortcuts;
-using Autodesk.Gis.Map;
-using Autodesk.Gis.Map.ObjectData;
-using Autodesk.Gis.Map.Utilities;
 using Autodesk.Aec.PropertyData;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using System;
@@ -54,7 +51,8 @@ using System.Text.Json;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
 using IntersectUtilities.LER2;
-using csdot.Attributes.Types;
+using IntersectUtilities.NTS;
+using NetTopologySuite.Operation.Overlay;
 
 namespace IntersectUtilities
 {
@@ -975,7 +973,7 @@ namespace IntersectUtilities
 
 
                         }
-                        
+
 
                         //log.AppendLine($"New Polyline3d created: {newCount}.");
                         //log.AppendLine($"Old Polyline3d deleted: {deletedCount}.");
@@ -1457,6 +1455,161 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+        }
+
+        [CommandMethod("LER2CREATEPOLYGONS")]
+        public void ler2createpolygons()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            //Process all lines and detect with nodes at both ends
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    string lyrPolygonSource = "LER2POLYGON-SOURCE";
+                    string lyrSplitForGml = "LER2POLYGON-SPLITFORGML";
+                    string lyrPolygonProcessed = "LER2POLYGON-PROCESSED";
+
+                    localDb.CheckOrCreateLayer(lyrPolygonSource);
+                    localDb.CheckOrCreateLayer(lyrSplitForGml);
+                    localDb.CheckOrCreateLayer(lyrPolygonProcessed);
+
+                    var colorGenerator = GetColorGenerator();
+
+                    var plines = localDb.ListOfType<Polyline>(tx).Where(x => x.Layer == lyrPolygonSource);
+
+                    HashSet<Polygon> allPolys = new HashSet<Polygon>();
+                    foreach (var pl in plines)
+                    {
+                        Polygon polygon = NTSConversion.ConvertClosedPlineToNTSPolygon(pl);
+                        double maxArea = 250000;
+
+                        // Perform the polygon splitting
+                        List<Polygon> subPolygons = SplitPolygon(polygon, maxArea);
+
+                        foreach (var subPolygon in subPolygons) allPolys.Add(subPolygon);
+                    }
+
+                    prdDbg($"Created {allPolys.Count} polygon(s)!");
+
+                    foreach (var polygon in allPolys)
+                    {
+                        //Hatch hatch = NTSConversion.ConvertNTSPolygonToHatch(polygon);
+                        //hatch.Color = colorGenerator();
+                        //hatch.AddEntityToDbModelSpace(localDb);
+
+                        MPolygon mpg = NTSConversion.ConvertNTSPolygonToMPolygon(polygon);
+                        mpg.Color = colorGenerator();
+                        mpg.AddEntityToDbModelSpace(localDb);
+                    }
+
+                    //foreach (var pline in plines)
+                    //{
+                    //    pline.CheckOrOpenForWrite();
+                    //    pline.Layer = lyrPolygonProcessed;
+                    //}
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        static List<Polygon> SplitPolygon(Polygon polygon, double maxArea)
+        {
+            List<Polygon> result = new List<Polygon>();
+
+            if (polygon.Area <= maxArea)
+            {
+                result.Add(polygon);
+                return result;
+            }
+
+            Envelope env = polygon.EnvelopeInternal;
+            double dx = env.MaxX - env.MinX;
+            double dy = env.MaxY - env.MinY;
+            Coordinate c1, c2;
+
+            double ratio = Math.Sqrt(maxArea / polygon.Area);
+
+            if (dx >= dy)
+            {
+                c1 = new Coordinate(env.MinX + dx * ratio, env.MinY);
+                c2 = new Coordinate(env.MinX + dx * ratio, env.MaxY);
+            }
+            else
+            {
+                c1 = new Coordinate(env.MinX, env.MinY + dy * ratio);
+                c2 = new Coordinate(env.MaxX, env.MinY + dy * ratio);
+            }
+
+            LineString line = new LineString(new Coordinate[] { c1, c2 });
+            Geometry splitLine = line.Buffer(0.0000001); // Adjust buffer as needed
+
+            Geometry[] pieces = new Geometry[]
+            {
+                polygon.Difference(splitLine),
+                splitLine.Difference(polygon)
+            };
+
+            foreach (var piece in pieces)
+            {
+                if (piece is Polygon part)
+                {
+                    if (IsValidShape(part))
+                    {
+                        result.AddRange(SplitPolygon(part, maxArea));
+                    }
+                }
+                else if (piece is MultiPolygon multiPolygon)
+                {
+                    foreach (Polygon partP in multiPolygon.Geometries)
+                    {
+                        if (IsValidShape(partP))
+                        {
+                            result.AddRange(SplitPolygon(partP, maxArea));
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        static bool IsValidShape(Polygon polygon)
+        {
+            Envelope env = polygon.EnvelopeInternal;
+            double dx = env.MaxX - env.MinX;
+            double dy = env.MaxY - env.MinY;
+
+            // Check the aspect ratio to avoid narrow shapes
+            if (dx == 0 || dy == 0) return false;
+
+            double aspectRatio = Math.Max(dx / dy, dy / dx);
+            return aspectRatio <= 3.0 && polygon.Area > 6.0;
+        }
+
+        public static Func<Color> GetColorGenerator()
+        {
+            List<Color> filteredColors = new List<Color>(AutocadStdColors.Values);
+
+            // Remove first and last entry
+            filteredColors.RemoveAt(0);
+            filteredColors.RemoveAt(filteredColors.Count - 1);
+
+            int index = 0;
+            return () =>
+            {
+                var color = filteredColors[index];
+                index = (index + 1) % filteredColors.Count;
+                return color;
+            };
         }
 
         private class Polyline3dHandleComparer : IEqualityComparer<Polyline3d>

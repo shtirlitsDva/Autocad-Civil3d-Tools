@@ -305,6 +305,7 @@
     <Compile Include="MyGraphQA.cs" />
     <Compile Include="MyGraph.cs" />
     <Compile Include="MyGraphV2.cs" />
+    <Compile Include="NetTopologySuite\NTSConversion.cs" />
     <Compile Include="ObsoleteMethods.cs" />
     <Compile Include="Intersect.cs" />
     <Compile Include="MoreLinq\MoreLinq.cs" />
