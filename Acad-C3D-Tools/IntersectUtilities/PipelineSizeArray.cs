@@ -186,10 +186,10 @@ namespace IntersectUtilities
                     var reducer = reducersOrdered[i];
 
                     if (i == 0) dnsAlongAlignment.Add(
-                        GetDirectionallyCorrectReducerDnWithGraph(al, reducer, Side.Left, dynamicBlocks));
+                        GetDirectionallyCorrectReducerDnWithGraph(al, reducer, Side.Left));
 
                     dnsAlongAlignment.Add(
-                        GetDirectionallyCorrectReducerDnWithGraph(al, reducer, Side.Right, dynamicBlocks));
+                        GetDirectionallyCorrectReducerDnWithGraph(al, reducer, Side.Right));
                 }
                 Arrangement = DetectArrangement(dnsAlongAlignment);
                 prdDbg(string.Join(", ", dnsAlongAlignment) + " -> " + Arrangement);
@@ -204,7 +204,7 @@ namespace IntersectUtilities
                 throw new System.Exception($"Alignment {al.Name} could not determine pipeline sizes direction!");
             #endregion
 
-            //Dispatcher constructor
+            #region Construct Sizes Array
             if (brs == default || brs.Count == 0 || Arrangement == PipelineSizesArrangement.OneSize)
                 SizeArray = ConstructWithCurves(al, curves);
             //else SizeArray = ConstructWithBlocks(al, curves, brs, dynamicBlocks);
@@ -214,7 +214,7 @@ namespace IntersectUtilities
                     IsTransition(x, dynamicBlocks) ||
                     IsXModel(x, dynamicBlocks)).ToHashSet();
 
-                BlockReference[] brsArray = 
+                BlockReference[] brsArray =
                     brs.OrderBy(x => al.StationAtPoint(x)).ToArray();
 
                 List<SizeEntry> sizes = new List<SizeEntry>();
@@ -229,30 +229,127 @@ namespace IntersectUtilities
 
                 for (int i = 0; i < brsArray.Count(); i++)
                 {
-                    var br = brsArray[i];
+                    var curBr = brsArray[i];
 
                     //First iteration case
                     if (i == 0)
                     {
-                        start = 0.0; end = al.StationAtPoint(br);
+                        start = 0.0; end = al.StationAtPoint(curBr);
 
-                        if (IsTransition(br, dynamicBlocks))
+                        if (IsTransition(curBr, dynamicBlocks))
                         {
-                            dn = GetDirectionallyCorrectReducerDnWithGraph(al, br, Side.Left);
+                            dn = GetDirectionallyCorrectReducerDnWithGraph(al, curBr, Side.Left);
                             ps = PipeSystemEnum.Stål;
-                            pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum), 
-                                br.ReadDynamicCsvProperty(DynamicProperty.System, dynamicBlocks), true);
+                            pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
+                                curBr.ReadDynamicCsvProperty(DynamicProperty.System, dynamicBlocks), true);
                             series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
-                                br.ReadDynamicCsvProperty(DynamicProperty.Serie, dynamicBlocks), true);
+                                curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dynamicBlocks), true);
                             kod = PipeSchedule.GetKOd(dn, pt, ps, series);
                         }
-                        
+                        else
+                        {//F-Model og Y-Model
+                            dn = int.Parse(curBr.ReadDynamicCsvProperty(DynamicProperty.DN1, dynamicBlocks));
+                            ps = PipeSystemEnum.Stål;
+                            pt = GetDirectionallyCorrectPropertyWithGraph<PipeTypeEnum>(al, curBr, Side.Left);
+                            series = GetDirectionallyCorrectPropertyWithGraph<PipeSeriesEnum>(al, curBr, Side.Left);
+                            kod = PipeSchedule.GetKOd(dn, pt, ps, series);
+                        }
+
+                        //Adding first entry
+                        sizes.Add(new SizeEntry(dn, start, end, kod, ps, pt, series));
+
+                        //Only one member array case
+                        //This is an edge case of first iteration
+                        if (brsArray.Length == 1)
+                        {
+                            start = end;
+                            end = al.Length;
+
+                            if (PipelineSizeArray.IsTransition(curBr, dynamicBlocks))
+                            {
+                                dn = GetDirectionallyCorrectReducerDnWithGraph(al, curBr, Side.Right);
+                                ps = PipeSystemEnum.Stål;
+                                pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
+                                    curBr.ReadDynamicCsvProperty(DynamicProperty.System, dynamicBlocks), true);
+                                series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
+                                    curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dynamicBlocks), true);
+                                kod = PipeSchedule.GetKOd(dn, pt, ps, series);
+                            }
+                            else
+                            {//F-Model og Y-Model
+                                dn = int.Parse(curBr.ReadDynamicCsvProperty(DynamicProperty.DN1, dynamicBlocks));
+                                ps = PipeSystemEnum.Stål;
+                                pt = GetDirectionallyCorrectPropertyWithGraph<PipeTypeEnum>(al, curBr, Side.Right);
+                                series = GetDirectionallyCorrectPropertyWithGraph<PipeSeriesEnum>(al, curBr, Side.Right);
+                                kod = PipeSchedule.GetKOd(dn, pt, ps, series);
+                            }
+
+                            sizes.Add(new SizeEntry(dn, start, end, kod, ps, pt, series));
+                            //This guards against executing further code
+                            continue;
+                        }
                     }
 
-                    dnsAlongAlignment.Add(
-                        GetDirectionallyCorrectReducerDnWithGraph(al, reducer, Side.Right, dynamicBlocks));
+                    //General case
+                    if (i != brsArray.Length - 1)
+                    {
+                        BlockReference nextBr = brsArray[i + 1];
+                        start = end;
+                        end = al.StationAtPoint(nextBr);
+
+                        if (PipelineSizeArray.IsTransition(curBr, dynamicBlocks))
+                        {
+                            dn = GetDirectionallyCorrectReducerDnWithGraph(al, curBr, Side.Right);
+                            ps = PipeSystemEnum.Stål;
+                            pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
+                                curBr.ReadDynamicCsvProperty(DynamicProperty.System, dynamicBlocks), true);
+                            series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
+                                curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dynamicBlocks), true);
+                            kod = PipeSchedule.GetKOd(dn, pt, ps, series);
+                        }
+                        else
+                        {//F-Model og Y-Model
+                            dn = int.Parse(curBr.ReadDynamicCsvProperty(DynamicProperty.DN1, dynamicBlocks));
+                            ps = PipeSystemEnum.Stål;
+                            pt = GetDirectionallyCorrectPropertyWithGraph<PipeTypeEnum>(al, curBr, Side.Right);
+                            series = GetDirectionallyCorrectPropertyWithGraph<PipeSeriesEnum>(al, curBr, Side.Right);
+                            kod = PipeSchedule.GetKOd(dn, pt, ps, series);
+                        }
+
+                        sizes.Add(new SizeEntry(dn, start, end, kod, ps, pt, series));
+                        //This guards against executing further code
+                        continue;
+                    }
+
+                    //And here ends the last iteration
+                    start = end;
+                    end = al.Length;
+
+                    if (PipelineSizeArray.IsTransition(curBr, dynamicBlocks))
+                    {
+                        dn = GetDirectionallyCorrectReducerDnWithGraph(al, curBr, Side.Right);
+                        ps = PipeSystemEnum.Stål;
+                        pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
+                            curBr.ReadDynamicCsvProperty(DynamicProperty.System, dynamicBlocks), true);
+                        series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
+                            curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dynamicBlocks), true);
+                        kod = PipeSchedule.GetKOd(dn, pt, ps, series);
+                    }
+                    else
+                    {//F-Model og Y-Model
+                        dn = int.Parse(curBr.ReadDynamicCsvProperty(DynamicProperty.DN1, dynamicBlocks));
+                        ps = PipeSystemEnum.Stål;
+                        pt = GetDirectionallyCorrectPropertyWithGraph<PipeTypeEnum>(al, curBr, Side.Right);
+                        series = GetDirectionallyCorrectPropertyWithGraph<PipeSeriesEnum>(al, curBr, Side.Right);
+                        kod = PipeSchedule.GetKOd(dn, pt, ps, series);
+                    }
+
+                    sizes.Add(new SizeEntry(dn, start, end, kod, ps, pt, series));
                 }
-            }
+
+                SizeArray = sizes.ToArray();
+            } 
+            #endregion
         }
         private PipelineSizesArrangement DetectArrangement(List<int> list)
         {
@@ -353,6 +450,30 @@ namespace IntersectUtilities
                 if (br.ReadDynamicCsvProperty(DynamicProperty.Type, dynBlocks, false) == "Afgreningsstuds")
                     return ReadComponentDN2Int(br, dynBlocks);
                 else return ReadComponentDN1Int(br, dynBlocks);
+            }
+
+            else throw new System.Exception("Invalid entity type");
+        }
+        private PipeTypeEnum GetPipeType(Entity entity, System.Data.DataTable dynBlocks)
+        {
+            if (entity is Polyline pline)
+                return PipeSchedule.GetPipeType(pline, true);
+            else if (entity is BlockReference br)
+            {
+                return (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
+                    br.ReadDynamicCsvProperty(DynamicProperty.System, dynBlocks));
+            }
+
+            else throw new System.Exception("Invalid entity type");
+        }
+        private PipeSeriesEnum GetPipeSeries(Entity entity, System.Data.DataTable dynBlocks)
+        {
+            if (entity is Polyline pline)
+                return PipeSchedule.GetPipeSeriesV2(pline, true);
+            else if (entity is BlockReference br)
+            {
+                return (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
+                    br.ReadDynamicCsvProperty(DynamicProperty.Serie, dynBlocks));
             }
 
             else throw new System.Exception("Invalid entity type");
@@ -810,6 +931,146 @@ namespace IntersectUtilities
 
             //If this is reached, something is completely wrong
             throw new Exception($"Finding directionally correct sizes for reducer {br.Handle} failed!");
+            #endregion
+        }
+        private T GetDirectionallyCorrectPropertyWithGraph<T>(Alignment al, BlockReference br, Side side) where T : Enum
+        {
+            if (Graph == null) throw new Exception("Graph is not initialized!");
+            if (!IsXModel(br, dynamicBlocks))
+                throw new Exception($"Method GetDirectionallyCorrectPropertyWithGraph can only be used with \"F- or Y-model\"!");
+
+            Type type = typeof(T);
+
+            //Left side means towards the start
+            //Right side means towards the end
+            double brStation = GetStation(al, br);
+
+            int dn = int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN1, dynamicBlocks));
+
+            //Gather up- and downstream vertici
+            var upstreamVertices = new List<Entity>();
+            var downstreamVertices = new List<Entity>();
+
+            var dfs = new DepthFirstSearchAlgorithm<Entity, Edge<Entity>>(Graph);
+            dfs.TreeEdge += edge =>
+            {
+                if (GetStation(al, edge.Target) > brStation) downstreamVertices.Add(edge.Target);
+                else upstreamVertices.Add(edge.Target);
+            };
+            dfs.Compute(br);
+
+            bool specialCaseSideSearchFailed = false;
+            switch (side)
+            {
+                case Side.Left:
+                    {
+                        if (upstreamVertices.Count != 0)
+                        {
+                            for (int i = 0; i < upstreamVertices.Count; i++)
+                            {
+                                Entity cur = upstreamVertices[i];
+
+                                switch (type)
+                                {
+                                    case Type t when t == typeof(PipeTypeEnum):
+                                        {
+                                            PipeTypeEnum result = GetPipeType(cur, dynamicBlocks);
+                                            if (result != PipeTypeEnum.Ukendt) return (T)Convert.ChangeType(result, type); 
+                                        }
+                                        break;
+                                    case Type t when t == typeof(PipeSeriesEnum):
+                                        {
+                                            PipeSeriesEnum result = this.GetPipeSeries(cur, dynamicBlocks);
+                                            if (result != PipeSeriesEnum.Undefined) return (T)Convert.ChangeType(result, type);
+                                        }
+                                        break;
+                                    default:
+                                        throw new System.Exception($"Unhandled Type {type} is not supported!");
+                                }
+
+                            }
+                            //If this is reached it means somehow all elements failed to deliver a DN
+                            specialCaseSideSearchFailed = true;
+                        }
+                        else specialCaseSideSearchFailed = true;
+                    }
+                    break;
+                case Side.Right:
+                    {
+                        if (downstreamVertices.Count != 0)
+                        {
+                            for (int i = 0; i < downstreamVertices.Count; i++)
+                            {
+                                Entity cur = downstreamVertices[i];
+
+                                switch (type)
+                                {
+                                    case Type t when t == typeof(PipeTypeEnum):
+                                        {
+                                            PipeTypeEnum result = GetPipeType(cur, dynamicBlocks);
+                                            if (result != PipeTypeEnum.Ukendt) return (T)Convert.ChangeType(result, type);
+                                        }
+                                        break;
+                                    case Type t when t == typeof(PipeSeriesEnum):
+                                        {
+                                            PipeSeriesEnum result = this.GetPipeSeries(cur, dynamicBlocks);
+                                            if (result != PipeSeriesEnum.Undefined) return (T)Convert.ChangeType(result, type);
+                                        }
+                                        break;
+                                    default:
+                                        throw new System.Exception($"Unhandled Type {type} is not supported!");
+                                }
+                            }
+                            //If this is reached it means somehow all elements failed to deliver a DN
+                            specialCaseSideSearchFailed = true;
+                        }
+                        else specialCaseSideSearchFailed = true;
+                    }
+                    break;
+            }
+
+            #region Special case where the reducer is first or last element
+            //Skip this for now, can return back to this if it becomes a problem
+
+            //if (specialCaseSideSearchFailed)
+            //{
+            //    //Use the other side to determine the asked for size
+            //    List<Entity> list;
+            //    if (side == Side.Left) list = downstreamVertices;
+            //    else list = upstreamVertices;
+
+            //    if (list.Count != 0)
+            //    {
+            //        for (int i = 0; i < list.Count; i++)
+            //        {
+            //            Entity cur = list[i];
+
+            //            switch (type)
+            //            {
+            //                case Type t when t == typeof(PipeTypeEnum):
+            //                    {
+            //                        PipeTypeEnum result = GetPipeType(cur, dynamicBlocks);
+            //                        if (result != PipeTypeEnum.Ukendt) return (T)Convert.ChangeType(result, type);
+            //                    }
+            //                    break;
+            //                case Type t when t == typeof(PipeSeriesEnum):
+            //                    {
+            //                        PipeSeriesEnum result = this.GetPipeSeries(cur, dynamicBlocks);
+            //                        if (result != PipeSeriesEnum.Undefined) return (T)Convert.ChangeType(result, type);
+            //                    }
+            //                    break;
+            //                default:
+            //                    throw new System.Exception($"Unhandled Type {type} is not supported!");
+            //            }
+            //        }
+            //        //If this is reached it means somehow BOTH sides failed to deliver a DN
+            //        specialCaseSideSearchFailed = true;
+            //    }
+            //    else specialCaseSideSearchFailed = true;
+            //}
+
+            //If this is reached, something is completely wrong
+            throw new Exception($"Finding directionally correct properties for X-Model {br.Handle} failed!");
             #endregion
         }
         private int GetDirectionallyCorrectDn(BlockReference br, Side side, System.Data.DataTable dt)

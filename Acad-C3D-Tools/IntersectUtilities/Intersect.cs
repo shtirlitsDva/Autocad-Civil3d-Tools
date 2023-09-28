@@ -54,6 +54,7 @@ using IntersectUtilities.DynamicBlocks;
 using System.Diagnostics;
 using System.Runtime;
 using System.Text.Json;
+using IntersectUtilities.Forms;
 
 namespace IntersectUtilities
 {
@@ -77,7 +78,7 @@ namespace IntersectUtilities
                 new ResolveEventHandler(QuikGraph_AssemblyResolve);
 #endif
 
-            prdDbg("IntersectUtilites loaded!");
+            prdDbg("IntersectUtilites loaded!\n");
         }
 
         public void Terminate()
@@ -4064,7 +4065,7 @@ namespace IntersectUtilities
                             #endregion
 
                             PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
-                            //prdDbg(sizeArray.ToString());
+                            prdDbg(al.Name + "\n" + sizeArray.ToString());
                         }
                     }
                     catch (System.Exception ex)
@@ -8259,9 +8260,6 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            string alName = Interaction.GetString("Type alignment name: ", true);
-            if (alName.IsNoE()) return;
-
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -8294,21 +8292,32 @@ namespace IntersectUtilities
 
                     var ents = localDb.GetFjvEntities(tx, dt, false, false, true);
 
-                    var result = ents.Where(x => psmPipeLineData
-                        .FilterPropetyString(x, driPipelineData.BelongsToAlignment, alName))
+                    var list = ents.Select(
+                        x => psmPipeLineData.ReadPropertyString(x, driPipelineData.BelongsToAlignment))
+                        .Distinct().OrderBy(x => x);
+
+                    StringGridForm sgf = new StringGridForm(list);
+                    sgf.ShowDialog();
+
+                    if (sgf.SelectedValue != null)
+                    {
+                        var result = ents.Where(x => psmPipeLineData
+                        .FilterPropetyString(x, driPipelineData.BelongsToAlignment, sgf.SelectedValue))
                         .Select(x => x.Id)
                         .ToArray();
 
-                    if (result.Length == 0)
-                    {
-                        prdDbg("No entities found with this alignment name!");
-                        tx.Abort();
-                        return;
-                    }
+                        if (result.Length == 0)
+                        {
+                            prdDbg("No entities found with this alignment name!");
+                            tx.Abort();
+                            return;
+                        }
 
-                    docCol.MdiActiveDocument.Editor.SetImpliedSelection(
-                        result
-                        );
+                        docCol.MdiActiveDocument.Editor.SetImpliedSelection(
+                            result
+                            );
+                    }
+                    else { prdDbg("Cancelled!"); }
                 }
                 catch (System.Exception ex)
                 {
