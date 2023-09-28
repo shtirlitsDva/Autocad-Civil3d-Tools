@@ -913,6 +913,7 @@ namespace IntersectUtilities
                     }
                 case PipeTypeEnum.Frem:
                 case PipeTypeEnum.Retur:
+                case PipeTypeEnum.Enkelt:
                     switch (pipeSystem)
                     {
                         case PipeSystemEnum.Ukendt:
@@ -953,6 +954,7 @@ namespace IntersectUtilities
                     }
                 case PipeTypeEnum.Frem:
                 case PipeTypeEnum.Retur:
+                case PipeTypeEnum.Enkelt:
                     switch (ps)
                     {
                         case PipeSystemEnum.Ukendt:
