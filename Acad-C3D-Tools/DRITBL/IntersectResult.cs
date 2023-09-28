@@ -42,7 +42,7 @@ namespace IntersectUtilities.DRITBL
         public IntersectResultPipe()
         {
             IntersectType = IntersectType.Pipe;
-            Navn = "Rør præsioleret";
+            Navn = "Rør præisoleret";
         }
         public double Length { get; set; }
         public override string ToString(ExportType exportType) => 
