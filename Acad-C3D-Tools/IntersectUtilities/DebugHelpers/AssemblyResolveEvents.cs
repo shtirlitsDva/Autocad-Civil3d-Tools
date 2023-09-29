@@ -13,25 +13,32 @@ namespace IntersectUtilities
             string assemblyFolder = @"X:\GitHub\shtirlitsDva\Autocad-Civil3d-Tools\Acad-C3D-Tools\IntersectUtilities\bin\Debug";
             prdDbg($"Asked for assembly: {args.Name}!");
 
-            if (args.Name.Equals("QuikGraph"))
+            var name = args.Name.Split(',')[0];
+
+            switch (name)
             {
-                string filePath = Path.Combine(assemblyFolder, "QuikGraph.dll");
-                return Assembly.LoadFrom(filePath);
-            }
-            else if (args.Name.Equals("QuikGraph.Graphviz"))
-            {
-                string filePath = Path.Combine(assemblyFolder, "QuikGraph.Graphviz.dll");
-                return Assembly.LoadFrom(filePath);
-            }
-            else if (args.Name.Equals("NetTopologySuite"))
-            {
-                string filePath = Path.Combine(assemblyFolder, "NetTopologySuite.dll");
-                return Assembly.LoadFrom(filePath);
-            }
-            else if (args.Name.Equals("Accord.MachineLearning"))
-            {
-                string filePath = Path.Combine(assemblyFolder, "Accord.MachineLearning.dll");
-                return Assembly.LoadFrom(filePath);
+                case "QuikGraph":
+                    {
+                        string filePath = Path.Combine(assemblyFolder, "QuikGraph.dll");
+                        return Assembly.LoadFrom(filePath);
+                    }
+                case "QuikGraph.Graphviz":
+                    {
+                        string filePath = Path.Combine(assemblyFolder, "QuikGraph.Graphviz.dll");
+                        return Assembly.LoadFrom(filePath);
+                    }
+                case "NetTopologySuite":
+                    {
+                        string filePath = Path.Combine(assemblyFolder, "NetTopologySuite.dll");
+                        return Assembly.LoadFrom(filePath);
+                    }
+                case "Accord.MachineLearning":
+                    {
+                        string filePath = Path.Combine(assemblyFolder, "Accord.MachineLearning.dll");
+                        return Assembly.LoadFrom(filePath);
+                    }
+                default:
+                    break;
             }
 
             return null;

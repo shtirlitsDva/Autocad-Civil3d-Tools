@@ -1462,8 +1462,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("LER2CREATEPOLYGONS")]
-        public void ler2createpolygons()
+        public void ler2createpolygonsOLD()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -1526,16 +1525,13 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("LER2CP2")]
-        public void ler2createpolygons2()
+        [CommandMethod("LER2SPLITIRREGULAR")]
+        public void ler2splitirregular()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
             CultureInfo dk = new CultureInfo("da-DK");
-
-            int distance = Interaction.GetInteger("Input distance between cluster points: ");
-            if (distance < 0) return;
 
             //Process all lines and detect with nodes at both ends
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -1559,16 +1555,11 @@ namespace IntersectUtilities
                     {
                         Polygon polygon = NTSConversion.ConvertClosedPlineToNTSPolygon(pl);
                         double maxArea = 245000;
-                        //double maxArea = 4500;
 
-                        //if (polygon.Area < maxArea * 3)
-                        //{
-                        //    prdDbg($"Polygon {pl.Handle} har areal mindre end 245.000 x 3. Opdel manuelt!");
-                        //    continue;
-                        //}
+                        int distance = (int)Math.Sqrt(polygon.EnvelopeInternal.Area / 1350);
 
                         var allPoints = GeneratePoints(polygon, distance);
-                        prdDbg($"Number of Points in grid: {allPoints.NumPoints}.");
+                        prdDbg($"Number of Points in grid: {allPoints.NumPoints} with distance {distance}.");
 
                         int K = (int)(polygon.Area / maxArea) + 1;
 
@@ -1576,13 +1567,12 @@ namespace IntersectUtilities
 
                         double targetArea = polygon.Area / K;
 
-                        prdDbg($"Expecting {K} polygons, target area: {(polygon.Area / K).ToString("N2", dk)}.");
-
                         Stopwatch sw = Stopwatch.StartNew();
                         var clipPoints = polygon.Intersection(allPoints);
                         sw.Stop();
                         prdDbg($"Number of Points after intersection: {clipPoints.NumPoints}.\n" +
                             $"Intersect time: {sw.Elapsed}.");
+                        prdDbg($"Expecting {K} polygons, target area: {(polygon.Area / K).ToString("N2", dk)}.");
 
                         //NTSConversion.ConvertNTSMultiPointToDBPoints(clipPoints, localDb);
                         int maxIter = 100;
@@ -1651,7 +1641,6 @@ namespace IntersectUtilities
             builder.Tolerance = 0.0;
             return builder.GetDiagram(NtsGeometryServices.Instance.CreateGeometryFactory());
         }
-
         static double[][] ConvertGeometryToDoubleArray(Geometry geom)
         {
             var coordinates = geom.Coordinates;
@@ -1664,7 +1653,6 @@ namespace IntersectUtilities
 
             return array;
         }
-
         private static MultiPoint GeneratePoints(Polygon polygon, int distance)
         {
             int minX = (int)polygon.EnvelopeInternal.MinX - 1;
@@ -1692,7 +1680,6 @@ namespace IntersectUtilities
 
             return new MultiPoint(coordinates.ToArray());
         }
-
         private static List<Polygon> SplitPolygon(Polygon polygon, double maxArea)
         {
             List<Polygon> result = new List<Polygon>();
@@ -1753,7 +1740,6 @@ namespace IntersectUtilities
 
             return result;
         }
-
         private static bool IsValidShape(Polygon polygon)
         {
             Envelope env = polygon.EnvelopeInternal;
@@ -1765,6 +1751,121 @@ namespace IntersectUtilities
 
             double aspectRatio = Math.Max(dx / dy, dy / dx);
             return aspectRatio <= 3.0 && polygon.Area > 6.0;
+        }
+
+        [CommandMethod("LER2SPLITRECTANGULAR")]
+        public void ler2splitrectangular()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            CultureInfo dk = new CultureInfo("da-DK");
+
+            //Process all lines and detect with nodes at both ends
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    string lyrPolygonSource = "LER2POLYGON-SOURCE";
+                    string lyrSplitForGml = "LER2POLYGON-SPLITFORGML";
+                    string lyrPolygonProcessed = "LER2POLYGON-PROCESSED";
+
+                    localDb.CheckOrCreateLayer(lyrPolygonSource);
+                    localDb.CheckOrCreateLayer(lyrSplitForGml);
+                    localDb.CheckOrCreateLayer(lyrPolygonProcessed);
+
+                    var colorGenerator = GetColorGenerator();
+
+                    var plines = localDb.ListOfType<Polyline>(tx).Where(x => x.Layer == lyrPolygonSource);
+
+                    foreach (var pl in plines)
+                    {
+                        Polygon polygon = NTSConversion.ConvertClosedPlineToNTSPolygon(pl);
+                        double maxArea = 250000;
+                        
+                        var result = SplitRectangle(polygon, maxArea);
+
+                        prdDbg($"For polygon {pl.Handle} created {result.Count} polygon(s)!");
+
+                        foreach (var split in result.OrderByDescending(x => x.Area))
+                        {
+                            var mpg = NTSConversion.ConvertNTSPolygonToMPolygon(split);
+                            mpg.AddEntityToDbModelSpace(localDb);
+                            mpg.Color = colorGenerator();
+
+                            double actualArea = Math.Abs(mpg.Area);
+
+                            string warning = actualArea > maxArea ? " -> !!!Over MAX!!!" : "";
+
+                            prdDbg($"{actualArea.ToString("N2", dk)} " +
+                                $"{((actualArea - maxArea) / maxArea * 100).ToString("N1", dk)}%" +
+                                warning);
+                        }
+                    }
+
+                    //foreach (var pline in plines)
+                    //{
+                    //    pline.CheckOrOpenForWrite();
+                    //    pline.Layer = lyrPolygonProcessed;
+                    //}
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        public static List<Polygon> SplitRectangle(Polygon rectangle, double targetArea)
+        {
+            var result = new List<Polygon>();
+
+            double rectWidth = rectangle.EnvelopeInternal.Width;
+            double rectHeight = rectangle.EnvelopeInternal.Height;
+            double rectMinX = rectangle.EnvelopeInternal.MinX;
+            double rectMinY = rectangle.EnvelopeInternal.MinY;
+
+            double aspectRatio = rectWidth / rectHeight;
+            int totalDivisions = (int)Math.Ceiling(rectWidth * rectHeight / targetArea);
+
+            int divisionsWidth = (int)Math.Round(Math.Sqrt(totalDivisions * aspectRatio));
+            int divisionsHeight = (int)Math.Round((double)totalDivisions / divisionsWidth);
+
+            while (divisionsWidth * divisionsHeight < totalDivisions)
+            {
+                divisionsWidth++;
+                divisionsHeight = (int)Math.Round((double)totalDivisions / divisionsWidth);
+            }
+
+            double stepWidth = rectWidth / divisionsWidth;
+            double stepHeight = rectHeight / divisionsHeight;
+
+            for (int i = 0; i < divisionsWidth; i++)
+            {
+                for (int j = 0; j < divisionsHeight; j++)
+                {
+                    double minX = rectMinX + i * stepWidth;
+                    double minY = rectMinY + j * stepHeight;
+                    double maxX = minX + stepWidth;
+                    double maxY = minY + stepHeight;
+
+                    Polygon subRectangle = new Polygon(new LinearRing(new Coordinate[]
+                    {
+                    new Coordinate(minX, minY),
+                    new Coordinate(minX, maxY),
+                    new Coordinate(maxX, maxY),
+                    new Coordinate(maxX, minY),
+                    new Coordinate(minX, minY)
+                    }));
+
+                    result.Add(subRectangle);
+                }
+            }
+
+            return result;
         }
 
         public static Func<Color> GetColorGenerator()
@@ -1783,7 +1884,6 @@ namespace IntersectUtilities
                 return color;
             };
         }
-
         private class Polyline3dHandleComparer : IEqualityComparer<Polyline3d>
         {
             public bool Equals(Polyline3d x, Polyline3d y)
@@ -1802,7 +1902,6 @@ namespace IntersectUtilities
                 return obj.Handle.GetHashCode();
             }
         }
-
         private static bool PropertiesAreEqual(
                         Dictionary<string, object> d1,
                         Dictionary<string, object> d2,
