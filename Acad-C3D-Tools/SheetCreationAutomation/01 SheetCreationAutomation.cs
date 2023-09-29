@@ -210,12 +210,17 @@ namespace SheetCreationAutomation
 
                                     //Create reference to profiles
                                     //Determine the pipeline number
-                                    Regex regex = new Regex(@"(?<number>\d{2,3}?\s)");
+                                    Regex regexOld = new Regex(@"(?<number>\d{2,3}\s)");
+                                    Regex regexNew = new Regex(@"(?<number>\d{2,3})");
 
                                     string number = "";
-                                    if (regex.IsMatch(item.Name))
+                                    if (regexNew.IsMatch(item.Name))
+                                        number = regexNew.Match(item.Name).Groups["number"].Value;
+                                    else if (regexOld.IsMatch(item.Name))
+                                        number = regexOld.Match(item.Name).Groups["number"].Value;
+
+                                    if (!number.IsNoE())
                                     {
-                                        number = regex.Match(item.Name).Groups["number"].Value;
                                         prdDbg($"Strækning navn: {item.Name} -> Number: {number}");
 
                                         for (int j = 0; j < publishedCount; j++)
