@@ -1616,12 +1616,6 @@ namespace IntersectUtilities
                                 warning);
                         }
                     }
-
-                    //foreach (var pline in plines)
-                    //{
-                    //    pline.CheckOrOpenForWrite();
-                    //    pline.Layer = lyrPolygonProcessed;
-                    //}
                 }
                 catch (System.Exception ex)
                 {
@@ -1804,12 +1798,6 @@ namespace IntersectUtilities
                                 warning);
                         }
                     }
-
-                    //foreach (var pline in plines)
-                    //{
-                    //    pline.CheckOrOpenForWrite();
-                    //    pline.Layer = lyrPolygonProcessed;
-                    //}
                 }
                 catch (System.Exception ex)
                 {
@@ -1820,7 +1808,6 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
         public static List<Polygon> SplitRectangle(Polygon rectangle, double targetArea)
         {
             var result = new List<Polygon>();
@@ -1868,6 +1855,38 @@ namespace IntersectUtilities
             }
 
             return result;
+        }
+
+        [CommandMethod("LER2EXPORT2LER2")]
+        public void ler2export2ler2()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            CultureInfo dk = new CultureInfo("da-DK");
+
+            //Process all lines and detect with nodes at both ends
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    string lyrSplitForGml = "LER2POLYGON-SPLITFORGML";
+
+                    HashSet<MPolygon> mpgs = localDb.HashSetOfType<MPolygon>(tx);
+
+                    foreach (var mpg in mpgs)
+                    {
+                        
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
         }
 
         public static Func<Color> GetColorGenerator()
