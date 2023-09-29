@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
+using Autodesk.AutoCAD.Runtime;
 
 using IntersectUtilities.UtilsCommon;
 using NetTopologySuite.Geometries;
@@ -83,6 +84,58 @@ namespace IntersectUtilities.NTS
             mpg.AppendLoopFromBoundary(polyline, true, Tolerance.Global.EqualPoint);
             
             return mpg;
+        }
+        public static void ConvertNTSMultiPointToDBPoints(Geometry mp, Database db)
+        {
+            var pm = new ProgressMeter();
+            pm.Start("Creating DBPoints");
+            pm.SetLimit(mp.NumPoints);
+            for (int i = 0; i < mp.NumPoints; i++)
+            {
+                Coordinate co = mp.Coordinates[i];
+
+                var point = new DBPoint(new Point3d(co.X, co.Y, 0));
+                point.AddEntityToDbModelSpace(db);
+                pm.MeterProgress();
+            }
+            pm.Stop();
+        }
+        public static Coordinate[][] GetClusteredCoordinates(double[][] data, int K, int[] clustering)
+        {
+            // Step 1: Count the number of points in each cluster
+            int[] clusterCounts = new int[K];
+            for (int i = 0; i < clustering.Length; ++i)
+            {
+                int clusterIndex = clustering[i];
+                clusterCounts[clusterIndex]++;
+            }
+
+            // Step 2: Create arrays for each cluster
+            Coordinate[][] clusteredCoordinates = new Coordinate[K][];
+            for (int k = 0; k < K; ++k)
+            {
+                clusteredCoordinates[k] = new Coordinate[clusterCounts[k]];
+            }
+
+            // Step 3: Reset cluster counts for indexing
+            for (int k = 0; k < K; ++k)
+            {
+                clusterCounts[k] = 0;
+            }
+
+            // Step 4: Fill the arrays with coordinates
+            int n = data.Length;
+            for (int i = 0; i < n; ++i)  // Process each data point
+            {
+                int k = clustering[i];  // Cluster for current data point
+                                        // Assuming each data point is a 2D point
+                Coordinate coord = new Coordinate(data[i][0], data[i][1]);
+                int index = clusterCounts[k];
+                clusteredCoordinates[k][index] = coord;
+                clusterCounts[k]++;
+            }
+
+            return clusteredCoordinates;  // Array of arrays of coordinates, organized by cluster
         }
     }
 

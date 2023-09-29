@@ -52,7 +52,12 @@ using System.Text.Encodings.Web;
 using System.Text.Unicode;
 using IntersectUtilities.LER2;
 using IntersectUtilities.NTS;
-using NetTopologySuite.Operation.Overlay;
+using Point = NetTopologySuite.Geometries.Point;
+using System.Diagnostics;
+//using IntersectUtilities.NSAlgorithms;
+using NetTopologySuite.Triangulate;
+using NetTopologySuite;
+using Accord.MachineLearning;
 
 namespace IntersectUtilities
 {
@@ -1521,7 +1526,174 @@ namespace IntersectUtilities
             }
         }
 
-        static List<Polygon> SplitPolygon(Polygon polygon, double maxArea)
+        [CommandMethod("LER2CP2")]
+        public void ler2createpolygons2()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            CultureInfo dk = new CultureInfo("da-DK");
+
+            int distance = Interaction.GetInteger("Input distance between cluster points: ");
+            if (distance < 0) return;
+
+            //Process all lines and detect with nodes at both ends
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    string lyrPolygonSource = "LER2POLYGON-SOURCE";
+                    string lyrSplitForGml = "LER2POLYGON-SPLITFORGML";
+                    string lyrPolygonProcessed = "LER2POLYGON-PROCESSED";
+
+                    localDb.CheckOrCreateLayer(lyrPolygonSource);
+                    localDb.CheckOrCreateLayer(lyrSplitForGml);
+                    localDb.CheckOrCreateLayer(lyrPolygonProcessed);
+
+                    var colorGenerator = GetColorGenerator();
+
+                    var plines = localDb.ListOfType<Polyline>(tx).Where(x => x.Layer == lyrPolygonSource);
+
+                    HashSet<Polygon> allPolys = new HashSet<Polygon>();
+                    foreach (var pl in plines)
+                    {
+                        Polygon polygon = NTSConversion.ConvertClosedPlineToNTSPolygon(pl);
+                        double maxArea = 245000;
+                        //double maxArea = 4500;
+
+                        //if (polygon.Area < maxArea * 3)
+                        //{
+                        //    prdDbg($"Polygon {pl.Handle} har areal mindre end 245.000 x 3. Opdel manuelt!");
+                        //    continue;
+                        //}
+
+                        var allPoints = GeneratePoints(polygon, distance);
+                        prdDbg($"Number of Points in grid: {allPoints.NumPoints}.");
+
+                        int K = (int)(polygon.Area / maxArea) + 1;
+
+                        if (K < 1) K = 1;
+
+                        double targetArea = polygon.Area / K;
+
+                        prdDbg($"Expecting {K} polygons, target area: {(polygon.Area / K).ToString("N2", dk)}.");
+
+                        Stopwatch sw = Stopwatch.StartNew();
+                        var clipPoints = polygon.Intersection(allPoints);
+                        sw.Stop();
+                        prdDbg($"Number of Points after intersection: {clipPoints.NumPoints}.\n" +
+                            $"Intersect time: {sw.Elapsed}.");
+
+                        //NTSConversion.ConvertNTSMultiPointToDBPoints(clipPoints, localDb);
+                        int maxIter = 100;
+
+                        var data = ConvertGeometryToDoubleArray(clipPoints);
+
+                        sw = Stopwatch.StartNew();
+
+                        BalancedKMeans km = new BalancedKMeans(K)
+                        {
+                            MaxIterations = maxIter,
+                            Tolerance = 1.0e-7,
+                            UseSeeding = Seeding.Uniform,
+                        };
+
+                        var clusters = km.Learn(data);
+                        sw.Stop(); prdDbg($"Clustering time: {sw.Elapsed}.");
+
+                        var sites = km.Centroids.Select(x => new Coordinate(x[0], x[1])).ToList();
+
+                        var diagram = GenerateVoronoiPolygons(sites, polygon.EnvelopeInternal);
+                        var result = diagram.Select(x => polygon.Intersection(x));
+
+                        prdDbg($"For polygon {pl.Handle} created {diagram.NumGeometries} polygon(s)!");
+
+                        foreach (var face in result.OrderByDescending(x => x.Area))
+                        {
+                            var clip = polygon.Intersection(face);
+
+                            var mpg = NTSConversion.ConvertNTSPolygonToMPolygon((Polygon)clip);
+                            mpg.AddEntityToDbModelSpace(localDb);
+                            mpg.Color = colorGenerator();
+
+                            double actualArea = Math.Abs(mpg.Area);
+
+                            string warning = actualArea > 250000 ? " -> !!!Over MAX!!!" : "";
+
+                            prdDbg($"{actualArea.ToString("N2", dk)} " +
+                                $"{((actualArea - targetArea) / targetArea * 100).ToString("N1", dk)}%" +
+                                warning);
+                        }
+                    }
+
+                    //foreach (var pline in plines)
+                    //{
+                    //    pline.CheckOrOpenForWrite();
+                    //    pline.Layer = lyrPolygonProcessed;
+                    //}
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        static GeometryCollection GenerateVoronoiPolygons(ICollection<Coordinate> sites, Envelope envelope)
+        {
+            var builder = new VoronoiDiagramBuilder();
+            builder.SetSites(sites);
+            builder.ClipEnvelope = envelope;
+            //builder.ClipEnvelope = envelope;
+            builder.Tolerance = 0.0;
+            return builder.GetDiagram(NtsGeometryServices.Instance.CreateGeometryFactory());
+        }
+
+        static double[][] ConvertGeometryToDoubleArray(Geometry geom)
+        {
+            var coordinates = geom.Coordinates;
+            var array = new double[coordinates.Length][];
+
+            for (int i = 0; i < coordinates.Length; i++)
+            {
+                array[i] = new double[] { coordinates[i].X, coordinates[i].Y };
+            }
+
+            return array;
+        }
+
+        private static MultiPoint GeneratePoints(Polygon polygon, int distance)
+        {
+            int minX = (int)polygon.EnvelopeInternal.MinX - 1;
+            int minY = (int)polygon.EnvelopeInternal.MinY - 1;
+            int maxX = (int)polygon.EnvelopeInternal.MaxX + 1;
+            int maxY = (int)polygon.EnvelopeInternal.MaxY + 1;
+
+            int deltaX = (maxX - minX) / distance + 1;
+            int deltaY = (maxY - minY) / distance + 1;
+
+            var coordinates = new HashSet<Point>();
+
+            var pm = new ProgressMeter();
+            pm.Start("Creating grid points!");
+            pm.SetLimit(deltaX * deltaY);
+
+            for (int i = 0; i < deltaX; i++)
+                for (int j = 0; j < deltaY; j++)
+                {
+                    coordinates.Add(new Point(new Coordinate(minX + i * distance, minY + j * distance)));
+                    pm.MeterProgress();
+                }
+
+            pm.Stop();
+
+            return new MultiPoint(coordinates.ToArray());
+        }
+
+        private static List<Polygon> SplitPolygon(Polygon polygon, double maxArea)
         {
             List<Polygon> result = new List<Polygon>();
 
@@ -1582,7 +1754,7 @@ namespace IntersectUtilities
             return result;
         }
 
-        static bool IsValidShape(Polygon polygon)
+        private static bool IsValidShape(Polygon polygon)
         {
             Envelope env = polygon.EnvelopeInternal;
             double dx = env.MaxX - env.MinX;
