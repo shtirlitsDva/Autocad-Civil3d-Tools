@@ -1605,6 +1605,7 @@ namespace IntersectUtilities
                             var mpg = NTSConversion.ConvertNTSPolygonToMPolygon((Polygon)clip);
                             mpg.AddEntityToDbModelSpace(localDb);
                             mpg.Color = colorGenerator();
+                            mpg.Layer = lyrSplitForGml;
 
                             double actualArea = Math.Abs(mpg.Area);
 
@@ -1792,6 +1793,7 @@ namespace IntersectUtilities
                             var mpg = NTSConversion.ConvertNTSPolygonToMPolygon(split);
                             mpg.AddEntityToDbModelSpace(localDb);
                             mpg.Color = colorGenerator();
+                            mpg.Layer = lyrSplitForGml;
 
                             double actualArea = Math.Abs(mpg.Area);
 
