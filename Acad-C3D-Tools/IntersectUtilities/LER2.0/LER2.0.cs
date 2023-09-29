@@ -1612,7 +1612,7 @@ namespace IntersectUtilities
                             string warning = actualArea > 250000 ? " -> !!!Over MAX!!!" : "";
 
                             prdDbg($"{actualArea.ToString("N2", dk)} " +
-                                $"{((actualArea - targetArea) / targetArea * 100).ToString("N1", dk)}%" +
+                                $"{((actualArea - maxArea) / maxArea * 100).ToString("N1", dk)}%" +
                                 warning);
                         }
                     }
