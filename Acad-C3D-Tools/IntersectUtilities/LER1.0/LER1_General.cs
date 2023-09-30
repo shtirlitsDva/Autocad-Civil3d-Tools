@@ -508,7 +508,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -641,42 +641,6 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("FLATTENPL3D")]
-        public void flattenpl3d()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    #region Polylines 3d
-
-                    Oid id = Interaction.GetEntity("Select Polyline3d to flatten: ", typeof(Polyline3d));
-                    Polyline3d p3d = id.Go<Polyline3d>(tx, OpenMode.ForWrite);
-
-                    PolylineVertex3d[] vertices = p3d.GetVertices(tx);
-
-                    for (int i = 0; i < vertices.Length; i++)
-                    {
-                        vertices[i].CheckOrOpenForWrite();
-                        vertices[i].Position = new Point3d(
-                            vertices[i].Position.X, vertices[i].Position.Y, 0);
-                    }
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex.ToString());
-                    return;
-                }
-                tx.Commit();
-            }
-
-        }
-
         [CommandMethod("QAVANDDATA")]
         public void qapsdata()
         {
@@ -725,7 +689,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -780,7 +744,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();

@@ -899,16 +899,16 @@ namespace IntersectUtilities
 
 
                     string dimString = Interaction.GetKeywords("Select dimension: ", gasDims.ToArray());
-                    if (dimString.IsNoE()) { AbortGracefully(tx, "User abort!"); return; }
+                    if (dimString.IsNoE()) { AbortGracefully("User abort!", localDb); return; }
                     string material = Interaction.GetKeywords("Select material: ", gasMats.ToArray());
-                    if (material.IsNoE()) { AbortGracefully(tx, "User abort!"); return; }
+                    if (material.IsNoE()) { AbortGracefully("User abort!", localDb); return; }
                     string status = Interaction.GetKeywords("Select status: ", gasStatus.ToArray());
-                    if (status.IsNoE()) { AbortGracefully(tx, "User abort!"); return; }
+                    if (status.IsNoE()) { AbortGracefully("User abort!", localDb); return; }
 
                     int dim = Convert.ToInt32(dimString);
 
                     Oid id = Interaction.GetEntity("Select gas pipe: ", typeof(Polyline));
-                    if (id == Oid.Null) { AbortGracefully(tx, "Pipe selection error!"); return; }
+                    if (id == Oid.Null) { AbortGracefully("Pipe selection error!", localDb); return; }
 
                     Polyline pline = id.Go<Polyline>(tx);
                     pline.CheckOrOpenForWrite();
@@ -928,7 +928,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -1074,7 +1074,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -1428,76 +1428,6 @@ namespace IntersectUtilities
                 {
                     tx.Abort();
                     prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
-
-        [CommandMethod("GASMOVETOELEVATION")]
-        public void gasmovetoelevation()
-        {
-
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    #region Lines
-                    ///////////////////////////
-                    double lineThreshold = -1;
-                    double targetElevation = 0;
-                    ///////////////////////////
-
-                    HashSet<Line> lines = localDb.HashSetOfType<Line>(tx, true);
-                    foreach (Line line in lines)
-                    {
-                        if (line.StartPoint.Z < lineThreshold)
-                        {
-                            line.CheckOrOpenForWrite();
-
-                            line.StartPoint = new Point3d(
-                                line.StartPoint.X, line.StartPoint.Y, targetElevation);
-                        }
-                        if (line.EndPoint.Z < lineThreshold)
-                        {
-                            line.CheckOrOpenForWrite();
-
-                            line.EndPoint = new Point3d(
-                                line.EndPoint.X, line.EndPoint.Y, targetElevation);
-                        }
-                    }
-                    #endregion
-
-                    #region Polylines2d
-                    ////////////////////////
-                    double plineThreshold = -1;
-                    //Reuse target elevation from above
-                    ////////////////////////
-
-                    HashSet<Polyline> plines = localDb.HashSetOfType<Polyline>(tx, true);
-                    foreach (Polyline pline in plines)
-                    {
-                        if (pline.Elevation < plineThreshold)
-                        {
-                            pline.CheckOrOpenForWrite();
-                            pline.Elevation = targetElevation;
-                        }
-                    }
-
-
-                    #endregion
-
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
                     return;
                 }
                 tx.Commit();

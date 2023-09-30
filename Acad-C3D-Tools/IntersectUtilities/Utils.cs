@@ -95,16 +95,34 @@ namespace IntersectUtilities
             //Clear the output file
             System.IO.File.WriteAllBytes(fullPathAndName, new byte[0]);
         }
-        public static void OutputWriter(string fullPathAndName, string sr, bool clearFile = false)
+        public static void OutputWriter(string fullPathAndName, string sr, bool clearFile = false, bool useBOM = true)
         {
             if (clearFile) System.IO.File.WriteAllBytes(fullPathAndName, new byte[0]);
 
-            // Write to output file
-            using (StreamWriter w = new StreamWriter(fullPathAndName, true, Encoding.UTF8))
+            if (useBOM)
             {
-                w.Write(sr);
-                w.Close();
+                // Write to output file
+                using (StreamWriter w = new StreamWriter(fullPathAndName, true, Encoding.UTF8))
+                {
+                    w.Write(sr);
+                    w.Close();
+                }
             }
+            else
+            {
+                // Create UTF-8 encoding without BOM
+                var utf8WithoutBom = new System.Text.UTF8Encoding(false);
+
+                // Write to output file
+                using (StreamWriter w = new StreamWriter(fullPathAndName, true, utf8WithoutBom))
+                {
+                    w.Write(sr);
+                    w.Close();
+                }
+            }
+
+
+            
         }
         /// <summary>
         /// Reads a string value from supplied datatable.
@@ -404,7 +422,7 @@ namespace IntersectUtilities
             }
             catch (System.Exception ex)
             {
-                prdDbg(ex.ToString());
+                prdDbg(ex);
                 throw;
             }
         }
@@ -540,41 +558,7 @@ namespace IntersectUtilities
             }
             return blkIsErased;
         }
-        /// <summary>
-        /// Returns path to dwg file.
-        /// </summary>
-        /// <param name="etapeName">4.1 .. 4.12</param>
-        /// <param name="pathType">Ler, Surface</param>
-        /// <returns>Path as string</returns>
-        public static string GetPathToDataFiles(
-            string projectName, string etapeName, string pathType)
-        {
-            #region Read Csv Data for paths
-            string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
-            System.Data.DataTable dtStier = CsvReader.ReadCsvToDataTable(pathStier, "Stier");
-            #endregion
-
-            var query = dtStier.AsEnumerable()
-                .Where(row =>
-                (string)row["PrjId"] == projectName &&
-                (string)row["Etape"] == etapeName);
-
-            if (query.Count() != 1)
-            {
-                prdDbg("GetPathToDataFiles could not determine Etape!");
-                return "";
-            }
-
-            string result = (string)query.First()[pathType];
-            if (result.IsNoE()) throw new System.Exception(
-                $"{pathType} mangler at blive defineret i " +
-                $"X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv!");
-            if (!File.Exists(result)) throw new System.Exception(
-                $"Programmet kan ikke finde filen {result} " +
-                $"på det specificerede sti: {result}");
-            return result;
-        }
-
+        
         /// <summary>
         /// Gets the working folder path for selected project
         /// </summary>
@@ -835,7 +819,6 @@ namespace IntersectUtilities
         }
         public static void SetDynBlockProperty(BlockReference br, string propertyName, string propertyValue)
         {
-            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
             // Only continue is we have a valid dynamic block
             if (br != null && br.IsDynamicBlock)
             {
@@ -847,12 +830,19 @@ namespace IntersectUtilities
                     if (prop.PropertyName == propertyName)
                     {
                         object[] allowedValues = prop.GetAllowedValues();
-                        for (int i = 0; i < allowedValues.Length; i++)
+                        if (allowedValues.Length == 0)
                         {
-                            if (allowedValues[i].ToString() == propertyValue)
+                            prop.Value = propertyValue;
+                        }
+                        else
+                        {
+                            for (int i = 0; i < allowedValues.Length; i++)
                             {
-                                prop.Value = allowedValues[i];
-                                break;
+                                if (allowedValues[i].ToString() == propertyValue)
+                                {
+                                    prop.Value = allowedValues[i];
+                                    break;
+                                }
                             }
                         }
                     }
@@ -1505,586 +1495,7 @@ namespace IntersectUtilities
             return this.Where(x => x.StationStart <= station && x.StationEnd >= station).FirstOrDefault();
         }
     }
-    public class DataReferencesOptions
-    {
-        public const string PathToStierCsv = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
-        public string ProjectName;
-        public string EtapeName;
-        public static string GetProjectName()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-
-            if (!File.Exists(PathToStierCsv))
-                throw new System.Exception("X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv findes ikke!");
-
-            #region Read Csv for paths
-            string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
-            System.Data.DataTable dtStier =
-                CsvReader.ReadCsvToDataTable(pathStier, "Stier");
-            #endregion
-
-            HashSet<string> kwds = new HashSet<string>();
-            foreach (DataRow row in dtStier.Rows)
-                kwds.Add(((string)row["PrjId"]));
-
-            string msg = "\nVælg projekt [";
-            string keywordsJoined = string.Join("/", kwds);
-            msg = msg + keywordsJoined + "]: ";
-
-            string displayKewords = string.Join(" ", kwds);
-
-            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions(msg, displayKewords);
-            //pKeyOpts.Message = "\nVælg projekt: ";
-            //foreach (string kwd in kwds)
-            //{
-            //    pKeyOpts.Keywords.Add(kwd, kwd, kwd);
-            //}
-            pKeyOpts.AllowNone = true;
-            pKeyOpts.Keywords.Default = kwds.First();
-            //pKeyOpts.AllowNone = false;
-            //pKeyOpts.AllowArbitraryInput = true;
-            //for (int i = 0; i < pKeyOpts.Keywords.Count; i++)
-            //{
-            //    prdDbg("\nLocal name: " + pKeyOpts.Keywords[i].LocalName);
-            //    prdDbg("\nGlobal name: " + pKeyOpts.Keywords[i].GlobalName);
-            //    prdDbg("\nDisplay name: " + pKeyOpts.Keywords[i].DisplayName);
-            //}
-
-            //pKeyOpts.Keywords.Default = kwds[0];
-            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
-            //For some reason keywords returned are only the first part, so this is a workaround
-            //Depends on what input is
-            //The project name must start with the project number
-            //If the code returns wrong values, there must be something wrong with project names
-            //Like same project number and/or occurence of same substring in two or more keywords
-            //This is a mess...
-            string returnedPartOfTheKeyword = pKeyRes.StringResult;
-            foreach (string kwd in kwds)
-            {
-                if (kwd.Contains(returnedPartOfTheKeyword)) return kwd;
-            }
-            throw new System.Exception("No project of this name found!");
-        }
-        public static string GetEtapeName(string projectName)
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-
-            #region Read Csv for paths
-            string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
-            System.Data.DataTable dtStier = CsvReader.ReadCsvToDataTable(pathStier, "Stier");
-            #endregion
-
-            var query = dtStier.AsEnumerable()
-                .Where(row => (string)row["PrjId"] == projectName);
-
-            HashSet<string> kwds = new HashSet<string>();
-            foreach (DataRow row in query)
-                kwds.Add((string)row["Etape"]);
-
-            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
-            pKeyOpts.Message = "\nVælg etape: ";
-            foreach (string kwd in kwds)
-            {
-                pKeyOpts.Keywords.Add(kwd);
-            }
-            pKeyOpts.AllowNone = true;
-            pKeyOpts.Keywords.Default = kwds.First();
-            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
-
-            return pKeyRes.StringResult;
-        }
-        public DataReferencesOptions()
-        {
-            ProjectName = GetProjectName();
-            EtapeName = GetEtapeName(ProjectName);
-        }
-        public DataReferencesOptions(string projectName, string etapeName)
-        {
-            ProjectName = projectName;
-            EtapeName = etapeName;
-        }
-    }
-    public class PipelineSizeArray
-    {
-        public SizeEntry[] SizeArray;
-        public int Length { get => SizeArray.Length; }
-        public PipelineSizesDirection Direction { get; }
-        public int StartingDn { get; }
-        public SizeEntry this[int index] { get => SizeArray[index]; }
-        /// <summary>
-        /// SizeArray listing sizes, station ranges and jacket diameters.
-        /// Use empty brs collection or omit it to force size table based on curves.
-        /// </summary>
-        /// <param name="al">Current alignment.</param>
-        /// <param name="brs">All transitions belonging to the current alignment.</param>
-        /// <param name="curves">All pipline curves belonging to the current alignment.</param>
-        public PipelineSizeArray(Alignment al, HashSet<Curve> curves, HashSet<BlockReference> brs = default)
-        {
-            #region Read CSV
-            System.Data.DataTable dynBlocks = default;
-            try
-            {
-                dynBlocks = CsvReader.ReadCsvToDataTable(
-                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-            }
-            catch (System.Exception ex)
-            {
-                prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                prdDbg(ex);
-                throw;
-            }
-            if (dynBlocks == default)
-            {
-                prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
-            }
-            #endregion
-
-            #region Direction
-            //Determine pipe size direction
-            //This is a flawed method using only curves, see below
-            int maxDn = PipeSchedule.GetPipeDN(curves.MaxBy(x => PipeSchedule.GetPipeDN(x)).FirstOrDefault());
-            int minDn = PipeSchedule.GetPipeDN(curves.MinBy(x => PipeSchedule.GetPipeDN(x)).FirstOrDefault());
-
-            HashSet<(Curve curve, double dist)> curveDistTuples =
-                            new HashSet<(Curve curve, double dist)>();
-
-            Point3d samplePoint = al.GetPointAtDist(0);
-
-            foreach (Curve curve in curves)
-            {
-                if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
-                Point3d closestPoint = curve.GetClosestPointTo(samplePoint, false);
-                if (closestPoint != default)
-                    curveDistTuples.Add(
-                        (curve, samplePoint.DistanceHorizontalTo(closestPoint)));
-            }
-
-            Curve closestCurve = curveDistTuples.MinBy(x => x.dist).FirstOrDefault().curve;
-
-            StartingDn = PipeSchedule.GetPipeDN(closestCurve);
-
-            //2023.04.12: A case discovered where there's a reducer after which there's only blocks
-            //till the alignment's end. This confuses the code to think that the last size
-            //don't exists, as it looks only at polylines present.
-            //So, we need to check for presence of reducers to definitely rule out one size case.
-            var reducers = brs.Where(
-                x => x.ReadDynamicCsvProperty(DynamicProperty.Type, dynBlocks, false) == "Reduktion");
-            if (reducers.Count() != 0)
-            {
-                List<int> sizes = new List<int>();
-                foreach (var reducer in reducers)
-                {
-                    sizes.Add(
-                        ReadComponentDN1Int(reducer, dynBlocks));
-                    sizes.Add(
-                        ReadComponentDN2Int(reducer, dynBlocks));
-                }
-
-                minDn = sizes.Min();
-                maxDn = sizes.Max();
-            }
-
-            if (maxDn == minDn) Direction = PipelineSizesDirection.OneSize;
-            else if (StartingDn == minDn) Direction = PipelineSizesDirection.SmallToLargeAscending;
-            else if (StartingDn == maxDn) Direction = PipelineSizesDirection.LargeToSmallDescending;
-            else Direction = PipelineSizesDirection.Unknown;
-
-            if (Direction == PipelineSizesDirection.Unknown)
-                throw new System.Exception($"Alignment {al.Name} could not determine pipeline sizes direction!");
-            #endregion
-
-            //Filter brs
-            if (brs != default)
-                brs = brs.Where(x =>
-                    IsTransition(x, dynBlocks) ||
-                    IsXModel(x, dynBlocks)
-                    ).ToHashSet();
-
-            //Dispatcher constructor
-            if (brs == default || brs.Count == 0 || Direction == PipelineSizesDirection.OneSize)
-                SizeArray = ConstructWithCurves(al, curves);
-            else SizeArray = ConstructWithBlocks(al, curves, brs, dynBlocks);
-        }
-        public PipelineSizeArray(SizeEntry[] sizeArray) { SizeArray = sizeArray; }
-        public PipelineSizeArray GetPartialSizeArrayForPV(ProfileView pv)
-        {
-            var list = this.GetIndexesOfSizesAppearingInProfileView(pv.StationStart, pv.StationEnd);
-            SizeEntry[] partialAr = new SizeEntry[list.Count];
-            for (int i = 0; i < list.Count; i++) partialAr[i] = this[list[i]];
-            return new PipelineSizeArray(partialAr);
-        }
-        public SizeEntry GetSizeAtStation(double station)
-        {
-            for (int i = 0; i < SizeArray.Length; i++)
-            {
-                SizeEntry curEntry = SizeArray[i];
-                //(stations are END stations!)
-                if (station < curEntry.EndStation) return curEntry;
-            }
-            return default;
-        }
-        public override string ToString()
-        {
-            string output = "";
-            for (int i = 0; i < SizeArray.Length; i++)
-            {
-                output +=
-                    $"{SizeArray[i].DN.ToString("D3")} || " +
-                    $"{SizeArray[i].StartStation.ToString("0000.00")} - {SizeArray[i].EndStation.ToString("0000.00")} || " +
-                    $"{SizeArray[i].Kod.ToString("0")}\n";
-            }
-
-            return output;
-        }
-        private List<int> GetIndexesOfSizesAppearingInProfileView(double pvStationStart, double pvStationEnd)
-        {
-            List<int> indexes = new List<int>();
-            for (int i = 0; i < SizeArray.Length; i++)
-            {
-                SizeEntry curEntry = SizeArray[i];
-                if (pvStationStart < curEntry.EndStation &&
-                    curEntry.StartStation < pvStationEnd) indexes.Add(i);
-            }
-            return indexes;
-        }
-        private SizeEntry[] ConstructWithCurves(Alignment al, HashSet<Curve> curves)
-        {
-            List<SizeEntry> sizes = new List<SizeEntry>();
-            double stepLength = 0.1;
-            double alLength = al.Length;
-            int nrOfSteps = (int)(alLength / stepLength);
-            int previousDn = 0;
-            int currentDn = 0;
-            double previousKod = 0;
-            double currentKod = 0;
-            for (int i = 0; i < nrOfSteps + 1; i++)
-            {
-                double curStationBA = stepLength * i;
-                Point3d curSamplePoint = default;
-                try { curSamplePoint = al.GetPointAtDist(curStationBA); }
-                catch (System.Exception) { continue; }
-
-                HashSet<(Curve curve, double dist, double kappeOd)> curveDistTuples =
-                    new HashSet<(Curve curve, double dist, double kappeOd)>();
-
-                foreach (Curve curve in curves)
-                {
-                    //if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
-                    Point3d closestPoint = curve.GetClosestPointTo(curSamplePoint, false);
-                    if (closestPoint != default)
-                        curveDistTuples.Add(
-                            (curve, curSamplePoint.DistanceHorizontalTo(closestPoint),
-                                PipeSchedule.GetPipeKOd(curve)));
-                }
-                var result = curveDistTuples.MinBy(x => x.dist).FirstOrDefault();
-                //Detect current dn and kod
-                currentDn = PipeSchedule.GetPipeDN(result.curve);
-                currentKod = result.kappeOd;
-                if (currentDn != previousDn || !currentKod.Equalz(previousKod, 1e-6))
-                {
-                    //Set the previous segment end station unless there's 0 segments
-                    if (sizes.Count != 0)
-                    {
-                        SizeEntry toUpdate = sizes[sizes.Count - 1];
-                        sizes[sizes.Count - 1] = new SizeEntry(toUpdate.DN, toUpdate.StartStation, curStationBA, toUpdate.Kod);
-                    }
-                    //Add the new segment; remember, 0 is because the station will be set next iteration
-                    //see previous line
-                    if (i == 0) sizes.Add(new SizeEntry(currentDn, 0, 0, result.kappeOd));
-                    else sizes.Add(new SizeEntry(currentDn, sizes[sizes.Count - 1].EndStation, 0, result.kappeOd));
-                }
-                //Hand over DN to cache in "previous" variable
-                previousDn = currentDn;
-                previousKod = currentKod;
-                if (i == nrOfSteps)
-                {
-                    SizeEntry toUpdate = sizes[sizes.Count - 1];
-                    sizes[sizes.Count - 1] = new SizeEntry(toUpdate.DN, toUpdate.StartStation, al.Length, toUpdate.Kod);
-                }
-            }
-
-            return sizes.ToArray();
-        }
-        /// <summary>
-        /// Construct SizeArray based on blocks.
-        /// </summary>
-        /// <param name="al">Current alignment.</param>
-        /// <param name="curves">Curves are only here to provide sizes to F- and Y-Models.</param>
-        /// <param name="brs">Size changing blocks and transitions (F- and Y-Models).</param>
-        /// <param name="dt">Dynamic block datatable.</param>
-        /// <returns>SizeArray with sizes for current alignment.</returns>
-        private SizeEntry[] ConstructWithBlocks(Alignment al, HashSet<Curve> curves, HashSet<BlockReference> brs, System.Data.DataTable dt)
-        {
-            BlockReference[] brsArray = default;
-            //Old ordering
-            //if (Direction == PipelineSizesDirection.SmallToLargeAscending)
-            //    brsArray = brs.OrderBy(x => ReadComponentDN2Int(x, dt)).ToArray();
-            //else if (Direction == PipelineSizesDirection.LargeToSmallDescending)
-            //    brsArray = brs.OrderByDescending(x => ReadComponentDN2Int(x, dt)).ToArray();
-            //else brs.ToArray();
-
-            //New ordering based on station on alignment
-            prdDbg("Using new SizeArray ordering method! Beware!");
-            brsArray = brs.OrderBy(x => al.StationAtPoint(x)).ToArray();
-
-            List<SizeEntry> sizes = new List<SizeEntry>();
-            double alLength = al.Length;
-
-            int dn = 0;
-            double start = 0.0;
-            double end = 0.0;
-            double kod = 0.0;
-
-            for (int i = 0; i < brsArray.Length; i++)
-            {
-                BlockReference curBr = brsArray[i];
-
-                if (i == 0)
-                {
-                    start = 0.0;
-                    end = al.StationAtPoint(curBr);
-
-                    //First iteration case
-                    if (PipelineSizeArray.IsTransition(curBr, dt))
-                    {
-                        dn = GetDirectionallyCorrectDn(curBr, Side.Left, dt);
-                        //Point3d p3d = al.GetClosestPointTo(curBr.Position, false);
-                        //al.StationOffset(p3d.X, p3d.Y, ref end, ref offset);
-                        kod = GetDirectionallyCorrectKod(curBr, Side.Left, dt);
-                    }
-                    else
-                    {//F-Model og Y-Model
-                        var ends = curBr.GetAllEndPoints();
-                        //Determine connected curves
-                        var query = curves.Where(x => ends.Any(y => y.IsOnCurve(x, 0.005)));
-                        //Find the curves earlier up the alignment
-                        var minCurve = query.MinBy(
-                            x => al.StationAtPoint(
-                                x.GetPointAtDist(
-                                    x.GetDistAtPoint(x.EndPoint) / 2.0)))
-                            .FirstOrDefault();
-
-                        dn = PipeSchedule.GetPipeDN(minCurve);
-                        kod = PipeSchedule.GetPipeKOd(minCurve);
-                    }
-
-                    sizes.Add(new SizeEntry(dn, start, end, kod));
-
-                    //Only one member array case
-                    //This is an edge case of first iteration
-                    if (brsArray.Length == 1)
-                    {
-                        start = end;
-                        end = alLength;
-
-                        if (PipelineSizeArray.IsTransition(curBr, dt))
-                        {
-                            dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
-                            kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
-                        }
-                        else
-                        {//F-Model og Y-Model
-                            var ends = curBr.GetAllEndPoints();
-                            //Determine connected curves
-                            var query = curves.Where(x => ends.Any(y => y.IsOnCurve(x, 0.005)));
-                            //Find the curves further down the alignment
-                            var maxCurve = query.MaxBy(
-                                x => al.StationAtPoint(
-                                    x.GetPointAtDist(
-                                        x.GetDistAtPoint(x.EndPoint) / 2.0)))
-                                .FirstOrDefault();
-
-                            dn = PipeSchedule.GetPipeDN(maxCurve);
-                            kod = PipeSchedule.GetPipeKOd(maxCurve);
-                        }
-
-                        sizes.Add(new SizeEntry(dn, start, end, kod));
-                        //This guards against executing further code
-                        continue;
-                    }
-                }
-
-                //General case
-                if (i != brsArray.Length - 1)
-                {
-                    BlockReference nextBr = brsArray[i + 1];
-                    start = end;
-                    end = al.StationAtPoint(nextBr);
-
-                    if (PipelineSizeArray.IsTransition(curBr, dt))
-                    {
-                        dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
-                        //Point3d p3d = al.GetClosestPointTo(nextBr.Position, false);
-                        //al.StationOffset(p3d.X, p3d.Y, ref end, ref offset);
-                        kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
-                    }
-                    else
-                    {
-                        var ends = curBr.GetAllEndPoints();
-                        //Determine connected curves
-                        var query = curves.Where(x => ends.Any(y => y.IsOnCurve(x, 0.005)));
-                        //Find the curves further down the alignment
-                        var maxCurve = query.MaxBy(
-                            x => al.StationAtPoint(
-                                x.GetPointAtDist(
-                                    x.GetDistAtPoint(x.EndPoint) / 2.0)))
-                            .FirstOrDefault();
-
-                        dn = PipeSchedule.GetPipeDN(maxCurve);
-                        kod = PipeSchedule.GetPipeKOd(maxCurve);
-                    }
-
-                    sizes.Add(new SizeEntry(dn, start, end, kod));
-                    //This guards against executing further code
-                    continue;
-                }
-
-                //And here ends the last iteration
-                start = end;
-                end = alLength;
-
-                if (PipelineSizeArray.IsTransition(curBr, dt))
-                {
-                    dn = GetDirectionallyCorrectDn(curBr, Side.Right, dt);
-                    kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
-                }
-                else
-                {
-                    var ends = curBr.GetAllEndPoints();
-                    //Determine connected curves
-                    var query = curves.Where(x => ends.Any(y => y.IsOnCurve(x, 0.005)));
-                    //Find the curves further down the alignment
-                    var maxCurve = query.MaxBy(
-                        x => al.StationAtPoint(
-                            x.GetPointAtDist(
-                                x.GetDistAtPoint(x.EndPoint) / 2.0)))
-                        .FirstOrDefault();
-
-                    dn = PipeSchedule.GetPipeDN(maxCurve);
-                    kod = PipeSchedule.GetPipeKOd(maxCurve);
-                }
-
-                sizes.Add(new SizeEntry(dn, start, end, kod));
-            }
-
-            return sizes.ToArray();
-        }
-        private int GetDirectionallyCorrectDn(BlockReference br, Side side, System.Data.DataTable dt)
-        {
-            switch (Direction)
-            {
-                case PipelineSizesDirection.SmallToLargeAscending:
-                    switch (side)
-                    {
-                        case Side.Left:
-                            return ReadComponentDN2Int(br, dt);
-                        case Side.Right:
-                            return ReadComponentDN1Int(br, dt);
-                    }
-                    break;
-                case PipelineSizesDirection.LargeToSmallDescending:
-                    switch (side)
-                    {
-                        case Side.Left:
-                            return ReadComponentDN1Int(br, dt);
-                        case Side.Right:
-                            return ReadComponentDN2Int(br, dt);
-                    }
-                    break;
-            }
-            return 0;
-        }
-        private double GetDirectionallyCorrectKod(BlockReference br, Side side, System.Data.DataTable dt)
-        {
-            switch (Direction)
-            {
-                case PipelineSizesDirection.SmallToLargeAscending:
-                    switch (side)
-                    {
-                        case Side.Left:
-                            return ReadComponentDN2KodDouble(br, dt);
-                        case Side.Right:
-                            return ReadComponentDN1KodDouble(br, dt);
-                    }
-                    break;
-                case PipelineSizesDirection.LargeToSmallDescending:
-                    switch (side)
-                    {
-                        case Side.Left:
-                            return ReadComponentDN1KodDouble(br, dt);
-                        case Side.Right:
-                            return ReadComponentDN2KodDouble(br, dt);
-                    }
-                    break;
-            }
-            return 0;
-        }
-        private static bool IsTransition(BlockReference br, System.Data.DataTable dynBlocks)
-        {
-            string type = ReadStringParameterFromDataTable(br.RealName(), dynBlocks, "Type", 0);
-
-            if (type == null) throw new System.Exception($"Block with name {br.RealName()} does not exist " +
-                $"in Dynamiske Komponenter!");
-
-            return type == "Reduktion";
-        }
-        ///Determines whether the block is an F- or Y-Model
-        private static bool IsXModel(BlockReference br, System.Data.DataTable dynBlocks)
-        {
-            string type = ReadStringParameterFromDataTable(br.RealName(), dynBlocks, "Type", 0);
-
-            if (type == null) throw new System.Exception($"Block with name {br.RealName()} does not exist " +
-                $"in Dynamiske Komponenter!");
-
-            HashSet<string> transitionTypes = new HashSet<string>()
-            {
-                "Y-Model",
-                "F-Model"
-            };
-
-            return transitionTypes.Contains(type);
-        }
-        internal void Reverse()
-        {
-            Array.Reverse(this.SizeArray);
-        }
-        /// <summary>
-        /// Unknown - Should throw an exception
-        /// OneSize - Cannot be constructed with blocks
-        /// SmallToLargeAscending - Small sizes first, blocks preferred
-        /// LargeToSmallAscending - Large sizes first, blocks preferred
-        /// </summary>
-        public enum PipelineSizesDirection
-        {
-            Unknown, //Should throw an exception
-            OneSize, //Cannot be constructed with blocks
-            SmallToLargeAscending, //Blocks preferred
-            LargeToSmallDescending //Blocks preferred
-        }
-        private enum Side
-        {
-            //Left means towards the start of alignment
-            Left,
-            //Right means towards the end of alignment
-            Right
-        }
-    }
-    public struct SizeEntry
-    {
-        public readonly int DN;
-        public readonly double StartStation;
-        public readonly double EndStation;
-        public readonly double Kod;
-
-        public SizeEntry(int dn, double startStation, double endStation, double kod)
-        {
-            DN = dn; StartStation = startStation; EndStation = endStation; Kod = kod;
-        }
-    }
-
+    
     public static class HelperMethods
     {
         public static bool IsFullPath(string path)
@@ -2401,7 +1812,7 @@ namespace IntersectUtilities
         public Entity SourceEntity { get; set; }
         public int DN { get; set; }
         public string System { get; set; }
-
+        public string Serie { get; set; }
     }
 
     /// <summary>

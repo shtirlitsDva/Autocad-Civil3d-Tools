@@ -35,6 +35,7 @@ using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
 using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.ComponentSchedule;
 
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.UtilsODData;
@@ -97,9 +98,9 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
             bool noNumbers = true;
             string[] kwds = new string[] { "Uden nummer", "Med nummer" };
@@ -205,6 +206,18 @@ namespace IntersectUtilities
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                         #endregion
 
+                        //Check to see if sequences contains anything
+                        if (curves.Count == 0 && brs.Count == 0)
+                        {
+                            prdDbg($"SKIP: Alignment {al.Name} does not have any components in the drawing!");
+                            continue;
+                        }
+                        if (curves.Count == 0 && brs.Count != 0)
+                        {
+                            prdDbg($"ERROR: Alignment {al.Name} has only {brs.Count} block(s) and 0 curves!");
+                            continue;
+                        }
+
                         TypeOfIteration iterType = 0;
 
                         //Sort curves according to their DN -> bigger DN at start
@@ -257,7 +270,8 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = curve,
                                     DN = GetPipeDN(curve),
-                                    System = GetPipeType(curve).ToString()
+                                    System = GetPipeType(curve, true).ToString(),
+                                    Serie = GetPipeSeriesV2(curve, true).ToString()
                                 });
                             }
 
@@ -285,7 +299,8 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = curve,
                                     DN = GetPipeDN(curve),
-                                    System = GetPipeType(curve).ToString()
+                                    System = GetPipeType(curve, true).ToString(),
+                                    Serie = GetPipeSeriesV2(curve, true).ToString()
                                 });
 
 
@@ -299,7 +314,8 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = curve,
                                     DN = GetPipeDN(curve),
-                                    System = GetPipeType(curve).ToString()
+                                    System = GetPipeType(curve, true).ToString(),
+                                    Serie = GetPipeSeriesV2(curve, true).ToString()
                                 });
                             }
                             #region Debug
@@ -352,7 +368,8 @@ namespace IntersectUtilities
                                 #endregion
 
                                 #region Read System
-                                string system = ODDataReader.DynKomponenter.ReadComponentSystem(br, komponenter).StrValue;
+                                //string system = ODDataReader.DynKomponenter.ReadComponentSystem(br, komponenter).StrValue;
+                                string system = br.ReadDynamicCsvProperty(DynamicProperty.System, dt);
 
                                 if (system.IsNoE())
                                 {
@@ -382,7 +399,7 @@ namespace IntersectUtilities
                                     }
                                     catch (System.Exception ex)
                                     {
-                                        //prdDbg(ex.ToString());
+                                        //prdDbg(ex);
                                         prdDbg("Error in GetClosestPointTo -> loop incomplete!");
                                     }
 
@@ -413,7 +430,8 @@ namespace IntersectUtilities
                                     Station = station,
                                     SourceEntity = br,
                                     DN = DN,
-                                    System = system
+                                    System = system,
+                                    Serie = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.Serie, dt)
                                 });
                             }
                         }
@@ -498,13 +516,23 @@ namespace IntersectUtilities
                             if (!noNumbers)
                                 wpBr.SetAttributeStringValue("NUMMER", currentPipelineNumber + "." + idx.ToString("D3"));
 
-                            //if (idx == 1) DisplayDynBlockProperties(editor, wpBr, wpBr.Name);
-                            SetDynBlockProperty(wpBr, "Type", wp.DN.ToString());
-                            SetDynBlockProperty(wpBr, "System", wp.System);
-
                             psm.WritePropertyString(wpBr, driPipelineData.BelongsToAlignment, wp.Alignment.Name);
 
-                            wpBr.AttSync();
+                            //if (idx == 1) DisplayDynBlockProperties(editor, wpBr, wpBr.Name);
+                            SetDynBlockProperty(wpBr, "Type", wp.DN.ToString());
+                            SetDynBlockPropertyObject(wpBr, "System", (object)wp.System);
+                            SetDynBlockProperty(wpBr, "Serie", wp.Serie);
+
+                            try
+                            {
+                                wpBr.AttSync();
+                            }
+                            catch (System.Exception)
+                            {
+                                prdDbg("ERROR: " + wpBr.Position);
+                                idx++;
+                                continue;
+                            }
 
                             idx++;
                         }
@@ -597,7 +625,7 @@ namespace IntersectUtilities
                 {
                     tx.Abort();
                     prdDbg(ex.ExceptionInfo());
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -875,7 +903,7 @@ namespace IntersectUtilities
                 {
                     tx.Abort();
                     prdDbg(ex.ExceptionInfo());
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -1556,7 +1584,7 @@ namespace IntersectUtilities
                     alDb.Dispose();
                     tx.Abort();
                     prdDbg(ex.ExceptionInfo());
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 alTx.Abort();
@@ -2053,6 +2081,93 @@ namespace IntersectUtilities
                     AbortGracefully(localDb);
                     return;
                 }
+            }
+        }
+
+        [CommandMethod("CORRECTTRANSISIONSIZES")]
+        public void correcttransitionsizes()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<BlockReference> allbrs = localDb.HashSetOfType<BlockReference>(tx);
+                    HashSet<Curve> curves = localDb.ListOfType<Curve>(tx).ToHashSet();
+
+                    #region Read CSV
+                    System.Data.DataTable dt = default;
+                    try
+                    {
+                        dt = CsvReader.ReadCsvToDataTable(
+                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    }
+                    catch (System.Exception ex)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        prdDbg(ex);
+                        throw;
+                    }
+                    if (dt == default)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                    }
+                    #endregion
+
+                    var reducers = allbrs.Where(x => x.ReadDynamicCsvProperty(DynamicProperty.Type, dt) == "Reduktion");
+
+                    foreach (BlockReference r in reducers)
+                    {
+                        string type = r.ReadDynamicPropertyValue("Type");
+
+                        if (type != "Custom") continue;
+
+                        var endPoints = r.GetAllEndPoints();
+
+                        if (endPoints.Count > 2 || endPoints.Count < 2)
+                            throw new System.Exception($"Reducer {r.Handle} has unexpected number of endpoints: {endPoints.Count}!");
+
+                        List<int> dns = new List<int>();
+
+                        bool failed = false;
+                        foreach (Point3d end in endPoints)
+                        {
+                            var query = curves.Where(x => end.IsOnCurve(x, 0.05));
+                            if (query.Count() != 1)
+                            {
+                                prdDbg($"Reducer {r.Handle} cannot find connecting or finds multiple curve(s) at point {end}!");
+                                failed = true;
+                            }
+
+                            if (!failed)
+                            {
+                                Curve curve = query.First();
+                                dns.Add(PipeSchedule.GetPipeDN(curve));
+                            }
+                        }
+
+                        type = "";
+                        if (dns.Count > 0) type = $"{dns.Max()}x{dns.Min()}";
+
+                        prdDbg($"Failed: {failed}; {r.Handle} -> {type}");
+
+                        if (!failed)
+                        { 
+                            SetDynBlockProperty(r, "Type", type);
+                            r.AttSync();
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
             }
         }
     }

@@ -81,10 +81,12 @@ namespace Dreambuild.AutoCAD
         /// </summary>
         /// <param name="message">The message.</param>
         /// <returns>The string.</returns>
-        public static string GetString(string message)
+        public static string GetString(string message, bool allowSpaces = false)
         {
             var ed = Application.DocumentManager.MdiActiveDocument.Editor;
-            var res = ed.GetString(message);
+            PromptStringOptions pso = new PromptStringOptions(message);
+            pso.AllowSpaces = allowSpaces;
+            var res = ed.GetString(pso);
             if (res.Status == PromptStatus.OK)
             {
                 return res.StringResult;
@@ -327,13 +329,16 @@ namespace Dreambuild.AutoCAD
             var opt = new PromptEntityOptions(message);
             opt.SetRejectMessage("Allowed type: " + allowedType.Name); // Must call this first
             opt.AddAllowedClass(allowedType, exactMatch);
-            var res = ed.GetEntity(opt);
-            if (res.Status == PromptStatus.OK)
-            {
-                return res.ObjectId;
-            }
 
-            return ObjectId.Null;
+            while (true)
+            {
+                var res = ed.GetEntity(opt);
+                if (res.Status == PromptStatus.OK)
+                {
+                    return res.ObjectId;
+                }
+                else if (res.Status == PromptStatus.Cancel) return ObjectId.Null;
+            }
         }
 
         /// <summary>

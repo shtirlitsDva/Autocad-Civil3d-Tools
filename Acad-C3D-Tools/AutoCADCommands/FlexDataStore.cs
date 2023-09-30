@@ -1,4 +1,5 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
+
 using System.Linq;
 
 namespace Dreambuild.AutoCAD
@@ -31,7 +32,24 @@ namespace Dreambuild.AutoCAD
 
             return null;
         }
+        /// <summary>
+        /// Removes an entry.
+        /// </summary>
+        /// <param name="key">The key of the entry to remove.</param>
+        public void RemoveEntry(string key)
+        {
+            using (var trans = this.DictionaryId.Database.TransactionManager.StartTransaction())
+            {
+                var dictionary = trans.GetObject(this.DictionaryId, OpenMode.ForWrite) as DBDictionary;
+                if (dictionary.Contains(key))
+                {
+                    trans.GetObject(dictionary.GetAt(key), OpenMode.ForWrite).Erase();
+                }
+                else { trans.Abort(); return; }
 
+                trans.Commit();
+            }
+        }
         /// <summary>
         /// Sets a value.
         /// </summary>
@@ -98,19 +116,21 @@ namespace Dreambuild.AutoCAD
         /// Gets an object's flex data store.
         /// </summary>
         /// <param name="id">The object ID.</param>
+        /// <param name="createNew">Specify if new Dictionary must be created if none exists.</param>
         /// <returns>The flex data store.</returns>
-        public static FlexDataStore FlexDataStore(this ObjectId id)
+        public static FlexDataStore FlexDataStore(this ObjectId id, bool createNew = false)
         {
             using (var trans = id.Database.TransactionManager.StartTransaction())
             {
                 var dbo = trans.GetObject(id, OpenMode.ForRead);
-                if (dbo.ExtensionDictionary == ObjectId.Null)
+                if (dbo.ExtensionDictionary == ObjectId.Null && createNew)
                 {
                     dbo.UpgradeOpen();
                     dbo.CreateExtensionDictionary();
                     trans.Commit();
                     return new FlexDataStore(dbo.ExtensionDictionary);
                 }
+                else if (dbo.ExtensionDictionary == ObjectId.Null && !createNew) { trans.Abort(); return null; }
 
                 trans.Abort();
                 return new FlexDataStore(dbo.ExtensionDictionary);

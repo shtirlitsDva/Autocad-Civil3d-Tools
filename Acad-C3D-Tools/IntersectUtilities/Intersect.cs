@@ -54,6 +54,7 @@ using IntersectUtilities.DynamicBlocks;
 using System.Diagnostics;
 using System.Runtime;
 using System.Text.Json;
+using IntersectUtilities.Forms;
 
 namespace IntersectUtilities
 {
@@ -72,7 +73,12 @@ namespace IntersectUtilities
                     "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
             }
 
-            prdDbg("IntersectUtilites loaded!");
+#if DEBUG
+            AppDomain.CurrentDomain.AssemblyResolve +=
+                new ResolveEventHandler(Debug_AssemblyResolve);
+#endif
+
+            prdDbg("IntersectUtilites loaded!\n");
         }
 
         public void Terminate()
@@ -646,167 +652,6 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("check3delevations")]
-        public void check3delevations()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            #region Read Csv Data for Layers and Depth
-
-            //Establish the pathnames to files
-            //Files should be placed in a specific folder on desktop
-            string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-
-            System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
-            #endregion
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                DataReferencesOptions dro = new DataReferencesOptions();
-                string projectName = dro.ProjectName;
-                string etapeName = dro.EtapeName;
-
-                editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Alignments"));
-                editor.WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Surface"));
-
-                #region Read surface from file
-                // open the xref database
-                Database xRefSurfaceDB = new Database(false, true);
-                xRefSurfaceDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Surface"),
-                    FileOpenMode.OpenForReadAndAllShare, false, null);
-                Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
-
-                CivSurface surface = null;
-                try
-                {
-
-                    surface = xRefSurfaceDB
-                        .HashSetOfType<TinSurface>(xRefSurfaceTx)
-                        .FirstOrDefault() as CivSurface;
-                }
-                catch (System.Exception)
-                {
-                    xRefSurfaceTx.Abort();
-                    xRefSurfaceDB.Dispose();
-                    prdDbg("No surface found in file! Aborting...");
-                    throw;
-                }
-
-                if (surface == null)
-                {
-                    editor.WriteMessage("\nSurface could not be loaded from the xref!");
-                    xRefSurfaceTx.Commit();
-                    xRefSurfaceDB.Dispose();
-                    throw new System.Exception("Surface is null!");
-                }
-                #endregion
-
-                #region Load alignments from drawing
-                HashSet<Alignment> alignments = null;
-                //To be able to check local or external alignments following hack is implemented
-                alignments = localDb.HashSetOfType<Alignment>(tx);
-
-                // open the LER dwg database
-                Database xRefAlsDB = new Database(false, true);
-
-                xRefAlsDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
-                    FileOpenMode.OpenForReadAndAllShare, false, null);
-                Transaction xRefAlsTx = xRefAlsDB.TransactionManager.StartTransaction();
-
-                if (alignments.Count < 1)
-                {
-                    alignments = xRefAlsDB.HashSetOfType<Alignment>(xRefAlsTx)
-                                                                     .OrderBy(x => x.Name).ToHashSet();
-                }
-
-                HashSet<Polyline3d> allLinework = localDb
-                    .HashSetOfType<Polyline3d>(tx)
-                    .Where(x => ReadStringParameterFromDataTable(x.Layer, dtKrydsninger, "Type", 0) == "3D")
-                    .ToHashSet();
-                editor.WriteMessage($"\nNr. of 3D polies: {allLinework.Count}");
-                #endregion
-
-                Plane plane = new Plane();
-
-                try
-                {
-                    foreach (Alignment al in alignments)
-                    {
-                        //editor.WriteMessage($"\n++++++++ Indlæser alignment {al.Name}. ++++++++");
-                        System.Windows.Forms.Application.DoEvents();
-
-                        //Filtering is required because else I would be dealing with all layers
-                        //We need to limit the processed layers only to the crossed ones.
-                        HashSet<Polyline3d> filteredLinework = FilterForCrossingEntities(allLinework, al);
-                        //editor.WriteMessage($"\nCrossing lines: {filteredLinework.Count}.");
-
-                        int count = 0;
-                        foreach (var ent in filteredLinework)
-                        {
-                            #region Create points
-                            using (Point3dCollection p3dcol = new Point3dCollection())
-                            {
-                                al.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
-
-                                foreach (Point3d p3d in p3dcol)
-                                {
-                                    #region Assign elevation based on 3D conditions
-                                    Point3d p3dInt = ent.GetClosestPointTo(p3d, new Vector3d(0.0, 0.0, 1.0), false);
-
-                                    count++;
-                                    if (p3dInt.Z.IsZero(Tolerance.Global.EqualPoint))
-                                    {
-                                        editor.WriteMessage($"\nEntity {ent.Handle} returned {p3dInt.Z}" +
-                                            $" elevation for a 3D layer.");
-                                    }
-
-                                    double surfaceElevation = surface.FindElevationAtXY(p3dInt.X, p3dInt.Y);
-                                    if (p3dInt.Z >= surfaceElevation)
-                                    {
-                                        prdDbg($"Entity {ent.Handle} return intersection point above surface!\n" +
-                                               $"Location: {p3dInt}, Surface E: {surfaceElevation}.");
-                                    }
-
-                                    //prdDbg(
-                                    //    $"Ler elev: {p3dInt.Z.ToString("0.##")}, " +
-                                    //    $"Surface elev: {surfaceElevation.ToString("0.##")}");
-                                    System.Windows.Forms.Application.DoEvents();
-                                    #endregion
-                                }
-                            }
-                            #endregion
-                        }
-
-                        editor.WriteMessage($"\nIntersections detected: {count}.");
-                    }
-                }
-                catch (System.Exception e)
-                {
-                    xRefAlsTx.Abort();
-                    xRefAlsTx.Dispose();
-                    xRefAlsDB.Dispose();
-                    xRefSurfaceTx.Abort();
-                    xRefSurfaceTx.Dispose();
-                    xRefSurfaceDB.Dispose();
-                    tx.Abort();
-                    editor.WriteMessage($"\n{e.ToString()}");
-                    return;
-                }
-
-                xRefAlsTx.Abort();
-                xRefAlsTx.Dispose();
-                xRefAlsDB.Dispose();
-                xRefSurfaceTx.Abort();
-                xRefSurfaceTx.Dispose();
-                xRefSurfaceDB.Dispose();
-                tx.Commit();
-            }
-        }
-
         //Bruges ikke
         [Obsolete("Kommando bruges ikke.", false)]
         [CommandMethod("debugfl")]
@@ -897,6 +742,55 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("selectbyhandlemultiple")]
+        [CommandMethod("SBHM")]
+        public void selectbyhandlemultiple()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PromptStringOptions pso = new PromptStringOptions("\nEnter handles of objects to select (separate by space): ");
+                    pso.AllowSpaces = true;
+                    PromptResult pr = editor.GetString(pso);
+
+                    if (pr.Status == PromptStatus.OK)
+                    {
+                        string result = pr.StringResult;
+                        string[] handles = result.Split(' ');
+
+                        List<Oid> selection = new List<Oid>();
+
+                        for (int i = 0; i < handles.Length; i++)
+                        {
+                            string handle = handles[i];
+                            // Convert hexadecimal string to 64-bit integer
+                            long ln = Convert.ToInt64(handle, 16);
+                            // Now create a Handle from the long integer
+                            Handle hn = new Handle(ln);
+                            // And attempt to get an ObjectId for the Handle
+                            Oid id = localDb.GetObjectId(false, hn, 0);
+
+                            selection.Add(id);
+                        }
+
+                        editor.SetImpliedSelection(selection.ToArray());
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
                     return;
                 }
                 tx.Commit();
@@ -2001,7 +1895,7 @@ namespace IntersectUtilities
                     fremTx.Dispose();
                     fremDb.Dispose();
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 fremTx.Commit();
@@ -2808,7 +2702,7 @@ namespace IntersectUtilities
                                 }
                                 catch (System.Exception ex)
                                 {
-                                    prdDbg(ex.ToString());
+                                    prdDbg(ex);
                                     extTx.Abort();
                                     extDb.Dispose();
                                     throw;
@@ -3609,7 +3503,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tr.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                 }
                 tr.Commit();
             }
@@ -3679,7 +3573,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                 }
                 tx.Commit();
             }
@@ -3714,7 +3608,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -3758,7 +3652,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tr.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                 }
                 tr.Commit();
             }
@@ -3912,9 +3806,6 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    //string layerName = "0-TRACE-3D";
-                    //localDb.CheckOrCreateLayer(layerName);
-
                     HashSet<Alignment> als = localDb.HashSetOfType<Alignment>(tx);
                     foreach (Alignment al in als)
                     {
@@ -3954,6 +3845,7 @@ namespace IntersectUtilities
                                 prdDbg($"Elevation sampling failed at alignment {al.Name}, station {curStation}.");
                             }
 
+                            if (Z == 0) continue;
                             p3ds.Add(new Point3d(X, Y, Z));
                         }
 
@@ -4007,6 +3899,99 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("CONSTRUCTIONLINESETMARK")]
+        public void constructionlinesetmark()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PromptEntityOptions peo = new PromptEntityOptions("Select construction line: ");
+                    peo.SetRejectMessage("Selected entity is not a Line!");
+                    peo.AddAllowedClass(typeof(Line), true);
+                    PromptEntityResult per = editor.GetEntity(peo);
+                    Oid lineId = per.ObjectId;
+                    if (lineId == Oid.Null) { tx.Abort(); return; }
+
+                    FlexDataStore fds = lineId.FlexDataStore(true);
+                    string value = fds.GetValue("IsConstructionLine");
+                    if (value.IsNoE()) fds.SetValue("IsConstructionLine", "True");
+                    else prdDbg("Construction line already marked!");
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("CONSTRUCTIONLINEREMOVEMARK")]
+        public void constructionlineremovemark()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    PromptEntityOptions peo = new PromptEntityOptions("Select construction line: ");
+                    peo.SetRejectMessage("Selected entity is not a Line!");
+                    peo.AddAllowedClass(typeof(Line), true);
+                    PromptEntityResult per = editor.GetEntity(peo);
+                    Oid lineId = per.ObjectId;
+                    if (lineId == Oid.Null) { tx.Abort(); return; }
+
+                    FlexDataStore fds = lineId.FlexDataStore(false);
+                    if (fds == null) { tx.Abort(); return; }
+                    string value = fds.GetValue("IsConstructionLine");
+                    if (value.IsNotNoE()) fds.RemoveEntry("IsConstructionLine");
+                    else prdDbg("Construction line mark already removed!");
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+        public bool IsConstructionLine(Oid id)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    if (id == Oid.Null || !id.IsDerivedFrom<Line>()) { tx.Abort(); return false; }
+                    FlexDataStore fds = id.FlexDataStore(false);
+                    if (fds == null) { tx.Abort(); return false; }
+                    string value = fds.GetValue("IsConstructionLine");
+                    if (value.IsNoE()) { tx.Abort(); return false; }
+                    if (value == "True") { tx.Abort(); return true; }
+                    else { tx.Abort(); return false; }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return false;
+                }
+            }
+        }
+
         [CommandMethod("testing")]
         public void testing()
         {
@@ -4020,6 +4005,318 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test new PipeSizeArrays
+                    //#region Open fremtidig db
+                    //DataReferencesOptions dro = new DataReferencesOptions();
+                    //string projectName = dro.ProjectName;
+                    //string etapeName = dro.EtapeName;
+
+                    //#region Read CSV
+                    //System.Data.DataTable dt = default;
+                    //try
+                    //{
+                    //    dt = CsvReader.ReadCsvToDataTable(
+                    //            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    //}
+                    //catch (System.Exception ex)
+                    //{
+                    //    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                    //    prdDbg(ex);
+                    //    throw;
+                    //}
+                    //if (dt == default)
+                    //{
+                    //    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                    //    throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                    //}
+                    //#endregion
+
+                    //// open the xref database
+                    //Database alDb = new Database(false, true);
+                    //alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
+                    //    System.IO.FileShare.Read, false, string.Empty);
+                    //Transaction alTx = alDb.TransactionManager.StartTransaction();
+                    //var als = alDb.HashSetOfType<Alignment>(alTx);
+                    //var allCurves = localDb.GetFjvPipes(tx, true);
+                    //var allBrs = localDb.GetFjvBlocks(tx, dt, true);
+
+                    //PropertySetManager psmPipeLineData = new PropertySetManager(
+                    //    localDb,
+                    //    PSetDefs.DefinedSets.DriPipelineData);
+                    //PSetDefs.DriPipelineData driPipelineData =
+                    //    new PSetDefs.DriPipelineData();
+                    //#endregion
+
+                    //try
+                    //{
+                    //    foreach (Alignment al in als)
+                    //    {
+                    //        #region GetCurvesAndBRs from fremtidig
+                    //        HashSet<Curve> curves = allCurves.Cast<Curve>()
+                    //            .Where(x => psmPipeLineData
+                    //            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                    //            .ToHashSet();
+
+                    //        HashSet<BlockReference> brs = allBrs.Cast<BlockReference>()
+                    //            .Where(x => psmPipeLineData
+                    //            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                    //            .ToHashSet();
+                    //        //prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                    //        #endregion
+
+                    //        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                    //        prdDbg(al.Name + "\n" + sizeArray.ToString());
+                    //    }
+                    //}
+                    //catch (System.Exception ex)
+                    //{
+                    //    alTx.Abort();
+                    //    alTx.Dispose();
+                    //    alDb.Dispose();
+                    //    prdDbg(ex);
+                    //    throw;
+                    //}
+                    //alTx.Abort();
+                    //alTx.Dispose();
+                    //alDb.Dispose();
+                    #endregion
+
+                    #region Testing tolerance when comparing points
+                    //PromptEntityOptions peo1 = new PromptEntityOptions("\nSelect first point: ");
+                    //peo1.SetRejectMessage("\nNot a DBPoint!");
+                    //peo1.AddAllowedClass(typeof(DBPoint), false);
+                    //PromptEntityResult per1 = editor.GetEntity(peo1);
+                    //DBPoint p1 = per1.ObjectId.Go<DBPoint>(tx);
+
+                    //PromptEntityOptions peo2 = new PromptEntityOptions("\nSelect second point: ");
+                    //peo2.SetRejectMessage("\nNot a DBPoint!");
+                    //peo2.AddAllowedClass(typeof(DBPoint), false);
+                    //PromptEntityResult per2 = editor.GetEntity(peo2);
+                    //DBPoint p2 = per2.ObjectId.Go<DBPoint>(tx);
+
+                    //Tolerance tol = new Tolerance(1e-3, 2.54 * 1e-3);
+
+                    //prdDbg(p1.Position.IsEqualTo(p2.Position, tol) + 
+                    //    " -> Dist: " + p1.Position.DistanceTo(p2.Position));
+                    #endregion
+
+                    #region Martins opgave
+                    //HashSet<DBPoint> points = localDb.HashSetOfType<DBPoint>(tx);
+                    //CivSurface surface = localDb
+                    //    .HashSetOfType<TinSurface>(tx)
+                    //    .FirstOrDefault() as CivSurface;
+
+                    //foreach (DBPoint point in points)
+                    //{
+                    //    double depthToTop =
+                    //        PropertySetManager.ReadNonDefinedPropertySetDouble(
+                    //            point, "GSMeasurement", "Depth");
+                    //    double depthCl = depthToTop + 0.1143 / 2;
+                    //    double surfaceElev = surface.FindElevationAtXY(point.Position.X, point.Position.Y);
+                    //    double clElevation = surfaceElev - depthCl;
+
+                    //    point.UpgradeOpen();
+                    //    point.Position = new Point3d(point.Position.X, point.Position.Y, clElevation);
+                    //}
+                    #endregion
+
+                    #region Testing pl3d merging
+                    ////List<Polyline3d> pls = localDb.ListOfType<Polyline3d>(tx);
+                    ////Polyline3d pl = pls.Where(x => x.GetVertices(tx).Length > 4).FirstOrDefault();
+
+                    ////HashSet<DBPoint> points = localDb.HashSetOfType<DBPoint>(tx);
+                    ////foreach (DBPoint p in points)
+                    ////{
+                    ////    Line l = new Line(p.Position, pl.GetClosestPointTo(p.Position, false));
+                    ////    l.AddEntityToDbModelSpace(localDb);
+                    ////}
+
+                    ////This is for testing ONLY
+                    ////The supplied pl3d must be already overlapping
+                    ////If you try to merge non - overlapping pl3ds, it will exit with infinite loop
+                    //Tolerance tolerance = new Tolerance(1e-3, 2.54 * 1e-3);
+                    //List<Polyline3d> pls = localDb.ListOfType<Polyline3d>(tx);
+
+                    ////var pl = pls.First();
+                    ////var vertices = pl.GetVertices(tx);
+                    ////for (int i = 0; i < vertices.Length; i++)
+                    ////{
+                    ////    prdDbg(vertices[i].Position);
+                    ////}
+
+                    //var mypl3ds = pls.Select(x => new LER2.MyPl3d(x, tolerance)).ToList();
+                    //LER2.MyPl3d seed = mypl3ds[0];
+                    //var others = mypl3ds.Skip(1);
+
+                    //Polyline3d merged = new Polyline3d(
+                    //    Poly3dType.SimplePoly, seed.Merge(others), false);
+                    //merged.AddEntityToDbModelSpace(localDb);
+
+                    //foreach (Polyline3d item in pls)
+                    //{
+                    //    item.UpgradeOpen();
+                    //    item.Erase();
+                    //}
+                    #endregion
+
+                    #region Writing vertex values of poly3d
+                    //PromptEntityOptions peo = new PromptEntityOptions("\nSelect object: ");
+                    //peo.SetRejectMessage("\nNot a Polyline3d!");
+                    //peo.AddAllowedClass(typeof(Polyline3d), false);
+                    //PromptEntityResult per = editor.GetEntity(peo);
+                    //Polyline3d pl3d = per.ObjectId.Go<Polyline3d>(tx);
+
+                    //PolylineVertex3d[] verts = pl3d.GetVertices(tx);
+
+                    //string result = "";
+                    //for (int i = 0; i < verts.Length; i++)
+                    //{
+                    //    Point3d p = verts[i].Position;
+
+                    //    result += $"[{p.X.ToString("F5")} {p.Y.ToString("F5")} {p.Z.ToString("F5")}]";
+                    //}
+                    //prdDbg(result);
+                    #endregion
+
+                    #region Testing value of Tolerance
+                    //prdDbg("EqualPoint: " + Tolerance.Global.EqualPoint); //2.54e-08
+                    //prdDbg("EqualVector: " + Tolerance.Global.EqualVector); //1e-08
+                    //prdDbg(Tolerance.Global.ToString());
+                    #endregion
+
+                    #region Test extension dictionary
+                    //PromptEntityOptions peo = new PromptEntityOptions("\nSelect object: ");
+                    //peo.SetRejectMessage("\nNot a DBObject!");
+                    //peo.AddAllowedClass(typeof(DBObject), false);
+                    //PromptEntityResult per = editor.GetEntity(peo);
+                    //DBObject obj = per.ObjectId.Go<DBObject>(tx);
+
+                    //Oid extId = obj.ExtensionDictionary;
+                    //if (extId != Oid.Null)
+                    //{
+                    //    DBDictionary extDict = extId.Go<DBDictionary>(tx);
+                    //    foreach (DBDictionaryEntry item in extDict)
+                    //    {
+                    //        prdDbg(item.Key);
+                    //    }
+
+                    //}else prdDbg("No extension dictionary found!");
+                    #endregion
+
+                    #region Test arc sample points
+                    //HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
+                    //foreach(BlockReference br in brs)
+                    //{
+                    //    BlockTableRecord btr = br.BlockTableRecord.GetObject(OpenMode.ForRead) as BlockTableRecord;
+                    //    if (btr == null) continue;
+
+                    //    foreach (Oid id in btr)
+                    //    {
+                    //        Entity member = id.Go<Entity>(tx);
+                    //        if (member == null) continue;
+
+                    //        switch (member)
+                    //        {
+                    //            case Arc arcOriginal:
+                    //                {
+                    //                    Arc arc = (Arc)arcOriginal.Clone();
+                    //                    arc.CheckOrOpenForWrite();
+                    //                    arc.TransformBy(br.BlockTransform);
+                    //                    double length = arc.Length;
+                    //                    double radians = length / arc.Radius;
+                    //                    int nrOfSamples = (int)(radians / 0.1);
+                    //                    if (nrOfSamples < 3)
+                    //                    {
+                    //                        DBPoint p = new DBPoint(arc.StartPoint);
+                    //                        p.AddEntityToDbModelSpace(localDb);
+                    //                        p = new DBPoint(arc.EndPoint);
+                    //                        p.AddEntityToDbModelSpace(localDb);
+                    //                        p = new DBPoint(arc.GetPointAtDist(arc.Length/2));
+                    //                        p.AddEntityToDbModelSpace(localDb);
+                    //                    }
+                    //                    else
+                    //                    {
+                    //                        Curve3d geCurve = arc.GetGeCurve();
+                    //                        PointOnCurve3d[] samples = geCurve.GetSamplePoints(nrOfSamples);
+                    //                        for (int i = 0; i < samples.Length; i++)
+                    //                        {
+                    //                            DBPoint p = new DBPoint(samples[i].Point);
+                    //                            p.AddEntityToDbModelSpace(localDb);
+                    //                        }
+                    //                    }
+                    //                }
+                    //                continue;
+                    //            default:
+                    //                prdDbg(member.GetType().ToString());
+                    //                break;
+                    //        }
+                    //    }
+                    //}
+                    #endregion
+
+                    #region Test alignments connection
+                    //PromptEntityOptions peo = new PromptEntityOptions("\nSelect first alignment: ");
+                    //peo.SetRejectMessage("\nNot an alignment!");
+                    //peo.AddAllowedClass(typeof(Alignment), true);
+                    //PromptEntityResult per = editor.GetEntity(peo);
+                    //Alignment al1 = per.ObjectId.Go<Alignment>(tx);
+
+                    //peo = new PromptEntityOptions("\nSelect second alignment: ");
+                    //peo.SetRejectMessage("\nNot an alignment!");
+                    //peo.AddAllowedClass(typeof(Alignment), true);
+                    //per = editor.GetEntity(peo);
+                    //Alignment al2 = per.ObjectId.Go<Alignment>(tx);
+
+                    //// Get the start and end points of the alignments
+                    //Point3d thisStart = al1.StartPoint;
+                    //Point3d thisEnd = al1.EndPoint;
+                    //Point3d otherStart = al2.StartPoint;
+                    //Point3d otherEnd = al2.EndPoint;
+
+                    //double tol = 0.05;
+
+                    //// Check if any of the endpoints of this alignment are on the other alignment
+                    //if (IsOn(al2, thisStart, tol) || IsOn(al2, thisEnd, tol))
+                    //    prdDbg("Connected!");
+                    //// Check if any of the endpoints of the other alignment are on this alignment
+                    //else if (IsOn(al1, otherStart, tol) || IsOn(al1, otherEnd, tol))
+                    //    prdDbg("Connected!");
+                    //else prdDbg("Not connected!");
+
+                    //bool IsOn(Alignment al, Point3d point, double tolerance)
+                    //{
+                    //    //double station = 0;
+                    //    //double offset = 0;
+
+                    //    //try
+                    //    //{
+                    //    //    alignment.StationOffset(point.X, point.Y, tolerance, ref station, ref offset);
+                    //    //}
+                    //    //catch (Exception) { return false; }
+
+                    //    Polyline pline = al.GetPolyline().Go<Polyline>(
+                    //        al.Database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+                    //    Point3d p = pline.GetClosestPointTo(point, false);
+                    //    pline.Erase(true);
+                    //    //prdDbg($"{offset}, {Math.Abs(offset)} < {tolerance}, {Math.Abs(offset) <= tolerance}, {station}");
+
+                    //    // If the offset is within the tolerance, the point is on the alignment
+                    //    if (Math.Abs(p.DistanceTo(point)) <= tolerance) return true;
+
+                    //    // Otherwise, the point is not on the alignment
+                    //    return false;
+                    //}
+
+                    #endregion
+
+                    #region Print lineweights enum
+                    //foreach (string name in Enum.GetNames(typeof(LineWeight)))
+                    //{
+                    //    prdDbg(name);
+                    //}
+                    #endregion
+
                     #region Test pline to polygon
                     //var plines = localDb.HashSetOfType<Polyline>(tx);
                     //foreach (Polyline pline in plines)
@@ -4934,64 +5231,66 @@ namespace IntersectUtilities
                     //string projectName = dro.ProjectName;
                     //string etapeName = dro.EtapeName;
 
+                    //#region Read CSV
+                    //System.Data.DataTable dynBlocks = default;
+                    //try
+                    //{
+                    //    dynBlocks = CsvReader.ReadCsvToDataTable(
+                    //            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    //}
+                    //catch (System.Exception ex)
+                    //{
+                    //    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                    //    prdDbg(ex);
+                    //    throw;
+                    //}
+                    //if (dynBlocks == default)
+                    //{
+                    //    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                    //    throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                    //}
+                    //#endregion
+
                     //// open the xref database
                     //Database fremDb = new Database(false, true);
                     //fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
                     //    System.IO.FileShare.Read, false, string.Empty);
                     //Transaction fremTx = fremDb.TransactionManager.StartTransaction();
-                    //HashSet<Curve> allCurves = fremDb.HashSetOfType<Curve>(fremTx);
-                    //HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                    //var ents = fremDb.GetFjvEntities(fremTx, dynBlocks);
+                    //var allCurves = ents.Where(x => x is Curve).ToHashSet();
+                    //var allBrs = ents.Where(x => x is BlockReference).ToHashSet();
+
+                    //PropertySetManager psmPipeLineData = new PropertySetManager(
+                    //    fremDb,
+                    //    PSetDefs.DefinedSets.DriPipelineData);
+                    //PSetDefs.DriPipelineData driPipelineData =
+                    //    new PSetDefs.DriPipelineData();
                     //#endregion
 
                     //try
                     //{
                     //    #region GetCurvesAndBRs from fremtidig
-                    //    HashSet<Curve> curves = allCurves
-                    //        .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+                    //    HashSet<Curve> curves = allCurves.Cast<Curve>()
+                    //        .Where(x => psmPipeLineData
+                    //        .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                     //        .ToHashSet();
-                    //    HashSet<BlockReference> brs = allBrs
-                    //        .Where(x => x.XrecFilter("Alignment", new[] { al.Name }))
+
+                    //    HashSet<BlockReference> brs = allBrs.Cast<BlockReference>()
+                    //        .Where(x => psmPipeLineData
+                    //        .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                     //        .ToHashSet();
                     //    prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                     //    #endregion
 
-                    //    //PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves);
-                    //    //prdDbg("Curves:");
-                    //    //prdDbg(sizeArray.ToString());
-
-                    //    prdDbg("Blocks:");
                     //    PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
                     //    prdDbg(sizeArray.ToString());
-
-                    //    //Determine direction
-                    //    HashSet<(Curve curve, double dist)> curveDistTuples =
-                    //            new HashSet<(Curve curve, double dist)>();
-                    //    prdDbg($"{al.Name}");
-                    //    Point3d samplePoint = al.GetPointAtDist(0);
-
-                    //    foreach (Curve curve in curves)
-                    //    {
-                    //        if (curve.GetDistanceAtParameter(curve.EndParam) < 1.0) continue;
-                    //        Point3d closestPoint = curve.GetClosestPointTo(samplePoint, false);
-                    //        if (closestPoint != default)
-                    //            curveDistTuples.Add(
-                    //                (curve, samplePoint.DistanceHorizontalTo(closestPoint)));
-                    //        prdDbg($"Dist: {samplePoint.DistanceHorizontalTo(closestPoint)}");
-                    //    }
-
-                    //    Curve closestCurve = curveDistTuples.MinBy(x => x.dist).FirstOrDefault().curve;
-
-                    //    int startingDn = PipeSchedule.GetPipeDN(closestCurve);
-                    //    prdDbg($"startingDn: {startingDn}");
-
-                    //    //if (sizeArray[0].DN != startingDn) sizeArray.Reverse();
                     //}
                     //catch (System.Exception ex)
                     //{
                     //    fremTx.Abort();
                     //    fremTx.Dispose();
                     //    fremDb.Dispose();
-                    //    prdDbg(ex.ToString());
+                    //    prdDbg(ex);
                     //    throw;
                     //}
                     //fremTx.Abort();
@@ -5817,7 +6116,7 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     tx.Abort();
                     return;
                 }
@@ -5830,8 +6129,6 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
 
             graphclear();
             graphpopulate();
@@ -5898,7 +6195,7 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     tx.Abort();
                     return;
                 }
@@ -6393,7 +6690,7 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -6434,7 +6731,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -6458,12 +6755,14 @@ namespace IntersectUtilities
                     promptEntityOptions1.SetRejectMessage("\n Not a XREF");
                     promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
                     PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) AbortGracefully(tx, "No input!");
+                    if (((PromptResult)entity1).Status != PromptStatus.OK)
+                    { AbortGracefully("No input!", localDb); return; }
                     Oid blkObjId = entity1.ObjectId;
                     BlockReference blkRef = tx.GetObject(blkObjId, OpenMode.ForRead, false) as BlockReference;
 
                     BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
-                    if (!blockDef.IsFromExternalReference) AbortGracefully(tx, "Selected object is not an XREF!");
+                    if (!blockDef.IsFromExternalReference)
+                    { AbortGracefully("Selected object is not an XREF!", localDb); return; }
 
                     // open the xref database
                     Database xrefDb = new Database(false, true);
@@ -6590,7 +6889,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -6614,12 +6913,14 @@ namespace IntersectUtilities
                     promptEntityOptions1.SetRejectMessage("\n Not a XREF");
                     promptEntityOptions1.AddAllowedClass(typeof(Autodesk.AutoCAD.DatabaseServices.BlockReference), true);
                     PromptEntityResult entity1 = ed.GetEntity(promptEntityOptions1);
-                    if (((PromptResult)entity1).Status != PromptStatus.OK) AbortGracefully(tx, "No input!");
+                    if (((PromptResult)entity1).Status != PromptStatus.OK)
+                    { AbortGracefully("No input!", localDb); return; }
                     Oid blkObjId = entity1.ObjectId;
                     BlockReference blkRef = tx.GetObject(blkObjId, OpenMode.ForRead, false) as BlockReference;
 
                     BlockTableRecord blockDef = tx.GetObject(blkRef.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
-                    if (!blockDef.IsFromExternalReference) AbortGracefully(tx, "Selected object is not an XREF!");
+                    if (!blockDef.IsFromExternalReference)
+                    { AbortGracefully("Selected object is not an XREF!", localDb); return; }
 
                     // open the xref database
                     Database xrefDb = new Database(false, true);
@@ -6693,7 +6994,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -6745,7 +7046,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -6847,7 +7148,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -6867,9 +7168,10 @@ namespace IntersectUtilities
                 {
                     int lines = Interaction.GetInteger("Enter number of lines for AutoCAD command line history: ");
 
-                    if (lines == -1) AbortGracefully(tx, "Number of lines cancelled!");
+                    if (lines == -1) { AbortGracefully("Number of lines cancelled!", localDb); return; }
 
-                    if (lines < 25 || lines > 2048) AbortGracefully(tx, "Number of lines must be between 25 and 2048!");
+                    if (lines < 25 || lines > 2048)
+                    { AbortGracefully("Number of lines must be between 25 and 2048!", localDb); return; }
 
                     doc.SendStringToExecute($"(SETENV \"CmdHistLines\" \"{lines}\")\n", true, false, false);
                 }
@@ -6898,7 +7200,7 @@ namespace IntersectUtilities
                 {
                     Oid oid = Interaction.GetEntity("Select polyline til TBL områder: ");
 
-                    if (oid == Oid.Null) AbortGracefully(tx, "Selection of entity aborted!");
+                    if (oid == Oid.Null) { AbortGracefully("Selection of entity aborted!", localDb); return; }
 
                     Entity ent = oid.Go<Entity>(tx, OpenMode.ForWrite);
 
@@ -6924,7 +7226,7 @@ namespace IntersectUtilities
                     //};
 
                     string kwd = Interaction.GetKeywords("Angiv belægning: ", kwds);
-                    if (kwd == null) AbortGracefully(tx, "Input annulleret!");
+                    if (kwd == null) { AbortGracefully("Input annulleret!", localDb); return; }
                     if (kwd == "FOrtov") kwd = "Fortov";
 
                     psm.WritePropertyString(ent, psDef.Belægning, kwd);
@@ -6939,14 +7241,14 @@ namespace IntersectUtilities
 
                     kwd = null;
                     kwd = Interaction.GetKeywords("Angiv vejklasse: ", kwds);
-                    if (kwd == null) AbortGracefully(tx, "Input annulleret!");
+                    if (kwd == null) { AbortGracefully("Input annulleret!", localDb); return; }
 
                     psm.WritePropertyString(ent, psDef.Vejklasse, kwd);
                 }
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -7393,7 +7695,6 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
 
             int count = 0;
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -7852,6 +8153,182 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("GOOGLESTREETVIEW")]
+        [CommandMethod("GS")]
+        public void googlestreetview()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            Point3d p = Interaction.GetPoint($"Pick point for Google Street View: ");
+            if (p == Algorithms.NullPoint3d) { return; }
+
+            var latlong = UTMToLatLon(p.X, p.Y, "32N");
+            prdDbg($"Opening Google Street View with coordinates: {latlong[0]}, {latlong[1]}.");
+
+            string url = $"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={latlong[0]},{latlong[1]}";
+
+            System.Diagnostics.Process.Start(url);
+
+            double[] UTMToLatLon(double easting, double northing, string zone)
+            {
+                int ZoneNumber = int.Parse(zone.Substring(0, zone.Length - 1));
+                //char ZoneLetter = zone[zone.Length - 1];
+
+                double a = 6378137; // WGS-84 ellipsiod parameters
+                double eccSquared = 0.00669438;
+                double eccPrimeSquared;
+                double e1 = (1 - Math.Sqrt(1 - eccSquared)) / (1 + Math.Sqrt(1 - eccSquared));
+
+                double N1, T1, C1, R1, D, M;
+                double LongOrigin;
+                double mu, phi1Rad;
+
+                double x = easting - 500000.0; // remove 500,000 meter offset for longitude
+                double y = northing;
+
+                LongOrigin = (ZoneNumber - 1) * 6 - 180 + 3;  //+3 puts origin in middle of zone
+
+                eccPrimeSquared = (eccSquared) / (1 - eccSquared);
+
+                M = y / 0.9996;
+                mu = M / (a * (1 - eccSquared / 4 - 3 * eccSquared * eccSquared / 64 - 5 * eccSquared * eccSquared * eccSquared / 256));
+
+                phi1Rad = mu + (3 * e1 / 2 - 27 * Math.Pow(e1, 3) / 32) * Math.Sin(2 * mu) +
+                         (21 * e1 * e1 / 16 - 55 * Math.Pow(e1, 4) / 32) * Math.Sin(4 * mu) +
+                         (151 * Math.Pow(e1, 3) / 96) * Math.Sin(6 * mu);
+
+                N1 = a / Math.Sqrt(1 - eccSquared * Math.Sin(phi1Rad) * Math.Sin(phi1Rad));
+                T1 = Math.Tan(phi1Rad) * Math.Tan(phi1Rad);
+                C1 = eccPrimeSquared * Math.Cos(phi1Rad) * Math.Cos(phi1Rad);
+                R1 = a * (1 - eccSquared) / Math.Pow(1 - eccSquared * Math.Sin(phi1Rad) * Math.Sin(phi1Rad), 1.5);
+                D = x / (N1 * 0.9996);
+
+                double lat = phi1Rad - (N1 * Math.Tan(phi1Rad) / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * eccPrimeSquared) * Math.Pow(D, 4) / 24 +
+                                                               (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * eccPrimeSquared - 3 * C1 * C1) * Math.Pow(D, 6) / 720);
+                lat = lat * 180.0 / Math.PI;
+
+                double lon = (D - (1 + 2 * T1 + C1) * Math.Pow(D, 3) / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * eccPrimeSquared + 24 * T1 * T1) * Math.Pow(D, 5) / 120) / Math.Cos(phi1Rad);
+                lon = LongOrigin + (lon * 180.0 / Math.PI);
+
+                return new double[] { lat, lon };
+            }
+
+        }
+
+        [CommandMethod("MODIFYPOINTSELEVATIONFROMSURFACE")]
+        public void modifypointselevationfromsurface()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    HashSet<DBPoint> points = localDb.HashSetOfType<DBPoint>(tx);
+                    CivSurface surface = localDb
+                        .HashSetOfType<TinSurface>(tx)
+                        .FirstOrDefault() as CivSurface;
+
+                    foreach (DBPoint point in points)
+                    {
+                        double depthToTop =
+                            PropertySetManager.ReadNonDefinedPropertySetDouble(
+                                point, "GSMeasurement", "Depth");
+                        double depthCl = depthToTop + 0.1143 / 2;
+                        double surfaceElev = surface.FindElevationAtXY(point.Position.X, point.Position.Y);
+                        double clElevation = surfaceElev - depthCl;
+
+                        point.UpgradeOpen();
+                        point.Position = new Point3d(point.Position.X, point.Position.Y, clElevation);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("FINDALIGNMENT")]
+        public void findalignment()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Read CSV
+                    System.Data.DataTable dt = default;
+                    try
+                    {
+                        dt = CsvReader.ReadCsvToDataTable(
+                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    }
+                    catch (System.Exception ex)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        prdDbg(ex);
+                        throw;
+                    }
+                    if (dt == default)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                    }
+                    #endregion
+
+                    PropertySetManager psmPipeLineData = new PropertySetManager(
+                        localDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineData =
+                        new PSetDefs.DriPipelineData();
+
+                    var ents = localDb.GetFjvEntities(tx, dt, false, false, true);
+
+                    var list = ents.Select(
+                        x => psmPipeLineData.ReadPropertyString(x, driPipelineData.BelongsToAlignment))
+                        .Distinct().OrderBy(x => x);
+
+                    StringGridForm sgf = new StringGridForm(list);
+                    sgf.ShowDialog();
+
+                    if (sgf.SelectedValue != null)
+                    {
+                        var result = ents.Where(x => psmPipeLineData
+                        .FilterPropetyString(x, driPipelineData.BelongsToAlignment, sgf.SelectedValue))
+                        .Select(x => x.Id)
+                        .ToArray();
+
+                        if (result.Length == 0)
+                        {
+                            prdDbg("No entities found with this alignment name!");
+                            tx.Abort();
+                            return;
+                        }
+
+                        docCol.MdiActiveDocument.Editor.SetImpliedSelection(
+                            result
+                            );
+                    }
+                    else { prdDbg("Cancelled!"); }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         //[CommandMethod("TESTENUMS")]
         public void testenums()
         {
@@ -7896,37 +8373,6 @@ namespace IntersectUtilities
             TestThird = 4,
             TestFourth = 8,
             TestFith = 16,
-        }
-
-        void AbortGracefully(Database db)
-        {
-            while (db.TransactionManager.TopTransaction != null)
-            {
-                Transaction tx = db.TransactionManager.TopTransaction;
-                tx.Abort();
-                tx.Dispose();
-            }
-        }
-
-        void AbortGracefully(Transaction tx, string msg)
-        {
-            tx.Abort();
-            prdDbg(msg);
-        }
-
-        void AbortGracefully(Transaction[] txs, Database[] dbs, string exMsg)
-        {
-            foreach (Transaction tx in txs)
-            {
-                tx.Abort();
-                tx.Dispose();
-            }
-
-            foreach (var db in dbs)
-            {
-                db.Dispose();
-            }
-            prdDbg(exMsg);
         }
     }
 }

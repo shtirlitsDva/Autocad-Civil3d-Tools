@@ -16,7 +16,7 @@ using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
 using IntersectUtilities.UtilsCommon;
-using System.Diagnostics;
+using Autodesk.AutoCAD.ApplicationServices.Core;
 
 namespace IntersectUtilities
 {
@@ -315,7 +315,7 @@ namespace IntersectUtilities
             }
             catch (System.Exception ex)
             {
-                prdDbg(ex.ToString());
+                prdDbg(ex);
                 throw;
             }
         }
@@ -329,7 +329,7 @@ namespace IntersectUtilities
                 List<PropertySet> sourcePss = source.GetPropertySets();
                 DictionaryPropertySetDefinitions sourcePropDefDict
                     = new DictionaryPropertySetDefinitions(source.Database);
-                
+
                 foreach (PropertySet sourcePs in sourcePss)
                 {
                     int propertyId = -1;
@@ -481,11 +481,18 @@ namespace IntersectUtilities
                         ps.CheckOrOpenForWrite();
                         foreach (KeyValuePair<string, object> pair in psData)
                         {
+                            if (!PsContainsDef(ps, pair.Key))
+                            {
+                                prdDbg($"For propertyset {propertySetName} property {pair.Key} not found!");
+                                continue;
+                            }
                             i++;
+
                             int propertyId = ps.PropertyNameToId(pair.Key);
                             try
                             {
-                                ps.SetAt(propertyId, pair.Value);
+                                if (pair.Value is string) ps.SetAt(propertyId, pair.Value.ToString());
+                                else ps.SetAt(propertyId, pair.Value);
                             }
                             catch (System.Exception)
                             {
@@ -500,11 +507,30 @@ namespace IntersectUtilities
                 //Property set not attached
                 throw new System.Exception($"Property set {propertySetName} could not been found attached to entity!");
             }
+
+            bool PsContainsDef(PropertySet ps, string name)
+            {
+                PropertySetDefinition propSetDef =
+                            ps.PropertySetDefinition.Go<PropertySetDefinition>(
+                                database.TransactionManager.TopTransaction);
+
+                PropertyDefinitionCollection defs = propSetDef.Definitions;
+
+                foreach (PropertyDefinition item in defs)
+                {
+                    if (item.Name == name) return true;
+                }
+
+                return false;
+            }
         }
         public static void UpdatePropertySetDefinition(Database db, PSetDefs.DefinedSets propertySetName)
         {
-            if (db.TransactionManager.TopTransaction != null) throw new System.Exception(
-                "UpdatePropertySetDefinition must not run inside another Transaction!");
+            if (db.TransactionManager.TopTransaction != null)
+            {
+                prdDbg($"Some method tried to update PS Def {propertySetName} inside a transaction!");
+                return;
+            }
 
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
@@ -617,7 +643,7 @@ namespace IntersectUtilities
             Oid psDefId = dpsd.GetAt(names.PsSetName);
 
             var setIdsCol = PropertyDataServices.GetAllPropertySetsUsingDefinition(psDefId, false);
-            
+
             HashSet<string> values = new HashSet<string>();
             foreach (Oid oid in setIdsCol)
             {
@@ -630,7 +656,7 @@ namespace IntersectUtilities
             if (values.Contains("")) { values.Remove(""); values.Add("<empty>"); };
 
             foreach (var item in values.OrderBy(x => x)) prdDbg(item);
-            
+
         }
         public static HashSet<string> AllPropertyNames(Database db)
         {
@@ -732,10 +758,49 @@ namespace IntersectUtilities
                         default:
                             break;
                     }
-                    
+
                 }
             }
             return foundPs;
+        }
+        public static Dictionary<string, object> DumpAllProperties(Entity ent)
+        {
+            //Dictionary<string, Dictionary<string, object>> completeData = new Dictionary<string, Dictionary<string, object>>();
+
+            Transaction tx = ent.Database.TransactionManager.TopTransaction;
+            if (tx == null) throw new System.Exception(
+                "PropertySetManager.DumpAllProperties(Entity ent) called outside Transaction!");
+
+            var propertySetIds = PropertyDataServices.GetPropertySets(ent);
+            if (propertySetIds.Count == 0) return null;
+            if (propertySetIds.Count != 1) throw new System.Exception(
+                $"Entity {ent.Handle} cannot dump properties as the method expects only one property set per object!");
+
+            foreach (Oid oid in propertySetIds)
+            {
+                Dictionary<string, object> data = new Dictionary<string, object>();
+                
+                PropertySet ps = oid.Go<PropertySet>(tx);
+                //completeData.Add(ps.PropertySetDefinitionName, data);
+
+                PropertySetDefinition psDef = ps.PropertySetDefinition.Go<PropertySetDefinition>(tx);
+                PropertyDefinitionCollection pDefs = psDef.Definitions;
+
+                data.Add("Ler2Type", ps.PropertySetDefinitionName);
+
+                foreach (PropertyDefinition def in pDefs)
+                {
+                    string propName = def.Name;
+                    int id = ps.PropertyNameToId(propName);
+                    PropertySetData storedData = ps.GetPropertySetDataAt(id);
+                    data.Add(propName, storedData.GetData());
+                }
+
+                return data;
+            }
+
+            return null;
+            //return completeData;
         }
         public enum MatchTypeEnum
         {

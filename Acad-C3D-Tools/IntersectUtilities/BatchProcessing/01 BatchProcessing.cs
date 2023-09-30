@@ -140,29 +140,6 @@ namespace IntersectUtilities
                                     #region Stagger labels
                                     //staggerlabelsallmethod(xDb);
                                     #endregion
-                                    #region Unhide specific layer in DB
-                                    //LayerTable extLt = xDb.LayerTableId.Go<LayerTable>(xTx);
-                                    //foreach (Oid oid in extLt)
-                                    //{
-                                    //    LayerTableRecord ltr = oid.Go<LayerTableRecord>(xTx);
-                                    //    if (ltr.Name.Contains("|"))
-                                    //    {
-                                    //        var split = ltr.Name.Split('|');
-                                    //        string xrefName = split[0];
-                                    //        string layerName = split[1];
-                                    //        if (xrefName == "FJV-Fremtid-E1" &&
-                                    //            layerName.Contains("SVEJSEPKT-NR"))
-                                    //        {
-                                    //            prdDbg(ltr.Name);
-                                    //            prdDbg(ltr.IsDependent.ToString());
-                                    //            ltr.CheckOrOpenForWrite();
-                                    //            prdDbg(ltr.IsOff.ToString());
-                                    //            ltr.IsOff = false;
-                                    //            prdDbg(ltr.IsOff.ToString());
-                                    //        }
-                                    //    }
-                                    //}
-                                    #endregion
                                     #region Set linetypes of xref
                                     //LayerTable extLt = xDb.LayerTableId.Go<LayerTable>(xTx);
                                     //foreach (Oid oid in extLt)
@@ -222,9 +199,8 @@ namespace IntersectUtilities
                                                 break;
                                             case ResultStatus.FatalError:
                                                 AbortGracefully(
-                                                new[] { xTx },
-                                                new[] { xDb },
-                                                result.ErrorMsg);
+                                                result.ErrorMsg,
+                                                xDb);
                                                 tx.Abort();
                                                 return;
                                             case ResultStatus.SoftError:
@@ -994,6 +970,108 @@ namespace IntersectUtilities
             return new Result();
         }
         [MethodDescription(
+            "Detach and attach an xref by name with optional draw order",
+            "Detacher en xref i tegningen og attacher den igen\n" +
+            "ved navn (uden .dwg), samtidig giver mulighed for\n" +
+            "at angive en anden xref den skal placeres under\n" +
+            "eller over i draw order. Der skal kun angives over eller under!",
+            new string[3] { "Xref Navn (uden .dwg)", "Xref Navn til at placere i draw order", "Draw Order type: Over eller Under" })]
+        public static Result detachattachdwg(
+            Database xDb, string detachXrefName, string drawOrderXref, string drawOrderType)
+        {
+            string xrefPath = "";
+            string xrefLayerName = "";
+
+            using (Transaction nestedTx = xDb.TransactionManager.StartTransaction())
+            {
+                BlockTable bt = xDb.BlockTableId.Go<BlockTable>(nestedTx, OpenMode.ForRead);
+                BlockTableRecord ms = xDb.GetModelspaceForWrite();
+                DrawOrderTable dot = ms.DrawOrderTableId.Go<DrawOrderTable>(
+                    nestedTx, OpenMode.ForWrite);
+
+                foreach (Oid oid in ms)
+                {
+                    var br = oid.Go<BlockReference>(nestedTx);
+                    if (br == null) continue;
+                    BlockTableRecord btr = nestedTx.GetObject(br.BlockTableRecord, OpenMode.ForWrite) as BlockTableRecord;
+                    if (btr.IsFromExternalReference && btr.Name == detachXrefName)
+                    {
+                        prdDbg("Found specified xref!");
+                        xrefPath = btr.PathName;
+                        xrefLayerName = br.Layer;
+                        xDb.DetachXref(btr.ObjectId);
+                    }
+                }
+
+                if (xrefPath.IsNoE() || xrefLayerName.IsNoE())
+                {
+                    prdDbg("Specified xref NOT found or layer name is empty!");
+                    nestedTx.Abort();
+                    return new Result(
+                        ResultStatus.FatalError, $"Xref {detachXrefName} not found or layer name is empty!");
+                }
+
+                nestedTx.Commit();
+            }
+
+            using (Transaction nestedTx = xDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Oid xrefId = xDb.AttachXref(xrefPath, detachXrefName);
+                    if (xrefId == Oid.Null)
+                    {
+                        nestedTx.Abort();
+                        return new Result(
+                            ResultStatus.FatalError, $"Could not reattach xref {detachXrefName}!");
+                    }
+
+                    Point3d insPt = new Point3d(0, 0, 0);
+                    using (BlockReference br = new BlockReference(insPt, xrefId))
+                    {
+                        BlockTableRecord modelSpace = xDb.GetModelspaceForWrite();
+                        modelSpace.AppendEntity(br);
+                        nestedTx.AddNewlyCreatedDBObject(br, true);
+
+                        br.Layer = xrefLayerName;
+
+                        if (drawOrderXref.IsNotNoE())
+                        {
+                            foreach (Oid oid in modelSpace)
+                            {
+                                var doBr = oid.Go<BlockReference>(nestedTx);
+                                if (doBr == null) continue;
+                                BlockTableRecord btr = nestedTx.GetObject(doBr.BlockTableRecord, OpenMode.ForWrite) as BlockTableRecord;
+                                if (btr.IsFromExternalReference && btr.Name == drawOrderXref)
+                                {
+                                    prdDbg("Found specified draw order xref!");
+
+                                    DrawOrderTable dot = modelSpace.DrawOrderTableId.Go<DrawOrderTable>(nestedTx);
+                                    dot.CheckOrOpenForWrite();
+
+                                    ObjectIdCollection idCol = new ObjectIdCollection(new Oid[1] { br.Id });
+
+                                    if (drawOrderType == "Under") dot.MoveBelow(idCol, doBr.Id);
+                                    else if (drawOrderType == "Over") dot.MoveAbove(idCol, doBr.Id);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    nestedTx.Abort();
+                    return new Result(
+                        ResultStatus.FatalError,
+                        ex.ToString());
+                }
+
+                nestedTx.Commit();
+            }
+
+            return new Result();
+        }
+        [MethodDescription(
             "Recreate detailing",
             "Sletter eksisterende detaljering\n" +
             "af længdeprofiler og laver ny",
@@ -1054,6 +1132,77 @@ namespace IntersectUtilities
                                     entity.Name.Contains("surface")) continue;
 
                                 sm.CreateReference(idx, xDb);
+                            }
+                        }
+                    }
+                }
+
+                IEnumerable<int> GetItemsByPipelineNumber(
+                    DataShortcuts.DataShortcutManager dsMan, string pipelineNumber)
+                {
+                    int count = dsMan.GetPublishedItemsCount();
+
+                    for (int j = 0; j < count; j++)
+                    {
+                        string name = dsMan.GetPublishedItemAt(j).Name;
+                        if (name.StartsWith(pipelineNumber)) yield return j;
+                    }
+                }
+            }
+
+            sm.Dispose();
+
+            return new Result();
+        }
+        [MethodDescription(
+            "Create reference to SURFACE profiles",
+            "Opretter reference til SURFACE profile fra shortcuts.\n" +
+            "Husk at sætte shortcuts folder!")]
+        public static Result createreferencetosurfaceprofile(Database xDb)
+        {
+            //Used when sheets were created before pipe profiles were available
+            //Finds those profiles and creates a reference to them in drawing
+            //Then it deletes the detailing and recreates it
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+            var als = xDb.HashSetOfType<Alignment>(xTx);
+
+            Regex reg1 = new Regex(@"(?<number>\d{2,3}?\s)");
+
+            bool isValidCreation = false;
+            DataShortcuts.DataShortcutManager sm = DataShortcuts.CreateDataShortcutManager(ref isValidCreation);
+            if (isValidCreation != true)
+            {
+                prdDbg("DataShortcutManager failed to be created!");
+                return new Result(ResultStatus.FatalError, "DataShortcutManager failed to be created!");
+            }
+            int publishedCount = sm.GetPublishedItemsCount();
+
+            foreach (Alignment al in als)
+            {
+                string number = reg1.Match(al.Name).Groups["number"].Value;
+                prdDbg($"{al.Name} -> {number}");
+
+                for (int i = 0; i < publishedCount; i++)
+                {
+                    DataShortcuts.DataShortcutManager.PublishedItem item =
+                        sm.GetPublishedItemAt(i);
+
+                    if (item.DSEntityType == DataShortcutEntityType.Alignment)
+                    {
+                        if (item.Name.StartsWith(number))
+                        {
+                            var items = GetItemsByPipelineNumber(sm, number);
+
+                            foreach (int idx in items)
+                            {
+                                DataShortcuts.DataShortcutManager.PublishedItem entity =
+                                    sm.GetPublishedItemAt(idx);
+
+                                if (entity.DSEntityType == DataShortcutEntityType.Alignment) continue;
+                                if (entity.Name.Contains("surface"))
+                                {
+                                    sm.CreateReference(idx, xDb);
+                                }
                             }
                         }
                     }
@@ -1441,7 +1590,7 @@ namespace IntersectUtilities
                                     if (vp.IsLayerFrozenInViewport(oid)) continue;
                                     notFrozenIds.Add(oid);
                                 }
-                                
+
                                 if (notFrozenIds.Count == 0) continue;
 
                                 prdDbg("Freezing C-ANNO-MTCH!");
@@ -1455,6 +1604,79 @@ namespace IntersectUtilities
             catch (System.Exception ex)
             {
                 return new Result(ResultStatus.FatalError, ex.ToString());
+            }
+            return new Result();
+        }
+        [MethodDescription(
+            "Stylize layers in minimap, hardcoded for now",
+            "Finder lag brugt af XREF i minikort og\n" +
+            "freezer dem i minikortets ViewPort.\n" +
+            "Samt ændrer farve på bygninger og vejkanter.\n" +
+            "Angiv viewportens center X og Y til hele tal.",
+            new string[3] { "Xref name", "Minikort ViewPort Center X", "Minikort ViewPort Center Y" })]
+        public static Result vpstylizelayers(Database xDb, string XrefName, int X, int Y)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+
+            ObjectIdCollection oids = new ObjectIdCollection();
+            LayerTable lt = xDb.LayerTableId.Go<LayerTable>(xTx);
+            foreach (Oid id in lt)
+            {
+                LayerTableRecord ltr = id.Go<LayerTableRecord>(xTx);
+                if (ltr.Name.StartsWith(XrefName)) oids.Add(id);
+            }
+            prdDbg($"Number of oids: {oids.Count}");
+
+            DBDictionary layoutDict = xDb.LayoutDictionaryId.Go<DBDictionary>(xTx);
+            foreach (DBDictionaryEntry item in layoutDict)
+            {
+                if (item.Key == "Model")
+                {
+                    //prdDbg("Skipping model...");
+                    continue;
+                }
+                Layout layout = item.Value.Go<Layout>(xTx);
+                BlockTableRecord layBlock = layout.BlockTableRecordId.Go<BlockTableRecord>(xTx);
+
+                foreach (Oid vpid in layBlock)
+                {
+                    if (vpid.IsDerivedFrom<Viewport>())
+                    {
+                        Viewport vp = vpid.Go<Viewport>(xTx, OpenMode.ForWrite);
+                        //Truncate doubles to whole numebers for easier comparison
+                        int centerX = (int)vp.CenterPoint.X;
+                        int centerY = (int)vp.CenterPoint.Y;
+                        if (centerX == X && centerY == Y)
+                        {
+                            prdDbg("Found minikort viewport!");
+                            ObjectIdCollection notFrozenIds = new ObjectIdCollection();
+                            ObjectIdCollection idsToColor = new ObjectIdCollection();
+                            foreach (Oid oid in oids)
+                            {
+                                LayerTableRecord ltr = oid.Go<LayerTableRecord>(xTx);
+                                if (ltr.Name.Contains("Bygning") || ltr.Name.Contains("Vejkant"))
+                                { idsToColor.Add(oid); continue; }
+                                if (vp.IsLayerFrozenInViewport(oid)) continue;
+                                notFrozenIds.Add(oid);
+                            }
+                            prdDbg($"Number of not frozen layers: {notFrozenIds.Count}");
+                            if (notFrozenIds.Count != 0)
+                                vp.FreezeLayersInViewport(notFrozenIds.GetEnumerator());
+
+                            prdDbg($"Number of layers to color: {idsToColor.Count}");
+                            if (idsToColor.Count == 0) continue;
+
+                            foreach (Oid ltrid in idsToColor)
+                            {
+                                LayerTableRecord ltr = ltrid.Go<LayerTableRecord>(xTx);
+                                ltr.UpgradeOpen();
+                                LayerViewportProperties lvp = ltr.GetViewportOverrides(vpid);
+                                lvp.Color = ColorByName("grey");
+                            }
+                        }
+                        vp.UpdateDisplay();
+                    }
+                }
             }
             return new Result();
         }
@@ -1476,7 +1698,7 @@ namespace IntersectUtilities
             Oid btrId = bt[blockName];
 
             DBDictionary layoutDict = xDb.LayoutDictionaryId.Go<DBDictionary>(xTx);
-            
+
             foreach (DBDictionaryEntry item in layoutDict)
             {
                 //prdDbg(item.Key);
@@ -1510,6 +1732,121 @@ namespace IntersectUtilities
                     }
                 }
             }
+            return new Result();
+        }
+        [MethodDescription(
+            "Replace (title)block on paperspace\n",
+            "Udskifter specificeret block på paperspace.\n" +
+            "Blocken importeres fra den angivne dwg.\n" +
+            "Dette kan bruges til at udskifte tegningsskilte",
+            new string[5] { "Name of block to replace", "Path to dwg with new block", "Name of new block",
+                "Block placement X", "Block placement Y"})]
+        public static Result replaceblockpaperspace(
+            Database xDb, string blockToReplace, string pathToBlockLibrary, string blockReplacement, int brX, int brY)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+            BlockTable bt = xTx.GetObject(xDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+            #region Delete old block
+            using (Transaction dxTx = xDb.TransactionManager.StartTransaction())
+            {
+                if (bt.Has(blockToReplace))
+                {
+                    Oid btrId = bt[blockToReplace];
+                    BlockTableRecord btr = btrId.Go<BlockTableRecord>(dxTx);
+                    var refIds = btr.GetBlockReferenceIds(true, false);
+                    var brs = refIds.Entities<BlockReference>(dxTx);
+                    foreach (var br in brs)
+                    {
+                        br.UpgradeOpen();
+                        br.Erase();
+                    }
+                    btr.UpgradeOpen();
+                    btr.Erase();
+                    dxTx.Commit();
+                }
+                else dxTx.Abort();
+            }
+            #endregion
+
+            #region Import new block
+            xDb.CheckOrImportBlockRecord(pathToBlockLibrary, blockReplacement);
+            if (!bt.Has(blockReplacement))
+                return new Result(
+                    ResultStatus.FatalError, $"{Path.GetFileName(xDb.Filename)} " +
+                    $"failed to import {blockReplacement} from {pathToBlockLibrary}!");
+            BlockTableRecord newBtr = bt[blockReplacement].Go<BlockTableRecord>(xTx);
+            #endregion
+
+            DBDictionary layoutDict = xDb.LayoutDictionaryId.Go<DBDictionary>(xTx);
+
+            foreach (DBDictionaryEntry item in layoutDict)
+            {
+                //prdDbg(item.Key);
+                if (item.Key == "Model")
+                {
+                    //prdDbg("Skipping model...");
+                    continue;
+                }
+                Layout layout = item.Value.Go<Layout>(xTx);
+                BlockTableRecord layBlock = layout.BlockTableRecordId.Go<BlockTableRecord>(xTx);
+
+                var br = new BlockReference(new Point3d(brX, brY, 0), newBtr.Id);
+                layBlock.CheckOrOpenForWrite();
+                layBlock.AppendEntity(br);
+                xTx.AddNewlyCreatedDBObject(br, true);
+
+                foreach (Oid arOid in newBtr)
+                {
+                    if (arOid.IsDerivedFrom<AttributeDefinition>())
+                    {
+                        AttributeDefinition at = arOid.Go<AttributeDefinition>(xTx);
+                        if (!at.Constant)
+                        {
+                            using (AttributeReference atRef = new AttributeReference())
+                            {
+                                atRef.SetAttributeFromBlock(at, br.BlockTransform);
+                                atRef.Position = at.Position.TransformBy(br.BlockTransform);
+                                atRef.TextString = at.getTextWithFieldCodes();
+                                br.AttributeCollection.AppendAttribute(atRef);
+                                xTx.AddNewlyCreatedDBObject(atRef, true);
+                            }
+                        }
+                    }
+                }
+
+                br.AttSync();
+            }
+            return new Result();
+        }
+        [MethodDescription(
+            "Unhide layer(s)\n",
+            "Unhide specifikke lag i tegningen.\n" +
+            "Ved input af flere lag skal\n" +
+            "skal de enkelte lagnavne deles op med \";\".\n",
+            new string[1] { "Layer name(s)" })]
+        public static Result unhidelayer(Database xDb, string layerNames)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+            LayerTable extLt = xDb.LayerTableId.Go<LayerTable>(xTx);
+
+            var split = layerNames.Split(';');
+
+            foreach (string layName in split)
+            {
+                foreach (Oid oid in extLt)
+                {
+                    LayerTableRecord ltr = oid.Go<LayerTableRecord>(xTx);
+
+                    if (ltr.Name == layName)
+                    {
+                        ltr.CheckOrOpenForWrite();
+                        ltr.IsFrozen = false;
+                        ltr.IsOff = false;
+                    }
+                }
+            }
+
             return new Result();
         }
     }

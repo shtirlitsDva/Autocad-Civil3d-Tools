@@ -507,11 +507,10 @@ namespace IntersectUtilities
                             if (type.IsNoE())
                             {//Exit, if a layer is not defined in Krydsninger.csv
                                 AbortGracefully(
-                                    new[] { xRefLerTx, xRefSurfaceTx },
-                                    new[] { xRefLerDB, xRefSurfaceDB },
                                     $"Fejl: For lag {ent.Layer} mangler der enten " +
-                                    $"selve definitionen eller 'Type'!");
-
+                                    $"selve definitionen eller 'Type'!",
+                                    xRefLerDB, xRefSurfaceDB
+                                    );
                                 tx.Abort();
                                 return;
                             }
@@ -540,11 +539,9 @@ namespace IntersectUtilities
                             if (descrFromKrydsninger.IsNoE())
                             {
                                 AbortGracefully(
-                                    new[] { xRefLerTx, xRefSurfaceTx },
-                                    new[] { xRefLerDB, xRefSurfaceDB },
                                     $"Fejl: For lag {ent.Layer} mangler der en 'Description'!" +
-                                    $"Fejl: Kan ikke fortsætte før dette er rettet i Krydsninger.csv");
-
+                                    $"Fejl: Kan ikke fortsætte før dette er rettet i Krydsninger.csv",
+                                    xRefLerDB, xRefSurfaceDB);
                                 tx.Abort();
                                 return;
                             }
@@ -671,9 +668,9 @@ namespace IntersectUtilities
                         if (pSurface == null)
                         {
                             AbortGracefully(
-                                new[] { xRefLerTx, xRefSurfaceTx },
-                                new[] { xRefLerDB, xRefSurfaceDB },
-                                $"No profile named {alignment.Name}_surface_P found!");
+                                $"No profile named {alignment.Name}_surface_P found!",
+                                xRefLerDB, xRefSurfaceDB
+                                );
 
                             tx.Abort();
                             return;
@@ -784,10 +781,16 @@ namespace IntersectUtilities
 
                             double maxEl = topElevs.Max();
                             double profileMinEl = minElevs.Min();
-                            double pointsMinEl = staPoints.Where(x => x.ProfileViewNumber == idx)
-                                                    .Select(x => x.CogoPoint.Elevation)
-                                                    .Min();
-                            double minEl = profileMinEl > pointsMinEl ? pointsMinEl : profileMinEl;
+
+                            var query = staPoints.Where(x => x.ProfileViewNumber == idx)
+                                                    .Select(x => x.CogoPoint.Elevation);
+                            double pointsMinEl = default;
+                            if (query.Count() > 0) { pointsMinEl = query.Min(); }
+
+                            double minEl;
+                            if (pointsMinEl == default) minEl = profileMinEl;
+                            else minEl = profileMinEl > pointsMinEl ? pointsMinEl : profileMinEl;
+
                             prdDbg($"\nElevations of PV {pv.Name}> Max: {Math.Round(maxEl, 2)} | Min: {Math.Round(minEl, 2)}");
                             #endregion
 
@@ -795,13 +798,18 @@ namespace IntersectUtilities
                             pv.CheckOrOpenForWrite();
                             pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
                             pv.ElevationMax = Math.Ceiling(maxEl);
-                            pv.ElevationMin = Math.Floor(minEl) - 1;
+                            pv.ElevationMin = Math.Floor(minEl) - 2;
 
                             //Project the points
-                            editor.SetImpliedSelection(staPoints
+
+                            var selection = staPoints
                                 .Where(x => x.ProfileViewNumber == idx)
                                 .Select(x => x.CogoPoint.ObjectId)
-                                .ToArray());
+                                .ToArray();
+
+                            if (selection.Length == 0) continue;
+
+                            editor.SetImpliedSelection(selection);
                             prdDbg("");
                             editor.Command("_AeccProjectObjectsToProf", pv.ObjectId);
                         }
@@ -863,7 +871,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -1086,8 +1094,28 @@ namespace IntersectUtilities
                     FileOpenMode.OpenForReadAndAllShare, false, null);
                 Transaction fremTx = fremDb.TransactionManager.StartTransaction();
 
+                #region Read CSV
+                System.Data.DataTable dynBlocks = default;
+                try
+                {
+                    dynBlocks = CsvReader.ReadCsvToDataTable(
+                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                    prdDbg(ex);
+                    throw;
+                }
+                if (dynBlocks == default)
+                {
+                    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                    throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                }
+                #endregion
+
                 HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
-                HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                HashSet<BlockReference> allBrs = fremDb.GetFjvBlocks(fremTx, dynBlocks);
                 #endregion
 
                 //////////////////////////////////////
@@ -1125,18 +1153,8 @@ namespace IntersectUtilities
                     BlockTableRecord modelSpace = localDb.GetModelspaceForWrite();
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
                     Plane plane = new Plane(); //For intersecting
-                    if (als == null) 
+                    if (als == null)
                         als = localDb.HashSetOfType<Alignment>(tx);
-                    #endregion
-
-                    #region Delete previous lines
-                    //Delete previous blocks
-                    var existingPlines = localDb.HashSetOfType<Polyline>(tx, false).Where(x => x.Layer == draftProfileLayerName).ToHashSet();
-                    foreach (Entity ent in existingPlines)
-                    {
-                        ent.CheckOrOpenForWrite();
-                        ent.Erase(true);
-                    }
                     #endregion
 
                     #region Initialize PS for Alignment
@@ -1147,7 +1165,7 @@ namespace IntersectUtilities
                         new PSetDefs.DriPipelineData();
                     #endregion
 
-                    foreach (Alignment al in als)
+                    foreach (Alignment al in als.OrderBy(x => x.Name))
                     {
                         prdDbg($"\nProcessing: {al.Name}...");
                         #region If exist get surface profile and profile view
@@ -1165,6 +1183,22 @@ namespace IntersectUtilities
                             prdDbg($"No profile view found for alignment: {al.Name}, skip to next.");
                             continue;
                         }
+
+                        #region Delete previous lines
+                        //Delete previous blocks
+                        var existingPlines = localDb.HashSetOfType<Polyline>(tx, false)
+                            .Where(x => x.Layer == draftProfileLayerName).ToHashSet();
+
+                        var buffered = pv.GetBufferedXYGeometricExtents(5.0);
+
+                        foreach (Entity ent in existingPlines)
+                        {
+                            if (!buffered.IsExtentsInsideXY(ent.GeometricExtents)) continue;
+
+                            ent.CheckOrOpenForWrite();
+                            ent.Erase(true);
+                        }
+                        #endregion
 
                         Profile surfaceProfile = null;
                         foreach (Oid oid in profileIds)
@@ -1192,6 +1226,9 @@ namespace IntersectUtilities
                             .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                             .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                        if (curves.Count == 0 && brs.Count == 0)
+                            throw new System.Exception(
+                                $"Alignment {al.Name} har ikke Polylinjer eller Blokke tilføjet!");
                         #endregion
 
                         #region Variables and settings
@@ -1410,7 +1447,7 @@ namespace IntersectUtilities
                     fremDb.Dispose();
                     tx.Abort();
                     prdDbg(ex.ExceptionInfo());
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 fremTx.Abort();
@@ -1443,10 +1480,10 @@ namespace IntersectUtilities
             string projectName = dro.ProjectName;
             string etapeName = dro.EtapeName;
 
-            System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
+            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
                 @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
-            //PropertySetManager.UpdatePropertySetDefinition(dB, PSetDefs.DefinedSets.DriSourceReference);
+            PropertySetManager.UpdatePropertySetDefinition(dB, PSetDefs.DefinedSets.DriSourceReference);
 
             using (Transaction tx = dB.TransactionManager.StartTransaction())
             {
@@ -1514,20 +1551,6 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    #region Delete previous blocks
-                    //Delete previous blocks
-                    deletedetailing();
-
-                    //var existingBlocks = localDb.GetBlockReferenceByName(komponentBlockName);
-                    //existingBlocks.UnionWith(localDb.GetBlockReferenceByName(bueBlockName));
-
-                    //foreach (BlockReference br in existingBlocks)
-                    //{
-                    //    br.CheckOrOpenForWrite();
-                    //    br.Erase(true);
-                    //}
-                    #endregion
-
                     foreach (Alignment al in als.OrderBy(x => x.Name))
                     {
                         prdDbg($"\nProcessing: {al.Name}...");
@@ -1577,12 +1600,21 @@ namespace IntersectUtilities
                         #endregion
 
                         prdDbg("Blocks:");
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, 
+                            brs.Where(x => 
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Svejsning" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Stikafgrening" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Muffetee").ToHashSet());
                         prdDbg(sizeArray.ToString());
 
                         foreach (ProfileView pv in pvs)
                         {
                             prdDbg($"Processing PV {pv.Name}.");
+
+                            #region Delete previous blocks
+                            //Delete previous blocks
+                            deletedetailingmethod(dB, pv);
+                            #endregion
 
                             #region Variables and settings
                             Point3d pvOrigin = pv.Location;
@@ -1704,7 +1736,7 @@ namespace IntersectUtilities
                             #region Place component blocks
                             foreach (BlockReference br in brs)
                             {
-                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
+                                string type = ReadStringParameterFromDataTable(br.RealName(), dt, "Type", 0);
                                 if (type == "Reduktion" || type == "Svejsning") continue;
                                 //Buerør need special treatment
                                 if (br.RealName() == "BUEROR1" || br.RealName() == "BUEROR2") continue;
@@ -1738,7 +1770,7 @@ namespace IntersectUtilities
                                 //Write the type of augmentedType to the Left attribute
                                 string augmentedType = default;
                                 if (type.StartsWith("$"))
-                                    augmentedType = ComponentSchedule.ReadComponentType(br, fjvKomponenter);
+                                    augmentedType = ComponentSchedule.ReadComponentType(br, dt);
                                 if (augmentedType != default) brSign.SetAttributeStringValue("LEFTSIZE", augmentedType);
                                 else brSign.SetAttributeStringValue("LEFTSIZE", type);
 
@@ -1767,8 +1799,8 @@ namespace IntersectUtilities
                             {
                                 //Buerør need special treatment
                                 if (br.RealName() != "BUEROR1" && br.RealName() != "BUEROR2") continue;
-                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
-                                string augmentedType = ComponentSchedule.ReadComponentType(br, fjvKomponenter);
+                                string type = ReadStringParameterFromDataTable(br.RealName(), dt, "Type", 0);
+                                string augmentedType = ComponentSchedule.ReadComponentType(br, dt);
 
                                 BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(fremTx);
 
@@ -1958,7 +1990,7 @@ namespace IntersectUtilities
                     fremDb.Dispose();
                     tx.Abort();
                     prdDbg(ex.ExceptionInfo());
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 fremTx.Abort();
@@ -1996,6 +2028,26 @@ namespace IntersectUtilities
                 Transaction fremTx = fremDb.TransactionManager.StartTransaction();
                 HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
                 HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+                #endregion
+
+                #region Read CSV
+                System.Data.DataTable dt = default;
+                try
+                {
+                    dt = CsvReader.ReadCsvToDataTable(
+                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                    prdDbg(ex);
+                    throw;
+                }
+                if (dt == default)
+                {
+                    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                    throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                }
                 #endregion
 
                 //////////////////////////////////////
@@ -2126,7 +2178,11 @@ namespace IntersectUtilities
                         #endregion
 
                         prdDbg("Blocks:");
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves,
+                            brs.Where(x =>
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Svejsning" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Stikafgrening" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Muffetee").ToHashSet());
                         prdDbg(sizeArray.ToString());
 
                         #region Explode midt profile for later sampling
@@ -2756,7 +2812,7 @@ namespace IntersectUtilities
                     fremDb.Dispose();
                     tx.Abort();
                     prdDbg(ex.ExceptionInfo());
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 fremTx.Abort();
@@ -2771,7 +2827,7 @@ namespace IntersectUtilities
         {
             deletedetailingmethod();
         }
-        public void deletedetailingmethod(Database db = default)
+        public void deletedetailingmethod(Database db = default, ProfileView pv = null)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = db ?? docCol.MdiActiveDocument.Database;
@@ -2796,6 +2852,10 @@ namespace IntersectUtilities
                     //prdDbg(existingBlocks.Count.ToString());
                     foreach (BlockReference br in existingBlocks)
                     {
+                        if (pv != null)
+                            if (!pv.GetBufferedXYGeometricExtents(5.0)
+                                .IsPointInsideXY(br.Position)) continue;
+
                         if (!br.IsErased && br.RealName() == name)
                         {
                             br.CheckOrOpenForWrite();
@@ -3009,8 +3069,32 @@ namespace IntersectUtilities
                     //prdDbg("Curves:");
                     //prdDbg(sizeArray.ToString());
 
+                    #region Read CSV
+                    System.Data.DataTable dt = default;
+                    try
+                    {
+                        dt = CsvReader.ReadCsvToDataTable(
+                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    }
+                    catch (System.Exception ex)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        prdDbg(ex);
+                        throw;
+                    }
+                    if (dt == default)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                    }
+                    #endregion
+
                     prdDbg("Blocks:");
-                    PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                    PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves,
+                            brs.Where(x =>
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Svejsning" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Stikafgrening" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Muffetee").ToHashSet());
                     prdDbg(sizeArray.ToString());
 
                     #region Create polyline from centre profile
@@ -3214,7 +3298,7 @@ namespace IntersectUtilities
                     fremTx.Dispose();
                     fremDb.Dispose();
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 fremTx.Abort();
@@ -3763,7 +3847,7 @@ namespace IntersectUtilities
                 try
                 {
                     if (pvs == null) pvs = localDb.HashSetIdsOfType<ProfileView>();
-                    HashSet<ProfileProjectionLabel> labelsSet = 
+                    HashSet<ProfileProjectionLabel> labelsSet =
                         localDb.HashSetOfType<ProfileProjectionLabel>(tx);
 
                     #region Setup styles
@@ -3823,7 +3907,7 @@ namespace IntersectUtilities
 
                         var pIds = pv.AlignmentId.Go<Alignment>(tx).GetProfileIds();
                         Profile surfaceP = default;
-                        foreach (Oid oid in pIds) 
+                        foreach (Oid oid in pIds)
                             if (oid.Go<Profile>(tx).Name.EndsWith("_surface_P"))
                                 surfaceP = oid.Go<Profile>(tx);
                         if (surfaceP == null)
@@ -4005,7 +4089,7 @@ namespace IntersectUtilities
             }
             catch (System.Exception ex)
             {
-                prdDbg(ex.ToString());
+                prdDbg(ex);
             }
         }
 
@@ -4242,7 +4326,6 @@ namespace IntersectUtilities
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-            Tables tables = HostMapApplicationServices.Application.ActiveProject.ODTables;
 
             #region Open fremtidig db
             if (dro == null) dro = new DataReferencesOptions();
@@ -4275,6 +4358,26 @@ namespace IntersectUtilities
 
                     System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
                     System.Data.DataTable dtDistances = CsvReader.ReadCsvToDataTable(pathDistnces, "Distancer");
+
+                    #region Read CSV
+                    System.Data.DataTable dt = default;
+                    try
+                    {
+                        dt = CsvReader.ReadCsvToDataTable(
+                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    }
+                    catch (System.Exception ex)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        prdDbg(ex);
+                        throw;
+                    }
+                    if (dt == default)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                    }
+                    #endregion
                     #endregion
 
                     BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
@@ -4346,10 +4449,17 @@ namespace IntersectUtilities
                             .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
                             .ToHashSet();
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                        if (curves.Count == 0 && brs.Count == 0)
+                            throw new System.Exception(
+                                $"Alignment {al.Name} har ikke Polylinjer eller Blokke tilføjet!");
                         #endregion
 
                         #region Build size array
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves,
+                            brs.Where(x =>
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Svejsning" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Stikafgrening" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Muffetee").ToHashSet());
                         prdDbg(sizeArray.ToString());
                         #endregion
 
@@ -4629,6 +4739,8 @@ namespace IntersectUtilities
                     originalStStart = pv.StationStart;
                     originalStEnd = pv.StationEnd;
                     bufferedOriginalBbox = pv.GetBufferedXYGeometricExtents(5.0);
+                    //Debug
+                    //bufferedOriginalBbox.DrawExtents(localDb);
                     #endregion
 
                     #region Erase detailing block
@@ -4672,33 +4784,12 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    #region Erase detailing blocks
-                    HashSet<BlockReference> pvDetailingBrs =
-                        pv.GetDetailingBlocks(localDb, 5.0);
-                    foreach (var item in pvDetailingBrs)
-                    {
-                        item.CheckOrOpenForWrite();
-                        item.Erase();
-                    }
-                    #endregion
-
                     #region Erase PV
                     pv.CheckOrOpenForWrite();
                     pv.Erase(true);
                     #endregion
 
                     #region Erase polylines and points from prelim profile
-                    HashSet<Polyline> prelim = localDb.HashSetOfType<Polyline>(tx);
-                    foreach (var item in prelim)
-                    {
-                        if (!bufferedOriginalBbox.IsExtentsInsideXY(
-                            item.GeometricExtents)) continue;
-
-                        if (item.Layer != "0-FJV-PROFILES-DRAFT") continue;
-
-                        item.CheckOrOpenForWrite();
-                        item.Erase(true);
-                    }
                     HashSet<DBPoint> points = localDb.HashSetOfType<DBPoint>(tx);
                     foreach (var item in points)
                     {
@@ -4775,6 +4866,266 @@ namespace IntersectUtilities
             }
 
             prdDbg("Update finished! Run AUDIT (Y) to clean up drawing!");
+        }
+
+        [CommandMethod("CALCULATEEXCAVATIONVOLUMES")]
+        public void calculateexcavationvolumes()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            #region Read CSV
+            System.Data.DataTable dt = default;
+            try
+            {
+                dt = CsvReader.ReadCsvToDataTable(
+                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                prdDbg(ex);
+                throw;
+            }
+            if (dt == default)
+            {
+                prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+            }
+            #endregion
+
+            #region Open fremtidig db and get entities
+            var dro = new DataReferencesOptions();
+            string projectName = dro.ProjectName;
+            string etapeName = dro.EtapeName;
+
+            // open the xref database
+            Database fremDb = new Database(false, true);
+            fremDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Fremtid"),
+                FileOpenMode.OpenForReadAndAllShare, false, null);
+            Transaction fremTx = fremDb.TransactionManager.StartTransaction();
+
+            HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
+            var allBrs = fremDb.GetFjvEntities(fremTx, dt).Where(x => x is BlockReference).Cast<BlockReference>();
+            #endregion
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Initialize PS for Alignment
+                    PropertySetManager psmPipeLineData = new PropertySetManager(
+                        fremDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineData =
+                        new PSetDefs.DriPipelineData();
+                    #endregion
+
+                    List<TrenchSamplingPoint> trenchSamplingPoints = new List<TrenchSamplingPoint>();
+
+                    var als = localDb.ListOfType<Alignment>(tx).OrderBy(x => x.Name);
+                    foreach (Alignment al in als)
+                    {
+                        prdDbg(al.Name);
+                        #region Get alignment profiles and profileview
+                        ObjectIdCollection pids = al.GetProfileIds();
+                        ObjectIdCollection vids = al.GetProfileViewIds();
+
+                        Profile surfaceProfile = default;
+                        Profile bundProfile = default;
+
+                        foreach (Profile p in pids.Entities<Profile>(tx))
+                        {
+                            if (p.Name.Contains("_surface_P")) surfaceProfile = p;
+                            if (p.Name.Contains("BUND")) bundProfile = p;
+                        }
+
+                        if (surfaceProfile == default) throw new System.Exception($"Alignment {al.Name} cannot find surface profile!");
+                        if (bundProfile == default) throw new System.Exception($"Alignment {al.Name} cannot find surface profile!");
+
+                        var vs = vids.Entities<ProfileView>(tx);
+                        if (vs.Count() > 1 || vs.Count() < 1)
+                            throw new System.Exception(
+                                $"Alignment {al.Name} does not have required number of profile views!\n" +
+                                $"Has {vs.Count()} but we are expecting 1.");
+                        #endregion
+
+                        #region GetCurvesAndBRs from fremtidig
+                        HashSet<Curve> curves = allCurves
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                            .ToHashSet();
+
+                        HashSet<BlockReference> brs = allBrs
+                            .Where(x => psmPipeLineData
+                            .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
+                            .ToHashSet();
+                        prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
+                        #endregion
+
+                        #region Build size array
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        //prdDbg(sizeArray.ToString());
+                        #endregion
+
+                        #region Gather sampling points
+                        double stepLength = 0.1;
+                        double alLength = al.Length;
+                        int nrOfSteps = (int)(alLength / stepLength);
+
+                        for (int i = 0; i < nrOfSteps + 1; i++)
+                        {
+                            double currentStation = stepLength * i;
+                            if (i == nrOfSteps) currentStation = al.Length;
+
+                            double tk = 0;
+                            double bk = 0;
+
+                            double sampledElevation = 0;
+                            if (surfaceProfile.SampleElevation(currentStation, ref sampledElevation))
+                                tk = sampledElevation;
+                            else continue;
+                            if (bundProfile.SampleElevation(currentStation, ref sampledElevation))
+                                bk = sampledElevation;
+                            else continue;
+
+                            SizeEntry se = sizeArray.GetSizeAtStation(currentStation);
+
+                            if (se.Equals(default(SizeEntry)))
+                            {
+                                prdDbg($"Station {currentStation} failed to get SizeEntry!");
+                                continue;
+                            }
+
+                            string key = $"{se.DN}-{se.System}-{se.Type}-{se.Series}";
+
+                            double tw = PipeSchedule.GetTrenchWidth(se.DN, se.System, se.Type, se.Series);
+                            if (tw == 0) continue;
+
+                            TrenchSamplingPoint tsp = new TrenchSamplingPoint(
+                                tk, bk, tw / 1000.0, stepLength, key);
+                            trenchSamplingPoints.Add(tsp);
+                        }
+                        #endregion
+
+                        System.Windows.Forms.Application.DoEvents();
+                    }
+
+                    #region Analyze sampling points
+                    var groups = trenchSamplingPoints.GroupBy(x => x.Key).OrderBy(x => x.Key);
+
+                    // 1. Define headers for the table.
+                    string headerTypeGrav = "Type grav";
+                    string headerBredde = "Bredde [mm]";
+                    string headerLængde = "Længde [m]";
+                    string headerGnsDybde = "Gns. dybde [m]";
+                    string headerVolumen = "Volumen (m³)";
+                    string separator = " || ";
+
+                    // 2. Calculate the maximum width of each column.
+                    int maxTypeGravLength = Math.Max(headerTypeGrav.Length, trenchSamplingPoints.Max(p => p.Key.Length));
+                    int maxBreddeLength = Math.Max(headerBredde.Length, (trenchSamplingPoints.Max(p => p.Width * 1000).ToString("F0").Length));
+                    int maxLængdeLength = Math.Max(headerLængde.Length, (trenchSamplingPoints.Max(p => p.StepLength).ToString("F2").Length));
+                    int maxGnsDybdeLength = Math.Max(headerGnsDybde.Length, (trenchSamplingPoints.Max(p => p.Depth).ToString("F2").Length));
+                    int maxVolumenLength = Math.Max(headerVolumen.Length, (trenchSamplingPoints.Max(p => p.Volume).ToString("F2").Length));
+
+                    // Initialize the result with headers
+                    string result = $"{headerTypeGrav.PadLeft(maxTypeGravLength)}{separator}{headerBredde.PadLeft(maxBreddeLength)}{separator}{headerLængde.PadLeft(maxLængdeLength)}{separator}{headerGnsDybde.PadLeft(maxGnsDybdeLength)}{separator}{headerVolumen.PadLeft(maxVolumenLength)}\n";
+                    result += new string('-', maxTypeGravLength + maxBreddeLength + maxLængdeLength + maxGnsDybdeLength + maxVolumenLength + 4 * separator.Length) + "\n";
+
+                    foreach (var group in groups)
+                    {
+                        string typeGrav = group.Key.PadLeft(maxTypeGravLength);
+                        string bredde = (group.First().Width * 1000).ToString("F0").PadLeft(maxBreddeLength);
+                        string længde = group.Sum(x => x.StepLength).ToString("F2").PadLeft(maxLængdeLength);
+
+                        // Calculate the weighted average depth
+                        double weightedAverageDepth = group.Sum(x => x.Depth * x.StepLength) / group.Sum(x => x.StepLength);
+                        string gnsDybde = weightedAverageDepth.ToString("F4").PadLeft(maxGnsDybdeLength);
+
+                        string volumen = group.Sum(x => x.Volume).ToString("F2").PadLeft(maxVolumenLength);
+
+                        result += $"{typeGrav}{separator}{bredde}{separator}{længde}{separator}{gnsDybde}{separator}{volumen}\n";
+                    }
+
+                    //Total of volumen
+                    double totalVolume = trenchSamplingPoints.Sum(x => x.Volume);
+
+                    // Calculate the padding required for the "Total:" label
+                    int totalLabelPadding = maxTypeGravLength + separator.Length +
+                                            maxBreddeLength + separator.Length +
+                                            maxLængdeLength + separator.Length +
+                                            maxGnsDybdeLength + separator.Length;
+
+                    // Append the total to the result
+                    result += $"Total:".PadLeft(totalLabelPadding) + $"{totalVolume.ToString("F2").PadLeft(maxVolumenLength)}\n";
+
+                    prdDbg(result);
+
+                    //CSV EXPORT
+                    separator = ";";
+
+                    // Initialize the result with headers
+                    StringBuilder resultBuilder = new StringBuilder();
+                    resultBuilder.AppendLine($"{headerTypeGrav}{separator}{headerBredde}{separator}{headerLængde}{separator}{headerGnsDybde}{separator}{headerVolumen}");
+
+                    foreach (var group in groups)
+                    {
+                        string typeGrav = group.Key;
+                        string bredde = (group.First().Width * 1000).ToString("F0");
+                        string længde = group.Sum(x => x.StepLength).ToString("F2");
+
+                        // Calculate the weighted average depth
+                        double weightedAverageDepth = group.Sum(x => x.Depth * x.StepLength) / group.Sum(x => x.StepLength);
+                        string gnsDybde = weightedAverageDepth.ToString("F4");
+
+                        string volumen = group.Sum(x => x.Volume).ToString("F2");
+
+                        resultBuilder.AppendLine($"{typeGrav}{separator}{bredde}{separator}{længde}{separator}{gnsDybde}{separator}{volumen}");
+                    }
+
+                    //Total of volumen
+                    //double totalVolume = trenchSamplingPoints.Sum(x => x.Volume);
+                    resultBuilder.AppendLine($"{separator}{separator}{separator}Total:{separator}{totalVolume.ToString("F2")}");
+
+                    result = resultBuilder.ToString();
+
+                    // After constructing the result string:
+                    string outputPath = @"C:\Temp\voluminer.csv";  // Replace with your desired path
+                    OutputWriter(outputPath, result, true);
+
+                    prdDbg($"Table exported to: {outputPath}");
+
+                    string DumpGroupToString(IEnumerable<TrenchSamplingPoint> group)
+                    {
+                        StringBuilder sb = new StringBuilder();
+
+                        sb.AppendLine("Key | Depth | Width | StepLength | Calculated Volume");
+
+                        foreach (var point in group)
+                        {
+                            double calculatedVolume = point.Depth * point.Width * point.StepLength;
+                            sb.AppendLine($"{point.Key} | {point.Depth} | {point.Width} | {point.StepLength} | {calculatedVolume}");
+                        }
+
+                        return sb.ToString();
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    fremTx.Abort();
+                    fremTx.Dispose();
+                    fremDb.Dispose();
+                    return;
+                }
+                tx.Commit();
+                fremTx.Abort();
+                fremTx.Dispose();
+                fremDb.Dispose();
+            }
         }
     }
 }

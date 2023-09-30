@@ -47,6 +47,9 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Log = LERImporter.SimpleLogger;
+using System.Xml.Linq;
+using LERImporter.Schema;
+using LERImporter.Converters;
 
 namespace LERImporter
 {
@@ -167,7 +170,7 @@ namespace LERImporter
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -274,7 +277,7 @@ namespace LERImporter
                 Log.LogFileName = folderPath + "LerImport.log";
                 Log.log($"Importing {pathToGml}");
 
-                #region Replace ler:id with ler:lerid, ler1 with ler2
+                #region Handle bad objects
                 string str = File.ReadAllText(pathToGml);
                 str = str.Replace("<ler:id>", "<ler:lerid>");
                 str = str.Replace("</ler:id>", "</ler:lerid>");
@@ -284,7 +287,20 @@ namespace LERImporter
                 string modifiedFileName =
                     folderPath + "\\" + fileName + "_mod" + extension;
 
-                File.WriteAllText(modifiedFileName, str);
+                //Handling of various badly formed GML quirks
+                //Prepare a memory stream for translating
+                byte[] byteArray = Encoding.UTF8.GetBytes(str);
+
+                using (MemoryStream ms = new MemoryStream(byteArray))
+                {
+                    var doc = XDocument.Load(ms);
+
+                    doc = Converter_Cerius_ElkomponentToFoeringsroer.Convert(doc);
+                    doc = Converter_TermiskKomponent_HandleNonStandardValuesForEnums.Convert(doc);
+                    doc = Converter_Ledningstrace_TDC500mmTraceAsZeroWidth.Convert(doc);
+
+                    doc.Save(modifiedFileName);
+                }
                 #endregion
 
                 #region Deserialize gml
@@ -388,7 +404,7 @@ namespace LERImporter
 
                     Log.log($"Importing {file}");
 
-                    
+
                     string str = File.ReadAllText(file);
                     str = str.Replace("<ler:id>", "<ler:lerid>");
                     str = str.Replace("</ler:id>", "</ler:lerid>");
@@ -470,8 +486,8 @@ namespace LERImporter
             }
         }
 
-        [CommandMethod("TESTLER3DDATA")]
-        public void testler3ddata()
+        [CommandMethod("TESTLERDATA")]
+        public void testlerdata()
         {
             try
             {
@@ -490,38 +506,27 @@ namespace LERImporter
                 string fileName = Path.GetFileNameWithoutExtension(pathToGml);
                 string extension = Path.GetExtension(pathToGml);
                 string folderPath = Path.GetDirectoryName(pathToGml) + "\\";
-
-                #region Replace ler:id with ler:lerid
+                #endregion
+                #region Handle bad objects
                 string str = File.ReadAllText(pathToGml);
                 str = str.Replace("<ler:id>", "<ler:lerid>");
                 str = str.Replace("</ler:id>", "</ler:lerid>");
 
+                str = str.Replace("http://data.gov.dk/schemas/LER/1/gml", "http://data.gov.dk/schemas/LER/2/gml");
+
                 string modifiedFileName =
                     folderPath + "\\" + fileName + "_mod" + extension;
 
-                File.WriteAllText(modifiedFileName, str);
-                #endregion
+                //Prepare a memory stream for translating
+                byte[] byteArray = Encoding.UTF8.GetBytes(str);
+
+                
+
+                //File.WriteAllText(modifiedFileName, str);
                 #endregion
 
                 Log.LogFileName = folderPath + "LerImport.log";
                 Log.log($"Importing {pathToGml}");
-
-                #region Deserialize gml
-                var serializer = new XmlSerializer(typeof(Schema.FeatureCollection));
-                Schema.FeatureCollection gf;
-
-                using (var fileStream = new FileStream(modifiedFileName, FileMode.Open))
-                {
-                    gf = (Schema.FeatureCollection)serializer.Deserialize(fileStream);
-                }
-                #endregion
-
-                #region Test LER data
-
-                LERImporter.ConsolidatedCreator.TestLerData(gf);
-
-                #endregion
-
             }
             catch (System.Exception ex)
             {

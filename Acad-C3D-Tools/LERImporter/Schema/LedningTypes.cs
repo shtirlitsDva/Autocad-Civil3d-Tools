@@ -49,6 +49,7 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
 using Log = LERImporter.SimpleLogger;
 using static LERImporter.Schema.ElledningType;
+using static LERImporter.Schema.TermiskLedningType;
 
 namespace LERImporter.Schema
 {
@@ -111,7 +112,8 @@ namespace LERImporter.Schema
         public string UdvendigMateriale { get => this.udvendigMateriale ?? ""; }
         public Oid DrawPline2D(Database database)
         {
-            IPointParser parser = this.geometri.AbstractCurve as IPointParser;
+            //IPointParser parser = this.geometri.AbstractCurve as IPointParser;
+            IPointParser parser = this.geometri.Item as IPointParser;
 
             Point3d[] points = parser.Get3DPoints();
             Polyline polyline = new Polyline(points.Length);
@@ -125,7 +127,8 @@ namespace LERImporter.Schema
         }
         public Oid DrawPline3D(Database database)
         {
-            IPointParser parser = this.geometri.AbstractCurve as IPointParser;
+            //IPointParser parser = this.geometri.AbstractCurve as IPointParser;
+            IPointParser parser = this.geometri.Item as IPointParser;
 
             Point3d[] points = parser.Get3DPoints();
             Point3dCollection col = new Point3dCollection(points);
@@ -437,14 +440,82 @@ namespace LERImporter.Schema
     }
     public partial class GasledningType : ILerLedning
     {
+        [PsInclude]
+        public string Type { get => this.type?.Value ?? "Ukendt"; }
+        [PsInclude]
+        public string Tryk { get => this.tryk?.getValueInStdUnits() + this.tryk?.uom ?? "Ukendt"; }
+
+        private string DetermineLayerName(Database database, bool _3D = false)
+        {
+            #region Determine correct layer name
+            string layerName = "GAS-";
+            string driftsstatusSuffix = "";
+
+            switch (this.Driftsstatus2)
+            {
+                case DriftsstatusType.underetablering:
+                case DriftsstatusType.idrift:
+                    break;
+                case DriftsstatusType.permanentudeafdrift:
+                    driftsstatusSuffix = "_UAD";
+                    break;
+                default:
+                    throw new System.Exception(
+                        $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus}!");
+            }
+
+            switch (Type)
+            {
+                case "transmissionsledning":
+                    layerName += "Transmissionsledning";
+                    break;
+                case "distributionsledning":
+                    layerName += "Distributionsledning";
+                    break;
+                case "fordelingsledning":
+                    layerName += "Fordelingsledning";
+                    break;
+                case "stikledning":
+                    layerName += "Stikledning";
+                    break;
+                case "Ukendt":
+                    layerName += "Ukendt";
+                    break;
+                default:
+                    layerName += Type;
+                    break;
+            }
+
+            layerName += driftsstatusSuffix;
+            if (_3D) layerName += "-3D";
+
+            database.CheckOrCreateLayer(layerName);
+            return layerName;
+            #endregion
+        }
+
         public Oid DrawEntity2D(Database database)
         {
-            throw new NotImplementedException();
+            //Create new polyline in the base class
+            Polyline pline = DrawPline2D(database).Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            pline.Layer = DetermineLayerName(database);
+
+            pline.ConstantWidth = this.UdvendigDiameterInStdUnits;
+
+            return pline.ObjectId;
         }
 
         public Oid DrawEntity3D(Database database)
         {
-            throw new NotImplementedException();
+            Polyline3d p3d = DrawPline3D(database)
+                .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            string layerName = DetermineLayerName(database, true);
+
+            p3d.Layer = layerName;
+
+            return p3d.Id;
         }
     }
     public partial class FoeringsroerType : ILerLedning
@@ -454,6 +525,7 @@ namespace LERImporter.Schema
         public ForsyningsartEnum getForsyningsart2 { get => getForsyningsart(forsyningsart); }
         private ForsyningsartEnum getForsyningsart(string[] forsyningsart)
         {
+            if (forsyningsart == null) return ForsyningsartEnum.none;
             if (forsyningsart.Length == 0) return ForsyningsartEnum.none;
             if (forsyningsart.Length > 1) Log.log($"WARNING! Flere forsyningsarter på Føringsrør {this.GMLTypeID}.");
             string art = forsyningsart[0];
@@ -482,26 +554,29 @@ namespace LERImporter.Schema
             string layerName;
             string suffix = "";
 
-            switch (this.driftsstatus.Value)
+            if (this.driftsstatus != null)
             {
-                case DriftsstatusType.underetablering:
-                case DriftsstatusType.idrift:
-                    break;
-                case DriftsstatusType.permanentudeafdrift:
-                    suffix = "_UAD";
-                    break;
-                default:
-                    throw new System.Exception(
-                        $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus.ToString()}!");
+                switch (this.driftsstatus.Value)
+                {
+                    case DriftsstatusType.underetablering:
+                    case DriftsstatusType.idrift:
+                        break;
+                    case DriftsstatusType.permanentudeafdrift:
+                        suffix = "_UAD";
+                        break;
+                    default:
+                        throw new System.Exception(
+                            $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus}!");
+                }
             }
 
             switch (this.getForsyningsart2)
             {
                 case ForsyningsartEnum.none:
-                    layerName = "0-ERROR-ForingsrørForsyningsArt-none";
+                    layerName = "Foringsrør-none";
                     break;
                 case ForsyningsartEnum.other:
-                    layerName = "0-ERROR-ForingsrørForsyningsArt-other";
+                    layerName = "Foringsrør-other";
                     break;
                 case ForsyningsartEnum.afløb:
                     layerName = "Foringsrør-Afløb";
@@ -525,7 +600,7 @@ namespace LERImporter.Schema
                     layerName = "Foringsrør-Vand";
                     break;
                 default:
-                    layerName = "0-ERROR-ForingsrørForsyningsArt-other";
+                    layerName = "0-ERROR-ForingsrørForsyningsArt-undefined";
                     break;
             }
 
@@ -542,7 +617,15 @@ namespace LERImporter.Schema
 
             pline.Layer = DetermineLayerName(database);
 
-            pline.ConstantWidth = this.UdvendigDiameterInStdUnits;
+            try
+            {
+                pline.ConstantWidth = this.UdvendigDiameterInStdUnits;
+            }
+            catch (System.Exception)
+            {
+                prdDbg($"Setting of ConstantWidt failed for {this.gmlid}!");
+                throw;
+            }
 
             return pline.ObjectId;
         }
@@ -570,6 +653,66 @@ namespace LERImporter.Schema
             vand
         }
     }
+    public partial class OlieledningType : ILerLedning
+    {
+        [PsInclude]
+        public double Tryk { get => this.tryk?.getValue() ?? default; }
+        [PsInclude]
+        public string Type { get => this.type ?? ""; }
+        private string DetermineLayerName(Database database, bool _3D = false)
+        {
+            string layerName = "Olieledning";
+            string driftsstatusSuffix = "";
+
+            switch (this.Driftsstatus2)
+            {
+                case DriftsstatusType.underetablering:
+                case DriftsstatusType.idrift:
+                    break;
+                case DriftsstatusType.permanentudeafdrift:
+                    driftsstatusSuffix = "_UAD";
+                    break;
+                default:
+                    throw new System.Exception(
+                        $"Element id {this.GmlId} has invalid driftsstatus: {Driftsstatus.ToString()}!");
+            }
+
+            if (driftsstatusSuffix.IsNotNoE())
+            {
+                layerName = layerName + driftsstatusSuffix;
+            }
+
+            if (_3D) layerName += "-3D";
+
+            database.CheckOrCreateLayer(layerName);
+            return layerName;
+        }
+        public Oid DrawEntity2D(Database database)
+        {
+            Polyline pline = DrawPline2D(database)
+                .Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            string layerName = DetermineLayerName(database);
+
+            pline.Layer = layerName;
+
+            pline.ConstantWidth = this.UdvendigDiameterInStdUnits != default ? this.UdvendigDiameterInStdUnits : 0.011;
+
+            return pline.Id;
+        }
+
+        public Oid DrawEntity3D(Database database)
+        {
+            Polyline3d p3d = DrawPline3D(database)
+                .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            string layerName = DetermineLayerName(database, true);
+
+            p3d.Layer = layerName;
+
+            return p3d.Id;
+        }
+    }
     public partial class AfloebsledningType : ILerLedning
     {
         [PsInclude]
@@ -583,7 +726,7 @@ namespace LERImporter.Schema
         {
             if (this.medietype.IsNoE())
             {
-                Log.log($"WARNING! Element id {gmlid} has NO Medietype specified!");
+                //Log.log($"WARNING! Element id {gmlid} has NO Medietype specified!");
                 return MedietypeEnum.ukendt;
             }
 
@@ -735,7 +878,7 @@ namespace LERImporter.Schema
         [PsInclude]
         public string KabelType { get => this.kabeltype; }
         [PsInclude]
-        public string SpædningsNiveau { get => this.spaendingsniveau?.Value.ToString() + this.spaendingsniveau?.uom ?? ""; }
+        public string SpændingsNiveau { get => this.spaendingsniveau?.Value.ToString() + this.spaendingsniveau?.uom ?? ""; }
         private string getLedningsType()
         {
             if (this.type.IsNoE()) return "";
@@ -774,7 +917,7 @@ namespace LERImporter.Schema
             ElledningTypeEnum type;
             if (Enum.TryParse(this.getLedningsType(), out type)) { }
             else { type = ElledningTypeEnum.other; }
-                
+
 
             switch (type)
             {
@@ -810,8 +953,8 @@ namespace LERImporter.Schema
                     break;
             }
 
-            if (SpædningsNiveau.IsNotNoE() &&
-                SpædningsNiveau != "0kV") layerName += $"-{SpædningsNiveau}";
+            if (SpændingsNiveau.IsNotNoE() &&
+                SpændingsNiveau != "0kV") layerName += $"-{SpændingsNiveau}";
             layerName += driftsstatusSuffix;
             if (_3D) layerName += "-3D";
 
@@ -839,6 +982,8 @@ namespace LERImporter.Schema
         {
             Polyline3d p3d = DrawPline3D(database)
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            //prdDbg(this.SpændingsNiveau);
 
             string layerName = DetermineLayerName(database, true);
 
@@ -877,7 +1022,9 @@ namespace LERImporter.Schema
     public partial class LedningstraceType : ILerLedning
     {
         [PsInclude]
-        public double Bredde { get => this.bredde?.Value ?? 0; }
+        public double Bredde { get => this.bredde?.getValueInStdUnits() ?? 0; }
+        [PsInclude]
+        public string BreddeUnits { get => this.bredde?.uom ?? ""; }
         [PsInclude]
         public string Forsyningsart { get => getForsyningsart(this.forsyningsart).ToString(); }
         [PsInclude]
@@ -976,6 +1123,8 @@ namespace LERImporter.Schema
             Polyline pline = DrawPline2D(database).Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             pline.Layer = DetermineLayerName(database);
+
+            //Handle different units
 
             pline.ConstantWidth = this.Bredde;
 

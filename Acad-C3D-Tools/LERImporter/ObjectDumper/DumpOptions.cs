@@ -15,7 +15,8 @@ public class DumpOptions
         this.SetPropertiesOnly = false;
         this.MaxLevel = int.MaxValue;
         this.ExcludeProperties = new HashSet<string>();
-        this.PropertyOrderBy = null;
+        //this.PropertyOrderBy = null;
+        this.PropertyOrderBy = (x => x.Name);
         this.IgnoreDefaultValues = false;
     }
 

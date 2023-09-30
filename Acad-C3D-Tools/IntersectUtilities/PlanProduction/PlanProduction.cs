@@ -49,11 +49,11 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using System.Windows.Documents;
 using System.Text.Json;
 using IntersectUtilities.DynamicBlocks;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
+using Plane = Autodesk.AutoCAD.Geometry.Plane;
 
 namespace IntersectUtilities
 {
@@ -619,49 +619,7 @@ namespace IntersectUtilities
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             resetprofileviews();
-
-            #region Fix wrong PV style at start
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
-
-                    HashSet<ProfileView> pvs = localDb.HashSetOfType<ProfileView>(tx);
-
-                    Oid pvStyleId = Oid.Null;
-                    try
-                    {
-                        pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R NO SCALE"];
-                        //pvStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R 1:250:100"];
-                    }
-                    catch (System.Exception)
-                    {
-                        ed.WriteMessage($"\nProfile view style missing! Run IMPORTLABELSTYLES.");
-                        tx.Abort();
-                        return;
-                    }
-
-                    foreach (ProfileView pv in pvs)
-                    {
-                        Oid pvCurStyleId = pv.StyleId;
-                        ProfileViewStyle curPvStyle = pvCurStyleId.Go<ProfileViewStyle>(tx);
-                        if (curPvStyle.Name != "PROFILE VIEW L TO R NO SCALE")
-                        {
-                            pv.CheckOrOpenForWrite();
-                            pv.StyleId = pvStyleId;
-                        }
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    ed.WriteMessage("\n" + ex.ToString());
-                    return;
-                }
-                tx.Commit();
-            }
-            #endregion
+            importlabelstyles();
 
             var droText = File.ReadAllLines(Environment.ExpandEnvironmentVariables("%temp%") + "\\DRO.txt");
 
@@ -914,6 +872,117 @@ namespace IntersectUtilities
             Interaction.TaskDialog("Finilization finished!", "OK", "Not OK");
         }
 
+        [CommandMethod("LISTNUMBEROFPROFILEVIEWS")]
+        public void listnumberofprofileviews()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Determine number of profileviews with LER data
+                    var droText = File.ReadAllLines(Environment.ExpandEnvironmentVariables("%temp%") + "\\DRO.txt");
+
+                    //Create crossing points first
+                    DataReferencesOptions dro = new DataReferencesOptions(droText[0], droText[1]);
+                    string projectName = dro.ProjectName;
+                    string etapeName = dro.EtapeName;
+
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+
+                    Plane plane = new Plane();
+
+                    #region Load linework from LER Xref
+                    // open the LER dwg database
+                    Database xRefLerDB = new Database(false, true);
+
+                    xRefLerDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
+                        FileOpenMode.OpenForReadAndAllShare, false, null);
+
+                    Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
+
+                    List<Polyline3d> remoteLerData = xRefLerDB.ListOfType<Polyline3d>(xRefLerTx);
+                    #endregion
+
+                    try
+                    {
+                        List<Alignment> als = localDb.ListOfType<Alignment>(tx);
+                        if (als.Count > 1)
+                        {
+                            prdDbg("Multiple alignments detected in drawing! Must only be one!");
+                            throw new System.Exception("Multiple alignments!");
+                        }
+                        Alignment alignment = als.First();
+                        var pvs = alignment.GetProfileViewIds().Entities<ProfileView>(tx);
+
+                        HashSet<double> stationsOfIntersection = new HashSet<double>();
+
+                        foreach (Entity ent in remoteLerData)
+                        {
+                            string type = ReadStringParameterFromDataTable(ent.Layer, dtKrydsninger, "Type", 0);
+                            if (type == "IGNORE") continue;
+
+                            using (Point3dCollection p3dcol = new Point3dCollection())
+                            {
+                                alignment.IntersectWith(
+                                    ent,
+                                    Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                                    plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+                                if (p3dcol.Count > 0)
+                                    foreach (Point3d p3d in p3dcol)
+                                        stationsOfIntersection.Add(
+                                            alignment.StationAtPoint(p3d));
+                            }
+                        }
+
+                        int pvsWithLer = 0;
+                        foreach (ProfileView pv in pvs)
+                        {
+                            if (stationsOfIntersection.Any(
+                                x => pv.StationStart <= x && pv.StationEnd >= x))
+                                pvsWithLer++;
+                        }
+
+                        prdDbg($"Number of PVs with LER: {{{pvsWithLer}}}");
+
+                        var path = Environment.ExpandEnvironmentVariables("%temp%");
+                        string fileName = path + "\\pvCount.txt";
+                        File.WriteAllText(fileName, pvsWithLer.ToString());
+
+                        xRefLerTx.Abort();
+                        xRefLerDB.Dispose();
+                    }
+                    catch (System.Exception ex)
+                    {
+                        xRefLerTx.Abort();
+                        xRefLerDB.Dispose();
+                        prdDbg(ex);
+                        throw;
+                    }
+
+                    System.Windows.Forms.Application.DoEvents();
+
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                finally
+                {
+                }
+                tx.Abort();
+            }
+        }
+
         [CommandMethod("resetprofileviews")]
         public void resetprofileviews()
         {
@@ -975,206 +1044,6 @@ namespace IntersectUtilities
                     return;
                 }
                 tx.Commit();
-            }
-        }
-
-        [CommandMethod("FINALIZEVIEWFRAMES")]
-        [CommandMethod("FVF")]
-        public void finalizeviewframes()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            try
-            {
-                #region Operation
-
-                string path = string.Empty;
-                OpenFileDialog dialog = new OpenFileDialog()
-                {
-                    Title = "Choose txt file:",
-                    DefaultExt = "txt",
-                    Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
-                    FilterIndex = 0
-                };
-                if (dialog.ShowDialog() == DialogResult.OK)
-                {
-                    path = dialog.FileName;
-                }
-                else return;
-
-                List<string> fileList;
-                fileList = File.ReadAllLines(path).ToList();
-                path = Path.GetDirectoryName(path) + "\\";
-
-                foreach (string name in fileList)
-                {
-                    prdDbg(name);
-                    string fileName = path + name;
-
-                    using (Database extDb = new Database(false, true))
-                    {
-                        extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
-
-                        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
-                        {
-                            #region Change Alignment style
-                            CivilDocument extCDoc = CivilDocument.GetCivilDocument(extDb);
-
-                            HashSet<Alignment> als = extDb.HashSetOfType<Alignment>(extTx);
-
-                            foreach (Alignment al in als)
-                            {
-                                al.CheckOrOpenForWrite();
-                                al.StyleId = extCDoc.Styles.AlignmentStyles["FJV TRACE NO SHOW"];
-                                Oid labelSetOid = extCDoc.Styles.LabelSetStyles.AlignmentLabelSetStyles["_No Labels"];
-                                al.ImportLabelSet(labelSetOid);
-                            }
-                            #endregion
-
-                            extTx.Commit();
-                        }
-                        extDb.SaveAs(extDb.Filename, true, DwgVersion.Current, null);
-                    }
-                    System.Windows.Forms.Application.DoEvents();
-                }
-                #endregion
-            }
-            catch (System.Exception ex)
-            {
-                editor.WriteMessage("\n" + ex.Message);
-                return;
-            }
-        }
-
-        [CommandMethod("DETACHATTACHDWG")]
-        public void detachattachdwg()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
-
-            try
-            {
-                #region Operation
-
-                //************************************
-                string xrefName = "Fremtidig fjernvarme";
-                string xrefPath = @"X:\037-1178 - Gladsaxe udbygning - Dokumenter\01 Intern\02 Tegninger\" +
-                                  @"01 Autocad - xxx\Etape 1.2\Fremtidig fjernvarme.dwg";
-                //************************************
-
-                string path = string.Empty;
-                OpenFileDialog dialog = new OpenFileDialog()
-                {
-                    Title = "Choose txt file:",
-                    DefaultExt = "txt",
-                    Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
-                    FilterIndex = 0
-                };
-                if (dialog.ShowDialog() == DialogResult.OK)
-                {
-                    path = dialog.FileName;
-                }
-                else return;
-
-                List<string> fileList;
-                fileList = File.ReadAllLines(path).ToList();
-                path = Path.GetDirectoryName(path) + "\\";
-
-                foreach (string name in fileList)
-                {
-                    prdDbg(name);
-                    string fileName = path + name;
-
-                    using (Database extDb = new Database(false, true))
-                    {
-                        extDb.ReadDwgFile(fileName, System.IO.FileShare.ReadWrite, false, "");
-
-                        #region Detach Fremtidig fjernvarme
-                        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
-                        {
-                            try
-                            {
-                                BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-
-                                foreach (Oid oid in bt)
-                                {
-                                    BlockTableRecord btr = extTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
-                                    //if (btr.Name.Contains("_alignment"))
-                                    if (btr.Name == xrefName && btr.IsFromExternalReference)
-                                    {
-                                        extDb.DetachXref(btr.ObjectId);
-                                    }
-                                }
-                            }
-                            catch (System.Exception ex)
-                            {
-                                prdDbg(ex.ToString());
-                                extTx.Abort();
-                                throw;
-                            }
-
-                            extTx.Commit();
-                        }
-                        #endregion
-
-                        #region Attach Fremtidig fjernvarme and change draw order
-                        using (Transaction extTx = extDb.TransactionManager.StartTransaction())
-                        {
-                            try
-                            {
-                                BlockTable bt = extTx.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-
-                                Oid xrefId = extDb.AttachXref(xrefPath, xrefName);
-                                if (xrefId == Oid.Null) throw new System.Exception("Creating xref failed!");
-
-                                Point3d insPt = new Point3d(0, 0, 0);
-                                using (BlockReference br = new BlockReference(insPt, xrefId))
-                                {
-                                    BlockTableRecord modelSpace = extDb.GetModelspaceForWrite();
-                                    modelSpace.AppendEntity(br);
-                                    extTx.AddNewlyCreatedDBObject(br, true);
-
-                                    br.Layer = "XREF-FJV_FREMTID";
-
-                                    DrawOrderTable dot = modelSpace.DrawOrderTableId.Go<DrawOrderTable>(extTx);
-                                    dot.CheckOrOpenForWrite();
-
-                                    Alignment al = extDb.ListOfType<Alignment>(extTx).FirstOrDefault();
-                                    if (al == null) throw new System.Exception("No alignments found in drawing!");
-
-                                    ObjectIdCollection idCol = new ObjectIdCollection(new Oid[1] { br.Id });
-
-                                    dot.MoveBelow(idCol, al.Id);
-                                }
-                            }
-                            catch (System.Exception ex)
-                            {
-                                prdDbg(ex.ToString());
-                                extTx.Abort();
-                                throw;
-                            }
-
-                            extTx.Commit();
-                        }
-                        #endregion
-
-                        extDb.SaveAs(extDb.Filename, true, DwgVersion.Current, null);
-                    }
-                    System.Windows.Forms.Application.DoEvents();
-                }
-                #endregion
-            }
-            catch (System.Exception ex)
-            {
-                editor.WriteMessage("\n" + ex.Message);
-                return;
             }
         }
 
@@ -1689,7 +1558,209 @@ namespace IntersectUtilities
             File.WriteAllText(geoJsonFileName, json);
         }
 
+        [CommandMethod("EXPORTVIEWFRAMESTODWG")]
+        public void exportviewframestodwg()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            Database blockDb = new Database(true, true);
+
+            using (Transaction blockTx = blockDb.TransactionManager.StartTransaction())
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var bt = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForRead);
+                    var ms = (BlockTableRecord)tx.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+
+                    foreach (Oid id in ms)
+                    {
+                        var br = tx.GetObject(id, OpenMode.ForRead) as BlockReference;
+                        if (br == null) continue;
+
+                        var bd = (BlockTableRecord)tx.GetObject(br.BlockTableRecord, OpenMode.ForRead);
+                        if (!bd.IsFromExternalReference) continue;
+
+                        var xdb = bd.GetXrefDatabase(false);
+                        if (xdb == null) continue;
+                        string fileName = xdb.Filename;
+
+                        //editor.WriteMessage($"\n{xdb.Filename}.");
+                        System.Windows.Forms.Application.DoEvents();
+                        if (IsFileLockedOrReadOnly(new FileInfo(fileName)))
+                        {
+                            prdDbg("\nUnable to modify the external reference. " +
+                                "It may be open in the editor or read-only.");
+                            System.Windows.Forms.Application.DoEvents();
+                        }
+                        else
+                        {
+                            using (var xf = XrefFileLock.LockFile(xdb.XrefBlockId))
+                            {
+                                //Make sure the original symbols are loaded
+                                xdb.RestoreOriginalXrefSymbols();
+                                // Depending on the operation you're performing,
+                                // you may need to set the WorkingDatabase to
+                                // be that of the Xref
+                                //HostApplicationServices.WorkingDatabase = xdb;
+
+                                using (Transaction xTx = xdb.TransactionManager.StartTransaction())
+                                {
+                                    try
+                                    {
+                                        var vfs = xdb.HashSetOfType<ViewFrame>(xTx);
+
+                                        foreach (ViewFrame vf in vfs)
+                                        {
+                                            string name = vf.Name;
+
+                                            DBObjectCollection objs = new DBObjectCollection();
+                                            vf.Explode(objs);
+
+                                            foreach (DBObject obj in objs)
+                                            {
+                                                if (obj is BlockReference vfbr)
+                                                {
+                                                    objs = new DBObjectCollection();
+                                                    vfbr.Explode(objs);
+
+                                                    foreach (DBObject obj2 in objs)
+                                                    {
+                                                        if (obj2 is Polyline pline)
+                                                        {
+                                                            Polyline newPline = new Polyline(pline.NumberOfVertices);
+                                                            for (int i = 0; i < pline.NumberOfVertices; i++)
+                                                            {
+                                                                newPline.AddVertexAt(i, pline.GetPoint2dAt(i), 0, 0, 0);
+                                                            }
+
+                                                            newPline.Closed = true;
+                                                            newPline.AddEntityToDbModelSpace(blockDb);
+
+                                                            LineSegment2d seg = newPline.GetLineSegment2dAt(0);
+
+                                                            DBText text = new DBText();
+                                                            text.TextString = name;
+                                                            text.Height = 5;
+                                                            text.Rotation = seg.Direction.Angle;
+                                                            
+                                                            Extents3d extents = newPline.GeometricExtents;
+                                                            Point3d center = new Point3d(
+                                                                (extents.MaxPoint.X + extents.MinPoint.X) / 2.0,
+                                                                (extents.MaxPoint.Y + extents.MinPoint.Y) / 2.0,
+                                                                0);
+                                                            text.HorizontalMode = TextHorizontalMode.TextCenter;
+
+                                                            text.Position = center;
+                                                            text.AlignmentPoint = center;
+
+                                                            text.AddEntityToDbModelSpace(blockDb);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    catch (System.Exception)
+                                    {
+                                        xTx.Abort();
+                                        tx.Abort();
+                                        xdb.RestoreForwardingXrefSymbols();
+                                        blockTx.Abort();
+                                        blockTx.Dispose();
+                                        blockDb.Dispose();
+                                        return;
+                                        //throw;
+                                    }
+
+                                    xTx.Commit();
+                                }
+                                // And then set things back, afterwards
+                                //HostApplicationServices.WorkingDatabase = db;
+                                xdb.RestoreForwardingXrefSymbols();
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    blockTx.Abort();
+                    blockTx.Dispose();
+                    blockDb.Dispose();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+                blockTx.Commit();
+
+                blockDb.SaveAs("C:\\Temp\\VfDwg.dwg", DwgVersion.Newest);
+            }
+
+            blockDb.Dispose();
+        }
+
         [CommandMethod("EXPORTFJVTOGEOJSON")]
+        public void exportfjvtogeojson3()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
+                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+            GeoJsonFeatureCollection gjfc = new GeoJsonFeatureCollection("FjernVarme");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var ents = localDb.GetFjvEntities(tx, dt, true);
+
+                    foreach (var ent in ents)
+                    {
+                        var converter = FjvToGeoJsonConverterFactory.CreateConverter(ent);
+                        if (converter == null) continue;
+                        var geoJsonFeature = converter.Convert(ent);
+                        gjfc.Features.AddRange(geoJsonFeature);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+
+            var encoderSettings = new TextEncoderSettings();
+            encoderSettings.AllowRange(UnicodeRanges.All);
+
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Encoder = JavaScriptEncoder.Create(encoderSettings)
+            };
+
+            string path = Path.GetDirectoryName(localDb.Filename);
+
+            string geoJsonFileName = Path.Combine(path, "Fjernvarme.geojson");
+            string json = JsonSerializer.Serialize(gjfc, options);
+
+            try
+            {
+                File.WriteAllText(geoJsonFileName, json);
+            }
+            catch (System.IO.IOException)
+            {
+                prdDbg("File is locked for write! Abort operation.");
+                return;
+            }
+        }
         public void exportfjvtogeojson2()
         {
             DocumentCollection docCol = Application.DocumentManager;

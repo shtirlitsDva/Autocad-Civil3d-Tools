@@ -218,6 +218,150 @@ namespace IntersectUtilities
                 { 32, 32.0 }
             };
 
+        #region Code for determining trench widths
+        private static readonly Dictionary<int, double> trenchWidthsS3EnkeltSteel = new Dictionary<int, double>()
+        {
+            { 20, 900 },
+            { 25, 900 },
+            { 32, 950 },
+            { 40, 950 },
+            { 50, 1000 },
+            { 65, 1000 },
+            { 80, 1000 },
+            { 100, 1200 },
+            { 125, 1200 },
+            { 150, 1300 },
+            { 200, 1550 },
+            { 250, 1750 },
+            { 300, 1900 },
+            { 350, 2000 },
+            { 400, 2200 },
+            { 450, 2350 },
+            { 500, 2600 },
+            { 600, 2800 },
+        };
+        private static readonly Dictionary<int, double> trenchWidthsS2CuEnkelt = new Dictionary<int, double>
+        {
+            {22, 500},
+            {28, 500}
+        };
+        private static readonly Dictionary<int, double> trenchWidthsS3TwinSteel = new Dictionary<int, double>()
+        {
+            { 20, 500 },
+            { 25, 550 },
+            { 32, 550 },
+            { 40, 550 },
+            { 50, 600 },
+            { 65, 700 },
+            { 80, 700 },
+            { 100, 750 },
+            { 125, 900 },
+            { 150, 900 },
+            { 200, 1050 },
+        };
+        private static readonly Dictionary<int, double> trenchWidthsS3AluPexTwin = new Dictionary<int, double>()
+        {
+            {26, 500},
+            {32, 500}
+        };
+        private static readonly Dictionary<int, double> trenchWidthsS2CuTwin = new Dictionary<int, double>
+        {
+            {22, 500},
+            {28, 500}
+        };
+
+        private struct TrenchKey
+        {
+            private PipeSystemEnum E1;
+            private PipeTypeEnum E2;
+            private PipeSeriesEnum E3;
+
+            public TrenchKey(PipeSystemEnum e1, PipeTypeEnum e2, PipeSeriesEnum e3)
+            {
+                E1 = e1;
+                E2 = e2;
+                E3 = e3;
+            }
+
+            public override bool Equals(object obj)
+            {
+                if (obj is TrenchKey other)
+                {
+                    return E1 == other.E1 && E2 == other.E2 && E3 == other.E3;
+                }
+                return false;
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    int hash = 17;
+                    hash = hash * 23 + E1.GetHashCode();
+                    hash = hash * 23 + E2.GetHashCode();
+                    hash = hash * 23 + E3.GetHashCode();
+                    return hash;
+                }
+            }
+        }
+        private static readonly Dictionary<TrenchKey, Func<int, double>> trenchWidthsMap =
+            new Dictionary<TrenchKey, Func<int, double>>()
+        {
+            { new TrenchKey(PipeSystemEnum.Stål, PipeTypeEnum.Enkelt, PipeSeriesEnum.S3), getTrenchWidthStålEnkeltS3 },
+            { new TrenchKey(PipeSystemEnum.Stål, PipeTypeEnum.Twin, PipeSeriesEnum.S3), getTrenchWidthStålTwinS3 },
+            { new TrenchKey(PipeSystemEnum.Kobberflex, PipeTypeEnum.Enkelt, PipeSeriesEnum.S3), getTrenchWidthCuEnkeltS2 },
+            { new TrenchKey(PipeSystemEnum.Kobberflex, PipeTypeEnum.Twin, PipeSeriesEnum.S3), getTrenchWidthCuTwinS2 }
+        };
+
+        private static double getTrenchWidthStålEnkeltS3(int dn)
+        {
+            if (trenchWidthsS3EnkeltSteel.ContainsKey(dn)) return trenchWidthsS3EnkeltSteel[dn];
+            else throw new Exception($"trenchWidthsS3EnkeltSteel does not contain key {dn}!");
+        }
+        private static double getTrenchWidthStålTwinS3(int dn)
+        {
+            if (trenchWidthsS3TwinSteel.ContainsKey(dn)) return trenchWidthsS3TwinSteel[dn];
+            else throw new Exception($"trenchWidthsS3TwinSteel does not contain key {dn}!");
+        }
+        private static double getTrenchWidthCuEnkeltS2(int dn)
+        {
+            if (trenchWidthsS2CuEnkelt.ContainsKey(dn)) return trenchWidthsS2CuEnkelt[dn];
+            else throw new Exception($"trenchWidthsS2CuEnkelt does not contain key {dn}!");
+        }
+        private static double getTrenchWidthCuTwinS2(int dn)
+        {
+            if (trenchWidthsS2CuTwin.ContainsKey(dn)) return trenchWidthsS2CuTwin[dn];
+            else throw new Exception($"trenchWidthsS2CuTwin does not contain key {dn}!");
+        }
+        public static double GetTrenchWidth(Entity ent)
+        {
+            int dn = GetPipeDN(ent);
+
+            //Twin eller enkelt
+            PipeTypeEnum type = GetPipeType(ent);
+            if (type == PipeTypeEnum.Frem || type == PipeTypeEnum.Retur) type = PipeTypeEnum.Enkelt;
+
+            PipeSeriesEnum series = GetPipeSeriesV2(ent, true);
+
+            //Stål, cu- el. aluflex
+            PipeSystemEnum system = GetPipeSystem(ent);
+
+            double result = GetTrenchWidth(dn, system, type, series);
+            if (result > 0) return result;
+            else throw new Exception($"Entity {ent.Handle} failed to get correct thrench width!");
+        }
+        public static double GetTrenchWidth(int dn, PipeSystemEnum ps, PipeTypeEnum pt,  PipeSeriesEnum series)
+        {
+            TrenchKey tk = new TrenchKey(ps, pt, series);
+            if (trenchWidthsMap.ContainsKey(tk)) return trenchWidthsMap[tk].Invoke(dn);
+            else
+            {
+                prdDbg($"DN {dn}, System {ps}, Type {pt}, Series {series}: Could not get a Trench Width!");
+                return 0;
+            }
+        }
+        #endregion
+
         private static string ExtractLayerName(Entity ent)
         {
             string layer = ent.Layer;
@@ -367,6 +511,23 @@ namespace IntersectUtilities
         public static PipeTypeEnum GetPipeType(Entity ent)
         {
             return GetPipeType(ExtractLayerName(ent));
+        }
+        public static PipeTypeEnum GetPipeType(Entity ent, bool FRtoEnkelt = false)
+        {
+            var type = GetPipeType(ExtractLayerName(ent));
+            if (!FRtoEnkelt) return type;
+            switch (type)
+            {
+                case PipeTypeEnum.Ukendt:
+                case PipeTypeEnum.Twin:
+                    return type;
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
+                case PipeTypeEnum.Enkelt:
+                    return PipeTypeEnum.Enkelt;
+                default:
+                    return PipeTypeEnum.Ukendt;
+            }
         }
         public static PipeTypeEnum GetPipeType(string layer)
         {
@@ -564,20 +725,7 @@ namespace IntersectUtilities
         public static double GetTwinPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
-            switch (pipeSeries)
-            {
-                case PipeSeriesEnum.S1:
-                    if (kOdsS1Twin.ContainsKey(dn)) return kOdsS1Twin[dn];
-                    else return 0;
-                case PipeSeriesEnum.S2:
-                    if (kOdsS2Twin.ContainsKey(dn)) return kOdsS2Twin[dn];
-                    else return 0;
-                case PipeSeriesEnum.S3:
-                    if (kOdsS3Twin.ContainsKey(dn)) return kOdsS3Twin[dn];
-                    else return 0;
-                default:
-                    return 0;
-            }
+            return GetTwinPipeKOd(dn, pipeSeries);
         }
         public static double GetTwinPipeKOd(int dn, PipeSeriesEnum pipeSeries)
         {
@@ -629,6 +777,10 @@ namespace IntersectUtilities
         public static double GetCuEnkeltPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
+            return GetCuEnkeltPipeKOd(dn, pipeSeries);
+        }
+        public static double GetCuEnkeltPipeKOd(int dn, PipeSeriesEnum pipeSeries)
+        {
             switch (pipeSeries)
             {
                 case PipeSeriesEnum.S1:
@@ -645,6 +797,10 @@ namespace IntersectUtilities
         public static double GetCuTwinPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
+            return GetCuTwinPipeKOd(dn, pipeSeries);
+        }
+        public static double GetCuTwinPipeKOd(int dn, PipeSeriesEnum pipeSeries)
+        {
             switch (pipeSeries)
             {
                 case PipeSeriesEnum.S1:
@@ -661,6 +817,10 @@ namespace IntersectUtilities
         public static double GetAluPexEnkeltPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
+            return GetAluPexEnkeltPipeKOd(dn, pipeSeries);
+        }
+        public static double GetAluPexEnkeltPipeKOd(int dn, PipeSeriesEnum pipeSeries)
+        {
             switch (pipeSeries)
             {
                 case PipeSeriesEnum.S1:
@@ -680,6 +840,10 @@ namespace IntersectUtilities
         public static double GetAluPexTwinPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
+            return GetAluPexTwinPipeKOd(dn, pipeSeries);
+        }
+        public static double GetAluPexTwinPipeKOd(int dn, PipeSeriesEnum pipeSeries)
+        {
             switch (pipeSeries)
             {
                 case PipeSeriesEnum.S1:
@@ -749,6 +913,7 @@ namespace IntersectUtilities
                     }
                 case PipeTypeEnum.Frem:
                 case PipeTypeEnum.Retur:
+                case PipeTypeEnum.Enkelt:
                     switch (pipeSystem)
                     {
                         case PipeSystemEnum.Ukendt:
@@ -766,6 +931,46 @@ namespace IntersectUtilities
                     return 0.0;
             }
 
+        }
+        public static double GetKOd(int dn, PipeTypeEnum pt, PipeSystemEnum ps, PipeSeriesEnum series)
+        {
+            switch (pt)
+            {
+                case PipeTypeEnum.Ukendt:
+                    return 0.0;
+                case PipeTypeEnum.Twin:
+                    switch (ps)
+                    {
+                        case PipeSystemEnum.Ukendt:
+                            return 0.0;
+                        case PipeSystemEnum.Stål:
+                            return GetTwinPipeKOd(dn, series);
+                        case PipeSystemEnum.Kobberflex:
+                            return GetCuTwinPipeKOd(dn, series);
+                        case PipeSystemEnum.AluPex:
+                            return GetAluPexTwinPipeKOd(dn, series);
+                        default:
+                            return 0.0;
+                    }
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
+                case PipeTypeEnum.Enkelt:
+                    switch (ps)
+                    {
+                        case PipeSystemEnum.Ukendt:
+                            return 0.0;
+                        case PipeSystemEnum.Stål:
+                            return GetBondedPipeKOd(dn, series);
+                        case PipeSystemEnum.Kobberflex:
+                            return GetCuEnkeltPipeKOd(dn, series);
+                        case PipeSystemEnum.AluPex:
+                            return GetAluPexEnkeltPipeKOd(dn, series);
+                        default:
+                            return 0.0;
+                    }
+                default:
+                    return 0.0;
+            }
         }
         public static double GetPipeKOd(Entity ent, bool hardFail = false)
         {

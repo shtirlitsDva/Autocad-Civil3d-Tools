@@ -537,7 +537,7 @@ namespace ExportShapeFiles
                         catch (System.Exception ex)
                         {
                             Log.log($"EXCEPTION!!!: {ex.ToString()}.");
-                            prdDbg(ex.ToString());
+                            prdDbg(ex);
                             extTx.Abort();
                             extDb.Dispose();
                             throw;

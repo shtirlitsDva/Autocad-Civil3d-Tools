@@ -237,21 +237,23 @@ namespace DriPaletteSet
                     {
                         LayerTableRecord ltr = new LayerTableRecord();
                         ltr.Name = layerName;
-                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 0);
 
                         lt.CheckOrOpenForWrite();
                         lt.Add(ltr);
                         tx.AddNewlyCreatedDBObject(ltr, true);
                     }
 
-                    DBText label = new DBText();
+                    MText label = new MText();
+                    label.SetDatabaseDefaults();
+                    label.Attachment = AttachmentPoint.MiddleCenter;
+                    label.Location = new Point3d(selectedPoint.X, selectedPoint.Y, 0);
+                    label.TextHeight = 0.8;
+                    label.Contents = labelText;
                     label.Layer = layerName;
-                    label.TextString = labelText;
-                    label.Height = 1.2;
-                    label.HorizontalMode = TextHorizontalMode.TextMid;
-                    label.VerticalMode = TextVerticalMode.TextVerticalMid;
-                    label.Position = new Point3d(selectedPoint.X, selectedPoint.Y, 0);
-                    label.AlignmentPoint = selectedPoint;
+                    label.BackgroundFill = true;
+                    label.UseBackgroundColor = true;
+                    label.BackgroundScaleFactor = 1.2;
 
                     //Find rotation
                     Polyline pline = (Polyline)ent;
@@ -287,9 +289,8 @@ namespace DriPaletteSet
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriSourceReference);
                     PSetDefs.DriSourceReference driSourceReference = new PSetDefs.DriSourceReference();
 
-                    psm.GetOrAttachPropertySet(label);
                     string handle = ent.Handle.ToString();
-                    psm.WritePropertyString(driSourceReference.SourceEntityHandle, handle);
+                    psm.WritePropertyString(label, driSourceReference.SourceEntityHandle, handle);
                     #endregion
                 }
                 catch (System.Exception ex)

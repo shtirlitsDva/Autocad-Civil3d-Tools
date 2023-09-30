@@ -21,6 +21,7 @@ using DataTable = System.Data.DataTable;
 using static IntersectUtilities.UtilsCommon.Utils;
 using Autodesk.AutoCAD.Geometry;
 using MoreLinq;
+using System.Runtime.CompilerServices;
 
 namespace LERImporter
 {
@@ -108,7 +109,7 @@ namespace LERImporter
                 hatch.AppendLoop(HatchLoopTypes.Default, points2d, dc);
                 hatch.EvaluateHatch(true);
 
-                hatch.Layer = "GraveforespPolygon"; 
+                hatch.Layer = "GraveforespPolygon";
             }
             #endregion
 
@@ -321,16 +322,24 @@ namespace LERImporter
 
                 //Create 2D
                 {
-                    ObjectId entityId = iLedning.DrawEntity2D(Db2d);
-                    Entity ent = entityId.Go<Entity>(Db2d.TransactionManager.TopTransaction, OpenMode.ForWrite);
-                    layerNames2d.Add(ent.Layer);
+                    try
+                    {
+                        ObjectId entityId = iLedning.DrawEntity2D(Db2d);
+                        Entity ent = entityId.Go<Entity>(Db2d.TransactionManager.TopTransaction, OpenMode.ForWrite);
+                        layerNames2d.Add(ent.Layer);
 
-                    //Attach the property set
-                    PropertySetManager.AttachNonDefinedPropertySet(Db2d, ent, psName);
+                        //Attach the property set
+                        PropertySetManager.AttachNonDefinedPropertySet(Db2d, ent, psName);
 
-                    //Populate the property set
-                    var psData = GmlToPropertySet.TranslateGmlToPs(ledning);
-                    PropertySetManager.PopulateNonDefinedPropertySet(Db2d, ent, psName, psData);
+                        //Populate the property set
+                        var psData = GmlToPropertySet.TranslateGmlToPs(ledning);
+                        PropertySetManager.PopulateNonDefinedPropertySet(Db2d, ent, psName, psData);
+                    }
+                    catch (System.Exception)
+                    {
+                        prdDbg(ObjectDumper.Dump(ledning));
+                        throw;
+                    }
                 }
 
                 //Create 3D
@@ -341,7 +350,7 @@ namespace LERImporter
 
                     //Attach the property set
                     PropertySetManager.AttachNonDefinedPropertySet(Db3d, ent, psName);
-
+                    string gmlid = ledning.GmlId;
                     //Populate the property set
                     var psData = GmlToPropertySet.TranslateGmlToPs(ledning);
                     PropertySetManager.PopulateNonDefinedPropertySet(Db3d, ent, psName, psData);
@@ -452,8 +461,8 @@ namespace LERImporter
                 foreach (string layerName in layerNames3d)
                 {
                     string tempLayerName = layerName;
-                    if (layerName.EndsWith("-3D")) 
-                        tempLayerName = 
+                    if (layerName.EndsWith("-3D"))
+                        tempLayerName =
                             tempLayerName.Substring(0, tempLayerName.Length - 3);
                     string colorString = ReadStringParameterFromDataTable(tempLayerName, dtLag, "Farve", 0);
 

@@ -1765,6 +1765,7 @@ namespace IntersectUtilities.Dimensionering
                     {
                         string handleString = graphPsm.ReadPropertyString(building, graphDef.Parent);
                         Handle parent;
+                        Line line;
                         try
                         {
                             parent = new Handle(Convert.ToInt64(handleString, 16));
@@ -1774,7 +1775,15 @@ namespace IntersectUtilities.Dimensionering
                             prdDbg($"Reading parent handle failed for block: {building.Handle}");
                             throw;
                         }
-                        Line line = parent.Go<Line>(localDb);
+                        try
+                        {
+                            line = parent.Go<Line>(localDb);
+                        }
+                        catch (System.Exception)
+                        {
+                            prdDbg($"Getting parent entity failed for block: {building.Handle}");
+                            throw;
+                        }
 
                         double stikLængde = line.GetHorizontalLength();
                         string adresse = bbrPsm.ReadPropertyString(building, bbrDef.Adresse);
@@ -3866,7 +3875,7 @@ namespace IntersectUtilities.Dimensionering
                             //Determine end
                             if (i != dimAr.Length - 1) end = dimAr[i].MaxBy(x => x.Station).First().Station;
                             else end = originalPipe.Length;
-                            sizes.Add(new SizeEntry(dn, start, end, kod));
+                            sizes.Add(new SizeEntry(dn, start, end, kod, default, default, default));
                         }
 
                         #region Consolidate sizes -> remove 0 length sizes
