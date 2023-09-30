@@ -1875,10 +1875,30 @@ namespace IntersectUtilities
                     var mpgs = localDb.HashSetOfType<MPolygon>(tx)
                         .Where(x => x.Layer == lyrSplitForGml);
 
+                    List<string> lines = new List<string>();
                     foreach (var mpg in mpgs)
                     {
-                        
+                        int nrOfLoops = mpg.NumMPolygonLoops;
+
+                        string coords = "";
+                        List<BulgeVertex> vertices = new List<BulgeVertex>();
+
+                        for (int i = 0; i < nrOfLoops; i++)
+                        {
+                            MPolygonLoop loop = mpg.GetMPolygonLoopAt(i);
+                            for (int j = 0; j < loop.Count; j++) vertices.Add(loop[j]);
+                        }
+
+                        coords = string.Join(" ", vertices.Select(x => $"{x.Vertex.X.ToString()} " +
+                        $"{x.Vertex.Y.ToString()}"));
+                        lines.Add(coords);
                     }
+
+                    string path = Path.GetDirectoryName(localDb.Filename);
+                    string coordsFilename = Path.Combine(path, "GMLCoordinates.txt");
+
+                    File.WriteAllLines(coordsFilename, lines);
+                    prdDbg($"Exported coordinates to {coordsFilename}!");
                 }
                 catch (System.Exception ex)
                 {
