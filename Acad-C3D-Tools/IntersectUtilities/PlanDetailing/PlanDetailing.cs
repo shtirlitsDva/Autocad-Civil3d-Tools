@@ -399,7 +399,7 @@ namespace IntersectUtilities
                                     }
                                     catch (System.Exception ex)
                                     {
-                                        //prdDbg(ex.ToString());
+                                        //prdDbg(ex);
                                         prdDbg("Error in GetClosestPointTo -> loop incomplete!");
                                     }
 
@@ -625,7 +625,7 @@ namespace IntersectUtilities
                 {
                     tx.Abort();
                     prdDbg(ex.ExceptionInfo());
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -903,7 +903,7 @@ namespace IntersectUtilities
                 {
                     tx.Abort();
                     prdDbg(ex.ExceptionInfo());
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -1584,7 +1584,7 @@ namespace IntersectUtilities
                     alDb.Dispose();
                     tx.Abort();
                     prdDbg(ex.ExceptionInfo());
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 alTx.Abort();

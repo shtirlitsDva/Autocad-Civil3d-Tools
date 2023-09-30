@@ -1895,7 +1895,7 @@ namespace IntersectUtilities
                     fremTx.Dispose();
                     fremDb.Dispose();
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 fremTx.Commit();
@@ -2702,7 +2702,7 @@ namespace IntersectUtilities
                                 }
                                 catch (System.Exception ex)
                                 {
-                                    prdDbg(ex.ToString());
+                                    prdDbg(ex);
                                     extTx.Abort();
                                     extDb.Dispose();
                                     throw;
@@ -3503,7 +3503,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tr.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                 }
                 tr.Commit();
             }
@@ -3573,7 +3573,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                 }
                 tx.Commit();
             }
@@ -3608,7 +3608,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -3652,7 +3652,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tr.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                 }
                 tr.Commit();
             }
@@ -4073,7 +4073,7 @@ namespace IntersectUtilities
                     //    alTx.Abort();
                     //    alTx.Dispose();
                     //    alDb.Dispose();
-                    //    prdDbg(ex.ToString());
+                    //    prdDbg(ex);
                     //    throw;
                     //}
                     //alTx.Abort();
@@ -5290,7 +5290,7 @@ namespace IntersectUtilities
                     //    fremTx.Abort();
                     //    fremTx.Dispose();
                     //    fremDb.Dispose();
-                    //    prdDbg(ex.ToString());
+                    //    prdDbg(ex);
                     //    throw;
                     //}
                     //fremTx.Abort();
@@ -6116,7 +6116,7 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     tx.Abort();
                     return;
                 }
@@ -6195,7 +6195,7 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     tx.Abort();
                     return;
                 }
@@ -6690,7 +6690,7 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -6731,7 +6731,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -6889,7 +6889,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -6994,7 +6994,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -7046,7 +7046,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -7148,7 +7148,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -7248,7 +7248,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();

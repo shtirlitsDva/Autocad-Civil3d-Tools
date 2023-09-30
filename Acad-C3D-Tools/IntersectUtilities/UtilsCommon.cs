@@ -2323,7 +2323,7 @@ namespace IntersectUtilities.UtilsCommon
                 prdDbg($"Alignment {al.Name} threw an exception when sampling station at point:\n" +
                     $"Entity position: {p}\n" +
                     $"Sampled position: {cP}");
-                prdDbg(ex.ToString());
+                prdDbg(ex);
                 throw;
             }
 

@@ -315,7 +315,7 @@ namespace IntersectUtilities
             }
             catch (System.Exception ex)
             {
-                prdDbg(ex.ToString());
+                prdDbg(ex);
                 throw;
             }
         }

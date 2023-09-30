@@ -777,7 +777,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -994,7 +994,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();

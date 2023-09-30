@@ -478,7 +478,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -587,7 +587,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -647,7 +647,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -1518,7 +1518,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -1620,7 +1620,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -1802,7 +1802,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -1872,7 +1872,8 @@ namespace IntersectUtilities
                 {
                     string lyrSplitForGml = "LER2POLYGON-SPLITFORGML";
 
-                    HashSet<MPolygon> mpgs = localDb.HashSetOfType<MPolygon>(tx);
+                    var mpgs = localDb.HashSetOfType<MPolygon>(tx)
+                        .Where(x => x.Layer == lyrSplitForGml);
 
                     foreach (var mpg in mpgs)
                     {
@@ -1882,7 +1883,7 @@ namespace IntersectUtilities
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    prdDbg(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
