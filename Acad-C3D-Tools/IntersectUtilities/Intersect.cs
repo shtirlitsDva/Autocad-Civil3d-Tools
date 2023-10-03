@@ -5994,6 +5994,43 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("REMOVEVEJFROMALIGNMENTNAME")]
+        public void removevejfromalignmentname()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            Regex rgx = new Regex(@"(?<number>\d\d\d?)\s");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var als = localDb.HashSetOfType<Alignment>(tx);
+
+                    foreach (Alignment al in als)
+                    {
+                        if (rgx.IsMatch(al.Name))
+                        {
+                            string number = rgx.Match(al.Name).Groups["number"].Value;
+                            al.CheckOrOpenForWrite();
+                            al.Name = number;
+
+                            prdDbg($"{al.Name} -> {number}");
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         //[CommandMethod("CREATEPROPERTYSETSFROMODTABLES")]
         public void createpropertysetsfromodtables()
         {
