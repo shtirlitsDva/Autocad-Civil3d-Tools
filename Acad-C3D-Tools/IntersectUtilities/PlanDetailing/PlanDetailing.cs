@@ -123,12 +123,6 @@ namespace IntersectUtilities
                 HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
                 #endregion
 
-                //////////////////////////////////////
-                string blockLayerName = "0-SVEJSEPKT";
-                string blockName = noNumbers ? "SVEJSEPUNKT-NOTXT" : "SVEJSEPUNKT";
-                string textLayerName = "0-DEBUG-TXT";
-                //////////////////////////////////////
-
                 #region Initialize property set
                 PropertySetManager psm = new PropertySetManager(
                     localDb,
@@ -136,18 +130,24 @@ namespace IntersectUtilities
                 PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
                 #endregion
 
-                #region Delete previous blocks
-                //Delete previous blocks
-                var existingBlocks = localDb.GetBlockReferenceByName(blockName);
-                foreach (BlockReference br in existingBlocks)
-                {
-                    br.CheckOrOpenForWrite();
-                    br.Erase(true);
-                }
-                #endregion
-
                 try
                 {
+                    //////////////////////////////////////
+                    string blockLayerName = "0-SVEJSEPKT";
+                    string blockName = noNumbers ? "SVEJSEPUNKT-NOTXT" : "SVEJSEPUNKT";
+                    string textLayerName = "0-DEBUG-TXT";
+                    //////////////////////////////////////
+                    
+                    #region Delete previous blocks
+                    //Delete previous blocks
+                    var existingBlocks = localDb.GetBlockReferenceByName(blockName);
+                    foreach (BlockReference br in existingBlocks)
+                    {
+                        br.CheckOrOpenForWrite();
+                        br.Erase(true);
+                    }
+                    #endregion
+
                     #region Create layer for weld blocks and
                     localDb.CheckOrCreateLayer(blockLayerName);
                     localDb.CheckOrCreateLayer(textLayerName);
