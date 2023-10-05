@@ -83,7 +83,9 @@ namespace IntersectUtilities
 
             #region Create graph
             var entities = new HashSet<Entity>(curves);
-            if (brs != default) entities.UnionWith(brs);
+            if (brs != default) entities.UnionWith(
+                brs.Where(x => !graphUnwantedTypes.Contains(
+                    x.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false))));
 
             HashSet<POI> POIs = new HashSet<POI>();
             foreach (Entity ent in entities) AddEntityToPOIs(ent, POIs);
@@ -126,7 +128,8 @@ namespace IntersectUtilities
             }
 
             //Now find the ends, choose one and rearrange graph to start from that node
-            var endNodes = startingGraph.Vertices.Where(v => startingGraph.OutDegree(v) == 1 && startingGraph.InDegree(v) == 1);
+            var endNodes = startingGraph.Vertices.Where(
+                v => startingGraph.OutDegree(v) == 1 && startingGraph.InDegree(v) == 1);
             var startingNode = endNodes.OrderBy(x => GetStation(al, x)).First();
 
             var dfs = new DepthFirstSearchAlgorithm<Entity, Edge<Entity>>(startingGraph);
@@ -136,7 +139,33 @@ namespace IntersectUtilities
 
             var sortedGraph = new BidirectionalGraph<Entity, Edge<Entity>>();
             sortedGraph.AddVertexRange(verticesInNewOrder);
-            foreach (var edge in startingGraph.Edges) sortedGraph.AddEdge(edge);
+
+            foreach (var edge in startingGraph.Edges)
+            {
+                try
+                {
+                    sortedGraph.AddEdge(edge);
+                }
+                catch (Exception ex)
+                {
+                    prdDbg($"Failed to add edge: {edge.Source.Handle} -> {edge.Target.Handle}.");
+                    if (sortedGraph.Vertices.Any(x => x.Handle == edge.Source.Handle))
+                        prdDbg($"Source {edge.Source.Handle} is in SORTED graph.");
+                    else prdDbg($"Source {edge.Source.Handle} is NOT in SORTED graph.");
+                    if (sortedGraph.Vertices.Any(x => x.Handle == edge.Target.Handle))
+                        prdDbg($"Target {edge.Target.Handle} is in SORTED graph.");
+                    else prdDbg($"Target {edge.Target.Handle} is NOT in SORTED graph.");
+                    if (startingGraph.Vertices.Any(x => x.Handle == edge.Source.Handle))
+                        prdDbg($"Source {edge.Source.Handle} is in STARTING graph.");
+                    else prdDbg($"Source {edge.Source.Handle} is NOT in STARTING graph.");
+                    if (startingGraph.Vertices.Any(x => x.Handle == edge.Target.Handle))
+                        prdDbg($"Target {edge.Target.Handle} is in STARTING graph.");
+                    else prdDbg($"Target {edge.Target.Handle} is NOT in STARTING graph.");
+                    prdDbg(ex);
+                    throw;
+                }
+
+            }
 
             Graph = sortedGraph;
             #endregion
@@ -348,7 +377,7 @@ namespace IntersectUtilities
                 }
 
                 SizeArray = sizes.ToArray();
-            } 
+            }
             #endregion
         }
         private PipelineSizesArrangement DetectArrangement(List<int> list)
@@ -975,7 +1004,7 @@ namespace IntersectUtilities
                                     case Type t when t == typeof(PipeTypeEnum):
                                         {
                                             PipeTypeEnum result = GetPipeType(cur, dynamicBlocks);
-                                            if (result != PipeTypeEnum.Ukendt) return (T)Convert.ChangeType(result, type); 
+                                            if (result != PipeTypeEnum.Ukendt) return (T)Convert.ChangeType(result, type);
                                         }
                                         break;
                                     case Type t when t == typeof(PipeSeriesEnum):

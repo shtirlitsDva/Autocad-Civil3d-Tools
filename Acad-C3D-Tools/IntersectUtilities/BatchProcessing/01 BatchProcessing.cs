@@ -50,6 +50,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Result = IntersectUtilities.Result;
+using System.Diagnostics;
 
 namespace IntersectUtilities
 {
@@ -76,35 +77,37 @@ namespace IntersectUtilities
                 return;
             }
 
+            #region Dialog box for file list selection and path determination
+            string path = string.Empty;
+            OpenFileDialog dialog = new OpenFileDialog()
+            {
+                Title = "Choose txt file:",
+                DefaultExt = "txt",
+                Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
+                FilterIndex = 0
+            };
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                path = dialog.FileName;
+            }
+            else return;
+
+            List<string> fileList;
+            fileList = File.ReadAllLines(path).ToList();
+            path = Path.GetDirectoryName(path) + "\\";
+            #endregion
+
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
-                    #region Dialog box for file list selection and path determination
-                    string path = string.Empty;
-                    OpenFileDialog dialog = new OpenFileDialog()
-                    {
-                        Title = "Choose txt file:",
-                        DefaultExt = "txt",
-                        Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
-                        FilterIndex = 0
-                    };
-                    if (dialog.ShowDialog() == DialogResult.OK)
-                    {
-                        path = dialog.FileName;
-                    }
-                    else return;
-
-                    List<string> fileList;
-                    fileList = File.ReadAllLines(path).ToList();
-                    path = Path.GetDirectoryName(path) + "\\";
-                    #endregion
-
                     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                     //Project and etape selection object
                     //Comment out if not needed
                     //DataReferencesOptions dro = new DataReferencesOptions();
-
                     foreach (string fileName in fileList)
                     {
                         //prdDbg(fileName);
@@ -230,6 +233,11 @@ namespace IntersectUtilities
                     tx.Abort();
                     prdDbg(ex);
                     return;
+                }
+                finally
+                {
+                    sw.Stop();
+                    prdDbg($"Total processing time: {sw.Elapsed}");
                 }
                 tx.Commit();
             }
@@ -1823,7 +1831,7 @@ namespace IntersectUtilities
             "Unhide layer(s)\n",
             "Unhide specifikke lag i tegningen.\n" +
             "Ved input af flere lag skal\n" +
-            "skal de enkelte lagnavne deles op med \";\".\n",
+            "de enkelte lagnavne deles op med \";\".\n",
             new string[1] { "Layer name(s)" })]
         public static Result unhidelayer(Database xDb, string layerNames)
         {
@@ -1843,6 +1851,36 @@ namespace IntersectUtilities
                         ltr.CheckOrOpenForWrite();
                         ltr.IsFrozen = false;
                         ltr.IsOff = false;
+                    }
+                }
+            }
+
+            return new Result();
+        }
+        [MethodDescription(
+            "Hide layer(s)\n",
+            "Hide specifikke lag i tegningen.\n" +
+            "Ved input af flere lag skal\n" +
+            "de enkelte lagnavne deles op med \";\".\n",
+            new string[1] { "Layer name(s)" })]
+        public static Result hidelayer(Database xDb, string layerNames)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+            LayerTable extLt = xDb.LayerTableId.Go<LayerTable>(xTx);
+
+            var split = layerNames.Split(';');
+
+            foreach (string layName in split)
+            {
+                foreach (Oid oid in extLt)
+                {
+                    LayerTableRecord ltr = oid.Go<LayerTableRecord>(xTx);
+
+                    if (ltr.Name == layName)
+                    {
+                        ltr.CheckOrOpenForWrite();
+                        ltr.IsFrozen = true;
+                        ltr.IsOff = true;
                     }
                 }
             }
