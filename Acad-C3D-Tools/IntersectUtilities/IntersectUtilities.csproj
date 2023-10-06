@@ -297,6 +297,7 @@
     <Compile Include="DynamicBlockPropertyReader.cs" />
     <Compile Include="FjernvarmeFremtidig\FjernvarmeFremtidig.cs" />
     <Compile Include="FolderSelectDialog.cs" />
+    <Compile Include="GraphClasses\EntWrap.cs" />
     <Compile Include="GroupByCluster.cs" />
     <Compile Include="IsogenPopulateAttributes.cs" />
     <Compile Include="Jigs\ProfileJig.cs" />

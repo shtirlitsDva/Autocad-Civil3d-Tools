@@ -1202,7 +1202,7 @@ namespace IntersectUtilities
             //Right means towards the end of alignment
             Right
         }
-        private struct POI
+        public struct POI
         {
             public Entity Owner { get; }
             public List<Entity> Neighbours { get; }

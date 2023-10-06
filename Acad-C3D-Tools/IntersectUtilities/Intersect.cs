@@ -55,6 +55,10 @@ using System.Diagnostics;
 using System.Runtime;
 using System.Text.Json;
 using IntersectUtilities.Forms;
+using POI = IntersectUtilities.PipelineSizeArray.POI;
+using QuikGraph;
+using QuikGraph.Graphviz;
+using Autodesk.AutoCAD.ViewModel.PointCloudManager;
 
 namespace IntersectUtilities
 {
@@ -8363,6 +8367,251 @@ namespace IntersectUtilities
                     return;
                 }
                 tx.Commit();
+            }
+        }
+
+        [CommandMethod("TESTQUIKGRAPH")]
+        public void testquikgraph()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Read CSV
+                    System.Data.DataTable dt = default;
+                    try
+                    {
+                        dt = CsvReader.ReadCsvToDataTable(
+                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    }
+                    catch (System.Exception ex)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        prdDbg(ex);
+                        throw;
+                    }
+                    if (dt == default)
+                    {
+                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
+                        throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
+                    }
+                    #endregion
+
+                    PropertySetManager psmPipeLineData = new PropertySetManager(
+                        localDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineData =
+                        new PSetDefs.DriPipelineData();
+
+                    var ents = localDb.GetFjvEntities(tx, dt, true, false, true);
+
+                    #region Create graph
+                    HashSet<POI> POIs = new HashSet<POI>();
+                    foreach (Entity ent in ents) AddEntityToPOIs(ent, POIs,
+                        ents.Where(x => x is Polyline).Cast<Polyline>());
+
+                    IEnumerable<IGrouping<POI, POI>> clusters
+                        = POIs.GroupByCluster((x, y) => x.Point.GetDistanceTo(y.Point), 0.01);
+
+                    foreach (IGrouping<POI, POI> cluster in clusters)
+                    {
+                        //Create unique pairs
+                        var pairs = cluster.SelectMany((value, index) => cluster.Skip(index + 1),
+                                                       (first, second) => new { first, second });
+                        //Create reference to each other for each pair
+                        foreach (var pair in pairs)
+                        {
+                            if (pair.first.Owner.Handle == pair.second.Owner.Handle) continue;
+                            pair.first.AddReference(pair.second);
+                            pair.second.AddReference(pair.first);
+                        }
+                    }
+
+                    //First crate a graph that start from a random entity
+                    //var startingGraph = new BidirectionalGraph<Entity, Edge<Entity>>();
+                    var startingGraph = new UndirectedGraph<Entity, Edge<Entity>>();
+                    var groups = POIs.GroupBy(x => x.Owner.Handle);
+
+                    foreach (var group in groups)
+                        startingGraph.AddVertex(group.First().Owner);
+
+                    foreach (var group in groups)
+                    {
+                        Entity owner = group.First().Owner;
+
+                        foreach (var poi in group)
+                        {
+                            foreach (var neighbour in poi.Neighbours)
+                            {
+                                startingGraph.AddEdge(new Edge<Entity>(owner, neighbour));
+                            }
+                        }
+                    }
+
+                    // Create Graphviz algorithm instance
+                    var graphviz = new GraphvizAlgorithm<Entity, Edge<Entity>>(startingGraph);
+
+                    // Customize appearance
+                    graphviz.FormatVertex += (sender, args) =>
+                    {
+                        args.VertexFormat.Shape = QuikGraph.Graphviz.Dot.GraphvizVertexShape.Record;
+                        args.VertexFormat.Label = args.Vertex.Handle.ToString();
+                    };
+
+                    graphviz.FormatEdge += (sender, args) =>
+                    {
+                        //args.EdgeFormat.Direction = QuikGraph.Graphviz.Dot.GraphvizEdgeDirection.Both;
+                    };
+
+                    // Generate .dot file content for this alignment
+                    string dotPath = @"C:\Temp\wholeSystem.dot";
+                    string pdfPath = @"C:\Temp\wholeSystem.pdf";
+                    string dot = graphviz.Generate();
+                    File.WriteAllText(dotPath, dot);
+
+                    var startInfo = new ProcessStartInfo("dot")
+                    {
+                        Arguments = $"-Tpdf \"{dotPath}\" -o \"{pdfPath}\"",
+                        RedirectStandardInput = false,
+                        RedirectStandardOutput = false,
+                        RedirectStandardError = false,
+                        UseShellExecute = false
+                    };
+                    Process.Start(startInfo).WaitForExit();
+                    #endregion
+
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        public void AddEntityToPOIs(Entity ent, HashSet<POI> POIs, IEnumerable<Polyline> allPipes)
+        {
+            switch (ent)
+            {
+                case Polyline pline:
+                    switch (GetPipeSystem(pline))
+                    {
+                        case PipeSystemEnum.Ukendt:
+                            prdDbg($"Wrong type of pline supplied: {pline.Handle}");
+                            return;
+                        case PipeSystemEnum.Stål:
+                            POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.Start));
+                            POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.End));
+                            break;
+                        case PipeSystemEnum.Kobberflex:
+                        case PipeSystemEnum.AluPex:
+                            #region STIK//Find forbindelse til forsyningsrøret
+                            Point3d pt = pline.StartPoint;
+                            var query = allPipes.Where(x =>
+                                pt.IsOnCurve(x, 0.025) &&
+                                pline.Handle != x.Handle &&
+                                GetPipeSystem(x) == PipeSystemEnum.Stål);
+
+                            if (query.FirstOrDefault() != default)
+                            {
+                                Polyline parent = query.FirstOrDefault();
+                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2D(), EndType.StikAfgrening));
+                            }
+
+                            pt = pline.EndPoint;
+                            if (query.FirstOrDefault() != default)
+                            {
+                                //This shouldn't happen now, because AssignPlinesAndBlocksToAlignments
+                                //guarantees that the end point is never on a supply pipe
+                                Polyline parent = query.FirstOrDefault();
+                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2D(), EndType.StikAfgrening));
+                            }
+                            #endregion
+
+                            //Tilføj almindelige ender til POIs
+                            POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.StikStart));
+                            POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.StikEnd));
+                            break;
+                        default:
+                            throw new System.Exception("Supplied a new PipeSystemEnum! Add to code kthxbai.");
+                    }
+                    break;
+                case BlockReference br:
+                    Transaction tx = br.Database.TransactionManager.TopTransaction;
+                    BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+
+                    //Quick and dirty fix for missing data
+                    if (br.RealName() == "SH LIGE")
+                    {
+                        PropertySetManager psmPipeline =
+                                    new PropertySetManager(br.Database, PSetDefs.DefinedSets.DriPipelineData);
+                        PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
+
+                        string belongsTo = psmPipeline.ReadPropertyString(br, driPipelineData.BelongsToAlignment);
+                        if (belongsTo.IsNoE())
+                        {
+                            string branchesOffTo = psmPipeline.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment);
+                            if (branchesOffTo.IsNotNoE())
+                                psmPipeline.WritePropertyString(br, driPipelineData.BelongsToAlignment, branchesOffTo);
+                        }
+                    }
+
+                    foreach (Oid oid in btr)
+                    {
+                        if (!oid.IsDerivedFrom<BlockReference>()) continue;
+                        BlockReference nestedBr = oid.Go<BlockReference>(tx);
+                        if (!nestedBr.Name.Contains("MuffeIntern")) continue;
+                        Point3d wPt = nestedBr.Position;
+                        wPt = wPt.TransformBy(br.BlockTransform);
+                        EndType endType;
+                        if (nestedBr.Name.Contains("BRANCH")) { endType = EndType.Branch; }
+                        else
+                        {
+                            endType = EndType.Main;
+                            //Handle special case of AFGRSTUDS
+                            //which does not coincide with an end on polyline
+                            //but is situated somewhere along the polyline
+                            if (br.RealName() == "AFGRSTUDS" || br.RealName() == "SH LIGE")
+                            {
+                                PropertySetManager psmPipeline =
+                                    new PropertySetManager(br.Database, PSetDefs.DefinedSets.DriPipelineData);
+                                PSetDefs.DriPipelineData driPipelineData = new PSetDefs.DriPipelineData();
+
+                                string branchAlName = psmPipeline.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment);
+                                if (branchAlName.IsNoE())
+                                    prdDbg(
+                                        $"WARNING! Afgrstuds {br.Handle} has no BranchesOffToAlignment value.\n" +
+                                        $"This happens if there are objects with no alignment assigned.\n" +
+                                        $"To fix enter main alignment name in BranchesOffToAlignment field.");
+
+                                var polylines = allPipes
+                                    //.GetFjvPipes(tx, true)
+                                    //.HashSetOfType<Polyline>(tx, true)
+                                    .Where(x => psmPipeline.FilterPropetyString
+                                            (x, driPipelineData.BelongsToAlignment, branchAlName));
+                                //.ToHashSet();
+
+                                foreach (Polyline polyline in polylines)
+                                {
+                                    Point3d nearest = polyline.GetClosestPointTo(wPt, false);
+                                    if (nearest.DistanceHorizontalTo(wPt) < 0.01)
+                                    {
+                                        POIs.Add(new POI(polyline, nearest.To2D(), EndType.WeldOn));
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        POIs.Add(new POI(br, wPt.To2D(), endType));
+                    }
+                    break;
+                default:
+                    throw new System.Exception("Wrong type of object supplied!");
             }
         }
 
