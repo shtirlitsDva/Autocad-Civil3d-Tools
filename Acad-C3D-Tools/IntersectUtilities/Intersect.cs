@@ -7484,6 +7484,54 @@ namespace IntersectUtilities
             prdDbg("Finished!");
         }
 
+        [CommandMethod("OPENSAVECLOSEALLDWGS", CommandFlags.Session)]
+        public void opensaveclosealldwgs()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            string pathToFolder;
+
+            FolderSelectDialog fsd = new FolderSelectDialog()
+            {
+                Title = "Choose folder where drawings are stored: ",
+                InitialDirectory = @"C:\"
+            };
+            if (fsd.ShowDialog(IntPtr.Zero))
+            {
+                pathToFolder = fsd.FileName + "\\";
+            }
+            else return;
+
+            var files = Directory.EnumerateFiles(pathToFolder, "*.dwg");
+
+            foreach (var f in files)
+            {
+                //using (Database xDb = new Database(false, true))
+                //{
+                prdDbg(Path.GetFileName(f));
+                System.Windows.Forms.Application.DoEvents();
+
+                if (File.Exists(f))
+                {
+                    Document newDoc = docCol.Open(f);
+                    using (DocumentLock dl = newDoc.LockDocument())
+                    {
+                        newDoc.Editor.ZoomExtents();
+                    }
+
+                    newDoc.Database.SaveAs(f, DwgVersion.Newest);
+                    newDoc.CloseAndDiscard();
+                }
+                else
+                {
+                    prdDbg($"File {f} does not exist!");
+                    continue;
+                }
+            }
+            prdDbg("Finished!");
+        }
+
         [CommandMethod("LISTXREFSINFILE")]
         public void listxrefsinfile()
         {
