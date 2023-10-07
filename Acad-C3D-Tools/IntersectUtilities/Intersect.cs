@@ -55,10 +55,10 @@ using System.Diagnostics;
 using System.Runtime;
 using System.Text.Json;
 using IntersectUtilities.Forms;
-using POI = IntersectUtilities.PipelineSizeArray.POI;
+using IntersectUtilities.GraphClasses;
 using QuikGraph;
 using QuikGraph.Graphviz;
-using Autodesk.AutoCAD.ViewModel.PointCloudManager;
+using QuikGraph.Algorithms.Search;
 
 namespace IntersectUtilities
 {
@@ -8472,41 +8472,95 @@ namespace IntersectUtilities
                         //Create reference to each other for each pair
                         foreach (var pair in pairs)
                         {
-                            if (pair.first.Owner.Handle == pair.second.Owner.Handle) continue;
+                            if (pair.first.IsSameSource(pair.second)) continue;
                             pair.first.AddReference(pair.second);
                             pair.second.AddReference(pair.first);
                         }
                     }
 
                     //First crate a graph that start from a random entity
-                    //var startingGraph = new BidirectionalGraph<Entity, Edge<Entity>>();
-                    var startingGraph = new UndirectedGraph<Entity, Edge<Entity>>();
-                    var groups = POIs.GroupBy(x => x.Owner.Handle);
+                    var startingGraph = new BidirectionalGraph<Entity, EdgeTyped>();
+                    //var startingGraph = new UndirectedGraph<Entity, Edge<Entity>>();
+                    var groups = POIs.GroupBy(x => x.Source.Handle);
 
                     foreach (var group in groups)
-                        startingGraph.AddVertex(group.First().Owner);
+                        startingGraph.AddVertex(group.First().Source);
 
                     foreach (var group in groups)
                     {
-                        Entity owner = group.First().Owner;
+                        Entity source = group.First().Source;
 
                         foreach (var poi in group)
-                        {
-                            foreach (var neighbour in poi.Neighbours)
-                            {
-                                startingGraph.AddEdge(new Edge<Entity>(owner, neighbour));
-                            }
-                        }
+                            if (poi.Target != null)
+                                startingGraph.AddEdge(new EdgeTyped(source, poi.Target, poi.EndType));
                     }
 
+                    var simplifiedGraph = new UndirectedGraph<Entity, EdgeTyped>();
+                    foreach (var edge in startingGraph.Edges)
+                        if (!simplifiedGraph.ContainsEdge(edge.Target, edge.Source))
+                            simplifiedGraph.AddVerticesAndEdge(edge);
+
+                    //var vertice = simplifiedGraph.Vertices.Where(
+                    //    x => x.Handle.ToString() == "11EFA0").FirstOrDefault();
+
+                    //foreach (var edge in simplifiedGraph.AdjacentEdges(vertice))
+                    //    prdDbg($"{edge.Source.Handle} - {edge.Target.Handle} - {edge.EndType}");
+
+                    var leafVerts = simplifiedGraph.Vertices.Where(
+                        x => simplifiedGraph.AdjacentEdges(x).Where(
+                            y => y.EndType != EndType.WeldOn).Count() == 1);
+
+                    var startVert = leafVerts.MaxBy(x => GetDn(x, dt)).FirstOrDefault();
+                    var dfs = new UndirectedDepthFirstSearchAlgorithm<Entity, EdgeTyped>(simplifiedGraph);
+
+                    List<Entity> visitedVertices = new List<Entity>();
+                    List<EdgeTyped> visitedEdges = new List<EdgeTyped>();
+
+                    dfs.DiscoverVertex += vertex => visitedVertices.Add(vertex);
+                    dfs.ExamineEdge += (vertex, edge) =>
+                    {
+                        if (!visitedEdges.Contains(edge.Edge))
+                            visitedEdges.Add(edge.Edge);
+                    };
+
+                    dfs.Compute(startVert);
+
+                    var newGraph = new BidirectionalGraph<Entity, EdgeTyped>();
+                    foreach (var vertex in visitedVertices)
+                        newGraph.AddVertex(vertex);
+                    foreach (var edge in visitedEdges)
+                        newGraph.AddEdge(edge);
+
                     // Create Graphviz algorithm instance
-                    var graphviz = new GraphvizAlgorithm<Entity, Edge<Entity>>(startingGraph);
+                    var graphviz = new GraphvizAlgorithm<Entity, EdgeTyped>(newGraph);
 
                     // Customize appearance
                     graphviz.FormatVertex += (sender, args) =>
                     {
                         args.VertexFormat.Shape = QuikGraph.Graphviz.Dot.GraphvizVertexShape.Record;
-                        args.VertexFormat.Label = args.Vertex.Handle.ToString();
+                        //args.VertexFormat.Label = args.Vertex.Handle.ToString();
+
+                        switch (args.Vertex)
+                        {
+                            case Polyline pline:
+                                int dn = PipeSchedule.GetPipeDN(pline);
+                                string system = GetPipeType(pline).ToString();
+                                args.VertexFormat.Label =
+                                $"{{{pline.Handle}|Rør L{pline.Length.ToString("0.##")}}}|{system}\\n{dn}";
+                                break;
+                            case BlockReference br:
+                                string dn1 = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.DN1, dt);
+                                string dn2 = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.DN2, dt);
+                                string dnStr = dn2 == "0" ? dn1 : dn1 + "/" + dn2;
+                                system = ComponentSchedule.ReadComponentSystem(br, dt);
+                                string type = ComponentSchedule.ReadComponentType(br, dt);
+                                if (type == "Reduktion")
+                                    args.VertexFormat.StrokeColor =
+                                    QuikGraph.Graphviz.Dot.GraphvizColor.Red;
+                                args.VertexFormat.Label =
+                                $"{{{br.Handle}|{type}}}|{system}\\n{dnStr}";
+                                break;
+                        }
                     };
 
                     graphviz.FormatEdge += (sender, args) =>
@@ -8541,7 +8595,21 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+        private int GetDn(Entity entity, System.Data.DataTable dt)
+        {
+            if (entity is Polyline pline)
+                return PipeSchedule.GetPipeDN(pline);
+            else if (entity is BlockReference br)
+            {
+                if (br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) == "Afgreningsstuds" ||
+                    br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) == "Svanehals")
+                    return int.Parse(ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.DN2, dt));
+                else return 
+                        int.Parse(ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.DN1, dt));
+            }
 
+            else throw new System.Exception("Invalid entity type");
+        }
         public void AddEntityToPOIs(Entity ent, HashSet<POI> POIs, IEnumerable<Polyline> allPipes)
         {
             switch (ent)

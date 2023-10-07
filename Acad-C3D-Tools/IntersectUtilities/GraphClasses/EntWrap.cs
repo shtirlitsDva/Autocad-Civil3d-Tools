@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace IntersectUtilities.MyQuikGraphClasses
+namespace IntersectUtilities.GraphClasses
 {
     public class EntWrap : IComparable<EntWrap>
     {
