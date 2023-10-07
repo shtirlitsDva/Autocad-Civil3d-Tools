@@ -8448,10 +8448,10 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    PropertySetManager psmPipeLineData = new PropertySetManager(
+                    PropertySetManager psmPLD = new PropertySetManager(
                         localDb,
                         PSetDefs.DefinedSets.DriPipelineData);
-                    PSetDefs.DriPipelineData driPipelineData =
+                    PSetDefs.DriPipelineData driPLD =
                         new PSetDefs.DriPipelineData();
 
                     var ents = localDb.GetFjvEntities(tx, dt, true, false, true);
@@ -8495,32 +8495,38 @@ namespace IntersectUtilities
                                 startingGraph.AddEdge(new EdgeTyped(source, poi.Target, poi.EndType));
                     }
 
-                    var simplifiedGraph = new UndirectedGraph<Entity, EdgeTyped>();
-                    foreach (var edge in startingGraph.Edges)
-                        if (!simplifiedGraph.ContainsEdge(edge.Target, edge.Source))
-                            simplifiedGraph.AddVerticesAndEdge(edge);
-
                     //var vertice = simplifiedGraph.Vertices.Where(
                     //    x => x.Handle.ToString() == "11EFA0").FirstOrDefault();
 
                     //foreach (var edge in simplifiedGraph.AdjacentEdges(vertice))
                     //    prdDbg($"{edge.Source.Handle} - {edge.Target.Handle} - {edge.EndType}");
 
-                    var leafVerts = simplifiedGraph.Vertices.Where(
-                        x => simplifiedGraph.AdjacentEdges(x).Where(
+                    var leafVerts = startingGraph.Vertices.Where(
+                        x => startingGraph.OutEdges(x).Where(
                             y => y.EndType != EndType.WeldOn).Count() == 1);
 
-                    var startVert = leafVerts.MaxBy(x => GetDn(x, dt)).FirstOrDefault();
-                    var dfs = new UndirectedDepthFirstSearchAlgorithm<Entity, EdgeTyped>(simplifiedGraph);
+                    var query = leafVerts.MaxBy(x => GetDn(x, dt));
+                    var startVert = query.FirstOrDefault();
+
+                    //var vert = startingGraph.Vertices.Where(
+                    //    x => x.Handle.ToString() == "11EFA0").FirstOrDefault();
+
+                    //foreach (var edge in startingGraph.OutEdges(vert))
+                    //    prdDbg($"OE: {edge.Source.Handle} - {edge.Target.Handle} - {edge.EndType}");
+                    //foreach (var edge in startingGraph.InEdges(vert))
+                    //    prdDbg($"IE: {edge.Source.Handle} - {edge.Target.Handle} - {edge.EndType}");
+
+                    var dfs = new DepthFirstSearchAlgorithm<Entity, EdgeTyped>(startingGraph);
+                    //var dfs = new BreadthFirstSearchAlgorithm<Entity, EdgeTyped>(startingGraph);
 
                     List<Entity> visitedVertices = new List<Entity>();
                     List<EdgeTyped> visitedEdges = new List<EdgeTyped>();
 
                     dfs.DiscoverVertex += vertex => visitedVertices.Add(vertex);
-                    dfs.ExamineEdge += (vertex, edge) =>
+                    dfs.ExamineEdge += edge =>
                     {
-                        if (!visitedEdges.Contains(edge.Edge))
-                            visitedEdges.Add(edge.Edge);
+                        if (!visitedEdges.Contains(edge))
+                            visitedEdges.Add(edge);
                     };
 
                     dfs.Compute(startVert);
@@ -8531,8 +8537,28 @@ namespace IntersectUtilities
                     foreach (var edge in visitedEdges)
                         newGraph.AddEdge(edge);
 
+                    var adjacencyGraph = new AdjacencyGraph<Entity, EdgeTyped>(true);
+                    adjacencyGraph.AddVertexRange(newGraph.Vertices);
+                    adjacencyGraph.AddEdgeRange(newGraph.Edges);
+
+                    // Create subgraphs
+                    var clusteredGraph = new ClusteredAdjacencyGraph<Entity, EdgeTyped>(adjacencyGraph);
+                    
+                    Dictionary<string, ClusteredAdjacencyGraph<Entity, EdgeTyped>> clusterDict = 
+                        new Dictionary<string, ClusteredAdjacencyGraph<Entity, EdgeTyped>>();
+                    foreach (var vertex in adjacencyGraph.Vertices)
+                    {
+                        string clusterName = GetClusterName(vertex, psmPLD, driPLD, dt);
+                        if (clusterName.IsNoE()) continue;
+                        if (!clusterDict.ContainsKey(clusterName))
+                            clusterDict[clusterName] = clusteredGraph.AddCluster();
+                        clusterDict[clusterName].AddVertex(vertex);
+                    }
+
                     // Create Graphviz algorithm instance
-                    var graphviz = new GraphvizAlgorithm<Entity, EdgeTyped>(newGraph);
+                    //var graphviz = new GraphvizAlgorithm<Entity, EdgeTyped>(newGraph);
+                    //var graphviz = new GraphvizAlgorithm<Entity, EdgeTyped>(adjacencyGraph);
+                    var graphviz = new GraphvizAlgorithm<Entity, EdgeTyped>(clusteredGraph);
 
                     // Customize appearance
                     graphviz.FormatVertex += (sender, args) =>
@@ -8604,10 +8630,24 @@ namespace IntersectUtilities
                 if (br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) == "Afgreningsstuds" ||
                     br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) == "Svanehals")
                     return int.Parse(ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.DN2, dt));
-                else return 
+                else return
                         int.Parse(ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.DN1, dt));
             }
 
+            else throw new System.Exception("Invalid entity type");
+        }
+        private string GetClusterName(
+            Entity entity, PropertySetManager psm, PSetDefs.DriPipelineData pld, System.Data.DataTable dt)
+        {
+            if (entity is Polyline)
+                return psm.ReadPropertyString(entity, pld.BelongsToAlignment);
+            else if (entity is BlockReference)
+            {
+                //if (br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) == "Afgreningsstuds" ||
+                //    br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) == "Svanehals")
+                //    return psm.ReadPropertyString(entity, pld.BranchesOffToAlignment);
+                return psm.ReadPropertyString(entity, pld.BelongsToAlignment);
+            }
             else throw new System.Exception("Invalid entity type");
         }
         public void AddEntityToPOIs(Entity ent, HashSet<POI> POIs, IEnumerable<Polyline> allPipes)

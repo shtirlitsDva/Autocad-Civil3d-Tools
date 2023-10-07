@@ -298,7 +298,6 @@
     <Compile Include="FjernvarmeFremtidig\FjernvarmeFremtidig.cs" />
     <Compile Include="FolderSelectDialog.cs" />
     <Compile Include="GraphClasses\EdgeTyped.cs" />
-    <Compile Include="GraphClasses\EntWrap.cs" />
     <Compile Include="GraphClasses\GraphClasses.cs" />
     <Compile Include="GroupByCluster.cs" />
     <Compile Include="IsogenPopulateAttributes.cs" />
