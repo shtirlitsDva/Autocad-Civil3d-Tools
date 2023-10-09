@@ -78,9 +78,9 @@ namespace IntersectUtilities
                 Properties = new Dictionary<string, object>
                 {
                     { "DN", GetPipeDN(pl) },
-                    { "System", GetPipeType(pl) },
-                    { "Serie", GetPipeSeriesV2(pl) },
-                    { "Type", GetPipeSystem(pl) },
+                    { "System", GetPipeType(pl).ToString() },
+                    { "Serie", GetPipeSeriesV2(pl).ToString() },
+                    { "Type", GetPipeSystem(pl).ToString() },
                     { "KOd", GetPipeKOd(pl) },
                 },
 

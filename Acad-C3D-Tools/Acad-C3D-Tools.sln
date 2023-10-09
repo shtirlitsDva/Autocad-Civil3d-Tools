@@ -40,6 +40,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRILOAD", "DRILOAD\DRILOAD.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRITBL", "DRITBL\DRITBL.csproj", "{8E289862-D2B1-46B9-99CF-F13925F2D562}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ler2PolygonSplitting", "Ler2PolygonSplitting\Ler2PolygonSplitting.csproj", "{322E89DD-D28E-48C9-8807-3C3A593D9892}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -172,6 +174,14 @@ Global
 		{8E289862-D2B1-46B9-99CF-F13925F2D562}.Release|Any CPU.Build.0 = Release|Any CPU
 		{8E289862-D2B1-46B9-99CF-F13925F2D562}.Release|x64.ActiveCfg = Release|Any CPU
 		{8E289862-D2B1-46B9-99CF-F13925F2D562}.Release|x64.Build.0 = Release|Any CPU
+		{322E89DD-D28E-48C9-8807-3C3A593D9892}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{322E89DD-D28E-48C9-8807-3C3A593D9892}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{322E89DD-D28E-48C9-8807-3C3A593D9892}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{322E89DD-D28E-48C9-8807-3C3A593D9892}.Debug|x64.Build.0 = Debug|Any CPU
+		{322E89DD-D28E-48C9-8807-3C3A593D9892}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{322E89DD-D28E-48C9-8807-3C3A593D9892}.Release|Any CPU.Build.0 = Release|Any CPU
+		{322E89DD-D28E-48C9-8807-3C3A593D9892}.Release|x64.ActiveCfg = Release|Any CPU
+		{322E89DD-D28E-48C9-8807-3C3A593D9892}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
