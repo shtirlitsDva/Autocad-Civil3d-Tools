@@ -60,11 +60,10 @@ using QuikGraph;
 using QuikGraph.Graphviz;
 using QuikGraph.Algorithms.Search;
 
+[assembly: CommandClass(typeof(IntersectUtilities.Intersect))]
+
 namespace IntersectUtilities
 {
-    /// <summary>
-    /// Class for intersection tools.
-    /// </summary>
     public partial class Intersect : IExtensionApplication
     {
         #region IExtensionApplication members
@@ -78,8 +77,7 @@ namespace IntersectUtilities
             }
 
 #if DEBUG
-            AppDomain.CurrentDomain.AssemblyResolve +=
-                new ResolveEventHandler(Debug_AssemblyResolve);
+            AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(Debug_AssemblyResolve);
 #endif
 
             prdDbg("IntersectUtilites loaded!\n");
@@ -8543,8 +8541,8 @@ namespace IntersectUtilities
 
                     // Create subgraphs
                     var clusteredGraph = new ClusteredAdjacencyGraph<Entity, EdgeTyped>(adjacencyGraph);
-                    
-                    Dictionary<string, ClusteredAdjacencyGraph<Entity, EdgeTyped>> clusterDict = 
+
+                    Dictionary<string, ClusteredAdjacencyGraph<Entity, EdgeTyped>> clusterDict =
                         new Dictionary<string, ClusteredAdjacencyGraph<Entity, EdgeTyped>>();
                     foreach (var vertex in adjacencyGraph.Vertices)
                     {
@@ -8771,7 +8769,7 @@ namespace IntersectUtilities
             }
         }
 
-        //[CommandMethod("TESTENUMS")]
+        [CommandMethod("TESTENUMS")]
         public void testenums()
         {
             DocumentCollection docCol = Application.DocumentManager;
