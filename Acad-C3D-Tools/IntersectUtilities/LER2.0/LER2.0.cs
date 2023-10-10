@@ -52,8 +52,6 @@ using System.Text.Encodings.Web;
 using System.Text.Unicode;
 using IntersectUtilities.LER2;
 using IntersectUtilities.NTS;
-using Point = NetTopologySuite.Geometries.Point;
-using System.Diagnostics;
 
 namespace IntersectUtilities
 {
@@ -1458,68 +1456,7 @@ namespace IntersectUtilities
             }
         }
 
-        public void ler2createpolygonsOLD()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-
-            //Process all lines and detect with nodes at both ends
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    string lyrPolygonSource = "LER2POLYGON-SOURCE";
-                    string lyrSplitForGml = "LER2POLYGON-SPLITFORGML";
-                    string lyrPolygonProcessed = "LER2POLYGON-PROCESSED";
-
-                    localDb.CheckOrCreateLayer(lyrPolygonSource);
-                    localDb.CheckOrCreateLayer(lyrSplitForGml);
-                    localDb.CheckOrCreateLayer(lyrPolygonProcessed);
-
-                    var colorGenerator = GetColorGenerator();
-
-                    var plines = localDb.ListOfType<Polyline>(tx).Where(x => x.Layer == lyrPolygonSource);
-
-                    HashSet<Polygon> allPolys = new HashSet<Polygon>();
-                    foreach (var pl in plines)
-                    {
-                        Polygon polygon = NTSConversion.ConvertClosedPlineToNTSPolygon(pl);
-                        double maxArea = 250000;
-
-                        // Perform the polygon splitting
-                        List<Polygon> subPolygons = SplitPolygon(polygon, maxArea);
-
-                        foreach (var subPolygon in subPolygons) allPolys.Add(subPolygon);
-                    }
-
-                    prdDbg($"Created {allPolys.Count} polygon(s)!");
-
-                    foreach (var polygon in allPolys)
-                    {
-                        //Hatch hatch = NTSConversion.ConvertNTSPolygonToHatch(polygon);
-                        //hatch.Color = colorGenerator();
-                        //hatch.AddEntityToDbModelSpace(localDb);
-
-                        MPolygon mpg = NTSConversion.ConvertNTSPolygonToMPolygon(polygon);
-                        mpg.Color = colorGenerator();
-                        mpg.AddEntityToDbModelSpace(localDb);
-                    }
-
-                    //foreach (var pline in plines)
-                    //{
-                    //    pline.CheckOrOpenForWrite();
-                    //    pline.Layer = lyrPolygonProcessed;
-                    //}
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+        
 
         private class Polyline3dHandleComparer : IEqualityComparer<Polyline3d>
         {

@@ -14,6 +14,13 @@ using System.Reflection;
 
 using NetTopologySuite.Geometries;
 using System.Globalization;
+using System.Diagnostics;
+using Accord.MachineLearning;
+using NetTopologySuite.Triangulate;
+using NetTopologySuite;
+using Point = NetTopologySuite.Geometries.Point;
+using Autodesk.AutoCAD.Colors;
+using static Ler2PolygonSplitting.Utils;
 
 namespace Ler2PolygonSplitting
 {
@@ -70,7 +77,7 @@ namespace Ler2PolygonSplitting
                     HashSet<Polygon> allPolys = new HashSet<Polygon>();
                     foreach (var pl in plines)
                     {
-                        Polygon polygon = NTSConversion.ConvertClosedPlineToNTSPolygon(pl);
+                        Polygon polygon = NTS.NTSConversion.ConvertClosedPlineToNTSPolygon(pl);
                         double maxArea = 245000;
 
                         int distance = (int)Math.Sqrt(polygon.EnvelopeInternal.Area / 1350);
@@ -119,7 +126,7 @@ namespace Ler2PolygonSplitting
                         {
                             var clip = polygon.Intersection(face);
 
-                            var mpg = NTSConversion.ConvertNTSPolygonToMPolygon((Polygon)clip);
+                            var mpg = NTS.NTSConversion.ConvertNTSPolygonToMPolygon((Polygon)clip);
                             mpg.AddEntityToDbModelSpace(localDb);
                             mpg.Color = colorGenerator();
                             mpg.Layer = lyrSplitForGml;
@@ -292,7 +299,7 @@ namespace Ler2PolygonSplitting
 
                     foreach (var pl in plines)
                     {
-                        Polygon polygon = NTSConversion.ConvertClosedPlineToNTSPolygon(pl);
+                        Polygon polygon = NTS.NTSConversion.ConvertClosedPlineToNTSPolygon(pl);
                         double maxArea = 250000;
 
                         var result = SplitRectangle(polygon, maxArea);
@@ -301,7 +308,7 @@ namespace Ler2PolygonSplitting
 
                         foreach (var split in result.OrderByDescending(x => x.Area))
                         {
-                            var mpg = NTSConversion.ConvertNTSPolygonToMPolygon(split);
+                            var mpg = NTS.NTSConversion.ConvertNTSPolygonToMPolygon(split);
                             mpg.AddEntityToDbModelSpace(localDb);
                             mpg.Color = colorGenerator();
                             mpg.Layer = lyrSplitForGml;
@@ -444,17 +451,67 @@ namespace Ler2PolygonSplitting
             };
         }
 
-        public static void prdDbg(string msg)
+        public void ler2createpolygonsOLD()
         {
             DocumentCollection docCol = Application.DocumentManager;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            editor.WriteMessage("\n" + msg);
-        }
-        public static void prdDbg(object obj)
-        {
-            if (obj is SystemException ex1) prdDbg(obj.ToString().Wrap(70));
-            else if (obj is System.Exception ex2) prdDbg(obj.ToString().Wrap(70));
-            else prdDbg(obj.ToString());
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            //Process all lines and detect with nodes at both ends
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    string lyrPolygonSource = "LER2POLYGON-SOURCE";
+                    string lyrSplitForGml = "LER2POLYGON-SPLITFORGML";
+                    string lyrPolygonProcessed = "LER2POLYGON-PROCESSED";
+
+                    localDb.CheckOrCreateLayer(lyrPolygonSource);
+                    localDb.CheckOrCreateLayer(lyrSplitForGml);
+                    localDb.CheckOrCreateLayer(lyrPolygonProcessed);
+
+                    var colorGenerator = GetColorGenerator();
+
+                    var plines = localDb.ListOfType<Polyline>(tx).Where(x => x.Layer == lyrPolygonSource);
+
+                    HashSet<Polygon> allPolys = new HashSet<Polygon>();
+                    foreach (var pl in plines)
+                    {
+                        Polygon polygon = NTS.NTSConversion.ConvertClosedPlineToNTSPolygon(pl);
+                        double maxArea = 250000;
+
+                        // Perform the polygon splitting
+                        List<Polygon> subPolygons = SplitPolygon(polygon, maxArea);
+
+                        foreach (var subPolygon in subPolygons) allPolys.Add(subPolygon);
+                    }
+
+                    prdDbg($"Created {allPolys.Count} polygon(s)!");
+
+                    foreach (var polygon in allPolys)
+                    {
+                        //Hatch hatch = NTSConversion.ConvertNTSPolygonToHatch(polygon);
+                        //hatch.Color = colorGenerator();
+                        //hatch.AddEntityToDbModelSpace(localDb);
+
+                        MPolygon mpg = NTS.NTSConversion.ConvertNTSPolygonToMPolygon(polygon);
+                        mpg.Color = colorGenerator();
+                        mpg.AddEntityToDbModelSpace(localDb);
+                    }
+
+                    //foreach (var pline in plines)
+                    //{
+                    //    pline.CheckOrOpenForWrite();
+                    //    pline.Layer = lyrPolygonProcessed;
+                    //}
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
         }
 #if DEBUG
         private static Assembly Debug_AssemblyResolve(object sender, ResolveEventArgs args)
