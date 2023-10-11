@@ -383,7 +383,7 @@ namespace ExportShapeFiles
 
                     using (ShapeFileWriter writer = ShapeFileWriter.CreateWriter(
                         exportDir, shapeBaseName,
-                        ShapeType.PolyLine, dbfFields,
+                        ShapeType.Polygon, dbfFields,
                         EGIS.Projections.CoordinateReferenceSystemFactory.Default.GetCRSById(25832)
                         .GetWKT(EGIS.Projections.PJ_WKT_TYPE.PJ_WKT1_GDAL, false)))
                     {

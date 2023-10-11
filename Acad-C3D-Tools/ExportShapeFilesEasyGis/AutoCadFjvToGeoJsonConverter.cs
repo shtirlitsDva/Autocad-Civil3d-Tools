@@ -142,7 +142,7 @@ namespace ExportShapeFiles
             
             ShapeRecord record = new ShapeRecord();
             record.Points = points.Select(x => new PointD(x.X, x.Y)).ToArray();
-
+            record.Properties = props;
             return record;
         }
     }
