@@ -39,7 +39,7 @@ namespace ExportShapeFiles
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
-            doc.Editor.WriteMessage("\nExport lines to shapefiles: EXPORTSHAPEFILES");
+            doc.Editor.WriteMessage("\nExport Fjernvarme to shapefiles: EXPORTFJVTOSHAPE");
         }
 
         public void Terminate()
