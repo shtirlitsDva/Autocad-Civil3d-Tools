@@ -9,14 +9,6 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
-using Autodesk.Civil;
-using Autodesk.Civil.ApplicationServices;
-using Autodesk.Civil.DatabaseServices;
-using Autodesk.Civil.DatabaseServices.Styles;
-using Autodesk.Civil.DataShortcuts;
-using Autodesk.Gis.Map;
-using Autodesk.Gis.Map.ObjectData;
-using Autodesk.Gis.Map.Utilities;
 using Autodesk.Aec.PropertyData;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using System.Collections;
@@ -48,19 +40,19 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using IntersectUtilities.DynamicBlocks;
 
-using Autodesk.Aec.DatabaseServices;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Operation.Buffer;
 using NetTopologySuite.Operation.Union;
 using Polygon = NetTopologySuite.Geometries.Polygon;
 using NetTopologySuite.Operation.Linemerge;
 using EGIS.ShapeFileLib;
+using IntersectUtilities;
 
-namespace IntersectUtilities
+namespace ExportShapeFiles
 {
     public interface IAutoCadFjvToShapeConverter
     {
-        IEnumerable<ShapeRecord> Convert(Entity entity);
+        ShapeRecord Convert(Entity entity);
     }
 
     public class ShapeRecord
@@ -72,7 +64,7 @@ namespace IntersectUtilities
 
     public class PolylineFjvToShapePolygonConverter : IAutoCadFjvToShapeConverter
     {
-        public IEnumerable<ShapeRecord> Convert(Entity entity)
+        public ShapeRecord Convert(Entity entity)
         {
             if (!(entity is Polyline pl))
                 throw new ArgumentException($"Entity {entity.Handle} is not a polyline!");
@@ -147,48 +139,44 @@ namespace IntersectUtilities
             ssPoints.Reverse();
             points.AddRange(ssPoints);
             points.Add(fsPoints[0]);
-            //points = points.SortAndEnsureCounterclockwiseOrder();
-
-            //List<double[][]> coordinatesGatherer = new List<double[][]>();
-            //double[][] coordinates = new double[points.Count][];
-            //for (int i = 0; i < points.Count; i++)
-            //    coordinates[i] = new double[] { points[i].X, points[i].Y };
-            //coordinatesGatherer.Add(coordinates);
+            
             ShapeRecord record = new ShapeRecord();
             record.Points = points.Select(x => new PointD(x.X, x.Y)).ToArray();
 
-            yield return record;
+            return record;
         }
     }
 
-    public class BlockFjvToGeoJsonConverter : IAutoCadFjvToShapeConverter
+    public class BlockFjvToShapeConverter : IAutoCadFjvToShapeConverter
     {
-        public IEnumerable<GeoJsonFeature> Convert(Entity entity)
+        public ShapeRecord Convert(Entity entity)
         {
             if (!(entity is BlockReference br))
                 throw new ArgumentException($"Entity {entity.Handle} is not a block!");
 
-            System.Data.DataTable dt = GetFjvBlocksDt();
+            System.Data.DataTable dt = ExportShapeFilesEasyGis.Utils.GetFjvBlocksDt();
             Transaction tx = br.Database.TransactionManager.TopTransaction;
 
-            var props = new Dictionary<string, object>
+            string color = "#000000";
+            string[] props = new string[10]
             {
-                { "BlockName", br.RealName() },
-                { "Type", ComponentSchedule.ReadComponentType(br, dt) },
-                { "Rotation", ComponentSchedule.ReadBlockRotation(br, dt).ToString("0.00") },
-                { "System", ComponentSchedule.ReadComponentSystem(br, dt) },
-                { "DN1", ComponentSchedule.ReadComponentDN1(br, dt) },
-                { "DN2", ComponentSchedule.ReadComponentDN2(br, dt) },
-                { "Serie", PropertyReader.ReadComponentSeries(br, dt) },
-                { "Vinkel", ComponentSchedule.ReadComponentVinkel(br, dt) },
-                { "color", "#000000" },
+                br.RealName(),
+                ComponentSchedule.ReadComponentType(br, dt),
+                ComponentSchedule.ReadBlockRotation(br, dt).ToString("0.00"),
+                ComponentSchedule.ReadComponentSystem(br, dt),
+                ComponentSchedule.ReadComponentDN1(br, dt),
+                ComponentSchedule.ReadComponentDN2(br, dt),
+                PropertyReader.ReadComponentSeries(br, dt),
+                ComponentSchedule.ReadComponentVinkel(br, dt),
+                "",
+                color,
             };
 
             string realName = br.RealName();
 
             BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
 
-            HashSet<GeoJsonFeature> featuresToMerge = new HashSet<GeoJsonFeature>();
+            List<Geometry> geomsToMerge = new List<Geometry>();
 
             //Handle the collection of Lines
             //The purpose is to join all lines to polylines
@@ -199,11 +187,6 @@ namespace IntersectUtilities
                 Entity member = id.Go<Entity>(tx);
                 if (member == null) continue;
 
-                var feature = new GeoJsonFeature
-                {
-                    //Properties = props,
-                };
-
                 switch (member)
                 {
                     case Arc arcOriginal:
@@ -211,35 +194,26 @@ namespace IntersectUtilities
                             Arc arc = (Arc)arcOriginal.Clone();
                             arc.CheckOrOpenForWrite();
                             arc.TransformBy(br.BlockTransform);
-                            feature.Geometry = new GeoJsonGeometryLineString();
-                            double[][] Coordinates;
+
+                            List<Coordinate> Coordinates = new List<Coordinate>();
                             double length = arc.Length;
                             double radians = length / arc.Radius;
                             int nrOfSamples = (int)(radians / 0.1);
                             if (nrOfSamples < 3)
                             {
-                                Coordinates = new double[3][];
-                                Coordinates[0] = new double[]
-                                    { arc.StartPoint.X, arc.StartPoint.Y };
-                                Coordinates[1] = new double[]
-                                    { arc.GetPointAtDist(arc.Length/2).X,
-                                    arc.GetPointAtDist(arc.Length/2).Y };
-                                Coordinates[2] = new double[]
-                                    { arc.EndPoint.X, arc.EndPoint.Y };
+                                Coordinates.Add(new Coordinate(arc.StartPoint.X, arc.StartPoint.Y));
+                                Coordinates.Add(new Coordinate(arc.GetPointAtDist(arc.Length / 2).X, arc.GetPointAtDist(arc.Length / 2).Y));
+                                Coordinates.Add(new Coordinate(arc.EndPoint.X, arc.EndPoint.Y));
                             }
                             else
                             {
                                 Curve3d geCurve = arc.GetGeCurve();
                                 PointOnCurve3d[] samples = geCurve.GetSamplePoints(nrOfSamples);
-                                Coordinates = new double[samples.Length][];
                                 for (int i = 0; i < samples.Length; i++)
-                                {
-                                    Coordinates[i] = new double[2]
-                                        {samples[i].Point.X, samples[i].Point.Y};
-                                }
+                                    Coordinates.Add(new Coordinate(samples[i].Point.X, samples[i].Point.Y));
                             }
-                            ((GeoJsonGeometryLineString)feature.Geometry).Coordinates = Coordinates;
-                            featuresToMerge.Add(feature);
+
+                            LineString lineString = new LineString(Coordinates.ToArray());
                         }
                         continue;
                     case Line lineOriginal:
@@ -251,15 +225,6 @@ namespace IntersectUtilities
                             line.CheckOrOpenForWrite();
                             line.TransformBy(br.BlockTransform);
                             lines.Add(line);
-                            //feature.Geometry = new GeoJsonGeometryLineString();
-                            //double[][] Coordinates;
-                            //Coordinates = new double[2][];
-                            //Coordinates[0] = new double[]
-                            //    {line.StartPoint.X, line.StartPoint.Y};
-                            //Coordinates[1] = new double[]
-                            //    {line.EndPoint.X, line.EndPoint.Y};
-                            //((GeoJsonGeometryLineString)feature.Geometry).Coordinates = Coordinates;
-                            //featuresToMerge.Add(feature);
                         }
                         continue;
                     case Polyline polylineOrigianl:
@@ -267,9 +232,7 @@ namespace IntersectUtilities
                             Polyline polyline = (Polyline)polylineOrigianl.Clone();
                             polyline.CheckOrOpenForWrite();
                             polyline.TransformBy(br.BlockTransform);
-                            feature.Geometry = new GeoJsonGeometryLineString();
-                            double[][] Coordinates;
-                            Coordinates = new double[2][];
+                            List<Coordinate> Coordinates = new List<Coordinate>();
                             List<Point2d> points = new List<Point2d>();
                             int numOfVert = polyline.NumberOfVertices - 1;
                             if (polyline.Closed) numOfVert++;
@@ -311,14 +274,11 @@ namespace IntersectUtilities
                                         continue;
                                 }
                             }
-                            Coordinates = new double[points.Count][];
-                            for (int i = 0; i < points.Count; i++)
-                            {
-                                Coordinates[i] = new double[]
-                                    {points[i].X, points[i].Y};
-                            }
-                            ((GeoJsonGeometryLineString)feature.Geometry).Coordinates = Coordinates;
-                            featuresToMerge.Add(feature);
+
+                            LineString lineString = new LineString(
+                                points.Select(x => new Coordinate(x.X, x.Y)).ToArray());
+
+                            geomsToMerge.Add(lineString);
                         }
                         continue;
                     case BlockReference nestedBrOriginal:
@@ -331,7 +291,7 @@ namespace IntersectUtilities
                             BlockReference nestedBr = (BlockReference)nestedBrOriginal.Clone();
                             nestedBr.CheckOrOpenForWrite();
                             nestedBr.TransformBy(br.BlockTransform);
-                            feature.Geometry = new GeoJsonGeometryPolygon();
+
                             List<double[][]> coordinatesGatherer = new List<double[][]>();
 
                             int nrOfSamples = (int)(2 * Math.PI / 0.1);
@@ -344,19 +304,17 @@ namespace IntersectUtilities
 
                             var samplePs = curve.GetSamplePoints(nrOfSamples).ToList();
                             samplePs.Add(samplePs[0]);
-                            foreach (var item in samplePs)
+                            foreach (PointOnCurve3d item in samplePs)
                             {
                                 Point3d p3d = item.GetPoint();
                                 points.Add(new Point2d(p3d.X, p3d.Y));
                             }
 
-                            double[][] coordinates = new double[points.Count][];
-                            for (int i = 0; i < points.Count; i++)
-                                coordinates[i] = new double[] { points[i].X, points[i].Y };
-                            coordinatesGatherer.Add(coordinates);
-                            (feature.Geometry as GeoJsonGeometryPolygon).Coordinates = coordinatesGatherer.ToArray();
+                            LinearRing shell = new LinearRing(samplePs.Select(
+                                x => new Coordinate(x.Point.X, x.Point.Y)).ToArray());
+                            Polygon polygon = new Polygon(shell);
 
-                            featuresToMerge.Add(feature);
+                            geomsToMerge.Add(polygon);
                         }
                         continue;
                     case Hatch hatchOriginal:
@@ -364,7 +322,7 @@ namespace IntersectUtilities
                             Hatch hatch = (Hatch)hatchOriginal.Clone();
                             hatch.CheckOrOpenForWrite();
                             hatch.TransformBy(br.BlockTransform);
-                            List<double[][]> coordinatesGatherer = new List<double[][]>();
+                            List<Coordinate> Coordinates = new List<Coordinate>();
                             for (int i = 0; i < hatch.NumberOfLoops; i++)
                             {
                                 HatchLoop loop;
@@ -381,12 +339,8 @@ namespace IntersectUtilities
                                 {
                                     List<BulgeVertex> bvc = loop.Polyline.ToList();
                                     var pointsBvc = bvc.GetSamplePoints();
-                                    double[][] coordinates = new double[pointsBvc.Count][];
                                     for (int j = 0; j < pointsBvc.Count; j++)
-                                    {
-                                        coordinates[j] = new double[] { pointsBvc[j].X, pointsBvc[j].Y };
-                                    }
-                                    coordinatesGatherer.Add(coordinates);
+                                        Coordinates.Add(new Coordinate(pointsBvc[j].X, pointsBvc[j].Y));
                                 }
                                 else
                                 {
@@ -428,17 +382,16 @@ namespace IntersectUtilities
                                     }
 
                                     var pointsBvc = points.SortAndEnsureCounterclockwiseOrder();
-                                    double[][] coordinates = new double[pointsBvc.Count][];
                                     for (int j = 0; j < pointsBvc.Count; j++)
-                                    {
-                                        coordinates[j] = new double[] { pointsBvc[j].X, pointsBvc[j].Y };
-                                    }
-                                    coordinatesGatherer.Add(coordinates);
+                                        Coordinates.Add(new Coordinate(pointsBvc[j].X, pointsBvc[j].Y));
                                 }
                             }
-                            feature.Geometry = new GeoJsonGeometryPolygon();
-                            (feature.Geometry as GeoJsonGeometryPolygon).Coordinates = coordinatesGatherer.ToArray();
-                            featuresToMerge.Add(feature);
+                            
+                            Coordinates.Add(new Coordinate(Coordinates[0].X, Coordinates[0].Y));
+                            LinearRing shell = new LinearRing(Coordinates.ToArray());
+                            Polygon polygon = new Polygon(shell);
+                            
+                            geomsToMerge.Add(polygon);
                         }
                         continue;
                     case AttributeDefinition atrDef:
@@ -456,29 +409,22 @@ namespace IntersectUtilities
 
             var polygons = new List<Polygon>();
 
-            foreach (GeoJsonFeature geometry in featuresToMerge)
+            foreach (Geometry geometry in geomsToMerge)
             {
-                if (geometry.Geometry is GeoJsonGeometryLineString lineString)
+                if (geometry is LineString ls)
                 {
-                    // Convert the coordinates to NetTopologySuite format
-                    var coordinates = lineString.Coordinates.Select(x => new Coordinate(x[0], x[1])).ToArray();
-
-                    // Create a LineString and buffer it to create a Polygon
-                    var line = geometryFactory.CreateLineString(coordinates);
-                    var buffer = line.Buffer(0.05, EndCapStyle.Flat);  // Adjust buffer distance as needed
+                    var buffer = ls.Buffer(0.05, EndCapStyle.Flat);  // Adjust buffer distance as needed
 
                     // Add the buffered Polygon to the list
                     polygons.Add((Polygon)buffer);
                 }
-                else if (geometry.Geometry is GeoJsonGeometryPolygon polygon)
+                else if (geometry is Polygon polygon)
                 {
-                    // Convert the GeoJsonGeometryPolygon to a NetTopologySuite Polygon and add it to the list
-                    var coordinates = polygon.Coordinates[0].Select(x => new Coordinate(x[0], x[1])).ToArray();
-                    polygons.Add(geometryFactory.CreatePolygon(new LinearRing(coordinates)));
+                    polygons.Add(polygon);
                 }
                 else
                 {
-                    prdDbg("(WRN:2023:3) Non handled type " + geometry.Geometry);
+                    prdDbg("(WRN:2023:3) Non handled type " + geometry.GeometryType);
                 }
             }
 
@@ -515,32 +461,23 @@ namespace IntersectUtilities
                 // Merge the polygons into a single polygon
                 var union = CascadedPolygonUnion.Union(polygons.ToArray());
 
-                // Convert the union Polygon back to GeoJsonGeometryPolygon format
-                var coordinates = union.Coordinates.Select(c => new double[] { c.X, c.Y }).ToArray();
-                var geoJsonUnion = new GeoJsonGeometryPolygon
-                {
-                    Coordinates = new double[][][] { coordinates }
-                };
+                ShapeRecord feature = new ShapeRecord();
+                feature.Points = union.Coordinates.Select(x => new PointD(x.X, x.Y)).ToArray();
+                feature.Properties = props;
 
-                var feature = new GeoJsonFeature
-                {
-                    Properties = props,
-                    Geometry = geoJsonUnion
-                };
-
-                yield return feature;
+                return feature;
             }
         }
     }
 
-    public static class FjvToGeoJsonConverterFactory
+    public static class FjvToShapeConverterFactory
     {
         public static IAutoCadFjvToShapeConverter CreateConverter(Entity entity)
         {
             switch (entity)
             {
                 case BlockReference _:
-                    return new BlockFjvToGeoJsonConverter();
+                    return new BlockFjvToShapeConverter();
                 case Polyline _:
                     return new PolylineFjvToShapePolygonConverter();
                 default:
