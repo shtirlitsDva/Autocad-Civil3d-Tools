@@ -393,7 +393,6 @@ namespace IntersectUtilities
                     )
                     .MaxBy(x => x.LargestDn()).FirstOrDefault();
 
-                prdDbg("Entry: " + ge.OwnerHandle.ToString());
                 if (ge == null)
                 {
                     //throw new System.Exception("No entity found!");
@@ -422,6 +421,7 @@ namespace IntersectUtilities
                     }
                     break;
                 }
+                prdDbg("Entry: " + ge.OwnerHandle.ToString());
 
                 //Flag the entry point subgraph
                 isEntryPoint = true;

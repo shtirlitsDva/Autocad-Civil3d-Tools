@@ -6180,6 +6180,13 @@ namespace IntersectUtilities
                         @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
                     HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, komponenter, true, false);
+                    //Remove stiktees which are special tee blocks for stikledninger
+                    allEnts = allEnts.Where(x =>
+                    {
+                        if (x is BlockReference br)
+                            if (br.RealName() == "STIKTEE") return false;
+                        return true;
+                    }).ToHashSet();
 
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
                     Graph graph = new Graph(localDb, psm, komponenter);

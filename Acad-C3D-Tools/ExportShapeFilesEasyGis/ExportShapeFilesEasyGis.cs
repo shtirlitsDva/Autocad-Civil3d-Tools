@@ -294,6 +294,247 @@ namespace ExportShapeFiles
             }
         }
 
+        //[CommandMethod("EXPORTFJVTOSHAPE")]
+        //public void exportfjvtoshape()
+        //{
+        //    DocumentCollection docCol = Application.DocumentManager;
+        //    Database localDb = docCol.MdiActiveDocument.Database;
+        //    Document doc = docCol.MdiActiveDocument;
+
+        //    string dbFilename = localDb.OriginalFileName;
+        //    string path = Path.GetDirectoryName(dbFilename);
+        //    string shapeExportPath = path + "\\SHP\\";
+        //    if (Directory.Exists(shapeExportPath) == false) Directory.CreateDirectory(shapeExportPath);
+
+        //    Log.LogFileName = shapeExportPath + "export.log";
+
+        //    string baseDir = shapeExportPath;
+
+        //    //PromptStringOptions options = new PromptStringOptions("\nAngiv navnet på shapefilen: ");
+        //    //options.DefaultValue = $"{Path.GetFileName(dbFilename)}";
+        //    //options.UseDefaultValue = true;
+        //    //PromptResult result = doc.Editor.GetString(options);
+        //    //if (result.Status != PromptStatus.OK) return;
+        //    //string input = result.StringResult;
+
+        //    string shapeName = "Fjernvarme";
+        //    exportshapefilesmethod2(baseDir, shapeName);
+        //}
+
+        public void exportshapefilesmethod2(
+            string exportDir,
+            string shapeBaseName,
+            Database database =
+            null)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = database ?? docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Log.log($"Exporting to {exportDir}.");
+
+                    #region Exporting (p)lines
+                    HashSet<Polyline> pls = localDb.GetFjvPipes(tx, true);
+
+                    Log.log($"{pls.Count} polyline(s) found for export.");
+
+                    #region Field def
+                    DbfFieldDesc[] dbfFields = new DbfFieldDesc[4];
+
+                    dbfFields[0].FieldName = "DN";
+                    dbfFields[0].FieldType = DbfFieldType.Character;
+                    dbfFields[0].FieldLength = 10;
+
+                    dbfFields[1].FieldName = "System";
+                    dbfFields[1].FieldType = DbfFieldType.Character;
+                    dbfFields[1].FieldLength = 100;
+
+                    dbfFields[2].FieldName = "Serie";
+                    dbfFields[2].FieldType = DbfFieldType.Character;
+                    dbfFields[2].FieldLength = 100;
+
+                    dbfFields[3].FieldName = "Type";
+                    dbfFields[3].FieldType = DbfFieldType.Character;
+                    dbfFields[3].FieldLength = 100;
+                    #endregion
+
+                    using (ShapeFileWriter writer = ShapeFileWriter.CreateWriter(
+                        exportDir, shapeBaseName,
+                        ShapeType.PolyLine, dbfFields,
+                        EGIS.Projections.CoordinateReferenceSystemFactory.Default.GetCRSById(25832)
+                        .GetWKT(EGIS.Projections.PJ_WKT_TYPE.PJ_WKT1_GDAL, false)))
+                    {
+                        foreach (Polyline pline in pls)
+                        {
+                            List<Point2d> points = new List<Point2d>();
+                            int numOfVert = pline.NumberOfVertices - 1;
+                            if (pline.Closed) numOfVert++;
+                            for (int i = 0; i < numOfVert; i++)
+                            {
+                                switch (pline.GetSegmentType(i))
+                                {
+                                    case SegmentType.Line:
+                                        LineSegment2d ls = pline.GetLineSegment2dAt(i);
+                                        if (i == 0)
+                                        {//First iteration
+                                            points.Add(ls.StartPoint);
+                                        }
+                                        points.Add(ls.EndPoint);
+                                        break;
+                                    case SegmentType.Arc:
+                                        CircularArc2d arc = pline.GetArcSegment2dAt(i);
+                                        double sPar = arc.GetParameterOf(arc.StartPoint);
+                                        double ePar = arc.GetParameterOf(arc.EndPoint);
+                                        double length = arc.GetLength(sPar, ePar);
+                                        double radians = length / arc.Radius;
+                                        int nrOfSamples = (int)(radians / 0.04);
+                                        if (nrOfSamples < 3)
+                                        {
+                                            if (i == 0) points.Add(arc.StartPoint);
+                                            points.Add(arc.EndPoint);
+                                        }
+                                        else
+                                        {
+                                            Point2d[] samples = arc.GetSamplePoints(nrOfSamples);
+                                            if (i != 0) samples = samples.Skip(1).ToArray();
+                                            foreach (Point2d p2d in samples) points.Add(p2d);
+                                        }
+                                        break;
+                                    case SegmentType.Coincident:
+                                    case SegmentType.Point:
+                                    case SegmentType.Empty:
+                                    default:
+                                        continue;
+                                }
+                            }
+
+                            PointD[] shapePoints = points.Select(p => new PointD(p.X, p.Y)).ToArray();
+
+                            string[] attributes = new string[4];
+                            attributes[0] = GetPipeDN(pline).ToString();
+                            attributes[1] = GetPipeType(pline).ToString();
+                            attributes[2] = GetPipeSeriesV2(pline).ToString();
+                            attributes[3] = GetPipeSystem(pline).ToString();
+
+                            writer.AddRecord(shapePoints, shapePoints.Length, attributes);
+                        }
+                    }
+                    #endregion
+
+                    #region Exporting BRs
+                    System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
+                                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+
+                    HashSet<BlockReference> allBrs = localDb.HashSetOfType<BlockReference>(tx);
+
+                    HashSet<BlockReference> brs = allBrs.Where(x => UtilsDataTables.ReadStringParameterFromDataTable(
+                            x.RealName(), komponenter, "Navn", 0) != default).ToHashSet();
+
+                    Log.log($"{brs.Count} br(s) found for export.");
+
+                    //Handle legacy blocks
+                    System.Data.DataTable stdBlocks = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
+
+                    HashSet<BlockReference> legacyBrs = allBrs.Where(x => UtilsDataTables.ReadStringParameterFromDataTable(
+                            x.Name, stdBlocks, "Navn", 0) != default).ToHashSet();
+
+                    if (brs.Count > 0) Log.log($"Legacy blocks detected: {legacyBrs.Count}.");
+
+                    #region Field def
+                    dbfFields = new DbfFieldDesc[8];
+
+                    dbfFields[0].FieldName = "BlockName";
+                    dbfFields[0].FieldType = DbfFieldType.Character;
+                    dbfFields[0].FieldLength = 100;
+
+                    dbfFields[1].FieldName = "Type";
+                    dbfFields[1].FieldType = DbfFieldType.Character;
+                    dbfFields[1].FieldLength = 100;
+
+                    dbfFields[2].FieldName = "Rotation";
+                    dbfFields[2].FieldType = DbfFieldType.Character;
+                    dbfFields[2].FieldLength = 100;
+
+                    dbfFields[3].FieldName = "System";
+                    dbfFields[3].FieldType = DbfFieldType.Character;
+                    dbfFields[3].FieldLength = 100;
+
+                    dbfFields[4].FieldName = "DN1";
+                    dbfFields[4].FieldType = DbfFieldType.Character;
+                    dbfFields[4].FieldLength = 100;
+
+                    dbfFields[5].FieldName = "DN2";
+                    dbfFields[5].FieldType = DbfFieldType.Character;
+                    dbfFields[5].FieldLength = 100;
+
+                    dbfFields[6].FieldName = "Serie";
+                    dbfFields[6].FieldType = DbfFieldType.Character;
+                    dbfFields[6].FieldLength = 100;
+
+                    dbfFields[7].FieldName = "Vinkel";
+                    dbfFields[7].FieldType = DbfFieldType.Character;
+                    dbfFields[7].FieldLength = 100;
+                    #endregion
+
+                    using (ShapeFileWriter writer = ShapeFileWriter.CreateWriter(
+                        exportDir, shapeBaseName,
+                        ShapeType.Point, dbfFields,
+                        EGIS.Projections.CoordinateReferenceSystemFactory.Default.GetCRSById(25832)
+                        .GetWKT(EGIS.Projections.PJ_WKT_TYPE.PJ_WKT1_GDAL, false)))
+                    {
+                        foreach (BlockReference br in brs)
+                        {
+                            PointD[] shapePoints = new PointD[1];
+                            shapePoints[0] = new PointD(br.Position.X, br.Position.Y);
+
+                            string[] attributes = new string[8];
+                            attributes[0] = br.RealName();
+                            attributes[1] = ReadComponentType(br, komponenter);
+                            attributes[2] = ReadBlockRotation(br, komponenter).ToString("0.00");
+                            attributes[3] = ReadComponentSystem(br, komponenter);
+                            attributes[4] = ReadComponentDN1(br, komponenter);
+                            attributes[5] = ReadComponentDN2(br, komponenter);
+                            attributes[6] = PropertyReader.ReadComponentSeries(br, komponenter);
+                            attributes[7] = ReadComponentVinkel(br, komponenter);
+
+                            writer.AddRecord(shapePoints, shapePoints.Length, attributes);
+                        }
+
+                        foreach (BlockReference br in legacyBrs)
+                        {
+                            PointD[] shapePoints = new PointD[1];
+                            shapePoints[0] = new PointD(br.Position.X, br.Position.Y);
+
+                            string[] attributes = new string[8];
+                            attributes[0] = br.Name;
+                            attributes[1] = ReadStringParameterFromDataTable(br.Name, stdBlocks, "Type", 0);
+                            attributes[2] = (br.Rotation * (180 / Math.PI)).ToString("0.##");
+                            attributes[3] = ReadStringParameterFromDataTable(br.Name, stdBlocks, "System", 0);
+                            attributes[4] = ReadStringParameterFromDataTable(br.Name, stdBlocks, "DN1", 0); ;
+                            attributes[5] = ReadStringParameterFromDataTable(br.Name, stdBlocks, "DN2", 0); ;
+                            attributes[6] = "S3";
+                            attributes[7] = "0";
+
+                            writer.AddRecord(shapePoints, shapePoints.Length, attributes);
+                        }
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    Log.log($"EXCEPTION!!!: {ex.ToString()}. Aborting export of current file!");
+                    throw new System.Exception(ex.ToString());
+                    //return;
+                }
+                tx.Abort();
+            }
+        }
+
         [CommandMethod("EXPORTAREAS")]
         public void exportareas()
         {
