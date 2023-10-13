@@ -99,7 +99,7 @@ namespace Ler2PolygonSplitting
                         prdDbg($"Expecting {K} polygons, target area: {(polygon.Area / K).ToString("N2", dk)}.");
 
                         //NTSConversion.ConvertNTSMultiPointToDBPoints(clipPoints, localDb);
-                        int maxIter = 100;
+                        int maxIter = 300;
 
                         var data = ConvertGeometryToDoubleArray(clipPoints);
 
