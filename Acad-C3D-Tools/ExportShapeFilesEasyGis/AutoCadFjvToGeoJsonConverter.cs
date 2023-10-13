@@ -1,70 +1,41 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Autodesk.AutoCAD.ApplicationServices;
-using Autodesk.AutoCAD.Colors;
-using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.AutoCAD.EditorInput;
+﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
-using Autodesk.AutoCAD.Runtime;
-using Autodesk.Aec.PropertyData;
-using Autodesk.Aec.PropertyData.DatabaseServices;
-using System.Collections;
-using System.Collections.Specialized;
-using System.Globalization;
-using System.IO;
-using System.Text.RegularExpressions;
-using System.Windows.Forms;
-using System.Data;
-using MoreLinq;
-using IntersectUtilities.UtilsCommon;
-using static IntersectUtilities.UtilsCommon.Utils;
+
 using Dreambuild.AutoCAD;
 
-using static IntersectUtilities.PipeSchedule;
-
-using static IntersectUtilities.UtilsCommon.UtilsDataTables;
-using static IntersectUtilities.UtilsCommon.UtilsODData;
-
-using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
-using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
-using DataType = Autodesk.Gis.Map.Constants.DataType;
-using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
-using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using Label = Autodesk.Civil.DatabaseServices.Label;
-using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
+using IntersectUtilities;
 using IntersectUtilities.DynamicBlocks;
+using IntersectUtilities.UtilsCommon;
 
+using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Operation.Buffer;
-using NetTopologySuite.Operation.Union;
-using Polygon = NetTopologySuite.Geometries.Polygon;
 using NetTopologySuite.Operation.Linemerge;
-using EGIS.ShapeFileLib;
-using IntersectUtilities;
+using NetTopologySuite.Operation.Union;
+
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+
+using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.UtilsCommon.Utils;
+
+using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+using Polygon = NetTopologySuite.Geometries.Polygon;
 
 namespace ExportShapeFiles
 {
     public interface IAutoCadFjvToShapeConverter
     {
-        ShapeRecord Convert(Entity entity);
-    }
-
-    public class ShapeRecord
-    {
-        public PointD[] Points { get; set; }
-        public int NumberOfPoints { get => Points == null ? Points.Length : 0; }
-        public string[] Properties { get; set; }
+        Feature Convert(Entity entity);
     }
 
     public class PolylineFjvToShapePolygonConverter : IAutoCadFjvToShapeConverter
     {
-        public ShapeRecord Convert(Entity entity)
+        public Feature Convert(Entity entity)
         {
             if (!(entity is Polyline pl))
                 throw new ArgumentException($"Entity {entity.Handle} is not a polyline!");
@@ -87,18 +58,18 @@ namespace ExportShapeFiles
                         $"{GetPipeType(pl)} of {pl.Handle} is not supported.");
             }
 
-            string[] props = new string[10]
+            var props = new AttributesTable
             {
-                "",
-                GetPipeSystem(pl).ToString(),
-                "",
-                GetPipeType(pl).ToString(),
-                GetPipeDN(pl).ToString("000"),
-                "",
-                GetPipeSeriesV2(pl).ToString(),
-                "",
-                GetPipeKOd(pl).ToString(),
-                color
+                { "BlockName", "NULL" },
+                { "Type", GetPipeSystem(pl).ToString() },
+                { "Rotation", "NULL" },
+                { "System", GetPipeType(pl).ToString() },
+                { "DN1", GetPipeDN(pl).ToString() },
+                { "DN2", "NULL" },
+                { "Serie", GetPipeSeriesV2(pl).ToString() },
+                { "Vinkel", "NULL" },
+                { "Kappe", GetPipeKOd(pl).ToString() },
+                { "color", color }
             };
 
             if (pl.Closed) throw new System.NotSupportedException(
@@ -139,17 +110,18 @@ namespace ExportShapeFiles
             ssPoints.Reverse();
             points.AddRange(ssPoints);
             points.Add(fsPoints[0]);
-            
-            ShapeRecord record = new ShapeRecord();
-            record.Points = points.Select(x => new PointD(x.X, x.Y)).ToArray();
-            record.Properties = props;
-            return record;
+
+            LinearRing shell = new LinearRing(
+                points.Select(x => new Coordinate(x.X, x.Y)).ToArray());
+            Polygon polygon = new Polygon(shell);
+
+            return new Feature(polygon, props);
         }
     }
 
     public class BlockFjvToShapeConverter : IAutoCadFjvToShapeConverter
     {
-        public ShapeRecord Convert(Entity entity)
+        public Feature Convert(Entity entity)
         {
             if (!(entity is BlockReference br))
                 throw new ArgumentException($"Entity {entity.Handle} is not a block!");
@@ -158,18 +130,19 @@ namespace ExportShapeFiles
             Transaction tx = br.Database.TransactionManager.TopTransaction;
 
             string color = "#000000";
-            string[] props = new string[10]
+
+            var props = new AttributesTable
             {
-                br.RealName(),
-                ComponentSchedule.ReadComponentType(br, dt),
-                ComponentSchedule.ReadBlockRotation(br, dt).ToString("0.00"),
-                ComponentSchedule.ReadComponentSystem(br, dt),
-                ComponentSchedule.ReadComponentDN1(br, dt),
-                ComponentSchedule.ReadComponentDN2(br, dt),
-                PropertyReader.ReadComponentSeries(br, dt),
-                ComponentSchedule.ReadComponentVinkel(br, dt),
-                "",
-                color,
+                { "BlockName", br.RealName() },
+                { "Type", ComponentSchedule.ReadComponentType(br, dt) },
+                { "Rotation", ComponentSchedule.ReadBlockRotation(br, dt).ToString("0.00") },
+                { "System", ComponentSchedule.ReadComponentSystem(br, dt) },
+                { "DN1", ComponentSchedule.ReadComponentDN1(br, dt) },
+                { "DN2", ComponentSchedule.ReadComponentDN2(br, dt) },
+                { "Serie", PropertyReader.ReadComponentSeries(br, dt) },
+                { "Vinkel", ComponentSchedule.ReadComponentVinkel(br, dt) },
+                { "Kappe", "NULL" },
+                { "color", color }
             };
 
             string realName = br.RealName();
@@ -386,11 +359,11 @@ namespace ExportShapeFiles
                                         Coordinates.Add(new Coordinate(pointsBvc[j].X, pointsBvc[j].Y));
                                 }
                             }
-                            
+
                             Coordinates.Add(new Coordinate(Coordinates[0].X, Coordinates[0].Y));
                             LinearRing shell = new LinearRing(Coordinates.ToArray());
                             Polygon polygon = new Polygon(shell);
-                            
+
                             geomsToMerge.Add(polygon);
                         }
                         continue;
@@ -459,13 +432,9 @@ namespace ExportShapeFiles
             //Now do the final merging
             {
                 // Merge the polygons into a single polygon
-                var union = CascadedPolygonUnion.Union(polygons.ToArray());
+                Geometry union = CascadedPolygonUnion.Union(polygons.ToArray());
 
-                ShapeRecord feature = new ShapeRecord();
-                feature.Points = union.Coordinates.Select(x => new PointD(x.X, x.Y)).ToArray();
-                feature.Properties = props;
-
-                return feature;
+                return new Feature(union, props);
             }
         }
     }
