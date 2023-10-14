@@ -151,6 +151,77 @@ namespace Ler2PolygonSplitting
             }
         }
 
+        [CommandMethod("LER2SPLITBRENT")]
+        public void ler2splitbrent()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            CultureInfo dk = new CultureInfo("da-DK");
+
+            //Process all lines and detect with nodes at both ends
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    string lyrPolygonSource = "LER2POLYGON-SOURCE";
+                    string lyrSplitForGml = "LER2POLYGON-SPLITFORGML";
+                    string lyrPolygonProcessed = "LER2POLYGON-PROCESSED";
+
+                    localDb.CheckOrCreateLayer(lyrPolygonSource);
+                    localDb.CheckOrCreateLayer(lyrSplitForGml);
+                    localDb.CheckOrCreateLayer(lyrPolygonProcessed);
+
+                    var colorGenerator = GetColorGenerator();
+
+                    var plines = localDb.ListOfType<Polyline>(tx).Where(x => x.Layer == lyrPolygonSource);
+
+                    Stopwatch sw = Stopwatch.StartNew();
+
+                    HashSet<Polygon> allPolys = new HashSet<Polygon>();
+                    foreach (var pl in plines)
+                    {
+                        Polygon polygon = NTS.NTSConversion.ConvertClosedPlineToNTSPolygon(pl);
+                        double maxArea = 245000;
+
+                        var pd = new Brent.PolygonDivider();
+                        pd.Run(polygon, pl.Handle.ToString(), maxArea, true, Brent.Direction.RightTop);
+                        if (pd.Result == Brent.OperationResult.Failure)
+                        {
+                            prdDbg($"Brent failed for polygon {pl.Handle} with message:\n" +
+                                $"{pd.Messages}");
+                            continue;
+                        }
+
+                        foreach (var face in pd.DividedPolygons.OrderByDescending(x => x.Area))
+                        {
+                            var mpg = NTS.NTSConversion.ConvertNTSPolygonToMPolygon((Polygon)face);
+                            mpg.AddEntityToDbModelSpace(localDb);
+                            mpg.Color = colorGenerator();
+                            mpg.Layer = lyrSplitForGml;
+
+                            double actualArea = Math.Abs(mpg.Area);
+
+                            string warning = actualArea > 250000 ? " -> !!!Over MAX!!!" : "";
+
+                            prdDbg($"{actualArea.ToString("N2", dk)} " +
+                                $"{((actualArea - maxArea) / maxArea * 100).ToString("N1", dk)}%" +
+                                warning);
+                        }
+                    }
+
+                    sw.Stop(); prdDbg($"Processing time: {sw.Elapsed}.");
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         static GeometryCollection GenerateVoronoiPolygons(ICollection<Coordinate> sites, Envelope envelope)
         {
             var builder = new VoronoiDiagramBuilder();

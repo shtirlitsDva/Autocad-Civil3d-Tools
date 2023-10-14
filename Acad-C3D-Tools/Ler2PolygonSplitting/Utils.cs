@@ -41,6 +41,8 @@ namespace Ler2PolygonSplitting
             else if (obj is System.Exception ex2) prdDbg(obj.ToString());
             else prdDbg(obj.ToString());
         }
+        public static void prdDbgIL(string msg) =>
+            Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage(msg);
     }
     public static class Extensions
     {
