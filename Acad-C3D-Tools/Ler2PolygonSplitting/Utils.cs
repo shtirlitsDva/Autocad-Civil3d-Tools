@@ -11,6 +11,8 @@ using System.Threading.Tasks;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.EditorInput;
+using System.Text.RegularExpressions;
+using Autodesk.AutoCAD.ApplicationServices.Core;
 
 namespace Ler2PolygonSplitting
 {

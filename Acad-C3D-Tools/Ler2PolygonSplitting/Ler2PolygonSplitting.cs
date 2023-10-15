@@ -78,14 +78,30 @@ namespace Ler2PolygonSplitting
                     foreach (var pl in plines)
                     {
                         Polygon polygon = NTS.NTSConversion.ConvertClosedPlineToNTSPolygon(pl);
-                        double maxArea = 245000;
+                        double maxArea = 250000; //For later reporting
+
+                        Dictionary<string, int> keywords = new Dictionary<string, int>();
+                        int minsplits = polygon.Area % 250000 == 0 ? (int)(polygon.Area / 250000) : (int)(polygon.Area / 250000) + 1;
+                        keywords.Add($"N{minsplits}:{(polygon.Area / minsplits).ToString("N0", dk)} m²", minsplits);
+                        for (int i = 1; i < 5; i++)
+                            keywords.Add($"N{minsplits + i}:{(polygon.Area / (minsplits + i)).ToString("0", dk)} m²", minsplits + i);
+
+                        StringGridForm sgf = new StringGridForm(keywords.Select(x => x.Key).ToList());
+                        sgf.ShowDialog();
+
+                        if (sgf.SelectedValue == null)
+                        {
+                            tx.Abort();
+                            prdDbg("User cancelled!");
+                            return;
+                        }
+
+                        int K = keywords[sgf.SelectedValue];
 
                         int distance = (int)Math.Sqrt(polygon.EnvelopeInternal.Area / 1350);
 
                         var allPoints = GeneratePoints(polygon, distance);
                         prdDbg($"Number of Points in grid: {allPoints.NumPoints} with distance {distance}.");
-
-                        int K = (int)(polygon.Area / maxArea) + 1;
 
                         if (K < 1) K = 1;
 
@@ -96,7 +112,7 @@ namespace Ler2PolygonSplitting
                         sw.Stop();
                         prdDbg($"Number of Points after intersection: {clipPoints.NumPoints}.\n" +
                             $"Intersect time: {sw.Elapsed}.");
-                        prdDbg($"Expecting {K} polygons, target area: {(polygon.Area / K).ToString("N2", dk)}.");
+                        prdDbg($"Expecting {K} polygons, target area: {(polygon.Area / K).ToString("N0", dk)} m².");
 
                         //NTSConversion.ConvertNTSMultiPointToDBPoints(clipPoints, localDb);
                         int maxIter = 300;
@@ -133,7 +149,7 @@ namespace Ler2PolygonSplitting
 
                             double actualArea = Math.Abs(mpg.Area);
 
-                            string warning = actualArea > 250000 ? " -> !!!Over MAX!!!" : "";
+                            string warning = actualArea > maxArea ? " -> !!!Over MAX!!!" : "";
 
                             prdDbg($"{actualArea.ToString("N2", dk)} " +
                                 $"{((actualArea - maxArea) / maxArea * 100).ToString("N1", dk)}%" +
@@ -185,7 +201,7 @@ namespace Ler2PolygonSplitting
                         double maxArea = 245000;
 
                         var pd = new Brent.PolygonDivider();
-                        pd.Run(polygon, pl.Handle.ToString(), maxArea, true, Brent.Direction.RightTop);
+                        //pd.Run(polygon, pl.Handle.ToString(), maxArea, true, Brent.Direction.RightTop);
                         if (pd.Result == Brent.OperationResult.Failure)
                         {
                             prdDbg($"Brent failed for polygon {pl.Handle} with message:\n" +
@@ -587,7 +603,7 @@ namespace Ler2PolygonSplitting
 #if DEBUG
         private static Assembly Debug_AssemblyResolve(object sender, ResolveEventArgs args)
         {
-            string assemblyFolder = @"X:\GitHub\shtirlitsDva\Autocad-Civil3d-Tools\Acad-C3D-Tools\IntersectUtilities\bin\Debug";
+            string assemblyFolder = @"X:\Github\shtirlitsDva\Autocad-Civil3d-Tools\Acad-C3D-Tools\Ler2PolygonSplitting\bin\Debug";
             prdDbg($"Asked for assembly: {args.Name}!");
 
             var name = args.Name.Split(',')[0];
