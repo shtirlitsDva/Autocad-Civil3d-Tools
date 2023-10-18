@@ -112,6 +112,12 @@ namespace LERImporter.Schema
         public string UdvendigMateriale { get => this.udvendigMateriale ?? ""; }
         public Oid DrawPline2D(Database database)
         {
+            if (this.geometri == null)
+            {
+                Log.log($"ADVARSEL! Element id {this.LerId} har geometri null! Springer over!");
+                return Oid.Null;
+            }
+
             //IPointParser parser = this.geometri.AbstractCurve as IPointParser;
             IPointParser parser = this.geometri.Item as IPointParser;
 
@@ -127,6 +133,9 @@ namespace LERImporter.Schema
         }
         public Oid DrawPline3D(Database database)
         {
+            //Logging is already made in the 2D part of the program
+            if (this.geometri == null) return Oid.Null;
+
             //IPointParser parser = this.geometri.AbstractCurve as IPointParser;
             IPointParser parser = this.geometri.Item as IPointParser;
 
@@ -199,8 +208,10 @@ namespace LERImporter.Schema
         public Oid DrawEntity2D(Database database)
         {
             #region Draw 2D polyline
-            Polyline pline = DrawPline2D(database)
-                .Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+            Oid id = DrawPline2D(database);
+            if (id.IsNull) return id;
+            Polyline pline = id.Go<Polyline>(
+                database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             string layerName = DetermineLayerName(database);
 
@@ -211,7 +222,10 @@ namespace LERImporter.Schema
         }
         public Oid DrawEntity3D(Database database)
         {
-            Polyline3d p3d = DrawPline3D(database)
+            Oid id = DrawPline3D(database);
+            if (id.IsNull) return id;
+
+            Polyline3d p3d = id
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             string layerName = DetermineLayerName(database, true);
@@ -290,7 +304,9 @@ namespace LERImporter.Schema
         public Oid DrawEntity2D(Database database)
         {
             //Create new polyline in the base class
-            Polyline pline = DrawPline2D(database).Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+            Oid id = DrawPline2D(database);
+            if (id.IsNull) return id;
+            Polyline pline = id.Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             pline.Layer = DetermineLayerName(database);
 
@@ -301,7 +317,9 @@ namespace LERImporter.Schema
 
         public Oid DrawEntity3D(Database database)
         {
-            Polyline3d p3d = DrawPline3D(database)
+            Oid id = DrawPline3D(database);
+            if (id.IsNull) return id;
+            Polyline3d p3d = id
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             string layerName = DetermineLayerName(database, true);
@@ -391,7 +409,10 @@ namespace LERImporter.Schema
         public Oid DrawEntity2D(Database database)
         {
             //Create new polyline in the base class
-            Polyline pline = DrawPline2D(database).Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+            Oid id = DrawPline2D(database);
+            if (id.IsNull) return id;
+            Polyline pline = id
+                .Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             pline.Layer = DetermineLayerName(database);
 
@@ -402,7 +423,9 @@ namespace LERImporter.Schema
 
         public Oid DrawEntity3D(Database database)
         {
-            Polyline3d p3d = DrawPline3D(database)
+            Oid id = DrawPline3D(database);
+            if (id.IsNull) return id;
+            Polyline3d p3d = id
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             string layerName = DetermineLayerName(database, true);
@@ -497,7 +520,10 @@ namespace LERImporter.Schema
         public Oid DrawEntity2D(Database database)
         {
             //Create new polyline in the base class
-            Polyline pline = DrawPline2D(database).Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+            Oid id = DrawPline2D(database);
+            if (id.IsNull) return id;
+            Polyline pline = id
+                .Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             pline.Layer = DetermineLayerName(database);
 
@@ -508,7 +534,9 @@ namespace LERImporter.Schema
 
         public Oid DrawEntity3D(Database database)
         {
-            Polyline3d p3d = DrawPline3D(database)
+            Oid id = DrawPline3D(database);
+            if (id.IsNull) return id;
+            Polyline3d p3d = id
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             string layerName = DetermineLayerName(database, true);
@@ -613,7 +641,10 @@ namespace LERImporter.Schema
         public Oid DrawEntity2D(Database database)
         {
             //Create new polyline in the base class
-            Polyline pline = DrawPline2D(database).Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+            Oid id = DrawPline2D(database);
+            if (id.IsNull) return id;
+            Polyline pline = id
+                .Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             pline.Layer = DetermineLayerName(database);
 
@@ -631,7 +662,9 @@ namespace LERImporter.Schema
         }
         public Oid DrawEntity3D(Database database)
         {
-            Polyline3d p3d = DrawPline3D(database)
+            Oid id = DrawPline3D(database);
+            if (id.IsNull) return id;
+            Polyline3d p3d = id
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             string layerName = DetermineLayerName(database, true);
@@ -689,7 +722,9 @@ namespace LERImporter.Schema
         }
         public Oid DrawEntity2D(Database database)
         {
-            Polyline pline = DrawPline2D(database)
+            Oid id = DrawPline2D(database);
+            if (id.IsNull) return id;
+            Polyline pline = id
                 .Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             string layerName = DetermineLayerName(database);
@@ -703,7 +738,9 @@ namespace LERImporter.Schema
 
         public Oid DrawEntity3D(Database database)
         {
-            Polyline3d p3d = DrawPline3D(database)
+            Oid id = DrawPline3D(database);
+            if (id.IsNull) return id;
+            Polyline3d p3d = id
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             string layerName = DetermineLayerName(database, true);
@@ -783,7 +820,9 @@ namespace LERImporter.Schema
         }
         public Oid DrawEntity2D(Database database)
         {
-            Polyline pline = DrawPline2D(database)
+            Oid id = DrawPline2D(database);
+            if (id.IsNull) return id;
+            Polyline pline = id
                 .Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             string layerName = DetermineLayerName(database);
@@ -797,7 +836,9 @@ namespace LERImporter.Schema
 
         public Oid DrawEntity3D(Database database)
         {
-            Polyline3d p3d = DrawPline3D(database)
+            Oid id = DrawPline3D(database);
+            if (id.IsNull) return id;
+            Polyline3d p3d = id
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             string layerName = DetermineLayerName(database, true);
@@ -841,7 +882,9 @@ namespace LERImporter.Schema
         }
         public Oid DrawEntity2D(Database database)
         {
-            Polyline pline = DrawPline2D(database)
+            Oid id = DrawPline2D(database);
+            if (id.IsNull) return id;
+            Polyline pline = id
                 .Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             string layerName = DetermineLayerName(database);
@@ -855,7 +898,9 @@ namespace LERImporter.Schema
 
         public Oid DrawEntity3D(Database database)
         {
-            Polyline3d p3d = DrawPline3D(database)
+            Oid id = DrawPline3D(database);
+            if (id.IsNull) return id;
+            Polyline3d p3d = id
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             string layerName = DetermineLayerName(database, true);
@@ -965,7 +1010,9 @@ namespace LERImporter.Schema
         public Oid DrawEntity2D(Database database)
         {
             #region Draw 2D polyline
-            Polyline pline = DrawPline2D(database)
+            Oid id = DrawPline2D(database);
+            if (id.IsNull) return id;
+            Polyline pline = id
                 .Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             string layerName = DetermineLayerName(database);
@@ -980,7 +1027,9 @@ namespace LERImporter.Schema
         }
         public Oid DrawEntity3D(Database database)
         {
-            Polyline3d p3d = DrawPline3D(database)
+            Oid id = DrawPline3D(database);
+            if (id.IsNull) return id;
+            Polyline3d p3d = id
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             //prdDbg(this.SpændingsNiveau);
@@ -1120,7 +1169,10 @@ namespace LERImporter.Schema
         public Oid DrawEntity2D(Database database)
         {
             //Create new polyline in the base class
-            Polyline pline = DrawPline2D(database).Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+            Oid id = DrawPline2D(database);
+            if (id.IsNull) return id;
+            Polyline pline = id
+                .Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             pline.Layer = DetermineLayerName(database);
 
@@ -1133,6 +1185,7 @@ namespace LERImporter.Schema
 
         public Oid DrawPline2D(Database database)
         {
+            if (this.geometri == null) return Oid.Null;
             IPointParser parser = this.geometri.MultiCurve as IPointParser;
 
             Point3d[] points = parser.Get3DPoints();
@@ -1148,7 +1201,9 @@ namespace LERImporter.Schema
 
         public Oid DrawEntity3D(Database database)
         {
-            Polyline3d p3d = DrawPline3D(database)
+            Oid id = DrawPline3D(database);
+            if (id.IsNull) return id;
+            Polyline3d p3d = id
                 .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
 
             string layerName = DetermineLayerName(database, true);
@@ -1159,6 +1214,7 @@ namespace LERImporter.Schema
         }
         public Oid DrawPline3D(Database database)
         {
+            if (this.geometri == null) return Oid.Null;
             IPointParser parser = this.geometri.MultiCurve as IPointParser;
 
             Point3d[] points = parser.Get3DPoints();

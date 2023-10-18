@@ -350,7 +350,8 @@ namespace IntersectUtilities
             if (result > 0) return result;
             else throw new Exception($"Entity {ent.Handle} failed to get correct thrench width!");
         }
-        public static double GetTrenchWidth(int dn, PipeSystemEnum ps, PipeTypeEnum pt,  PipeSeriesEnum series)
+        public static double GetTrenchWidth(
+            int dn, PipeSystemEnum ps, PipeTypeEnum pt, PipeSeriesEnum series)
         {
             TrenchKey tk = new TrenchKey(ps, pt, series);
             if (trenchWidthsMap.ContainsKey(tk)) return trenchWidthsMap[tk].Invoke(dn);

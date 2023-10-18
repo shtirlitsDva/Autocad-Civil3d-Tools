@@ -325,6 +325,7 @@ namespace LERImporter
                     try
                     {
                         ObjectId entityId = iLedning.DrawEntity2D(Db2d);
+                        if (entityId.IsNull) continue;
                         Entity ent = entityId.Go<Entity>(Db2d.TransactionManager.TopTransaction, OpenMode.ForWrite);
                         layerNames2d.Add(ent.Layer);
 
@@ -345,6 +346,7 @@ namespace LERImporter
                 //Create 3D
                 {
                     ObjectId entityId = iLedning.DrawEntity3D(Db3d);
+                    if (entityId.IsNull) continue;
                     Entity ent = entityId.Go<Entity>(Db3d.TransactionManager.TopTransaction, OpenMode.ForWrite);
                     layerNames3d.Add(ent.Layer);
 
@@ -366,6 +368,7 @@ namespace LERImporter
                 //Draw 2d
                 {
                     ObjectId entityId = ledning.DrawEntity2D(Db2d);
+                    if (entityId.IsNull) continue;
                     Entity ent = entityId.Go<Entity>(Db2d.TransactionManager.TopTransaction, OpenMode.ForWrite);
                     layerNames2d.Add(ent.Layer);
 
@@ -380,6 +383,7 @@ namespace LERImporter
                 //Draw 3d
                 {
                     ObjectId entityId = ledning.DrawEntity3D(Db3d);
+                    if (entityId.IsNull) continue;
                     Entity ent = entityId.Go<Entity>(Db3d.TransactionManager.TopTransaction, OpenMode.ForWrite);
                     layerNames3d.Add(ent.Layer);
 
@@ -401,6 +405,7 @@ namespace LERImporter
                 try
                 {
                     entityId = creator.DrawComponent(Db2d);
+                    if (entityId.IsNull) continue;
                 }
                 catch (System.Exception ex)
                 {
