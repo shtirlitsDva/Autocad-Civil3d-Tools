@@ -5630,7 +5630,8 @@ namespace LERImporter.Schema
         /// <summary>
         /// kategori
         /// </summary>
-        public VandkomponenttypeType type { get; set; }
+        //public VandkomponenttypeType type { get; set; }
+        public string type { get; set; }
         /// <summary>
         /// kategori af tapsted
         /// </summary>

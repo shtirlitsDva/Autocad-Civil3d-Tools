@@ -56,27 +56,6 @@ namespace LERImporter.Converters
             return doc;
         }
     }
-    internal static class Converter_Vandkomponent_HandleNonStandardValuesForEnums
-    {
-        internal static XDocument Convert(XDocument doc)
-        {
-            var gml = XNamespace.Get("http://www.opengis.net/gml/3.2");
-            var ler = XNamespace.Get("http://data.gov.dk/schemas/LER/2/gml");
-
-            var items = doc.Descendants(ler + "Vandkomponent").ToList();
-
-            foreach (var item in items)
-            {
-                //Fix non-existing enum values, MUST RUN AFTER OTHER CONVERTERS
-                if (!Enum.IsDefined(typeof(VandkomponenttypeType), item.Element(ler + "type").Value))
-                {
-                    item.Element(ler + "type").Value = "custom";
-                }
-            }
-
-            return doc;
-        }
-    }
     internal static class Converter_Cerius_ElkomponentToFoeringsroer
     {
         internal static XDocument Convert(XDocument doc)

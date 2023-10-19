@@ -87,7 +87,8 @@ namespace LERImporter.Schema
     public partial class VandkomponentType : LedningskomponentType, ILerKomponent
     {
         [PsInclude]
-        public string Vandkomponent { get => this.type.GetXmlEnumAttributeValueFromEnum(); }
+        //public string Vandkomponent { get => this.type.GetXmlEnumAttributeValueFromEnum(); }
+        public string Vandkomponent { get => this.type; }
         [PsInclude]
         public string Tapsted { get => this?.tapstedstype?.Value.ToString() ?? ""; }
         [PsInclude]
