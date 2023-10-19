@@ -129,7 +129,7 @@
       <Link>UtilsCommon.cs</Link>
     </Compile>
     <Compile Include="ConsolidatedCreator.cs" />
-    <Compile Include="Converters\Cerius.Elkomponent-Foeringsroer.cs" />
+    <Compile Include="Converters\Udbedringer af udvidede udfaldsrum.cs" />
     <Compile Include="GmlToPropertySet.cs" />
     <Compile Include="LerImporter.cs" />
     <Compile Include="ObjectDumper\DumpOptions.cs" />

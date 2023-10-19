@@ -5776,6 +5776,10 @@ namespace LERImporter.Schema
         /// vandproduktionssted med behandlings- og leveringsanlæg
         /// </summary>
         vandværk,
+        /// <summary>
+        /// komponent der falder uden for disse kategorier
+        /// </summary>
+        custom,
     }
 
     /// <summary>

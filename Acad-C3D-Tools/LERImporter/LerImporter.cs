@@ -298,6 +298,7 @@ namespace LERImporter
                     doc = Converter_Cerius_ElkomponentToFoeringsroer.Convert(doc);
                     doc = Converter_TermiskKomponent_HandleNonStandardValuesForEnums.Convert(doc);
                     doc = Converter_Ledningstrace_TDC500mmTraceAsZeroWidth.Convert(doc);
+                    doc = Converter_Vandkomponent_HandleNonStandardValuesForEnums.Convert(doc);
 
                     doc.Save(modifiedFileName);
                 }
