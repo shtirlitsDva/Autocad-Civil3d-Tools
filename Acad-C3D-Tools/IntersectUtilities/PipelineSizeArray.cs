@@ -379,6 +379,68 @@ namespace IntersectUtilities
                 SizeArray = sizes.ToArray();
             }
             #endregion
+
+            #region Consolidate sizes
+            //Fix for doubling of sizes
+            //This particular fix prompted by single pipe
+            //where two reducers at same station value (supply, return)
+            //gave two size entries with same size and on of them
+            //with zero length
+
+            //Consolidate sizes
+            if (SizeArray.Length == 1) return;
+            List<int> idxsToRemove = new List<int>();
+            for (int i = 0; i < SizeArray.Length - 1; i++)
+            {
+                SizeEntry curSize = SizeArray[i];
+                SizeEntry nextSize = SizeArray[i + 1];
+
+                if (curSize.DN == nextSize.DN &&
+                    curSize.System == nextSize.System &&
+                    curSize.Type == nextSize.Type &&
+                    curSize.Series == nextSize.Series)
+                {
+                    idxsToRemove.Add(i + 1);
+
+                    //guard for more than 2 consecutive sizes
+                    bool baseNotFound = true;
+                    int curI = i;
+                    while (baseNotFound)
+                    {
+                        if (idxsToRemove.Contains(curI)) curI--;
+                        else baseNotFound = false;
+                    }
+
+                    SizeArray[curI] = new SizeEntry(
+                        curSize.DN,
+                        curSize.StartStation,
+                        nextSize.EndStation,
+                        curSize.Kod,
+                        curSize.System,
+                        curSize.Type,
+                        curSize.Series
+                        );
+
+                    //copy values to next to guard agains more than 2 consecutive sizes
+                    //Because we need to carry the start station over
+                    SizeArray[i + 1] = new SizeEntry(
+                        curSize.DN,
+                        curSize.StartStation,
+                        nextSize.EndStation,
+                        curSize.Kod,
+                        curSize.System,
+                        curSize.Type,
+                        curSize.Series
+                        );
+                }
+            }
+
+            if (idxsToRemove.Count < 1) return;
+            var sorted = idxsToRemove.OrderByDescending(x => x);
+            var tempList = SizeArray.ToList();
+            foreach (int i in sorted) tempList.RemoveAt(i);
+            SizeArray = tempList.ToArray(); 
+            #endregion
         }
         private PipelineSizesArrangement DetectArrangement(List<int> list)
         {
