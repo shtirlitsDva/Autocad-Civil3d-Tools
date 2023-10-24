@@ -315,6 +315,10 @@
     <Compile Include="Pipeline.cs" />
     <Compile Include="PipelineSizeArray.cs" />
     <Compile Include="PipeSchedule.cs" />
+    <Compile Include="PipeScheduleV2\IPipeDataLoader.cs" />
+    <Compile Include="PipeScheduleV2\IPipeRepository.cs" />
+    <Compile Include="PipeScheduleV2\PipeDataLoaderCSV.cs" />
+    <Compile Include="PipeScheduleV2\PipeRepository.cs" />
     <Compile Include="PlanDetailing\ComponentData.cs" />
     <Compile Include="PlanDetailing\PlanDetailing.cs" />
     <Compile Include="PlanProduction\PlanProduction.cs" />
