@@ -33,24 +33,30 @@ namespace IntersectUtilities
         public BidirectionalGraph<Entity, Edge<Entity>> Graph;
         public int Length { get => SizeArray.Length; }
         public PipelineSizesArrangement Arrangement { get; }
+        public bool HasFYModel { get; private set; } = false;
         public int StartingDn { get; }
         public SizeEntry this[int index] { get => SizeArray[index]; }
         public int MaxDn { get => SizeArray.MaxBy(x => x.DN).FirstOrDefault().DN; }
         public int MinDn { get => SizeArray.MinBy(x => x.DN).FirstOrDefault().DN; }
         private System.Data.DataTable dynamicBlocks { get; }
-        private HashSet<string> unwantedTypes = new HashSet<string>()
+        private static readonly HashSet<string> unwantedTypes = new HashSet<string>()
         {
             "Svejsning",
             "Stikafgrening",
             "Muffetee"
         };
-        private HashSet<string> graphUnwantedTypes = new HashSet<string>()
+        private static readonly HashSet<string> graphUnwantedTypes = new HashSet<string>()
         {
             "Svejsning",
         };
-        private HashSet<string> directionDefiningTypes = new HashSet<string>()
+        private static readonly HashSet<string> directionDefiningTypes = new HashSet<string>()
         {
             "Reduktion"
+        };
+        private static readonly HashSet<string> systemTransitionTypes = new HashSet<string>()
+        {
+            "F-Model",
+            "Y-Model"
         };
         /// <summary>
         /// SizeArray listing sizes, station ranges and jacket diameters.
@@ -233,8 +239,27 @@ namespace IntersectUtilities
                 throw new System.Exception($"Alignment {al.Name} could not determine pipeline sizes direction!");
             #endregion
 
+            //Check blockreferences version
+            if (brs != default && brs.Count != 0)
+            {
+                var distinctBlocks = brs.DistinctBy(x => x.RealName());
+                foreach (var block in distinctBlocks)
+                {
+                    if (!block.CheckIfBlockIsLatestVersion()) prdDbg(
+                        $"WRN: Block {block.RealName()}, is not latest version! " +
+                        $"Consider updating to latest version. Program functionality is not guaranteed.");
+                }
+            }
+
+            //Determine if the pipeline contains F- or Y-model
+            //To catch the case where the pipeline has F- or Y-model
+            //where we need to construct with blocks and not reducers
+            if (brs.Any(x => systemTransitionTypes.Contains(
+                x.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false))))
+                HasFYModel = true;
+
             #region Construct Sizes Array
-            if (brs == default || brs.Count == 0 || Arrangement == PipelineSizesArrangement.OneSize)
+            if (brs == default || brs.Count == 0 || (Arrangement == PipelineSizesArrangement.OneSize && !HasFYModel))
                 SizeArray = ConstructWithCurves(al, curves);
             //else SizeArray = ConstructWithBlocks(al, curves, brs, dynamicBlocks);
             else
@@ -439,7 +464,7 @@ namespace IntersectUtilities
             var sorted = idxsToRemove.OrderByDescending(x => x);
             var tempList = SizeArray.ToList();
             foreach (int i in sorted) tempList.RemoveAt(i);
-            SizeArray = tempList.ToArray(); 
+            SizeArray = tempList.ToArray();
             #endregion
         }
         private PipelineSizesArrangement DetectArrangement(List<int> list)

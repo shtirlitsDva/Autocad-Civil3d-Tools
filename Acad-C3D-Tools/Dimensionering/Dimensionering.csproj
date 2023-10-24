@@ -206,6 +206,9 @@
     <Compile Include="..\IntersectUtilities\GroupByCluster.cs">
       <Link>GroupByCluster.cs</Link>
     </Compile>
+    <Compile Include="..\IntersectUtilities\MoreLinq\DistinctBy.cs">
+      <Link>MoreLinq\DistinctBy.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\MoreLinq\MoreLinq.cs">
       <Link>MoreLinq.cs</Link>
     </Compile>
