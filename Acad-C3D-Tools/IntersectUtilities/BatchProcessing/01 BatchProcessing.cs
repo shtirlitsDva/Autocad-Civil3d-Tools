@@ -1104,7 +1104,7 @@ namespace IntersectUtilities
             Transaction xTx = xDb.TransactionManager.TopTransaction;
             var als = xDb.HashSetOfType<Alignment>(xTx);
 
-            Regex reg1 = new Regex(@"(?<number>\d{2,3}?\s)");
+            Regex reg1 = new Regex(@"(?<number>\d{2,3})");
 
             bool isValidCreation = false;
             DataShortcuts.DataShortcutManager sm = DataShortcuts.CreateDataShortcutManager(ref isValidCreation);
@@ -1174,7 +1174,7 @@ namespace IntersectUtilities
             Transaction xTx = xDb.TransactionManager.TopTransaction;
             var als = xDb.HashSetOfType<Alignment>(xTx);
 
-            Regex reg1 = new Regex(@"(?<number>\d{2,3}?\s)");
+            Regex reg1 = new Regex(@"(?<number>\d{2,3})");
 
             bool isValidCreation = false;
             DataShortcuts.DataShortcutManager sm = DataShortcuts.CreateDataShortcutManager(ref isValidCreation);

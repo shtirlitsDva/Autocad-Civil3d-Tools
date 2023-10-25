@@ -4007,6 +4007,10 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Dump pipeschedule data
+                    PipeSchedule.CreateCsvDataAluPex();
+                    #endregion
+
                     #region Test new PipeSizeArrays
                     //#region Open fremtidig db
                     //string projectName = "P1308KOGE";
