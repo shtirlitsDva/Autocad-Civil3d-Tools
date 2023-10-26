@@ -14,5 +14,7 @@ namespace IntersectUtilities.PipeScheduleV2
         UtilsCommon.Utils.PipeSeriesEnum GetPipeSeries(
             int dn, UtilsCommon.Utils.PipeTypeEnum type, double realKod);
         double GetPipeKOd(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum pipeSeries);
+        double GetMinElasticRadius(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series);
+        double GetBuerorMinRadius(int dn, int std);
     }
 }

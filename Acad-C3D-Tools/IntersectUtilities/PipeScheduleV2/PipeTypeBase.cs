@@ -11,7 +11,7 @@ namespace IntersectUtilities.PipeScheduleV2
 {
     public abstract class PipeTypeBase : IPipeType
     {
-        private DataTable _data;
+        protected DataTable _data;
         public double GetPipeOd(int dn)
         {
             DataRow[] results = _data.Select($"DN = {dn}");
@@ -63,11 +63,18 @@ namespace IntersectUtilities.PipeScheduleV2
             }
             return UtilsCommon.Utils.PipeSeriesEnum.Undefined;
         }
-        public double GetPipeKOd(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum pipeSeries)
+        public double GetPipeKOd(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
         {
-            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{pipeSeries}'");
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
             if (results != null && results.Length > 0) return (double)results[0]["kOd"];
             return 0;
         }
+        public double GetMinElasticRadius(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        {
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
+            if (results != null && results.Length > 0) return (double)results[0]["minElasticRadii"];
+            return 0;
+        }
+        public abstract double GetBuerorMinRadius(int dn, int std);
     }
 }

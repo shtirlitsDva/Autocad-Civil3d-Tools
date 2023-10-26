@@ -25,6 +25,7 @@ namespace IntersectUtilities.PipeScheduleV2
             LoadPipeTypeData(@"X:\AutoCAD DRI - 01 Civil 3D\PipeSchedule\");
         }
 
+        #region Variables and dicts
         public static Dictionary<string, Type> typeDict = new Dictionary<string, Type>()
         {
             { "DN", typeof(PipeTypeDN) },
@@ -75,7 +76,8 @@ namespace IntersectUtilities.PipeScheduleV2
             _repository.Initialize(new PipeTypeDataLoaderCSV().Load(csvs));
         }
 
-        public static void ListAllPipeTypes() => prdDbg(string.Join("\n", _repository.ListAllPipeTypes()));
+        public static void ListAllPipeTypes() => prdDbg(string.Join("\n", _repository.ListAllPipeTypes())); 
+        #endregion
 
         #region Pipe schedule methods
         private static string ExtractLayerName(Entity ent)
@@ -158,7 +160,7 @@ namespace IntersectUtilities.PipeScheduleV2
         }
         public static double GetPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
-            PipeTypeEnum type = GetPipeType(ent);
+            PipeTypeEnum type = GetPipeType(ent, true);
             PipeSystemEnum system = GetPipeSystem(ent);
 
             if (!systemDictReversed.ContainsKey(system)) return 0.0;
@@ -214,6 +216,67 @@ namespace IntersectUtilities.PipeScheduleV2
             return series;
         }
         public static double GetPipeStdLength(Entity ent) => GetPipeDN(ent) <= 80 ? 12 : 16;
+        public static bool IsInSituBent(Entity ent)
+        {
+            PipeTypeEnum type = GetPipeType(ent);
+            PipeSystemEnum system = GetPipeSystem(ent);
+
+            //Flexrør er altid insitu bukkede
+            if (
+                system == PipeSystemEnum.Kobberflex ||
+                system == PipeSystemEnum.AluPex
+                ) return true;
+
+            switch (type)
+            {
+                case PipeTypeEnum.Ukendt:
+                    throw new Exception(
+                        $"IsInSituBent -> Entity handle {ent.Handle} has invalid layer!");
+                case PipeTypeEnum.Twin:
+                    if (GetPipeDN(ent) < 65) return true;
+                    break;
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
+                    if (GetPipeDN(ent) < 100) return true;
+                    break;
+                default:
+                    throw new Exception(
+                        $"IsInSituBent -> Entity handle {ent.Handle} has invalid layer!");
+            }
+            return false;
+        }
+        public static double GetPipeMinElasticRadius(Entity ent, bool considerInSituBending = true)
+        {
+            if (considerInSituBending && IsInSituBent(ent)) return 0;
+
+            PipeTypeEnum type = GetPipeType(ent, true);
+            PipeSeriesEnum series = GetPipeSeriesV2(ent);
+            PipeSystemEnum system = GetPipeSystem(ent);
+
+            if (!systemDictReversed.ContainsKey(system)) return 0;
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+
+            int dn = GetPipeDN(ent);
+
+            var rad = pipeType.GetMinElasticRadius(dn, type, series);
+
+            return rad;
+        }
+        public static double GetBuerorMinRadius(Entity ent)
+        {
+            PipeSystemEnum system = GetPipeSystem(ent);
+            PipeTypeEnum type = GetPipeType(ent, true);
+            
+            if (!systemDictReversed.ContainsKey(system)) return 0;
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+
+            int dn = GetPipeDN(ent);
+            int std = (int)GetPipeStdLength(ent);
+
+            double rad = pipeType.GetBuerorMinRadius(dn, std);
+
+            return rad;
+        }
         #endregion
     }
 }

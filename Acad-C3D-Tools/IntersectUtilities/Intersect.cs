@@ -4012,7 +4012,7 @@ namespace IntersectUtilities
                     Stopwatch sw = Stopwatch.StartNew();
                     foreach (var p in pls)
                     {
-                        pods.Add(PipeScheduleV2.PipeScheduleV2.GetPipeKOd(p));
+                        pods.Add(PipeScheduleV2.PipeScheduleV2.GetPipeMinElasticRadius(p));
                     }
                     sw.Stop();
                     prdDbg($"Time v2: {sw.Elapsed}");
@@ -4022,7 +4022,7 @@ namespace IntersectUtilities
                     sw = Stopwatch.StartNew();
                     foreach (var p in pls)
                     {
-                        pods.Add(PipeSchedule.GetPipeKOd(p));
+                        pods.Add(PipeSchedule.GetPipeMinElasticRadius(p));
                     }
                     sw.Stop();
                     prdDbg($"Time v1: {sw.Elapsed}");

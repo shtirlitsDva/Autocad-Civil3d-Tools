@@ -1146,7 +1146,7 @@ namespace IntersectUtilities
                         $"IsInSituBent -> Entity handle {ent.Handle} has invalid layer!");
             }
             return false;
-        }
+        } //DONE
         #region Tables for elastic and buerør radii
         private static Dictionary<int, double> cuS1Enkelt = new Dictionary<int, double>
             {
@@ -1154,62 +1154,62 @@ namespace IntersectUtilities
                 { 18, 0.7 },
                 { 22, 0.8 },
                 { 28, 0.8 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> cuS2Enkelt = new Dictionary<int, double>
             {
                 { 15, 0.8 },
                 { 18, 0.8 },
                 { 22, 0.8 },
                 { 28, 1.0 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> cuS1Twin = new Dictionary<int, double>
             {
                 { 22, 0.9 },
                 { 28, 0.9 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> cuS2Twin = new Dictionary<int, double>
             {
                 { 22, 1.1 },
                 { 28, 1.1 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> aluPexS1Enkelt = new Dictionary<int, double>
             {
                 { 20, 0.7 },
                 { 26, 0.72 },
                 { 32, 0.72 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> aluPexS2Enkelt = new Dictionary<int, double>
             {
                 { 20, 0.72 },
                 { 26, 0.72 },
                 { 32, 0.9 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> aluPexS3Enkelt = new Dictionary<int, double>
             {
                 { 20, 0.9 },
                 { 26, 0.9 },
                 { 32, 1.0 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> aluPexS1Twin = new Dictionary<int, double>
             {
                 { 20, 0.9 },
                 { 26, 1.1 },
                 { 32, 1.25 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> aluPexS2Twin = new Dictionary<int, double>
             {
                 { 16, 1.1 },
                 { 20, 1.1 },
                 { 26, 1.25 },
                 { 32, 1.25 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> aluPexS3Twin = new Dictionary<int, double>
             {
                 { 16, 1.25 },
                 { 20, 1.25 },
                 { 26, 1.40 },
                 { 32, 1.40 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> steelMinElasticRadii = new Dictionary<int, double>
             {
                 { 20, 16 },
@@ -1230,7 +1230,7 @@ namespace IntersectUtilities
                 { 450, 275 },
                 { 500, 305 },
                 { 600, 366 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> steelEnkeltMinBuerorRadii = new Dictionary<int, double>
             {
                 { 20, 8.4 },
@@ -1252,7 +1252,7 @@ namespace IntersectUtilities
                 { 500, 152.8 },
                 { 550, 152.8 },
                 { 999, 0.0 }
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> steelTwinMinBuerorRadii = new Dictionary<int, double>
             {
                 { 20, 0.0 },
@@ -1267,7 +1267,7 @@ namespace IntersectUtilities
                 { 150, 36.2 },
                 { 200, 42.9 },
                 { 999, 0.0 }
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> steelMaxV12 = new Dictionary<int, double>()
         {
             { 65, 25 },
@@ -1282,7 +1282,7 @@ namespace IntersectUtilities
             { 400, 18 },
             { 450, 8 },
             { 500, 3 },
-        };
+        }; //OBSOLETE??
         private static Dictionary<int, double> steelMaxV16 = new Dictionary<int, double>()
         {
             { 100, 13 },
@@ -1296,7 +1296,7 @@ namespace IntersectUtilities
             { 450, 10 },
             { 500, 4 },
             { 600, 1.3 },
-        };
+        }; //OBSOLETE??
         #endregion
         public static double GetPipeMinElasticRadius(Entity ent, bool considerInSituBending = true)
         {
@@ -1391,7 +1391,7 @@ namespace IntersectUtilities
                 default:
                     return 0;
             }
-        }
+        } //DONE
         public static double GetBuerorMinRadius(Entity ent)
         {
             PipeSystemEnum pipeSystem = GetPipeSystem(ent);
