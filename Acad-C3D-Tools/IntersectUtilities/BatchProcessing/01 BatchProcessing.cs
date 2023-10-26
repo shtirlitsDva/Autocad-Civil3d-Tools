@@ -1887,6 +1887,39 @@ namespace IntersectUtilities
 
             return new Result();
         }
+        [MethodDescription(
+            "Change layer for an xref with partial name match",
+            "Skifter laget til det angivne\n" +
+            "for en xref, hvor navnet på xref'en\n"+
+            "matches med en del af navnet.",
+            new string[2] { "Xref Del af Navnet", "Laget Xref'en skal sættes til" })]
+        public static Result changelayerforxref(Database xDb, string xrefPartialName, string layerName)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+
+            BlockTable bt = xDb.BlockTableId.Go<BlockTable>(xTx, OpenMode.ForRead);
+            var modelSpace = xDb.GetModelspaceForWrite();
+
+            foreach (Oid oid in bt)
+            {
+                BlockTableRecord btr = xTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
+                if (btr.Name.Contains(xrefPartialName) && btr.IsFromExternalReference)
+                {
+                    prdDbg($"Found specified xref: {btr.Name}");
+
+                    var ids = btr.GetBlockReferenceIds(true, false);
+                    foreach (Oid id in ids)
+                    {
+                        var br = id.Go<BlockReference>(xTx, OpenMode.ForWrite);
+                        br.Layer = layerName;
+                    }
+
+                    return new Result();
+                }
+            }
+            prdDbg("Specified xref NOT found!");
+            return new Result();
+        }
     }
 
     public class Result
