@@ -7,8 +7,9 @@ using System.Threading.Tasks;
 
 namespace IntersectUtilities.PipeScheduleV2
 {
-    public class PipeTypeCommon : PipeTypeBase
+    public abstract class PipeTypeBase : IPipeType
     {
-        
+        private DataTable _data;
+        public void Initialize(DataTable table) => _data = table;
     }
 }

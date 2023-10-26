@@ -52,13 +52,13 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using IntersectUtilities.DynamicBlocks;
 using System.Diagnostics;
-using System.Runtime;
 using System.Text.Json;
 using IntersectUtilities.Forms;
 using IntersectUtilities.GraphClasses;
 using QuikGraph;
 using QuikGraph.Graphviz;
 using QuikGraph.Algorithms.Search;
+using IntersectUtilities.PipeScheduleV2;
 
 [assembly: CommandClass(typeof(IntersectUtilities.Intersect))]
 
@@ -76,11 +76,10 @@ namespace IntersectUtilities
                     "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
             }
 
+            prdDbg("IntersectUtilites loaded!\n");
 #if DEBUG
             AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(Debug_AssemblyResolve);
 #endif
-
-            prdDbg("IntersectUtilites loaded!\n");
         }
 
         public void Terminate()
@@ -4008,7 +4007,7 @@ namespace IntersectUtilities
                 try
                 {
                     #region Dump pipeschedule data
-                    PipeSchedule.CreateCsvDataAluPex();
+                    PipeScheduleV2.PipeScheduleV2.ListAllPipeTypes();
                     #endregion
 
                     #region Test new PipeSizeArrays

@@ -218,12 +218,37 @@ namespace IntersectUtilities
                 { 26, 26.0 },
                 { 32, 32.0 }
             };
+        public static void CreateCsvDataCU()
+        {
+            StringBuilder sb = new StringBuilder();
 
+            sb.AppendLine("DN;PipeType;PipeSeries;pOd;kOd;tWdth;minElasticRadii");
+
+            foreach (int dn in kOdsS1CuEnkelt.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Enkelt;S1;{OdsCu[dn]};{kOdsS1CuEnkelt[dn]};" +
+                    $"{2 * 150 + 2 * kOdsS1CuEnkelt[dn] + 200};" +
+                    $"{cuS1Enkelt[dn]}");
+            foreach (int dn in kOdsS1CuTwin.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Twin;S1;{OdsCu[dn]};{kOdsS1CuTwin[dn]};" +
+                    $"{2 * 150 + kOdsS1CuTwin[dn]};" +
+                    $"{cuS1Twin[dn]}");
+
+            foreach (int dn in kOdsS2CuEnkelt.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Enkelt;S2;{OdsCu[dn]};{kOdsS2CuEnkelt[dn]};" +
+                    $"{2 * 150 + 2 * kOdsS2CuEnkelt[dn] + 200};" +
+                    $"{cuS2Enkelt[dn]}");
+            foreach (int dn in kOdsS2CuTwin.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Twin;S2;{OdsCu[dn]};{kOdsS2CuTwin[dn]};" +
+                    $"{2 * 150 + kOdsS2CuTwin[dn]};" +
+                    $"{cuS2Twin[dn]}");
+
+            System.IO.File.WriteAllText(@"C:\Temp\CU.csv", sb.ToString());
+        }
         public static void CreateCsvDataAluPex()
         {
             StringBuilder sb = new StringBuilder();
 
-            sb.AppendLine("DN;PipeType;PipeSeries;pOd;kOd;tWdth;minElasticRadii;");
+            sb.AppendLine("DN;PipeType;PipeSeries;pOd;kOd;tWdth;minElasticRadii");
 
             foreach (int dn in kOdsS1AluPexEnkelt.Keys.OrderBy(x => x))
                 sb.AppendLine($"{dn};Enkelt;S1;{OdsAluPex[dn]};{kOdsS1AluPexEnkelt[dn]};" +
@@ -257,7 +282,7 @@ namespace IntersectUtilities
         {
             StringBuilder sb = new StringBuilder();
 
-            sb.AppendLine("DN;PipeType;PipeSeries;pOd;kOd;tWdth;minElasticRadii;VpMax12;VpMax16;");
+            sb.AppendLine("DN;PipeType;PipeSeries;pOd;kOd;tWdth;minElasticRadii;VpMax12;VpMax16");
 
             foreach (int dn in kOdsS1Bonded.Keys.OrderBy(x => x))
                 sb.AppendLine($"{dn};Enkelt;S1;{OdsSteel[dn]};{kOdsS1Bonded[dn]};" +

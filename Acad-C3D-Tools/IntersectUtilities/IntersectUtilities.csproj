@@ -315,10 +315,11 @@
     <Compile Include="Pipeline.cs" />
     <Compile Include="PipelineSizeArray.cs" />
     <Compile Include="PipeSchedule.cs" />
-    <Compile Include="PipeScheduleV2\IPipeScheduleV2.cs" />
     <Compile Include="PipeScheduleV2\IPipeType.cs" />
     <Compile Include="PipeScheduleV2\IPipeTypeRepository.cs" />
     <Compile Include="PipeScheduleV2\PipeScheduleV2.cs" />
+    <Compile Include="PipeScheduleV2\PipeTypeBase.cs" />
+    <Compile Include="PipeScheduleV2\PipeTypeDN.cs" />
     <Compile Include="PipeScheduleV2\PipeTypeCommon.cs" />
     <Compile Include="PipeScheduleV2\PipeTypeDataLoaderCSV.cs" />
     <Compile Include="PipeScheduleV2\PipeTypeRepository.cs" />

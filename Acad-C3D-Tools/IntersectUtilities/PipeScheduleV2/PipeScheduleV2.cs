@@ -8,19 +8,28 @@ using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities.PipeScheduleV2
 {
-    public class PipeScheduleV2 : IPipeScheduleV2
+    public static class PipeScheduleV2
     {
-        private IPipeTypeRepository _repository;
+        private static IPipeTypeRepository _repository;
 
-        public PipeScheduleV2(string pathToPipeTypesStore)
+        static PipeScheduleV2()
+        {
+            LoadPipeTypeData(@"X:\AutoCAD DRI - 01 Civil 3D\PipeSchedule\");
+        }
+
+        public static void LoadPipeTypeData(string pathToPipeTypesStore)
         {
             var csvs = System.IO.Directory.EnumerateFiles(
                 pathToPipeTypesStore, "*.csv", System.IO.SearchOption.TopDirectoryOnly);
 
             _repository = new PipeTypeRepository();
-            _repository.Initialize(PipeTypeDataLoaderCSV.Load(csvs));
+            _repository.Initialize(new PipeTypeDataLoaderCSV().Load(csvs));
         }
 
-        public void ListAllPipeTypes() => prdDbg(string.Join("\n", _repository.ListAllPipeTypes()));
+        public static void ListAllPipeTypes() => prdDbg(string.Join("\n", _repository.ListAllPipeTypes()));
+
+        #region Pipe schedule methods
+
+        #endregion
     }
 }

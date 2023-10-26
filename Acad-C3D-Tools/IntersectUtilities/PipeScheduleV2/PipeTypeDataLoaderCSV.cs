@@ -10,16 +10,16 @@ using IntersectUtilities;
 
 namespace IntersectUtilities.PipeScheduleV2
 {
-    public static class PipeTypeDataLoaderCSV
+    public class PipeTypeDataLoaderCSV
     {
         private static Dictionary<string, Type> typeDict = new Dictionary<string, Type>()
         {
-            { "DN", typeof(PipeTypeCommon) },
+            { "DN", typeof(PipeTypeDN) },
             { "ALUPEX", typeof(PipeTypeCommon) },
             { "CU", typeof(PipeTypeCommon) },
         };
 
-        public static Dictionary<string, IPipeType> Load(IEnumerable<string> paths)
+        public Dictionary<string, IPipeType> Load(IEnumerable<string> paths)
         {
             Dictionary<string, IPipeType> dict = new Dictionary<string, IPipeType>();
             foreach (var path in paths)
