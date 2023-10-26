@@ -6,8 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -464,17 +462,17 @@ namespace IntersectUtilities
             string layer = ent.Layer;
             if (layer.Contains("|")) return layer.Split('|').Last();
             else return layer;
-        }
+        } //DONE
         private static string ExtractLayerName(string layer)
         {
             if (layer.Contains("|")) return layer.Split('|').Last();
             else return layer;
-        }
+        } //DONE
         public static int GetPipeDN(Entity ent)
         {
             return GetPipeDN(ExtractLayerName(ent));
-        }
-        public static PipeDnEnum GetPipeDnEnum(Entity ent)
+        } //DONE
+        public static PipeDnEnum GetPipeDnEnum(Entity ent) //OBSOLETE??
         {
             int DN = GetPipeDN(ent);
 
@@ -604,11 +602,11 @@ namespace IntersectUtilities
                     editor.WriteMessage("\nFor layer named: " + layer + " no pipe dimension could be determined!");
                     return 999;
             }
-        }
+        } //DONE
         public static PipeTypeEnum GetPipeType(Entity ent)
         {
             return GetPipeType(ExtractLayerName(ent));
-        }
+        } //DONE
         public static PipeTypeEnum GetPipeType(Entity ent, bool FRtoEnkelt = false)
         {
             var type = GetPipeType(ExtractLayerName(ent));
@@ -625,7 +623,7 @@ namespace IntersectUtilities
                 default:
                     return PipeTypeEnum.Ukendt;
             }
-        }
+        } //DONE
         public static PipeTypeEnum GetPipeType(string layer)
         {
             layer = ExtractLayerName(layer);
@@ -712,7 +710,7 @@ namespace IntersectUtilities
                     editor.WriteMessage("\nFor layer name: " + layer + " no system could be determined!");
                     return PipeTypeEnum.Ukendt;
             }
-        }
+        } //DONE
         public static double GetPipeOd(Entity ent)
         {
             int dn = GetPipeDN(ent);
@@ -733,7 +731,7 @@ namespace IntersectUtilities
                 default:
                     return 0;
             }
-        }
+        } //DONE
         internal static PipeSystemEnum GetPipeSystem(Entity ent)
         {
             string layer = ExtractLayerName(ent);
@@ -818,12 +816,12 @@ namespace IntersectUtilities
                     //prdDbg("\nFor layer name: " + layer + " no system could be determined!");
                     return PipeSystemEnum.Ukendt;
             }
-        }
+        } //DONE
         public static double GetTwinPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
             return GetTwinPipeKOd(dn, pipeSeries);
-        }
+        } //OBSOLETE??
         public static double GetTwinPipeKOd(int dn, PipeSeriesEnum pipeSeries)
         {
             switch (pipeSeries)
@@ -840,7 +838,7 @@ namespace IntersectUtilities
                 default:
                     return 0;
             }
-        }
+        } //OBSOLETE??
         //public static double GetTwinPipeKOd(Entity ent)
         //{
         //    int DN = GetPipeDN(ent);
@@ -870,12 +868,12 @@ namespace IntersectUtilities
                     return 0.0;
             }
             return 0.0;
-        }
+        } //OBSOLETE??
         public static double GetCuEnkeltPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
             return GetCuEnkeltPipeKOd(dn, pipeSeries);
-        }
+        } //OBSOLETE??
         public static double GetCuEnkeltPipeKOd(int dn, PipeSeriesEnum pipeSeries)
         {
             switch (pipeSeries)
@@ -890,12 +888,12 @@ namespace IntersectUtilities
                     return 0.0;
             }
             return 0.0;
-        }
+        } //OBSOLETE??
         public static double GetCuTwinPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
             return GetCuTwinPipeKOd(dn, pipeSeries);
-        }
+        } //OBSOLETE??
         public static double GetCuTwinPipeKOd(int dn, PipeSeriesEnum pipeSeries)
         {
             switch (pipeSeries)
@@ -910,12 +908,12 @@ namespace IntersectUtilities
                     return 0.0;
             }
             return 0.0;
-        }
+        } //OBSOLETE??
         public static double GetAluPexEnkeltPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
             return GetAluPexEnkeltPipeKOd(dn, pipeSeries);
-        }
+        } //OBSOLETE??
         public static double GetAluPexEnkeltPipeKOd(int dn, PipeSeriesEnum pipeSeries)
         {
             switch (pipeSeries)
@@ -933,12 +931,12 @@ namespace IntersectUtilities
                     return 0.0;
             }
             return 0.0;
-        }
+        } //OBSOLETE??
         public static double GetAluPexTwinPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
             return GetAluPexTwinPipeKOd(dn, pipeSeries);
-        }
+        } //OBSOLETE??
         public static double GetAluPexTwinPipeKOd(int dn, PipeSeriesEnum pipeSeries)
         {
             switch (pipeSeries)
@@ -956,7 +954,7 @@ namespace IntersectUtilities
                     return 0.0;
             }
             return 0.0;
-        }
+        } //OBSOLETE??
         public static double GetBondedPipeKOd(int dn, PipeSeriesEnum pipeSeries)
         {
             switch (pipeSeries)
@@ -974,7 +972,7 @@ namespace IntersectUtilities
                     return 0;
             }
             return 0;
-        }
+        } //OBSOLETE??
         //public static double GetBondedPipeKOd(Entity ent)
         //{
         //    int dn = GetPipeDN(ent);
@@ -1028,7 +1026,7 @@ namespace IntersectUtilities
                     return 0.0;
             }
 
-        }
+        } //DONE
         public static double GetKOd(int dn, PipeTypeEnum pt, PipeSystemEnum ps, PipeSeriesEnum series)
         {
             switch (pt)
@@ -1069,11 +1067,10 @@ namespace IntersectUtilities
                     return 0.0;
             }
         }
-        public static double GetPipeKOd(Entity ent, bool hardFail = false)
+        public static double GetPipeKOd(Entity ent, bool hardFail = false) //DONE
         {
             return GetPipeKOd(ent, GetPipeSeriesV2(ent, hardFail));
         }
-        public static string GetPipeSeries(Entity ent) => "S3";
         public static PipeSeriesEnum GetPipeSeriesV2(Entity ent, bool hardFail = false)
         {
             double realKod;
@@ -1119,9 +1116,8 @@ namespace IntersectUtilities
             }
 
             return PipeSeriesEnum.Undefined;
-        }
-        public static string GetPipeSeries(PipeSeriesEnum pipeSeries) => pipeSeries.ToString();
-        public static double GetPipeStdLength(Entity ent) => GetPipeDN(ent) <= 80 ? 12 : 16;
+        } //DONE
+        public static double GetPipeStdLength(Entity ent) => GetPipeDN(ent) <= 80 ? 12 : 16; //DONE
         public static bool IsInSituBent(Entity ent)
         {
             PipeTypeEnum type = GetPipeType(ent);

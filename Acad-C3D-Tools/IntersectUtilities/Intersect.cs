@@ -4006,8 +4006,31 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test PipeScheduleV2
+                    var pls = localDb.GetFjvPipes(tx, true);
+                    HashSet<double> pods = new HashSet<double>();
+                    Stopwatch sw = Stopwatch.StartNew();
+                    foreach (var p in pls)
+                    {
+                        pods.Add(PipeScheduleV2.PipeScheduleV2.GetPipeKOd(p));
+                    }
+                    sw.Stop();
+                    prdDbg($"Time v2: {sw.Elapsed}");
+                    prdDbg(string.Join("\n", pods.OrderBy(p => p)));
+
+                    pods.Clear();
+                    sw = Stopwatch.StartNew();
+                    foreach (var p in pls)
+                    {
+                        pods.Add(PipeSchedule.GetPipeKOd(p));
+                    }
+                    sw.Stop();
+                    prdDbg($"Time v1: {sw.Elapsed}");
+                    prdDbg(string.Join("\n", pods.OrderBy(p => p)));
+                    #endregion
+
                     #region Dump pipeschedule data
-                    PipeScheduleV2.PipeScheduleV2.ListAllPipeTypes();
+                    //PipeScheduleV2.PipeScheduleV2.ListAllPipeTypes();
                     #endregion
 
                     #region Test new PipeSizeArrays

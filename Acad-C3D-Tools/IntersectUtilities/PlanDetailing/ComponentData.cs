@@ -499,19 +499,19 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    #region Test to see if bend is between 80° and 10°
+                    #region Test to see if bend is between 80° and 10° DISABLED
                     LineSegment3d seg1 = run.GetLineSegmentAt(idx);
                     LineSegment3d seg2 = run.GetLineSegmentAt(idx - 1);
 
                     double angle = seg1.Direction.GetAngleTo(seg2.Direction).ToDegrees();
                     prdDbg(angle);
 
-                    if (angle > 80.0 || angle < 10.0)
-                    {
-                        result.Status = ResultStatus.SoftError;
-                        result.ErrorMsg =
-                            $"The bend is not between 80° and 10°! But actually {angle}.";
-                    }
+                    //if (angle > 80.0 || angle < 10.0)
+                    //{
+                    //    result.Status = ResultStatus.SoftError;
+                    //    result.ErrorMsg =
+                    //        $"The bend is not between 80° and 10°! But actually {angle}.";
+                    //}
                 }
                 #endregion
                 tx.Commit();
