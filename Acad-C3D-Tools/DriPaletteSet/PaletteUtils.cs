@@ -1,20 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.IO;
-using System.Linq;
-using MoreLinq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Data;
-using System.Globalization;
-using System.Threading.Tasks;
-using System.Runtime.CompilerServices;
-using System.Windows.Forms;
-using System.Xml.Serialization;
-using Autodesk.Aec.DatabaseServices;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -31,7 +17,7 @@ using Autodesk.Gis.Map.Utilities;
 using Autodesk.Aec.PropertyData;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.Colors;
-using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -55,15 +41,16 @@ namespace DriPaletteSet
     internal static class PaletteUtils
     {
         internal static PipeSeriesEnum CurrentSeries { get; set; }
-        internal static void ActivateLayer(PipeTypeEnum pipeType, PipeDnEnum pipeDn)
+        internal static void ActivateLayer(PipeSystemEnum system, PipeTypeEnum type, string dn)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Document doc = docCol.MdiActiveDocument;
-            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            var pipeSystemString = IntersectUtilities.PipeScheduleV2.PipeScheduleV2.GetSystemString(system);
 
             string layerName = string.Concat(
-                    "FJV-", pipeType.ToString(), "-", pipeDn.ToString()).ToUpper();
+                    "FJV-", type.ToString(), "-", pipeSystemString, dn.ToString()).ToUpper();
 
             using (DocumentLock docLock = doc.LockDocument())
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -78,10 +65,21 @@ namespace DriPaletteSet
 
                         LayerTableRecord ltr = new LayerTableRecord();
                         ltr.Name = layerName;
-                        switch (pipeType)
+                        switch (type)
                         {
                             case PipeTypeEnum.Twin:
-                                ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
+                                switch (system)
+                                {
+                                    case PipeSystemEnum.Ukendt:
+                                    case PipeSystemEnum.Stål:
+                                    case PipeSystemEnum.Kobberflex:
+                                    case PipeSystemEnum.AluPex:
+                                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
+                                        break;
+                                    case PipeSystemEnum.PexU:
+                                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 190);
+                                        break;
+                                }
                                 break;
                             case PipeTypeEnum.Frem:
                                 ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
@@ -207,7 +205,6 @@ namespace DriPaletteSet
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor ed = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             using (DocumentLock docLock = doc.LockDocument())
             using (Transaction tx = localDb.TransactionManager.StartTransaction())

@@ -98,8 +98,15 @@ namespace DriPaletteSet
                 }
             }
 
-
-            //ActivateLayer(PipeTypeEnum.Twin, pipeDn);
+            GroupBox granddad = (GroupBox)cb.Parent.Parent;
+            if (granddad.Text == "Enkeltrør")
+            {
+                PaletteUtils.ActivateLayer(PipeSystemEnum.PexU, PipeTypeEnum.Enkelt, cb.Text);
+            }
+            else if (granddad.Text == "Twinrør")
+            {
+                PaletteUtils.ActivateLayer(PipeSystemEnum.PexU, PipeTypeEnum.Twin, cb.Text);
+            }
         }
 
         private float GetDpiScalingFactor(Control control)

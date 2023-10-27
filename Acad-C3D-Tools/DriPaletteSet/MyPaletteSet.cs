@@ -15,7 +15,7 @@ namespace DriPaletteSet
         private PEXU_Palette _pexuPalette = null;
         public MyPaletteSet() : base("", "", new Guid("87374E16-C0DB-4F3F-9271-7A71ED921226"))
         {
-            MinimumSize = new System.Drawing.Size(300, 300);
+            //MinimumSize = new System.Drawing.Size(300, 300);
             Style = PaletteSetStyles.ShowCloseButton |
                  PaletteSetStyles.ShowAutoHideButton |
                  PaletteSetStyles.ShowTabForSingle;

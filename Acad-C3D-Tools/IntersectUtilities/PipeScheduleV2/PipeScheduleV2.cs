@@ -33,6 +33,11 @@ namespace IntersectUtilities.PipeScheduleV2
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
             return pipeType.ListAllDnsForPipeTypeSerie(type, serie);
         }
+        public static string GetSystemString(PipeSystemEnum system)
+        {
+            if (!systemDictReversed.ContainsKey(system)) return "Ukendt";
+            return systemDictReversed[system];
+        }
         #endregion
 
         #region Variables and dicts
@@ -289,6 +294,16 @@ namespace IntersectUtilities.PipeScheduleV2
             double rad = pipeType.GetBuerorMinRadius(dn, std);
 
             return rad;
+        }
+        public static string GetLabel(Entity ent)
+        {
+            int DN = GetPipeDN(ent);
+            if (DN == 0)
+            {
+                prdDbg($"Layer {ExtractLayerName(ent)} failed to provide DN!");
+                return "Ukendt";
+            }
+            return "Not FINISHED!";  
         }
         #endregion
     }

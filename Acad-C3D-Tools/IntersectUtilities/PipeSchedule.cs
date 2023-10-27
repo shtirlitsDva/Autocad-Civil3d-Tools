@@ -1414,7 +1414,7 @@ namespace IntersectUtilities
                     return 0.0;
             }
 
-        }
+        } //DONE Halfheartedly
         public static string GetLabel(Entity ent)
         {
             //Test to see if the polyline resides in the correct layer

@@ -71,46 +71,30 @@ namespace DriPaletteSet
         {
             System.Windows.Forms.CheckBox cb = (System.Windows.Forms.CheckBox)sender;
             foreach (System.Windows.Forms.CheckBox checkBox in dnButtons)
-            {
-                if (checkBox.Checked && cb.Name != checkBox.Name)
-                {
-                    checkBox.Checked = false;
-                }
-            }
+                if (checkBox.Checked && cb.Name != checkBox.Name) checkBox.Checked = false;
 
-            string dn = string.Concat(cb.Text.Where(c => !char.IsWhiteSpace(c)));
-            PipeDnEnum pipeDn = (PipeDnEnum)Enum.Parse(typeof(PipeDnEnum), dn);
+            string dn = cb.Text.Replace("DN ", string.Empty);
 
             PipeTypeEnum fr = PipeTypeEnum.Frem;
             foreach (var frb in fremReturButtons)
-            {
                 if (frb.Checked) fr = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum), frb.Text);
-            }
 
-            ActivateLayer(fr, pipeDn);
+            ActivateLayer(PipeSystemEnum.Stål, fr, dn);
         }
 
         private void frButtonCheckBox_Click(object sender, EventArgs e)
         {
             System.Windows.Forms.CheckBox cb = (System.Windows.Forms.CheckBox)sender;
             foreach (System.Windows.Forms.CheckBox checkBox in fremReturButtons)
-            {
-                if (checkBox.Checked && cb.Name != checkBox.Name)
-                {
-                    checkBox.Checked = false;
-                }
-            }
+                if (checkBox.Checked && cb.Name != checkBox.Name) checkBox.Checked = false;
 
             foreach (var btn in dnButtons)
             {
                 if (btn.Checked)
                 {
-                    string dn = string.Concat(btn.Text.Where(c => !char.IsWhiteSpace(c)));
-                    PipeDnEnum pipeDn = (PipeDnEnum)Enum.Parse(typeof(PipeDnEnum), dn);
-
+                    string dn = btn.Text.Replace("DN ", string.Empty);
                     PipeTypeEnum fr = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum), cb.Text);
-
-                    ActivateLayer(fr, pipeDn);
+                    ActivateLayer(PipeSystemEnum.Stål, fr, dn);
                 }
             }
         }

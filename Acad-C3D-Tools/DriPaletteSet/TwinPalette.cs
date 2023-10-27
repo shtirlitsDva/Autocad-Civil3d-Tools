@@ -67,29 +67,18 @@ namespace DriPaletteSet
         {
             System.Windows.Forms.CheckBox cb = (System.Windows.Forms.CheckBox)sender;
             foreach (System.Windows.Forms.CheckBox checkBox in dnButtons)
-            {
-                if (checkBox.Checked && cb.Name != checkBox.Name)
-                {
-                    checkBox.Checked = false;
-                }
-            }
+                if (checkBox.Checked && cb.Name != checkBox.Name) checkBox.Checked = false;
 
-            string dn = string.Concat(cb.Text.Where(c => !char.IsWhiteSpace(c)));
-            PipeDnEnum pipeDn = (PipeDnEnum)Enum.Parse(typeof(PipeDnEnum), dn);
+            string dn = cb.Text.Replace("DN ", "");
 
-            ActivateLayer(PipeTypeEnum.Twin, pipeDn);
+            ActivateLayer(PipeSystemEnum.Stål, PipeTypeEnum.Twin, dn);
         }
 
         private void seriesButtonCheckBox_Click(object sender, EventArgs e)
         {
             System.Windows.Forms.CheckBox cb = (System.Windows.Forms.CheckBox)sender;
             foreach (System.Windows.Forms.CheckBox checkBox in seriesButtons)
-            {
-                if (checkBox.Checked && cb.Name != checkBox.Name)
-                {
-                    checkBox.Checked = false;
-                }
-            }
+                if (checkBox.Checked && cb.Name != checkBox.Name) checkBox.Checked = false;
 
             PipeSeriesEnum pipeSeriesEnum = 
                 (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum), cb.Text);
