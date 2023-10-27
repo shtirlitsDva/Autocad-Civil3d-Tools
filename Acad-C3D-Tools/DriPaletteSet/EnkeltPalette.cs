@@ -22,9 +22,9 @@ namespace DriPaletteSet
 {
     public partial class EnkeltPalette : UserControl
     {
-        HashSet<CheckBox> dnButtons = new HashSet<CheckBox>();
-        HashSet<CheckBox> seriesButtons = new HashSet<CheckBox>();
-        HashSet<CheckBox> fremReturButtons = new HashSet<CheckBox> { };
+        HashSet<System.Windows.Forms.CheckBox> dnButtons = new HashSet<System.Windows.Forms.CheckBox>();
+        HashSet<System.Windows.Forms.CheckBox> seriesButtons = new HashSet<System.Windows.Forms.CheckBox>();
+        HashSet<System.Windows.Forms.CheckBox> fremReturButtons = new HashSet<System.Windows.Forms.CheckBox> { };
         public EnkeltPalette()
         {
             InitializeComponent();
@@ -69,8 +69,8 @@ namespace DriPaletteSet
 
         private void dnButtonCheckBox_Click(object sender, EventArgs e)
         {
-            CheckBox cb = (CheckBox)sender;
-            foreach (CheckBox checkBox in dnButtons)
+            System.Windows.Forms.CheckBox cb = (System.Windows.Forms.CheckBox)sender;
+            foreach (System.Windows.Forms.CheckBox checkBox in dnButtons)
             {
                 if (checkBox.Checked && cb.Name != checkBox.Name)
                 {
@@ -92,8 +92,8 @@ namespace DriPaletteSet
 
         private void frButtonCheckBox_Click(object sender, EventArgs e)
         {
-            CheckBox cb = (CheckBox)sender;
-            foreach (CheckBox checkBox in fremReturButtons)
+            System.Windows.Forms.CheckBox cb = (System.Windows.Forms.CheckBox)sender;
+            foreach (System.Windows.Forms.CheckBox checkBox in fremReturButtons)
             {
                 if (checkBox.Checked && cb.Name != checkBox.Name)
                 {

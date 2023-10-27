@@ -1,5 +1,6 @@
 ﻿using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 using System;
 using System.Collections.Generic;
@@ -15,7 +16,7 @@ namespace DriPaletteSet
 {
     public partial class PEXU_Palette : UserControl
     {
-        private List<CheckBox> checkBoxes = new List<CheckBox>();
+        private List<System.Windows.Forms.CheckBox> checkBoxes = new List<System.Windows.Forms.CheckBox>();
 
         public PEXU_Palette()
         {
@@ -28,12 +29,19 @@ namespace DriPaletteSet
             var listDns = PipeScheduleV2.ListAllDnsForPipeSystemTypeSerie(
                 Utils.PipeSystemEnum.PexU, Utils.PipeTypeEnum.Enkelt, Utils.PipeSeriesEnum.S3)
                 .OrderBy(x => x).ToList();
-            PopulateButtons(listDns, 2, tableLayoutPanelButtonsEnkelt);
+            PopulateButtons(listDns, 3, tableLayoutPanelButtonsEnkelt);
+            listDns = PipeScheduleV2.ListAllDnsForPipeSystemTypeSerie(
+                Utils.PipeSystemEnum.PexU, Utils.PipeTypeEnum.Twin, Utils.PipeSeriesEnum.S3)
+                .OrderBy(x => x).ToList();
+            PopulateButtons(listDns, 3, tableLayoutPanelButtonsTwin);
         }
 
-        public void PopulateButtons(
+        private void PopulateButtons(
             List<int> buttonsData, int colCount, TableLayoutPanel tLP)
         {
+            float dpiScalingFactor = GetDpiScalingFactor(this);
+            float buttonHeight = 30 * dpiScalingFactor;
+
             int rowCount = buttonsData.Count / colCount;
             if (buttonsData.Count % colCount != 0) rowCount++;
 
@@ -41,7 +49,7 @@ namespace DriPaletteSet
             tLP.ColumnCount = colCount;
 
             for (int i = 0; i < rowCount; i++)
-                tLP.RowStyles.Add(new RowStyle(SizeType.Absolute, 30f));
+                tLP.RowStyles.Add(new RowStyle(SizeType.Absolute, buttonHeight));
 
             for (int j = 0; j < colCount; j++)
                 tLP.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / colCount));
@@ -51,7 +59,7 @@ namespace DriPaletteSet
             {
                 for (int j = 0; j < colCount && dataIndex < buttonsData.Count(); j++)
                 {
-                    CheckBox chk = new CheckBox
+                    System.Windows.Forms.CheckBox chk = new System.Windows.Forms.CheckBox
                     {
                         Text = buttonsData[dataIndex].ToString(),
                         Appearance = Appearance.Button,
@@ -61,7 +69,7 @@ namespace DriPaletteSet
                         ForeColor = Color.DarkBlue,
                         //FlatStyle = FlatStyle.Flat,
                     };
-                    chk.CheckedChanged += CheckBox_CheckedChanged;
+                    chk.Click += dnButtonCheckBox_Click;
 
                     checkBoxes.Add(chk);
                     tLP.Controls.Add(chk, j, i);
@@ -69,21 +77,36 @@ namespace DriPaletteSet
                 }
             }
 
-            GroupBoxEnkelt.Height = rowCount * 30 + 20; // +20 for padding for GroupBox header.
+            tLP.Parent.Height = rowCount * ((int)Math.Round(buttonHeight)) + 20;
         }
-        private void CheckBox_CheckedChanged(object sender, EventArgs e)
+        private void dnButtonCheckBox_Click(object sender, EventArgs e)
         {
-            foreach (var chk in checkBoxes)
+            System.Windows.Forms.CheckBox cb = (System.Windows.Forms.CheckBox)sender;
+
+            // Set the back color of the clicked checkbox
+            cb.BackColor = Color.DarkGray;
+
+            foreach (System.Windows.Forms.CheckBox checkBox in checkBoxes)
             {
-                if (chk != sender)
+                if (cb != checkBox)
                 {
-                    chk.Checked = false;
-                    chk.BackColor = Color.LightGray;
+                    checkBox.BackColor = Color.LightGray;
+                    if (checkBox.Checked)
+                    {
+                        checkBox.Checked = false; 
+                    }
                 }
-                else
-                {
-                    chk.BackColor = chk.Checked ? Color.DarkGray : Color.LightGray;
-                }
+            }
+
+
+            //ActivateLayer(PipeTypeEnum.Twin, pipeDn);
+        }
+
+        private float GetDpiScalingFactor(Control control)
+        {
+            using (Graphics graphics = Graphics.FromHwnd(control.Handle))
+            {
+                return graphics.DpiX / 96.0f; // 96 DPI is the standard DPI.
             }
         }
     }

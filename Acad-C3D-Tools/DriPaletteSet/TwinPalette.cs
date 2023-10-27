@@ -22,8 +22,8 @@ namespace DriPaletteSet
 {
     public partial class TwinPalette : System.Windows.Forms.UserControl
     {
-        HashSet<CheckBox> dnButtons = new HashSet<CheckBox>();
-        HashSet<CheckBox> seriesButtons = new HashSet<CheckBox>();
+        HashSet<System.Windows.Forms.CheckBox> dnButtons = new HashSet<System.Windows.Forms.CheckBox>();
+        HashSet<System.Windows.Forms.CheckBox> seriesButtons = new HashSet<System.Windows.Forms.CheckBox>();
 
         public TwinPalette()
         {
@@ -65,8 +65,8 @@ namespace DriPaletteSet
 
         private void dnButtonCheckBox_Click(object sender, EventArgs e)
         {
-            CheckBox cb = (CheckBox)sender;
-            foreach (CheckBox checkBox in dnButtons)
+            System.Windows.Forms.CheckBox cb = (System.Windows.Forms.CheckBox)sender;
+            foreach (System.Windows.Forms.CheckBox checkBox in dnButtons)
             {
                 if (checkBox.Checked && cb.Name != checkBox.Name)
                 {
@@ -75,17 +75,15 @@ namespace DriPaletteSet
             }
 
             string dn = string.Concat(cb.Text.Where(c => !char.IsWhiteSpace(c)));
-            prdDbg(dn + "\n");
             PipeDnEnum pipeDn = (PipeDnEnum)Enum.Parse(typeof(PipeDnEnum), dn);
-            prdDbg(pipeDn.ToString() + "\n");
 
             ActivateLayer(PipeTypeEnum.Twin, pipeDn);
         }
 
         private void seriesButtonCheckBox_Click(object sender, EventArgs e)
         {
-            CheckBox cb = (CheckBox)sender;
-            foreach (CheckBox checkBox in seriesButtons)
+            System.Windows.Forms.CheckBox cb = (System.Windows.Forms.CheckBox)sender;
+            foreach (System.Windows.Forms.CheckBox checkBox in seriesButtons)
             {
                 if (checkBox.Checked && cb.Name != checkBox.Name)
                 {
