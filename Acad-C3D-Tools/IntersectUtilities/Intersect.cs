@@ -4000,33 +4000,35 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            CivilDocument civilDoc = CivilApplication.ActiveDocument;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
                     #region Test PipeScheduleV2
-                    var pls = localDb.GetFjvPipes(tx, true);
-                    HashSet<double> pods = new HashSet<double>();
-                    Stopwatch sw = Stopwatch.StartNew();
-                    foreach (var p in pls)
-                    {
-                        pods.Add(PipeScheduleV2.PipeScheduleV2.GetPipeMinElasticRadius(p));
-                    }
-                    sw.Stop();
-                    prdDbg($"Time v2: {sw.Elapsed}");
-                    prdDbg(string.Join("\n", pods.OrderBy(p => p)));
+                    //var pls = localDb.GetFjvPipes(tx, true);
+                    //HashSet<string> pods = new HashSet<string>();
+                    //Stopwatch sw = Stopwatch.StartNew();
+                    //foreach (var p in pls)
+                    //{
+                    //    pods.Add($"DN{PipeScheduleV2.PipeScheduleV2.GetPipeDN(p)} - " +
+                    //        $"Rp: {PipeScheduleV2.PipeScheduleV2.GetBuerorMinRadius(p).ToString("F2")}");
+                    //}
+                    //sw.Stop();
+                    //prdDbg($"Time v2: {sw.Elapsed}");
+                    //prdDbg(string.Join("\n", pods.OrderByAlphaNumeric(p => p)));
 
-                    pods.Clear();
-                    sw = Stopwatch.StartNew();
-                    foreach (var p in pls)
-                    {
-                        pods.Add(PipeSchedule.GetPipeMinElasticRadius(p));
-                    }
-                    sw.Stop();
-                    prdDbg($"Time v1: {sw.Elapsed}");
-                    prdDbg(string.Join("\n", pods.OrderBy(p => p)));
+                    //pods.Clear();
+                    //sw = Stopwatch.StartNew();
+                    //foreach (var p in pls)
+                    //{
+                    //    pods.Add($"DN{PipeSchedule.GetPipeDN(p)} - " +
+                    //        $"Rp: {PipeSchedule.GetBuerorMinRadius(p).ToString("F2")}");
+                    //}
+                    //sw.Stop();
+                    //prdDbg($"Time v1: {sw.Elapsed}");
+                    //prdDbg(string.Join("\n", pods.OrderByAlphaNumeric(p => p)));
                     #endregion
 
                     #region Dump pipeschedule data

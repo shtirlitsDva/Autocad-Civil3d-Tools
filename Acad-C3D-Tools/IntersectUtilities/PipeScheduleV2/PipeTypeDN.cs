@@ -14,14 +14,12 @@ namespace IntersectUtilities.PipeScheduleV2
         public override double GetBuerorMinRadius(int dn, int std)
         {
             DataRow[] results = _data.Select($"DN = {dn}");
-            switch (std)
+
+            if (results != null && results.Length > 0)
             {
-                case 12:
-                    if (results != null && results.Length > 0) return (double)results[0]["VpMax12"];
-                    return 0;
-                case 16:
-                    if (results != null && results.Length > 0) return (double)results[0]["VpMax16"];
-                    return 0;
+                double vpMax12 = (double)results[0]["VpMax12"];
+                if (vpMax12 == 0) return 0;
+                return (180 * std) / (Math.PI * vpMax12);
             }
             return 0;
         }

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System.Windows.Navigation;
 
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -31,6 +30,7 @@ namespace IntersectUtilities.PipeScheduleV2
             { "DN", typeof(PipeTypeDN) },
             { "ALUPEX", typeof(PipeTypeCommon) },
             { "CU", typeof(PipeTypeCommon) },
+            { "PEXU", typeof(PipeTypePEXU) },
         };
 
         private static Dictionary<string, PipeSystemEnum> systemDict = new Dictionary<string, PipeSystemEnum>()
@@ -265,13 +265,13 @@ namespace IntersectUtilities.PipeScheduleV2
         public static double GetBuerorMinRadius(Entity ent)
         {
             PipeSystemEnum system = GetPipeSystem(ent);
-            PipeTypeEnum type = GetPipeType(ent, true);
             
             if (!systemDictReversed.ContainsKey(system)) return 0;
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
 
             int dn = GetPipeDN(ent);
-            int std = (int)GetPipeStdLength(ent);
+            //int std = (int)GetPipeStdLength(ent);
+            int std = 12; //Bruger kun radier for 12m rør
 
             double rad = pipeType.GetBuerorMinRadius(dn, std);
 
