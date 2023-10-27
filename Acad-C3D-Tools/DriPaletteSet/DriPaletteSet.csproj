@@ -122,6 +122,9 @@
     <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeDN.cs">
       <Link>PipeScheduleV2\PipeTypeDN.cs</Link>
     </Compile>
+    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypePEXU.cs">
+      <Link>PipeScheduleV2\PipeTypePEXU.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeRepository.cs">
       <Link>PipeScheduleV2\PipeTypeRepository.cs</Link>
     </Compile>
@@ -138,7 +141,6 @@
     <Compile Include="PEXU-Palette.Designer.cs">
       <DependentUpon>PEXU-Palette.cs</DependentUpon>
     </Compile>
-    <Compile Include="PipeScheduleV2\PipeTypePEXU.cs" />
     <Compile Include="TwinPalette.cs">
       <SubType>UserControl</SubType>
     </Compile>

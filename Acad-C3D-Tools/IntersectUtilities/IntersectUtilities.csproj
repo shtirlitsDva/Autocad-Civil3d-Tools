@@ -322,6 +322,7 @@
     <Compile Include="PipeScheduleV2\PipeTypeDN.cs" />
     <Compile Include="PipeScheduleV2\PipeTypeCommon.cs" />
     <Compile Include="PipeScheduleV2\PipeTypeDataLoaderCSV.cs" />
+    <Compile Include="PipeScheduleV2\PipeTypePEXU.cs" />
     <Compile Include="PipeScheduleV2\PipeTypeRepository.cs" />
     <Compile Include="PlanDetailing\ComponentData.cs" />
     <Compile Include="PlanDetailing\PlanDetailing.cs" />

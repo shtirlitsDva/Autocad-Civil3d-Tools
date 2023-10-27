@@ -76,5 +76,11 @@ namespace IntersectUtilities.PipeScheduleV2
             return 0;
         }
         public abstract double GetBuerorMinRadius(int dn, int std);
+        public IEnumerable<int> ListAllDnsForPipeTypeSerie(UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        {
+            DataRow[] results = _data.Select($"PipeType = '{type}' AND PipeSeries = '{series}'");
+            if (results != null && results.Length > 0) return results.Select(x => (int)x["DN"]);
+            return null;
+        }
     }
 }

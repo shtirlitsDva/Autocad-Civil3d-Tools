@@ -24,6 +24,17 @@ namespace IntersectUtilities.PipeScheduleV2
             LoadPipeTypeData(@"X:\AutoCAD DRI - 01 Civil 3D\PipeSchedule\");
         }
 
+        #region Utility methods
+        public static IEnumerable<int> ListAllDnsForPipeSystemTypeSerie(
+            PipeSystemEnum system, PipeTypeEnum type, PipeSeriesEnum serie)
+        {
+            if (!systemDictReversed.ContainsKey(system)) 
+                throw new Exception($"Undefined PipeType system {system}!");
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+            return pipeType.ListAllDnsForPipeTypeSerie(type, serie);
+        }
+        #endregion
+
         #region Variables and dicts
         public static Dictionary<string, Type> typeDict = new Dictionary<string, Type>()
         {
@@ -38,6 +49,7 @@ namespace IntersectUtilities.PipeScheduleV2
             {"DN", PipeSystemEnum.Stål },
             {"ALUPEX", PipeSystemEnum.AluPex },
             {"CU", PipeSystemEnum.Kobberflex },
+            {"PEXU", PipeSystemEnum.PexU },
         };
 
         private static Dictionary<PipeSystemEnum, string> systemDictReversed = new Dictionary<PipeSystemEnum, string>()
@@ -45,6 +57,7 @@ namespace IntersectUtilities.PipeScheduleV2
             {PipeSystemEnum.Stål, "DN" },
             {PipeSystemEnum.AluPex , "ALUPEX" },
             {PipeSystemEnum.Kobberflex , "CU" },
+            {PipeSystemEnum.PexU , "PEXU" },
         };
 
         private static string pipeTypes = string.Join(

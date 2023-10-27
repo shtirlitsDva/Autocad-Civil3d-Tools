@@ -410,7 +410,8 @@ namespace IntersectUtilities.UtilsCommon
             Ukendt,
             Stål,
             Kobberflex,
-            AluPex
+            AluPex,
+            PexU
         }
         public enum DynamicProperty
         {

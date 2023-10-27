@@ -1920,6 +1920,36 @@ namespace IntersectUtilities
             prdDbg("Specified xref NOT found!");
             return new Result();
         }
+        [MethodDescription(
+            "Delete wrongly shortcuttet profiles and alignment",
+            "Sletter alle profiler i tegningen.\n" +
+            "Sletter alignments som har \"(\"\n" +
+            "som en del af navnet. Det betyder at det\n" +
+            "har været en dublikat alignment som er shortcuttet.")]
+        public static Result deletewronglyshortcuttedprofilesandalignments(Database xDb)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+
+            var profiles = xDb.ListOfType<Profile>(xTx);
+
+            foreach (var item in profiles)
+            {
+                item.CheckOrOpenForWrite();
+                item.Erase(true);
+            }
+
+            var als = xDb.ListOfType<Alignment>(xTx);
+            foreach (var item in als)
+            {
+                if (item.Name.Contains("("))
+                {
+                    prdDbg(item.Name);
+                    item.CheckOrOpenForWrite();
+                    item.Erase(true);
+                }
+            }
+            return new Result();
+        }
     }
 
     public class Result
