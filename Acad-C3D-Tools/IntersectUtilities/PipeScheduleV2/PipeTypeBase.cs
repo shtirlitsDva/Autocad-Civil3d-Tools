@@ -82,5 +82,6 @@ namespace IntersectUtilities.PipeScheduleV2
             if (results != null && results.Length > 0) return results.Select(x => (int)x["DN"]);
             return null;
         }
+        public abstract string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd);
     }
 }

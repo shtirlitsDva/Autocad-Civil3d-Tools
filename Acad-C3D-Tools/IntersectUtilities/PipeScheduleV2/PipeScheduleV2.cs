@@ -44,8 +44,8 @@ namespace IntersectUtilities.PipeScheduleV2
         public static Dictionary<string, Type> typeDict = new Dictionary<string, Type>()
         {
             { "DN", typeof(PipeTypeDN) },
-            { "ALUPEX", typeof(PipeTypeCommon) },
-            { "CU", typeof(PipeTypeCommon) },
+            { "ALUPEX", typeof(PipeTypeALUPEX) },
+            { "CU", typeof(PipeTypeCU) },
             { "PEXU", typeof(PipeTypePEXU) },
         };
 
@@ -301,9 +301,40 @@ namespace IntersectUtilities.PipeScheduleV2
             if (DN == 0)
             {
                 prdDbg($"Layer {ExtractLayerName(ent)} failed to provide DN!");
-                return "Ukendt";
+                return "";
             }
-            return "Not FINISHED!";  
+            var type = GetPipeType(ent);
+            if (type == PipeTypeEnum.Ukendt)
+            {
+                prdDbg("Kunne ikke finde systemet på valgte rør! Kontroller lag!");
+                return "";
+            }
+            double od = GetPipeOd(ent);
+            if (od < 1.0)
+            {
+                prdDbg("Kunne ikke finde rørdimensionen på valgte rør! Kontroller lag!");
+                return "";
+            }
+            double kOd = GetPipeKOd(ent);
+            if (kOd < 1.0)
+            {
+                prdDbg("Kunne ikke finde kappediameter på valgte rør! Kontroller lag!");
+                return "";
+            }
+            PipeSystemEnum system = GetPipeSystem(ent);
+            if (system == PipeSystemEnum.Ukendt)
+            {
+                prdDbg("Kunne ikke finde system på valgte rør! Kontroller lag!");
+                return "";
+            }
+            if (!systemDictReversed.ContainsKey(system)) 
+            { 
+                prdDbg("Kunne ikke finde system på valgte rør! Kontroller lag!");
+                return ""; 
+            }
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+            string label = pipeType.GetLabel(DN, type, od, kOd);
+            return label;
         }
         #endregion
     }

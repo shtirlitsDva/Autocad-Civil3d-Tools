@@ -33,6 +33,7 @@ using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.Colors;
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.PipeSchedule;
+using IntersectUtilities.PipeScheduleV2;
 
 using AcRx = Autodesk.AutoCAD.Runtime;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
@@ -47,7 +48,6 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
-using IntersectUtilities;
 
 namespace IntersectUtilities.UtilsCommon
 {
@@ -3041,23 +3041,11 @@ namespace IntersectUtilities.UtilsCommon
 
             var rawPlines = db.ListOfType<Polyline>(tr, discardFrozen);
             entities = rawPlines
-                .Where(pline => GetPipeSystem(pline) != PipeSystemEnum.Ukendt)
+                .Where(pline => PipeScheduleV2.PipeScheduleV2.GetPipeSystem(pline) != PipeSystemEnum.Ukendt)
                 .ToHashSet();
 
             return entities;
         }
-        public static IEnumerable<Oid> GetFjvPipesIds(this Database db, bool discardFrozen = false)
-        {
-            Transaction tx = db.TransactionManager.StartTransaction();
-
-            var rawPlines = db.ListOfType<Polyline>(tx, discardFrozen);
-            foreach (var item in rawPlines)
-                if (GetPipeSystem(item) != PipeSystemEnum.Ukendt) yield return item.Id;
-
-            tx.Abort();
-            tx.Dispose();
-        }
-
         // Searches the drawing for a block with the specified name.
         // Returns either the block, or null - check accordingly.
         public static HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference> GetBlockReferenceByName(

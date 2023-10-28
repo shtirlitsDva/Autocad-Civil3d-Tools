@@ -133,27 +133,7 @@ namespace DriPaletteSet
                     HashSet<Polyline> pipes = localDb.GetFjvPipes(tx);
                     foreach (Polyline pipe in pipes)
                     {
-                        PipeSystemEnum system = GetPipeSystem(pipe);
-                        PipeSeriesEnum tempSeries;
-                        //Work around the fact that flexible pipes only have 2 series
-                        switch (system)
-                        {
-                            case PipeSystemEnum.Ukendt:
-                                tempSeries = CurrentSeries;
-                                break;
-                            case PipeSystemEnum.Stål:
-                            case PipeSystemEnum.AluPex:
-                                tempSeries = CurrentSeries;
-                                break;
-                            case PipeSystemEnum.Kobberflex:
-                                if (CurrentSeries == PipeSeriesEnum.S3) tempSeries = PipeSeriesEnum.S2;
-                                else tempSeries = CurrentSeries;
-                                break;
-                            default:
-                                tempSeries = CurrentSeries;
-                                break;
-                        }
-                        double kappeOd = GetPipeKOd(pipe, tempSeries);
+                        double kappeOd = GetPipeKOd(pipe, CurrentSeries);
                         if (kappeOd < 0.1) continue;
                         pipe.CheckOrOpenForWrite();
                         pipe.ConstantWidth = kappeOd / 1000;
@@ -220,7 +200,7 @@ namespace DriPaletteSet
                     Oid plineId = entity1.ObjectId;
                     Entity ent = plineId.Go<Entity>(tx);
 
-                    string labelText = PipeSchedule.GetLabel(ent);
+                    string labelText = GetLabel(ent);
 
                     PromptPointOptions pPtOpts = new PromptPointOptions("\nChoose location of label: ");
                     PromptPointResult pPtRes = ed.GetPoint(pPtOpts);

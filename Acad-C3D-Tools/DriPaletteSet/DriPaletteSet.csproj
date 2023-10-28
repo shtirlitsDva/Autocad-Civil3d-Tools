@@ -110,11 +110,14 @@
     <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
       <Link>PipeScheduleV2\PipeScheduleV2.cs</Link>
     </Compile>
+    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeALUPEX.cs">
+      <Link>PipeScheduleV2\PipeTypeALUPEX.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeBase.cs">
       <Link>PipeScheduleV2\PipeTypeBase.cs</Link>
     </Compile>
-    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeCommon.cs">
-      <Link>PipeScheduleV2\PipeTypeCommon.cs</Link>
+    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeCU.cs">
+      <Link>PipeScheduleV2\PipeTypeCU.cs</Link>
     </Compile>
     <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeDataLoaderCSV.cs">
       <Link>PipeScheduleV2\PipeTypeDataLoaderCSV.cs</Link>

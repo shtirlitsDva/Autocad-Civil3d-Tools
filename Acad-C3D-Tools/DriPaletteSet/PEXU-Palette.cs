@@ -40,7 +40,7 @@ namespace DriPaletteSet
             List<int> buttonsData, int colCount, TableLayoutPanel tLP)
         {
             float dpiScalingFactor = GetDpiScalingFactor(this);
-            float buttonHeight = 30 * dpiScalingFactor;
+            float buttonHeight = 50 * dpiScalingFactor;
 
             int rowCount = buttonsData.Count / colCount;
             if (buttonsData.Count % colCount != 0) rowCount++;
@@ -67,6 +67,7 @@ namespace DriPaletteSet
                         TextAlign = ContentAlignment.MiddleCenter,
                         BackColor = Color.LightGray,
                         ForeColor = Color.DarkBlue,
+                        Font = new Font("Arial", 12 * dpiScalingFactor, FontStyle.Bold),
                         //FlatStyle = FlatStyle.Flat,
                     };
                     chk.Click += dnButtonCheckBox_Click;
@@ -115,6 +116,21 @@ namespace DriPaletteSet
             {
                 return graphics.DpiX / 96.0f; // 96 DPI is the standard DPI.
             }
+        }
+
+        private void OpdaterBredde_Click(object sender, EventArgs e)
+        {
+            PaletteUtils.UpdateWidths();
+        }
+
+        private void NulstilBredde_Click(object sender, EventArgs e)
+        {
+            PaletteUtils.ResetWidths();
+        }
+
+        private void SetLabel_Click(object sender, EventArgs e)
+        {
+            PaletteUtils.labelpipe();
         }
     }
 }
