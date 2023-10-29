@@ -73,11 +73,28 @@ namespace DriPaletteSet
             foreach (System.Windows.Forms.CheckBox checkBox in dnButtons)
                 if (checkBox.Checked && cb.Name != checkBox.Name) checkBox.Checked = false;
 
-            string dn = cb.Text.Replace("DN ", string.Empty);
-
             PipeTypeEnum fr = PipeTypeEnum.Frem;
             foreach (var frb in fremReturButtons)
                 if (frb.Checked) fr = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum), frb.Text);
+
+            PipeSystemEnum system;
+            string dn;
+            if (cb.Text.StartsWith("DN "))
+            {
+                system = PipeSystemEnum.Stål;
+                dn = cb.Text.Replace("DN ", "");
+            }
+            else if (cb.Text.StartsWith("ALUPEX "))
+            {
+                system = PipeSystemEnum.AluPex;
+                dn = cb.Text.Replace("ALUPEX ", "");
+            }
+            else if (cb.Text.StartsWith("CU "))
+            {
+                system = PipeSystemEnum.Kobberflex;
+                dn = cb.Text.Replace("CU ", "");
+            }
+            else throw new System.Exception($"Unknown pipe button text: {cb.Text}!");
 
             ActivateLayer(PipeSystemEnum.Stål, fr, dn);
         }
@@ -92,9 +109,28 @@ namespace DriPaletteSet
             {
                 if (btn.Checked)
                 {
-                    string dn = btn.Text.Replace("DN ", string.Empty);
                     PipeTypeEnum fr = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum), cb.Text);
-                    ActivateLayer(PipeSystemEnum.Stål, fr, dn);
+
+                    PipeSystemEnum system;
+                    string dn;
+                    if (cb.Text.StartsWith("DN "))
+                    {
+                        system = PipeSystemEnum.Stål;
+                        dn = cb.Text.Replace("DN ", "");
+                    }
+                    else if (cb.Text.StartsWith("ALUPEX "))
+                    {
+                        system = PipeSystemEnum.AluPex;
+                        dn = cb.Text.Replace("ALUPEX ", "");
+                    }
+                    else if (cb.Text.StartsWith("CU "))
+                    {
+                        system = PipeSystemEnum.Kobberflex;
+                        dn = cb.Text.Replace("CU ", "");
+                    }
+                    else throw new System.Exception($"Unknown pipe button text: {cb.Text}!");
+
+                    ActivateLayer(system, fr, dn);
                 }
             }
         }

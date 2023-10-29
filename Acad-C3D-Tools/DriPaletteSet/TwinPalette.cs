@@ -69,9 +69,26 @@ namespace DriPaletteSet
             foreach (System.Windows.Forms.CheckBox checkBox in dnButtons)
                 if (checkBox.Checked && cb.Name != checkBox.Name) checkBox.Checked = false;
 
-            string dn = cb.Text.Replace("DN ", "");
+            PipeSystemEnum system;
+            string dn;
+            if (cb.Text.StartsWith("DN "))
+            {
+                system = PipeSystemEnum.Stål;
+                dn = cb.Text.Replace("DN ", "");
+            }
+            else if (cb.Text.StartsWith("ALUPEX "))
+            {
+                system = PipeSystemEnum.AluPex;
+                dn = cb.Text.Replace("ALUPEX ", "");
+            }
+            else if (cb.Text.StartsWith("CU "))
+            {
+                system = PipeSystemEnum.Kobberflex;
+                dn = cb.Text.Replace("CU ", "");
+            }
+            else throw new System.Exception($"Unknown pipe button text: {cb.Text}!");
 
-            ActivateLayer(PipeSystemEnum.Stål, PipeTypeEnum.Twin, dn);
+            ActivateLayer(system, PipeTypeEnum.Twin, dn);
         }
 
         private void seriesButtonCheckBox_Click(object sender, EventArgs e)
