@@ -54,6 +54,7 @@ using JsonConvert = Newtonsoft.Json.JsonConvert;
 using Newtonsoft.Json;
 using Autodesk.Gis.Map;
 using Autodesk.Gis.Map.ObjectData;
+using IntersectUtilities.PipeScheduleV2;
 
 namespace IntersectUtilities.Dimensionering
 {
@@ -3724,6 +3725,7 @@ namespace IntersectUtilities.Dimensionering
             using (Transaction dimTx = dimDb.TransactionManager.StartTransaction())
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
+                #region PropertyData setup
                 //Settings
                 PropertySetManager fjvFremPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
                 PSetDefs.FJV_fremtid fjvFremDef = new PSetDefs.FJV_fremtid();
@@ -3736,6 +3738,8 @@ namespace IntersectUtilities.Dimensionering
 
                 PropertySetManager piplPsm = new PropertySetManager(dimDb, PSetDefs.DefinedSets.DriPipelineData);
                 PSetDefs.DriPipelineData piplDef = new PSetDefs.DriPipelineData();
+
+                #endregion
 
                 void wr(string inp) => editor.WriteMessage(inp);
 
@@ -3771,10 +3775,24 @@ namespace IntersectUtilities.Dimensionering
                                 try
                                 {
                                     int dim;
-                                    if (item.dim == "-") dim = 25;
-                                    else dim = Convert.ToInt32(item.dim.Remove(0, 2));
+                                    UtilsCommon.Utils.PipeSystemEnum system;
+                                    if (item.dim == "-") { dim = 25; system = PipeSystemEnum.Stål; }
+                                    else
+                                    {
+                                        if (item.dim.StartsWith("DN")) 
+                                        {
+                                            system = PipeSystemEnum.Stål;
+                                            dim = Convert.ToInt32(item.dim.Remove(0, 2));
+                                        }
+                                        if (item.dim.StartsWith("PEX"))
+                                        {
+                                            system = PipeSystemEnum.PexU;
+                                            dim = Convert.ToInt32(item.dim.Remove(0, 3));
+                                        }
+                                        else { system = PipeSystemEnum.Stål; dim = 25; }
+                                    }
 
-                                    dimList.Add(new DimEntry(item.name, dim));
+                                    dimList.Add(new DimEntry(item.name, dim, system));
                                 }
                                 catch (System.Exception)
                                 {
@@ -3861,15 +3879,23 @@ namespace IntersectUtilities.Dimensionering
                         if (group.Key == default || group.Key == zeroHandle) continue;
                         Polyline originalPipe = group.Key.Go<Polyline>(localDb);
                         List<SizeEntry> sizes = new List<SizeEntry>();
-                        IOrderedEnumerable<IGrouping<int, DimEntry>> dims = group.GroupBy(x => x.Dim).OrderByDescending(x => x.Key);
-                        IGrouping<int, DimEntry>[] dimAr = dims.ToArray();
+                        IEnumerable<IGrouping<string, DimEntry>> dims = 
+                            group.GroupBy(x => x.SystemDN)
+                            .OrderByAlphaNumeric(x => x.Key)
+                            .Reverse();
+                        IGrouping<string, DimEntry>[] dimAr = dims.ToArray();
                         for (int i = 0; i < dimAr.Length; i++)
                         {
-                            int dn = dimAr[i].Key;
+                            int dn = dimAr[i].First().Dim;
                             double start = 0.0; double end = 0.0;
                             double kod = dn < 250 ?
                                 PipeSchedule.GetTwinPipeKOd(dn, pipeSeries) :
                                 PipeSchedule.GetBondedPipeKOd(dn, pipeSeries);
+
+                            if (dimAr[i].First().System == PipeSystemEnum.PexU)
+                                kod = PipeScheduleV2.PipeScheduleV2.GetPipeKOd(dn, pipeSeries);
+                            //CONTINUE HERE!!!
+
                             //Determine start
                             if (i != 0) start = dimAr[i - 1].MaxBy(x => x.Station).First().Station;
                             //Determine end
@@ -4044,10 +4070,16 @@ namespace IntersectUtilities.Dimensionering
         {
             public string Name { get; set; }
             public int Dim { get; set; }
+            public UtilsCommon.Utils.PipeSystemEnum System { get; set; }
+            public string SystemDN { get; set; }
             public Handle Pipe { get; set; } = new Handle(Convert.ToInt64("0", 16));
             public double Station { get; set; }
             public string Strækning { get; set; } = "";
-            public DimEntry(string name, int dim) { Name = name; Dim = dim; }
+            public DimEntry(string name, int dim, PipeSystemEnum system)
+            { 
+                Name = name; Dim = dim; System = system;
+                SystemDN = PipeScheduleV2.PipeScheduleV2.GetSystemString(system) + Dim;
+            }
         }
 
         public static bool IsPointInside(this Polyline pline, Point3d point)
