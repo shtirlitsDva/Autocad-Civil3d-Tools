@@ -351,6 +351,15 @@ namespace IntersectUtilities.PipeScheduleV2
 
             return pipeType.GetLayerColor(type);
         }
+        public static double GetTrenchWidth(
+            int DN, PipeSystemEnum system, PipeTypeEnum type, PipeSeriesEnum series)
+        {
+            if (!systemDictReversed.ContainsKey(system))
+                throw new Exception($"GetTrenchWidht received unknown system: {system}!");
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+
+            return pipeType.GetTrenchWidth(DN, type, series);
+        }
         #endregion
     }
 }

@@ -21,5 +21,6 @@ namespace IntersectUtilities.PipeScheduleV2
         IEnumerable<int> ListAllDnsForPipeTypeSerie(UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum serie);
         string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd);
         short GetLayerColor(UtilsCommon.Utils.PipeTypeEnum type);
+        double GetTrenchWidth(int dN, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series);
     }
 }

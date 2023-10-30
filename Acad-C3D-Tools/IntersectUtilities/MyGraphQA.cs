@@ -96,13 +96,13 @@ namespace IntersectUtilities
                 //Twin/Bonded test
                 PipeTypeEnum type1 = default;
                 PipeTypeEnum type2 = default;
-                if (ent1 is Polyline) type1 = PipeSchedule.GetPipeType(ent1);
+                if (ent1 is Polyline) type1 = GetPipeType(ent1);
                 else if (ent1 is BlockReference br)
                 {
                     type1 = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
                         ReadComponentSystem(br, dt, edge.EndType1));
                 }
-                if (ent2 is Polyline) type2 = PipeSchedule.GetPipeType(ent2);
+                if (ent2 is Polyline) type2 = GetPipeType(ent2);
                 else if (ent2 is BlockReference br)
                 {
                     type2 = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
@@ -140,7 +140,7 @@ namespace IntersectUtilities
 
                 int DN11 = default;
                 int DN12 = default;
-                if (ent1 is Polyline) DN11 = PipeSchedule.GetPipeDN(ent1);
+                if (ent1 is Polyline) DN11 = GetPipeDN(ent1);
                 else if (ent1 is BlockReference br)
                 {
                     DN11 = ReadComponentDN1Int(br, dt);
@@ -149,7 +149,7 @@ namespace IntersectUtilities
 
                 int DN21 = default;
                 int DN22 = default;
-                if (ent2 is Polyline) DN21 = PipeSchedule.GetPipeDN(ent2);
+                if (ent2 is Polyline) DN21 = GetPipeDN(ent2);
                 else if (ent2 is BlockReference br)
                 {
                     DN21 = ReadComponentDN1Int(br, dt);
@@ -186,40 +186,42 @@ namespace IntersectUtilities
                         if (type1 == "Reduktion")
                         {
                             //1.1 poly-reducer-poly
-                            if (ent2 is Polyline pl2)
-                            {
-                                PipeDnEnum DN1 = GetPipeDnEnum(pl2);
+                            #region Turned off because of dependence on obsolete code
+                            //if (ent2 is Polyline pl2)
+                            //{
+                            //    PipeDnEnum DN1 = GetPipeDnEnum(pl2);
 
-                                //Get the polyline at the other end of the reducer
-                                string conString = Graph.PSM.ReadPropertyString(
-                                    br1, Graph.DriGraph.ConnectedEntities);
-                                if (conString.IsNoE())
-                                    throw new System.Exception(
-                                        $"Malformend constring: {conString}, entity: {br1.Handle}.");
-                                var cons = GraphEntity.parseConString(conString);
+                            //    //Get the polyline at the other end of the reducer
+                            //    string conString = Graph.PSM.ReadPropertyString(
+                            //        br1, Graph.DriGraph.ConnectedEntities);
+                            //    if (conString.IsNoE())
+                            //        throw new System.Exception(
+                            //            $"Malformend constring: {conString}, entity: {br1.Handle}.");
+                            //    var cons = GraphEntity.parseConString(conString);
 
-                                if (cons.Length == 2)
-                                {
-                                    Entity ent3 =
-                                        cons.Where(x => x.ConHandle != pl2.Handle)
-                                        .FirstOrDefault().ConHandle.Go<Entity>(db);
+                            //    if (cons.Length == 2)
+                            //    {
+                            //        Entity ent3 =
+                            //            cons.Where(x => x.ConHandle != pl2.Handle)
+                            //            .FirstOrDefault().ConHandle.Go<Entity>(db);
 
-                                    if (ent3 is Polyline pl3)
-                                    {
-                                        PipeDnEnum DN2 = GetPipeDnEnum(pl3);
+                            //        if (ent3 is Polyline pl3)
+                            //        {
+                            //            PipeDnEnum DN2 = GetPipeDnEnum(pl3);
 
-                                        int interval;
-                                        if (br1.RealName() == "RED KDLR x2") interval = 2;
-                                        else interval = 1;
+                            //            int interval;
+                            //            if (br1.RealName() == "RED KDLR x2") interval = 2;
+                            //            else interval = 1;
 
-                                        if (((DN1 + interval) == DN2 || (DN2 + interval) == DN1))
-                                        {
-                                            return;
-                                        }
-                                        else errorMsg.Add("DN");
-                                    }
-                                }
-                            }
+                            //            if (((DN1 + interval) == DN2 || (DN2 + interval) == DN1))
+                            //            {
+                            //                return;
+                            //            }
+                            //            else errorMsg.Add("DN");
+                            //        }
+                            //    }
+                            //} 
+                            #endregion
                         }
 
                         //2. Parallelafgrening - reducer

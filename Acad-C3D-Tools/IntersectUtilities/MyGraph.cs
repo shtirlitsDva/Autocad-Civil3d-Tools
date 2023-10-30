@@ -582,7 +582,7 @@ namespace IntersectUtilities
                     switch (obj)
                     {
                         case Polyline pline:
-                            int dn = PipeSchedule.GetPipeDN(pline);
+                            int dn = GetPipeDN(pline);
                             string system = GetPipeType(pline).ToString();
                             sb.AppendLine($"[label=\"{{{handle}|Rør L{pline.Length.ToString("0.##")}}}|{system}\\n{dn}\"];");
                             break;

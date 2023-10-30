@@ -5005,7 +5005,7 @@ namespace IntersectUtilities
 
                             string key = $"{se.DN}-{se.System}-{se.Type}-{se.Series}";
 
-                            double tw = PipeSchedule.GetTrenchWidth(se.DN, se.System, se.Type, se.Series);
+                            double tw = GetTrenchWidth(se.DN, se.System, se.Type, se.Series);
                             if (tw == 0) continue;
 
                             TrenchSamplingPoint tsp = new TrenchSamplingPoint(

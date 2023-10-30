@@ -113,5 +113,15 @@ namespace IntersectUtilities.PipeScheduleV2
                 default: return 0;
             }
         }
+        public virtual double GetTrenchWidth(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        {
+            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur || 
+                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
+                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
+            if (results != null && results.Length > 0) return (double)results[0]["tWdth"];
+            return 1000000;
+        }
     }
 }

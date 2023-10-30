@@ -160,7 +160,7 @@ namespace IntersectUtilities
                 switch (entity)
                 {
                     case Polyline pline:
-                        int dn = PipeSchedule.GetPipeDN(pline);
+                        int dn = GetPipeDN(pline);
                         string system = GetPipeType(pline).ToString();
                         label.Handle = pline.Handle;
                         label.Description = $"Rør L{pline.Length.ToString("0.##")}";
@@ -192,7 +192,7 @@ namespace IntersectUtilities
                 switch (entity)
                 {
                     case Polyline pline:
-                        int dn = PipeSchedule.GetPipeDN(pline);
+                        int dn = GetPipeDN(pline);
                         string system = GetPipeType(pline).ToString();
                         label.Handle = pline.Handle;
                         label.Description = $"Rør L{pline.Length.ToString("0.##")}";

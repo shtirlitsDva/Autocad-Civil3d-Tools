@@ -1079,7 +1079,7 @@ namespace IntersectUtilities
                         SetDynBlockPropertyObject(stikBlock, "StikType", adresse);
                         SetDynBlockPropertyObject(stikBlock, "System", "Twin");
                         SetDynBlockPropertyObject(stikBlock, "DN1",
-                            Convert.ToDouble(PipeSchedule.GetPipeDN(pl)));
+                            Convert.ToDouble(GetPipeDN(pl)));
 
                         //Determine stik dimension
                         if (adresseRørDimDict.ContainsKey(adresse))
@@ -2145,7 +2145,7 @@ namespace IntersectUtilities
                             if (!failed)
                             {
                                 Curve curve = query.First();
-                                dns.Add(PipeSchedule.GetPipeDN(curve));
+                                dns.Add(GetPipeDN(curve));
                             }
                         }
 
