@@ -11,7 +11,7 @@ using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities
 {
-    public static class PipeSchedule
+    public static class PipeScheduleObsolete
     {
         private static readonly Dictionary<int, double> kOdsS1Twin = new Dictionary<int, double>
             {

@@ -196,6 +196,13 @@ namespace IntersectUtilities.PipeScheduleV2
             if (kOd == 0) prdDbg($"Ent {ent.Handle} has 0 kOd!");
             return kOd;
         }
+        public static double GetPipeKOd(PipeSystemEnum system, int dn, PipeTypeEnum type, PipeSeriesEnum pipeSeries)
+        {
+            if (!systemDictReversed.ContainsKey(system)) return 0;
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+
+            return pipeType.GetPipeKOd(dn, type, pipeSeries);
+        }
         public static PipeSeriesEnum GetPipeSeriesV2(Entity ent, bool hardFail = false)
         {
             if (ent is BlockReference br)
@@ -336,13 +343,6 @@ namespace IntersectUtilities.PipeScheduleV2
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
             string label = pipeType.GetLabel(DN, type, od, kOd);
             return label;
-        }
-        public static double GetPipeKOd(PipeSystemEnum system, int dn, PipeTypeEnum type, PipeSeriesEnum pipeSeries)
-        {
-            if (!systemDictReversed.ContainsKey(system)) return 0;
-            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
-
-            return pipeType.GetPipeKOd(dn, type, pipeSeries);
         }
         public static short GetLayerColor(PipeSystemEnum system, PipeTypeEnum type)
         {

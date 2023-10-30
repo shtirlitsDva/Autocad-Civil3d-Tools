@@ -34,7 +34,7 @@ using Dreambuild.AutoCAD;
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
-using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.ComponentSchedule;
 
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;

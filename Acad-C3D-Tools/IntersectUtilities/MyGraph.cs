@@ -34,7 +34,7 @@ using IntersectUtilities.UtilsCommon;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
-using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.ComponentSchedule;
 
 using AcRx = Autodesk.AutoCAD.Runtime;

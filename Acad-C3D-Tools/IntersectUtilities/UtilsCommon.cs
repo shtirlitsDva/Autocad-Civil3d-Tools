@@ -32,7 +32,7 @@ using Autodesk.Aec.PropertyData;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.Colors;
 using static IntersectUtilities.UtilsCommon.Utils;
-using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using IntersectUtilities.PipeScheduleV2;
 
 using AcRx = Autodesk.AutoCAD.Runtime;
