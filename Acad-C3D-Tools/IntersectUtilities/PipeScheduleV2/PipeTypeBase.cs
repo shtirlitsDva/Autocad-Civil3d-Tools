@@ -83,5 +83,22 @@ namespace IntersectUtilities.PipeScheduleV2
             return null;
         }
         public abstract string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd);
+        public virtual short GetLayerColor(UtilsCommon.Utils.PipeTypeEnum type)
+        {
+            switch (type)
+            {
+                case UtilsCommon.Utils.PipeTypeEnum.Ukendt:
+                    return 0;
+                case UtilsCommon.Utils.PipeTypeEnum.Twin:
+                    return 6;
+                case UtilsCommon.Utils.PipeTypeEnum.Frem:
+                    return 1;
+                case UtilsCommon.Utils.PipeTypeEnum.Retur:
+                    return 5;
+                case UtilsCommon.Utils.PipeTypeEnum.Enkelt:
+                    return 0;
+                default: return 0;
+            }
+        }
     }
 }

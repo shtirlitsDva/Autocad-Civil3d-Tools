@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Autodesk.AutoCAD.Colors;
+
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -18,5 +20,6 @@ namespace IntersectUtilities.PipeScheduleV2
         double GetBuerorMinRadius(int dn, int std);
         IEnumerable<int> ListAllDnsForPipeTypeSerie(UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum serie);
         string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd);
+        short GetLayerColor(UtilsCommon.Utils.PipeTypeEnum type);
     }
 }

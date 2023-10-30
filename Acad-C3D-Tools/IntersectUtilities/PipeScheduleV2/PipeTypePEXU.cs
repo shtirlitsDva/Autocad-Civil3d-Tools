@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace IntersectUtilities.PipeScheduleV2
 {
-    internal class PipeTypePEXU : PipeTypeBase
+    public class PipeTypePEXU : PipeTypeBase
     {
         public override double GetBuerorMinRadius(int dn, int std) => 0;
         public override string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd)
@@ -31,6 +31,23 @@ namespace IntersectUtilities.PipeScheduleV2
             var results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
             if (results != null && results.Length > 0) return (double)results[0]["kOd"];
             return 0;
+        }
+        public override short GetLayerColor(UtilsCommon.Utils.PipeTypeEnum type)
+        {
+            switch (type)
+            {
+                case UtilsCommon.Utils.PipeTypeEnum.Ukendt:
+                    return 0;
+                case UtilsCommon.Utils.PipeTypeEnum.Twin:
+                    return 190;
+                case UtilsCommon.Utils.PipeTypeEnum.Frem:
+                    return 1;
+                case UtilsCommon.Utils.PipeTypeEnum.Retur:
+                    return 5;
+                case UtilsCommon.Utils.PipeTypeEnum.Enkelt:
+                    return 190;
+                default: return 0;
+            }
         }
     }
 }

@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 
@@ -335,6 +336,20 @@ namespace IntersectUtilities.PipeScheduleV2
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
             string label = pipeType.GetLabel(DN, type, od, kOd);
             return label;
+        }
+        public static double GetPipeKOd(PipeSystemEnum system, int dn, PipeTypeEnum type, PipeSeriesEnum pipeSeries)
+        {
+            if (!systemDictReversed.ContainsKey(system)) return 0;
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+
+            return pipeType.GetPipeKOd(dn, type, pipeSeries);
+        }
+        public static short GetLayerColor(PipeSystemEnum system, PipeTypeEnum type)
+        {
+            if (!systemDictReversed.ContainsKey(system)) return 0;
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+
+            return pipeType.GetLayerColor(type);
         }
         #endregion
     }
