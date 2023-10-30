@@ -10,7 +10,6 @@ namespace IntersectUtilities.PipeScheduleV2
     internal class PipeTypeCU : PipeTypeBase
     {
         public override double GetBuerorMinRadius(int dn, int std) => 0.0;
-
         public override string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd)
         {
             switch (type)
@@ -27,9 +26,11 @@ namespace IntersectUtilities.PipeScheduleV2
                     return "";
             }
         }
-
-        public new double GetPipeKOd(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        public override double GetPipeKOd(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
         {
+            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
+                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
+                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
             if (series == UtilsCommon.Utils.PipeSeriesEnum.S3) series = UtilsCommon.Utils.PipeSeriesEnum.S2;
             DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
             if (results != null && results.Length > 0) return (double)results[0]["kOd"];

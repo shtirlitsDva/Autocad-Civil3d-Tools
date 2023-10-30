@@ -10,7 +10,6 @@ namespace IntersectUtilities.PipeScheduleV2
     public class PipeTypeRepository : IPipeTypeRepository
     {
         private Dictionary<string, IPipeType> _pipeTypeDictionary = new Dictionary<string, IPipeType>();
-
         public IPipeType GetPipeType(string type)
         {
             if (string.IsNullOrEmpty(type))
@@ -19,12 +18,10 @@ namespace IntersectUtilities.PipeScheduleV2
             if (_pipeTypeDictionary.ContainsKey(type)) return _pipeTypeDictionary[type];
             else throw new ArgumentNullException($"PipeType {type} does not exist!");
         }
-
         public void Initialize(Dictionary<string, IPipeType> pipeTypeDict)
         {
             _pipeTypeDictionary = pipeTypeDict;
         }
-
         public IEnumerable<string> ListAllPipeTypes()
         {
             foreach (var k in _pipeTypeDictionary) yield return k.Key;

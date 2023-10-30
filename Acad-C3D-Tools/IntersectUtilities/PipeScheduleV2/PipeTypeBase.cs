@@ -12,7 +12,7 @@ namespace IntersectUtilities.PipeScheduleV2
     public abstract class PipeTypeBase : IPipeType
     {
         protected DataTable _data;
-        public double GetPipeOd(int dn)
+        public virtual double GetPipeOd(int dn)
         {
             DataRow[] results = _data.Select($"DN = {dn}");
             if (results != null && results.Length > 0)
@@ -46,9 +46,13 @@ namespace IntersectUtilities.PipeScheduleV2
         }
         public void Initialize(DataTable table)
         { _data = table; ConvertDataTypes(); }
-        public UtilsCommon.Utils.PipeSeriesEnum GetPipeSeries(
+        public virtual UtilsCommon.Utils.PipeSeriesEnum GetPipeSeries(
             int dn, UtilsCommon.Utils.PipeTypeEnum type, double realKod)
         {
+            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
+                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
+                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+
             DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
 
             foreach (DataRow row in results)
@@ -63,7 +67,7 @@ namespace IntersectUtilities.PipeScheduleV2
             }
             return UtilsCommon.Utils.PipeSeriesEnum.Undefined;
         }
-        public double GetPipeKOd(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        public virtual double GetPipeKOd(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
         {
             if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
                 type == UtilsCommon.Utils.PipeTypeEnum.Frem)
@@ -72,15 +76,21 @@ namespace IntersectUtilities.PipeScheduleV2
             if (results != null && results.Length > 0) return (double)results[0]["kOd"];
             return 0;
         }
-        public double GetMinElasticRadius(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        public virtual double GetMinElasticRadius(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
         {
+            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
+                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
+                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
             DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
             if (results != null && results.Length > 0) return (double)results[0]["minElasticRadii"];
             return 0;
         }
         public abstract double GetBuerorMinRadius(int dn, int std);
-        public IEnumerable<int> ListAllDnsForPipeTypeSerie(UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        public virtual IEnumerable<int> ListAllDnsForPipeTypeSerie(UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
         {
+            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
+                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
+                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
             DataRow[] results = _data.Select($"PipeType = '{type}' AND PipeSeries = '{series}'");
             if (results != null && results.Length > 0) return results.Select(x => (int)x["DN"]);
             return null;

@@ -21,7 +21,6 @@ namespace IntersectUtilities.PipeScheduleV2
             }
             return 0;
         }
-
         public override string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd)
         {
             switch (type)
