@@ -123,5 +123,15 @@ namespace IntersectUtilities.PipeScheduleV2
             if (results != null && results.Length > 0) return (double)results[0]["tWdth"];
             return 1000000;
         }
+        public short GetSizeColor(int dn, UtilsCommon.Utils.PipeTypeEnum type)
+        {
+            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
+                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
+                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
+            if (results != null && results.Length > 0) return (short)results[0]["color"];
+            return 0;
+        }
     }
 }

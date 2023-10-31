@@ -6430,12 +6430,12 @@ namespace IntersectUtilities
                     foreach (var ltrid in lt)
                     {
                         LayerTableRecord ltr = ltrid.Go<LayerTableRecord>(tx);
-                        if (GetPipeDN(ltr.Name) != 999) pipeLtrs.Add(ltr);
+                        if (GetPipeDN(ltr.Name) != 0) pipeLtrs.Add(ltr);
                     }
                     pipeLtrs = pipeLtrs
-                        .GroupBy(x => GetPipeDN(x.Name))
-                        .Select(x => x.First())
-                        .OrderBy(x => GetPipeDN(x.Name))
+                        .OrderBy(x => GetSystemString(x.Name))
+                        .ThenBy(x => GetPipeType(x.Name))
+                        .ThenBy(x => GetPipeDN(x.Name))
                         .ToList();
 
                     prdDbg($"Number of pipe layers in drawing: {pipeLtrs.Count}");
@@ -6474,7 +6474,7 @@ namespace IntersectUtilities
                     #region Determine upper right corner of all polylines: Point3d UpperRightCorner
                     //To place legend find bbox of all plines and place legend at the top right corner
                     HashSet<Polyline> allPlines = localDb.HashSetOfType<Polyline>(tx)
-                        .Where(x => GetPipeDN(x) != 999).ToHashSet();
+                        .Where(x => GetPipeDN(x) != 0).ToHashSet();
 
                     //Determine maximum points
                     HashSet<double> Xs = new HashSet<double>();
@@ -6496,28 +6496,12 @@ namespace IntersectUtilities
                     #endregion
 
                     //Assign colors and create legend
-                    Random random = new Random();
-                    HashSet<short> existingNumbers =
-                        ColorUtils.StaticColorList.DnToColorDict.Select(x => x.Value).ToHashSet();
                     int i = 0;
                     foreach (var layer in pipeLtrs)
                     {
-                        int dn = GetPipeDN(layer.Name);
-                        string key = "DN" + dn;
-
                         //Determine color
-                        Color color;
-                        if (ColorUtils.StaticColorList.DnToColorDict.ContainsKey(key))
-                            color = Color.FromColorIndex(ColorMethod.ByAci,
-                                ColorUtils.StaticColorList.DnToColorDict[key]);
-                        else
-                        {
-                            short num;
-                            do num = (short)random.Next(1, 254);
-                            while (existingNumbers.Contains(num));
-                            existingNumbers.Add(num);
-                            color = Color.FromColorIndex(ColorMethod.ByAci, num);
-                        }
+                        Color color = Color.FromColorIndex(ColorMethod.ByAci,
+                            GetColorForDim(layer.Name));
 
                         layer.CheckOrOpenForWrite();
                         layer.Color = color;
@@ -6539,7 +6523,7 @@ namespace IntersectUtilities
                         text.Height = 5;
                         text.Color = color;
                         text.TextString =
-                            $"DN{GetPipeDN(layer.Name)} " +
+                            $"{GetSystemString(layer.Name)}{GetPipeDN(layer.Name)}-" +
                             $"{GetPipeType(layer.Name)}";
 
                         i--;
@@ -6574,7 +6558,7 @@ namespace IntersectUtilities
                     foreach (var ltrid in lt)
                     {
                         LayerTableRecord ltr = ltrid.Go<LayerTableRecord>(tx);
-                        if (GetPipeDN(ltr.Name) != 999) pipeLtrs.Add(ltr);
+                        if (GetPipeDN(ltr.Name) != 0) pipeLtrs.Add(ltr);
                     }
                     pipeLtrs = pipeLtrs.OrderBy(x => x.Name).ToList();
 
@@ -6584,22 +6568,9 @@ namespace IntersectUtilities
                     foreach (var ltr in pipeLtrs)
                     {
                         ltr.CheckOrOpenForWrite();
-                        PipeTypeEnum type = GetPipeType(ltr.Name);
 
-                        switch (type)
-                        {
-                            case PipeTypeEnum.Ukendt:
-                                throw new System.Exception($"Unexpected type {type}!");
-                            case PipeTypeEnum.Twin:
-                                ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
-                                break;
-                            case PipeTypeEnum.Frem:
-                            case PipeTypeEnum.Retur:
-                                ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
-                                break;
-                            default:
-                                throw new System.Exception($"Unexpected type {type}!");
-                        }
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 
+                            GetLayerColor(GetPipeSystem(ltr.Name), GetPipeType(ltr.Name)));
                     }
                 }
                 catch (System.Exception ex)

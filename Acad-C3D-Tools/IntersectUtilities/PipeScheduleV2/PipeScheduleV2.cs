@@ -39,6 +39,13 @@ namespace IntersectUtilities.PipeScheduleV2
             if (!systemDictReversed.ContainsKey(system)) return "Ukendt";
             return systemDictReversed[system];
         }
+        public static string GetSystemString(string layer)
+        {
+            layer = ExtractLayerName(layer);
+            if (layerNameDataParser.IsMatch(layer))
+                return layerNameDataParser.Match(layer).Groups["DATATYPE"].Value;
+            return "Ukendt";
+        }
         #endregion
 
         #region Variables and dicts
@@ -84,6 +91,7 @@ namespace IntersectUtilities.PipeScheduleV2
             {"minElasticRadii", typeof(double)},
             {"VpMax12", typeof(double)},
             {"VpMax16", typeof(double)},
+            {"color",typeof(short)},
         };
 
         public static void LoadPipeTypeData(string pathToPipeTypesStore)
@@ -157,9 +165,9 @@ namespace IntersectUtilities.PipeScheduleV2
         {
             return GetPipeType(ExtractLayerName(ent));
         }
-        public static PipeSystemEnum GetPipeSystem(Entity ent)
+        public static PipeSystemEnum GetPipeSystem(string layer)
         {
-            string layer = ExtractLayerName(ent);
+            layer = ExtractLayerName(layer);
             if (layerNameDataParser.IsMatch(layer))
             {
                 var systemString = layerNameDataParser.Match(layer).Groups["DATATYPE"].Value;
@@ -169,6 +177,7 @@ namespace IntersectUtilities.PipeScheduleV2
             }
             return PipeSystemEnum.Ukendt;
         }
+        public static PipeSystemEnum GetPipeSystem(Entity ent) => GetPipeSystem(ExtractLayerName(ent));
         public static double GetPipeOd(Entity ent)
         {
             int dn = GetPipeDN(ent);
@@ -359,6 +368,15 @@ namespace IntersectUtilities.PipeScheduleV2
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
 
             return pipeType.GetTrenchWidth(DN, type, series);
+        }
+        public static short GetColorForDim(string layer)
+        {
+            layer = ExtractLayerName(layer);
+            var type = GetPipeType(layer);
+            var system = GetPipeSystem(layer);
+            if (!systemDictReversed.ContainsKey(system)) return 0;
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+            return pipeType.GetSizeColor(GetPipeDN(layer), type);
         }
         #endregion
     }

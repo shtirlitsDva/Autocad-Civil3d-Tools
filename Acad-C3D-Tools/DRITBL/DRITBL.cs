@@ -34,6 +34,7 @@ using IntersectUtilities.UtilsCommon;
 //using static IntersectUtilities.HelperMethods;
 //using static IntersectUtilities.Utils;
 using static IntersectUtilities.UtilsCommon.Utils;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.UtilsODData;
@@ -185,9 +186,9 @@ namespace IntersectUtilities.DRITBL
                             irp.Vejnavn = psm.ReadPropertyString(polygonPline, psDef.Vejnavn);
                             irp.Vejklasse = psm.ReadPropertyString(polygonPline, psDef.Vejklasse);
                             irp.Belægning = psm.ReadPropertyString(polygonPline, psDef.Belægning);
-                            irp.DN1 = PipeSchedule.GetPipeDN(pipe).ToString();
-                            irp.System = PipeSchedule.GetPipeType(pipe, true).ToString();
-                            irp.Serie = PipeSchedule.GetPipeSeriesV2(pipe, true).ToString();
+                            irp.DN1 = GetPipeDN(pipe).ToString();
+                            irp.System = GetPipeType(pipe, true).ToString();
+                            irp.Serie = GetPipeSeriesV2(pipe, true).ToString();
                             irp.Length = intersect.Length;
 
                             allResults.Add(irp);

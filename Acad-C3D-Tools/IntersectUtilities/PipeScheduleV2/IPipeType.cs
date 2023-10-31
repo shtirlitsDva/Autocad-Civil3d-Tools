@@ -22,5 +22,6 @@ namespace IntersectUtilities.PipeScheduleV2
         string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd);
         short GetLayerColor(UtilsCommon.Utils.PipeTypeEnum type);
         double GetTrenchWidth(int dN, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series);
+        short GetSizeColor(int dn, UtilsCommon.Utils.PipeTypeEnum type);
     }
 }
