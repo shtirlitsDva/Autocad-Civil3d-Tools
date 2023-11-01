@@ -275,7 +275,7 @@ namespace IntersectUtilities
                 { "StikEnd-StikStart", true },
                 { "StikEnd-StikEnd", false },
                 { "WeldOn-Main", true },
-                { "Main-WeldOn", false }
+                { "Main-WeldOn", true }
             };
         public class GraphEntity
         {
@@ -387,10 +387,12 @@ namespace IntersectUtilities
                 GraphEntity ge = GraphEntities
                     .Where(x =>
                     //Exclude WeldOn and StikAfgrening EndTypes from count
-                        x.Cons.Count(y =>
+                        (x.Cons.Count(y =>
                             y.OwnEndType != EndType.StikAfgrening &&
-                            y.OwnEndType != EndType.WeldOn) == 1
-                    )
+                            y.OwnEndType != EndType.WeldOn) == 1) ||
+                        (x.Cons.Count(y => y.OwnEndType != EndType.WeldOn) == 0 && 
+                        x.Cons.Count(y => y.OwnEndType == EndType.WeldOn) > 0
+                            ))
                     .MaxBy(x => x.LargestDn()).FirstOrDefault();
 
                 if (ge == null)
