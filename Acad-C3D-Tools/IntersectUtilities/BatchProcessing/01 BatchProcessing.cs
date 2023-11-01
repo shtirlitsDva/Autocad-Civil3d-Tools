@@ -34,7 +34,7 @@ using Dreambuild.AutoCAD;
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
-using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.UtilsODData;
@@ -1104,7 +1104,7 @@ namespace IntersectUtilities
             Transaction xTx = xDb.TransactionManager.TopTransaction;
             var als = xDb.HashSetOfType<Alignment>(xTx);
 
-            Regex reg1 = new Regex(@"(?<number>\d{2,3}?\s)");
+            Regex reg1 = new Regex(@"(?<number>\d{2,3})");
 
             bool isValidCreation = false;
             DataShortcuts.DataShortcutManager sm = DataShortcuts.CreateDataShortcutManager(ref isValidCreation);
@@ -1174,7 +1174,7 @@ namespace IntersectUtilities
             Transaction xTx = xDb.TransactionManager.TopTransaction;
             var als = xDb.HashSetOfType<Alignment>(xTx);
 
-            Regex reg1 = new Regex(@"(?<number>\d{2,3}?\s)");
+            Regex reg1 = new Regex(@"(?<number>\d{2,3})");
 
             bool isValidCreation = false;
             DataShortcuts.DataShortcutManager sm = DataShortcuts.CreateDataShortcutManager(ref isValidCreation);
@@ -1885,6 +1885,69 @@ namespace IntersectUtilities
                 }
             }
 
+            return new Result();
+        }
+        [MethodDescription(
+            "Change layer for an xref with partial name match",
+            "Skifter laget til det angivne\n" +
+            "for en xref, hvor navnet på xref'en\n"+
+            "matches med en del af navnet.",
+            new string[2] { "Xref Del af Navnet", "Laget Xref'en skal sættes til" })]
+        public static Result changelayerforxref(Database xDb, string xrefPartialName, string layerName)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+
+            BlockTable bt = xDb.BlockTableId.Go<BlockTable>(xTx, OpenMode.ForRead);
+            var modelSpace = xDb.GetModelspaceForWrite();
+
+            foreach (Oid oid in bt)
+            {
+                BlockTableRecord btr = xTx.GetObject(oid, OpenMode.ForWrite) as BlockTableRecord;
+                if (btr.Name.Contains(xrefPartialName) && btr.IsFromExternalReference)
+                {
+                    prdDbg($"Found specified xref: {btr.Name}");
+
+                    var ids = btr.GetBlockReferenceIds(true, false);
+                    foreach (Oid id in ids)
+                    {
+                        var br = id.Go<BlockReference>(xTx, OpenMode.ForWrite);
+                        br.Layer = layerName;
+                    }
+
+                    return new Result();
+                }
+            }
+            prdDbg("Specified xref NOT found!");
+            return new Result();
+        }
+        [MethodDescription(
+            "Delete wrongly shortcuttet profiles and alignment",
+            "Sletter alle profiler i tegningen.\n" +
+            "Sletter alignments som har \"(\"\n" +
+            "som en del af navnet. Det betyder at det\n" +
+            "har været en dublikat alignment som er shortcuttet.")]
+        public static Result deletewronglyshortcuttedprofilesandalignments(Database xDb)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+
+            var profiles = xDb.ListOfType<Profile>(xTx);
+
+            foreach (var item in profiles)
+            {
+                item.CheckOrOpenForWrite();
+                item.Erase(true);
+            }
+
+            var als = xDb.ListOfType<Alignment>(xTx);
+            foreach (var item in als)
+            {
+                if (item.Name.Contains("("))
+                {
+                    prdDbg(item.Name);
+                    item.CheckOrOpenForWrite();
+                    item.Erase(true);
+                }
+            }
             return new Result();
         }
     }

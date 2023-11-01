@@ -32,7 +32,8 @@ using Autodesk.Aec.PropertyData;
 using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.Colors;
 using static IntersectUtilities.UtilsCommon.Utils;
-using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
+using IntersectUtilities.PipeScheduleV2;
 
 using AcRx = Autodesk.AutoCAD.Runtime;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
@@ -47,7 +48,6 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
-using IntersectUtilities;
 
 namespace IntersectUtilities.UtilsCommon
 {
@@ -67,6 +67,20 @@ namespace IntersectUtilities.UtilsCommon
     }
     public static class Utils
     {
+        private static System.Data.DataTable fjvBlocksDt = null;
+        public static System.Data.DataTable GetFjvBlocksDt()
+        {
+            if (fjvBlocksDt == null)
+            {
+                if (!File.Exists(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv"))
+                    throw new System.Exception(
+                        "FJV Dynamiske Komponenter.csv is not available at standard location!");
+
+                fjvBlocksDt = CsvReader.ReadCsvToDataTable(
+                    @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+            }
+            return fjvBlocksDt;
+        }
         public static bool atZero(this double value) => value > -0.0001 && value < 0.0001;
         public static bool at99(this double value) => value < -98.0;
         public static bool is3D(this double value) => !atZero(value) && !at99(value);
@@ -396,7 +410,8 @@ namespace IntersectUtilities.UtilsCommon
             Ukendt,
             Stål,
             Kobberflex,
-            AluPex
+            AluPex,
+            PexU
         }
         public enum DynamicProperty
         {
@@ -1633,6 +1648,47 @@ namespace IntersectUtilities.UtilsCommon
             }
 
             return "";
+        }
+        public static bool CheckIfBlockIsLatestVersion(this BlockReference br)
+        {
+            System.Data.DataTable dt = GetFjvBlocksDt();
+            Database Db = br.Database;
+            if (Db.TransactionManager.TopTransaction == null)
+                throw new System.Exception("CheckIfBlockLatestVersion called outside transaction!");
+            Transaction tx = Db.TransactionManager.TopTransaction;
+
+            var btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+
+            #region Read present block version
+            string version = "";
+            foreach (Oid oid in btr)
+            {
+                if (oid.IsDerivedFrom<AttributeDefinition>())
+                {
+                    var atdef = oid.Go<AttributeDefinition>(tx);
+                    if (atdef.Tag == "VERSION") { version = atdef.TextString; break; }
+                }
+            }
+            if (version.IsNoE()) version = "1";
+            if (version.Contains("v")) version = version.Replace("v", "");
+            int blockVersion = Convert.ToInt32(version);
+            #endregion
+
+            #region Determine latest version
+            var query = dt.AsEnumerable()
+                    .Where(x => x["Navn"].ToString() == br.RealName())
+                    .Select(x => x["Version"].ToString())
+                    .Select(x => { if (x == "") return "1"; else return x; })
+                    .Select(x => Convert.ToInt32(x.Replace("v", "")))
+                    .OrderBy(x => x);
+
+            if (query.Count() == 0)
+                throw new System.Exception($"Block {br.RealName()} is not present in FJV Dynamiske Komponenter.csv!");
+            int maxVersion = query.Max();
+            #endregion
+
+            if (maxVersion != blockVersion) return false;
+            else return true;
         }
         /// <summary>
         /// Requires active transaction!
@@ -2985,23 +3041,11 @@ namespace IntersectUtilities.UtilsCommon
 
             var rawPlines = db.ListOfType<Polyline>(tr, discardFrozen);
             entities = rawPlines
-                .Where(pline => GetPipeSystem(pline) != PipeSystemEnum.Ukendt)
+                .Where(pline => PipeScheduleV2.PipeScheduleV2.GetPipeSystem(pline) != PipeSystemEnum.Ukendt)
                 .ToHashSet();
 
             return entities;
         }
-        public static IEnumerable<Oid> GetFjvPipesIds(this Database db, bool discardFrozen = false)
-        {
-            Transaction tx = db.TransactionManager.StartTransaction();
-
-            var rawPlines = db.ListOfType<Polyline>(tx, discardFrozen);
-            foreach (var item in rawPlines)
-                if (GetPipeSystem(item) != PipeSystemEnum.Ukendt) yield return item.Id;
-
-            tx.Abort();
-            tx.Dispose();
-        }
-
         // Searches the drawing for a block with the specified name.
         // Returns either the block, or null - check accordingly.
         public static HashSet<Autodesk.AutoCAD.DatabaseServices.BlockReference> GetBlockReferenceByName(

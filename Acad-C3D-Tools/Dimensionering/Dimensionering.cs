@@ -54,6 +54,7 @@ using JsonConvert = Newtonsoft.Json.JsonConvert;
 using Newtonsoft.Json;
 using Autodesk.Gis.Map;
 using Autodesk.Gis.Map.ObjectData;
+using IntersectUtilities.PipeScheduleV2;
 
 namespace IntersectUtilities.Dimensionering
 {
@@ -3712,7 +3713,7 @@ namespace IntersectUtilities.Dimensionering
             string areaName,
             Dictionary<string, BlockReference> brDict,
             ILookup<string, IGrouping<string, Polyline>> plLookup,
-            PipeSeriesEnum pipeSeries
+            PipeSeriesEnum series
             )
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -3724,6 +3725,7 @@ namespace IntersectUtilities.Dimensionering
             using (Transaction dimTx = dimDb.TransactionManager.StartTransaction())
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
+                #region PropertyData setup
                 //Settings
                 PropertySetManager fjvFremPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.FJV_fremtid);
                 PSetDefs.FJV_fremtid fjvFremDef = new PSetDefs.FJV_fremtid();
@@ -3736,6 +3738,8 @@ namespace IntersectUtilities.Dimensionering
 
                 PropertySetManager piplPsm = new PropertySetManager(dimDb, PSetDefs.DefinedSets.DriPipelineData);
                 PSetDefs.DriPipelineData piplDef = new PSetDefs.DriPipelineData();
+
+                #endregion
 
                 void wr(string inp) => editor.WriteMessage(inp);
 
@@ -3763,26 +3767,39 @@ namespace IntersectUtilities.Dimensionering
                         foreach (var item in namesArray) namesList.Add(item?.ToString() ?? "");
                         foreach (var item in dimsArray) dimsList.Add(item?.ToString() ?? "");
 
-                        var zip = namesList.Zip(dimsList, (x, y) => new { name = x, dim = y });
+                        var zip = namesList.Zip(
+                            dimsList, (x, y) => new { name = x, dim = y })
+                            .Where(x => x.name.IsNotNoE());
+
                         foreach (var item in zip)
                         {
-                            if (item.name.IsNotNoE())
+                            try
                             {
-                                try
+                                int dim;
+                                UtilsCommon.Utils.PipeSystemEnum system;
+                                if (item.dim == "-") { dim = 25; system = PipeSystemEnum.Stål; }
+                                else
                                 {
-                                    int dim;
-                                    if (item.dim == "-") dim = 25;
-                                    else dim = Convert.ToInt32(item.dim.Remove(0, 2));
+                                    if (item.dim.StartsWith("DN"))
+                                    {
+                                        system = PipeSystemEnum.Stål;
+                                        dim = Convert.ToInt32(item.dim.Remove(0, 2));
+                                    }
+                                    else if (item.dim.StartsWith("PEX"))
+                                    {
+                                        system = PipeSystemEnum.PexU;
+                                        dim = Convert.ToInt32(item.dim.Remove(0, 3));
+                                    }
+                                    else { system = PipeSystemEnum.Stål; dim = 25; }
+                                }
 
-                                    dimList.Add(new DimEntry(item.name, dim));
-                                }
-                                catch (System.Exception)
-                                {
-                                    prdDbg($"Item.name: {item.name}, Item.dim: {item.dim}");
-                                    throw;
-                                }
+                                dimList.Add(new DimEntry(item.name, dim, system));
                             }
-
+                            catch (System.Exception)
+                            {
+                                prdDbg($"Item.name: {item.name}, Item.dim: {item.dim}");
+                                throw;
+                            }
                         }
                     }
                     #endregion
@@ -3861,21 +3878,35 @@ namespace IntersectUtilities.Dimensionering
                         if (group.Key == default || group.Key == zeroHandle) continue;
                         Polyline originalPipe = group.Key.Go<Polyline>(localDb);
                         List<SizeEntry> sizes = new List<SizeEntry>();
-                        IOrderedEnumerable<IGrouping<int, DimEntry>> dims = group.GroupBy(x => x.Dim).OrderByDescending(x => x.Key);
-                        IGrouping<int, DimEntry>[] dimAr = dims.ToArray();
+                        IEnumerable<IGrouping<string, DimEntry>> dims =
+                            group.GroupBy(x => x.SystemDN)
+                            .OrderByAlphaNumeric(x => x.Key)
+                            .Reverse();
+                        IGrouping<string, DimEntry>[] dimAr = dims.ToArray();
                         for (int i = 0; i < dimAr.Length; i++)
                         {
-                            int dn = dimAr[i].Key;
+                            int dn = dimAr[i].First().Dim;
                             double start = 0.0; double end = 0.0;
-                            double kod = dn < 250 ?
-                                PipeSchedule.GetTwinPipeKOd(dn, pipeSeries) :
-                                PipeSchedule.GetBondedPipeKOd(dn, pipeSeries);
+
+                            var system = dimAr[i].First().System;
+                            PipeTypeEnum type;
+                            if (system == PipeSystemEnum.Stål)
+                            {
+                                if (dn < 250) type = PipeTypeEnum.Twin;
+                                else type = PipeTypeEnum.Frem;
+                            }
+                            else if (system == PipeSystemEnum.PexU) type = PipeTypeEnum.Twin;
+                            else type = PipeTypeEnum.Twin;
+
+                            double kod = PipeScheduleV2.PipeScheduleV2.GetPipeKOd(system, dn, type, series);
+
+
                             //Determine start
                             if (i != 0) start = dimAr[i - 1].MaxBy(x => x.Station).First().Station;
                             //Determine end
                             if (i != dimAr.Length - 1) end = dimAr[i].MaxBy(x => x.Station).First().Station;
                             else end = originalPipe.Length;
-                            sizes.Add(new SizeEntry(dn, start, end, kod, default, default, default));
+                            sizes.Add(new SizeEntry(dn, start, end, kod, system, type, series));
                         }
 
                         #region Consolidate sizes -> remove 0 length sizes
@@ -3904,16 +3935,14 @@ namespace IntersectUtilities.Dimensionering
                             for (int i = 0; i < originalPipe.NumberOfVertices; i++)
                                 newPipe.AddVertexAt(newPipe.NumberOfVertices, originalPipe.GetPoint2dAt(i), 0, 0, 0);
 
-                            PipeTypeEnum pipeType =
-                                sizeArray[0].DN < 250 ?
-                                PipeTypeEnum.Twin :
-                                PipeTypeEnum.Frem;
+                            var entry = sizeArray[0];
+                            string systemString = PipeScheduleV2.PipeScheduleV2.GetSystemString(entry.System);
 
                             //Determine layer
                             string layerName = string.Concat(
-                                "FJV-", pipeType.ToString(), "-", "DN" + sizeArray[0].DN.ToString()).ToUpper();
+                                "FJV-", entry.Type, "-", systemString, entry.DN).ToUpper();
 
-                            CheckOrCreateLayerForPipe(dimDb, layerName, pipeType);
+                            CheckOrCreateLayerForPipe(dimDb, layerName, entry.System, entry.Type);
 
                             newPipe.Layer = layerName;
                             newPipe.ConstantWidth = sizeArray[0].Kod / 1000.0;
@@ -3935,7 +3964,7 @@ namespace IntersectUtilities.Dimensionering
 
                                 for (int i = 0; i < objs.Count; i++)
                                 {
-                                    SizeEntry curSize = sizeArray[i];
+                                    SizeEntry entry = sizeArray[i];
                                     Polyline curChunk = objs[i] as Polyline;
 
                                     newPipe = new Polyline(curChunk.NumberOfVertices);
@@ -3944,16 +3973,13 @@ namespace IntersectUtilities.Dimensionering
                                     for (int j = 0; j < curChunk.NumberOfVertices; j++)
                                         newPipe.AddVertexAt(newPipe.NumberOfVertices, curChunk.GetPoint2dAt(j), 0, 0, 0);
 
-                                    PipeTypeEnum pipeType =
-                                        sizeArray[i].DN < 250 ?
-                                        PipeTypeEnum.Twin :
-                                        PipeTypeEnum.Frem;
+                                    string systemString = PipeScheduleV2.PipeScheduleV2.GetSystemString(entry.System);
 
                                     //Determine layer
                                     string layerName = string.Concat(
-                                        "FJV-", pipeType.ToString(), "-", "DN" + sizeArray[i].DN.ToString()).ToUpper();
+                                        "FJV-", entry.Type, "-", systemString, entry.DN).ToUpper();
 
-                                    CheckOrCreateLayerForPipe(dimDb, layerName, pipeType);
+                                    CheckOrCreateLayerForPipe(dimDb, layerName, entry.System, entry.Type);
 
                                     newPipe.Layer = layerName;
                                     newPipe.ConstantWidth = sizeArray[i].Kod / 1000.0;
@@ -3972,7 +3998,7 @@ namespace IntersectUtilities.Dimensionering
                         #region Local method to create correct Pipe layer
                         //Avoid side effects with local methods!
                         //Use only passed arguments, do not operate on variables out of method's scope
-                        void CheckOrCreateLayerForPipe(Database db, string layerName, PipeTypeEnum pipeType)
+                        void CheckOrCreateLayerForPipe(Database db, string layerName, PipeSystemEnum localSystem, PipeTypeEnum localType)
                         {
                             Transaction localTx = db.TransactionManager.TopTransaction;
                             LayerTable lt = db.LayerTableId.Go<LayerTable>(localTx);
@@ -3983,20 +4009,8 @@ namespace IntersectUtilities.Dimensionering
 
                                 LayerTableRecord ltr = new LayerTableRecord();
                                 ltr.Name = layerName;
-                                switch (pipeType)
-                                {
-                                    case PipeTypeEnum.Twin:
-                                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
-                                        break;
-                                    case PipeTypeEnum.Frem:
-                                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
-                                        break;
-                                    case PipeTypeEnum.Retur:
-                                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 5);
-                                        break;
-                                    default:
-                                        break;
-                                }
+                                short color = PipeScheduleV2.PipeScheduleV2.GetLayerColor(localSystem, localType);
+                                ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, color);
                                 Oid continuous = ltt["Continuous"];
                                 ltr.LinetypeObjectId = continuous;
                                 ltr.LineWeight = LineWeight.ByLineWeightDefault;
@@ -4044,10 +4058,16 @@ namespace IntersectUtilities.Dimensionering
         {
             public string Name { get; set; }
             public int Dim { get; set; }
+            public UtilsCommon.Utils.PipeSystemEnum System { get; set; }
+            public string SystemDN { get; set; }
             public Handle Pipe { get; set; } = new Handle(Convert.ToInt64("0", 16));
             public double Station { get; set; }
             public string Strækning { get; set; } = "";
-            public DimEntry(string name, int dim) { Name = name; Dim = dim; }
+            public DimEntry(string name, int dim, PipeSystemEnum system)
+            {
+                Name = name; Dim = dim; System = system;
+                SystemDN = PipeScheduleV2.PipeScheduleV2.GetSystemString(system) + dim;
+            }
         }
 
         public static bool IsPointInside(this Polyline pline, Point3d point)

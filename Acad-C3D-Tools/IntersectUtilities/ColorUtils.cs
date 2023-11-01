@@ -392,46 +392,4 @@ namespace IntersectUtilities.ColorUtils
                     (byte)SystemMath.Max(0D, SystemMath.Min(255D, ((color1.B * a1) + (color2.B * a2)) * .5D)));
         }
     }
-    public static class StaticColorList
-    {
-        public static List<string> StaticColors = new List<string>()
-        {
-            "#9acd32",
-            "#8b008b",
-            "#ff0000",
-            "#ff8c00",
-            "#ffff00",
-            "#7fff00",
-            "#00fa9a",
-            "#8a2be2",
-            "#dc143c",
-            "#00ffff",
-            "#00bfff",
-            "#0000ff",
-            "#f08080",
-            "#d8bfd8",
-            "#ff00ff",
-            "#1e90ff",
-            "#ff1493",
-            "#ee82ee"
-        };
-        public static Dictionary<string, short> DnToColorDict = new Dictionary<string, short>()
-        {
-            { "DN25", 4 },
-            { "DN32", 161 },
-            { "DN40", 5 },
-            { "DN50", 1 },
-            { "DN65", 6 },
-            { "DN80", 200 },
-            { "DN100", 3 },
-            { "DN125", 82 },
-            { "DN150", 15 },
-            { "DN200", 123 },
-            { "DN250", 153 },
-            { "DN300", 2 },
-            { "DN350", 31 },
-            { "DN400", 40 },
-            { "DN450", 232 },
-        };
-    }
 }

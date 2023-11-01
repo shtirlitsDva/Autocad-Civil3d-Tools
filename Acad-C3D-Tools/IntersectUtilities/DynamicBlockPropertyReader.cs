@@ -21,8 +21,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
+using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities;
-using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
@@ -246,11 +247,11 @@ namespace IntersectUtilities.DynamicBlocks
                     switch (system)
                     {
                         case PipeTypeEnum.Twin:
-                            return PipeSchedule.GetTwinPipeKOd(dn, series);
+                            return GetPipeKOd(PipeSystemEnum.Stål, dn, PipeTypeEnum.Twin, series);
                         case PipeTypeEnum.Frem:
                         case PipeTypeEnum.Retur:
                         case PipeTypeEnum.Enkelt:
-                            return PipeSchedule.GetBondedPipeKOd(dn, series);
+                            return GetPipeKOd(PipeSystemEnum.Stål, dn, PipeTypeEnum.Enkelt, series);
                         case PipeTypeEnum.Ukendt:
                         default:
                             throw new System.Exception($"{br.RealName()}:{br.Handle} returned non-standard \"System\": (PipeTypeEnum) {systemString}!");
@@ -281,11 +282,11 @@ namespace IntersectUtilities.DynamicBlocks
                     switch (system)
                     {
                         case PipeTypeEnum.Twin:
-                            return PipeSchedule.GetTwinPipeKOd(dn, series);
+                            return GetPipeKOd(PipeSystemEnum.Stål, dn, PipeTypeEnum.Twin, series);
                         case PipeTypeEnum.Frem:
                         case PipeTypeEnum.Retur:
                         case PipeTypeEnum.Enkelt:
-                            return PipeSchedule.GetBondedPipeKOd(dn, series);
+                            return GetPipeKOd(PipeSystemEnum.Stål, dn, PipeTypeEnum.Enkelt, series);
                         case PipeTypeEnum.Ukendt:
                         default:
                             throw new System.Exception($"{br.RealName()}:{br.Handle} returned non-standard \"System\": (PipeTypeEnum) {systemString}!");

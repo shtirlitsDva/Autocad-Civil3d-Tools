@@ -16,14 +16,14 @@ using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using static DriPaletteSet.PaletteUtils;
-using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 namespace DriPaletteSet
 {
     public partial class TwinPalette : System.Windows.Forms.UserControl
     {
-        HashSet<CheckBox> dnButtons = new HashSet<CheckBox>();
-        HashSet<CheckBox> seriesButtons = new HashSet<CheckBox>();
+        HashSet<System.Windows.Forms.CheckBox> dnButtons = new HashSet<System.Windows.Forms.CheckBox>();
+        HashSet<System.Windows.Forms.CheckBox> seriesButtons = new HashSet<System.Windows.Forms.CheckBox>();
 
         public TwinPalette()
         {
@@ -65,33 +65,37 @@ namespace DriPaletteSet
 
         private void dnButtonCheckBox_Click(object sender, EventArgs e)
         {
-            CheckBox cb = (CheckBox)sender;
-            foreach (CheckBox checkBox in dnButtons)
+            System.Windows.Forms.CheckBox cb = (System.Windows.Forms.CheckBox)sender;
+            foreach (System.Windows.Forms.CheckBox checkBox in dnButtons)
+                if (checkBox.Checked && cb.Name != checkBox.Name) checkBox.Checked = false;
+
+            PipeSystemEnum system;
+            string dn;
+            if (cb.Text.StartsWith("DN "))
             {
-                if (checkBox.Checked && cb.Name != checkBox.Name)
-                {
-                    checkBox.Checked = false;
-                }
+                system = PipeSystemEnum.Stål;
+                dn = cb.Text.Replace("DN ", "");
             }
+            else if (cb.Text.StartsWith("ALUPEX "))
+            {
+                system = PipeSystemEnum.AluPex;
+                dn = cb.Text.Replace("ALUPEX ", "");
+            }
+            else if (cb.Text.StartsWith("CU "))
+            {
+                system = PipeSystemEnum.Kobberflex;
+                dn = cb.Text.Replace("CU ", "");
+            }
+            else throw new System.Exception($"Unknown pipe button text: {cb.Text}!");
 
-            string dn = string.Concat(cb.Text.Where(c => !char.IsWhiteSpace(c)));
-            prdDbg(dn + "\n");
-            PipeDnEnum pipeDn = (PipeDnEnum)Enum.Parse(typeof(PipeDnEnum), dn);
-            prdDbg(pipeDn.ToString() + "\n");
-
-            ActivateLayer(PipeTypeEnum.Twin, pipeDn);
+            ActivateLayer(system, PipeTypeEnum.Twin, dn);
         }
 
         private void seriesButtonCheckBox_Click(object sender, EventArgs e)
         {
-            CheckBox cb = (CheckBox)sender;
-            foreach (CheckBox checkBox in seriesButtons)
-            {
-                if (checkBox.Checked && cb.Name != checkBox.Name)
-                {
-                    checkBox.Checked = false;
-                }
-            }
+            System.Windows.Forms.CheckBox cb = (System.Windows.Forms.CheckBox)sender;
+            foreach (System.Windows.Forms.CheckBox checkBox in seriesButtons)
+                if (checkBox.Checked && cb.Name != checkBox.Name) checkBox.Checked = false;
 
             PipeSeriesEnum pipeSeriesEnum = 
                 (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum), cb.Text);

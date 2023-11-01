@@ -101,6 +101,36 @@
     <Compile Include="..\IntersectUtilities\PipeSchedule.cs">
       <Link>PipeSchedule.cs</Link>
     </Compile>
+    <Compile Include="..\IntersectUtilities\PipeScheduleV2\IPipeType.cs">
+      <Link>PipeScheduleV2\IPipeType.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\PipeScheduleV2\IPipeTypeRepository.cs">
+      <Link>PipeScheduleV2\IPipeTypeRepository.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
+      <Link>PipeScheduleV2\PipeScheduleV2.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeALUPEX.cs">
+      <Link>PipeScheduleV2\PipeTypeALUPEX.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeBase.cs">
+      <Link>PipeScheduleV2\PipeTypeBase.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeCU.cs">
+      <Link>PipeScheduleV2\PipeTypeCU.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeDataLoaderCSV.cs">
+      <Link>PipeScheduleV2\PipeTypeDataLoaderCSV.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeDN.cs">
+      <Link>PipeScheduleV2\PipeTypeDN.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypePEXU.cs">
+      <Link>PipeScheduleV2\PipeTypePEXU.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeRepository.cs">
+      <Link>PipeScheduleV2\PipeTypeRepository.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\PropertySetManager.cs">
       <Link>PropertySetManager.cs</Link>
     </Compile>
@@ -108,6 +138,12 @@
       <Link>UtilsCommon.cs</Link>
     </Compile>
     <Compile Include="PaletteUtils.cs" />
+    <Compile Include="PEXU-Palette.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="PEXU-Palette.Designer.cs">
+      <DependentUpon>PEXU-Palette.cs</DependentUpon>
+    </Compile>
     <Compile Include="TwinPalette.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -127,6 +163,9 @@
   <ItemGroup>
     <EmbeddedResource Include="EnkeltPalette.resx">
       <DependentUpon>EnkeltPalette.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="PEXU-Palette.resx">
+      <DependentUpon>PEXU-Palette.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="TwinPalette.resx">
       <DependentUpon>TwinPalette.cs</DependentUpon>

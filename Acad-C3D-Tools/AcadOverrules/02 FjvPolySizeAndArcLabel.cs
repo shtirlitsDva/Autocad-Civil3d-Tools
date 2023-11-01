@@ -26,6 +26,7 @@ using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.UtilsODData;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
@@ -423,7 +424,7 @@ namespace AcadOverrules
             {
                 if (pline.Database == null) return false;
 
-                if (PipeSchedule.GetPipeSystem(pline) != PipeSystemEnum.Ukendt) return true;
+                if (GetPipeSystem(pline) != PipeSystemEnum.Ukendt) return true;
             }
             return false;
         }
@@ -438,9 +439,9 @@ namespace AcadOverrules
             double length = pline.Length;
             int numberOfLabels = (int)(length / labelDist);
             if (numberOfLabels == 0) numberOfLabels = 1;
-            int dn = PipeSchedule.GetPipeDN(pline);
+            int dn = GetPipeDN(pline);
             string system =
-                PipeSchedule.GetPipeType(pline) == PipeTypeEnum.Twin ?
+                GetPipeType(pline) == PipeTypeEnum.Twin ?
                 "T" : "E";
             string label = $"DN{dn}-{system}";
             var extents = style.ExtentsBox(label, true, false, null);
@@ -480,9 +481,9 @@ namespace AcadOverrules
             #region Buerør label
             int nrOfVertices = pline.NumberOfVertices;
 
-            double minElasticRadius = PipeSchedule.GetPipeMinElasticRadius(pline, false);
-            bool isInSituBuk = PipeSchedule.IsInSituBent(pline);
-            double minBuerorRadius = PipeSchedule.GetBuerorMinRadius(pline);
+            double minElasticRadius = GetPipeMinElasticRadius(pline, false);
+            bool isInSituBuk = IsInSituBent(pline);
+            double minBuerorRadius = GetBuerorMinRadius(pline);
             for (int j = 0; j < pline.NumberOfVertices - 1; j++)
             {
                 #region Geometry calculation

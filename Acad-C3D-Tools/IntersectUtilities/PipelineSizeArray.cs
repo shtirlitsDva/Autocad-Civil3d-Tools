@@ -7,7 +7,7 @@ using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.ComponentSchedule;
 using static IntersectUtilities.DynamicBlocks.PropertyReader;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
-using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using IntersectUtilities.UtilsCommon;
 using GroupByCluster;
 using QuikGraph;
@@ -33,24 +33,30 @@ namespace IntersectUtilities
         public BidirectionalGraph<Entity, Edge<Entity>> Graph;
         public int Length { get => SizeArray.Length; }
         public PipelineSizesArrangement Arrangement { get; }
+        public bool HasFYModel { get; private set; } = false;
         public int StartingDn { get; }
         public SizeEntry this[int index] { get => SizeArray[index]; }
         public int MaxDn { get => SizeArray.MaxBy(x => x.DN).FirstOrDefault().DN; }
         public int MinDn { get => SizeArray.MinBy(x => x.DN).FirstOrDefault().DN; }
         private System.Data.DataTable dynamicBlocks { get; }
-        private HashSet<string> unwantedTypes = new HashSet<string>()
+        private static readonly HashSet<string> unwantedTypes = new HashSet<string>()
         {
             "Svejsning",
             "Stikafgrening",
             "Muffetee"
         };
-        private HashSet<string> graphUnwantedTypes = new HashSet<string>()
+        private static readonly HashSet<string> graphUnwantedTypes = new HashSet<string>()
         {
             "Svejsning",
         };
-        private HashSet<string> directionDefiningTypes = new HashSet<string>()
+        private static readonly HashSet<string> directionDefiningTypes = new HashSet<string>()
         {
             "Reduktion"
+        };
+        private static readonly HashSet<string> systemTransitionTypes = new HashSet<string>()
+        {
+            "F-Model",
+            "Y-Model"
         };
         /// <summary>
         /// SizeArray listing sizes, station ranges and jacket diameters.
@@ -174,8 +180,8 @@ namespace IntersectUtilities
             ////Determine pipe size direction
             #region Old direction method
             ////This is a flawed method using only curves, see below
-            //int maxDn = PipeSchedule.GetPipeDN(curves.MaxBy(x => PipeSchedule.GetPipeDN(x)).FirstOrDefault());
-            //int minDn = PipeSchedule.GetPipeDN(curves.MinBy(x => PipeSchedule.GetPipeDN(x)).FirstOrDefault());
+            //int maxDn = GetPipeDN(curves.MaxBy(x => GetPipeDN(x)).FirstOrDefault());
+            //int minDn = GetPipeDN(curves.MinBy(x => GetPipeDN(x)).FirstOrDefault());
 
             //HashSet<(Curve curve, double dist)> curveDistTuples =
             //                new HashSet<(Curve curve, double dist)>();
@@ -193,7 +199,7 @@ namespace IntersectUtilities
 
             //Curve closestCurve = curveDistTuples.MinBy(x => x.dist).FirstOrDefault().curve;
 
-            //StartingDn = PipeSchedule.GetPipeDN(closestCurve); 
+            //StartingDn = GetPipeDN(closestCurve); 
             #endregion
 
             //2023.04.12: A case discovered where there's a reducer after which there's only blocks
@@ -233,8 +239,27 @@ namespace IntersectUtilities
                 throw new System.Exception($"Alignment {al.Name} could not determine pipeline sizes direction!");
             #endregion
 
+            //Check blockreferences version
+            if (brs != default && brs.Count != 0)
+            {
+                var distinctBlocks = brs.DistinctBy(x => x.RealName());
+                foreach (var block in distinctBlocks)
+                {
+                    if (!block.CheckIfBlockIsLatestVersion()) prdDbg(
+                        $"WRN: Block {block.RealName()}, is not latest version! " +
+                        $"Consider updating to latest version. Program functionality is not guaranteed.");
+                }
+            }
+
+            //Determine if the pipeline contains F- or Y-model
+            //To catch the case where the pipeline has F- or Y-model
+            //where we need to construct with blocks and not reducers
+            if (brs.Any(x => systemTransitionTypes.Contains(
+                x.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false))))
+                HasFYModel = true;
+
             #region Construct Sizes Array
-            if (brs == default || brs.Count == 0 || Arrangement == PipelineSizesArrangement.OneSize)
+            if (brs == default || brs.Count == 0 || (Arrangement == PipelineSizesArrangement.OneSize && !HasFYModel))
                 SizeArray = ConstructWithCurves(al, curves);
             //else SizeArray = ConstructWithBlocks(al, curves, brs, dynamicBlocks);
             else
@@ -273,7 +298,7 @@ namespace IntersectUtilities
                                 curBr.ReadDynamicCsvProperty(DynamicProperty.System, dynamicBlocks), true);
                             series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
                                 curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dynamicBlocks), true);
-                            kod = PipeSchedule.GetKOd(dn, pt, ps, series);
+                            kod = GetPipeKOd(ps, dn, pt, series);
                         }
                         else
                         {//F-Model og Y-Model
@@ -281,7 +306,7 @@ namespace IntersectUtilities
                             ps = PipeSystemEnum.Stål;
                             pt = GetDirectionallyCorrectPropertyWithGraph<PipeTypeEnum>(al, curBr, Side.Left);
                             series = GetDirectionallyCorrectPropertyWithGraph<PipeSeriesEnum>(al, curBr, Side.Left);
-                            kod = PipeSchedule.GetKOd(dn, pt, ps, series);
+                            kod = GetPipeKOd(ps, dn, pt, series);
                         }
 
                         //Adding first entry
@@ -302,7 +327,7 @@ namespace IntersectUtilities
                                     curBr.ReadDynamicCsvProperty(DynamicProperty.System, dynamicBlocks), true);
                                 series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
                                     curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dynamicBlocks), true);
-                                kod = PipeSchedule.GetKOd(dn, pt, ps, series);
+                                kod = GetPipeKOd(ps, dn, pt, series);
                             }
                             else
                             {//F-Model og Y-Model
@@ -310,7 +335,7 @@ namespace IntersectUtilities
                                 ps = PipeSystemEnum.Stål;
                                 pt = GetDirectionallyCorrectPropertyWithGraph<PipeTypeEnum>(al, curBr, Side.Right);
                                 series = GetDirectionallyCorrectPropertyWithGraph<PipeSeriesEnum>(al, curBr, Side.Right);
-                                kod = PipeSchedule.GetKOd(dn, pt, ps, series);
+                                kod = GetPipeKOd(ps, dn, pt, series);
                             }
 
                             sizes.Add(new SizeEntry(dn, start, end, kod, ps, pt, series));
@@ -334,7 +359,7 @@ namespace IntersectUtilities
                                 curBr.ReadDynamicCsvProperty(DynamicProperty.System, dynamicBlocks), true);
                             series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
                                 curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dynamicBlocks), true);
-                            kod = PipeSchedule.GetKOd(dn, pt, ps, series);
+                            kod = GetPipeKOd(ps, dn, pt, series);
                         }
                         else
                         {//F-Model og Y-Model
@@ -342,7 +367,7 @@ namespace IntersectUtilities
                             ps = PipeSystemEnum.Stål;
                             pt = GetDirectionallyCorrectPropertyWithGraph<PipeTypeEnum>(al, curBr, Side.Right);
                             series = GetDirectionallyCorrectPropertyWithGraph<PipeSeriesEnum>(al, curBr, Side.Right);
-                            kod = PipeSchedule.GetKOd(dn, pt, ps, series);
+                            kod = GetPipeKOd(ps, dn, pt, series);
                         }
 
                         sizes.Add(new SizeEntry(dn, start, end, kod, ps, pt, series));
@@ -362,7 +387,7 @@ namespace IntersectUtilities
                             curBr.ReadDynamicCsvProperty(DynamicProperty.System, dynamicBlocks), true);
                         series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
                             curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dynamicBlocks), true);
-                        kod = PipeSchedule.GetKOd(dn, pt, ps, series);
+                        kod = GetPipeKOd(ps, dn, pt, series);
                     }
                     else
                     {//F-Model og Y-Model
@@ -370,7 +395,7 @@ namespace IntersectUtilities
                         ps = PipeSystemEnum.Stål;
                         pt = GetDirectionallyCorrectPropertyWithGraph<PipeTypeEnum>(al, curBr, Side.Right);
                         series = GetDirectionallyCorrectPropertyWithGraph<PipeSeriesEnum>(al, curBr, Side.Right);
-                        kod = PipeSchedule.GetKOd(dn, pt, ps, series);
+                        kod = GetPipeKOd(ps, dn, pt, series);
                     }
 
                     sizes.Add(new SizeEntry(dn, start, end, kod, ps, pt, series));
@@ -378,6 +403,68 @@ namespace IntersectUtilities
 
                 SizeArray = sizes.ToArray();
             }
+            #endregion
+
+            #region Consolidate sizes
+            //Fix for doubling of sizes
+            //This particular fix prompted by single pipe
+            //where two reducers at same station value (supply, return)
+            //gave two size entries with same size and on of them
+            //with zero length
+
+            //Consolidate sizes
+            if (SizeArray.Length == 1) return;
+            List<int> idxsToRemove = new List<int>();
+            for (int i = 0; i < SizeArray.Length - 1; i++)
+            {
+                SizeEntry curSize = SizeArray[i];
+                SizeEntry nextSize = SizeArray[i + 1];
+
+                if (curSize.DN == nextSize.DN &&
+                    curSize.System == nextSize.System &&
+                    curSize.Type == nextSize.Type &&
+                    curSize.Series == nextSize.Series)
+                {
+                    idxsToRemove.Add(i + 1);
+
+                    //guard for more than 2 consecutive sizes
+                    bool baseNotFound = true;
+                    int curI = i;
+                    while (baseNotFound)
+                    {
+                        if (idxsToRemove.Contains(curI)) curI--;
+                        else baseNotFound = false;
+                    }
+
+                    SizeArray[curI] = new SizeEntry(
+                        curSize.DN,
+                        curSize.StartStation,
+                        nextSize.EndStation,
+                        curSize.Kod,
+                        curSize.System,
+                        curSize.Type,
+                        curSize.Series
+                        );
+
+                    //copy values to next to guard agains more than 2 consecutive sizes
+                    //Because we need to carry the start station over
+                    SizeArray[i + 1] = new SizeEntry(
+                        curSize.DN,
+                        curSize.StartStation,
+                        nextSize.EndStation,
+                        curSize.Kod,
+                        curSize.System,
+                        curSize.Type,
+                        curSize.Series
+                        );
+                }
+            }
+
+            if (idxsToRemove.Count < 1) return;
+            var sorted = idxsToRemove.OrderByDescending(x => x);
+            var tempList = SizeArray.ToList();
+            foreach (int i in sorted) tempList.RemoveAt(i);
+            SizeArray = tempList.ToArray();
             #endregion
         }
         private PipelineSizesArrangement DetectArrangement(List<int> list)
@@ -473,7 +560,7 @@ namespace IntersectUtilities
         private int GetDn(Entity entity, System.Data.DataTable dynBlocks)
         {
             if (entity is Polyline pline)
-                return PipeSchedule.GetPipeDN(pline);
+                return GetPipeDN(pline);
             else if (entity is BlockReference br)
             {
                 if (br.ReadDynamicCsvProperty(DynamicProperty.Type, dynBlocks, false) == "Afgreningsstuds")
@@ -483,10 +570,10 @@ namespace IntersectUtilities
 
             else throw new System.Exception("Invalid entity type");
         }
-        private PipeTypeEnum GetPipeType(Entity entity, System.Data.DataTable dynBlocks)
+        private PipeTypeEnum GetPipeTypeLocal(Entity entity, System.Data.DataTable dynBlocks)
         {
             if (entity is Polyline pline)
-                return PipeSchedule.GetPipeType(pline, true);
+                return GetPipeType(pline, true);
             else if (entity is BlockReference br)
             {
                 return (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
@@ -498,7 +585,7 @@ namespace IntersectUtilities
         private PipeSeriesEnum GetPipeSeries(Entity entity, System.Data.DataTable dynBlocks)
         {
             if (entity is Polyline pline)
-                return PipeSchedule.GetPipeSeriesV2(pline, true);
+                return GetPipeSeriesV2(pline, true);
             else if (entity is BlockReference br)
             {
                 return (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
@@ -618,11 +705,11 @@ namespace IntersectUtilities
                     if (closestPoint != default)
                         curveDistTuples.Add(
                             (curve, curSamplePoint.DistanceHorizontalTo(closestPoint),
-                                PipeSchedule.GetPipeKOd(curve)));
+                                GetPipeKOd(curve)));
                 }
                 var result = curveDistTuples.MinBy(x => x.dist).FirstOrDefault();
                 //Detect current dn and kod
-                currentDn = PipeSchedule.GetPipeDN(result.curve);
+                currentDn = GetPipeDN(result.curve);
                 currentKod = result.kappeOd;
                 if (currentDn != previousDn || !currentKod.Equalz(previousKod, 1e-6))
                 {
@@ -632,20 +719,20 @@ namespace IntersectUtilities
                         SizeEntry toUpdate = sizes[sizes.Count - 1];
                         sizes[sizes.Count - 1] = new SizeEntry(
                             toUpdate.DN, toUpdate.StartStation, curStationBA, toUpdate.Kod,
-                            PipeSchedule.GetPipeSystem(result.curve),
-                            PipeSchedule.GetPipeType(result.curve, true),
-                            PipeSchedule.GetPipeSeriesV2(result.curve, true));
+                            GetPipeSystem(result.curve),
+                            GetPipeType(result.curve, true),
+                            GetPipeSeriesV2(result.curve, true));
                     }
                     //Add the new segment; remember, 0 is because the station will be set next iteration
                     //see previous line
                     if (i == 0) sizes.Add(new SizeEntry(currentDn, 0, 0, result.kappeOd,
-                        PipeSchedule.GetPipeSystem(result.curve),
-                        PipeSchedule.GetPipeType(result.curve, true),
-                        PipeSchedule.GetPipeSeriesV2(result.curve, true)));
+                        GetPipeSystem(result.curve),
+                        GetPipeType(result.curve, true),
+                        GetPipeSeriesV2(result.curve, true)));
                     else sizes.Add(new SizeEntry(currentDn, sizes[sizes.Count - 1].EndStation, 0, result.kappeOd,
-                        PipeSchedule.GetPipeSystem(result.curve),
-                        PipeSchedule.GetPipeType(result.curve, true),
-                        PipeSchedule.GetPipeSeriesV2(result.curve, true)));
+                        GetPipeSystem(result.curve),
+                        GetPipeType(result.curve, true),
+                        GetPipeSeriesV2(result.curve, true)));
                 }
                 //Hand over DN to cache in "previous" variable
                 previousDn = currentDn;
@@ -654,9 +741,9 @@ namespace IntersectUtilities
                 {
                     SizeEntry toUpdate = sizes[sizes.Count - 1];
                     sizes[sizes.Count - 1] = new SizeEntry(toUpdate.DN, toUpdate.StartStation, al.Length, toUpdate.Kod,
-                        PipeSchedule.GetPipeSystem(result.curve),
-                        PipeSchedule.GetPipeType(result.curve, true),
-                        PipeSchedule.GetPipeSeriesV2(result.curve, true));
+                        GetPipeSystem(result.curve),
+                        GetPipeType(result.curve, true),
+                        GetPipeSeriesV2(result.curve, true));
                 }
             }
 
@@ -726,11 +813,11 @@ namespace IntersectUtilities
                         if (minCurve == default)
                             throw new Exception($"Br {curBr.Handle} does not find minCurve!");
 
-                        dn = PipeSchedule.GetPipeDN(minCurve);
-                        kod = PipeSchedule.GetPipeKOd(minCurve);
-                        ps = PipeSchedule.GetPipeSystem(minCurve);
-                        pt = PipeSchedule.GetPipeType(minCurve, true);
-                        series = PipeSchedule.GetPipeSeriesV2(minCurve, true);
+                        dn = GetPipeDN(minCurve);
+                        kod = GetPipeKOd(minCurve);
+                        ps = GetPipeSystem(minCurve);
+                        pt = GetPipeType(minCurve, true);
+                        series = GetPipeSeriesV2(minCurve, true);
                     }
 
                     sizes.Add(new SizeEntry(dn, start, end, kod, ps, pt, series));
@@ -764,11 +851,11 @@ namespace IntersectUtilities
                                         x.GetDistAtPoint(x.EndPoint) / 2.0)))
                                 .FirstOrDefault();
 
-                            dn = PipeSchedule.GetPipeDN(maxCurve);
-                            kod = PipeSchedule.GetPipeKOd(maxCurve);
-                            ps = PipeSchedule.GetPipeSystem(maxCurve);
-                            pt = PipeSchedule.GetPipeType(maxCurve, true);
-                            series = PipeSchedule.GetPipeSeriesV2(maxCurve, true);
+                            dn = GetPipeDN(maxCurve);
+                            kod = GetPipeKOd(maxCurve);
+                            ps = GetPipeSystem(maxCurve);
+                            pt = GetPipeType(maxCurve, true);
+                            series = GetPipeSeriesV2(maxCurve, true);
                         }
 
                         sizes.Add(new SizeEntry(dn, start, end, kod, ps, pt, series));
@@ -808,11 +895,11 @@ namespace IntersectUtilities
                                     x.GetDistAtPoint(x.EndPoint) / 2.0)))
                             .FirstOrDefault();
 
-                        dn = PipeSchedule.GetPipeDN(maxCurve);
-                        kod = PipeSchedule.GetPipeKOd(maxCurve);
-                        ps = PipeSchedule.GetPipeSystem(maxCurve);
-                        pt = PipeSchedule.GetPipeType(maxCurve, true);
-                        series = PipeSchedule.GetPipeSeriesV2(maxCurve, true);
+                        dn = GetPipeDN(maxCurve);
+                        kod = GetPipeKOd(maxCurve);
+                        ps = GetPipeSystem(maxCurve);
+                        pt = GetPipeType(maxCurve, true);
+                        series = GetPipeSeriesV2(maxCurve, true);
                     }
 
                     sizes.Add(new SizeEntry(dn, start, end, kod, ps, pt, series));
@@ -849,11 +936,11 @@ namespace IntersectUtilities
                     if (maxCurve == default)
                         prdDbg($"Br {curBr.Handle} does not find maxCurve!");
 
-                    dn = PipeSchedule.GetPipeDN(maxCurve);
-                    kod = PipeSchedule.GetPipeKOd(maxCurve);
-                    ps = PipeSchedule.GetPipeSystem(maxCurve);
-                    pt = PipeSchedule.GetPipeType(maxCurve, true);
-                    series = PipeSchedule.GetPipeSeriesV2(maxCurve, true);
+                    dn = GetPipeDN(maxCurve);
+                    kod = GetPipeKOd(maxCurve);
+                    ps = GetPipeSystem(maxCurve);
+                    pt = GetPipeType(maxCurve, true);
+                    series = GetPipeSeriesV2(maxCurve, true);
                 }
 
                 sizes.Add(new SizeEntry(dn, start, end, kod, ps, pt, series));
@@ -1003,7 +1090,7 @@ namespace IntersectUtilities
                                 {
                                     case Type t when t == typeof(PipeTypeEnum):
                                         {
-                                            PipeTypeEnum result = GetPipeType(cur, dynamicBlocks);
+                                            PipeTypeEnum result = GetPipeTypeLocal(cur, dynamicBlocks);
                                             if (result != PipeTypeEnum.Ukendt) return (T)Convert.ChangeType(result, type);
                                         }
                                         break;
@@ -1036,7 +1123,7 @@ namespace IntersectUtilities
                                 {
                                     case Type t when t == typeof(PipeTypeEnum):
                                         {
-                                            PipeTypeEnum result = GetPipeType(cur, dynamicBlocks);
+                                            PipeTypeEnum result = GetPipeTypeLocal(cur, dynamicBlocks);
                                             if (result != PipeTypeEnum.Ukendt) return (T)Convert.ChangeType(result, type);
                                         }
                                         break;
@@ -1256,7 +1343,7 @@ namespace IntersectUtilities
             switch (entity)
             {
                 case Polyline pline:
-                    DN1 = PipeSchedule.GetPipeDN(pline);
+                    DN1 = GetPipeDN(pline);
                     DN2 = 0;
                     Type = PipelineElementType.Pipe;
                     break;

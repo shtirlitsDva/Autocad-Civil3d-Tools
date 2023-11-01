@@ -30,7 +30,7 @@ using Dreambuild.AutoCAD;
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
-using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
@@ -83,10 +83,10 @@ namespace IntersectUtilities
             using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
                 Polyline run = RunId.Go<Polyline>(tx);
-                Dn = PipeSchedule.GetPipeDN(run);
-                PipeSystem = PipeSchedule.GetPipeSystem(run);
-                PipeType = PipeSchedule.GetPipeType(run);
-                PipeSerie = PipeSchedule.GetPipeSeriesV2(run, true);
+                Dn = GetPipeDN(run);
+                PipeSystem = GetPipeSystem(run);
+                PipeType = GetPipeType(run);
+                PipeSerie = GetPipeSeriesV2(run, true);
                 tx.Commit();
             }
 
@@ -499,19 +499,19 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    #region Test to see if bend is between 80° and 10°
+                    #region Test to see if bend is between 80° and 10° DISABLED
                     LineSegment3d seg1 = run.GetLineSegmentAt(idx);
                     LineSegment3d seg2 = run.GetLineSegmentAt(idx - 1);
 
                     double angle = seg1.Direction.GetAngleTo(seg2.Direction).ToDegrees();
                     prdDbg(angle);
 
-                    if (angle > 80.0 || angle < 10.0)
-                    {
-                        result.Status = ResultStatus.SoftError;
-                        result.ErrorMsg =
-                            $"The bend is not between 80° and 10°! But actually {angle}.";
-                    }
+                    //if (angle > 80.0 || angle < 10.0)
+                    //{
+                    //    result.Status = ResultStatus.SoftError;
+                    //    result.ErrorMsg =
+                    //        $"The bend is not between 80° and 10°! But actually {angle}.";
+                    //}
                 }
                 #endregion
                 tx.Commit();
@@ -695,13 +695,22 @@ namespace IntersectUtilities
                 //Type is NoUnits, must be set with a string
                 //Construct type name
                 int interval = transitionType == TransitionType.X1 ? 1 : 2;
-                var runDnEnum = GetPipeDnEnum(run);
-                var ReducedDnEnum = runDnEnum - interval;
+
+                var dnList = ListAllDnsForPipeSystemTypeSerie(
+                    PipeSystemEnum.Stål, GetPipeType(run), PipeSeriesEnum.S3)
+                    .OrderByDescending(x => x).ToList();
+
+                int runDn = GetPipeDN(run);
+                var runIdx = dnList.IndexOf(runDn);
+                var reducedDnIdx = dnList.IndexOf(runDn) - interval;
+                if (reducedDnIdx < 0) 
+                { throw new System.Exception($"Reducer got too low range: {runDn} asked to reduce {interval} step(s)"); }
+                int reducedDn = dnList[reducedDnIdx];
 
                 string type =
-                    $"{runDnEnum.ToString().Replace("DN", "")}" +
+                    $"{runDn}" +
                     $"x" +
-                    $"{ReducedDnEnum.ToString().Replace("DN", "")}";
+                    $"{reducedDn}";
 
                 SetDynBlockPropertyObject(br, "Type", type);
 
@@ -799,8 +808,8 @@ namespace IntersectUtilities
                 var seg = run.GetArcSegmentAt((int)realIdx);
 
                 double actualRadius = seg.Radius;
-                double minElasticRadius = PipeSchedule.GetPipeMinElasticRadius(run);
-                double minBuerorRadius = PipeSchedule.GetBuerorMinRadius(run);
+                double minElasticRadius = GetPipeMinElasticRadius(run);
+                double minBuerorRadius = GetBuerorMinRadius(run);
 
                 //Check arc segment radius to be whithin bueror range
                 if (actualRadius > minElasticRadius)
@@ -839,7 +848,7 @@ namespace IntersectUtilities
                 Polyline run = RunId.Go<Polyline>(tx);
 
                 int idx = (int)run.GetParamAtPointX(Location);
-                double pipeStdLength = PipeSchedule.GetPipeStdLength(run);
+                double pipeStdLength = GetPipeStdLength(run);
                 var arc = run.GetArcSegmentAt(idx);
                 double radius = arc.Radius;
                 double arcLength = run.GetLengthOfSegmentAt(idx);
@@ -996,8 +1005,8 @@ namespace IntersectUtilities
                 var seg = run.GetArcSegmentAt((int)realIdx);
 
                 double actualRadius = seg.Radius;
-                double minElasticRadius = PipeSchedule.GetPipeMinElasticRadius(run);
-                double minBuerorRadius = PipeSchedule.GetBuerorMinRadius(run);
+                double minElasticRadius = GetPipeMinElasticRadius(run);
+                double minBuerorRadius = GetBuerorMinRadius(run);
 
                 //Check arc segment radius to be whithin bueror range
                 if (actualRadius > minElasticRadius)
@@ -1036,7 +1045,7 @@ namespace IntersectUtilities
                 Polyline run = RunId.Go<Polyline>(tx);
 
                 int idx = (int)run.GetParamAtPointX(Location);
-                double pipeStdLength = PipeSchedule.GetPipeStdLength(run);
+                double pipeStdLength = GetPipeStdLength(run);
                 var arc = run.GetArcSegmentAt(idx);
                 double radius = arc.Radius;
                 double arcLength = run.GetLengthOfSegmentAt(idx);

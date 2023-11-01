@@ -35,7 +35,7 @@ using FolderSelect;
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
-using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.UtilsODData;
@@ -52,7 +52,6 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using IntersectUtilities.DynamicBlocks;
 using System.Diagnostics;
-using System.Runtime;
 using System.Text.Json;
 using IntersectUtilities.Forms;
 using IntersectUtilities.GraphClasses;
@@ -76,11 +75,10 @@ namespace IntersectUtilities
                     "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
             }
 
+            prdDbg("IntersectUtilites loaded!\n");
 #if DEBUG
             AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(Debug_AssemblyResolve);
 #endif
-
-            prdDbg("IntersectUtilites loaded!\n");
         }
 
         public void Terminate()
@@ -3257,7 +3255,7 @@ namespace IntersectUtilities
                     Oid plineId = entity1.ObjectId;
                     Entity ent = plineId.Go<Entity>(tx);
 
-                    string labelText = PipeSchedule.GetLabel(ent);
+                    string labelText = GetLabel(ent);
 
                     PromptPointOptions pPtOpts = new PromptPointOptions("\nChoose location of label: ");
                     PromptPointResult pPtRes = ed.GetPoint(pPtOpts);
@@ -3759,7 +3757,7 @@ namespace IntersectUtilities
                             Point2d sP = pline.GetPoint2dAt(j + 1);
                             double u = fP.GetDistanceTo(sP);
                             double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
-                            double minRadius = PipeSchedule.GetPipeMinElasticRadius(pline);
+                            double minRadius = GetPipeMinElasticRadius(pline);
 
                             //If radius is less than minRadius a buerør is detected
                             //Split the pline in segments delimiting buerør and append
@@ -4001,17 +3999,74 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+            CivilDocument civilDoc = CivilApplication.ActiveDocument;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
+                    #region Get points from profile
+                    var pId = Interaction.GetEntity("Select profile: ", typeof(Profile), false);
+                    if (pId == Oid.Null) { tx.Abort(); return; }
+                    Profile p = pId.Go<Profile>(tx);
+
+                    var pvId = Interaction.GetEntity("Select profile view: ", typeof(ProfileView), false);
+                    if (pvId == Oid.Null) { tx.Abort(); return; }
+                    ProfileView pv = pvId.Go<ProfileView>(tx);
+
+                    var ss = pv.StationStart;
+                    var se = pv.StationEnd;
+
+                    List<Point3d> points = new List<Point3d>();
+
+                    //iterate over length of profile view with a step of 5
+                    for (double i = ss; i < se; i += 5)
+                    {
+                        double X = 0;
+                        double Y = 0;
+                        pv.FindXYAtStationAndElevation(i, p.ElevationAt(i), ref X, ref Y);
+                        points.Add(new Point3d(X, Y, 0));
+                    }
+
+                    File.WriteAllText(@"C:\Temp\points.txt", string.Join(
+                        ";", points.Select(x => 
+                        $"({x.X.ToString("F2", CultureInfo.InvariantCulture)},{x.Y.ToString("F2", CultureInfo.InvariantCulture)})")));
+
+                    #endregion
+
+                    #region Test PipeScheduleV2
+                    //var pls = localDb.GetFjvPipes(tx, true);
+                    //HashSet<string> pods = new HashSet<string>();
+                    //Stopwatch sw = Stopwatch.StartNew();
+                    //foreach (var p in pls)
+                    //{
+                    //    pods.Add($"DN{PipeScheduleV2.PipeScheduleV2.GetPipeDN(p)} - " +
+                    //        $"Rp: {PipeScheduleV2.PipeScheduleV2.GetBuerorMinRadius(p).ToString("F2")}");
+                    //}
+                    //sw.Stop();
+                    //prdDbg($"Time v2: {sw.Elapsed}");
+                    //prdDbg(string.Join("\n", pods.OrderByAlphaNumeric(p => p)));
+
+                    //pods.Clear();
+                    //sw = Stopwatch.StartNew();
+                    //foreach (var p in pls)
+                    //{
+                    //    pods.Add($"DN{GetPipeDN(p)} - " +
+                    //        $"Rp: {GetBuerorMinRadius(p).ToString("F2")}");
+                    //}
+                    //sw.Stop();
+                    //prdDbg($"Time v1: {sw.Elapsed}");
+                    //prdDbg(string.Join("\n", pods.OrderByAlphaNumeric(p => p)));
+                    #endregion
+
+                    #region Dump pipeschedule data
+                    //PipeScheduleV2.PipeScheduleV2.ListAllPipeTypes();
+                    #endregion
+
                     #region Test new PipeSizeArrays
                     //#region Open fremtidig db
-                    //DataReferencesOptions dro = new DataReferencesOptions();
-                    //string projectName = dro.ProjectName;
-                    //string etapeName = dro.EtapeName;
+                    //string projectName = "P1308KOGE";
+                    //string etapeName = "EGEDESVEJ";
 
                     //#region Read CSV
                     //System.Data.DataTable dt = default;
@@ -5126,7 +5181,7 @@ namespace IntersectUtilities
                     //        Point2d sP = pline.GetPoint2dAt(j + 1);
                     //        double u = fP.GetDistanceTo(sP);
                     //        double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
-                    //        double minRadius = PipeSchedule.GetPipeMinElasticRadius(pline);
+                    //        double minRadius = GetPipeMinElasticRadius(pline);
 
                     //        //If radius is less than minRadius a buerør is detected
                     //        //Split the pline in segments delimiting buerør and append
@@ -6404,12 +6459,12 @@ namespace IntersectUtilities
                     foreach (var ltrid in lt)
                     {
                         LayerTableRecord ltr = ltrid.Go<LayerTableRecord>(tx);
-                        if (PipeSchedule.GetPipeDN(ltr.Name) != 999) pipeLtrs.Add(ltr);
+                        if (GetPipeDN(ltr.Name) != 0) pipeLtrs.Add(ltr);
                     }
                     pipeLtrs = pipeLtrs
-                        .GroupBy(x => GetPipeDN(x.Name))
-                        .Select(x => x.First())
-                        .OrderBy(x => GetPipeDN(x.Name))
+                        .OrderBy(x => GetSystemString(x.Name))
+                        .ThenBy(x => GetPipeType(x.Name))
+                        .ThenBy(x => GetPipeDN(x.Name))
                         .ToList();
 
                     prdDbg($"Number of pipe layers in drawing: {pipeLtrs.Count}");
@@ -6448,7 +6503,7 @@ namespace IntersectUtilities
                     #region Determine upper right corner of all polylines: Point3d UpperRightCorner
                     //To place legend find bbox of all plines and place legend at the top right corner
                     HashSet<Polyline> allPlines = localDb.HashSetOfType<Polyline>(tx)
-                        .Where(x => PipeSchedule.GetPipeDN(x) != 999).ToHashSet();
+                        .Where(x => GetPipeDN(x) != 0).ToHashSet();
 
                     //Determine maximum points
                     HashSet<double> Xs = new HashSet<double>();
@@ -6470,28 +6525,12 @@ namespace IntersectUtilities
                     #endregion
 
                     //Assign colors and create legend
-                    Random random = new Random();
-                    HashSet<short> existingNumbers =
-                        ColorUtils.StaticColorList.DnToColorDict.Select(x => x.Value).ToHashSet();
                     int i = 0;
                     foreach (var layer in pipeLtrs)
                     {
-                        int dn = GetPipeDN(layer.Name);
-                        string key = "DN" + dn;
-
                         //Determine color
-                        Color color;
-                        if (ColorUtils.StaticColorList.DnToColorDict.ContainsKey(key))
-                            color = Color.FromColorIndex(ColorMethod.ByAci,
-                                ColorUtils.StaticColorList.DnToColorDict[key]);
-                        else
-                        {
-                            short num;
-                            do num = (short)random.Next(1, 254);
-                            while (existingNumbers.Contains(num));
-                            existingNumbers.Add(num);
-                            color = Color.FromColorIndex(ColorMethod.ByAci, num);
-                        }
+                        Color color = Color.FromColorIndex(ColorMethod.ByAci,
+                            GetColorForDim(layer.Name));
 
                         layer.CheckOrOpenForWrite();
                         layer.Color = color;
@@ -6513,8 +6552,8 @@ namespace IntersectUtilities
                         text.Height = 5;
                         text.Color = color;
                         text.TextString =
-                            $"DN{PipeSchedule.GetPipeDN(layer.Name)} " +
-                            $"{PipeSchedule.GetPipeType(layer.Name)}";
+                            $"{GetSystemString(layer.Name)}{GetPipeDN(layer.Name)}-" +
+                            $"{GetPipeType(layer.Name)}";
 
                         i--;
                     }
@@ -6548,7 +6587,7 @@ namespace IntersectUtilities
                     foreach (var ltrid in lt)
                     {
                         LayerTableRecord ltr = ltrid.Go<LayerTableRecord>(tx);
-                        if (PipeSchedule.GetPipeDN(ltr.Name) != 999) pipeLtrs.Add(ltr);
+                        if (GetPipeDN(ltr.Name) != 0) pipeLtrs.Add(ltr);
                     }
                     pipeLtrs = pipeLtrs.OrderBy(x => x.Name).ToList();
 
@@ -6558,22 +6597,9 @@ namespace IntersectUtilities
                     foreach (var ltr in pipeLtrs)
                     {
                         ltr.CheckOrOpenForWrite();
-                        PipeTypeEnum type = PipeSchedule.GetPipeType(ltr.Name);
 
-                        switch (type)
-                        {
-                            case PipeTypeEnum.Ukendt:
-                                throw new System.Exception($"Unexpected type {type}!");
-                            case PipeTypeEnum.Twin:
-                                ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
-                                break;
-                            case PipeTypeEnum.Frem:
-                            case PipeTypeEnum.Retur:
-                                ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
-                                break;
-                            default:
-                                throw new System.Exception($"Unexpected type {type}!");
-                        }
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 
+                            GetLayerColor(GetPipeSystem(ltr.Name), GetPipeType(ltr.Name)));
                     }
                 }
                 catch (System.Exception ex)
@@ -8574,7 +8600,7 @@ namespace IntersectUtilities
                         switch (args.Vertex)
                         {
                             case Polyline pline:
-                                int dn = PipeSchedule.GetPipeDN(pline);
+                                int dn = GetPipeDN(pline);
                                 string system = GetPipeType(pline).ToString();
                                 args.VertexFormat.Label =
                                 $"{{{pline.Handle}|Rør L{pline.Length.ToString("0.##")}}}|{system}\\n{dn}";
@@ -8629,7 +8655,7 @@ namespace IntersectUtilities
         private int GetDn(Entity entity, System.Data.DataTable dt)
         {
             if (entity is Polyline pline)
-                return PipeSchedule.GetPipeDN(pline);
+                return GetPipeDN(pline);
             else if (entity is BlockReference br)
             {
                 if (br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) == "Afgreningsstuds" ||

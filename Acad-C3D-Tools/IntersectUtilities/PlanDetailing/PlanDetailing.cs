@@ -34,7 +34,7 @@ using Dreambuild.AutoCAD;
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
-using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.ComponentSchedule;
 
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
@@ -1079,7 +1079,7 @@ namespace IntersectUtilities
                         SetDynBlockPropertyObject(stikBlock, "StikType", adresse);
                         SetDynBlockPropertyObject(stikBlock, "System", "Twin");
                         SetDynBlockPropertyObject(stikBlock, "DN1",
-                            Convert.ToDouble(PipeSchedule.GetPipeDN(pl)));
+                            Convert.ToDouble(GetPipeDN(pl)));
 
                         //Determine stik dimension
                         if (adresseRørDimDict.ContainsKey(adresse))
@@ -2145,7 +2145,7 @@ namespace IntersectUtilities
                             if (!failed)
                             {
                                 Curve curve = query.First();
-                                dns.Add(PipeSchedule.GetPipeDN(curve));
+                                dns.Add(GetPipeDN(curve));
                             }
                         }
 

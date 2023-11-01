@@ -36,6 +36,7 @@ using IntersectUtilities.DynamicBlocks;
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.UtilsODData;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 using AcRx = Autodesk.AutoCAD.Runtime;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
@@ -65,20 +66,6 @@ namespace IntersectUtilities
     }
     public static class Utils
     {
-        private static System.Data.DataTable fjvBlocksDt = null;
-        public static System.Data.DataTable GetFjvBlocksDt()
-        {
-            if (fjvBlocksDt == null)
-            {
-                if (!File.Exists(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv"))
-                    throw new System.Exception(
-                        "FJV Dynamiske Komponenter.csv is not available at standard location!");
-
-                fjvBlocksDt = CsvReader.ReadCsvToDataTable(
-                    @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-            }
-            return fjvBlocksDt;
-        }
         public static TValue GetValueOrDefault<TKey, TValue>
                             (this IDictionary<TKey, TValue> dictionary, TKey key, TValue defaultValue)
         {
@@ -894,8 +881,8 @@ namespace IntersectUtilities
             Curve firstEnd = GetFirstEntityOfType<Curve>(al, curves, Enums.TypeOfIteration.Forward);
             Curve secondEnd = GetFirstEntityOfType<Curve>(al, curves, Enums.TypeOfIteration.Backward);
 
-            int firstDn = PipeSchedule.GetPipeDN(firstEnd);
-            int secondDn = PipeSchedule.GetPipeDN(secondEnd);
+            int firstDn = GetPipeDN(firstEnd);
+            int secondDn = GetPipeDN(secondEnd);
 
             if (firstDn == secondDn)
             {
@@ -985,7 +972,7 @@ namespace IntersectUtilities
                             Point2d sP = pline.GetPoint2dAt(j + 1);
                             double u = fP.GetDistanceTo(sP);
                             double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
-                            double minRadius = PipeSchedule.GetPipeMinElasticRadius(pline);
+                            double minRadius = GetPipeMinElasticRadius(pline);
 
                             //If radius is less than minRadius a buerør is detected
                             //Split the pline in segments delimiting buerør and append

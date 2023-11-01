@@ -6,13 +6,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace IntersectUtilities
 {
-    public static class PipeSchedule
+    public static class PipeScheduleObsolete
     {
         private static readonly Dictionary<int, double> kOdsS1Twin = new Dictionary<int, double>
             {
@@ -217,6 +216,100 @@ namespace IntersectUtilities
                 { 26, 26.0 },
                 { 32, 32.0 }
             };
+        public static void CreateCsvDataCU()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            sb.AppendLine("DN;PipeType;PipeSeries;pOd;kOd;tWdth;minElasticRadii");
+
+            foreach (int dn in kOdsS1CuEnkelt.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Enkelt;S1;{OdsCu[dn]};{kOdsS1CuEnkelt[dn]};" +
+                    $"{2 * 150 + 2 * kOdsS1CuEnkelt[dn] + 200};" +
+                    $"{cuS1Enkelt[dn]}");
+            foreach (int dn in kOdsS1CuTwin.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Twin;S1;{OdsCu[dn]};{kOdsS1CuTwin[dn]};" +
+                    $"{2 * 150 + kOdsS1CuTwin[dn]};" +
+                    $"{cuS1Twin[dn]}");
+
+            foreach (int dn in kOdsS2CuEnkelt.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Enkelt;S2;{OdsCu[dn]};{kOdsS2CuEnkelt[dn]};" +
+                    $"{2 * 150 + 2 * kOdsS2CuEnkelt[dn] + 200};" +
+                    $"{cuS2Enkelt[dn]}");
+            foreach (int dn in kOdsS2CuTwin.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Twin;S2;{OdsCu[dn]};{kOdsS2CuTwin[dn]};" +
+                    $"{2 * 150 + kOdsS2CuTwin[dn]};" +
+                    $"{cuS2Twin[dn]}");
+
+            System.IO.File.WriteAllText(@"C:\Temp\CU.csv", sb.ToString());
+        }
+        public static void CreateCsvDataAluPex()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            sb.AppendLine("DN;PipeType;PipeSeries;pOd;kOd;tWdth;minElasticRadii");
+
+            foreach (int dn in kOdsS1AluPexEnkelt.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Enkelt;S1;{OdsAluPex[dn]};{kOdsS1AluPexEnkelt[dn]};" +
+                    $"{700};" +
+                    $"{aluPexS1Enkelt[dn]}");
+            foreach (int dn in kOdsS1AluPexTwin.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Twin;S1;{OdsAluPex[dn]};{kOdsS1AluPexTwin[dn]};" +
+                    $"{500};" +
+                    $"{aluPexS1Twin[dn]}");
+
+            foreach (int dn in kOdsS2AluPexEnkelt.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Enkelt;S2;{OdsAluPex[dn]};{kOdsS2AluPexEnkelt[dn]};" +
+                    $"{700};" +
+                    $"{aluPexS2Enkelt[dn]}");
+            foreach (int dn in kOdsS2AluPexTwin.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Twin;S2;{OdsAluPex[dn]};{kOdsS2AluPexTwin[dn]};" +
+                    $"{500};" +
+                    $"{aluPexS2Twin[dn]}");
+
+            foreach (int dn in kOdsS3AluPexEnkelt.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Enkelt;S3;{OdsAluPex[dn]};{kOdsS3AluPexEnkelt[dn]};" +
+                    $"{700};" +
+                    $"{aluPexS3Enkelt[dn]}");
+            foreach (int dn in kOdsS3AluPexTwin.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Twin;S3;{OdsAluPex[dn]};{kOdsS3AluPexTwin[dn]};{500};" +
+                    $"{aluPexS3Twin[dn]}");
+
+            System.IO.File.WriteAllText(@"C:\Temp\ALUPEX.csv", sb.ToString());
+        }
+        public static void CreateCsvDataSteel()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            sb.AppendLine("DN;PipeType;PipeSeries;pOd;kOd;tWdth;minElasticRadii;VpMax12;VpMax16");
+
+            foreach (int dn in kOdsS1Bonded.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Enkelt;S1;{OdsSteel[dn]};{kOdsS1Bonded[dn]};" +
+                    $"{(int)(2 * 150 + gx(dn) + kOdsS1Bonded[dn] * 2)};" +
+                    $"{steelMinElasticRadii[dn]};{gvs(dn, steelMaxV12)};{gvs(dn, steelMaxV16)};");
+            foreach (int dn in kOdsS1Twin.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Twin;S1;{OdsSteel[dn]};{kOdsS1Twin[dn]};" +
+                    $"{(int)(2 * 150 + kOdsS1Twin[dn])};" +
+                    $"{steelMinElasticRadii[dn]};{gvs(dn, steelMaxV12)};{gvs(dn, steelMaxV16)};");
+
+            foreach (int dn in kOdsS2Bonded.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Enkelt;S2;{OdsSteel[dn]};{kOdsS2Bonded[dn]};" +
+                    $"{(int)(2 * 150 + gx(dn) + kOdsS2Bonded[dn] * 2)};" +
+                    $"{steelMinElasticRadii[dn]};{gvs(dn, steelMaxV12)};{gvs(dn, steelMaxV16)};");
+            foreach (int dn in kOdsS2Twin.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Twin;S2;{OdsSteel[dn]};{kOdsS2Twin[dn]};" +
+                    $"{(int)(2 * 150 + kOdsS2Twin[dn])};" +
+                    $"{steelMinElasticRadii[dn]};{gvs(dn, steelMaxV12)};{gvs(dn, steelMaxV16)};");
+
+            foreach (int dn in kOdsS3Bonded.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Enkelt;S3;{OdsSteel[dn]};{kOdsS3Bonded[dn]};{trenchWidthsS3EnkeltSteel[dn]};{steelMinElasticRadii[dn]};{gvs(dn, steelMaxV12)};{gvs(dn, steelMaxV16)};");
+            foreach (int dn in kOdsS3Twin.Keys.OrderBy(x => x))
+                sb.AppendLine($"{dn};Twin;S3;{OdsSteel[dn]};{kOdsS3Twin[dn]};{trenchWidthsS3TwinSteel[dn]};{steelMinElasticRadii[dn]};{gvs(dn, steelMaxV12)};{gvs(dn, steelMaxV16)};");
+
+            System.IO.File.WriteAllText(@"C:\Temp\DN.csv", sb.ToString());
+        }
+
+        private static double gvs(int dn, Dictionary<int, double> dict) => dict.ContainsKey(dn) ? dict[dn] : 0;
+        private static double gx(int dn) => dn <= 150 ? 300 : dn <= 450 ? 400 : 450;
 
         #region Code for determining trench widths
         private static readonly Dictionary<int, double> trenchWidthsS3EnkeltSteel = new Dictionary<int, double>()
@@ -258,6 +351,7 @@ namespace IntersectUtilities
             { 125, 900 },
             { 150, 900 },
             { 200, 1050 },
+            { 250, 1200 },
         };
         private static readonly Dictionary<int, double> trenchWidthsS3AluPexTwin = new Dictionary<int, double>()
         {
@@ -368,17 +462,17 @@ namespace IntersectUtilities
             string layer = ent.Layer;
             if (layer.Contains("|")) return layer.Split('|').Last();
             else return layer;
-        }
+        } //DONE
         private static string ExtractLayerName(string layer)
         {
             if (layer.Contains("|")) return layer.Split('|').Last();
             else return layer;
-        }
+        } //DONE
         public static int GetPipeDN(Entity ent)
         {
             return GetPipeDN(ExtractLayerName(ent));
-        }
-        public static PipeDnEnum GetPipeDnEnum(Entity ent)
+        } //DONE
+        public static PipeDnEnum GetPipeDnEnum(Entity ent) //OBSOLETE??
         {
             int DN = GetPipeDN(ent);
 
@@ -508,11 +602,11 @@ namespace IntersectUtilities
                     editor.WriteMessage("\nFor layer named: " + layer + " no pipe dimension could be determined!");
                     return 999;
             }
-        }
+        } //DONE
         public static PipeTypeEnum GetPipeType(Entity ent)
         {
             return GetPipeType(ExtractLayerName(ent));
-        }
+        } //DONE
         public static PipeTypeEnum GetPipeType(Entity ent, bool FRtoEnkelt = false)
         {
             var type = GetPipeType(ExtractLayerName(ent));
@@ -529,7 +623,7 @@ namespace IntersectUtilities
                 default:
                     return PipeTypeEnum.Ukendt;
             }
-        }
+        } //DONE
         public static PipeTypeEnum GetPipeType(string layer)
         {
             layer = ExtractLayerName(layer);
@@ -616,7 +710,7 @@ namespace IntersectUtilities
                     editor.WriteMessage("\nFor layer name: " + layer + " no system could be determined!");
                     return PipeTypeEnum.Ukendt;
             }
-        }
+        } //DONE
         public static double GetPipeOd(Entity ent)
         {
             int dn = GetPipeDN(ent);
@@ -637,7 +731,7 @@ namespace IntersectUtilities
                 default:
                     return 0;
             }
-        }
+        } //DONE
         internal static PipeSystemEnum GetPipeSystem(Entity ent)
         {
             string layer = ExtractLayerName(ent);
@@ -722,12 +816,12 @@ namespace IntersectUtilities
                     //prdDbg("\nFor layer name: " + layer + " no system could be determined!");
                     return PipeSystemEnum.Ukendt;
             }
-        }
+        } //DONE
         public static double GetTwinPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
             return GetTwinPipeKOd(dn, pipeSeries);
-        }
+        } //OBSOLETE??
         public static double GetTwinPipeKOd(int dn, PipeSeriesEnum pipeSeries)
         {
             switch (pipeSeries)
@@ -744,7 +838,7 @@ namespace IntersectUtilities
                 default:
                     return 0;
             }
-        }
+        } //OBSOLETE??
         //public static double GetTwinPipeKOd(Entity ent)
         //{
         //    int DN = GetPipeDN(ent);
@@ -774,12 +868,12 @@ namespace IntersectUtilities
                     return 0.0;
             }
             return 0.0;
-        }
+        } //OBSOLETE??
         public static double GetCuEnkeltPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
             return GetCuEnkeltPipeKOd(dn, pipeSeries);
-        }
+        } //OBSOLETE??
         public static double GetCuEnkeltPipeKOd(int dn, PipeSeriesEnum pipeSeries)
         {
             switch (pipeSeries)
@@ -794,12 +888,12 @@ namespace IntersectUtilities
                     return 0.0;
             }
             return 0.0;
-        }
+        } //OBSOLETE??
         public static double GetCuTwinPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
             return GetCuTwinPipeKOd(dn, pipeSeries);
-        }
+        } //OBSOLETE??
         public static double GetCuTwinPipeKOd(int dn, PipeSeriesEnum pipeSeries)
         {
             switch (pipeSeries)
@@ -814,12 +908,12 @@ namespace IntersectUtilities
                     return 0.0;
             }
             return 0.0;
-        }
+        } //OBSOLETE??
         public static double GetAluPexEnkeltPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
             return GetAluPexEnkeltPipeKOd(dn, pipeSeries);
-        }
+        } //OBSOLETE??
         public static double GetAluPexEnkeltPipeKOd(int dn, PipeSeriesEnum pipeSeries)
         {
             switch (pipeSeries)
@@ -837,12 +931,12 @@ namespace IntersectUtilities
                     return 0.0;
             }
             return 0.0;
-        }
+        } //OBSOLETE??
         public static double GetAluPexTwinPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
             int dn = GetPipeDN(ent);
             return GetAluPexTwinPipeKOd(dn, pipeSeries);
-        }
+        } //OBSOLETE??
         public static double GetAluPexTwinPipeKOd(int dn, PipeSeriesEnum pipeSeries)
         {
             switch (pipeSeries)
@@ -860,7 +954,7 @@ namespace IntersectUtilities
                     return 0.0;
             }
             return 0.0;
-        }
+        } //OBSOLETE??
         public static double GetBondedPipeKOd(int dn, PipeSeriesEnum pipeSeries)
         {
             switch (pipeSeries)
@@ -878,7 +972,7 @@ namespace IntersectUtilities
                     return 0;
             }
             return 0;
-        }
+        } //OBSOLETE??
         //public static double GetBondedPipeKOd(Entity ent)
         //{
         //    int dn = GetPipeDN(ent);
@@ -932,7 +1026,7 @@ namespace IntersectUtilities
                     return 0.0;
             }
 
-        }
+        } //DONE
         public static double GetKOd(int dn, PipeTypeEnum pt, PipeSystemEnum ps, PipeSeriesEnum series)
         {
             switch (pt)
@@ -973,11 +1067,10 @@ namespace IntersectUtilities
                     return 0.0;
             }
         }
-        public static double GetPipeKOd(Entity ent, bool hardFail = false)
+        public static double GetPipeKOd(Entity ent, bool hardFail = false) //DONE
         {
             return GetPipeKOd(ent, GetPipeSeriesV2(ent, hardFail));
         }
-        public static string GetPipeSeries(Entity ent) => "S3";
         public static PipeSeriesEnum GetPipeSeriesV2(Entity ent, bool hardFail = false)
         {
             double realKod;
@@ -1023,9 +1116,8 @@ namespace IntersectUtilities
             }
 
             return PipeSeriesEnum.Undefined;
-        }
-        public static string GetPipeSeries(PipeSeriesEnum pipeSeries) => pipeSeries.ToString();
-        public static double GetPipeStdLength(Entity ent) => GetPipeDN(ent) <= 80 ? 12 : 16;
+        } //DONE
+        public static double GetPipeStdLength(Entity ent) => GetPipeDN(ent) <= 80 ? 12 : 16; //DONE
         public static bool IsInSituBent(Entity ent)
         {
             PipeTypeEnum type = GetPipeType(ent);
@@ -1054,7 +1146,7 @@ namespace IntersectUtilities
                         $"IsInSituBent -> Entity handle {ent.Handle} has invalid layer!");
             }
             return false;
-        }
+        } //DONE
         #region Tables for elastic and buerør radii
         private static Dictionary<int, double> cuS1Enkelt = new Dictionary<int, double>
             {
@@ -1062,83 +1154,83 @@ namespace IntersectUtilities
                 { 18, 0.7 },
                 { 22, 0.8 },
                 { 28, 0.8 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> cuS2Enkelt = new Dictionary<int, double>
             {
                 { 15, 0.8 },
                 { 18, 0.8 },
                 { 22, 0.8 },
                 { 28, 1.0 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> cuS1Twin = new Dictionary<int, double>
             {
                 { 22, 0.9 },
                 { 28, 0.9 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> cuS2Twin = new Dictionary<int, double>
             {
                 { 22, 1.1 },
                 { 28, 1.1 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> aluPexS1Enkelt = new Dictionary<int, double>
             {
                 { 20, 0.7 },
                 { 26, 0.72 },
                 { 32, 0.72 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> aluPexS2Enkelt = new Dictionary<int, double>
             {
                 { 20, 0.72 },
                 { 26, 0.72 },
                 { 32, 0.9 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> aluPexS3Enkelt = new Dictionary<int, double>
             {
                 { 20, 0.9 },
                 { 26, 0.9 },
                 { 32, 1.0 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> aluPexS1Twin = new Dictionary<int, double>
             {
                 { 20, 0.9 },
                 { 26, 1.1 },
                 { 32, 1.25 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> aluPexS2Twin = new Dictionary<int, double>
             {
                 { 16, 1.1 },
                 { 20, 1.1 },
                 { 26, 1.25 },
                 { 32, 1.25 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> aluPexS3Twin = new Dictionary<int, double>
             {
                 { 16, 1.25 },
                 { 20, 1.25 },
                 { 26, 1.40 },
                 { 32, 1.40 },
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> steelMinElasticRadii = new Dictionary<int, double>
             {
-                { 20, 13.0 },
-                { 25, 17.0 },
-                { 32, 21.0 },
-                { 40, 24.0 },
-                { 50, 30.0 },
-                { 65, 38.0 },
-                { 80, 44.0 },
-                { 100, 57.0 },
-                { 125, 70.0 },
-                { 150, 84.0 },
-                { 200, 110.0 },
-                { 250, 137.0 },
-                { 300, 162.0 },
-                { 350, 178.0 },
-                { 400, 203.0 },
-                { 450, 229.0 },
-                { 500, 254.0 },
-                { 999, 0.0 }
-            };
+                { 20, 16 },
+                { 25, 20 },
+                { 32, 25 },
+                { 40, 29 },
+                { 50, 36 },
+                { 65, 46 },
+                { 80, 53 },
+                { 100, 68 },
+                { 125, 84 },
+                { 150, 101 },
+                { 200, 132 },
+                { 250, 164 },
+                { 300, 194 },
+                { 350, 214 },
+                { 400, 244 },
+                { 450, 275 },
+                { 500, 305 },
+                { 600, 366 },
+            }; //OBSOLETE??
         private static Dictionary<int, double> steelEnkeltMinBuerorRadii = new Dictionary<int, double>
             {
                 { 20, 8.4 },
@@ -1160,7 +1252,7 @@ namespace IntersectUtilities
                 { 500, 152.8 },
                 { 550, 152.8 },
                 { 999, 0.0 }
-            };
+            }; //OBSOLETE??
         private static Dictionary<int, double> steelTwinMinBuerorRadii = new Dictionary<int, double>
             {
                 { 20, 0.0 },
@@ -1175,7 +1267,36 @@ namespace IntersectUtilities
                 { 150, 36.2 },
                 { 200, 42.9 },
                 { 999, 0.0 }
-            };
+            }; //OBSOLETE??
+        private static Dictionary<int, double> steelMaxV12 = new Dictionary<int, double>()
+        {
+            { 65, 25 },
+            { 80, 33 },
+            { 100, 38 },
+            { 125, 43 },
+            { 150, 45 },
+            { 200, 41 },
+            { 250, 36 },
+            { 300, 29 },
+            { 350, 25 },
+            { 400, 18 },
+            { 450, 8 },
+            { 500, 3 },
+        }; //OBSOLETE??
+        private static Dictionary<int, double> steelMaxV16 = new Dictionary<int, double>()
+        {
+            { 100, 13 },
+            { 125, 16 },
+            { 150, 19 },
+            { 200, 19 },
+            { 250, 17 },
+            { 300, 17 },
+            { 350, 18 },
+            { 400, 17 },
+            { 450, 10 },
+            { 500, 4 },
+            { 600, 1.3 },
+        }; //OBSOLETE??
         #endregion
         public static double GetPipeMinElasticRadius(Entity ent, bool considerInSituBending = true)
         {
@@ -1270,7 +1391,7 @@ namespace IntersectUtilities
                 default:
                     return 0;
             }
-        }
+        } //DONE
         public static double GetBuerorMinRadius(Entity ent)
         {
             PipeSystemEnum pipeSystem = GetPipeSystem(ent);
@@ -1293,7 +1414,7 @@ namespace IntersectUtilities
                     return 0.0;
             }
 
-        }
+        } //DONE Halfheartedly
         public static string GetLabel(Entity ent)
         {
             //Test to see if the polyline resides in the correct layer

@@ -16,15 +16,15 @@ using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using static DriPaletteSet.PaletteUtils;
-using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 namespace DriPaletteSet
 {
     public partial class EnkeltPalette : UserControl
     {
-        HashSet<CheckBox> dnButtons = new HashSet<CheckBox>();
-        HashSet<CheckBox> seriesButtons = new HashSet<CheckBox>();
-        HashSet<CheckBox> fremReturButtons = new HashSet<CheckBox> { };
+        HashSet<System.Windows.Forms.CheckBox> dnButtons = new HashSet<System.Windows.Forms.CheckBox>();
+        HashSet<System.Windows.Forms.CheckBox> seriesButtons = new HashSet<System.Windows.Forms.CheckBox>();
+        HashSet<System.Windows.Forms.CheckBox> fremReturButtons = new HashSet<System.Windows.Forms.CheckBox> { };
         public EnkeltPalette()
         {
             InitializeComponent();
@@ -69,48 +69,68 @@ namespace DriPaletteSet
 
         private void dnButtonCheckBox_Click(object sender, EventArgs e)
         {
-            CheckBox cb = (CheckBox)sender;
-            foreach (CheckBox checkBox in dnButtons)
-            {
-                if (checkBox.Checked && cb.Name != checkBox.Name)
-                {
-                    checkBox.Checked = false;
-                }
-            }
-
-            string dn = string.Concat(cb.Text.Where(c => !char.IsWhiteSpace(c)));
-            PipeDnEnum pipeDn = (PipeDnEnum)Enum.Parse(typeof(PipeDnEnum), dn);
+            System.Windows.Forms.CheckBox cb = (System.Windows.Forms.CheckBox)sender;
+            foreach (System.Windows.Forms.CheckBox checkBox in dnButtons)
+                if (checkBox.Checked && cb.Name != checkBox.Name) checkBox.Checked = false;
 
             PipeTypeEnum fr = PipeTypeEnum.Frem;
             foreach (var frb in fremReturButtons)
-            {
                 if (frb.Checked) fr = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum), frb.Text);
-            }
 
-            ActivateLayer(fr, pipeDn);
+            PipeSystemEnum system;
+            string dn;
+            if (cb.Text.StartsWith("DN "))
+            {
+                system = PipeSystemEnum.Stål;
+                dn = cb.Text.Replace("DN ", "");
+            }
+            else if (cb.Text.StartsWith("ALUPEX "))
+            {
+                system = PipeSystemEnum.AluPex;
+                dn = cb.Text.Replace("ALUPEX ", "");
+            }
+            else if (cb.Text.StartsWith("CU "))
+            {
+                system = PipeSystemEnum.Kobberflex;
+                dn = cb.Text.Replace("CU ", "");
+            }
+            else throw new System.Exception($"Unknown pipe button text: {cb.Text}!");
+
+            ActivateLayer(PipeSystemEnum.Stål, fr, dn);
         }
 
         private void frButtonCheckBox_Click(object sender, EventArgs e)
         {
-            CheckBox cb = (CheckBox)sender;
-            foreach (CheckBox checkBox in fremReturButtons)
-            {
-                if (checkBox.Checked && cb.Name != checkBox.Name)
-                {
-                    checkBox.Checked = false;
-                }
-            }
+            System.Windows.Forms.CheckBox cb = (System.Windows.Forms.CheckBox)sender;
+            foreach (System.Windows.Forms.CheckBox checkBox in fremReturButtons)
+                if (checkBox.Checked && cb.Name != checkBox.Name) checkBox.Checked = false;
 
             foreach (var btn in dnButtons)
             {
                 if (btn.Checked)
                 {
-                    string dn = string.Concat(btn.Text.Where(c => !char.IsWhiteSpace(c)));
-                    PipeDnEnum pipeDn = (PipeDnEnum)Enum.Parse(typeof(PipeDnEnum), dn);
-
                     PipeTypeEnum fr = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum), cb.Text);
 
-                    ActivateLayer(fr, pipeDn);
+                    PipeSystemEnum system;
+                    string dn;
+                    if (cb.Text.StartsWith("DN "))
+                    {
+                        system = PipeSystemEnum.Stål;
+                        dn = cb.Text.Replace("DN ", "");
+                    }
+                    else if (cb.Text.StartsWith("ALUPEX "))
+                    {
+                        system = PipeSystemEnum.AluPex;
+                        dn = cb.Text.Replace("ALUPEX ", "");
+                    }
+                    else if (cb.Text.StartsWith("CU "))
+                    {
+                        system = PipeSystemEnum.Kobberflex;
+                        dn = cb.Text.Replace("CU ", "");
+                    }
+                    else throw new System.Exception($"Unknown pipe button text: {cb.Text}!");
+
+                    ActivateLayer(system, fr, dn);
                 }
             }
         }

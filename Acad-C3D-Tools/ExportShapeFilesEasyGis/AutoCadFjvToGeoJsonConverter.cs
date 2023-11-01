@@ -18,7 +18,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 
-using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;

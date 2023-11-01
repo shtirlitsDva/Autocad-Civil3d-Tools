@@ -272,7 +272,6 @@
     </Compile>
     <Compile Include="ColorUtils.cs" />
     <Compile Include="ComponentSchedule.cs" />
-    <Compile Include="CreateGisData.cs" />
     <Compile Include="CsvReader.cs" />
     <Compile Include="DataQAClass.cs" />
     <Compile Include="DouglasPeuckerReduction.cs" />
@@ -315,6 +314,16 @@
     <Compile Include="Pipeline.cs" />
     <Compile Include="PipelineSizeArray.cs" />
     <Compile Include="PipeSchedule.cs" />
+    <Compile Include="PipeScheduleV2\IPipeType.cs" />
+    <Compile Include="PipeScheduleV2\IPipeTypeRepository.cs" />
+    <Compile Include="PipeScheduleV2\PipeScheduleV2.cs" />
+    <Compile Include="PipeScheduleV2\PipeTypeBase.cs" />
+    <Compile Include="PipeScheduleV2\PipeTypeCU.cs" />
+    <Compile Include="PipeScheduleV2\PipeTypeDN.cs" />
+    <Compile Include="PipeScheduleV2\PipeTypeALUPEX.cs" />
+    <Compile Include="PipeScheduleV2\PipeTypeDataLoaderCSV.cs" />
+    <Compile Include="PipeScheduleV2\PipeTypePEXU.cs" />
+    <Compile Include="PipeScheduleV2\PipeTypeRepository.cs" />
     <Compile Include="PlanDetailing\ComponentData.cs" />
     <Compile Include="PlanDetailing\PlanDetailing.cs" />
     <Compile Include="PlanProduction\PlanProduction.cs" />

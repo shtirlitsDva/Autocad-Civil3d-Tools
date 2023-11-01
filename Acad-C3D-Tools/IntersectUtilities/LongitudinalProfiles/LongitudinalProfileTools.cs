@@ -34,7 +34,7 @@ using Dreambuild.AutoCAD;
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
-using static IntersectUtilities.PipeSchedule;
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.UtilsODData;
@@ -3240,12 +3240,18 @@ namespace IntersectUtilities
 
                     #region Combine partial plines and convert to profile
                     //Get the number of the alignment
-                    Regex regx = new Regex(@"(?<number>\d{2,3}?\s)");
+                    //Determine the pipeline number
+                    Regex regexOld = new Regex(@"(?<number>\d{2,3})\s");
+                    Regex regexNew = new Regex(@"(?<number>\d{2,3})");
+
                     string number = "";
-                    if (regx.IsMatch(al.Name))
-                    {
-                        number = regx.Match(al.Name).Groups["number"].Value;
-                    }
+                    if (regexNew.IsMatch(al.Name))
+                        number = regexNew.Match(al.Name).Groups["number"].Value;
+                    else if (regexOld.IsMatch(al.Name))
+                        number = regexOld.Match(al.Name).Groups["number"].Value;
+
+                    if (number.IsNoE()) throw new System.Exception(
+                        $"Alignment {al.Name} failed to parse the pipeline number!");
 
                     //Combine to polylines
                     Polyline plineTop = new Polyline();
@@ -3260,7 +3266,7 @@ namespace IntersectUtilities
                         }
                     }
                     Profile profileTop = CreateProfileFromPolyline(
-                        number + "BUND",
+                        number + " BUND",
                         profileView,
                         al.Name,
                         profileLayerName,
@@ -3282,7 +3288,7 @@ namespace IntersectUtilities
                         }
                     }
                     Profile profileBund = CreateProfileFromPolyline(
-                        number + "TOP",
+                        number + " TOP",
                         profileView,
                         al.Name,
                         profileLayerName,
@@ -3375,7 +3381,7 @@ namespace IntersectUtilities
                 DataReferencesOptions dro = new DataReferencesOptions();
 
                 HashSet<Profile> pvs = localDb.HashSetOfType<Profile>(tx);
-                foreach (Profile profile in pvs)
+                foreach (Profile profile in pvs.OrderBy(x => x.Name))
                 {
                     if (profile.Name.Contains("MIDT"))
                     {
@@ -4999,7 +5005,7 @@ namespace IntersectUtilities
 
                             string key = $"{se.DN}-{se.System}-{se.Type}-{se.Series}";
 
-                            double tw = PipeSchedule.GetTrenchWidth(se.DN, se.System, se.Type, se.Series);
+                            double tw = GetTrenchWidth(se.DN, se.System, se.Type, se.Series);
                             if (tw == 0) continue;
 
                             TrenchSamplingPoint tsp = new TrenchSamplingPoint(
