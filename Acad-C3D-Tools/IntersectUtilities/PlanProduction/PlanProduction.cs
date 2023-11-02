@@ -1696,6 +1696,7 @@ namespace IntersectUtilities
                 blockTx.Commit();
 
                 blockDb.SaveAs("C:\\Temp\\VfDwg.dwg", DwgVersion.Newest);
+                prdDbg("Filen gemt i C:\\Temp\\VfDwg.dwg");
             }
 
             blockDb.Dispose();
