@@ -54,6 +54,8 @@ using IntersectUtilities.DynamicBlocks;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
 using Plane = Autodesk.AutoCAD.Geometry.Plane;
+using netDxf.Entities;
+using NetTopologySuite.Triangulate;
 
 namespace IntersectUtilities
 {
@@ -1564,7 +1566,16 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            Database blockDb = new Database(true, true);
+            Database blockDb = new Database(false, true);
+            if (!File.Exists(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt"))
+                throw new System.Exception(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt does not exist!");
+            blockDb.ReadDwgFile(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt", 
+                FileOpenMode.OpenForReadAndAllShare, false, null);
+
+            string lyrName = "0-ViewFrames";
+            blockDb.CheckOrCreateLayer(lyrName);
+
+            string hostFileName = localDb.Filename;
 
             using (Transaction blockTx = blockDb.TransactionManager.StartTransaction())
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -1637,25 +1648,40 @@ namespace IntersectUtilities
 
                                                             newPline.Closed = true;
                                                             newPline.AddEntityToDbModelSpace(blockDb);
+                                                            newPline.Layer = lyrName;
 
-                                                            LineSegment2d seg = newPline.GetLineSegment2dAt(0);
+                                                            LineSegment2d segment = newPline.GetLineSegment2dAt(0);
 
-                                                            DBText text = new DBText();
-                                                            text.TextString = name;
-                                                            text.Height = 5;
-                                                            text.Rotation = seg.Direction.Angle;
-                                                            
+                                                            var text = new Autodesk.AutoCAD.DatabaseServices.MText();
+                                                            text.Contents = name;
+                                                            text.TextHeight = 10;
+
+                                                            double rotationRadians = segment.Direction.Angle;
+                                                            double rotationDegrees = rotationRadians * (180.0 / Math.PI);
+
+                                                            if (rotationDegrees > 90 && rotationDegrees < 270)
+                                                                rotationRadians += Math.PI;
+
+                                                            if (name == "011")
+                                                                prdDbg($"Rad: {rotationRadians}, Deg: {rotationDegrees}");
+
+                                                            text.Rotation = rotationRadians;
+
                                                             Extents3d extents = newPline.GeometricExtents;
                                                             Point3d center = new Point3d(
                                                                 (extents.MaxPoint.X + extents.MinPoint.X) / 2.0,
                                                                 (extents.MaxPoint.Y + extents.MinPoint.Y) / 2.0,
                                                                 0);
-                                                            text.HorizontalMode = TextHorizontalMode.TextCenter;
+                                                            
+                                                            text.Location = center;
+                                                            text.Attachment = AttachmentPoint.MiddleCenter;
 
-                                                            text.Position = center;
-                                                            text.AlignmentPoint = center;
+                                                            text.BackgroundFill = true;
+                                                            text.UseBackgroundColor = true;
+                                                            text.BackgroundScaleFactor = 1.2;
 
                                                             text.AddEntityToDbModelSpace(blockDb);
+                                                            text.Layer = lyrName;
                                                         }
                                                     }
                                                 }
@@ -1695,8 +1721,9 @@ namespace IntersectUtilities
                 tx.Commit();
                 blockTx.Commit();
 
-                blockDb.SaveAs("C:\\Temp\\VfDwg.dwg", DwgVersion.Newest);
-                prdDbg("Filen gemt i C:\\Temp\\VfDwg.dwg");
+                var path = Path.Combine(Path.GetDirectoryName(hostFileName), "ViewFrames.dwg");
+                prdDbg("Filen gemt i " + path);
+                blockDb.SaveAs(path, DwgVersion.Newest);
             }
 
             blockDb.Dispose();

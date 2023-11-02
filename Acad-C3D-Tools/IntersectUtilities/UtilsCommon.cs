@@ -2818,33 +2818,58 @@ namespace IntersectUtilities.UtilsCommon
         }
         public static bool CheckOrCreateLayer(this Database db, string layerName, short colorIdx = -1, bool isPlottable = true)
         {
-            Transaction txLag = db.TransactionManager.TopTransaction;
-            LayerTable lt = txLag.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
-            if (!lt.Has(layerName))
+            bool newTx = false;
+            if (db.TransactionManager.TopTransaction == null) newTx = true;
+
+            Transaction txLag;
+            if (newTx) txLag = db.TransactionManager.StartTransaction();
+            else txLag = db.TransactionManager.TopTransaction;
+            try
             {
-                LayerTableRecord ltr = new LayerTableRecord();
-                ltr.Name = layerName;
-                ltr.IsPlottable = isPlottable;
-                if (colorIdx != -1)
+                LayerTable lt = txLag.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
+                if (!lt.Has(layerName))
                 {
-                    ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, colorIdx);
+                    LayerTableRecord ltr = new LayerTableRecord();
+                    ltr.Name = layerName;
+                    ltr.IsPlottable = isPlottable;
+                    if (colorIdx != -1)
+                    {
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, colorIdx);
+                    }
+
+                    //Make layertable writable
+                    lt.CheckOrOpenForWrite();
+
+                    //Add the new layer to layer table
+                    Oid ltId = lt.Add(ltr);
+                    txLag.AddNewlyCreatedDBObject(ltr, true);
+                    if (newTx)
+                    {
+                        txLag.Commit();
+                        txLag.Dispose();
+                    }
+                    return true;
                 }
-
-                //Make layertable writable
-                lt.CheckOrOpenForWrite();
-
-                //Add the new layer to layer table
-                Oid ltId = lt.Add(ltr);
-                txLag.AddNewlyCreatedDBObject(ltr, true);
-                return true;
+                else
+                {
+                    if (colorIdx == -1) return true;
+                    LayerTableRecord ltr = lt[layerName].Go<LayerTableRecord>(txLag, OpenMode.ForWrite);
+                    if (ltr.Color.ColorIndex != colorIdx)
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, colorIdx);
+                    if (newTx)
+                    {
+                        txLag.Commit();
+                        txLag.Dispose();
+                    }
+                    return true;
+                }
             }
-            else
+            catch (System.Exception ex)
             {
-                if (colorIdx == -1) return true;
-                LayerTableRecord ltr = lt[layerName].Go<LayerTableRecord>(txLag, OpenMode.ForWrite);
-                if (ltr.Color.ColorIndex != colorIdx)
-                    ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, colorIdx);
-                return true;
+                prdDbg(ex);
+                txLag.Abort();
+                if (newTx) txLag.Dispose();
+                throw;
             }
         }
         public static string Layer(this Oid oid)
