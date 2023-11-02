@@ -1225,8 +1225,8 @@ namespace IntersectUtilities
             Application.DocumentManager.MdiActiveDocument.Editor.Regen();
         }
 
-        [CommandMethod("CREATEALIGNMENT")]
-        public void createalignment()
+        [CommandMethod("UPDATEPIPELABELS")]
+        public void updatepipelabels()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -1235,17 +1235,33 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
-                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriSourceReference);
+                    PSetDefs.DriSourceReference dsr = new PSetDefs.DriSourceReference();
 
-                    HashSet<Entity> ents = localDb.GetFjvEntities(tx, fjvKomponenter, true, true);
+                    HashSet<MText> labels = localDb.HashSetOfType<MText>(tx);
 
-                    graphclear();
-                    graphpopulate();
+                    foreach (MText label in labels)
+                    {
+                        string handle = psm.ReadPropertyString(label, dsr.SourceEntityHandle);
+                        if (handle.IsNoE()) continue;
+                        try
+                        {
+                            var ent = localDb.Go<Entity>(handle);
+                            if (ent is Polyline pline)
+                            {
+                                string newLabel = GetLabel(ent);
+                                if (newLabel.IsNoE()) continue;
 
-
-
-                    
+                                label.CheckOrOpenForWrite();
+                                label.Contents = newLabel;
+                            }
+                        }
+                        catch (System.Exception ex)
+                        {
+                            prdDbg($"Handle {handle} does not exist!");
+                            continue;
+                        }
+                    }
                 }
                 catch (System.Exception ex)
                 {
