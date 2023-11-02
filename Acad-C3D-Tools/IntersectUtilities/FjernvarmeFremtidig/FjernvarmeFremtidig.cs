@@ -1238,6 +1238,7 @@ namespace IntersectUtilities
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriSourceReference);
                     PSetDefs.DriSourceReference dsr = new PSetDefs.DriSourceReference();
 
+                    HashSet<Oid> ids = new HashSet<Oid>();
                     HashSet<MText> labels = localDb.HashSetOfType<MText>(tx);
 
                     foreach (MText label in labels)
@@ -1259,9 +1260,13 @@ namespace IntersectUtilities
                         catch (System.Exception ex)
                         {
                             prdDbg($"Handle {handle} does not exist!");
+                            ids.Add(label.Id);
                             continue;
                         }
                     }
+
+                    if (ids.Count > 0) 
+                        docCol.MdiActiveDocument.Editor.SetImpliedSelection(ids.ToArray());
                 }
                 catch (System.Exception ex)
                 {
