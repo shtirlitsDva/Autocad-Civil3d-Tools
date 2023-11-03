@@ -1225,7 +1225,7 @@ namespace IntersectUtilities
             Application.DocumentManager.MdiActiveDocument.Editor.Regen();
         }
 
-        [CommandMethod("UPDATEPIPELABELS")]
+        [CommandMethod("LABELSUPDATE")]
         public void updatepipelabels()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -1265,8 +1265,12 @@ namespace IntersectUtilities
                         }
                     }
 
-                    if (ids.Count > 0) 
+                    if (ids.Count > 0)
+                    {
+                        prdDbg($"Fandt gamle labels!");
                         docCol.MdiActiveDocument.Editor.SetImpliedSelection(ids.ToArray());
+                    }
+                        
                 }
                 catch (System.Exception ex)
                 {
