@@ -1454,8 +1454,9 @@ namespace IntersectUtilities.UtilsCommon
             {
                 next = collection.EntityAtId(currentEntity.EntityAfter);
             }
-            catch (System.Exception)
+            catch (System.Exception ex)
             {
+                prdDbg(ex);
                 return 0;
             }
 
