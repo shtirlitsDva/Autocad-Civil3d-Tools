@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using IntersectUtilities.Forms;
 
 namespace IntersectUtilities
 {
@@ -22,7 +23,8 @@ namespace IntersectUtilities
             Editor editor = docCol.MdiActiveDocument.Editor;
 
             if (!File.Exists(PathToStierCsv))
-                throw new System.Exception("X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv findes ikke!");
+                throw new System.Exception(
+                    "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv findes ikke!");
 
             #region Read Csv for paths
             string pathStier = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
@@ -34,43 +36,51 @@ namespace IntersectUtilities
             foreach (DataRow row in dtStier.Rows)
                 kwds.Add(((string)row["PrjId"]));
 
-            string msg = "\nVælg projekt [";
-            string keywordsJoined = string.Join("/", kwds);
-            msg = msg + keywordsJoined + "]: ";
+            var sgf = new StringGridForm(kwds, 4, "VÆLG PROJEKT");
+            sgf.ShowDialog();
 
-            string displayKewords = string.Join(" ", kwds);
+            if (kwds.Contains(sgf.SelectedValue)) return sgf.SelectedValue;
+            else throw new System.Exception($"No project of this name \"{sgf.SelectedValue}\" found!");
 
-            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions(msg, displayKewords);
-            //pKeyOpts.Message = "\nVælg projekt: ";
+            #region Old keywords method
+            //string msg = "\nVælg projekt [";
+            //string keywordsJoined = string.Join("/", kwds);
+            //msg = msg + keywordsJoined + "]: ";
+
+            //string displayKewords = string.Join(" ", kwds);
+
+            //PromptKeywordOptions pKeyOpts = new PromptKeywordOptions(msg, displayKewords);
+            ////pKeyOpts.Message = "\nVælg projekt: ";
+            ////foreach (string kwd in kwds)
+            ////{
+            ////    pKeyOpts.Keywords.Add(kwd, kwd, kwd);
+            ////}
+            //pKeyOpts.AllowNone = true;
+            //pKeyOpts.Keywords.Default = kwds.First();
+            ////pKeyOpts.AllowNone = false;
+            ////pKeyOpts.AllowArbitraryInput = true;
+            ////for (int i = 0; i < pKeyOpts.Keywords.Count; i++)
+            ////{
+            ////    prdDbg("\nLocal name: " + pKeyOpts.Keywords[i].LocalName);
+            ////    prdDbg("\nGlobal name: " + pKeyOpts.Keywords[i].GlobalName);
+            ////    prdDbg("\nDisplay name: " + pKeyOpts.Keywords[i].DisplayName);
+            ////}
+
+            ////pKeyOpts.Keywords.Default = kwds[0];
+            //PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+            ////For some reason keywords returned are only the first part, so this is a workaround
+            ////Depends on what input is
+            ////The project name must start with the project number
+            ////If the code returns wrong values, there must be something wrong with project names
+            ////Like same project number and/or occurence of same substring in two or more keywords
+            ////This is a mess...
+            //string returnedPartOfTheKeyword = pKeyRes.StringResult;
             //foreach (string kwd in kwds)
             //{
-            //    pKeyOpts.Keywords.Add(kwd, kwd, kwd);
+            //    if (kwd.Contains(returnedPartOfTheKeyword)) return kwd;
             //}
-            pKeyOpts.AllowNone = true;
-            pKeyOpts.Keywords.Default = kwds.First();
-            //pKeyOpts.AllowNone = false;
-            //pKeyOpts.AllowArbitraryInput = true;
-            //for (int i = 0; i < pKeyOpts.Keywords.Count; i++)
-            //{
-            //    prdDbg("\nLocal name: " + pKeyOpts.Keywords[i].LocalName);
-            //    prdDbg("\nGlobal name: " + pKeyOpts.Keywords[i].GlobalName);
-            //    prdDbg("\nDisplay name: " + pKeyOpts.Keywords[i].DisplayName);
-            //}
-
-            //pKeyOpts.Keywords.Default = kwds[0];
-            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
-            //For some reason keywords returned are only the first part, so this is a workaround
-            //Depends on what input is
-            //The project name must start with the project number
-            //If the code returns wrong values, there must be something wrong with project names
-            //Like same project number and/or occurence of same substring in two or more keywords
-            //This is a mess...
-            string returnedPartOfTheKeyword = pKeyRes.StringResult;
-            foreach (string kwd in kwds)
-            {
-                if (kwd.Contains(returnedPartOfTheKeyword)) return kwd;
-            }
-            throw new System.Exception("No project of this name found!");
+            //throw new System.Exception("No project of this name found!"); 
+            #endregion
         }
         public static string GetEtapeName(string projectName)
         {
@@ -89,17 +99,25 @@ namespace IntersectUtilities
             foreach (DataRow row in query)
                 kwds.Add((string)row["Etape"]);
 
-            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
-            pKeyOpts.Message = "\nVælg etape: ";
-            foreach (string kwd in kwds)
-            {
-                pKeyOpts.Keywords.Add(kwd);
-            }
-            pKeyOpts.AllowNone = true;
-            pKeyOpts.Keywords.Default = kwds.First();
-            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+            var sgf = new StringGridForm(kwds, 4, "VÆLG ETAPE");
+            sgf.ShowDialog();
 
-            return pKeyRes.StringResult;
+            if (kwds.Contains(sgf.SelectedValue)) return sgf.SelectedValue;
+            else throw new System.Exception($"No etape of this name \"{sgf.SelectedValue}\" found!");
+
+            #region Old method
+            //PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
+            //pKeyOpts.Message = "\nVælg etape: ";
+            //foreach (string kwd in kwds)
+            //{
+            //    pKeyOpts.Keywords.Add(kwd);
+            //}
+            //pKeyOpts.AllowNone = true;
+            //pKeyOpts.Keywords.Default = kwds.First();
+            //PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+
+            //return pKeyRes.StringResult; 
+            #endregion
         }
         public DataReferencesOptions()
         {

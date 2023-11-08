@@ -1,4 +1,6 @@
-﻿using System;
+﻿using IntersectUtilities.UtilsCommon;
+
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -13,7 +15,7 @@ namespace IntersectUtilities.Forms
     public partial class StringGridForm : Form
     {
         public string SelectedValue { get; private set; }
-        public enum PrimaryNorsynColors
+        private enum PrimaryNorsynColors
         {
             Dark = 1455948,
             Blue = 7777478,
@@ -22,16 +24,20 @@ namespace IntersectUtilities.Forms
             LightBrown = 14142900,
             Grey = 15198183
         }
+        private TableLayoutPanel panel;
 
-        public StringGridForm(IEnumerable<string> stringList, int columns = 6)
+        public StringGridForm(IEnumerable<string> stringList, int columns = 6, string name = "")
         {
             InitializeComponent();
+            #region Init buttons
             SelectedValue = null;
+
+            this.FormBorderStyle = FormBorderStyle.None;
 
             this.BackColor = Color.FromArgb(30, 30, 30);
             this.ForeColor = Color.White;
 
-            TableLayoutPanel panel = new TableLayoutPanel()
+            panel = new TableLayoutPanel()
             {
                 BackColor = Color.FromArgb(30, 30, 30),
                 ForeColor = Color.White,
@@ -58,6 +64,10 @@ namespace IntersectUtilities.Forms
                 btn.FlatAppearance.BorderColor = Color.FromArgb(40, 40, 40);
                 btn.FlatAppearance.BorderSize = 1;
                 btn.Click += (sender, e) => { ButtonClicked(str); };
+                btn.GotFocus += button_GotFocus;
+                btn.LostFocus += button_LostFocus;
+                btn.KeyDown += StringGridForm_KeyDown;
+                btn.PreviewKeyDown += StringGridForm_PreviewKeyDown;
 
                 // Calculate maximum button size
                 Size textSize = TextRenderer.MeasureText(str, btn.Font);
@@ -83,8 +93,11 @@ namespace IntersectUtilities.Forms
                 panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, maxButtonWidth));
             }
 
+            panel.ColumnCount = columns + 1;
+            panel.RowCount = row + 1;
+
             int panelWidth = maxButtonWidth * columns;
-            int panelHeight = maxButtonHeight * (row + 1);
+            int panelHeight = maxButtonHeight * row; //(row + 1);
 
             // Ensure form does not exceed screen dimensions
             int maxWidth = Screen.PrimaryScreen.WorkingArea.Width;
@@ -98,6 +111,9 @@ namespace IntersectUtilities.Forms
             this.Controls.Add(panel);
             this.AutoScroll = true;
             this.AutoSize = true;
+            #endregion
+
+            if (name.IsNotNoE()) this.Name = name;
         }
 
         private void ButtonClicked(string value)
@@ -112,6 +128,126 @@ namespace IntersectUtilities.Forms
             if (SelectedValue == null)
             {
                 Console.WriteLine("Form Closed without selection.");
+            }
+        }
+
+        private void StringGridForm_Load(object sender, EventArgs e)
+        {
+            StartPosition = FormStartPosition.Manual;
+
+            Point cursorPosition = Cursor.Position;
+            int formX = cursorPosition.X - this.Width / 2;
+            int formY = cursorPosition.Y + this.Height - this.ClientSize.Height;
+
+            // Set the form's Location property
+            Location = new Point(formX, formY);
+
+            // Check if there are any buttons in the TableLayoutPanel
+            if (panel.Controls.Count > 0)
+            {
+                // Set focus to the first button
+                panel.Controls[0].Focus();
+            }
+        }
+
+        private void button_GotFocus(object sender, EventArgs e)
+        {
+            Button focusedButton = (Button)sender;
+            focusedButton.BackColor = Color.LightSkyBlue;
+            focusedButton.ForeColor = Color.Red;
+        }
+
+        private void button_LostFocus(object sender, EventArgs e)
+        {
+            Button focusedButton = (Button)sender;
+            focusedButton.BackColor = Color.FromArgb(50, 50, 50);
+            focusedButton.ForeColor = Color.FromArgb(200, 200, 200);
+        }
+
+        private void StringGridForm_PreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
+        {
+            switch (e.KeyCode)
+            {
+                case Keys.Up:
+                case Keys.Down:
+                case Keys.Left:
+                case Keys.Right:
+                    e.IsInputKey = true;
+                    break;
+            }
+        }
+
+        private void StringGridForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            e.Handled = true;
+
+            Button focusedButton = panel.Controls.OfType<Button>().Where(b => b.Focused).FirstOrDefault();
+
+            if (focusedButton == null) return;
+
+            int currentRow = panel.GetRow(focusedButton);
+            int currentColumn = panel.GetColumn(focusedButton);
+
+            // Navigate based on the pressed key
+            switch (e.KeyCode)
+            {
+                case Keys.Up:
+                    {
+                        Button btn = null;
+                        while (btn == null)
+                        {
+                            currentRow--;
+                            if (currentRow < 0) currentRow = panel.RowCount - 1;
+                            btn = panel.GetControlFromPosition(currentColumn, currentRow) as Button;
+                        }
+
+                        btn.Focus();
+                    }
+                    break;
+                case Keys.Down:
+                    {
+                        Button btn = null;
+                        while (btn == null)
+                        {
+                            currentRow++;
+                            if (currentRow > panel.RowCount - 1) currentRow = 0;
+                            btn = panel.GetControlFromPosition(currentColumn, currentRow) as Button;
+                        }
+
+                        btn.Focus();
+                    }
+                    break;
+                case Keys.Left:
+                    {
+                        Button btn = null;
+                        while (btn == null)
+                        {
+                            currentColumn--;
+                            if (currentColumn < 0) currentColumn = panel.ColumnCount - 1;
+                            btn = panel.GetControlFromPosition(currentColumn, currentRow) as Button;
+                        }
+
+                        btn.Focus();
+                    }
+                    break;
+                case Keys.Right:
+                    {
+                        Button btn = null;
+                        while (btn == null)
+                        {
+                            currentColumn++;
+                            if (currentColumn > panel.ColumnCount - 1) currentColumn = 0;
+                            btn = panel.GetControlFromPosition(currentColumn, currentRow) as Button;
+                        }
+
+                        btn.Focus();
+                    }
+                    break;
+                case Keys.Escape:
+                    {
+                        this.Close();
+                    }
+                    break;
             }
         }
     }

@@ -3932,33 +3932,37 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test new DRO
+                    //DataReferencesOptions dro = new DataReferencesOptions();
+                    //prdDbg($"{dro.ProjectName}, {dro.EtapeName}");
+                    #endregion
+
                     #region Get points from profile
-                    var pId = Interaction.GetEntity("Select profile: ", typeof(Profile), false);
-                    if (pId == Oid.Null) { tx.Abort(); return; }
-                    Profile p = pId.Go<Profile>(tx);
+                    //var pId = Interaction.GetEntity("Select profile: ", typeof(Profile), false);
+                    //if (pId == Oid.Null) { tx.Abort(); return; }
+                    //Profile p = pId.Go<Profile>(tx);
 
-                    var pvId = Interaction.GetEntity("Select profile view: ", typeof(ProfileView), false);
-                    if (pvId == Oid.Null) { tx.Abort(); return; }
-                    ProfileView pv = pvId.Go<ProfileView>(tx);
+                    //var pvId = Interaction.GetEntity("Select profile view: ", typeof(ProfileView), false);
+                    //if (pvId == Oid.Null) { tx.Abort(); return; }
+                    //ProfileView pv = pvId.Go<ProfileView>(tx);
 
-                    var ss = pv.StationStart;
-                    var se = pv.StationEnd;
+                    //var ss = pv.StationStart;
+                    //var se = pv.StationEnd;
 
-                    List<Point3d> points = new List<Point3d>();
+                    //List<Point3d> points = new List<Point3d>();
 
-                    //iterate over length of profile view with a step of 5
-                    for (double i = ss; i < se; i += 5)
-                    {
-                        double X = 0;
-                        double Y = 0;
-                        pv.FindXYAtStationAndElevation(i, p.ElevationAt(i), ref X, ref Y);
-                        points.Add(new Point3d(X, Y, 0));
-                    }
+                    ////iterate over length of profile view with a step of 5
+                    //for (double i = ss; i < se; i += 5)
+                    //{
+                    //    double X = 0;
+                    //    double Y = 0;
+                    //    pv.FindXYAtStationAndElevation(i, p.ElevationAt(i), ref X, ref Y);
+                    //    points.Add(new Point3d(X, Y, 0));
+                    //}
 
-                    File.WriteAllText(@"C:\Temp\points.txt", string.Join(
-                        ";", points.Select(x => 
-                        $"({x.X.ToString("F2", CultureInfo.InvariantCulture)},{x.Y.ToString("F2", CultureInfo.InvariantCulture)})")));
-
+                    //File.WriteAllText(@"C:\Temp\points.txt", string.Join(
+                    //    ";", points.Select(x => 
+                    //    $"({x.X.ToString("F2", CultureInfo.InvariantCulture)},{x.Y.ToString("F2", CultureInfo.InvariantCulture)})")));
                     #endregion
 
                     #region Test PipeScheduleV2
