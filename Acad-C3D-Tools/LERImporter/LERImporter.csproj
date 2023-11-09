@@ -93,6 +93,7 @@
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
+    <Reference Include="System.IO.Compression" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Web" />
     <Reference Include="System.Windows.Forms" />
@@ -159,7 +160,7 @@
       <Link>UtilsCommon.cs</Link>
     </Compile>
     <Compile Include="ConsolidatedCreator.cs" />
-    <Compile Include="Converters\Udbedringer af udvidede udfaldsrum.cs" />
+    <Compile Include="Converters\Enhancer.cs" />
     <Compile Include="GmlToPropertySet.cs" />
     <Compile Include="LerImporter.cs" />
     <Compile Include="ObjectDumper\DumpOptions.cs" />
@@ -188,6 +189,7 @@
     <Compile Include="Schema\VariousClasses.cs" />
     <Compile Include="Schema\wfs.Designer.cs" />
     <Compile Include="Visualizer.cs" />
+    <Compile Include="ZipExtractor\ZipExtractor.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

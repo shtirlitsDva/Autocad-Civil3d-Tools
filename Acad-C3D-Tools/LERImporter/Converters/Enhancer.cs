@@ -10,14 +10,47 @@ using System.Xml.Serialization;
 
 using LERImporter.Schema;
 
-namespace LERImporter.Converters
+namespace LERImporter.Enhancer
 {
-    internal static class Converter_Ledningstrace_TDC500mmTraceAsZeroWidth
+    internal static class Enhance
     {
+        internal static string Run(string pathToGml)
+        {
+            string fileName = Path.GetFileNameWithoutExtension(pathToGml);
+            string extension = Path.GetExtension(pathToGml);
+            string folderPath = Path.GetDirectoryName(pathToGml) + "\\";
+
+            string str = File.ReadAllText(pathToGml);
+            str = str.Replace("<ler:id>", "<ler:lerid>");
+            str = str.Replace("</ler:id>", "</ler:lerid>");
+
+            str = str.Replace("http://data.gov.dk/schemas/LER/1/gml", "http://data.gov.dk/schemas/LER/2/gml");
+
+            string modifiedFileName =
+                folderPath + "\\" + fileName + "_mod" + extension;
+
+            //Handling of various badly formed GML quirks
+            //Prepare a memory stream for translating
+            byte[] byteArray = Encoding.UTF8.GetBytes(str);
+
+            using (MemoryStream ms = new MemoryStream(byteArray))
+            {
+                var doc = XDocument.Load(ms);
+
+                doc = Cerius_ElkomponentToFoeringsroer(doc);
+                doc = TermiskKomponent_HandleNonStandardValuesForEnums(doc);
+                doc = Ledningstrace_TDC500mmTraceAsZeroWidth(doc);
+
+                doc.Save(modifiedFileName);
+            }
+
+            return modifiedFileName;
+        }
+
         /// <summary>
         /// Sets any Ledningstrace found with 500 mm width to 0.
         /// </summary>
-        internal static XDocument Convert(XDocument doc)
+        private static XDocument Ledningstrace_TDC500mmTraceAsZeroWidth(XDocument doc)
         {
             var ler = XNamespace.Get("http://data.gov.dk/schemas/LER/2/gml");
 
@@ -34,17 +67,14 @@ namespace LERImporter.Converters
 
             return doc;
         }
-    }
-    internal static class Converter_TermiskKomponent_HandleNonStandardValuesForEnums
-    {
-        internal static XDocument Convert(XDocument doc)
+        private static XDocument TermiskKomponent_HandleNonStandardValuesForEnums(XDocument doc)
         {
             var gml = XNamespace.Get("http://www.opengis.net/gml/3.2");
             var ler = XNamespace.Get("http://data.gov.dk/schemas/LER/2/gml");
 
             var items = doc.Descendants(ler + "TermiskKomponent").ToList();
 
-            foreach ( var item in items )
+            foreach (var item in items)
             {
                 //Fix non-existing enum values, MUST RUN AFTER OTHER CONVERTERS
                 if (!Enum.IsDefined(typeof(TermiskkomponenttypeType), item.Element(ler + "type").Value))
@@ -55,10 +85,7 @@ namespace LERImporter.Converters
 
             return doc;
         }
-    }
-    internal static class Converter_Cerius_ElkomponentToFoeringsroer
-    {
-        internal static XDocument Convert(XDocument doc)
+        private static XDocument Cerius_ElkomponentToFoeringsroer(XDocument doc)
         {
             var gml = XNamespace.Get("http://www.opengis.net/gml/3.2");
             var ler = XNamespace.Get("http://data.gov.dk/schemas/LER/2/gml");

@@ -1,22 +1,15 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
-using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
-using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
-using Autodesk.Civil;
 using Autodesk.Civil.ApplicationServices;
-using Autodesk.Civil.DatabaseServices;
-using Autodesk.Civil.DatabaseServices.Styles;
-using Autodesk.Civil.DataShortcuts;
-using Autodesk.Aec.PropertyData;
-using Autodesk.Aec.PropertyData.DatabaseServices;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -49,7 +42,7 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Log = LERImporter.SimpleLogger;
 using System.Xml.Linq;
 using LERImporter.Schema;
-using LERImporter.Converters;
+using LERImporter.Enhancer;
 
 namespace LERImporter
 {
@@ -278,29 +271,7 @@ namespace LERImporter
                 Log.log($"Importing {pathToGml}");
 
                 #region Handle bad objects
-                string str = File.ReadAllText(pathToGml);
-                str = str.Replace("<ler:id>", "<ler:lerid>");
-                str = str.Replace("</ler:id>", "</ler:lerid>");
-
-                str = str.Replace("http://data.gov.dk/schemas/LER/1/gml", "http://data.gov.dk/schemas/LER/2/gml");
-
-                string modifiedFileName =
-                    folderPath + "\\" + fileName + "_mod" + extension;
-
-                //Handling of various badly formed GML quirks
-                //Prepare a memory stream for translating
-                byte[] byteArray = Encoding.UTF8.GetBytes(str);
-
-                using (MemoryStream ms = new MemoryStream(byteArray))
-                {
-                    var doc = XDocument.Load(ms);
-
-                    doc = Converter_Cerius_ElkomponentToFoeringsroer.Convert(doc);
-                    doc = Converter_TermiskKomponent_HandleNonStandardValuesForEnums.Convert(doc);
-                    doc = Converter_Ledningstrace_TDC500mmTraceAsZeroWidth.Convert(doc);
-
-                    doc.Save(modifiedFileName);
-                }
+                string modifiedFileName = Enhance.Run(pathToGml);
                 #endregion
 
                 #region Deserialize gml
@@ -371,6 +342,7 @@ namespace LERImporter
             }
         }
 
+        [CommandMethod("IGMLBATCH")]
         [CommandMethod("IMPORTCONSOLIDATEDGMLBATCH")]
         public void importconsolidatedbatch()
         {
@@ -381,7 +353,7 @@ namespace LERImporter
                 FolderSelectDialog fsd = new FolderSelectDialog()
                 {
                     Title = "Choose folder where gml files are stored: ",
-                    InitialDirectory = @"C:\"
+                    //InitialDirectory = @"C:\"
                 };
                 if (fsd.ShowDialog(IntPtr.Zero))
                 {
@@ -389,13 +361,21 @@ namespace LERImporter
                 }
                 else return;
 
-                var files = Directory.EnumerateFiles(pathToTopFolder, "consolidated.gml", SearchOption.AllDirectories);
+                #region Unzip zip files
+                ZipExtractor.UnzipFilesInDirectory(pathToTopFolder);
                 #endregion
 
+                var files = Directory.EnumerateFiles(
+                    pathToTopFolder, "consolidated.gml", SearchOption.AllDirectories);
+                #endregion
+
+                #region Actual converting
                 Log.LogFileName = pathToTopFolder + "LerImport.log";
 
                 #region Replace ler:id with ler:lerid, ler1 with ler2
-                List<string> modList = new List<string>();
+                List<string> modFiles = new List<string>();
+                Schema.FeatureCollection gfCombined = new Schema.FeatureCollection();
+                gfCombined.featureCollection = new List<Schema.FeatureMember>();
                 foreach (var file in files)
                 {
                     string fileName = Path.GetFileNameWithoutExtension(file);
@@ -403,27 +383,8 @@ namespace LERImporter
                     string folderPath = Path.GetDirectoryName(file) + "\\";
 
                     Log.log($"Importing {file}");
+                    modFiles.Add(Enhance.Run(file));
 
-
-                    string str = File.ReadAllText(file);
-                    str = str.Replace("<ler:id>", "<ler:lerid>");
-                    str = str.Replace("</ler:id>", "</ler:lerid>");
-
-                    str = str.Replace("http://data.gov.dk/schemas/LER/1/gml", "http://data.gov.dk/schemas/LER/2/gml");
-
-                    string modifiedFileName =
-                        folderPath + "\\" + fileName + "_mod" + extension;
-
-                    File.WriteAllText(modifiedFileName, str);
-                    modList.Add(modifiedFileName);
-                }
-                #endregion
-
-                #region Deserialize gml
-                Schema.FeatureCollection gfCombined = new Schema.FeatureCollection();
-                gfCombined.featureCollection = new List<Schema.FeatureMember>();
-                foreach (var file in modList)
-                {
                     var serializer = new XmlSerializer(typeof(Schema.FeatureCollection));
                     Schema.FeatureCollection gf;
 
@@ -432,7 +393,39 @@ namespace LERImporter
                         gf = (Schema.FeatureCollection)serializer.Deserialize(fileStream);
                     }
 
+                    //Gather combined file for Ler 2D
                     gfCombined.featureCollection.AddRange(gf.featureCollection);
+
+                    //Create LER 3D file
+                    using (Database ler3dDb = new Database(false, true))
+                    {
+                        ler3dDb.ReadDwgFile(
+                            @"X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt",
+                            FileOpenMode.OpenForReadAndAllShare, false, null);
+                        //Build the new future file name of the drawing
+                        string new3dFilename = Path.Combine(pathToTopFolder, $"{gf}_3D.dwg");
+                        Log.log($"Writing Ler 3D to new dwg file:\n" + $"{new3dFilename}.");
+
+                        using (Transaction ler3dTx = ler3dDb.TransactionManager.StartTransaction())
+                        {
+                            try
+                            {
+                                LERImporter.ConsolidatedCreator.CreateLerData(null, ler3dDb, gfCombined);
+                            }
+                            catch (System.Exception ex)
+                            {
+                                Log.log(ex.ToString());
+                                ler3dTx.Abort();
+                                ler3dDb.Dispose();
+                                throw;
+                            }
+
+                            ler3dTx.Commit();
+                        }
+
+                        //Save the new dwg file
+                        ler3dDb.SaveAs(new3dFilename, DwgVersion.Current);
+                    }
                 }
                 #endregion
 
@@ -476,57 +469,9 @@ namespace LERImporter
                     ler3dDb.SaveAs(new3dFilename, DwgVersion.Current);
                     //ler2dDb.Dispose();
                 }
+                #endregion 
                 #endregion
 
-            }
-            catch (System.Exception ex)
-            {
-                Log.log(ex.ToString());
-                return;
-            }
-        }
-
-        [CommandMethod("TESTLERDATA")]
-        public void testlerdata()
-        {
-            try
-            {
-                #region Get file and folder of gml
-                string pathToGml = string.Empty;
-                OpenFileDialog dialog = new OpenFileDialog()
-                {
-                    Title = "Choose gml file:",
-                    DefaultExt = "gml",
-                    Filter = "gml files (*.gml)|*.gml|All files (*.*)|*.*",
-                    FilterIndex = 0
-                };
-                if (dialog.ShowDialog() == DialogResult.OK) pathToGml = dialog.FileName;
-                else return;
-
-                string fileName = Path.GetFileNameWithoutExtension(pathToGml);
-                string extension = Path.GetExtension(pathToGml);
-                string folderPath = Path.GetDirectoryName(pathToGml) + "\\";
-                #endregion
-                #region Handle bad objects
-                string str = File.ReadAllText(pathToGml);
-                str = str.Replace("<ler:id>", "<ler:lerid>");
-                str = str.Replace("</ler:id>", "</ler:lerid>");
-
-                str = str.Replace("http://data.gov.dk/schemas/LER/1/gml", "http://data.gov.dk/schemas/LER/2/gml");
-
-                string modifiedFileName =
-                    folderPath + "\\" + fileName + "_mod" + extension;
-
-                //Prepare a memory stream for translating
-                byte[] byteArray = Encoding.UTF8.GetBytes(str);
-
-                
-
-                //File.WriteAllText(modifiedFileName, str);
-                #endregion
-
-                Log.LogFileName = folderPath + "LerImport.log";
-                Log.log($"Importing {pathToGml}");
             }
             catch (System.Exception ex)
             {
