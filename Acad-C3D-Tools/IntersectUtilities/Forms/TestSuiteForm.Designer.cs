@@ -1,6 +1,6 @@
 ﻿namespace IntersectUtilities.Forms
 {
-    partial class StringGridForm
+    partial class TestSuiteForm
     {
         /// <summary>
         /// Required designer variable.
@@ -28,20 +28,10 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.SuspendLayout();
-            // 
-            // StringGridForm
-            // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.components = new System.ComponentModel.Container();
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 450);
-            this.Name = "StringGridForm";
-            this.Text = "StringGridForm";
-            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.StringGridForm_FormClosing);
-            this.Load += new System.EventHandler(this.StringGridForm_Load);
-            this.Shown += new System.EventHandler(this.StringGridForm_Shown);
-            this.ResumeLayout(false);
-
+            this.Text = "TestForm";
         }
 
         #endregion

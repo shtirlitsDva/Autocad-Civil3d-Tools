@@ -97,6 +97,10 @@
     <Compile Include="..\IntersectUtilities\DataReferenceOptions.cs">
       <Link>DataReferenceOptions.cs</Link>
     </Compile>
+    <Compile Include="..\IntersectUtilities\Forms\OverlayForm.cs">
+      <Link>Forms\OverlayForm.cs</Link>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="..\IntersectUtilities\Forms\StringGridForm.cs">
       <Link>Forms\StringGridForm.cs</Link>
       <SubType>Form</SubType>

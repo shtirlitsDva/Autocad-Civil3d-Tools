@@ -1,4 +1,5 @@
 ﻿using IntersectUtilities.UtilsCommon;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 using System;
 using System.Collections.Generic;
@@ -26,14 +27,18 @@ namespace IntersectUtilities.Forms
         }
         private TableLayoutPanel panel;
 
-        public StringGridForm(IEnumerable<string> stringList, int columns = 6, string name = "")
+        private OverlayForm overlay;
+        private string overlayMessage;
+
+        public StringGridForm(IEnumerable<string> stringList, string message = "")
         {
             InitializeComponent();
-            #region Init buttons
+
+            overlayMessage = message;
+
+            // Initialization code
             SelectedValue = null;
-
             this.FormBorderStyle = FormBorderStyle.None;
-
             this.BackColor = Color.FromArgb(30, 30, 30);
             this.ForeColor = Color.White;
 
@@ -45,12 +50,38 @@ namespace IntersectUtilities.Forms
                 AutoSize = true,
             };
 
-            int row = 0, col = 0;
             int maxButtonWidth = 0;
             int maxButtonHeight = 0;
 
+            var font = new Font("Microsoft Sans Serif", 8.25F, FontStyle.Bold);
+
+            // Calculate the maximum button size based on the longest string
             foreach (var str in stringList)
             {
+                Size textSize = TextRenderer.MeasureText(str, font);
+                maxButtonWidth = Math.Max(maxButtonWidth, textSize.Width + 20);  // +20 for padding
+                maxButtonHeight = Math.Max(maxButtonHeight, textSize.Height + 20);  // +20 for padding
+            }
+
+            int itemCount = stringList.Count();
+            int columns = (int)Math.Ceiling(Math.Sqrt(itemCount));
+            int rows = (int)Math.Ceiling((double)itemCount / columns);
+
+            // Adjust columns if we have more than needed
+            if (columns > rows && columns * (rows - 1) >= itemCount)
+            {
+                columns--;
+            }
+
+            panel.ColumnCount = columns;
+            panel.RowCount = rows;
+
+            int buttonIndex = 0;
+            foreach (var str in stringList)
+            {
+                int row = buttonIndex / columns;
+                int col = buttonIndex % columns;
+
                 Button btn = new Button
                 {
                     Text = str,
@@ -58,7 +89,7 @@ namespace IntersectUtilities.Forms
                     Dock = DockStyle.Fill,
                     BackColor = Color.FromArgb(50, 50, 50),
                     ForeColor = Color.FromArgb(200, 200, 200),
-                    Font = new Font("Microsoft Sans Serif", 8.25F, FontStyle.Bold),
+                    Font = font,
                     FlatStyle = FlatStyle.Flat,
                 };
                 btn.FlatAppearance.BorderColor = Color.FromArgb(40, 40, 40);
@@ -69,23 +100,13 @@ namespace IntersectUtilities.Forms
                 btn.KeyDown += StringGridForm_KeyDown;
                 btn.PreviewKeyDown += StringGridForm_PreviewKeyDown;
 
-                // Calculate maximum button size
-                Size textSize = TextRenderer.MeasureText(str, btn.Font);
-                maxButtonWidth = Math.Max(maxButtonWidth, textSize.Width + 20);  // +20 for padding
-                maxButtonHeight = Math.Max(maxButtonHeight, textSize.Height + 20);  // +20 for padding
-
                 if (col == 0)
                 {
                     panel.RowStyles.Add(new RowStyle(SizeType.Absolute, maxButtonHeight));
                 }
                 panel.Controls.Add(btn, col, row);
 
-                col++;
-                if (col >= columns)
-                {
-                    col = 0;
-                    row++;
-                }
+                buttonIndex++;
             }
 
             for (int i = 0; i < columns; i++)
@@ -93,44 +114,26 @@ namespace IntersectUtilities.Forms
                 panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, maxButtonWidth));
             }
 
-            panel.ColumnCount = columns + 1;
-            panel.RowCount = row + 1;
-
+            // Adjust panel dimensions
             int panelWidth = maxButtonWidth * columns;
-            int panelHeight = maxButtonHeight * row; //(row + 1);
+            int panelHeight = maxButtonHeight * rows;
 
-            // Ensure form does not exceed screen dimensions
-            int maxWidth = Screen.PrimaryScreen.WorkingArea.Width;
-            int maxHeight = Screen.PrimaryScreen.WorkingArea.Height;
-
-            this.ClientSize = new Size(
-                Math.Min(panelWidth, maxWidth),
-                Math.Min(panelHeight, maxHeight)
-            );
+            this.ClientSize = new Size(panelWidth, panelHeight);
 
             this.Controls.Add(panel);
             this.AutoScroll = true;
             this.AutoSize = true;
-            #endregion
-
-            if (name.IsNotNoE()) this.Name = name;
         }
-
         private void ButtonClicked(string value)
         {
             SelectedValue = value;
             Console.WriteLine("Selected Value: " + SelectedValue);
             this.Close();
         }
-
         private void StringGridForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (SelectedValue == null)
-            {
-                Console.WriteLine("Form Closed without selection.");
-            }
+            if (overlay != null) overlay.Close();
         }
-
         private void StringGridForm_Load(object sender, EventArgs e)
         {
             StartPosition = FormStartPosition.Manual;
@@ -142,28 +145,27 @@ namespace IntersectUtilities.Forms
             // Set the form's Location property
             Location = new Point(formX, formY);
 
-            // Check if there are any buttons in the TableLayoutPanel
-            if (panel.Controls.Count > 0)
-            {
-                // Set focus to the first button
-                panel.Controls[0].Focus();
-            }
-        }
+            // Create the overlay form
+            overlay = new OverlayForm(this, overlayMessage);
 
+            // Set the position for the overlay form
+            int offset = 20; // Or however much space you need
+            overlay.StartPosition = FormStartPosition.Manual;
+            overlay.Location = new Point(this.Location.X, this.Location.Y - overlay.Height - offset);
+            overlay.Show();
+        }
         private void button_GotFocus(object sender, EventArgs e)
         {
             Button focusedButton = (Button)sender;
             focusedButton.BackColor = Color.LightSkyBlue;
             focusedButton.ForeColor = Color.Red;
         }
-
         private void button_LostFocus(object sender, EventArgs e)
         {
             Button focusedButton = (Button)sender;
             focusedButton.BackColor = Color.FromArgb(50, 50, 50);
             focusedButton.ForeColor = Color.FromArgb(200, 200, 200);
         }
-
         private void StringGridForm_PreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
         {
             switch (e.KeyCode)
@@ -176,7 +178,6 @@ namespace IntersectUtilities.Forms
                     break;
             }
         }
-
         private void StringGridForm_KeyDown(object sender, KeyEventArgs e)
         {
             e.Handled = true;
@@ -248,6 +249,17 @@ namespace IntersectUtilities.Forms
                         this.Close();
                     }
                     break;
+            }
+        }
+        private void StringGridForm_Shown(object sender, EventArgs e)
+        {
+            //Focus the middle button
+            if (panel.Controls.Count > 0)
+            {
+                int row = panel.RowCount / 2;
+                int col = panel.ColumnCount / 2;
+                var middleButton = panel.GetControlFromPosition(col, row) as Button;
+                middleButton?.Focus();
             }
         }
     }

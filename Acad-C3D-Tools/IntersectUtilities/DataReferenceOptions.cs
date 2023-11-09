@@ -36,7 +36,7 @@ namespace IntersectUtilities
             foreach (DataRow row in dtStier.Rows)
                 kwds.Add(((string)row["PrjId"]));
 
-            var sgf = new StringGridForm(kwds, 4, "VÆLG PROJEKT");
+            var sgf = new StringGridForm(kwds, "VÆLG PROJEKT");
             sgf.ShowDialog();
 
             if (kwds.Contains(sgf.SelectedValue)) return sgf.SelectedValue;
@@ -99,7 +99,7 @@ namespace IntersectUtilities
             foreach (DataRow row in query)
                 kwds.Add((string)row["Etape"]);
 
-            var sgf = new StringGridForm(kwds, 4, "VÆLG ETAPE");
+            var sgf = new StringGridForm(kwds, "VÆLG ETAPE");
             sgf.ShowDialog();
 
             if (kwds.Contains(sgf.SelectedValue)) return sgf.SelectedValue;

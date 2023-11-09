@@ -3933,8 +3933,40 @@ namespace IntersectUtilities
                 try
                 {
                     #region Test new DRO
-                    //DataReferencesOptions dro = new DataReferencesOptions();
-                    //prdDbg($"{dro.ProjectName}, {dro.EtapeName}");
+                    DataReferencesOptions dro = new DataReferencesOptions();
+                    prdDbg($"{dro.ProjectName}, {dro.EtapeName}");
+
+                    //Application.ShowModelessDialog(new TestSuiteForm());
+
+                    //for (int itemCount = 1; itemCount <= 8; itemCount++)
+                    //{
+                    //    var form = new StringGridForm(GenerateRandomStrings(itemCount, 5, 12));
+                    //    form.ShowDialog();
+                    //}
+
+                    string GenerateRandomString(int length)
+                    {
+                        var random = new Random();
+                        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+                        var stringChars = new char[length];
+                        for (int i = 0; i < length; i++)
+                        {
+                            stringChars[i] = chars[random.Next(chars.Length)];
+                        }
+                        return new string(stringChars);
+                    }
+
+                    IEnumerable<string> GenerateRandomStrings(int count, int minLength, int maxLength)
+                    {
+                        var random = new Random();
+                        var strings = new List<string>();
+                        for (int i = 0; i < count; i++)
+                        {
+                            int length = random.Next(minLength, maxLength + 1);
+                            strings.Add(GenerateRandomString(length));
+                        }
+                        return strings;
+                    }
                     #endregion
 
                     #region Get points from profile
@@ -6529,7 +6561,7 @@ namespace IntersectUtilities
                     {
                         ltr.CheckOrOpenForWrite();
 
-                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci,
                             GetLayerColor(GetPipeSystem(ltr.Name), GetPipeType(ltr.Name)));
                     }
                 }
