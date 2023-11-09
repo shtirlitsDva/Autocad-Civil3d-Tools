@@ -3933,8 +3933,8 @@ namespace IntersectUtilities
                 try
                 {
                     #region Test new DRO
-                    DataReferencesOptions dro = new DataReferencesOptions();
-                    prdDbg($"{dro.ProjectName}, {dro.EtapeName}");
+                    //DataReferencesOptions dro = new DataReferencesOptions();
+                    //prdDbg($"{dro.ProjectName}, {dro.EtapeName}");
 
                     //Application.ShowModelessDialog(new TestSuiteForm());
 
@@ -3944,29 +3944,29 @@ namespace IntersectUtilities
                     //    form.ShowDialog();
                     //}
 
-                    string GenerateRandomString(int length)
-                    {
-                        var random = new Random();
-                        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-                        var stringChars = new char[length];
-                        for (int i = 0; i < length; i++)
-                        {
-                            stringChars[i] = chars[random.Next(chars.Length)];
-                        }
-                        return new string(stringChars);
-                    }
+                    //string GenerateRandomString(int length)
+                    //{
+                    //    var random = new Random();
+                    //    const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+                    //    var stringChars = new char[length];
+                    //    for (int i = 0; i < length; i++)
+                    //    {
+                    //        stringChars[i] = chars[random.Next(chars.Length)];
+                    //    }
+                    //    return new string(stringChars);
+                    //}
 
-                    IEnumerable<string> GenerateRandomStrings(int count, int minLength, int maxLength)
-                    {
-                        var random = new Random();
-                        var strings = new List<string>();
-                        for (int i = 0; i < count; i++)
-                        {
-                            int length = random.Next(minLength, maxLength + 1);
-                            strings.Add(GenerateRandomString(length));
-                        }
-                        return strings;
-                    }
+                    //IEnumerable<string> GenerateRandomStrings(int count, int minLength, int maxLength)
+                    //{
+                    //    var random = new Random();
+                    //    var strings = new List<string>();
+                    //    for (int i = 0; i < count; i++)
+                    //    {
+                    //        int length = random.Next(minLength, maxLength + 1);
+                    //        strings.Add(GenerateRandomString(length));
+                    //    }
+                    //    return strings;
+                    //}
                     #endregion
 
                     #region Get points from profile
@@ -8379,7 +8379,7 @@ namespace IntersectUtilities
                         x => psmPipeLineData.ReadPropertyString(x, driPipelineData.BelongsToAlignment))
                         .Distinct().OrderBy(x => x);
 
-                    StringGridForm sgf = new StringGridForm(list);
+                    StringGridForm sgf = new StringGridForm(list, "SELECT ALIGNMENT NAME");
                     sgf.ShowDialog();
 
                     if (sgf.SelectedValue != null)
