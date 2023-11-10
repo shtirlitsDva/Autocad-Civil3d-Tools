@@ -114,6 +114,40 @@ namespace LERImporter
                     hatch.Layer = "GraveforespPolygon";
                 } 
             }
+
+            if (Db3d != null)
+            {
+                Db3d.CheckOrCreateLayer("GraveforespPolygon");
+
+                foreach (var graveforesp in graveforesps)
+                {
+                    PolygonType polygon = graveforesp.polygonProperty.Item as PolygonType;
+                    LinearRingType lrt = polygon.exterior.Item as LinearRingType;
+                    DirectPositionListType dplt = lrt.Items[0] as DirectPositionListType;
+
+                    var points = dplt.Get2DPoints();
+
+                    Point2dCollection points2d = new Point2dCollection();
+                    DoubleCollection dc = new DoubleCollection();
+                    for (int i = 0; i < points.Length; i++)
+                    {
+                        points2d.Add(points[i]);
+                        dc.Add(0.0);
+                    }
+
+                    Hatch hatch = new Hatch();
+                    hatch.Normal = new Vector3d(0.0, 0.0, 1.0);
+                    hatch.Elevation = 0.0;
+                    hatch.PatternScale = 1.0;
+                    hatch.SetHatchPattern(HatchPatternType.PreDefined, "SOLID");
+                    Oid hatchId = hatch.AddEntityToDbModelSpace(Db2d);
+
+                    hatch.AppendLoop(HatchLoopTypes.Default, points2d, dc);
+                    hatch.EvaluateHatch(true);
+
+                    hatch.Layer = "GraveforespPolygon";
+                }
+            }
             #endregion
 
             #region Populate Company Name
