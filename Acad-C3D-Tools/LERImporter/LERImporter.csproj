@@ -69,6 +69,9 @@
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2024\acmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="AcMPolygonMGD">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2024\AcMPolygonMGD.dll</HintPath>
+    </Reference>
     <Reference Include="AecBaseMgd">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2024\AecBaseMgd.dll</HintPath>
       <Private>False</Private>

@@ -54,6 +54,12 @@ namespace LERImporter
             Document doc = Application.DocumentManager.MdiActiveDocument;
             doc.Editor.WriteMessage("\nLER Import Application indlæst.");
             doc.Editor.WriteMessage("\nKommando til LER 2.0 -> IMPORTCONSOLIDATEDGML.");
+
+            if (doc != null)
+            {
+                SystemObjects.DynamicLinker.LoadModule(
+                    "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
+            }
         }
 
         public void Terminate()
@@ -372,7 +378,7 @@ namespace LERImporter
                 #region Actual converting
                 Log.LogFileName = pathToTopFolder + "LerImport.log";
 
-                #region Replace ler:id with ler:lerid, ler1 with ler2
+                #region Enhance gml files and create 3D ler files
                 List<string> modFiles = new List<string>();
                 Schema.FeatureCollection gfCombined = new Schema.FeatureCollection();
                 gfCombined.featureCollection = new List<Schema.FeatureMember>();
@@ -383,12 +389,12 @@ namespace LERImporter
                     string folderPath = Path.GetDirectoryName(file) + "\\";
 
                     Log.log($"Importing {file}");
-                    modFiles.Add(Enhance.Run(file));
+                    string modFile = Enhance.Run(file);
+                    modFiles.Add(modFile);
 
                     var serializer = new XmlSerializer(typeof(Schema.FeatureCollection));
                     Schema.FeatureCollection gf;
-
-                    using (var fileStream = new FileStream(file, FileMode.Open))
+                    using (var fileStream = new FileStream(modFile, FileMode.Open))
                     {
                         gf = (Schema.FeatureCollection)serializer.Deserialize(fileStream);
                     }
@@ -403,14 +409,15 @@ namespace LERImporter
                             @"X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt",
                             FileOpenMode.OpenForReadAndAllShare, false, null);
                         //Build the new future file name of the drawing
-                        string new3dFilename = Path.Combine(pathToTopFolder, $"{gf}_3D.dwg");
+                        string new3dFilename = Path.Combine(
+                            pathToTopFolder, $"{gf.GetGraveForespBemaerkning()}_3DLER.dwg");
                         Log.log($"Writing Ler 3D to new dwg file:\n" + $"{new3dFilename}.");
 
                         using (Transaction ler3dTx = ler3dDb.TransactionManager.StartTransaction())
                         {
                             try
                             {
-                                LERImporter.ConsolidatedCreator.CreateLerData(null, ler3dDb, gfCombined);
+                                LERImporter.ConsolidatedCreator.CreateLerData(null, ler3dDb, gf);
                             }
                             catch (System.Exception ex)
                             {
@@ -431,43 +438,32 @@ namespace LERImporter
 
                 #region Create database for 2D ler
                 using (Database ler2dDb = new Database(false, true))
-                using (Database ler3dDb = new Database(false, true))
                 {
                     ler2dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt",
                                 FileOpenMode.OpenForReadAndAllShare, false, null);
-                    ler3dDb.ReadDwgFile(@"X:\AutoCAD DRI - 01 Civil 3D\LerImport\Support\LerTemplate.dwt",
-                                FileOpenMode.OpenForReadAndAllShare, false, null);
                     //Build the new future file name of the drawing
-                    string new2dFilename = $"{pathToTopFolder}SAMLET_LER_2D.dwg";
+                    string new2dFilename = Path.Combine(pathToTopFolder, "2DLER.dwg");
                     Log.log($"Writing Ler 2D to new dwg file:\n" + $"{new2dFilename}.");
-                    string new3dFilename = $"{pathToTopFolder}SAMLET_LER_3D_KUN_TIL_TEST.dwg";
-                    Log.log($"Writing Ler 3D to new dwg file:\n" + $"{new3dFilename}.");
 
                     using (Transaction ler2dTx = ler2dDb.TransactionManager.StartTransaction())
-                    using (Transaction ler3dTx = ler3dDb.TransactionManager.StartTransaction())
                     {
                         try
                         {
-                            LERImporter.ConsolidatedCreator.CreateLerData(ler2dDb, ler3dDb, gfCombined);
+                            LERImporter.ConsolidatedCreator.CreateLerData(ler2dDb, null, gfCombined);
                         }
                         catch (System.Exception ex)
                         {
                             Log.log(ex.ToString());
                             ler2dTx.Abort();
                             ler2dDb.Dispose();
-                            ler3dTx.Abort();
-                            ler3dDb.Dispose();
                             throw;
                         }
 
                         ler2dTx.Commit();
-                        ler3dTx.Commit();
                     }
 
                     //Save the new dwg file
                     ler2dDb.SaveAs(new2dFilename, DwgVersion.Current);
-                    ler3dDb.SaveAs(new3dFilename, DwgVersion.Current);
-                    //ler2dDb.Dispose();
                 }
                 #endregion 
                 #endregion

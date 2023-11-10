@@ -10,6 +10,7 @@ using Autodesk.Aec.PropertyData.DatabaseServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
+using Autodesk.AutoCAD.Geometry;
 using IntersectUtilities;
 using IntersectUtilities.UtilsCommon;
 using LERImporter.Schema;
@@ -22,6 +23,7 @@ using static IntersectUtilities.UtilsCommon.Utils;
 using Autodesk.AutoCAD.Geometry;
 using MoreLinq;
 using System.Runtime.CompilerServices;
+using System.Xml.Linq;
 
 namespace LERImporter
 {
@@ -81,9 +83,11 @@ namespace LERImporter
             #endregion
 
             #region Draw graveforesp polygon
+            string layerNameGFP = "GraveforespPolygon";
+
             if (Db2d != null)
             {
-                Db2d.CheckOrCreateLayer("GraveforespPolygon");
+                Db2d.CheckOrCreateLayer(layerNameGFP);
 
                 foreach (var graveforesp in graveforesps)
                 {
@@ -111,13 +115,13 @@ namespace LERImporter
                     hatch.AppendLoop(HatchLoopTypes.Default, points2d, dc);
                     hatch.EvaluateHatch(true);
 
-                    hatch.Layer = "GraveforespPolygon";
-                } 
+                    hatch.Layer = layerNameGFP;
+                }
             }
 
             if (Db3d != null)
             {
-                Db3d.CheckOrCreateLayer("GraveforespPolygon");
+                Db3d.CheckOrCreateLayer(layerNameGFP);
 
                 foreach (var graveforesp in graveforesps)
                 {
@@ -126,26 +130,15 @@ namespace LERImporter
                     DirectPositionListType dplt = lrt.Items[0] as DirectPositionListType;
 
                     var points = dplt.Get2DPoints();
+                    Polyline polyline = new Polyline(points.Length - 1);
+                    foreach (var point in points.Take(points.Length - 1))
+                        polyline.AddVertexAt(polyline.NumberOfVertices, point, 0, 0, 0);
+                    polyline.Closed = true;
 
-                    Point2dCollection points2d = new Point2dCollection();
-                    DoubleCollection dc = new DoubleCollection();
-                    for (int i = 0; i < points.Length; i++)
-                    {
-                        points2d.Add(points[i]);
-                        dc.Add(0.0);
-                    }
-
-                    Hatch hatch = new Hatch();
-                    hatch.Normal = new Vector3d(0.0, 0.0, 1.0);
-                    hatch.Elevation = 0.0;
-                    hatch.PatternScale = 1.0;
-                    hatch.SetHatchPattern(HatchPatternType.PreDefined, "SOLID");
-                    Oid hatchId = hatch.AddEntityToDbModelSpace(Db2d);
-
-                    hatch.AppendLoop(HatchLoopTypes.Default, points2d, dc);
-                    hatch.EvaluateHatch(true);
-
-                    hatch.Layer = "GraveforespPolygon";
+                    MPolygon mpg = new MPolygon();
+                    mpg.AppendLoopFromBoundary(polyline, true, Tolerance.Global.EqualPoint);
+                    Oid mpId = mpg.AddEntityToDbModelSpace(Db3d);
+                    mpg.Layer = layerNameGFP;
                 }
             }
             #endregion
@@ -185,8 +178,7 @@ namespace LERImporter
             //Dictionary to translate between type name and psName
             Dictionary<string, string> psDict = new Dictionary<string, string>();
 
-            //Create property sets 2d
-            if (Db2d != null)
+            //Create property sets
             {
                 HashSet<Type> allUniqueTypes = ledninger.Select(x => x.GetType()).Distinct().ToHashSet();
                 allUniqueTypes.UnionWith(ledningstrace.Select(x => x.GetType()).Distinct().ToHashSet());
@@ -194,160 +186,100 @@ namespace LERImporter
                 foreach (Type type in allUniqueTypes)
                 {
                     string psName = type.Name.Replace("Type", "");
-                    //Store the ps name in dictionary referenced by the type name
-                    //PS name is not goood! It becomes Elledning which is not unique
-                    //But it is unique!!
-                    //Data with different files will still follow the class definition in code
-                    //Which assures that all pssets are the same
                     psDict.Add(type.Name, psName);
 
-                    PropertySetDefinition propSetDef2d = new PropertySetDefinition();
-                    propSetDef2d.SetToStandard(Db2d);
-                    propSetDef2d.SubSetDatabaseDefaults(Db2d);
-
-                    propSetDef2d.Description = type.FullName;
-                    bool isStyle = false;
-                    var appliedTo = new StringCollection()
-                {
-                    RXClass.GetClass(typeof(Polyline)).Name,
-                    RXClass.GetClass(typeof(Polyline3d)).Name,
-                    RXClass.GetClass(typeof(DBPoint)).Name,
-                    RXClass.GetClass(typeof(Hatch)).Name,
-                };
-                    propSetDef2d.SetAppliesToFilter(appliedTo, isStyle);
-
-                    var properties = type.GetProperties();
-
-                    foreach (PropertyInfo prop in properties)
+                    if (Db2d != null)
                     {
-                        bool include = prop.CustomAttributes.Any(x => x.AttributeType == typeof(Schema.PsInclude));
-                        if (include)
-                        {
-                            var propDefManual = new PropertyDefinition();
-                            propDefManual.SetToStandard(Db2d);
-                            propDefManual.SubSetDatabaseDefaults(Db2d);
-                            propDefManual.Name = prop.Name;
-                            propDefManual.Description = prop.Name;
-                            switch (prop.PropertyType.Name)
-                            {
-                                case nameof(String):
-                                    propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-                                    propDefManual.DefaultData = "";
-                                    break;
-                                case nameof(System.Boolean):
-                                    propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.TrueFalse;
-                                    propDefManual.DefaultData = false;
-                                    break;
-                                case nameof(Double):
-                                    propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Real;
-                                    propDefManual.DefaultData = 0.0;
-                                    break;
-                                case nameof(Int32):
-                                    propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Integer;
-                                    propDefManual.DefaultData = 0;
-                                    break;
-                                default:
-                                    propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-                                    propDefManual.DefaultData = "";
-                                    break;
-                            }
-                            propSetDef2d.Definitions.Add(propDefManual);
-                        }
+                        PropertySetDefinition propSetDef = CreatePropertySetDefinition(Db2d, type);
+                        AddPropertySetDefinitionToDb(Db2d, propSetDef, psName);
                     }
-
-                    using (Transaction tx = Db2d.TransactionManager.StartTransaction())
+                    if (Db3d != null)
                     {
-                        //check if prop set already exists
-                        DictionaryPropertySetDefinitions dictPropSetDef = new DictionaryPropertySetDefinitions(Db2d);
-                        if (dictPropSetDef.Has(psName, tx))
-                        {
-                            tx.Abort();
-                            continue;
-                        }
-                        dictPropSetDef.AddNewRecord(psName, propSetDef2d);
-                        tx.AddNewlyCreatedDBObject(propSetDef2d, true);
-                        tx.Commit();
+                        PropertySetDefinition propSetDef = CreatePropertySetDefinition(Db3d, type);
+                        AddPropertySetDefinitionToDb(Db3d, propSetDef, psName);
                     }
-                } 
+                }
             }
 
             //Create property sets 3d
-            if (Db3d != null)
-            {
-                HashSet<Type> allUniqueTypes = ledninger.Select(x => x.GetType()).Distinct().ToHashSet();
-                allUniqueTypes.UnionWith(ledningstrace.Select(x => x.GetType()).Distinct().ToHashSet());
-                foreach (Type type in allUniqueTypes)
-                {
-                    string psName = type.Name.Replace("Type", "");
-                    PropertySetDefinition propSetDef3d = new PropertySetDefinition();
-                    propSetDef3d.SetToStandard(Db3d);
-                    propSetDef3d.SubSetDatabaseDefaults(Db3d);
+            #region 3D prop sets --> not needed???
+            //if (Db3d != null)
+            //{
+            //    HashSet<Type> allUniqueTypes = ledninger.Select(x => x.GetType()).Distinct().ToHashSet();
+            //    allUniqueTypes.UnionWith(ledningstrace.Select(x => x.GetType()).Distinct().ToHashSet());
+            //    foreach (Type type in allUniqueTypes)
+            //    {
+            //        string psName = type.Name.Replace("Type", "");
+            //        PropertySetDefinition propSetDef3d = new PropertySetDefinition();
+            //        propSetDef3d.SetToStandard(Db3d);
+            //        propSetDef3d.SubSetDatabaseDefaults(Db3d);
 
-                    propSetDef3d.Description = type.FullName;
-                    bool isStyle = false;
-                    var appliedTo = new StringCollection()
-                {
-                    RXClass.GetClass(typeof(Polyline)).Name,
-                    RXClass.GetClass(typeof(Polyline3d)).Name,
-                    RXClass.GetClass(typeof(DBPoint)).Name,
-                    RXClass.GetClass(typeof(Hatch)).Name,
-                };
-                    propSetDef3d.SetAppliesToFilter(appliedTo, isStyle);
+            //        propSetDef3d.Description = type.FullName;
+            //        bool isStyle = false;
+            //        var appliedTo = new StringCollection()
+            //    {
+            //        RXClass.GetClass(typeof(Polyline)).Name,
+            //        RXClass.GetClass(typeof(Polyline3d)).Name,
+            //        RXClass.GetClass(typeof(DBPoint)).Name,
+            //        RXClass.GetClass(typeof(Hatch)).Name,
+            //    };
+            //        propSetDef3d.SetAppliesToFilter(appliedTo, isStyle);
 
-                    var properties = type.GetProperties();
+            //        var properties = type.GetProperties();
 
-                    foreach (PropertyInfo prop in properties)
-                    {
-                        bool include = prop.CustomAttributes.Any(x => x.AttributeType == typeof(Schema.PsInclude));
-                        if (include)
-                        {
-                            var propDefManual = new PropertyDefinition();
-                            propDefManual.SetToStandard(Db3d);
-                            propDefManual.SubSetDatabaseDefaults(Db3d);
-                            propDefManual.Name = prop.Name;
-                            propDefManual.Description = prop.Name;
-                            switch (prop.PropertyType.Name)
-                            {
-                                case nameof(String):
-                                    propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-                                    propDefManual.DefaultData = "";
-                                    break;
-                                case nameof(System.Boolean):
-                                    propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.TrueFalse;
-                                    propDefManual.DefaultData = false;
-                                    break;
-                                case nameof(Double):
-                                    propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Real;
-                                    propDefManual.DefaultData = 0.0;
-                                    break;
-                                case nameof(Int32):
-                                    propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Integer;
-                                    propDefManual.DefaultData = 0;
-                                    break;
-                                default:
-                                    propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
-                                    propDefManual.DefaultData = "";
-                                    break;
-                            }
-                            propSetDef3d.Definitions.Add(propDefManual);
-                        }
-                    }
+            //        foreach (PropertyInfo prop in properties)
+            //        {
+            //            bool include = prop.CustomAttributes.Any(x => x.AttributeType == typeof(Schema.PsInclude));
+            //            if (include)
+            //            {
+            //                var propDefManual = new PropertyDefinition();
+            //                propDefManual.SetToStandard(Db3d);
+            //                propDefManual.SubSetDatabaseDefaults(Db3d);
+            //                propDefManual.Name = prop.Name;
+            //                propDefManual.Description = prop.Name;
+            //                switch (prop.PropertyType.Name)
+            //                {
+            //                    case nameof(String):
+            //                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+            //                        propDefManual.DefaultData = "";
+            //                        break;
+            //                    case nameof(System.Boolean):
+            //                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.TrueFalse;
+            //                        propDefManual.DefaultData = false;
+            //                        break;
+            //                    case nameof(Double):
+            //                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Real;
+            //                        propDefManual.DefaultData = 0.0;
+            //                        break;
+            //                    case nameof(Int32):
+            //                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Integer;
+            //                        propDefManual.DefaultData = 0;
+            //                        break;
+            //                    default:
+            //                        propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+            //                        propDefManual.DefaultData = "";
+            //                        break;
+            //                }
+            //                propSetDef3d.Definitions.Add(propDefManual);
+            //            }
+            //        }
 
-                    using (Transaction tx = Db3d.TransactionManager.StartTransaction())
-                    {
-                        //check if prop set already exists
-                        DictionaryPropertySetDefinitions dictPropSetDef = new DictionaryPropertySetDefinitions(Db3d);
-                        if (dictPropSetDef.Has(psName, tx))
-                        {
-                            tx.Abort();
-                            continue;
-                        }
-                        dictPropSetDef.AddNewRecord(psName, propSetDef3d);
-                        tx.AddNewlyCreatedDBObject(propSetDef3d, true);
-                        tx.Commit();
-                    }
-                } 
-            }
+            //        using (Transaction tx = Db3d.TransactionManager.StartTransaction())
+            //        {
+            //            //check if prop set already exists
+            //            DictionaryPropertySetDefinitions dictPropSetDef = new DictionaryPropertySetDefinitions(Db3d);
+            //            if (dictPropSetDef.Has(psName, tx))
+            //            {
+            //                tx.Abort();
+            //                continue;
+            //            }
+            //            dictPropSetDef.AddNewRecord(psName, propSetDef3d);
+            //            tx.AddNewlyCreatedDBObject(propSetDef3d, true);
+            //            tx.Commit();
+            //        }
+            //    }
+            //}
+            #endregion
             #endregion
 
             #region Create elements
@@ -469,7 +401,7 @@ namespace LERImporter
                     //Populate the property set
                     var psData = GmlToPropertySet.TranslateGmlToPs(komponent);
                     PropertySetManager.PopulateNonDefinedPropertySet(Db2d, ent, psName, psData);
-                } 
+                }
             }
             #endregion
 
@@ -606,6 +538,84 @@ namespace LERImporter
                 }
             }
             #endregion
+        }
+
+        private static PropertySetDefinition CreatePropertySetDefinition(Database db, Type type)
+        {
+            PropertySetDefinition propSetDef;
+
+            propSetDef = new PropertySetDefinition();
+            propSetDef.SetToStandard(db);
+            propSetDef.SubSetDatabaseDefaults(db);
+            propSetDef.Description = type.FullName;
+            bool isStyle = false;
+            var appliedTo = new StringCollection()
+            {
+                RXClass.GetClass(typeof(Polyline)).Name,
+                RXClass.GetClass(typeof(Polyline3d)).Name,
+                RXClass.GetClass(typeof(DBPoint)).Name,
+                RXClass.GetClass(typeof(Hatch)).Name,
+            };
+            propSetDef.SetAppliesToFilter(appliedTo, isStyle);
+
+            var properties = type.GetProperties();
+
+            foreach (PropertyInfo prop in properties)
+            {
+                bool include = prop.CustomAttributes.Any(x => x.AttributeType == typeof(Schema.PsInclude));
+                if (include)
+                {
+                    var propDefManual = new PropertyDefinition();
+                    propDefManual.SetToStandard(db);
+                    propDefManual.SubSetDatabaseDefaults(db);
+                    propDefManual.Name = prop.Name;
+                    propDefManual.Description = prop.Name;
+                    switch (prop.PropertyType.Name)
+                    {
+                        case nameof(String):
+                            propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+                            propDefManual.DefaultData = "";
+                            break;
+                        case nameof(System.Boolean):
+                            propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.TrueFalse;
+                            propDefManual.DefaultData = false;
+                            break;
+                        case nameof(Double):
+                            propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Real;
+                            propDefManual.DefaultData = 0.0;
+                            break;
+                        case nameof(Int32):
+                            propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Integer;
+                            propDefManual.DefaultData = 0;
+                            break;
+                        default:
+                            propDefManual.DataType = Autodesk.Aec.PropertyData.DataType.Text;
+                            propDefManual.DefaultData = "";
+                            break;
+                    }
+                    propSetDef.Definitions.Add(propDefManual);
+                }
+            }
+
+            return propSetDef;
+        }
+        private static void AddPropertySetDefinitionToDb(
+            Database db, PropertySetDefinition propSetDef, string psName)
+        {
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                //check if prop set already exists
+                DictionaryPropertySetDefinitions dictPropSetDef = 
+                    new DictionaryPropertySetDefinitions(db);
+                if (dictPropSetDef.Has(psName, tx))
+                {
+                    tx.Abort();
+                    return;
+                }
+                dictPropSetDef.AddNewRecord(psName, propSetDef);
+                tx.AddNewlyCreatedDBObject(propSetDef, true);
+                tx.Commit();
+            }
         }
 
         internal static void TestLerData(FeatureCollection gf)
