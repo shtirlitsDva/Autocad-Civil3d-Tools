@@ -40,6 +40,7 @@ namespace LERImporter.Enhancer
                 doc = Cerius_ElkomponentToFoeringsroer(doc);
                 doc = TermiskKomponent_HandleNonStandardValuesForEnums(doc);
                 doc = Ledningstrace_TDC500mmTraceAsZeroWidth(doc);
+                doc = Foeringsroer_HandleNonStandardValuesForEnums(doc);
 
                 doc.Save(modifiedFileName);
             }
@@ -81,6 +82,22 @@ namespace LERImporter.Enhancer
                 {
                     item.Element(ler + "type").Value = "custom";
                 }
+            }
+
+            return doc;
+        }
+        private static XDocument Foeringsroer_HandleNonStandardValuesForEnums(XDocument doc)
+        {
+            var gml = XNamespace.Get("http://www.opengis.net/gml/3.2");
+            var ler = XNamespace.Get("http://data.gov.dk/schemas/LER/2/gml");
+
+            var items = doc.Descendants(ler + "Foeringsroer").ToList();
+
+            foreach (var item in items)
+            {
+                //Fix non-existing enum values, MUST RUN AFTER OTHER CONVERTERS
+                if (item.Element(ler + "forsyningsart")?.Value == "other: Signalanlæg")
+                    item.Element(ler + "forsyningsart").Value = "el";
             }
 
             return doc;

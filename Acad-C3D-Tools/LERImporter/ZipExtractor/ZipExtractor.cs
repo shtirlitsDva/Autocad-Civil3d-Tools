@@ -6,6 +6,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using static IntersectUtilities.UtilsCommon.Utils;
+
 namespace LERImporter
 {
     public class ZipExtractor
@@ -37,6 +39,9 @@ namespace LERImporter
                     {
                         // Extract non-zip entries to the specified output directory
                         string destinationPath = Path.Combine(outputDirectory, entry.FullName);
+                        if (!Directory.Exists(Path.GetDirectoryName(destinationPath)))
+                            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath));
+                            
                         ExtractEntry(entry, destinationPath);
                     }
                 }
@@ -44,12 +49,6 @@ namespace LERImporter
         }
         private static void ExtractEntry(ZipArchiveEntry entry, string destinationPath)
         {
-            string directory = Path.GetDirectoryName(destinationPath);
-            if (!Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
             using (Stream entryStream = entry.Open())
             using (FileStream fileStream = new FileStream(destinationPath, FileMode.Create))
             {

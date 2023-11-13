@@ -338,10 +338,10 @@ namespace Ler2PolygonSplitting.Brent
         private GeometryFactory factory = new GeometryFactory();
 
         private static readonly double buffer = 1e-6;
-        //private static readonly double tol = 1e-6;
+        private static readonly double tol = 1e-6;
         private static readonly double t = 1e-6;
-        //private static readonly double xtol = 1e-6;
-        //private static readonly double ftol = 1e-6;
+        private static readonly double xtol = 1e-6;
+        private static readonly double ftol = 1e-6;
 
         private bool ERROR_FLAG_0 = false;
         private bool ERROR_FLAG_1 = false;
