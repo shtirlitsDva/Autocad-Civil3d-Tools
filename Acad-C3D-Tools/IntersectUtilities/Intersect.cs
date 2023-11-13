@@ -3096,32 +3096,22 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-            const string kwd1 = "Naturgas";
-            const string kwd2 = "Andet";
-            const string kwd3 = "UDGÅR";
-            const string kwd4 = "Ingen";
-            const string kwd5 = "El";
-            const string kwd6 = "Olie";
-            const string kwd7 = "Varmepumpe";
-            const string kwd8 = "Fjernvarme";
-            const string kwd9 = "Fast brændsel";
+            string[] kwds = new string[9]
+            {
+                "Naturgas",
+                "Andet",
+                "UDGÅR",
+                "Ingen",
+                "El",
+                "Olie",
+                "Varmepumpe",
+                "Fjernvarme",
+                "Fast brændsel"
+            };
 
-            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
-            pKeyOpts.Message = "\nHvilken block skal indsættes i stedet? ";
-            pKeyOpts.Keywords.Add(kwd1);
-            pKeyOpts.Keywords.Add(kwd2);
-            pKeyOpts.Keywords.Add(kwd3);
-            pKeyOpts.Keywords.Add(kwd4);
-            pKeyOpts.Keywords.Add(kwd5);
-            pKeyOpts.Keywords.Add(kwd6);
-            pKeyOpts.Keywords.Add(kwd7);
-            pKeyOpts.Keywords.Add(kwd8);
-            pKeyOpts.Keywords.Add(kwd9);
-            pKeyOpts.AllowNone = true;
-            pKeyOpts.Keywords.Default = kwd1;
-            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+            string result = StringGridFormCaller.Call(kwds, "Vælg type block:");
 
-            string blockName = pKeyRes.StringResult;
+            if (result.IsNoE()) return;
 
             while (true)
             {
@@ -3140,10 +3130,10 @@ namespace IntersectUtilities
                         BlockReference brOld = entId.Go<BlockReference>(tx, OpenMode.ForWrite);
                         #endregion
 
-                        BlockReference brNew = localDb.CreateBlockWithAttributes(blockName, brOld.Position);
+                        BlockReference brNew = localDb.CreateBlockWithAttributes(result, brOld.Position);
 
                         PropertySetManager.CopyAllProperties(brOld, brNew);
-                        PropertySetManager.WriteNonDefinedPropertySetString(brNew, "BBR", "Type", blockName);
+                        PropertySetManager.WriteNonDefinedPropertySetString(brNew, "BBR", "Type", result);
 
                         brOld.Erase(true);
                     }

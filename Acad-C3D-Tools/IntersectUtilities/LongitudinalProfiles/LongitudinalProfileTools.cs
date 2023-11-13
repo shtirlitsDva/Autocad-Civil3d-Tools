@@ -840,6 +840,546 @@ namespace IntersectUtilities
             }
         }
 
+        public void createlerdatapssmethod2(
+            DataReferencesOptions dro, List<Alignment> allAlignments = null)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                string projectName = dro.ProjectName;
+                string etapeName = dro.EtapeName;
+                Application.DocumentManager.MdiActiveDocument.Editor
+                    .WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Ler"));
+                Application.DocumentManager.MdiActiveDocument.Editor
+                    .WriteMessage("\n" + GetPathToDataFiles(projectName, etapeName, "Surface"));
+
+                #region Read surface from file
+                // open the xref database
+                Database xRefSurfaceDB = new Database(false, true);
+                xRefSurfaceDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Surface"),
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
+                Transaction xRefSurfaceTx = xRefSurfaceDB.TransactionManager.StartTransaction();
+
+                CivSurface surface = null;
+                try
+                {
+                    surface = xRefSurfaceDB
+                        .HashSetOfType<TinSurface>(xRefSurfaceTx)
+                        .FirstOrDefault() as CivSurface;
+                }
+                catch (System.Exception)
+                {
+                    xRefSurfaceTx.Abort();
+                    xRefSurfaceTx.Dispose();
+                    xRefSurfaceDB.Dispose();
+                    throw;
+                }
+
+                if (surface == null)
+                {
+                    editor.WriteMessage("\nSurface could not be loaded from the xref!");
+                    xRefSurfaceTx.Commit();
+                    xRefSurfaceTx.Dispose();
+                    xRefSurfaceDB.Dispose();
+                    return;
+                }
+                #endregion
+
+                #region Load linework from LER Xref
+                // open the LER dwg database
+                Database xRefLerDB = new Database(false, true);
+
+                xRefLerDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
+                    FileOpenMode.OpenForReadAndAllShare, false, null);
+
+                Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
+
+                List<Polyline3d> remoteLerData = xRefLerDB.ListOfType<Polyline3d>(xRefLerTx);
+                editor.WriteMessage($"\nNr. of 3D polies: {remoteLerData.Count}");
+                #endregion
+
+                try
+                {
+                    if (allAlignments == null)
+                    {
+                        allAlignments = localDb.ListOfType<Alignment>(tx)
+                        .OrderBy(x => x.Name)
+                        .ToList();
+                    }
+
+                    HashSet<ProfileView> pvSetExisting = localDb.HashSetOfType<ProfileView>(tx);
+
+                    #region Check or create propertysetdata to store crossing data
+                    PropertySetManager psmDriCrossingData = new PropertySetManager(localDb,
+                        PSetDefs.DefinedSets.DriCrossingData);
+                    PSetDefs.DriCrossingData dCDdef = new PSetDefs.DriCrossingData();
+                    #endregion
+
+                    #region Read Csv Data for Layers and Depth
+                    //Establish the pathnames to files
+                    //Files should be placed in a specific folder on desktop
+                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
+
+                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
+                    #endregion
+
+                    #region Delete existing points
+
+                    //!!!!!Problem: How to determine that points for this alignmen not already created?
+                    //!!!!!So right now it works only on empty projects, so no deletion of points is needed
+
+                    //PointGroupCollection pgs = civilDoc.PointGroups;
+
+                    //for (int i = 0; i < pgs.Count; i++)
+                    //{
+                    //    PointGroup pg = tx.GetObject(pgs[i], OpenMode.ForRead) as PointGroup;
+                    //    if (allAlignments.Any(x => x.Name == pg.Name))
+                    //    {
+                    //        pg.CheckOrOpenForWrite();
+                    //        pg.Update();
+                    //        uint[] numbers = pg.GetPointNumbers();
+
+                    //        CogoPointCollection cpc = civilDoc.CogoPoints;
+
+                    //        for (int j = 0; j < numbers.Length; j++)
+                    //        {
+                    //            uint number = numbers[j];
+
+                    //            if (cpc.Contains(number))
+                    //            {
+                    //                cpc.Remove(number);
+                    //            }
+                    //        }
+
+                    //        StandardPointGroupQuery spgqEmpty = new StandardPointGroupQuery();
+                    //        spgqEmpty.IncludeNumbers = "";
+                    //        pg.SetQuery(spgqEmpty);
+
+                    //        pg.Update();
+                    //    }
+                    //}
+                    #endregion
+
+                    #region Name handling of point names
+                    //Used to keep track of point names
+                    HashSet<string> pNames = new HashSet<string>();
+                    CogoPointCollection cogoPoints = civilDoc.CogoPoints;
+                    cogoPoints.Select(x => pNames.Add(x.Go<CogoPoint>(tx).PointName));
+
+                    int index = 1;
+                    #endregion
+
+                    #region CogoPoint style and label reference
+                    Oid cogoPointStyle = civilDoc.Styles.PointStyles["LER KRYDS"];
+                    #endregion
+
+                    foreach (Alignment alignment in allAlignments)
+                    {
+                        #region Create ler data
+                        #region Do not clone anymore, use property sets
+
+                        Plane plane = new Plane();
+
+                        int intersections = 0;
+
+                        List<Entity> sourceEnts = new List<Entity>();
+
+                        //Gather the intersected objectIds
+                        foreach (Entity ent in remoteLerData)
+                        {
+                            string type = ReadStringParameterFromDataTable(ent.Layer, dtKrydsninger, "Type", 0);
+                            if (type == "IGNORE") continue;
+
+                            using (Point3dCollection p3dcol = new Point3dCollection())
+                            {
+                                alignment.IntersectWith(
+                                    ent,
+                                    Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                                    plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+                                if (p3dcol.Count > 0)
+                                {
+                                    intersections++;
+                                    sourceEnts.Add(ent);
+                                }
+                            }
+                        }
+
+                        editor.WriteMessage($"\nTotal intersecting pipes detected: {intersections}");
+                        if (intersections == 0) continue;
+                        #endregion
+
+                        #region Prepare variables
+                        HashSet<CogoPoint> allNewlyCreatedPoints = new HashSet<CogoPoint>();
+                        #endregion
+
+                        #region Handle PointGroups
+                        bool pointGroupAlreadyExists = civilDoc.PointGroups.Contains(alignment.Name);
+
+                        PointGroup currentPointGroup = null;
+
+                        if (pointGroupAlreadyExists)
+                        {
+                            currentPointGroup = tx.GetObject(
+                                civilDoc.PointGroups[alignment.Name],
+                                    OpenMode.ForWrite) as PointGroup;
+                        }
+                        else
+                        {
+                            Oid pgId = civilDoc.PointGroups.Add(alignment.Name);
+                            currentPointGroup = pgId.GetObject(OpenMode.ForWrite) as PointGroup;
+                        }
+                        #endregion
+
+                        #region Create Points, assign elevation, layer and PS data
+                        foreach (Entity ent in sourceEnts)
+                        {
+                            #region Read data parameters from csvs
+                            //Read 'Type' value
+                            string type = ReadStringParameterFromDataTable(ent.Layer, dtKrydsninger, "Type", 0);
+                            if (type.IsNoE())
+                            {//Exit, if a layer is not defined in Krydsninger.csv
+                                AbortGracefully(
+                                    $"Fejl: For lag {ent.Layer} mangler der enten " +
+                                    $"selve definitionen eller 'Type'!",
+                                    xRefLerDB, xRefSurfaceDB
+                                    );
+                                tx.Abort();
+                                return;
+                            }
+
+                            //Read depth value for type
+                            double depth = 0;
+                            if (!type.IsNoE())
+                            {
+                                depth = ReadDoubleParameterFromDataTable(type, dtDybde, "Dybde", 0);
+                            }
+
+                            //Read layer value for the object
+                            string localPointLayerName = ReadStringParameterFromDataTable(
+                                                ent.Layer, dtKrydsninger, "Layer", 0);
+                            #endregion
+
+                            #region Populate description field
+                            string descrFromKrydsninger = ReadStringParameterFromDataTable(
+                                ent.Layer, dtKrydsninger, "Description", 0);
+
+                            //Guard against empty descriptions
+                            //All descriptions must contain some information
+                            //If it does not, then abort the whole thing
+                            //Do not allow to proceed
+                            //Force the user to keep descriptions up to date
+                            if (descrFromKrydsninger.IsNoE())
+                            {
+                                AbortGracefully(
+                                    $"Fejl: For lag {ent.Layer} mangler der en 'Description'!" +
+                                    $"Fejl: Kan ikke fortsætte før dette er rettet i Krydsninger.csv",
+                                    xRefLerDB, xRefSurfaceDB);
+                                tx.Abort();
+                                return;
+                            }
+
+                            string description = ProcessDescription(ent, descrFromKrydsninger, dtKrydsninger);
+                            #endregion
+
+                            string entHandle = "";
+                            entHandle = ent.Handle.ToString();
+
+                            #region Create points
+                            using (Point3dCollection p3dcol = new Point3dCollection())
+                            {
+                                alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+                                int count = 1;
+                                foreach (Point3d p3d in p3dcol)
+                                {
+                                    Oid pointId = cogoPoints.Add(p3d, true);
+                                    CogoPoint cogoPoint = pointId.Go<CogoPoint>(tx, OpenMode.ForWrite);
+
+                                    #region Assign elevation based on 3D conditions
+                                    double zElevation = 0;
+                                    if (type != "3D")
+                                    {
+                                        var intPoint = surface.GetIntersectionPoint(
+                                            new Point3d(p3d.X, p3d.Y, -99.0), new Vector3d(0, 0, 1));
+                                        zElevation = intPoint.Z;
+
+                                        //Subtract the depth (if invalid it is zero, so no modification will occur)
+                                        zElevation -= depth;
+
+                                        cogoPoint.Elevation = zElevation;
+                                    }
+                                    else if (type == "3D")
+                                    {
+                                        Polyline3d pline3d = (Polyline3d)ent;
+                                        Point3d p3dInt = pline3d.GetClosestPointTo(
+                                            p3d, new Vector3d(0.0, 0.0, 1.0), false);
+
+                                        //Assume only one intersection
+                                        cogoPoint.Elevation = p3dInt.Z;
+
+                                        if (cogoPoint.Elevation == 0)
+                                        {
+                                            editor.WriteMessage($"\nFor type 3D entity {ent.Handle.ToString()}" +
+                                                $" layer {ent.Layer}," +
+                                                $" elevation is 0!");
+                                        }
+                                    }
+                                    #endregion
+
+                                    //Set the layer
+                                    #region Layer handling
+                                    localDb.CheckOrCreateLayer(localPointLayerName);
+
+                                    cogoPoint.Layer = localPointLayerName;
+                                    #endregion
+
+                                    #region Point names, avoids duplicate names
+                                    string pointName = entHandle + "_" + count;
+
+                                    while (pNames.Contains(pointName))
+                                    {
+                                        count++;
+                                        pointName = entHandle + "_" + count;
+                                    }
+                                    pNames.Add(pointName);
+                                    cogoPoint.PointName = pointName;
+                                    cogoPoint.RawDescription = description;
+                                    cogoPoint.StyleId = cogoPointStyle;
+                                    #endregion
+
+                                    #region Populate DriCrossingData property set
+                                    //Fetch diameter definitions if any
+                                    string diaDef = ReadStringParameterFromDataTable(ent.Layer,
+                                        dtKrydsninger, "Diameter", 0);
+
+                                    if (diaDef.IsNotNoE())
+                                    {
+                                        var parts = FindPropertySetParts(diaDef);
+                                        if (parts.propertyName != default && parts.setName != default)
+                                        {
+                                            int diameter = PropertySetManager.ReadNonDefinedPropertySetInt(
+                                                ent, parts.setName, parts.propertyName);
+
+                                            psmDriCrossingData.WritePropertyObject(cogoPoint, dCDdef.Diameter, diameter);
+                                        }
+                                    }
+
+                                    psmDriCrossingData.WritePropertyString(
+                                        cogoPoint, dCDdef.Alignment, alignment.Name);
+                                    psmDriCrossingData.WritePropertyString(
+                                        cogoPoint, dCDdef.SourceEntityHandle, entHandle);
+                                    #endregion
+
+                                    //Reference newly created cogoPoint to gathering collection
+                                    allNewlyCreatedPoints.Add(cogoPoint);
+                                }
+                            }
+                            #endregion
+                        }
+                        #endregion
+
+                        #region Assign newly created points to projection on a profile view
+                        #region Build query for PointGroup
+                        //Build query
+                        StandardPointGroupQuery spgq = new StandardPointGroupQuery();
+                        List<string> newPointNumbers = allNewlyCreatedPoints.Select(x => x.PointNumber.ToString()).ToList();
+                        string pointNumbersToInclude = string.Join(",", newPointNumbers.ToArray());
+                        spgq.IncludeNumbers = pointNumbersToInclude;
+                        currentPointGroup.SetQuery(spgq);
+                        currentPointGroup.Update();
+                        #endregion
+
+                        #region Manage PVs
+                        ObjectIdCollection pIds = alignment.GetProfileIds();
+                        Profile pSurface = null;
+                        foreach (Oid oid in pIds)
+                        {
+                            Profile pt = oid.Go<Profile>(tx);
+                            if (pt.Name == $"{alignment.Name}_surface_P") pSurface = pt;
+                        }
+                        if (pSurface == null)
+                        {
+                            AbortGracefully(
+                                $"No profile named {alignment.Name}_surface_P found!",
+                                xRefLerDB, xRefSurfaceDB
+                                );
+
+                            tx.Abort();
+                            return;
+                        }
+                        else editor.WriteMessage($"\nProfile {pSurface.Name} found!");
+
+                        #region Find bottom profile
+                        Profile bundProfile = null;
+                        Profile midtProfile = null;
+                        Profile topProfile = null;
+                        Profile bottomProfile = null;
+                        foreach (Oid oid in pIds)
+                        {
+                            Profile pt = oid.Go<Profile>(tx);
+                            if (pt.Name.Contains("BUND")) bundProfile = pt;
+                            if (pt.Name.Contains("MIDT")) midtProfile = pt;
+                            if (pt.Name.Contains("TOP")) topProfile = pt;
+                        }
+                        if (bundProfile == null &&
+                            midtProfile == null &&
+                            topProfile == null)
+                        {
+                            bottomProfile = pSurface;
+                        }
+                        else if (bundProfile != null) bottomProfile = bundProfile;
+                        else if (midtProfile != null) bottomProfile = midtProfile;
+                        else if (topProfile != null) bottomProfile = topProfile;
+                        #endregion
+
+                        //Sorting is not verified!!!
+                        //Must be sorted from start alignment to end
+                        ObjectIdCollection pvIds = alignment.GetProfileViewIds();
+                        List<ProfileView> pvs = new List<ProfileView>();
+                        foreach (Oid pvId in pvIds) pvs.Add(pvId.Go<ProfileView>(tx, OpenMode.ForWrite));
+                        //ProfileView[] pvs = localDb.ListOfType<ProfileView>(tx).ToArray();
+
+                        //Create StationPoints and assign PV number to them
+                        HashSet<StationPoint> staPoints = new HashSet<StationPoint>(allNewlyCreatedPoints.Count);
+                        foreach (CogoPoint cp in allNewlyCreatedPoints)
+                        {
+                            StationPoint sp;
+                            try
+                            {
+                                sp = new StationPoint(cp, alignment);
+                            }
+                            catch (System.Exception)
+                            {
+                                continue;
+                            }
+
+                            int counter = 0;
+                            foreach (ProfileView pv in pvs)
+                            {
+                                //Sorting of ProfileViews is not verified!!!
+                                counter++;
+                                if (sp.Station >= pv.StationStart &&
+                                    sp.Station <= pv.StationEnd)
+                                {
+                                    sp.ProfileViewNumber = counter;
+                                    break;
+                                }
+                            }
+                            staPoints.Add(sp);
+                        }
+
+                        for (int i = 0; i < pvs.Count; i++)
+                        {
+                            int idx = i + 1;
+                            ProfileView pv = pvs[i];
+
+                            #region Determine profile top and bottom elevations
+                            double pvStStart = pv.StationStart;
+                            double pvStEnd = pv.StationEnd;
+
+                            int nrOfIntervals = (int)((pvStEnd - pvStStart) / 0.25);
+                            double delta = (pvStEnd - pvStStart) / nrOfIntervals;
+                            HashSet<double> topElevs = new HashSet<double>();
+                            HashSet<double> minElevs = new HashSet<double>();
+
+                            for (int j = 0; j < nrOfIntervals + 1; j++)
+                            {
+                                double topTestEl = 0;
+                                try
+                                {
+                                    topTestEl = pSurface.ElevationAt(pvStStart + delta * j);
+                                }
+                                catch (System.Exception)
+                                {
+                                    editor.WriteMessage($"\nTop profile at {pvStStart + delta * i} threw an exception! " +
+                                        $"PV: {pv.StationStart}-{pv.StationEnd}.");
+                                    continue;
+                                }
+                                topElevs.Add(topTestEl);
+                                double bottomTestEl = 0;
+                                try
+                                {
+                                    bottomTestEl = bottomProfile.ElevationAt(pvStStart + delta * j);
+                                }
+                                catch (System.Exception)
+                                {
+                                    editor.WriteMessage($"\nBottom profile {bottomProfile.Name} at " +
+                                        $"{pvStStart + delta * i} threw an exception! " +
+                                        $"PV {pv.Name}: {pv.StationStart}-{pv.StationEnd}.");
+                                    continue;
+                                }
+                                minElevs.Add(bottomTestEl);
+                            }
+
+                            double maxEl = topElevs.Max();
+                            double profileMinEl = minElevs.Min();
+
+                            var query = staPoints.Where(x => x.ProfileViewNumber == idx)
+                                                    .Select(x => x.CogoPoint.Elevation);
+                            double pointsMinEl = default;
+                            if (query.Count() > 0) { pointsMinEl = query.Min(); }
+
+                            double minEl;
+                            if (pointsMinEl == default) minEl = profileMinEl;
+                            else minEl = profileMinEl > pointsMinEl ? pointsMinEl : profileMinEl;
+
+                            prdDbg($"\nElevations of PV {pv.Name}> Max: {Math.Round(maxEl, 2)} | Min: {Math.Round(minEl, 2)}");
+                            #endregion
+
+                            //Set the elevations
+                            pv.CheckOrOpenForWrite();
+                            pv.ElevationRangeMode = ElevationRangeType.UserSpecified;
+                            pv.ElevationMax = Math.Ceiling(maxEl);
+                            pv.ElevationMin = Math.Floor(minEl) - 2;
+
+                            //Project the points
+
+                            var selection = staPoints
+                                .Where(x => x.ProfileViewNumber == idx)
+                                .Select(x => x.CogoPoint.ObjectId)
+                                .ToArray();
+
+                            if (selection.Length == 0) continue;
+
+                            editor.SetImpliedSelection(selection);
+                            prdDbg("");
+                            editor.Command("_AeccProjectObjectsToProf", pv.ObjectId);
+                        }
+                        #endregion
+
+                        #endregion
+
+                        #endregion
+                    }
+
+                    xRefLerTx.Commit();
+                    xRefSurfaceTx.Commit();
+                    xRefLerDB.Dispose();
+                    xRefSurfaceDB.Dispose();
+                }
+
+                catch (System.Exception ex)
+                {
+                    xRefLerTx.Abort();
+                    xRefLerDB.Dispose();
+
+                    xRefSurfaceTx.Abort();
+                    xRefSurfaceDB.Dispose();
+                    editor.WriteMessage("\n" + ex.ToString());
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("DELETEALLCOGOPOINTS")]
         public void deleteallcogopoints()
         {

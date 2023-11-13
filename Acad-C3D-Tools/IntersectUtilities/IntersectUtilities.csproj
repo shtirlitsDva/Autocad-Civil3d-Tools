@@ -264,6 +264,7 @@
     <Compile Include="Forms\StringGridForm.Designer.cs">
       <DependentUpon>StringGridForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\StringGridFormCaller.cs" />
     <Compile Include="Forms\TestSuiteForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -309,6 +310,11 @@
     <Compile Include="LER2.0\Ler2MergeValidator.cs" />
     <Compile Include="LER2.0\MyPl3d.cs" />
     <Compile Include="LER2.0\SerializablePolyline3d.cs" />
+    <Compile Include="LongitudinalProfiles\Ler3dManager\ILer3dManager.cs" />
+    <Compile Include="LongitudinalProfiles\Ler3dManager\Ler3dManagerBase.cs" />
+    <Compile Include="LongitudinalProfiles\Ler3dManager\Ler3dManagerFactory.cs" />
+    <Compile Include="LongitudinalProfiles\Ler3dManager\Ler3dManagerFile.cs" />
+    <Compile Include="LongitudinalProfiles\Ler3dManager\Ler3dManagerFolder.cs" />
     <Compile Include="LongitudinalProfiles\LongitudinalProfileTools.cs" />
     <Compile Include="LongitudinalProfiles\TrenchSamplingPoint.cs" />
     <Compile Include="MoreLinq\DistinctBy.cs" />
