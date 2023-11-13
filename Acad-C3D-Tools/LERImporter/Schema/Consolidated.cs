@@ -18,6 +18,9 @@ namespace LERImporter.Schema
     {
         [XmlElement("featureMember", Namespace = "http://www.opengis.net/gml/3.2")]
         public List<FeatureMember> featureCollection { get; set; }
+        public string GetGraveForespBemaerkning() =>
+            featureCollection.Where(x => x.item is Graveforesp)
+            .Select(x => x.item as Graveforesp).FirstOrDefault()?.bemaerkning;
     }
 
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.Xml", "4.8.4084.0")]

@@ -113,20 +113,20 @@ namespace DriPaletteSet
 
                     PipeSystemEnum system;
                     string dn;
-                    if (cb.Text.StartsWith("DN "))
+                    if (btn.Text.StartsWith("DN "))
                     {
                         system = PipeSystemEnum.Stål;
-                        dn = cb.Text.Replace("DN ", "");
+                        dn = btn.Text.Replace("DN ", "");
                     }
-                    else if (cb.Text.StartsWith("ALUPEX "))
+                    else if (btn.Text.StartsWith("ALUPEX "))
                     {
                         system = PipeSystemEnum.AluPex;
-                        dn = cb.Text.Replace("ALUPEX ", "");
+                        dn = btn.Text.Replace("ALUPEX ", "");
                     }
-                    else if (cb.Text.StartsWith("CU "))
+                    else if (btn.Text.StartsWith("CU "))
                     {
                         system = PipeSystemEnum.Kobberflex;
-                        dn = cb.Text.Replace("CU ", "");
+                        dn = btn.Text.Replace("CU ", "");
                     }
                     else throw new System.Exception($"Unknown pipe button text: {cb.Text}!");
 

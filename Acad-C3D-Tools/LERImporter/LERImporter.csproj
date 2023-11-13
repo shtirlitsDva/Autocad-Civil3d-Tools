@@ -69,6 +69,10 @@
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2024\acmgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="AcMPolygonMGD">
+      <HintPath>C:\Program Files\Autodesk\AutoCAD 2024\AcMPolygonMGD.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="AecBaseMgd">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2024\AecBaseMgd.dll</HintPath>
       <Private>False</Private>
@@ -93,6 +97,7 @@
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
+    <Reference Include="System.IO.Compression" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Web" />
     <Reference Include="System.Windows.Forms" />
@@ -159,7 +164,7 @@
       <Link>UtilsCommon.cs</Link>
     </Compile>
     <Compile Include="ConsolidatedCreator.cs" />
-    <Compile Include="Converters\Udbedringer af udvidede udfaldsrum.cs" />
+    <Compile Include="Converters\Enhancer.cs" />
     <Compile Include="GmlToPropertySet.cs" />
     <Compile Include="LerImporter.cs" />
     <Compile Include="ObjectDumper\DumpOptions.cs" />
@@ -188,6 +193,7 @@
     <Compile Include="Schema\VariousClasses.cs" />
     <Compile Include="Schema\wfs.Designer.cs" />
     <Compile Include="Visualizer.cs" />
+    <Compile Include="ZipExtractor\ZipExtractor.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

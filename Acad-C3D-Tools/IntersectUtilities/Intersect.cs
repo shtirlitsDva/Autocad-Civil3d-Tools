@@ -3096,32 +3096,22 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-            const string kwd1 = "Naturgas";
-            const string kwd2 = "Andet";
-            const string kwd3 = "UDGÅR";
-            const string kwd4 = "Ingen";
-            const string kwd5 = "El";
-            const string kwd6 = "Olie";
-            const string kwd7 = "Varmepumpe";
-            const string kwd8 = "Fjernvarme";
-            const string kwd9 = "Fast brændsel";
+            string[] kwds = new string[9]
+            {
+                "Naturgas",
+                "Andet",
+                "UDGÅR",
+                "Ingen",
+                "El",
+                "Olie",
+                "Varmepumpe",
+                "Fjernvarme",
+                "Fast brændsel"
+            };
 
-            PromptKeywordOptions pKeyOpts = new PromptKeywordOptions("");
-            pKeyOpts.Message = "\nHvilken block skal indsættes i stedet? ";
-            pKeyOpts.Keywords.Add(kwd1);
-            pKeyOpts.Keywords.Add(kwd2);
-            pKeyOpts.Keywords.Add(kwd3);
-            pKeyOpts.Keywords.Add(kwd4);
-            pKeyOpts.Keywords.Add(kwd5);
-            pKeyOpts.Keywords.Add(kwd6);
-            pKeyOpts.Keywords.Add(kwd7);
-            pKeyOpts.Keywords.Add(kwd8);
-            pKeyOpts.Keywords.Add(kwd9);
-            pKeyOpts.AllowNone = true;
-            pKeyOpts.Keywords.Default = kwd1;
-            PromptResult pKeyRes = editor.GetKeywords(pKeyOpts);
+            string result = StringGridFormCaller.Call(kwds, "Vælg type block:");
 
-            string blockName = pKeyRes.StringResult;
+            if (result.IsNoE()) return;
 
             while (true)
             {
@@ -3140,10 +3130,10 @@ namespace IntersectUtilities
                         BlockReference brOld = entId.Go<BlockReference>(tx, OpenMode.ForWrite);
                         #endregion
 
-                        BlockReference brNew = localDb.CreateBlockWithAttributes(blockName, brOld.Position);
+                        BlockReference brNew = localDb.CreateBlockWithAttributes(result, brOld.Position);
 
                         PropertySetManager.CopyAllProperties(brOld, brNew);
-                        PropertySetManager.WriteNonDefinedPropertySetString(brNew, "BBR", "Type", blockName);
+                        PropertySetManager.WriteNonDefinedPropertySetString(brNew, "BBR", "Type", result);
 
                         brOld.Erase(true);
                     }
@@ -3932,33 +3922,69 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test new DRO
+                    //DataReferencesOptions dro = new DataReferencesOptions();
+                    //prdDbg($"{dro.ProjectName}, {dro.EtapeName}");
+
+                    //Application.ShowModelessDialog(new TestSuiteForm());
+
+                    //for (int itemCount = 1; itemCount <= 8; itemCount++)
+                    //{
+                    //    var form = new StringGridForm(GenerateRandomStrings(itemCount, 5, 12));
+                    //    form.ShowDialog();
+                    //}
+
+                    //string GenerateRandomString(int length)
+                    //{
+                    //    var random = new Random();
+                    //    const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+                    //    var stringChars = new char[length];
+                    //    for (int i = 0; i < length; i++)
+                    //    {
+                    //        stringChars[i] = chars[random.Next(chars.Length)];
+                    //    }
+                    //    return new string(stringChars);
+                    //}
+
+                    //IEnumerable<string> GenerateRandomStrings(int count, int minLength, int maxLength)
+                    //{
+                    //    var random = new Random();
+                    //    var strings = new List<string>();
+                    //    for (int i = 0; i < count; i++)
+                    //    {
+                    //        int length = random.Next(minLength, maxLength + 1);
+                    //        strings.Add(GenerateRandomString(length));
+                    //    }
+                    //    return strings;
+                    //}
+                    #endregion
+
                     #region Get points from profile
-                    var pId = Interaction.GetEntity("Select profile: ", typeof(Profile), false);
-                    if (pId == Oid.Null) { tx.Abort(); return; }
-                    Profile p = pId.Go<Profile>(tx);
+                    //var pId = Interaction.GetEntity("Select profile: ", typeof(Profile), false);
+                    //if (pId == Oid.Null) { tx.Abort(); return; }
+                    //Profile p = pId.Go<Profile>(tx);
 
-                    var pvId = Interaction.GetEntity("Select profile view: ", typeof(ProfileView), false);
-                    if (pvId == Oid.Null) { tx.Abort(); return; }
-                    ProfileView pv = pvId.Go<ProfileView>(tx);
+                    //var pvId = Interaction.GetEntity("Select profile view: ", typeof(ProfileView), false);
+                    //if (pvId == Oid.Null) { tx.Abort(); return; }
+                    //ProfileView pv = pvId.Go<ProfileView>(tx);
 
-                    var ss = pv.StationStart;
-                    var se = pv.StationEnd;
+                    //var ss = pv.StationStart;
+                    //var se = pv.StationEnd;
 
-                    List<Point3d> points = new List<Point3d>();
+                    //List<Point3d> points = new List<Point3d>();
 
-                    //iterate over length of profile view with a step of 5
-                    for (double i = ss; i < se; i += 5)
-                    {
-                        double X = 0;
-                        double Y = 0;
-                        pv.FindXYAtStationAndElevation(i, p.ElevationAt(i), ref X, ref Y);
-                        points.Add(new Point3d(X, Y, 0));
-                    }
+                    ////iterate over length of profile view with a step of 5
+                    //for (double i = ss; i < se; i += 5)
+                    //{
+                    //    double X = 0;
+                    //    double Y = 0;
+                    //    pv.FindXYAtStationAndElevation(i, p.ElevationAt(i), ref X, ref Y);
+                    //    points.Add(new Point3d(X, Y, 0));
+                    //}
 
-                    File.WriteAllText(@"C:\Temp\points.txt", string.Join(
-                        ";", points.Select(x => 
-                        $"({x.X.ToString("F2", CultureInfo.InvariantCulture)},{x.Y.ToString("F2", CultureInfo.InvariantCulture)})")));
-
+                    //File.WriteAllText(@"C:\Temp\points.txt", string.Join(
+                    //    ";", points.Select(x => 
+                    //    $"({x.X.ToString("F2", CultureInfo.InvariantCulture)},{x.Y.ToString("F2", CultureInfo.InvariantCulture)})")));
                     #endregion
 
                     #region Test PipeScheduleV2
@@ -6525,7 +6551,7 @@ namespace IntersectUtilities
                     {
                         ltr.CheckOrOpenForWrite();
 
-                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci,
                             GetLayerColor(GetPipeSystem(ltr.Name), GetPipeType(ltr.Name)));
                     }
                 }
@@ -8343,7 +8369,7 @@ namespace IntersectUtilities
                         x => psmPipeLineData.ReadPropertyString(x, driPipelineData.BelongsToAlignment))
                         .Distinct().OrderBy(x => x);
 
-                    StringGridForm sgf = new StringGridForm(list);
+                    StringGridForm sgf = new StringGridForm(list, "SELECT ALIGNMENT NAME");
                     sgf.ShowDialog();
 
                     if (sgf.SelectedValue != null)

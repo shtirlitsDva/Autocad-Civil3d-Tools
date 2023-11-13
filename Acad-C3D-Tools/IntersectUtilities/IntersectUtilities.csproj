@@ -255,11 +255,21 @@
     <Compile Include="ConvexHull.cs" />
     <Compile Include="DataReferenceOptions.cs" />
     <Compile Include="DebugHelpers\AssemblyResolveEvents.cs" />
+    <Compile Include="Forms\OverlayForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Forms\StringGridForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Forms\StringGridForm.Designer.cs">
       <DependentUpon>StringGridForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\StringGridFormCaller.cs" />
+    <Compile Include="Forms\TestSuiteForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\TestSuiteForm.Designer.cs">
+      <DependentUpon>TestSuiteForm.cs</DependentUpon>
     </Compile>
     <Compile Include="GeoJsonConverters\AutoCadVFToGeoJsonConverter.cs" />
     <Compile Include="GeoJsonConverters\AutoCadFjvToGeoJsonConverter.cs" />
@@ -300,6 +310,11 @@
     <Compile Include="LER2.0\Ler2MergeValidator.cs" />
     <Compile Include="LER2.0\MyPl3d.cs" />
     <Compile Include="LER2.0\SerializablePolyline3d.cs" />
+    <Compile Include="LongitudinalProfiles\Ler3dManager\ILer3dManager.cs" />
+    <Compile Include="LongitudinalProfiles\Ler3dManager\Ler3dManagerBase.cs" />
+    <Compile Include="LongitudinalProfiles\Ler3dManager\Ler3dManagerFactory.cs" />
+    <Compile Include="LongitudinalProfiles\Ler3dManager\Ler3dManagerFile.cs" />
+    <Compile Include="LongitudinalProfiles\Ler3dManager\Ler3dManagerFolder.cs" />
     <Compile Include="LongitudinalProfiles\LongitudinalProfileTools.cs" />
     <Compile Include="LongitudinalProfiles\TrenchSamplingPoint.cs" />
     <Compile Include="MoreLinq\DistinctBy.cs" />
@@ -375,6 +390,14 @@
       <Project>{4f67b4fc-98c1-412d-a149-87402fd6a913}</Project>
       <Name>netDxf</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Forms\OverlayForm.resx">
+      <DependentUpon>OverlayForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\StringGridForm.resx">
+      <DependentUpon>StringGridForm.cs</DependentUpon>
+    </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

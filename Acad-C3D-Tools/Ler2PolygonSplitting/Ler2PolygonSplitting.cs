@@ -98,7 +98,8 @@ namespace Ler2PolygonSplitting
 
                         int K = keywords[sgf.SelectedValue];
 
-                        int distance = (int)Math.Sqrt(polygon.EnvelopeInternal.Area / 1350);
+                        //int distance = (int)Math.Sqrt(polygon.EnvelopeInternal.Area / 1350);
+                        int distance = (int)Math.Sqrt(polygon.EnvelopeInternal.Area / 2000);
 
                         var allPoints = GeneratePoints(polygon, distance);
                         prdDbg($"Number of Points in grid: {allPoints.NumPoints} with distance {distance}.");
@@ -201,7 +202,7 @@ namespace Ler2PolygonSplitting
                         double maxArea = 245000;
 
                         var pd = new Brent.PolygonDivider();
-                        //pd.Run(polygon, pl.Handle.ToString(), maxArea, true, Brent.Direction.RightTop);
+                        pd.Run(polygon, pl.Handle.ToString(), maxArea, Brent.Direction.RightTop);
                         if (pd.Result == Brent.OperationResult.Failure)
                         {
                             prdDbg($"Brent failed for polygon {pl.Handle} with message:\n" +
