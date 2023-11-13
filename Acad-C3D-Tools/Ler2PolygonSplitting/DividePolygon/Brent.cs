@@ -338,10 +338,10 @@ namespace Ler2PolygonSplitting.Brent
         private GeometryFactory factory = new GeometryFactory();
 
         private static readonly double buffer = 1e-6;
-        private static readonly double tol = 1e-6;
+        //private static readonly double tol = 1e-6;
         private static readonly double t = 1e-6;
-        private static readonly double xtol = 1e-3;
-        private static readonly double ftol = 100;
+        //private static readonly double xtol = 1e-6;
+        //private static readonly double ftol = 1e-6;
 
         private bool ERROR_FLAG_0 = false;
         private bool ERROR_FLAG_1 = false;
@@ -363,6 +363,9 @@ namespace Ler2PolygonSplitting.Brent
                 bool horizontalFlag = direction == Direction.BottomLeft || direction == Direction.TopRight;
                 bool forwardFlag = direction == Direction.BottomLeft || direction == Direction.LeftBottom;
 
+                List<Geometry> subfeatures = new List<Geometry>();
+                int j = 0;
+
                 Geometry bufferedPolygon = polygonToSplit.Buffer(0);
 
                 if (bufferedPolygon.IsEmpty)
@@ -372,7 +375,7 @@ namespace Ler2PolygonSplitting.Brent
                     return;
                 }
 
-                List<Geometry> subfeatures = new List<Geometry>(); //create a list out of the original polygon
+                 //create a list out of the original polygon
                 if (bufferedPolygon is MultiPolygon)
                 {
                     MultiPolygon multiGeom = (MultiPolygon)bufferedPolygon;
