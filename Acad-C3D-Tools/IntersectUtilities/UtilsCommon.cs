@@ -47,7 +47,7 @@ using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
-using PsDataType = Autodesk.Aec.PropertyData.DataType;
+using DataTable = System.Data.DataTable;
 
 namespace IntersectUtilities.UtilsCommon
 {
@@ -2433,6 +2433,11 @@ namespace IntersectUtilities.UtilsCommon
                 return false;
             }
         }
+        public static Polyline GetPolyline(this Alignment al)
+        {
+            Oid id = al.GetPolyline();
+            return id.Go<Polyline>(al.Database.TransactionManager.TopTransaction);
+        }
         public static void UpdateElevationZ(this PolylineVertex3d vert, double newElevation)
         {
             if (!vert.Position.Z.Equalz(newElevation, Tolerance.Global.EqualPoint))
@@ -3227,5 +3232,66 @@ namespace IntersectUtilities.UtilsCommon
             int yHash = ((int)(bv.Vertex.Y * _scale)).GetHashCode();
             return xHash ^ yHash;
         }
+    }
+
+    public static class CsvData
+    {
+        private static readonly Dictionary<string, (DataTable data, DateTime lastModified)> cache =
+            new Dictionary<string, (DataTable data, DateTime lastModified)>();
+        private static readonly Dictionary<string, string> csvs = new Dictionary<string, string>();
+        static CsvData()
+        {
+            if (!File.Exists(@"X:\AutoCAD DRI - 01 Civil 3D\_csv_register.csv"))
+                throw new FileNotFoundException("CSV register not found!");
+
+            var lines = File.ReadAllLines(
+                @"X:\AutoCAD DRI - 01 Civil 3D\_csv_register.csv")
+                .Skip(1);
+
+            foreach (var line in lines)
+            {
+                var split = line.Split(';');
+                csvs.Add(split[0], split[1]);
+            }
+
+            foreach (var item in csvs) LoadCsvFile(item.Key, item.Value);
+        }
+        private static void LoadCsvFile(string name, string path)
+        {
+            if (!File.Exists(path))
+                throw new FileNotFoundException($"File {path} does not exist!");
+
+            DateTime lastWriteTime = File.GetLastWriteTimeUtc(path);
+            DataTable dt = CsvReader.ReadCsvToDataTable(path, name);
+            cache.Add(name, (dt, lastWriteTime));
+        }
+        private static DataTable GetDataTable(string name)
+        {
+            if (csvs.ContainsKey(name))
+            {
+                var path = csvs[name];
+                if (cache.ContainsKey(name))
+                {
+                    var cached = cache[name];
+                    var lastWriteTime = File.GetLastWriteTimeUtc(path);
+                    if (cached.lastModified < lastWriteTime)
+                    {
+                        prdDbg($"Csv file {name} has been updated! Loading new version.");
+                        cache.Remove(name);
+                        LoadCsvFile(name, path);
+                        return cache[name].data;
+                    }
+                    else return cached.data;
+                }
+                else
+                {
+                    LoadCsvFile(name, path);
+                    return cache[name].data;
+                }
+            }
+            else throw new System.Exception(
+                $"Csv name {name} not defined!\nUpdate registration.");
+        }
+        public static DataTable Get(string name) => GetDataTable(name);
     }
 }

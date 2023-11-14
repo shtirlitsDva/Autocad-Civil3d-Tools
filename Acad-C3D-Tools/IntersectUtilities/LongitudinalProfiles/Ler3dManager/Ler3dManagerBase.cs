@@ -1,10 +1,14 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
+﻿using Autodesk.AutoCAD.Geometry;
+using Autodesk.Civil.DatabaseServices;
 
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 
 namespace IntersectUtilities.LongitudinalProfiles
 {
@@ -24,5 +28,8 @@ namespace IntersectUtilities.LongitudinalProfiles
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
+        public abstract HashSet<Entity> GetIntersectingEntities(Alignment al);
+        public abstract string GetHandle(Entity ent);
+        public abstract bool IsPointWithinPolygon(Entity ent, Point3d p3d);
     }
 }
