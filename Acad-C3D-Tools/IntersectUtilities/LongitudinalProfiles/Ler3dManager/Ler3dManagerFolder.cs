@@ -1,5 +1,7 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 
+using IntersectUtilities.UtilsCommon;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,14 +18,32 @@ namespace IntersectUtilities.LongitudinalProfiles
         public override void Load(string path)
         {
             var files = Directory.EnumerateFiles(path, "*_3DLER.dwg", SearchOption.TopDirectoryOnly);
+
+            foreach (var file in files)
+            {
+                var name = Path.GetFileNameWithoutExtension(file);
+                var db = new Database(false, true);
+                db.ReadDwgFile(file, FileShare.Read, true, "");
+                storage.Add(name, db);
+
+                Transaction tx = db.TransactionManager.StartTransaction();
+                MPolygon mpg = db.ListOfType<MPolygon>(tx).FirstOrDefault();
+
+                areas.Add(name, mpg);
+            }
         }
 
-        protected override void Dispose(bool disposing)
+        public override void Dispose(bool disposing)
         {
             if (disposing)
             {
                 foreach (var db in storage?.Values)
                 {
+                    while (db?.TransactionManager?.TopTransaction != null)
+                    {
+                        db?.TransactionManager?.TopTransaction?.Abort();
+                        db?.TransactionManager?.TopTransaction?.Dispose();
+                    }
                     if (db?.TransactionManager?.TopTransaction != null)
                         throw new Exception("Cannot dispose before transaction is closed!");
                     db?.Dispose();

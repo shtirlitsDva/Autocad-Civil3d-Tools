@@ -9,5 +9,6 @@ namespace IntersectUtilities.LongitudinalProfiles
     public interface ILer3dManager
     {
         void Load(string path);
+        void Dispose(bool disposing);
     }
 }

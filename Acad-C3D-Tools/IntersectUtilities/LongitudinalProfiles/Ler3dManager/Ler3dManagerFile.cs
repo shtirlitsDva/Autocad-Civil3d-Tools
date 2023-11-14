@@ -20,7 +20,7 @@ namespace IntersectUtilities.LongitudinalProfiles
                 path, FileOpenMode.OpenForReadAndAllShare, false, null);
             _db = db;
         }
-        protected override void Dispose(bool disposing)
+        public override void Dispose(bool disposing)
         {
             if (disposing)
             {

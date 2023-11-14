@@ -14,7 +14,7 @@ namespace IntersectUtilities.LongitudinalProfiles
 
         public abstract void Load(string path);
 
-        protected virtual void Dispose(bool disposing)
+        public virtual void Dispose(bool disposing)
         {
             if (_disposed) return;
             _disposed = true;
