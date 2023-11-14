@@ -13,6 +13,7 @@ namespace IntersectUtilities.LongitudinalProfiles
         {
             if (File.Exists(path))
             {
+                UtilsCommon.Utils.prdDbg("Loading Ler 3d from single file!");
                 if (Path.GetExtension(path).ToLower() == ".dwg")
                 {
                     var obj = new Ler3dManagerFile();
@@ -24,6 +25,7 @@ namespace IntersectUtilities.LongitudinalProfiles
             }
             else if (Directory.Exists(path))
             {
+                UtilsCommon.Utils.prdDbg("Loading Ler 3d from a collection of files!");
                 var obj = new Ler3dManagerFolder();
                 obj.Load(path);
                 return obj;

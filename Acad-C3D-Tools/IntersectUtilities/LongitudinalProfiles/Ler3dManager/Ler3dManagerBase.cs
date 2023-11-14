@@ -11,9 +11,8 @@ namespace IntersectUtilities.LongitudinalProfiles
     public abstract class Ler3dManagerBase : ILer3dManager, IDisposable
     {
         private bool _disposed = false;
-
         public abstract void Load(string path);
-
+        protected abstract bool IsLoadValid();
         public virtual void Dispose(bool disposing)
         {
             if (_disposed) return;

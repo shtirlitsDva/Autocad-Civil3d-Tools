@@ -51,6 +51,7 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Color = Autodesk.AutoCAD.Colors.Color;
 using System.Diagnostics;
+using IntersectUtilities.LongitudinalProfiles;
 
 namespace IntersectUtilities
 {
@@ -886,6 +887,7 @@ namespace IntersectUtilities
                     xRefSurfaceTx.Commit();
                     xRefSurfaceTx.Dispose();
                     xRefSurfaceDB.Dispose();
+                    tx.Abort();
                     return;
                 }
                 #endregion
@@ -901,6 +903,9 @@ namespace IntersectUtilities
 
                 List<Polyline3d> remoteLerData = xRefLerDB.ListOfType<Polyline3d>(xRefLerTx);
                 editor.WriteMessage($"\nNr. of 3D polies: {remoteLerData.Count}");
+
+                var lman = Ler3dManagerFactory.LoadLer3d(
+                    GetPathToDataFiles(projectName, etapeName, "Ler"));
                 #endregion
 
                 try
@@ -931,7 +936,6 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Delete existing points
-
                     //!!!!!Problem: How to determine that points for this alignmen not already created?
                     //!!!!!So right now it works only on empty projects, so no deletion of points is needed
 

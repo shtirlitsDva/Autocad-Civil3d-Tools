@@ -85,6 +85,21 @@ namespace IntersectUtilities.NTS
             
             return mpg;
         }
+        public static Polygon ConvertMPolygonToNTSPolygon(MPolygon mpg)
+        {
+            int loops = mpg.NumMPolygonLoops;
+            if (loops > 1) throw new System.Exception($"MPolygon {mpg.Handle} has more than one loop!");
+            List<Coordinate> coords = new List<Coordinate>();
+            for (int i = 0; i < loops; i++)
+            {
+                MPolygonLoop loop = mpg.GetMPolygonLoopAt(i);
+                foreach (BulgeVertex bv in loop)
+                    coords.Add(new Coordinate(bv.Vertex.X, bv.Vertex.Y));
+            }
+
+            Polygon pgn = new Polygon(new LinearRing(coords.ToArray()));
+            return pgn;
+        }
         public static void ConvertNTSMultiPointToDBPoints(Geometry mp, Database db)
         {
             var pm = new ProgressMeter();

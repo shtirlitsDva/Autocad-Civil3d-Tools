@@ -58,6 +58,7 @@ using IntersectUtilities.GraphClasses;
 using QuikGraph;
 using QuikGraph.Graphviz;
 using QuikGraph.Algorithms.Search;
+using IntersectUtilities.NTS;
 
 [assembly: CommandClass(typeof(IntersectUtilities.Intersect))]
 
@@ -3908,8 +3909,9 @@ namespace IntersectUtilities
                 }
             }
         }
-
+#if DEBUG
         [CommandMethod("testing")]
+#endif
         public void testing()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -3922,6 +3924,15 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test MPolygon to Polygon conversion
+                    var mpgs = localDb.HashSetOfType<MPolygon>(tx);
+                    foreach (MPolygon mpg in mpgs)
+                    {
+                        var pgn = NTSConversion.ConvertMPolygonToNTSPolygon(mpg);
+                        prdDbg($"Converted MPolygon {mpg.Handle} to Polygon area {pgn.Area} m²");
+                    }
+                    #endregion
+
                     #region Test new DRO
                     //DataReferencesOptions dro = new DataReferencesOptions();
                     //prdDbg($"{dro.ProjectName}, {dro.EtapeName}");
