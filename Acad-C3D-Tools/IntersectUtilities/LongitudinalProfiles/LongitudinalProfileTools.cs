@@ -840,7 +840,6 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
         public void createlerdatapssmethod2(
             DataReferencesOptions dro, List<Alignment> allAlignments = null)
         {
@@ -904,7 +903,7 @@ namespace IntersectUtilities
                 //List<Polyline3d> remoteLerData = xRefLerDB.ListOfType<Polyline3d>(xRefLerTx);
                 //editor.WriteMessage($"\nNr. of 3D polies: {remoteLerData.Count}");
 
-                var lman = Ler3dManagerFactory.LoadLer3d(
+                ILer3dManager lman = Ler3dManagerFactory.LoadLer3d(
                     GetPathToDataFiles(projectName, etapeName, "Ler"));
                 #endregion
 
@@ -928,11 +927,14 @@ namespace IntersectUtilities
                     #region Read Csv Data for Layers and Depth
                     //Establish the pathnames to files
                     //Files should be placed in a specific folder on desktop
-                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-                    string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
+                    //string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
+                    //string pathDybde = "X:\\AutoCAD DRI - 01 Civil 3D\\Dybde.csv";
 
-                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
-                    System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
+                    //System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    //System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
+
+                    var dtKrydsninger = CsvData.Get("krydsninger");
+                    var dtDybde = CsvData.Get("dybde");
                     #endregion
 
                     #region Delete existing points
@@ -982,40 +984,14 @@ namespace IntersectUtilities
                     Oid cogoPointStyle = civilDoc.Styles.PointStyles["LER KRYDS"];
                     #endregion
 
-                    foreach (Alignment alignment in allAlignments)
+                    foreach (Alignment al in allAlignments)
                     {
                         #region Create ler data
                         #region Do not clone anymore, use property sets
-
                         Plane plane = new Plane();
-
-                        int intersections = 0;
-
-                        List<Entity> sourceEnts = new List<Entity>();
-
-                        //Gather the intersected objectIds
-                        foreach (Entity ent in remoteLerData)
-                        {
-                            string type = ReadStringParameterFromDataTable(ent.Layer, dtKrydsninger, "Type", 0);
-                            if (type == "IGNORE") continue;
-
-                            using (Point3dCollection p3dcol = new Point3dCollection())
-                            {
-                                alignment.IntersectWith(
-                                    ent,
-                                    Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
-                                    plane, p3dcol, new IntPtr(0), new IntPtr(0));
-
-                                if (p3dcol.Count > 0)
-                                {
-                                    intersections++;
-                                    sourceEnts.Add(ent);
-                                }
-                            }
-                        }
-
-                        editor.WriteMessage($"\nTotal intersecting pipes detected: {intersections}");
-                        if (intersections == 0) continue;
+                        HashSet<Entity> sourceEnts = lman.GetIntersectingEntities(al);
+                        prdDbg($"Total intersecting pipes detected: {sourceEnts.Count}");
+                        if (sourceEnts.Count == 0) continue;
                         #endregion
 
                         #region Prepare variables
@@ -1023,19 +999,19 @@ namespace IntersectUtilities
                         #endregion
 
                         #region Handle PointGroups
-                        bool pointGroupAlreadyExists = civilDoc.PointGroups.Contains(alignment.Name);
+                        bool pointGroupAlreadyExists = civilDoc.PointGroups.Contains(al.Name);
 
                         PointGroup currentPointGroup = null;
 
                         if (pointGroupAlreadyExists)
                         {
                             currentPointGroup = tx.GetObject(
-                                civilDoc.PointGroups[alignment.Name],
+                                civilDoc.PointGroups[al.Name],
                                     OpenMode.ForWrite) as PointGroup;
                         }
                         else
                         {
-                            Oid pgId = civilDoc.PointGroups.Add(alignment.Name);
+                            Oid pgId = civilDoc.PointGroups.Add(al.Name);
                             currentPointGroup = pgId.GetObject(OpenMode.ForWrite) as PointGroup;
                         }
                         #endregion
@@ -1051,8 +1027,9 @@ namespace IntersectUtilities
                                 AbortGracefully(
                                     $"Fejl: For lag {ent.Layer} mangler der enten " +
                                     $"selve definitionen eller 'Type'!",
-                                    xRefLerDB, xRefSurfaceDB
+                                    xRefSurfaceDB
                                     );
+                                lman.Dispose(true);
                                 tx.Abort();
                                 return;
                             }
@@ -1083,7 +1060,8 @@ namespace IntersectUtilities
                                 AbortGracefully(
                                     $"Fejl: For lag {ent.Layer} mangler der en 'Description'!" +
                                     $"Fejl: Kan ikke fortsætte før dette er rettet i Krydsninger.csv",
-                                    xRefLerDB, xRefSurfaceDB);
+                                    xRefSurfaceDB);
+                                lman.Dispose(true);
                                 tx.Abort();
                                 return;
                             }
@@ -1091,17 +1069,20 @@ namespace IntersectUtilities
                             string description = ProcessDescription(ent, descrFromKrydsninger, dtKrydsninger);
                             #endregion
 
-                            string entHandle = "";
-                            entHandle = ent.Handle.ToString();
+                            string h = lman.GetHandle(ent);
+                            string entHandle = $"{projectName}:{etapeName}:{h}";
 
                             #region Create points
                             using (Point3dCollection p3dcol = new Point3dCollection())
                             {
-                                alignment.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
+                                al.IntersectWith(ent, 0, plane, p3dcol, new IntPtr(0), new IntPtr(0));
 
                                 int count = 1;
                                 foreach (Point3d p3d in p3dcol)
                                 {
+                                    //Determine if the intersection point is within the polygon area
+                                    if (!lman.IsPointWithinPolygon(ent, p3d)) continue;
+
                                     Oid pointId = cogoPoints.Add(p3d, true);
                                     CogoPoint cogoPoint = pointId.Go<CogoPoint>(tx, OpenMode.ForWrite);
 
@@ -1175,7 +1156,7 @@ namespace IntersectUtilities
                                     }
 
                                     psmDriCrossingData.WritePropertyString(
-                                        cogoPoint, dCDdef.Alignment, alignment.Name);
+                                        cogoPoint, dCDdef.Alignment, al.Name);
                                     psmDriCrossingData.WritePropertyString(
                                         cogoPoint, dCDdef.SourceEntityHandle, entHandle);
                                     #endregion
@@ -1200,20 +1181,20 @@ namespace IntersectUtilities
                         #endregion
 
                         #region Manage PVs
-                        ObjectIdCollection pIds = alignment.GetProfileIds();
+                        ObjectIdCollection pIds = al.GetProfileIds();
                         Profile pSurface = null;
                         foreach (Oid oid in pIds)
                         {
                             Profile pt = oid.Go<Profile>(tx);
-                            if (pt.Name == $"{alignment.Name}_surface_P") pSurface = pt;
+                            if (pt.Name == $"{al.Name}_surface_P") pSurface = pt;
                         }
                         if (pSurface == null)
                         {
                             AbortGracefully(
-                                $"No profile named {alignment.Name}_surface_P found!",
-                                xRefLerDB, xRefSurfaceDB
+                                $"No profile named {al.Name}_surface_P found!",
+                                xRefSurfaceDB
                                 );
-
+                            lman.Dispose(true);
                             tx.Abort();
                             return;
                         }
@@ -1244,7 +1225,7 @@ namespace IntersectUtilities
 
                         //Sorting is not verified!!!
                         //Must be sorted from start alignment to end
-                        ObjectIdCollection pvIds = alignment.GetProfileViewIds();
+                        ObjectIdCollection pvIds = al.GetProfileViewIds();
                         List<ProfileView> pvs = new List<ProfileView>();
                         foreach (Oid pvId in pvIds) pvs.Add(pvId.Go<ProfileView>(tx, OpenMode.ForWrite));
                         //ProfileView[] pvs = localDb.ListOfType<ProfileView>(tx).ToArray();
@@ -1256,7 +1237,7 @@ namespace IntersectUtilities
                             StationPoint sp;
                             try
                             {
-                                sp = new StationPoint(cp, alignment);
+                                sp = new StationPoint(cp, al);
                             }
                             catch (System.Exception)
                             {
@@ -1362,20 +1343,19 @@ namespace IntersectUtilities
                         #endregion
                     }
 
-                    xRefLerTx.Commit();
+                    lman.Dispose(true);
+
                     xRefSurfaceTx.Commit();
-                    xRefLerDB.Dispose();
                     xRefSurfaceDB.Dispose();
                 }
 
                 catch (System.Exception ex)
                 {
-                    xRefLerTx.Abort();
-                    xRefLerDB.Dispose();
+                    lman.Dispose(true);
 
                     xRefSurfaceTx.Abort();
                     xRefSurfaceDB.Dispose();
-                    editor.WriteMessage("\n" + ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();

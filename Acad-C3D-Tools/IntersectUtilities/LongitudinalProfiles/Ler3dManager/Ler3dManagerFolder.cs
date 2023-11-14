@@ -9,6 +9,7 @@ using IntersectUtilities.UtilsCommon;
 using NetTopologySuite.Geometries;
 using Autodesk.Civil.DatabaseServices;
 using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 
@@ -62,6 +63,68 @@ namespace IntersectUtilities.LongitudinalProfiles
         {
             HashSet<Entity> result = new HashSet<Entity>();
 
+            var pline = al.GetPolyline().Go<Polyline>(
+                al.Database.TransactionManager.TopTransaction);
+            var line = NTS.NTSConversion.ConvertPlineToNTSLineString(pline);
+            pline.UpgradeOpen();
+            pline.Erase(true);
+            Plane plane = new Plane();
+
+            foreach (var entry in areas)
+            {
+                if (entry.Value.Intersects(line))
+                {
+                    var db = storage[entry.Key];
+                    var tx = db.TransactionManager.TopTransaction;
+                    var plines = db.ListOfType<Polyline3d>(tx);
+                    foreach (var pl in plines)
+                    {
+                        string type = UtilsDataTables.ReadStringParameterFromDataTable(
+                            pl.Layer, CsvData.Get("krydsninger"), "Type", 0);
+                        if (type == "IGNORE") continue;
+
+                        using (Point3dCollection p3dcol = new Point3dCollection())
+                        {
+                            al.IntersectWith(
+                                pl,
+                                Autodesk.AutoCAD.DatabaseServices.Intersect.OnBothOperands,
+                                plane, p3dcol, new IntPtr(0), new IntPtr(0));
+
+                            if (p3dcol.Count > 0) result.Add(pl);
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+        public override string GetHandle(Entity ent)
+        {
+            Database db = ent.Database;
+            string filename = Path.GetFileName(db.Filename);
+            foreach (var item in storage)
+            {
+                if (item.Value.Filename == db.Filename)
+                    return filename + ":" + ent.Handle.ToString();
+            }
+            throw new Exception($"Entitys' {ent.Handle}\nDB {db.Filename}" +
+                $"\nnot found in GetHandle!");
+        }
+        public override bool IsPointWithinPolygon(Entity ent, Point3d p3d)
+        {
+            Database db = ent.Database;
+            foreach (var item in storage)
+            {
+                if (item.Value.Filename == db.Filename)
+                {
+                    string area = item.Key;
+                    var polygon = areas[area];
+                    return polygon.Contains(
+                        new NetTopologySuite.Geometries.Point(p3d.X, p3d.Y));
+                }
+            }
+            throw new Exception($"Entitys' {ent.Handle}\nDB {db.Filename}" +
+                $"\nnot found in IsPointWithinPolygon!");
         }
     }
 }
