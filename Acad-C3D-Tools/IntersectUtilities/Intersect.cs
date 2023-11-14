@@ -3924,13 +3924,28 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Test MPolygon to Polygon conversion
+                    #region Test alignment intersection with MPolygon
                     var mpgs = localDb.HashSetOfType<MPolygon>(tx);
+                    Alignment al = localDb.ListOfType<Alignment>(tx).First();
+                    Polyline pline = al.GetPolyline().Go<Polyline>(tx);
+                    var line = NTSConversion.ConvertPlineToNTSLineString(pline);
                     foreach (MPolygon mpg in mpgs)
                     {
                         var pgn = NTSConversion.ConvertMPolygonToNTSPolygon(mpg);
-                        prdDbg($"Converted MPolygon {mpg.Handle} to Polygon area {pgn.Area} m²");
+                        var result = pgn.Intersects(line);
+                        prdDbg($"{mpg.Handle} intersects: {result}");
                     }
+                    pline.CheckOrOpenForWrite();
+                    pline.Erase(true);
+                    #endregion
+
+                    #region Test MPolygon to Polygon conversion
+                    //var mpgs = localDb.HashSetOfType<MPolygon>(tx);
+                    //foreach (MPolygon mpg in mpgs)
+                    //{
+                    //    var pgn = NTSConversion.ConvertMPolygonToNTSPolygon(mpg);
+                    //    prdDbg($"Converted MPolygon {mpg.Handle} to Polygon area {pgn.Area} m²");
+                    //}
                     #endregion
 
                     #region Test new DRO
