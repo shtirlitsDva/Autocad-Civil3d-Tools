@@ -1,15 +1,16 @@
-﻿using Autodesk.AutoCAD.DatabaseServices;
-
-using IntersectUtilities.UtilsCommon;
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using IntersectUtilities.UtilsCommon;
 using NetTopologySuite.Geometries;
+using Autodesk.Civil.DatabaseServices;
+using Autodesk.AutoCAD.DatabaseServices;
+
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 
 namespace IntersectUtilities.LongitudinalProfiles
 {
@@ -17,7 +18,6 @@ namespace IntersectUtilities.LongitudinalProfiles
     {
         private Dictionary<string, Database> storage = new Dictionary<string, Database>();
         private Dictionary<string, Polygon> areas = new Dictionary<string, Polygon>();
-        private HashSet<Entity> entities = new HashSet<Entity>();
         public override void Load(string path)
         {
             var files = Directory.EnumerateFiles(path, "*_3DLER.dwg", SearchOption.TopDirectoryOnly);
@@ -57,6 +57,11 @@ namespace IntersectUtilities.LongitudinalProfiles
                 }
             }
             base.Dispose(disposing);
+        }
+        public override HashSet<Entity> GetIntersectingEntities(Alignment al)
+        {
+            HashSet<Entity> result = new HashSet<Entity>();
+
         }
     }
 }

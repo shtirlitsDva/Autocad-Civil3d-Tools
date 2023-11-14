@@ -894,15 +894,15 @@ namespace IntersectUtilities
 
                 #region Load linework from LER Xref
                 // open the LER dwg database
-                Database xRefLerDB = new Database(false, true);
+                //Database xRefLerDB = new Database(false, true);
 
-                xRefLerDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
-                    FileOpenMode.OpenForReadAndAllShare, false, null);
+                //xRefLerDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
+                //    FileOpenMode.OpenForReadAndAllShare, false, null);
 
-                Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
+                //Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
 
-                List<Polyline3d> remoteLerData = xRefLerDB.ListOfType<Polyline3d>(xRefLerTx);
-                editor.WriteMessage($"\nNr. of 3D polies: {remoteLerData.Count}");
+                //List<Polyline3d> remoteLerData = xRefLerDB.ListOfType<Polyline3d>(xRefLerTx);
+                //editor.WriteMessage($"\nNr. of 3D polies: {remoteLerData.Count}");
 
                 var lman = Ler3dManagerFactory.LoadLer3d(
                     GetPathToDataFiles(projectName, etapeName, "Ler"));
@@ -976,8 +976,6 @@ namespace IntersectUtilities
                     HashSet<string> pNames = new HashSet<string>();
                     CogoPointCollection cogoPoints = civilDoc.CogoPoints;
                     cogoPoints.Select(x => pNames.Add(x.Go<CogoPoint>(tx).PointName));
-
-                    int index = 1;
                     #endregion
 
                     #region CogoPoint style and label reference
