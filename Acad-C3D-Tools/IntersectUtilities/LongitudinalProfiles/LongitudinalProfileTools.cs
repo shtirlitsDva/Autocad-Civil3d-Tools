@@ -299,7 +299,7 @@ namespace IntersectUtilities
         public void createlerdatapss()
         {
             DataReferencesOptions dro = new DataReferencesOptions();
-            createlerdatapssmethod(dro);
+            createlerdatapssmethod2(dro);
         }
         public void createlerdatapssmethod(
             DataReferencesOptions dro, List<Alignment> allAlignments = null)

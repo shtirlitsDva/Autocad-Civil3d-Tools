@@ -178,11 +178,11 @@ namespace LERImporter.Schema
 
             switch (getTelekommunikationsledningType())
             {
-                case TelekommunikationsledningTypeEnum.none:
-                    layerName = "0-ERROR-TelekommunikationsledningType-none";
+                case TelekommunikationsledningTypeEnum.ukendt:
+                    layerName = "TELE-Ukendt";
                     break;
-                case TelekommunikationsledningTypeEnum.other:
-                    layerName = "0-ERROR-TelekommunikationsledningType-other";
+                case TelekommunikationsledningTypeEnum.andet:
+                    layerName = "TELE-Andet";
                     break;
                 case TelekommunikationsledningTypeEnum.coaxkabel:
                     layerName = "TELE-Coax";
@@ -194,7 +194,7 @@ namespace LERImporter.Schema
                     layerName = "TELE-Kobber";
                     break;
                 default:
-                    layerName = "0-ERROR-TelekommunikationsledningType-other";
+                    layerName = "0-ERROR-TelekommunikationsledningType";
                     break;
             }
 
@@ -238,27 +238,29 @@ namespace LERImporter.Schema
         {
             if (this.type == null)
             {
-                Log.log($"WARNING! Element id {gmlid} has NO ElledningType specified! (holding type is null)");
-                return TelekommunikationsledningTypeEnum.none;
+                Log.log($"WARNING! Element id {gmlid} has NO TelekommunikationsledningType specified! (holding type is null)\n" +
+                    $"Typen angives som UKENDT!");
+                return TelekommunikationsledningTypeEnum.ukendt;
             }
             if (this.type.Value.IsNoE())
             {
-                Log.log($"WARNING! Element id {gmlid} has NO ElledningType specified! (string Value is NoE)");
-                return TelekommunikationsledningTypeEnum.none;
+                Log.log($"WARNING! Element id {gmlid} has NO TelekommunikationsledningType specified! (string Value is NoE)\n" +
+                    $"Typen angives som UKENDT!");
+                return TelekommunikationsledningTypeEnum.ukendt;
             }
 
             TelekommunikationsledningTypeEnum type;
             if (Enum.TryParse(this.type.Value, out type)) return type;
             else
             {
-                Log.log($"WARNING! Element id {gmlid} has non-standard ElledningType {this.type.Value}!");
-                return TelekommunikationsledningTypeEnum.other;
+                Log.log($"WARNING! Element id {gmlid} has non-standard TelekommunikationsledningType {this.type.Value}!");
+                return TelekommunikationsledningTypeEnum.andet;
             }
         }
         public enum TelekommunikationsledningTypeEnum
         {
-            none,
-            other,
+            ukendt,
+            andet,
             coaxkabel,
             fiberkabel,
             kobberkabel

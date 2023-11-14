@@ -286,10 +286,12 @@ namespace IntersectUtilities.UtilsCommon
             if (result.IsNoE()) throw new System.Exception(
                 $"{pathType} mangler at blive defineret i " +
                 $"X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv!");
-            if (!File.Exists(result)) throw new System.Exception(
+            if (File.Exists(result) ||
+                (pathType == "Ler" && (File.Exists(result) || Directory.Exists(result)))
+                ) return result;
+            else throw new System.Exception(
                 $"Programmet kan ikke finde filen {result} " +
                 $"på det specificerede sti: {result}");
-            return result;
         }
         public static void AbortGracefully(object exMsg, params Database[] dbs)
         {
