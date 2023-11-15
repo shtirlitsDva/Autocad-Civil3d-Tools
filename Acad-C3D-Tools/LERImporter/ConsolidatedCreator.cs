@@ -82,6 +82,40 @@ namespace LERImporter
             ownersRegister = ownersRegister.DistinctBy(x => x.ledningsejer).ToHashSet();
             #endregion
 
+            #region Copy geometry from ledningstrace to indeholdtledning
+            foreach (LedningstraceType ltr in ledningstrace)
+            {
+                if (ltr.indeholdtLedning == null) continue;
+
+                foreach (var item in ltr.indeholdtLedning)
+                {
+                    string href = item.href;
+                    if (href.StartsWith("#")) href = href.Substring(1);
+
+                    var ledningerByHref = ledninger.Where(x => x.GmlId == href);
+
+                    foreach (var ledn in ledningerByHref)
+                    {
+                        if (ltr.geometri.MultiCurve.curveMember.Length > 1)
+                        {
+                            prdDbg($"Ledningstrace {ltr.GmlId} with multiple curves!");
+                            throw new System.Exception($"Ledningstrace {ltr.GmlId} with multiple curves!");
+                        }
+
+                        var absCurve = ltr.geometri.MultiCurve.curveMember[0].AbstractCurve;
+                        if (absCurve is LineStringType ls)
+                        { 
+                            ledn.geometri = new GeometryPropertyType();
+                            ledn.geometri.Item = ls; 
+                        }
+                        else throw new System.Exception($"For LedningstraceType {ltr.GmlId} encountered unhandled AbstractCurve type!\n" +
+                            $"{absCurve.GetType()}");
+                    }
+                }
+            }
+
+            #endregion
+
             #region Draw graveforesp polygon
             string layerNameGFP = "GraveforespPolygon";
 
@@ -605,7 +639,7 @@ namespace LERImporter
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
                 //check if prop set already exists
-                DictionaryPropertySetDefinitions dictPropSetDef = 
+                DictionaryPropertySetDefinitions dictPropSetDef =
                     new DictionaryPropertySetDefinitions(db);
                 if (dictPropSetDef.Has(psName, tx))
                 {

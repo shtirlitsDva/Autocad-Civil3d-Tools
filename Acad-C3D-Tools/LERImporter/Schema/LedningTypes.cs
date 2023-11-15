@@ -1083,13 +1083,10 @@ namespace LERImporter.Schema
         {
             get
             {
-                if (this.indeholdtLedning == null) return "Ingen";
+                if (this?.indeholdtLedning == null) return "Ingen";
                 string s = "";
-                foreach (ReferenceType rt in this.indeholdtLedning)
-                {
-                    s += rt.owns.ToString() + " ";
-                    s += rt.remoteSchema.ToString();
-                }
+                if (this.indeholdtLedning.Length > 0)
+                    s = string.Join(";", this.indeholdtLedning.Select(x => x.href));
                 return s;
             }
         }
