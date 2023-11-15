@@ -963,7 +963,7 @@ namespace LERImporter.Schema
 
             ElledningTypeEnum type;
             if (Enum.TryParse(this.getLedningsType(), out type)) { }
-            else { type = ElledningTypeEnum.other; }
+            else { type = ElledningTypeEnum.ukendt; }
 
 
             switch (type)
@@ -971,8 +971,8 @@ namespace LERImporter.Schema
                 case ElledningTypeEnum.none:
                     layerName = "0-ERROR-ElledningType-none";
                     break;
-                case ElledningTypeEnum.other:
-                    layerName = "EL-ElledningType-other";
+                case ElledningTypeEnum.ukendt:
+                    layerName = "EL-Elledning-Ukendt";
                     break;
                 case ElledningTypeEnum.beskyttelsesleder:
                     layerName = "EL-Beskyttelsesleder";
@@ -1045,7 +1045,7 @@ namespace LERImporter.Schema
         public enum ElledningTypeEnum
         {
             none,
-            other,
+            ukendt,
             beskyttelsesleder,
             forsyningskabel,
             luftledning,
@@ -1157,6 +1157,16 @@ namespace LERImporter.Schema
                     layerName = "0-ERROR-LedningstraceForsyningsArt-other";
                     break;
             }
+
+            string fareklasse = "";
+            if (this.fareklasse != null)
+            {
+                if (this.fareklasse.Value == FareklasseType.megetfarlig)
+                    fareklasse = "_MEGET_FARLIG";
+                else if (this.fareklasse.Value == FareklasseType.farlig)
+                    fareklasse = "_FARLIG";
+            }
+            layerName += fareklasse;
 
             layerName += suffix;
             if (_3D) layerName += "-3D";
