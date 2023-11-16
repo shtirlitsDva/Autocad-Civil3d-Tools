@@ -337,7 +337,7 @@ namespace IntersectUtilities
             {
                 while (true)
                 {
-                    var id = Interaction.GetEntity("Select Plyline3d to flatten: ", typeof(Polyline3d));
+                    var id = Interaction.GetEntity("Select Plyline3d to flatten: (husk! kan også preselecte mange)", typeof(Polyline3d));
                     if (id == Oid.Null) return;
 
                     using (Transaction tx = localDb.TransactionManager.StartTransaction())
