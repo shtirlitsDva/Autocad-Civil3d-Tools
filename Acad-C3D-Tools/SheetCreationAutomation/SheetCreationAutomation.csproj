@@ -112,35 +112,8 @@
     <Compile Include="..\IntersectUtilities\PipeSchedule.cs">
       <Link>PipeSchedule.cs</Link>
     </Compile>
-    <Compile Include="..\IntersectUtilities\PipeScheduleV2\IPipeType.cs">
-      <Link>PipeScheduleV2\IPipeType.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\PipeScheduleV2\IPipeTypeRepository.cs">
-      <Link>PipeScheduleV2\IPipeTypeRepository.cs</Link>
-    </Compile>
     <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
       <Link>PipeScheduleV2\PipeScheduleV2.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeALUPEX.cs">
-      <Link>PipeScheduleV2\PipeTypeALUPEX.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeBase.cs">
-      <Link>PipeScheduleV2\PipeTypeBase.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeCU.cs">
-      <Link>PipeScheduleV2\PipeTypeCU.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeDataLoaderCSV.cs">
-      <Link>PipeScheduleV2\PipeTypeDataLoaderCSV.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeDN.cs">
-      <Link>PipeScheduleV2\PipeTypeDN.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypePEXU.cs">
-      <Link>PipeScheduleV2\PipeTypePEXU.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeTypeRepository.cs">
-      <Link>PipeScheduleV2\PipeTypeRepository.cs</Link>
     </Compile>
     <Compile Include="..\IntersectUtilities\Reflector.cs">
       <Link>Reflector.cs</Link>

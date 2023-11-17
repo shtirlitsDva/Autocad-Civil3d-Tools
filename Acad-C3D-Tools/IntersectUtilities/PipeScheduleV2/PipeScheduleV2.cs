@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -9,6 +10,8 @@ using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
+
+using DataTable = System.Data.DataTable;
 
 using IntersectUtilities.UtilsCommon;
 
@@ -380,4 +383,322 @@ namespace IntersectUtilities.PipeScheduleV2
         }
         #endregion
     }
+
+    //All PipeScheduleV2 classes are gathered in here to simplify sharing
+
+    #region All classes
+    public interface IPipeType
+    {
+        void Initialize(DataTable table);
+        double GetPipeOd(int dn);
+        UtilsCommon.Utils.PipeSeriesEnum GetPipeSeries(
+            int dn, UtilsCommon.Utils.PipeTypeEnum type, double realKod);
+        double GetPipeKOd(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum pipeSeries);
+        double GetMinElasticRadius(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series);
+        double GetBuerorMinRadius(int dn, int std);
+        IEnumerable<int> ListAllDnsForPipeTypeSerie(UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum serie);
+        string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd);
+        short GetLayerColor(UtilsCommon.Utils.PipeTypeEnum type);
+        double GetTrenchWidth(int dN, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series);
+        short GetSizeColor(int dn, UtilsCommon.Utils.PipeTypeEnum type);
+    }
+    public abstract class PipeTypeBase : IPipeType
+    {
+        protected DataTable _data;
+        public virtual double GetPipeOd(int dn)
+        {
+            DataRow[] results = _data.Select($"DN = {dn}");
+            if (results != null && results.Length > 0)
+                return (double)results[0]["pOd"];
+            return 0;
+        }
+        private void ConvertDataTypes()
+        {
+            DataTable newTable = _data.Clone();
+
+            #region Check if columns are missing from dict
+            // Check for columns in originalTable not present in dictionary
+            List<string> missingColumns = new List<string>();
+            foreach (DataColumn col in _data.Columns)
+                if (!PipeScheduleV2.columnTypeDict.ContainsKey(col.ColumnName))
+                    missingColumns.Add(col.ColumnName);
+
+            if (missingColumns.Count > 0)
+                throw new Exception($"Missing data type definitions for columns: " +
+                    $"{string.Join(", ", missingColumns)}");
+            #endregion
+
+            // Set data types based on dictionary
+            foreach (var columnType in PipeScheduleV2.columnTypeDict)
+                if (newTable.Columns.Contains(columnType.Key))
+                    newTable.Columns[columnType.Key].DataType = columnType.Value;
+
+            foreach (DataRow row in _data.Rows) newTable.ImportRow(row);
+
+            _data = newTable;
+        }
+        public void Initialize(DataTable table)
+        { _data = table; ConvertDataTypes(); }
+        public virtual UtilsCommon.Utils.PipeSeriesEnum GetPipeSeries(
+            int dn, UtilsCommon.Utils.PipeTypeEnum type, double realKod)
+        {
+            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
+                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
+                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
+
+            foreach (DataRow row in results)
+            {
+                double kOd = (double)row["kOd"];
+                if (kOd.Equalz(realKod, 0.001))
+                {
+                    string sS = (string)row["PipeSeries"];
+                    if (Enum.TryParse(sS, true, out UtilsCommon.Utils.PipeSeriesEnum series)) return series;
+                    return UtilsCommon.Utils.PipeSeriesEnum.Undefined;
+                }
+            }
+            return UtilsCommon.Utils.PipeSeriesEnum.Undefined;
+        }
+        public virtual double GetPipeKOd(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        {
+            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
+                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
+                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
+            if (results != null && results.Length > 0) return (double)results[0]["kOd"];
+            return 0;
+        }
+        public virtual double GetMinElasticRadius(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        {
+            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
+                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
+                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
+            if (results != null && results.Length > 0) return (double)results[0]["minElasticRadii"];
+            return 0;
+        }
+        public abstract double GetBuerorMinRadius(int dn, int std);
+        public virtual IEnumerable<int> ListAllDnsForPipeTypeSerie(UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        {
+            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
+                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
+                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+            DataRow[] results = _data.Select($"PipeType = '{type}' AND PipeSeries = '{series}'");
+            if (results != null && results.Length > 0) return results.Select(x => (int)x["DN"]);
+            return null;
+        }
+        public abstract string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd);
+        public virtual short GetLayerColor(UtilsCommon.Utils.PipeTypeEnum type)
+        {
+            switch (type)
+            {
+                case UtilsCommon.Utils.PipeTypeEnum.Ukendt:
+                    return 0;
+                case UtilsCommon.Utils.PipeTypeEnum.Twin:
+                    return 6;
+                case UtilsCommon.Utils.PipeTypeEnum.Frem:
+                    return 1;
+                case UtilsCommon.Utils.PipeTypeEnum.Retur:
+                    return 5;
+                case UtilsCommon.Utils.PipeTypeEnum.Enkelt:
+                    return 0;
+                default: return 0;
+            }
+        }
+        public virtual double GetTrenchWidth(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        {
+            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
+                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
+                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
+            if (results != null && results.Length > 0) return (double)results[0]["tWdth"];
+            return 1000000;
+        }
+        public short GetSizeColor(int dn, UtilsCommon.Utils.PipeTypeEnum type)
+        {
+            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
+                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
+                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
+            if (results != null && results.Length > 0) return (short)results[0]["color"];
+            return 0;
+        }
+    }
+    public class PipeTypeDN : PipeTypeBase
+    {
+        public override double GetBuerorMinRadius(int dn, int std)
+        {
+            DataRow[] results = _data.Select($"DN = {dn}");
+
+            if (results != null && results.Length > 0)
+            {
+                double vpMax12 = (double)results[0]["VpMax12"];
+                if (vpMax12 == 0) return 0;
+                return (180 * std) / (Math.PI * vpMax12);
+            }
+            return 0;
+        }
+        public override string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd)
+        {
+            switch (type)
+            {
+                case UtilsCommon.Utils.PipeTypeEnum.Ukendt:
+                    return "";
+                case UtilsCommon.Utils.PipeTypeEnum.Twin:
+                    return $"DN{DN}-ø{od.ToString("N1")}+ø{od.ToString("N1")}/{kOd.ToString("N0")}";
+                case UtilsCommon.Utils.PipeTypeEnum.Frem:
+                case UtilsCommon.Utils.PipeTypeEnum.Retur:
+                case UtilsCommon.Utils.PipeTypeEnum.Enkelt:
+                    return $"DN{DN}-ø{od.ToString("N1")}/{kOd.ToString("N0")}";
+                default:
+                    return "";
+            }
+        }
+    }
+    public class PipeTypeALUPEX : PipeTypeBase
+    {
+        public override double GetBuerorMinRadius(int dn, int std) => 0.0;
+
+        public override string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd)
+        {
+            switch (type)
+            {
+                case UtilsCommon.Utils.PipeTypeEnum.Ukendt:
+                    return "";
+                case UtilsCommon.Utils.PipeTypeEnum.Twin:
+                    return $"AluPex{DN}-ø{od.ToString("N0")}+ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                case UtilsCommon.Utils.PipeTypeEnum.Frem:
+                case UtilsCommon.Utils.PipeTypeEnum.Retur:
+                case UtilsCommon.Utils.PipeTypeEnum.Enkelt:
+                    return $"AluPex{DN}-ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                default:
+                    return "";
+            }
+        }
+    }
+    public class PipeTypeCU : PipeTypeBase
+    {
+        public override double GetBuerorMinRadius(int dn, int std) => 0.0;
+        public override string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd)
+        {
+            switch (type)
+            {
+                case UtilsCommon.Utils.PipeTypeEnum.Ukendt:
+                    return "";
+                case UtilsCommon.Utils.PipeTypeEnum.Twin:
+                    return $"CU{DN}-ø{od.ToString("N0")}+ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                case UtilsCommon.Utils.PipeTypeEnum.Frem:
+                case UtilsCommon.Utils.PipeTypeEnum.Retur:
+                case UtilsCommon.Utils.PipeTypeEnum.Enkelt:
+                    return $"CU{DN}-ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                default:
+                    return "";
+            }
+        }
+        public override double GetPipeKOd(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        {
+            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
+                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
+                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+            if (series == UtilsCommon.Utils.PipeSeriesEnum.S3) series = UtilsCommon.Utils.PipeSeriesEnum.S2;
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
+            if (results != null && results.Length > 0) return (double)results[0]["kOd"];
+            return 0;
+        }
+    }
+    public class PipeTypePEXU : PipeTypeBase
+    {
+        public override double GetBuerorMinRadius(int dn, int std) => 0;
+        public override string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd)
+        {
+            switch (type)
+            {
+                case UtilsCommon.Utils.PipeTypeEnum.Ukendt:
+                    return "";
+                case UtilsCommon.Utils.PipeTypeEnum.Twin:
+                    return $"PEX{DN}-ø{od.ToString("N0")}+ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                case UtilsCommon.Utils.PipeTypeEnum.Frem:
+                case UtilsCommon.Utils.PipeTypeEnum.Retur:
+                case UtilsCommon.Utils.PipeTypeEnum.Enkelt:
+                    return $"PEX{DN}-ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                default:
+                    return "";
+            }
+        }
+        public override double GetPipeKOd(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        {
+            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
+                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
+                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+            if (series != UtilsCommon.Utils.PipeSeriesEnum.S3) series = UtilsCommon.Utils.PipeSeriesEnum.S3;
+            var results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
+            if (results != null && results.Length > 0) return (double)results[0]["kOd"];
+            return 0;
+        }
+        public override short GetLayerColor(UtilsCommon.Utils.PipeTypeEnum type)
+        {
+            switch (type)
+            {
+                case UtilsCommon.Utils.PipeTypeEnum.Ukendt:
+                    return 0;
+                case UtilsCommon.Utils.PipeTypeEnum.Twin:
+                    return 190;
+                case UtilsCommon.Utils.PipeTypeEnum.Frem:
+                    return 1;
+                case UtilsCommon.Utils.PipeTypeEnum.Retur:
+                    return 5;
+                case UtilsCommon.Utils.PipeTypeEnum.Enkelt:
+                    return 190;
+                default: return 0;
+            }
+        }
+    }
+    public interface IPipeTypeRepository
+    {
+        void Initialize(Dictionary<string, IPipeType> pipeTypeDict);
+        IPipeType GetPipeType(string type);
+        IEnumerable<string> ListAllPipeTypes();
+    }
+    public class PipeTypeRepository : IPipeTypeRepository
+    {
+        private Dictionary<string, IPipeType> _pipeTypeDictionary = new Dictionary<string, IPipeType>();
+        public IPipeType GetPipeType(string type)
+        {
+            if (string.IsNullOrEmpty(type))
+                throw new ArgumentNullException($"PipeType is Null or Empty!");
+
+            if (_pipeTypeDictionary.ContainsKey(type)) return _pipeTypeDictionary[type];
+            else throw new ArgumentNullException($"PipeType {type} does not exist!");
+        }
+        public void Initialize(Dictionary<string, IPipeType> pipeTypeDict)
+        {
+            _pipeTypeDictionary = pipeTypeDict;
+        }
+        public IEnumerable<string> ListAllPipeTypes()
+        {
+            foreach (var k in _pipeTypeDictionary) yield return k.Key;
+        }
+    }
+    public class PipeTypeDataLoaderCSV
+    {
+        public Dictionary<string, IPipeType> Load(IEnumerable<string> paths)
+        {
+            Dictionary<string, IPipeType> dict = new Dictionary<string, IPipeType>();
+            foreach (var path in paths)
+            {
+                string type = System.IO.Path.GetFileNameWithoutExtension(path);
+                DataTable dataTable = CsvReader.ReadCsvToDataTable(path, type);
+                IPipeType pipeType = Activator.CreateInstance(
+                    PipeScheduleV2.typeDict[type]) as IPipeType;
+                pipeType.Initialize(dataTable);
+                dict.Add(type, pipeType);
+            }
+
+            return dict;
+        }
+    }
+    #endregion
 }
