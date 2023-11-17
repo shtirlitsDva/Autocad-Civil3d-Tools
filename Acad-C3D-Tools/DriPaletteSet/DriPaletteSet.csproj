@@ -111,11 +111,23 @@
       <Link>UtilsCommon.cs</Link>
     </Compile>
     <Compile Include="PaletteUtils.cs" />
+    <Compile Include="PipePalette.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="PipePalette.Designer.cs">
+      <DependentUpon>PipePalette.cs</DependentUpon>
+    </Compile>
     <Compile Include="PEXU-Palette.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="PEXU-Palette.Designer.cs">
       <DependentUpon>PEXU-Palette.cs</DependentUpon>
+    </Compile>
+    <Compile Include="PipeSystemTypeCombination.cs" />
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
     <Compile Include="TwinPalette.cs">
       <SubType>UserControl</SubType>
@@ -137,6 +149,9 @@
     <EmbeddedResource Include="EnkeltPalette.resx">
       <DependentUpon>EnkeltPalette.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="PipePalette.resx">
+      <DependentUpon>PipePalette.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="PEXU-Palette.resx">
       <DependentUpon>PEXU-Palette.cs</DependentUpon>
     </EmbeddedResource>
@@ -145,7 +160,12 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <None Include="app.config" />
     <None Include="loadNet.scr" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

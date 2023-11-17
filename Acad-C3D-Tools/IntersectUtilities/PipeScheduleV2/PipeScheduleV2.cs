@@ -12,6 +12,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 
 using DataTable = System.Data.DataTable;
+using DataColumn = System.Data.DataColumn;
 
 using IntersectUtilities.UtilsCommon;
 
@@ -37,6 +38,21 @@ namespace IntersectUtilities.PipeScheduleV2
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
             return pipeType.ListAllDnsForPipeTypeSerie(type, serie);
         }
+        public static IEnumerable<int> ListAllDnsForPipeSystemType(
+            PipeSystemEnum system, PipeTypeEnum type)
+        {
+            if (!systemDictReversed.ContainsKey(system))
+                throw new Exception($"Undefined PipeType system {system}!");
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+            return pipeType.ListAllDnsForPipeType(type);
+        }
+        internal static IEnumerable<PipeTypeEnum> GetPipeSystemAvailableTypes(PipeSystemEnum system)
+        {
+            if (!systemDictReversed.ContainsKey(system))
+                throw new Exception($"Undefined PipeType system {system}!");
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+            return pipeType.GetAvailableTypes();
+        }
         public static string GetSystemString(PipeSystemEnum system)
         {
             if (!systemDictReversed.ContainsKey(system)) return "Ukendt";
@@ -58,31 +74,30 @@ namespace IntersectUtilities.PipeScheduleV2
             { "ALUPEX", typeof(PipeTypeALUPEX) },
             { "CU", typeof(PipeTypeCU) },
             { "PEXU", typeof(PipeTypePEXU) },
+            { "PRTFLEXL", typeof(PipeTypePRTFLEXL) },
         };
-
         private static Dictionary<string, PipeSystemEnum> systemDict = new Dictionary<string, PipeSystemEnum>()
         {
             {"DN", PipeSystemEnum.Stål },
             {"ALUPEX", PipeSystemEnum.AluPex },
             {"CU", PipeSystemEnum.Kobberflex },
             {"PEXU", PipeSystemEnum.PexU },
+            {"PRTFLEXL", PipeSystemEnum.PertFlextra },
         };
-
         private static Dictionary<PipeSystemEnum, string> systemDictReversed = new Dictionary<PipeSystemEnum, string>()
         {
             {PipeSystemEnum.Stål, "DN" },
             {PipeSystemEnum.AluPex , "ALUPEX" },
             {PipeSystemEnum.Kobberflex , "CU" },
             {PipeSystemEnum.PexU , "PEXU" },
+            {PipeSystemEnum.PertFlextra , "PRTFLEXL" },
         };
-
         private static string pipeTypes = string.Join(
             "|", Enum.GetNames(typeof(PipeTypeEnum)).Select(x => x.ToUpper()));
         private static string pipeDataTypes = string.Join(
             "|", typeDict.Keys);
         private static Regex layerNameDataParser =
             new Regex($@"FJV-(?<TYPE>{pipeTypes})-(?<DATATYPE>{pipeDataTypes})(?<DN>\d+)");
-
         public static Dictionary<string, Type> columnTypeDict = new Dictionary<string, Type>()
         {
             {"DN", typeof(int)},
@@ -96,7 +111,6 @@ namespace IntersectUtilities.PipeScheduleV2
             {"VpMax16", typeof(double)},
             {"color",typeof(short)},
         };
-
         public static void LoadPipeTypeData(string pathToPipeTypesStore)
         {
             var csvs = System.IO.Directory.EnumerateFiles(
@@ -105,7 +119,6 @@ namespace IntersectUtilities.PipeScheduleV2
             _repository = new PipeTypeRepository();
             _repository.Initialize(new PipeTypeDataLoaderCSV().Load(csvs));
         }
-
         public static void ListAllPipeTypes() => prdDbg(string.Join("\n", _repository.ListAllPipeTypes())); 
         #endregion
 
@@ -391,16 +404,18 @@ namespace IntersectUtilities.PipeScheduleV2
     {
         void Initialize(DataTable table);
         double GetPipeOd(int dn);
-        UtilsCommon.Utils.PipeSeriesEnum GetPipeSeries(
-            int dn, UtilsCommon.Utils.PipeTypeEnum type, double realKod);
-        double GetPipeKOd(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum pipeSeries);
-        double GetMinElasticRadius(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series);
+        PipeSeriesEnum GetPipeSeries(
+            int dn, PipeTypeEnum type, double realKod);
+        double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum pipeSeries);
+        double GetMinElasticRadius(int dn, PipeTypeEnum type, PipeSeriesEnum series);
         double GetBuerorMinRadius(int dn, int std);
-        IEnumerable<int> ListAllDnsForPipeTypeSerie(UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum serie);
-        string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd);
-        short GetLayerColor(UtilsCommon.Utils.PipeTypeEnum type);
-        double GetTrenchWidth(int dN, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series);
-        short GetSizeColor(int dn, UtilsCommon.Utils.PipeTypeEnum type);
+        IEnumerable<int> ListAllDnsForPipeTypeSerie(PipeTypeEnum type, PipeSeriesEnum serie);
+        string GetLabel(int DN, PipeTypeEnum type, double od, double kOd);
+        short GetLayerColor(PipeTypeEnum type);
+        double GetTrenchWidth(int dN, PipeTypeEnum type, PipeSeriesEnum series);
+        short GetSizeColor(int dn, PipeTypeEnum type);
+        IEnumerable<int> ListAllDnsForPipeType(PipeTypeEnum type);
+        IEnumerable<PipeTypeEnum> GetAvailableTypes();
     }
     public abstract class PipeTypeBase : IPipeType
     {
@@ -439,12 +454,12 @@ namespace IntersectUtilities.PipeScheduleV2
         }
         public void Initialize(DataTable table)
         { _data = table; ConvertDataTypes(); }
-        public virtual UtilsCommon.Utils.PipeSeriesEnum GetPipeSeries(
-            int dn, UtilsCommon.Utils.PipeTypeEnum type, double realKod)
+        public virtual PipeSeriesEnum GetPipeSeries(
+            int dn, PipeTypeEnum type, double realKod)
         {
-            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
-                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
-                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
 
             DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
 
@@ -454,77 +469,96 @@ namespace IntersectUtilities.PipeScheduleV2
                 if (kOd.Equalz(realKod, 0.001))
                 {
                     string sS = (string)row["PipeSeries"];
-                    if (Enum.TryParse(sS, true, out UtilsCommon.Utils.PipeSeriesEnum series)) return series;
-                    return UtilsCommon.Utils.PipeSeriesEnum.Undefined;
+                    if (Enum.TryParse(sS, true, out PipeSeriesEnum series)) return series;
+                    return PipeSeriesEnum.Undefined;
                 }
             }
-            return UtilsCommon.Utils.PipeSeriesEnum.Undefined;
+            return PipeSeriesEnum.Undefined;
         }
-        public virtual double GetPipeKOd(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        public virtual double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum series)
         {
-            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
-                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
-                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
             DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
             if (results != null && results.Length > 0) return (double)results[0]["kOd"];
             return 0;
         }
-        public virtual double GetMinElasticRadius(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        public virtual double GetMinElasticRadius(int dn, PipeTypeEnum type, PipeSeriesEnum series)
         {
-            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
-                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
-                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
             DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
             if (results != null && results.Length > 0) return (double)results[0]["minElasticRadii"];
             return 0;
         }
         public abstract double GetBuerorMinRadius(int dn, int std);
-        public virtual IEnumerable<int> ListAllDnsForPipeTypeSerie(UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        public virtual IEnumerable<int> ListAllDnsForPipeTypeSerie(PipeTypeEnum type, PipeSeriesEnum series)
         {
-            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
-                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
-                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
             DataRow[] results = _data.Select($"PipeType = '{type}' AND PipeSeries = '{series}'");
             if (results != null && results.Length > 0) return results.Select(x => (int)x["DN"]);
             return null;
         }
-        public abstract string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd);
-        public virtual short GetLayerColor(UtilsCommon.Utils.PipeTypeEnum type)
+        public abstract string GetLabel(int DN, PipeTypeEnum type, double od, double kOd);
+        public virtual short GetLayerColor(PipeTypeEnum type)
         {
             switch (type)
             {
-                case UtilsCommon.Utils.PipeTypeEnum.Ukendt:
+                case PipeTypeEnum.Ukendt:
                     return 0;
-                case UtilsCommon.Utils.PipeTypeEnum.Twin:
+                case PipeTypeEnum.Twin:
                     return 6;
-                case UtilsCommon.Utils.PipeTypeEnum.Frem:
+                case PipeTypeEnum.Frem:
                     return 1;
-                case UtilsCommon.Utils.PipeTypeEnum.Retur:
+                case PipeTypeEnum.Retur:
                     return 5;
-                case UtilsCommon.Utils.PipeTypeEnum.Enkelt:
+                case PipeTypeEnum.Enkelt:
                     return 0;
                 default: return 0;
             }
         }
-        public virtual double GetTrenchWidth(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        public virtual double GetTrenchWidth(int dn, PipeTypeEnum type, PipeSeriesEnum series)
         {
-            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
-                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
-                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
 
             DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
             if (results != null && results.Length > 0) return (double)results[0]["tWdth"];
             return 1000000;
         }
-        public short GetSizeColor(int dn, UtilsCommon.Utils.PipeTypeEnum type)
+        public short GetSizeColor(int dn, PipeTypeEnum type)
         {
-            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
-                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
-                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
 
             DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
             if (results != null && results.Length > 0) return (short)results[0]["color"];
             return 0;
+        }
+        public virtual IEnumerable<int> ListAllDnsForPipeType(PipeTypeEnum type)
+        {
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
+
+            DataRow[] results = _data.Select($"PipeType = '{type}'");
+            if (results != null && results.Length > 0)
+                return results.Select(x => (int)x["DN"]).Distinct();
+            return null;
+        }
+        public virtual IEnumerable<PipeTypeEnum> GetAvailableTypes()
+        {
+            var typeStrings = _data.Select().Select(x => (string)x["PipeType"])
+                .Distinct().OrderBy(x => x);
+            foreach (var typeString in typeStrings)
+                if (Enum.TryParse(typeString, true, out PipeTypeEnum type))
+                    yield return type;
         }
     }
     public class PipeTypeDN : PipeTypeBase
@@ -541,17 +575,17 @@ namespace IntersectUtilities.PipeScheduleV2
             }
             return 0;
         }
-        public override string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd)
+        public override string GetLabel(int DN, PipeTypeEnum type, double od, double kOd)
         {
             switch (type)
             {
-                case UtilsCommon.Utils.PipeTypeEnum.Ukendt:
+                case PipeTypeEnum.Ukendt:
                     return "";
-                case UtilsCommon.Utils.PipeTypeEnum.Twin:
+                case PipeTypeEnum.Twin:
                     return $"DN{DN}-ø{od.ToString("N1")}+ø{od.ToString("N1")}/{kOd.ToString("N0")}";
-                case UtilsCommon.Utils.PipeTypeEnum.Frem:
-                case UtilsCommon.Utils.PipeTypeEnum.Retur:
-                case UtilsCommon.Utils.PipeTypeEnum.Enkelt:
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
+                case PipeTypeEnum.Enkelt:
                     return $"DN{DN}-ø{od.ToString("N1")}/{kOd.ToString("N0")}";
                 default:
                     return "";
@@ -562,17 +596,17 @@ namespace IntersectUtilities.PipeScheduleV2
     {
         public override double GetBuerorMinRadius(int dn, int std) => 0.0;
 
-        public override string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd)
+        public override string GetLabel(int DN, PipeTypeEnum type, double od, double kOd)
         {
             switch (type)
             {
-                case UtilsCommon.Utils.PipeTypeEnum.Ukendt:
+                case PipeTypeEnum.Ukendt:
                     return "";
-                case UtilsCommon.Utils.PipeTypeEnum.Twin:
+                case PipeTypeEnum.Twin:
                     return $"AluPex{DN}-ø{od.ToString("N0")}+ø{od.ToString("N0")}/{kOd.ToString("N0")}";
-                case UtilsCommon.Utils.PipeTypeEnum.Frem:
-                case UtilsCommon.Utils.PipeTypeEnum.Retur:
-                case UtilsCommon.Utils.PipeTypeEnum.Enkelt:
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
+                case PipeTypeEnum.Enkelt:
                     return $"AluPex{DN}-ø{od.ToString("N0")}/{kOd.ToString("N0")}";
                 default:
                     return "";
@@ -582,28 +616,28 @@ namespace IntersectUtilities.PipeScheduleV2
     public class PipeTypeCU : PipeTypeBase
     {
         public override double GetBuerorMinRadius(int dn, int std) => 0.0;
-        public override string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd)
+        public override string GetLabel(int DN, PipeTypeEnum type, double od, double kOd)
         {
             switch (type)
             {
-                case UtilsCommon.Utils.PipeTypeEnum.Ukendt:
+                case PipeTypeEnum.Ukendt:
                     return "";
-                case UtilsCommon.Utils.PipeTypeEnum.Twin:
+                case PipeTypeEnum.Twin:
                     return $"CU{DN}-ø{od.ToString("N0")}+ø{od.ToString("N0")}/{kOd.ToString("N0")}";
-                case UtilsCommon.Utils.PipeTypeEnum.Frem:
-                case UtilsCommon.Utils.PipeTypeEnum.Retur:
-                case UtilsCommon.Utils.PipeTypeEnum.Enkelt:
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
+                case PipeTypeEnum.Enkelt:
                     return $"CU{DN}-ø{od.ToString("N0")}/{kOd.ToString("N0")}";
                 default:
                     return "";
             }
         }
-        public override double GetPipeKOd(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        public override double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum series)
         {
-            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
-                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
-                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
-            if (series == UtilsCommon.Utils.PipeSeriesEnum.S3) series = UtilsCommon.Utils.PipeSeriesEnum.S2;
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
+            if (series == PipeSeriesEnum.S3) series = PipeSeriesEnum.S2;
             DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
             if (results != null && results.Length > 0) return (double)results[0]["kOd"];
             return 0;
@@ -612,45 +646,92 @@ namespace IntersectUtilities.PipeScheduleV2
     public class PipeTypePEXU : PipeTypeBase
     {
         public override double GetBuerorMinRadius(int dn, int std) => 0;
-        public override string GetLabel(int DN, UtilsCommon.Utils.PipeTypeEnum type, double od, double kOd)
+        public override string GetLabel(int DN, PipeTypeEnum type, double od, double kOd)
         {
             switch (type)
             {
-                case UtilsCommon.Utils.PipeTypeEnum.Ukendt:
+                case PipeTypeEnum.Ukendt:
                     return "";
-                case UtilsCommon.Utils.PipeTypeEnum.Twin:
+                case PipeTypeEnum.Twin:
                     return $"PEX{DN}-ø{od.ToString("N0")}+ø{od.ToString("N0")}/{kOd.ToString("N0")}";
-                case UtilsCommon.Utils.PipeTypeEnum.Frem:
-                case UtilsCommon.Utils.PipeTypeEnum.Retur:
-                case UtilsCommon.Utils.PipeTypeEnum.Enkelt:
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
+                case PipeTypeEnum.Enkelt:
                     return $"PEX{DN}-ø{od.ToString("N0")}/{kOd.ToString("N0")}";
                 default:
                     return "";
             }
         }
-        public override double GetPipeKOd(int dn, UtilsCommon.Utils.PipeTypeEnum type, UtilsCommon.Utils.PipeSeriesEnum series)
+        public override double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum series)
         {
-            if (type == UtilsCommon.Utils.PipeTypeEnum.Retur ||
-                type == UtilsCommon.Utils.PipeTypeEnum.Frem)
-                type = UtilsCommon.Utils.PipeTypeEnum.Enkelt;
-            if (series != UtilsCommon.Utils.PipeSeriesEnum.S3) series = UtilsCommon.Utils.PipeSeriesEnum.S3;
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
+            if (series != PipeSeriesEnum.S3) series = PipeSeriesEnum.S3;
             var results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
             if (results != null && results.Length > 0) return (double)results[0]["kOd"];
             return 0;
         }
-        public override short GetLayerColor(UtilsCommon.Utils.PipeTypeEnum type)
+        public override short GetLayerColor(PipeTypeEnum type)
         {
             switch (type)
             {
-                case UtilsCommon.Utils.PipeTypeEnum.Ukendt:
+                case PipeTypeEnum.Ukendt:
                     return 0;
-                case UtilsCommon.Utils.PipeTypeEnum.Twin:
+                case PipeTypeEnum.Twin:
                     return 190;
-                case UtilsCommon.Utils.PipeTypeEnum.Frem:
+                case PipeTypeEnum.Frem:
                     return 1;
-                case UtilsCommon.Utils.PipeTypeEnum.Retur:
+                case PipeTypeEnum.Retur:
                     return 5;
-                case UtilsCommon.Utils.PipeTypeEnum.Enkelt:
+                case PipeTypeEnum.Enkelt:
+                    return 190;
+                default: return 0;
+            }
+        }
+    }
+    public class PipeTypePRTFLEXL : PipeTypeBase
+    {
+        public override double GetBuerorMinRadius(int dn, int std) => 0;
+        public override string GetLabel(int DN, PipeTypeEnum type, double od, double kOd)
+        {
+            switch (type)
+            {
+                case PipeTypeEnum.Ukendt:
+                    return "";
+                case PipeTypeEnum.Twin:
+                    return $"PEX{DN}-ø{od.ToString("N0")}+ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
+                case PipeTypeEnum.Enkelt:
+                    return $"PEX{DN}-ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                default:
+                    return "";
+            }
+        }
+        public override double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum series)
+        {
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
+            if (series != PipeSeriesEnum.S3) series = PipeSeriesEnum.S3;
+            var results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
+            if (results != null && results.Length > 0) return (double)results[0]["kOd"];
+            return 0;
+        }
+        public override short GetLayerColor(PipeTypeEnum type)
+        {
+            switch (type)
+            {
+                case PipeTypeEnum.Ukendt:
+                    return 0;
+                case PipeTypeEnum.Twin:
+                    return 190;
+                case PipeTypeEnum.Frem:
+                    return 1;
+                case PipeTypeEnum.Retur:
+                    return 5;
+                case PipeTypeEnum.Enkelt:
                     return 190;
                 default: return 0;
             }

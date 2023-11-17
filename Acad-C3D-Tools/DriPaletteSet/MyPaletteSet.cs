@@ -13,6 +13,7 @@ namespace DriPaletteSet
         private TwinPalette _first = null;
         private EnkeltPalette _second = null;
         private PEXU_Palette _pexuPalette = null;
+        private PipePalette _pipePalette = null;
         public MyPaletteSet() : base("", "", new Guid("87374E16-C0DB-4F3F-9271-7A71ED921226"))
         {
             //MinimumSize = new System.Drawing.Size(300, 300);
@@ -29,9 +30,13 @@ namespace DriPaletteSet
             _pexuPalette = new PEXU_Palette();
             Add("PEXU", _pexuPalette);
 
+            _pipePalette = new PipePalette();
+            Add("Rør", _pipePalette);
+
             _first.BackColor = System.Drawing.Color.FromArgb(59, 68, 83);
             _second.BackColor = System.Drawing.Color.FromArgb(59, 68, 83);
             _pexuPalette.BackColor = System.Drawing.Color.FromArgb(59, 68, 83);
+            _pipePalette.BackColor = System.Drawing.Color.FromArgb(59, 68, 83);
         }
     }
 }
