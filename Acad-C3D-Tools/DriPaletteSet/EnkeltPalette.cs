@@ -22,9 +22,9 @@ namespace DriPaletteSet
 {
     public partial class EnkeltPalette : UserControl
     {
-        HashSet<System.Windows.Forms.CheckBox> dnButtons = new HashSet<System.Windows.Forms.CheckBox>();
-        HashSet<System.Windows.Forms.CheckBox> seriesButtons = new HashSet<System.Windows.Forms.CheckBox>();
-        HashSet<System.Windows.Forms.CheckBox> fremReturButtons = new HashSet<System.Windows.Forms.CheckBox> { };
+        HashSet<CheckBox> dnButtons = new HashSet<CheckBox>();
+        HashSet<CheckBox> seriesButtons = new HashSet<CheckBox>();
+        HashSet<CheckBox> fremReturButtons = new HashSet<CheckBox> { };
         public EnkeltPalette()
         {
             InitializeComponent();

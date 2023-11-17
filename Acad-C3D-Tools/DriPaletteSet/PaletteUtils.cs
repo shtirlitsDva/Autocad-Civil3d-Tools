@@ -41,13 +41,14 @@ namespace DriPaletteSet
     internal static class PaletteUtils
     {
         internal static PipeSeriesEnum CurrentSeries { get; set; }
+        internal static PipeTypeEnum CurrentType { get; set; }
         internal static void ActivateLayer(PipeSystemEnum system, PipeTypeEnum type, string dn)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Document doc = docCol.MdiActiveDocument;
 
-            var pipeSystemString = IntersectUtilities.PipeScheduleV2.PipeScheduleV2.GetSystemString(system);
+            var pipeSystemString = GetSystemString(system);
 
             string layerName = string.Concat(
                     "FJV-", type.ToString(), "-", pipeSystemString, dn.ToString()).ToUpper();
@@ -65,31 +66,9 @@ namespace DriPaletteSet
 
                         LayerTableRecord ltr = new LayerTableRecord();
                         ltr.Name = layerName;
-                        switch (type)
-                        {
-                            case PipeTypeEnum.Twin:
-                                switch (system)
-                                {
-                                    case PipeSystemEnum.Ukendt:
-                                    case PipeSystemEnum.Stål:
-                                    case PipeSystemEnum.Kobberflex:
-                                    case PipeSystemEnum.AluPex:
-                                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
-                                        break;
-                                    case PipeSystemEnum.PexU:
-                                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 190);
-                                        break;
-                                }
-                                break;
-                            case PipeTypeEnum.Frem:
-                                ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
-                                break;
-                            case PipeTypeEnum.Retur:
-                                ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, 5);
-                                break;
-                            default:
-                                break;
-                        }
+
+                        ltr.Color = Color.FromColorIndex(ColorMethod.ByAci, GetLayerColor(system, type));
+
                         Oid continuous = ltt["Continuous"];
                         ltr.LinetypeObjectId = continuous;
                         ltr.LineWeight = LineWeight.ByLineWeightDefault;
