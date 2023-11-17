@@ -53,6 +53,14 @@ namespace IntersectUtilities.PipeScheduleV2
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
             return pipeType.GetAvailableTypes();
         }
+        internal static IEnumerable<PipeSeriesEnum> ListAllSeriesForPipeSystemType(PipeSystemEnum system, PipeTypeEnum type)
+        {
+            //Get pipe type
+            if (!systemDictReversed.ContainsKey(system))
+                throw new Exception($"Undefined PipeType system {system}!");
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+            return pipeType.GetAvailableSeriesForType(type);
+        }
         public static string GetSystemString(PipeSystemEnum system)
         {
             if (!systemDictReversed.ContainsKey(system)) return "Ukendt";
@@ -416,6 +424,7 @@ namespace IntersectUtilities.PipeScheduleV2
         short GetSizeColor(int dn, PipeTypeEnum type);
         IEnumerable<int> ListAllDnsForPipeType(PipeTypeEnum type);
         IEnumerable<PipeTypeEnum> GetAvailableTypes();
+        IEnumerable<PipeSeriesEnum> GetAvailableSeriesForType(PipeTypeEnum type);
     }
     public abstract class PipeTypeBase : IPipeType
     {
@@ -559,6 +568,19 @@ namespace IntersectUtilities.PipeScheduleV2
             foreach (var typeString in typeStrings)
                 if (Enum.TryParse(typeString, true, out PipeTypeEnum type))
                     yield return type;
+        }
+        public IEnumerable<PipeSeriesEnum> GetAvailableSeriesForType(PipeTypeEnum type)
+        {
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
+
+            DataRow[] results = _data.Select($"PipeType = '{type}'");
+            if (results != null && results.Length > 0)
+                return results.Select(x => (string)x["PipeSeries"])
+                    .Distinct().OrderBy(x => x)
+                    .Select(x => (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum), x));
+            return null;
         }
     }
     public class PipeTypeDN : PipeTypeBase

@@ -17,7 +17,8 @@ namespace DriPaletteSet
     public partial class PipePalette : UserControl
     {
         private Properties.Settings sets;
-        private List<CheckBox> checkBoxes = new List<CheckBox>();
+        private List<CheckBox> dnCheckBoxes = new List<CheckBox>();
+        private List<CheckBox> seriesCheckBoxes = new List<CheckBox>();
         private int pad = 20;
 
         public PipePalette()
@@ -25,6 +26,7 @@ namespace DriPaletteSet
             InitializeComponent();
             sets = Properties.Settings.Default;
             this.Load += PEXU_Palette_Load;
+            PaletteUtils.CurrentSeries = PipeSeriesEnum.S3;
         }
 
         private void PEXU_Palette_Load(object sender, EventArgs e)
@@ -57,6 +59,7 @@ namespace DriPaletteSet
             //Rebuild form
             basePanel.Controls.Clear();
 
+            #region Dn buttons
             //First create DN buttons
             var gpBox = new GroupBox();
             basePanel.Controls.Add(gpBox);
@@ -70,10 +73,32 @@ namespace DriPaletteSet
 
             var listDns = PipeScheduleV2.ListAllDnsForPipeSystemType(
                 item.System, item.Type)
-                .OrderBy(x => x).ToList();
+                .OrderBy(x => x).Select(x => x.ToString()).ToList();
 
-            PopulateButtons(listDns, 3, tblPnl, dnButtonCheckBox_Click);
+            PopulateButtons(listDns, 3, tblPnl, dnButtonCheckBox_Click, dnCheckBoxes);
             gpBox.Height = tblPnl.Height + pad + (int)Math.Ceiling(fontHeight);
+            #endregion
+
+            #region Series buttons
+            gpBox = new GroupBox();
+            basePanel.Controls.Add(gpBox);
+            gpBox.Dock = DockStyle.Top;
+            gpBox.Text = "Serie";
+            gpBox.ForeColor = Color.White;
+            gpBox.Font = font;
+            tblPnl = new TableLayoutPanel();
+            gpBox.Controls.Add(tblPnl);
+            tblPnl.Dock = DockStyle.Fill;
+
+            var listSeries = PipeScheduleV2.ListAllSeriesForPipeSystemType(item.System, item.Type)
+                .Select(x => x.ToString()).ToList();
+
+            PopulateButtons(listSeries, 3, tblPnl, seriesButtonCheckBox_Click, seriesCheckBoxes);
+            gpBox.Height = tblPnl.Height + pad + (int)Math.Ceiling(fontHeight);
+
+            seriesCheckBoxes.OrderBy(x => x.Text).Last().Checked = true;
+            seriesButtonCheckBox_Click(seriesCheckBoxes.OrderBy(x => x.Text).Last(), EventArgs.Empty);
+            #endregion
         }
 
         private void PopulateComboBox(ComboBox comboBox)
@@ -85,7 +110,7 @@ namespace DriPaletteSet
                         new PipeSystemTypeCombination(system, type));
         }
         private void PopulateButtons(
-            List<int> buttonsData, int colCount, TableLayoutPanel tLP, EventHandler clickEventHandler)
+            List<string> buttonsData, int colCount, TableLayoutPanel tLP, EventHandler clickEventHandler, List<CheckBox> checkBoxes)
         {
             float dpiScalingFactor = GetDpiScalingFactor(this);
             float buttonHeight = 50 * dpiScalingFactor;
@@ -107,7 +132,7 @@ namespace DriPaletteSet
             {
                 for (int j = 0; j < colCount && dataIndex < buttonsData.Count(); j++)
                 {
-                    System.Windows.Forms.CheckBox chk = new System.Windows.Forms.CheckBox
+                    CheckBox chk = new CheckBox
                     {
                         Text = buttonsData[dataIndex].ToString(),
                         Appearance = Appearance.Button,
@@ -118,7 +143,7 @@ namespace DriPaletteSet
                         Font = new Font("Arial", 12 * dpiScalingFactor, FontStyle.Bold),
                         //FlatStyle = FlatStyle.Flat,
                     };
-                    chk.Click += clickEventHandler;
+                    if (clickEventHandler != null) chk.Click += clickEventHandler;
 
                     checkBoxes.Add(chk);
                     tLP.Controls.Add(chk, j, i);
@@ -130,12 +155,12 @@ namespace DriPaletteSet
         }
         private void dnButtonCheckBox_Click(object sender, EventArgs e)
         {
-            System.Windows.Forms.CheckBox cb = (System.Windows.Forms.CheckBox)sender;
+            CheckBox cb = (CheckBox)sender;
 
             // Set the back color of the clicked checkbox
             cb.BackColor = Color.DarkGray;
 
-            foreach (System.Windows.Forms.CheckBox checkBox in checkBoxes)
+            foreach (CheckBox checkBox in dnCheckBoxes)
             {
                 if (cb != checkBox)
                 {
@@ -157,7 +182,24 @@ namespace DriPaletteSet
                 PaletteUtils.ActivateLayer(PipeSystemEnum.PexU, PipeTypeEnum.Twin, cb.Text);
             }
         }
+        private void seriesButtonCheckBox_Click(object sender, EventArgs e)
+        {
+            CheckBox cb = (CheckBox)sender;
+            cb.BackColor = Color.DarkGray;
+            foreach (CheckBox checkBox in seriesCheckBoxes)
+                if (checkBox.Checked && cb.Name != checkBox.Name) 
+                { 
+                    checkBox.Checked = false; 
+                    checkBox.BackColor = Color.LightGray;
+                }
 
+            PipeSeriesEnum pipeSeriesEnum =
+                (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum), cb.Text);
+
+
+
+            PaletteUtils.CurrentSeries = pipeSeriesEnum;
+        }
         private float GetDpiScalingFactor(Control control)
         {
             using (Graphics graphics = Graphics.FromHwnd(control.Handle))
@@ -165,17 +207,14 @@ namespace DriPaletteSet
                 return graphics.DpiX / 96.0f; // 96 DPI is the standard DPI.
             }
         }
-
         private void OpdaterBredde_Click(object sender, EventArgs e)
         {
             PaletteUtils.UpdateWidths();
         }
-
         private void NulstilBredde_Click(object sender, EventArgs e)
         {
             PaletteUtils.ResetWidths();
         }
-
         private void SetLabel_Click(object sender, EventArgs e)
         {
             PaletteUtils.labelpipe();
