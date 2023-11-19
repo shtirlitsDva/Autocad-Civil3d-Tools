@@ -21,6 +21,7 @@ using NetTopologySuite;
 using Point = NetTopologySuite.Geometries.Point;
 using Autodesk.AutoCAD.Colors;
 using static Ler2PolygonSplitting.Utils;
+using IntersectUtilities;
 
 namespace Ler2PolygonSplitting
 {
@@ -86,17 +87,9 @@ namespace Ler2PolygonSplitting
                         for (int i = 1; i < 5; i++)
                             keywords.Add($"N{minsplits + i}:{(polygon.Area / (minsplits + i)).ToString("0", dk)} m²", minsplits + i);
 
-                        StringGridForm sgf = new StringGridForm(keywords.Select(x => x.Key).ToList());
-                        sgf.ShowDialog();
+                        string value = StringGridFormCaller.Call(keywords.Select(x => x.Key).ToList(), "Select number of polygons to create:");
 
-                        if (sgf.SelectedValue == null)
-                        {
-                            tx.Abort();
-                            prdDbg("User cancelled!");
-                            return;
-                        }
-
-                        int K = keywords[sgf.SelectedValue];
+                        int K = keywords[value];
 
                         //int distance = (int)Math.Sqrt(polygon.EnvelopeInternal.Area / 1350);
                         int distance = (int)Math.Sqrt(polygon.EnvelopeInternal.Area / 2000);
@@ -114,6 +107,7 @@ namespace Ler2PolygonSplitting
                         prdDbg($"Number of Points after intersection: {clipPoints.NumPoints}.\n" +
                             $"Intersect time: {sw.Elapsed}.");
                         prdDbg($"Expecting {K} polygons, target area: {(polygon.Area / K).ToString("N0", dk)} m².");
+                        System.Windows.Forms.Application.DoEvents();
 
                         //NTSConversion.ConvertNTSMultiPointToDBPoints(clipPoints, localDb);
                         int maxIter = 300;
@@ -131,6 +125,7 @@ namespace Ler2PolygonSplitting
 
                         var clusters = km.Learn(data);
                         sw.Stop(); prdDbg($"Clustering time: {sw.Elapsed}.");
+                        System.Windows.Forms.Application.DoEvents();
 
                         var sites = km.Centroids.Select(x => new Coordinate(x[0], x[1])).ToList();
 
@@ -168,7 +163,7 @@ namespace Ler2PolygonSplitting
             }
         }
 
-        [CommandMethod("LER2SPLITBRENT")]
+        //[CommandMethod("LER2SPLITBRENT")]
         public void ler2splitbrent()
         {
             DocumentCollection docCol = Application.DocumentManager;
