@@ -794,6 +794,8 @@ namespace IntersectUtilities.PipeScheduleV2
             {
                 string type = System.IO.Path.GetFileNameWithoutExtension(path);
                 DataTable dataTable = CsvReader.ReadCsvToDataTable(path, type);
+                if (!PipeScheduleV2.typeDict.ContainsKey(type))
+                    throw new Exception($"PipeType {type} is not defined in PipeScheduleV2!");
                 IPipeType pipeType = Activator.CreateInstance(
                     PipeScheduleV2.typeDict[type]) as IPipeType;
                 pipeType.Initialize(dataTable);
