@@ -18,6 +18,7 @@ namespace IntersectUtilities.LongitudinalProfiles
     public class Ler3dManagerFolder : Ler3dManagerBase
     {
         private Dictionary<string, Database> storage = new Dictionary<string, Database>();
+        private Dictionary<string, Transaction> trans = new Dictionary<string, Transaction>();
         private Dictionary<string, Polygon> areas = new Dictionary<string, Polygon>();
         public override void Load(string path)
         {
@@ -33,6 +34,7 @@ namespace IntersectUtilities.LongitudinalProfiles
                 Transaction tx = db.TransactionManager.StartTransaction();
                 MPolygon mpg = db.ListOfType<MPolygon>(tx).FirstOrDefault();
 
+                trans.Add(name, tx);
                 areas.Add(name, NTS.NTSConversion.ConvertMPolygonToNTSPolygon(mpg));
             }
             if (!IsLoadValid()) throw new Exception("Ler3d load failed!: \n" + path);
@@ -45,6 +47,15 @@ namespace IntersectUtilities.LongitudinalProfiles
         {
             if (disposing)
             {
+                foreach (Transaction item in trans?.Values)
+                {
+                    if (item != null)
+                    {
+                        item.Abort();
+                        item.Dispose();
+                    }
+                }
+
                 foreach (var db in storage?.Values)
                 {
                     while (db?.TransactionManager?.TopTransaction != null)
@@ -75,7 +86,9 @@ namespace IntersectUtilities.LongitudinalProfiles
                 if (entry.Value.Intersects(line))
                 {
                     var db = storage[entry.Key];
-                    var tx = db.TransactionManager.TopTransaction;
+                    //var tx = db.TransactionManager.TopTransaction;
+                    var tx = trans[entry.Key];
+                    if (tx == null) db.TransactionManager.StartTransaction();
                     var plines = db.ListOfType<Polyline3d>(tx);
                     foreach (var pl in plines)
                     {

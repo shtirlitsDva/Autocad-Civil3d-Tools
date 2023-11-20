@@ -2,6 +2,9 @@
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
+    <NsPath>X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2024\ExportShapeFilesEasyGis</NsPath>
+  </PropertyGroup>
+  <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{774D8C82-954D-40A1-993A-62C9385FDF12}</ProjectGuid>
@@ -340,4 +343,18 @@
     </Page>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>if "$(ConfigurationName)"=="Release" (
+    for /D %25%25i in ("$(TargetDir)*") do (
+        if /I not "%25%25~nxi"=="NetReload" (
+            xcopy "%25%25i" "$(NsPath)\%25%25~nxi\" /E /Y /D
+        )
+    )
+    for %25%25i in ("$(TargetDir)*.*") do (
+        if /I not "%25%25~dpxi"=="$(TargetDir)NetReload\" (
+            xcopy "%25%25i" "$(NsPath)\" /Y /D
+        )
+    )
+)</PostBuildEvent>
+  </PropertyGroup>
 </Project>
