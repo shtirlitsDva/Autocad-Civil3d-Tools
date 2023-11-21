@@ -183,7 +183,7 @@ namespace IntersectUtilities
                             //Handle special case of AFGRSTUDS
                             //which does not coincide with an end on polyline
                             //but is situated somewhere along the polyline
-                            if (br.RealName() == "AFGRSTUDS" || br.RealName() == "SH LIGE")
+                            if (br.RealName() == "AFGRSTUDS" || br.RealName() == "SH LIGE" || br.RealName() == "SH VINKLET")
                             {
                                 PropertySetManager psmPipeline =
                                     new PropertySetManager(dB, PSetDefs.DefinedSets.DriPipelineData);
@@ -387,11 +387,8 @@ namespace IntersectUtilities
                 GraphEntity ge = GraphEntities
                     .Where(x =>
                     //Exclude WeldOn and StikAfgrening EndTypes from count
-                        (x.Cons.Count(y =>
-                            y.OwnEndType != EndType.StikAfgrening &&
-                            y.OwnEndType != EndType.WeldOn) == 1) ||
-                        (x.Cons.Count(y => y.OwnEndType != EndType.WeldOn) == 0 && 
-                        x.Cons.Count(y => y.OwnEndType == EndType.WeldOn) > 0
+                        (x.Cons.Count(y => y.OwnEndType != EndType.StikAfgrening && y.OwnEndType != EndType.WeldOn) == 1) ||
+                        (x.Cons.Count(y => y.OwnEndType != EndType.WeldOn) == 0 && x.Cons.Count(y => y.OwnEndType == EndType.WeldOn) > 0
                             ))
                     .MaxBy(x => x.LargestDn()).FirstOrDefault();
 
@@ -424,6 +421,27 @@ namespace IntersectUtilities
                     break;
                 }
                 prdDbg("Entry: " + ge.OwnerHandle.ToString());
+
+#if DEBUG
+                //{
+                //    Entity owner = ge.Owner;
+                //    Line line = new Line();
+                //    line.Layer = "0";
+                //    line.StartPoint = new Point3d();
+                //    switch (owner)
+                //    {
+                //        case Polyline pline:
+                //            line.EndPoint = pline.GetPointAtDist(pline.Length / 2);
+                //            break;
+                //        case BlockReference br:
+                //            line.EndPoint = br.Position;
+                //            break;
+                //        default:
+                //            break;
+                //    }
+                //    line.AddEntityToDbModelSpace(Application.DocumentManager.MdiActiveDocument.Database);
+                //}   
+#endif
 
                 //Flag the entry point subgraph
                 isEntryPoint = true;
