@@ -4762,7 +4762,7 @@ namespace IntersectUtilities
                     Alignment al = alId.Go<Alignment>(tx);
                     createsurfaceprofilesmethod(dro, new List<Alignment>() { al });
                     createprofileviewsmethod(originalProfileViewLocation);
-                    createlerdatapssmethod(dro, new List<Alignment>() { al });
+                    createlerdatapssmethod2(dro, new List<Alignment>() { al });
                     populateprofilesmethod(al.GetProfileViewIds().ToHashSet());
                     colorizealllerlayersmethod();
                     createprofilesmethod(dro, new HashSet<Alignment> { al });

@@ -73,7 +73,7 @@ namespace IntersectUtilities
             DataReferencesOptions dro = new DataReferencesOptions();
 
             //Create crossing points first
-            createlerdatapssmethod(dro);
+            createlerdatapssmethod2(dro);
             //Populateprofileviews with crossing data
             populateprofiles();
 
@@ -369,7 +369,7 @@ namespace IntersectUtilities
 
             //Create crossing points first
             DataReferencesOptions dro = new DataReferencesOptions();
-            createlerdatapssmethod(dro);
+            createlerdatapssmethod2(dro);
 
             //Populateprofileviews with crossing data
             populateprofiles();
@@ -628,7 +628,7 @@ namespace IntersectUtilities
             //Create crossing points first
             DataReferencesOptions dro = new DataReferencesOptions(droText[0], droText[1]);
             #region The whole sequence
-            createlerdatapssmethod(dro);
+            createlerdatapssmethod2(dro);
 
             //Populateprofileviews with crossing data
             populateprofiles();
