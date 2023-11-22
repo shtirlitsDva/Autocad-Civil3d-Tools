@@ -4870,45 +4870,25 @@ namespace IntersectUtilities
             Transaction fremTx = fremDb.TransactionManager.StartTransaction();
             HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
             HashSet<BlockReference> allBrs = fremDb.HashSetOfType<BlockReference>(fremTx);
+
             // open the LER database
-            Database lerDb = new Database(false, true);
-            lerDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
-                FileOpenMode.OpenForReadAndAllShare, false, null);
-            Transaction lerTx = lerDb.TransactionManager.StartTransaction();
+            //Database lerDb = new Database(false, true);
+            //lerDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
+            //    FileOpenMode.OpenForReadAndAllShare, false, null);
+            //Transaction lerTx = lerDb.TransactionManager.StartTransaction();
+
+            ILer3dManager lman = Ler3dManagerFactory.LoadLer3d(
+                GetPathToDataFiles(projectName, etapeName, "Ler"));
             #endregion
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
-                    #region Read Csv Data for Layers
-                    //Establish the pathnames to files
-                    //Files should be placed in a specific folder on desktop
-                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-                    string pathDistnces = "X:\\AutoCAD DRI - 01 Civil 3D\\Distances.csv";
-
-                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
-                    System.Data.DataTable dtDistances = CsvReader.ReadCsvToDataTable(pathDistnces, "Distancer");
-
-                    #region Read CSV
-                    System.Data.DataTable dt = default;
-                    try
-                    {
-                        dt = CsvReader.ReadCsvToDataTable(
-                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-                    }
-                    catch (System.Exception ex)
-                    {
-                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                        prdDbg(ex);
-                        throw;
-                    }
-                    if (dt == default)
-                    {
-                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                        throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
-                    }
-                    #endregion
+                    #region Read Csv Data
+                    var dtKrydsninger = CsvData.Get("krydsninger");
+                    var dtDistances = CsvData.Get("distances");
+                    var dt = CsvData.Get("fjvKomponenter");
                     #endregion
 
                     BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
@@ -5024,38 +5004,11 @@ namespace IntersectUtilities
                             //string handle = ReadStringPropertyValue(tables, pId, "IdRecord", "Handle");
                             string handle = psmDriCrossingData.ReadPropertyString(
                                 cp, driCrossingData.SourceEntityHandle);
-                            //If returned handle string is empty
-                            //For any reason, fx missing OD data
-                            //Fall back to the name of the cogopoint
-                            //else continue
+                            
                             if (handle.IsNoE())
-                            {
-                                string pName = cp.PointName;
-                                string[] res = pName.Split('_');
-                                handle = res[0];
-                            }
-                            if (handle.IsNoE()) continue;
-                            long ln;
-                            Handle hn;
-                            try
-                            {
-                                ln = Convert.ToInt64(handle, 16);
-                                hn = new Handle(ln);
-                            }
-                            catch (System.Exception ex)
-                            {
-                                prdDbg("Creation of handle failed!");
-                                throw;
-                            }
-                            Oid originalId = Oid.Null;
-                            try
-                            { originalId = lerDb.GetObjectId(false, hn, 0); }
-                            catch (System.Exception ex)
-                            {
-                                prdDbg($"Getting object by handle failed! {ex.Message}");
-                                throw;
-                            }
-                            Entity originalEnt = originalId.Go<Entity>(lerTx);
+                                throw new System.Exception($"Handle is empty for {cp.Handle}!");
+                            
+                            Entity originalEnt = lman.GetEntityByHandle(handle);
 
                             //Determine type and distance
                             string distanceType = ReadStringParameterFromDataTable(originalEnt.Layer, dtKrydsninger, "Distance", 0);
@@ -5215,9 +5168,9 @@ namespace IntersectUtilities
                     fremTx.Abort();
                     fremTx.Dispose();
                     fremDb.Dispose();
-                    lerTx.Abort();
-                    lerTx.Dispose();
-                    lerDb.Dispose();
+
+                    lman.Dispose(true);
+
                     tx.Abort();
                     editor.WriteMessage(ex.ToString());
                     return;
@@ -5225,9 +5178,9 @@ namespace IntersectUtilities
                 fremTx.Abort();
                 fremTx.Dispose();
                 fremDb.Dispose();
-                lerTx.Abort();
-                lerTx.Dispose();
-                lerDb.Dispose();
+                
+                lman.Dispose(true);
+
                 tx.Commit();
             }
         }

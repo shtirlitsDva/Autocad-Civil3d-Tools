@@ -16,6 +16,7 @@ namespace IntersectUtilities.LongitudinalProfiles
     public class Ler3dManagerFile : Ler3dManagerBase
     {
         private Database _db;
+        private Transaction _tx;
         public override void Load(string path)
         {
             if (!File.Exists(path)) throw new Exception("Ler3d file does not exist!: " + path);
@@ -23,6 +24,7 @@ namespace IntersectUtilities.LongitudinalProfiles
             var db = new Database(false, true);
             db.ReadDwgFile(path, FileOpenMode.OpenForReadAndAllShare, false, null);
             _db = db;
+            _tx = _db.TransactionManager.StartTransaction();
 
             if (!IsLoadValid()) throw new Exception("Ler3d load failed!: \n" + path);
         }
@@ -31,6 +33,9 @@ namespace IntersectUtilities.LongitudinalProfiles
         {
             if (disposing)
             {
+                _tx.Abort();
+                _tx.Dispose();
+
                 while (_db?.TransactionManager?.TopTransaction != null)
                 {
                     _db?.TransactionManager?.TopTransaction?.Abort();
@@ -73,5 +78,15 @@ namespace IntersectUtilities.LongitudinalProfiles
         }
         public override string GetHandle(Entity ent) => ent.Handle.ToString();
         public override bool IsPointWithinPolygon(Entity ent, Point3d p3d) => true;
+        public override Entity GetEntityByHandle(string handle)
+        { 
+            if (handle.Contains(":"))
+            {
+                var split = handle.Split(':');
+                return _db.Go<Entity>(split[2]);
+            }
+
+            return _db.Go<Entity>(handle); 
+        }
     }
 }

@@ -12,6 +12,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using System.Text.RegularExpressions;
 
 namespace IntersectUtilities.LongitudinalProfiles
 {
@@ -138,6 +139,19 @@ namespace IntersectUtilities.LongitudinalProfiles
             }
             throw new Exception($"Entitys' {ent.Handle}\nDB {db.Filename}" +
                 $"\nnot found in IsPointWithinPolygon!");
+        }
+        private Regex rgx = new Regex(@"^(?<PROJECT>\w+):(?<ETAPE>\w+):(?<AREA>\w+)(.dwg)?:(?<HANDLE>\w+)");
+        public override Entity GetEntityByHandle(string handle)
+        {
+            if (rgx.IsMatch(handle))
+            {
+                var match = rgx.Match(handle);
+                string area = match.Groups["AREA"].Value;
+                string hndl = match.Groups["HANDLE"].Value;
+                var db = storage[area];
+                return db.Go<Entity>(hndl);
+            }
+            else return null;
         }
     }
 }

@@ -3295,6 +3295,9 @@ namespace IntersectUtilities.UtilsCommon
             else throw new System.Exception(
                 $"Csv name {name} not defined!\nUpdate registration.");
         }
+        /// <summary>
+        /// krydsninger, fjvKomponenter, dybde, distances
+        /// </summary>
         public static DataTable Get(string name) => GetDataTable(name);
     }
 }

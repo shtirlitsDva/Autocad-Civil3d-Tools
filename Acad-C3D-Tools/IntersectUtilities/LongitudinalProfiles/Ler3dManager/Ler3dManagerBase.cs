@@ -31,5 +31,6 @@ namespace IntersectUtilities.LongitudinalProfiles
         public abstract HashSet<Entity> GetIntersectingEntities(Alignment al);
         public abstract string GetHandle(Entity ent);
         public abstract bool IsPointWithinPolygon(Entity ent, Point3d p3d);
+        public abstract Entity GetEntityByHandle(string handle);
     }
 }
