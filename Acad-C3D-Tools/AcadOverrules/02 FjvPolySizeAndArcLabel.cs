@@ -562,7 +562,7 @@ namespace AcadOverrules
                             }
                             catch (System.Exception)
                             {
-                                break;
+                                return true;
                                 //throw;
                             }
                         }
@@ -576,7 +576,17 @@ namespace AcadOverrules
                 Point2d[] samples = arc.GetSamplePoints(3);
                 Point3d midPt = new Point3d(samples[1].X, samples[1].Y, 0);
 
-                Vector3d deriv = pline.GetFirstDerivative(midPt);
+                Vector3d deriv;
+                try
+                {
+                    deriv = pline.GetFirstDerivative(midPt);
+                }
+                catch (System.Exception)
+                {
+                    prdDbg($"Polyline handle {pline.Handle} fails to get a First Derivative at\n" +
+                        $"Point {midPt}!");
+                    return true;
+                }
                 deriv = deriv.GetNormal();
 
                 Vector3d perp = deriv.GetPerpendicularVector();
