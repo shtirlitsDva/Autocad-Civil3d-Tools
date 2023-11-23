@@ -726,7 +726,7 @@ namespace IntersectUtilities
             HashSet<Polyline3d> linesWithMissingBothNodes = new HashSet<Polyline3d>();
 
             //Data
-            string propSetNamePipes = "Spildevand_Greve_line";
+            string propSetNamePipes = "Spildevand_Køge_Line";
             string propOpst = "Bundloebsk";
             string propNedst = "Bundloebs0";
 
