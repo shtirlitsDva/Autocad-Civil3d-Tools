@@ -577,7 +577,6 @@ namespace IntersectUtilities
                 file.WriteLine(sbAll.ToString()); // "sb" is the StringBuilder
             }
         }
-
         internal class Subgraph
         {
             private Database Database { get; }
