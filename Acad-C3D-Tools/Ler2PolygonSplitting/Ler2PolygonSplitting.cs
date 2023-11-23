@@ -482,6 +482,13 @@ namespace Ler2PolygonSplitting
                     var mpgs = localDb.HashSetOfType<MPolygon>(tx)
                         .Where(x => x.Layer == lyrSplitForGml);
 
+                    if (mpgs.Any(x => x.Area > 250000))
+                    {
+                        prdDbg("Some polygons are over 250.000 m²!");
+                        tx.Abort();
+                        return;
+                    }
+
                     List<string> lines = new List<string>();
                     foreach (var mpg in mpgs)
                     {
