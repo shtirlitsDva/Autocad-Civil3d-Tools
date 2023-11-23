@@ -785,8 +785,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
-                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    System.Data.DataTable fjvKomponenter = CsvData.Get("fjvKomponenter");
 
                     graphclear();
                     graphpopulate();
