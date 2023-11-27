@@ -1,4 +1,5 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.Civil.DatabaseServices;
 
 using System;
 using System.Collections.Generic;
@@ -6,19 +7,17 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+
 namespace IntersectUtilities.PipelineNetworkSystem
 {
     public class PipelineNetwork
     {
-        private Database db;
-
-
-        public void CreatePipeNetwork(Database db, DataReferencesOptions dro)
+        public void CreatePipeNetwork(IEnumerable<Entity> ents, IEnumerable<Alignment> als)
         {
-            if (db == null) throw new ArgumentNullException("Database is null!");
-            if (dro == null) throw new ArgumentNullException("DataReferencesOptions is null!");
-
-            this.db = db;
+            Database db = ents?.FirstOrDefault()?.Database;
+            if (db == null) throw new Exception(
+                "Either ents collection, first element or its' database is null!");
 
 
         }

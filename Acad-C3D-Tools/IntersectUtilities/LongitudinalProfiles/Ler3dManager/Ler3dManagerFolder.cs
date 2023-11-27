@@ -32,7 +32,7 @@ namespace IntersectUtilities.LongitudinalProfiles
             {
                 var name = Path.GetFileNameWithoutExtension(file);
                 var db = new Database(false, true);
-                db.ReadDwgFile(file, FileShare.Read, true, "");
+                db.ReadDwgFile(file, FileOpenMode.OpenForReadAndReadShare, true, "");
                 storage.Add(name, db);
 
                 Transaction tx = db.TransactionManager.StartTransaction();
