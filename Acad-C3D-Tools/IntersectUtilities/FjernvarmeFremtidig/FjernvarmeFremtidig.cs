@@ -108,12 +108,17 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Blocks
+                    HashSet<string> unkBrs = new HashSet<string>();
                     foreach (BlockReference br in brs)
                     {
                         //Guard against unknown blocks
                         if (ReadStringParameterFromDataTable(
                             br.RealName(), fjvKomponenter, "Navn", 0) == null)
+                        {
+                            unkBrs.Add(br.RealName());
                             continue;
+                        }
+                            
 
                         //Skip if record already exists
                         if (!overwrite)
@@ -140,14 +145,14 @@ namespace IntersectUtilities
                             prdDbg("Error in GetClosestPointTo -> loop incomplete! (Using GetPolyline)");
                         }
 
-                        double distThreshold = 0.15;
+                        double distThreshold = 0.14;
                         var result = alDistTuples.Where(x => x.dist < distThreshold);
 
                         if (result.Count() == 0)
                         {
                             //If the component cannot find an alignment
                             //Repeat with increasing threshold
-                            for (int i = 0; i < 4; i++)
+                            for (int i = 0; i < 2; i++)
                             {
                                 distThreshold += 0.1;
                                 if (result.Count() != 0) break;
@@ -262,6 +267,11 @@ namespace IntersectUtilities
                                 psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, result.First().al.Name);
                             }
                         }
+                    }
+                    if (unkBrs.Count > 0)
+                    {
+                        prdDbg("Ukendte blokke:");
+                        foreach (var item in unkBrs) prdDbg(item);
                     }
                     #endregion
 
