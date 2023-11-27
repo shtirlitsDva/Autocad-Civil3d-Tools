@@ -25,6 +25,9 @@ namespace IntersectUtilities.LongitudinalProfiles
         {
             var files = Directory.EnumerateFiles(path, "*_3DLER.dwg", SearchOption.TopDirectoryOnly);
 
+            if (files.Count() == 0)
+                throw new Exception($"No files with search mask \"*_3DLER.dwg\" found in {path}!");
+
             foreach (var file in files)
             {
                 var name = Path.GetFileNameWithoutExtension(file);

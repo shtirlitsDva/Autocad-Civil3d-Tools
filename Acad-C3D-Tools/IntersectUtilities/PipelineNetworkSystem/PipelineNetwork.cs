@@ -13,7 +13,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         private Database db;
 
 
-        internal void CreatePipeNetwork(Database db)
+        public void CreatePipeNetwork(Database db)
         {
             this.db = db;
 
