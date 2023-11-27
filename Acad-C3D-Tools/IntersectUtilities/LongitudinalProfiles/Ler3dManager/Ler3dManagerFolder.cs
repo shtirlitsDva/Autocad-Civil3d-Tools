@@ -38,6 +38,9 @@ namespace IntersectUtilities.LongitudinalProfiles
                 Transaction tx = db.TransactionManager.StartTransaction();
                 MPolygon mpg = db.ListOfType<MPolygon>(tx).FirstOrDefault();
 
+                if (mpg == null)
+                    throw new Exception($"No MPolygon found in {file}!");
+
                 trans.Add(name, tx);
                 areas.Add(name, NTS.NTSConversion.ConvertMPolygonToNTSPolygon(mpg));
             }
