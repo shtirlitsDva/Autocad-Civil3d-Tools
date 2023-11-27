@@ -1088,6 +1088,11 @@ namespace IntersectUtilities
 
                 HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
                 HashSet<BlockReference> allBrs = fremDb.GetFjvBlocks(fremTx, dynBlocks);
+
+#if DEBUG
+                prdDbg("FJV Blocks present:");
+                prdDbg(string.Join("\n", allBrs.Select(x => x.RealName()).Distinct().OrderBy(x => x)));
+#endif
                 #endregion
 
                 //////////////////////////////////////
@@ -1572,8 +1577,8 @@ namespace IntersectUtilities
                         #endregion
 
                         prdDbg("Blocks:");
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, 
-                            brs.Where(x => 
+                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves,
+                            brs.Where(x =>
                             x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Svejsning" &&
                             x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Stikafgrening" &&
                             x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Muffetee").ToHashSet());
@@ -4448,11 +4453,14 @@ namespace IntersectUtilities
                             //string handle = ReadStringPropertyValue(tables, pId, "IdRecord", "Handle");
                             string handle = psmDriCrossingData.ReadPropertyString(
                                 cp, driCrossingData.SourceEntityHandle);
-                            
+
                             if (handle.IsNoE())
                                 throw new System.Exception($"Handle is empty for {cp.Handle}!");
-                            
+
                             Entity originalEnt = lman.GetEntityByHandle(handle);
+
+                            if (originalEnt == null)
+                                throw new System.Exception($"Entity with handle {handle} not found!");
 
                             //Determine type and distance
                             string distanceType = ReadStringParameterFromDataTable(originalEnt.Layer, dtKrydsninger, "Distance", 0);
@@ -4622,7 +4630,7 @@ namespace IntersectUtilities
                 fremTx.Abort();
                 fremTx.Dispose();
                 fremDb.Dispose();
-                
+
                 lman.Dispose(true);
 
                 tx.Commit();

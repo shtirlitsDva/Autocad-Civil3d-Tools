@@ -256,6 +256,7 @@
     </Compile>
     <Compile Include="Algorithms\KMeansPP.cs" />
     <Compile Include="ConvexHull.cs" />
+    <Compile Include="DataManager\DataManager.cs" />
     <Compile Include="DataReferenceOptions.cs" />
     <Compile Include="DebugHelpers\AssemblyResolveEvents.cs" />
     <Compile Include="Forms\OverlayForm.cs">

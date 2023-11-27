@@ -115,10 +115,11 @@ namespace IntersectUtilities
                         if (ReadStringParameterFromDataTable(
                             br.RealName(), fjvKomponenter, "Navn", 0) == null)
                         {
+                            BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
+                            if (btr.IsFromExternalReference) continue;
                             unkBrs.Add(br.RealName());
                             continue;
                         }
-                            
 
                         //Skip if record already exists
                         if (!overwrite)
@@ -145,16 +146,16 @@ namespace IntersectUtilities
                             prdDbg("Error in GetClosestPointTo -> loop incomplete! (Using GetPolyline)");
                         }
 
-                        double distThreshold = 0.14;
+                        double distThreshold = 0.15;
                         var result = alDistTuples.Where(x => x.dist < distThreshold);
 
                         if (result.Count() == 0)
                         {
                             //If the component cannot find an alignment
                             //Repeat with increasing threshold
-                            for (int i = 0; i < 2; i++)
+                            for (int i = 0; i < 1; i++)
                             {
-                                distThreshold += 0.1;
+                                distThreshold += 0.15;
                                 if (result.Count() != 0) break;
                                 if (i == 3)
                                 {

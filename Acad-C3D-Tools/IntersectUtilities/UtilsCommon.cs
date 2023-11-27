@@ -3277,6 +3277,12 @@ namespace IntersectUtilities.UtilsCommon
                 {
                     var cached = cache[name];
                     var lastWriteTime = File.GetLastWriteTimeUtc(path);
+
+#if DEBUG
+                    //prdDbg($"Cached last modified: {cached.lastModified}\n" +
+                    //                           $"File last modified: {lastWriteTime}");
+#endif
+
                     if (cached.lastModified < lastWriteTime)
                     {
                         prdDbg($"Csv file {name} has been updated! Loading new version.");
