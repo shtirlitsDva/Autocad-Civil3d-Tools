@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
-    public class PipelineV2
+    public abstract class PipelineV2Base : IPipelineV2
     {
     }
 }

@@ -15,8 +15,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
 {
     public class PipelineNetwork
     {
+        private HashSet<IPipelineV2> pipelines;
+
         public void CreatePipeNetwork(IEnumerable<Entity> ents, IEnumerable<Alignment> als)
         {
+            pipelines = new HashSet<IPipelineV2>();
+
             Database db = ents?.FirstOrDefault()?.Database;
             if (db == null) throw new Exception(
                 "Either ents collection, first element or its' database is null!");
@@ -30,11 +34,16 @@ namespace IntersectUtilities.PipelineNetworkSystem
             {
                 try
                 {
+                    // Get all the names of the pipelines
+                    // because we need to create a network for each of them
+                    // we also need to get the names of parts that do not belong to any pipeline
+                    // ie. NA XX parts
                     var pplNames = ents.Select(
                         e => psmPpld.ReadPropertyString(
                             e, ppldDef.BelongsToAlignment)).Distinct();
-
                     
+                    // Create a network to be able to analyze our piping system
+
                 }
                 catch (Exception ex)
                 {
