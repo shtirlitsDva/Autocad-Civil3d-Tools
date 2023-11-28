@@ -34,7 +34,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         e => psmPpld.ReadPropertyString(
                             e, ppldDef.BelongsToAlignment)).Distinct();
 
-                    foreach (var pplName in pplNames) prdDbg(pplName);
+                    
                 }
                 catch (Exception ex)
                 {
