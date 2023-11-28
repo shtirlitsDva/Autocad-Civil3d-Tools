@@ -7,6 +7,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using static IntersectUtilities.UtilsCommon.Utils;
+
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 
 namespace IntersectUtilities.PipelineNetworkSystem
@@ -19,7 +21,29 @@ namespace IntersectUtilities.PipelineNetworkSystem
             if (db == null) throw new Exception(
                 "Either ents collection, first element or its' database is null!");
 
+            PropertySetManager psmGraph = new PropertySetManager(db, PSetDefs.DefinedSets.DriGraph);
+            PSetDefs.DriGraph graphDef = new PSetDefs.DriGraph();
+            PropertySetManager psmPpld = new PropertySetManager(db, PSetDefs.DefinedSets.DriPipelineData);
+            PSetDefs.DriPipelineData ppldDef = new PSetDefs.DriPipelineData();
 
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var pplNames = ents.Select(
+                        e => psmPpld.ReadPropertyString(
+                            e, ppldDef.BelongsToAlignment)).Distinct();
+
+                    foreach (var pplName in pplNames) prdDbg(pplName);
+                }
+                catch (Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    throw;
+                }
+                tx.Commit();
+            }
         }
     }
 }

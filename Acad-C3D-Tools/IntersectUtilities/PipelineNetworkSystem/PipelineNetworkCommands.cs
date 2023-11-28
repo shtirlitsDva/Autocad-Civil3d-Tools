@@ -59,13 +59,19 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            
+            DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
+            Database alDb = dm.GetForRead("Alignments");
+            Transaction alTx = alDb.TransactionManager.StartTransaction();
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
+                    var ents = localDb.GetFjvEntities(tx, CsvData.Get("fjvKomponenter"), false, false);
+                    var als = alDb.HashSetOfType<Alignment>(alTx);
+
                     PipelineNetwork pn = new PipelineNetwork();
-                    //pn.CreatePipeNetwork(localDb);
+                    pn.CreatePipeNetwork(ents, als);
 
 
                 }
@@ -75,7 +81,13 @@ namespace IntersectUtilities
                     prdDbg(ex);
                     return;
                 }
-                tx.Commit();
+                finally
+                {
+                    alTx.Abort();
+                    alTx.Dispose();
+                    alDb.Dispose();
+                }
+                tx.Abort();
             }
         }
 #endif
