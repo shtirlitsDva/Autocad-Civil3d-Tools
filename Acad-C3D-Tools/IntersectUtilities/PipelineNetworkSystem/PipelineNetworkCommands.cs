@@ -71,9 +71,9 @@ namespace IntersectUtilities
                     var als = alDb.HashSetOfType<Alignment>(alTx);
 
                     PipelineNetwork pn = new PipelineNetwork();
-                    pn.CreatePipeNetwork(ents, als);
-
-
+                    pn.CreatePipelineNetwork(ents, als);
+                    pn.CreatePipelineGraph();
+                    pn.PipelineGraphsToDot();
                 }
                 catch (System.Exception ex)
                 {
