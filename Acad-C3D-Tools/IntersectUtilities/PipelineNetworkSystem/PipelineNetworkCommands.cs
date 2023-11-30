@@ -57,6 +57,9 @@ namespace IntersectUtilities
         [CommandMethod("TPN")]
         public void testpipenetwork()
         {
+            graphclear();
+            graphpopulate();
+
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());

@@ -38,16 +38,15 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public EntityCollection Welds { get => welds; }
         public abstract string Name { get; }
         public virtual string Label { get => $"\"{Name}\""; }
-        public PipelineV2Base(IEnumerable<Entity> ents)
+        public PipelineV2Base(IEnumerable<Entity> source)
         {
-            ents.Partition(IsWeld, out this.ents, out this.welds);
+            source.Partition(IsNotWeld, out this.ents, out this.welds);
 
-            bool IsWeld(Entity e) => 
+            bool IsNotWeld(Entity e) => 
                 e is BlockReference br && 
                 br.ReadDynamicCsvProperty(
-                    DynamicProperty.Type, CsvData.Get("fjvKomponenter"), false) == "Svejsning";
+                    DynamicProperty.Type, CsvData.Get("fjvKomponenter"), false) != "Svejsning";
         }
-
         public int GetMaxDN() => ents.GetMaxDN();
         public abstract bool IsConnectedTo(IPipelineV2 other, double tol);
     }
@@ -85,14 +84,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
     {
         public static IPipelineV2 Create(IEnumerable<Entity> ents, Alignment al)
         {
-            if (al == null)
-            {
-                return new PipelineV2Na(ents);
-            }
-            else
-            {
-                return new PipelineV2Alignment(ents, al);
-            }
+            if (al == null) return new PipelineV2Na(ents);
+            else return new PipelineV2Alignment(ents, al);
         }
     }
 }

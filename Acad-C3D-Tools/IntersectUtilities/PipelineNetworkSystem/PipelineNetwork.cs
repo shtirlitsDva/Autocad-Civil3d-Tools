@@ -28,7 +28,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         {
             pipelines = new HashSet<IPipelineV2>();
 
-            PropertySetPipelineGraphHelper.Init(ents?.FirstOrDefault()?.Database);
+            psh.Init(ents?.FirstOrDefault()?.Database);
 
             // Get all the names of the pipelines
             // because we need to create a network for each of them
@@ -100,7 +100,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
             cmd.StartInfo.Arguments = @"/c ""dot -Tpdf MyTPN.dot > MyTPN.pdf""";
             cmd.Start();
         }
-
         private void PrintNode(INode node, int depth)
         {
             prdDbg(new String(' ', depth * 2) + node.Name); // Indent based on depth
