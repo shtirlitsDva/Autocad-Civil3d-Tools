@@ -52,11 +52,11 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
-#if DEBUG
-        [CommandMethod("TESTPIPENETWORK")]
-        [CommandMethod("TPN")]
+        [CommandMethod("GRAPHPIPELINES")]
         public void testpipenetwork()
         {
+            prdDbg("Dette skal køres i FJV Fremtid!");
+
             graphclear();
             graphpopulate();
 
@@ -93,6 +93,47 @@ namespace IntersectUtilities
                 tx.Abort();
             }
         }
-#endif
+
+        [CommandMethod("AUTOREVERSPLINESV2")]
+        public void autoreverseplinesv2()
+        {
+            prdDbg("Dette skal køres i FJV Fremtid!");
+
+            graphclear();
+            graphpopulate();
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
+            Database alDb = dm.GetForRead("Alignments");
+            Transaction alTx = alDb.TransactionManager.StartTransaction();
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var ents = localDb.GetFjvEntities(tx, CsvData.Get("fjvKomponenter"), false, false);
+                    var als = alDb.HashSetOfType<Alignment>(alTx);
+
+                    PipelineNetwork pn = new PipelineNetwork();
+                    pn.CreatePipelineNetwork(ents, als);
+                    pn.CreatePipelineGraph();
+                    pn.AutoReversePolylines();
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                finally
+                {
+                    alTx.Abort();
+                    alTx.Dispose();
+                    alDb.Dispose();
+                }
+                tx.Abort();
+            }
+        }
     }
 }

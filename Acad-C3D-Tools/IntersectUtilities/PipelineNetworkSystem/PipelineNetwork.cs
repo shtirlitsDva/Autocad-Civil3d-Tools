@@ -102,6 +102,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
             cmd.StartInfo.Arguments = @"/c ""dot -Tpdf MyTPN.dot > MyTPN.pdf""";
             cmd.Start();
         }
+        public void AutoReversePolylines()
+        {
+            GraphWorker gw = new GraphWorker();
+            gw.AutoReversePolylines(pipelineGraphs);
+        }
         private void PrintNode(INode node, int depth)
         {
             prdDbg(new String(' ', depth * 2) + node.Name); // Indent based on depth
@@ -228,6 +233,17 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 }
             }
             return graphs;
+        }
+    }
+    public class GraphWorker
+    {
+        public void AutoReversePolylines(GraphCollection graphs)
+        {
+            foreach (var graph in graphs)
+            {
+                var root = graph.Root;
+
+            }
         }
     }
 }
