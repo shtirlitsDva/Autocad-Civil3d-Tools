@@ -48,6 +48,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
                 // Get the alignment that the pipeline belongs to
                 var al = als.FirstOrDefault(a => a.Name == pplName);
+                
+                //prdDbg($"{pplEnts.Where(x => x is Polyline).Count()} - {pplEnts.Where(x => x is BlockReference).Count()}");
 
                 // Create a pipeline network
                 pipelines.Add(PipelineV2Factory.Create(pplEnts, al));

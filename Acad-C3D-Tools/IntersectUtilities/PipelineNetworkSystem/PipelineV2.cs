@@ -43,9 +43,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
             source.Partition(IsNotWeld, out this.ents, out this.welds);
 
             bool IsNotWeld(Entity e) => 
-                e is BlockReference br && 
+                (e is BlockReference br && 
                 br.ReadDynamicCsvProperty(
-                    DynamicProperty.Type, CsvData.Get("fjvKomponenter"), false) != "Svejsning";
+                    DynamicProperty.Type, CsvData.Get("fjvKomponenter"), false) != "Svejsning") ||
+                    e is Polyline; //<-- this is the culprit!!!!!!!!!!!!!!!!!!!!
         }
         public int GetMaxDN() => ents.GetMaxDN();
         public abstract bool IsConnectedTo(IPipelineV2 other, double tol);

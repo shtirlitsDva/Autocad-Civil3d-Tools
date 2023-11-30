@@ -24,60 +24,34 @@ namespace IntersectUtilities.Collections
         public Entity this[int index] { get => _L[index]; set => _L[index] = value; }
         private static Regex conRgx = new Regex(@"(?<OwnEndType>\d):(?<ConEndType>\d):(?<Handle>\w*)");
         private List<Entity> _L = new List<Entity>();
-        //private HashSet<Handle> otherHandles = new HashSet<Handle>();
-        private List<Handle> otherHandles = new List<Handle>();
+        public IEnumerable<Handle> ExternalHandles 
+        { 
+            get => _L.SelectMany(x => GetOtherHandles(ReadConnection(x))).Where(x => _L.All(y => y.Handle != x)).Distinct(); 
+        }
         public EntityCollection() { }
         public EntityCollection(IEnumerable<Entity> ents)
         {
-            foreach (var ent in ents)
-            {
-                foreach (var handle in GetOtherHandlesFromString(ReadConnection(ent)))
-                {
-                    if (handle.IsNoE()) continue;
-                    Handle h = new Handle(Convert.ToInt64(handle, 16));
-                    otherHandles.Add(h);
-                }
-            }
+            _L.AddRange(ents);
         }
         public void Add(Entity item)
         {
             _L.Add(item);
-            foreach (var handle in GetOtherHandlesFromString(ReadConnection(item)))
-            {
-                if (handle.IsNoE()) continue;
-                Handle h = new Handle(Convert.ToInt64(handle, 16));
-                if (item.Handle.ToString() == "19556B") prdDbg(h);
-                otherHandles.Add(h);
-            }
         }
         #region Custom logic
         public bool IsConnectedTo(EntityCollection other)
         {
             if (this.Count == 0 || other.Count == 0) return false;
-            if ((psh.Pipeline.ReadPropertyString(this[0], psh.PipelineDef.BelongsToAlignment) == "NA 01" ||
-                psh.Pipeline.ReadPropertyString(other[0], psh.PipelineDef.BelongsToAlignment) == "NA 01") &&
-                (psh.Pipeline.ReadPropertyString(this[0], psh.PipelineDef.BelongsToAlignment) == "05" ||
-                psh.Pipeline.ReadPropertyString(other[0], psh.PipelineDef.BelongsToAlignment) == "05"))
-            {
-                prdDbg("this");
-                prdDbg(this.Count + " " + otherHandles.Count);
-                prdDbg(string.Join("\n", otherHandles.Select(x => x.ToString())));
-                prdDbg("other");
-                prdDbg(string.Join("\n", other.Select(x => x.Handle.ToString())));
-
-                prdDbg(this.otherHandles.Any(x => other.Any(y => x == y.Handle)));
-            }
-            return this.otherHandles.Any(x => other.Any(y => x == y.Handle));
+            return this.ExternalHandles.Any(x => other.Any(y => x == y.Handle));
         }
         private string ReadConnection(Entity ent) =>
             psh.Graph.ReadPropertyString(ent, psh.GraphDef.ConnectedEntities);
-        private IEnumerable<string> GetOtherHandlesFromString(string connectionString)
+        private IEnumerable<Handle> GetOtherHandles(string connectionString)
         {
             string[] conns = connectionString.Split(';');
             foreach (var item in conns)
                 if (conRgx.IsMatch(item))
-                    yield return conRgx.Match(item).Groups["Handle"].Value;
-
+                    yield return new Handle(
+                        Convert.ToInt64(conRgx.Match(item).Groups["Handle"].Value, 16));
         }
         public int GetMaxDN()
         {
