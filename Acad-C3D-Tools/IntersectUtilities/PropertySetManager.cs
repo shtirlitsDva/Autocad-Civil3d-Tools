@@ -1262,4 +1262,23 @@ namespace IntersectUtilities
         public int GetHashCode(PropertySet obj)
             => obj.PropertySetDefinitionName.GetHashCode();
     }
+
+    public static class PropertySetPipelineGraphHelper
+    {
+        public static PropertySetManager Graph;
+        public static PropertySetManager Pipeline;
+        public static PSetDefs.DriGraph GraphDef;
+        public static PSetDefs.DriPipelineData PipelineDef;
+
+        public static void Init(Database db)
+        {
+            if (db == null) throw new System.Exception(
+                "Either ents collection, first element or its' database is null!");
+
+            Graph = new PropertySetManager(db, PSetDefs.DefinedSets.DriGraph);
+            GraphDef = new PSetDefs.DriGraph();
+            Pipeline = new PropertySetManager(db, PSetDefs.DefinedSets.DriPipelineData);
+            PipelineDef = new PSetDefs.DriPipelineData();
+        }
+    }
 }

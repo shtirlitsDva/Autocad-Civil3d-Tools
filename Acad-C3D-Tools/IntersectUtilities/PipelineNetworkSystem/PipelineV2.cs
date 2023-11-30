@@ -2,6 +2,7 @@
 using Autodesk.Civil.DatabaseServices;
 
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.Collections;
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
@@ -16,7 +17,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using psh = IntersectUtilities.PipelineNetworkSystem.PropertySetHelper;
+using psh = IntersectUtilities.PropertySetPipelineGraphHelper;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -25,24 +26,36 @@ namespace IntersectUtilities.PipelineNetworkSystem
         string Name { get; }
         string Label { get; }
         EntityCollection Entities { get; }
+        EntityCollection Welds { get; }
         int GetMaxDN();
         bool IsConnectedTo(IPipelineV2 other, double tol);
     }
     public abstract class PipelineV2Base : IPipelineV2
     {
-        protected EntityCollection ents;
+        private EntityCollection ents;
+        private EntityCollection welds;
         public EntityCollection Entities { get => ents; }
+        public EntityCollection Welds { get => welds; }
         public abstract string Name { get; }
         public virtual string Label { get => $"\"{Name}\""; }
+        public PipelineV2Base(IEnumerable<Entity> ents)
+        {
+            ents.Partition(IsWeld, out this.ents, out this.welds);
+
+            bool IsWeld(Entity e) => 
+                e is BlockReference br && 
+                br.ReadDynamicCsvProperty(
+                    DynamicProperty.Type, CsvData.Get("fjvKomponenter"), false) == "Svejsning";
+        }
+
         public int GetMaxDN() => ents.GetMaxDN();
         public abstract bool IsConnectedTo(IPipelineV2 other, double tol);
     }
     public class PipelineV2Alignment : PipelineV2Base
     {
         private Alignment al;
-        public PipelineV2Alignment(IEnumerable<Entity> ents, Alignment al)
+        public PipelineV2Alignment(IEnumerable<Entity> ents, Alignment al) : base(ents)
         {
-            this.ents = new EntityCollection(ents);
             this.al = al;
         }
         public override string Name => al.Name;
@@ -53,7 +66,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 case PipelineV2Alignment pal:
                     return this.al.IsConnectedTo(pal.al, tol);
                 case PipelineV2Na pna:
-                    return this.ents.IsConnectedTo(pna.Entities);
+                    return this.Entities.IsConnectedTo(pna.Entities);
                 default:
                     throw new Exception($"Unknown pipeline type {other.GetType()}!");
             }
@@ -61,15 +74,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
     }
     public class PipelineV2Na : PipelineV2Base
     {
-        public PipelineV2Na(IEnumerable<Entity> ents)
-        {
-            this.ents = new EntityCollection(ents);
-        }
+        public PipelineV2Na(IEnumerable<Entity> ents) : base(ents) {}
         public override string Name =>
             psh.Pipeline.ReadPropertyString(
-                ents.First(), psh.PipelineDef.BelongsToAlignment);
+                this.Entities.First(), psh.PipelineDef.BelongsToAlignment);
         public override bool IsConnectedTo(IPipelineV2 other, double tol) =>
-            this.ents.IsConnectedTo(other.Entities);
+            this.Entities.IsConnectedTo(other.Entities);
     }
     public static class PipelineV2Factory
     {
@@ -83,45 +93,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
             {
                 return new PipelineV2Alignment(ents, al);
             }
-        }
-    }
-    public class EntityCollection : List<Entity>
-    {
-        private static Regex conRgx = new Regex(@"(?<OwnEndType>\d):(?<ConEndType>\d):(?<Handle>\w*);");
-        public EntityCollection(IEnumerable<Entity> ents) : base(ents) { }
-        #region IsConnectedTo implementation
-        public bool IsConnectedTo(EntityCollection other)
-        {
-            if (this.Count == 0 || other.Count == 0) return false;
-            return this.GetAllOtherHandles().Any(x => other.Any(y => x == y.Handle.ToString()));
-        }
-        private string ReadConnection(Entity ent) =>
-            psh.Graph.ReadPropertyString(ent, psh.GraphDef.ConnectedEntities);
-        private IEnumerable<string> GetOtherHandlesFromString(string connectionString)
-        {
-            string[] conns = connectionString.Split(';');
-            foreach (var item in conns)
-                if (conRgx.IsMatch(item))
-                    yield return conRgx.Match(item).Groups["Handle"].Value;
-        }
-        private IEnumerable<string> GetAllOtherHandles() =>
-            this.Select(x => GetOtherHandlesFromString(ReadConnection(x))).SelectMany(x => x);
-        #endregion
-        public int GetMaxDN()
-        {
-            return this.Max(x =>
-            {
-                switch (x)
-                {
-                    case Polyline _:
-                        return GetPipeDN(x);
-                    case BlockReference br:
-                        return Convert.ToInt32(
-                            br.ReadDynamicCsvProperty(DynamicProperty.DN1, CsvData.Get("fjvKomponenter")));
-                    default:
-                        return 0;
-                }
-            });
         }
     }
 }

@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using psh = IntersectUtilities.PipelineNetworkSystem.PropertySetHelper;
+using psh = IntersectUtilities.PropertySetPipelineGraphHelper;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -28,7 +28,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         {
             pipelines = new HashSet<IPipelineV2>();
 
-            PropertySetHelper.Init(ents?.FirstOrDefault()?.Database);
+            PropertySetPipelineGraphHelper.Init(ents?.FirstOrDefault()?.Database);
 
             // Get all the names of the pipelines
             // because we need to create a network for each of them
@@ -111,24 +111,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
         }
     }
-    public static class PropertySetHelper
-    {
-        public static PropertySetManager Graph;
-        public static PropertySetManager Pipeline;
-        public static PSetDefs.DriGraph GraphDef;
-        public static PSetDefs.DriPipelineData PipelineDef;
-
-        public static void Init(Database db)
-        {
-            if (db == null) throw new System.Exception(
-                "Either ents collection, first element or its' database is null!");
-
-            Graph = new PropertySetManager(db, PSetDefs.DefinedSets.DriGraph);
-            GraphDef = new PSetDefs.DriGraph();
-            Pipeline = new PropertySetManager(db, PSetDefs.DefinedSets.DriPipelineData);
-            PipelineDef = new PSetDefs.DriPipelineData();
-        }
-    }
     public interface INode
     {
         INode Parent { get; set; }
@@ -164,7 +146,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         {
             foreach (var child in node.Children)
             {
-                edges.AppendLine($"{node.Name} -> {child.Name}");
+                edges.AppendLine($"\"{node.Name}\" -> \"{child.Name}\"");
                 GatherEdges(child, edges);  // Recursive call to gather edges of children
             }
         }
@@ -177,8 +159,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
         private void GatherNodes(INode node, StringBuilder nodes)
         {
             string color = "";
-            if (node.Parent == null) color = "color = red";
-            nodes.AppendLine($"{node.Name} [label={node.Label}{color}]");
+            if (node.Parent == null) color = " color = red";
+            nodes.AppendLine($"\"{node.Name}\" [label={node.Label}{color}]");
             foreach (var child in node.Children)
             {
                 GatherNodes(child, nodes);  // Recursive call to gather nodes of children

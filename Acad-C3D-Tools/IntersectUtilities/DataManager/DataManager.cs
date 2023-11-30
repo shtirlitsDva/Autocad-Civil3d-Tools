@@ -29,7 +29,7 @@ namespace IntersectUtilities.DataManager
             {
                 var db = new Database(false, true);
                 string path = UtilsCommon.Utils.GetPathToDataFiles(project, etape, name);
-                db.ReadDwgFile(path, FileOpenMode.OpenForReadAndReadShare, true, "");
+                db.ReadDwgFile(path, FileOpenMode.OpenForReadAndAllShare, true, "");
                 cache.Add(name, db);
                 return db;
             }

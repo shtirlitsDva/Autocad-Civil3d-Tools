@@ -255,6 +255,7 @@
       <Link>ACC\SymbolPack.cs</Link>
     </Compile>
     <Compile Include="Algorithms\KMeansPP.cs" />
+    <Compile Include="Collections\Collections.cs" />
     <Compile Include="ConvexHull.cs" />
     <Compile Include="DataManager\DataManager.cs" />
     <Compile Include="DataReferenceOptions.cs" />

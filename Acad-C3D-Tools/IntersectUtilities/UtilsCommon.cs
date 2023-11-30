@@ -3188,7 +3188,6 @@ namespace IntersectUtilities.UtilsCommon
             return xHash ^ yHash;
         }
     }
-
     public class Point2dEqualityComparer : IEqualityComparer<Point2d>
     {
         private readonly double _epsilon;
@@ -3214,7 +3213,6 @@ namespace IntersectUtilities.UtilsCommon
             return xHash ^ yHash;
         }
     }
-
     public class BulgeVertexEqualityComparer : IEqualityComparer<BulgeVertex>
     {
         private readonly int _scale;
@@ -3236,7 +3234,6 @@ namespace IntersectUtilities.UtilsCommon
             return xHash ^ yHash;
         }
     }
-
     public static class CsvData
     {
         private static readonly Dictionary<string, (DataTable data, DateTime lastModified)> cache =
