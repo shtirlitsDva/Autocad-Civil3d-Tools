@@ -52,6 +52,7 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Color = Autodesk.AutoCAD.Colors.Color;
 using System.Diagnostics;
 using IntersectUtilities.LongitudinalProfiles;
+using System.Windows.Controls;
 
 namespace IntersectUtilities
 {
@@ -900,6 +901,20 @@ namespace IntersectUtilities
                             return;
                         }
 
+                        bool styleExaggarated = false;
+                        Oid originalStyleId = default;
+                        #region Profile view styles
+                        if (pv.StyleName != "PROFILE VIEW L TO R NO SCALE")
+                        {
+                            styleExaggarated = true;
+                            originalStyleId = pv.StyleId;
+
+                            Oid newStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R NO SCALE"];
+                            pv.CheckOrOpenForWrite();
+                            pv.StyleId = newStyleId;
+                        }
+                        #endregion
+
                         #region Find zero point of profile view
                         //Find the zero-point of the profile view
                         pv.CheckOrOpenForWrite();
@@ -935,7 +950,7 @@ namespace IntersectUtilities
 
                         #region Process labels
                         LabelStyleCollection stc = civilDoc.Styles.LabelStyles
-                                                       .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
+                            .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
 
                         Oid prStId = stc["PROFILE PROJEKTION MGO"];
 
@@ -1013,11 +1028,21 @@ namespace IntersectUtilities
                         }
                         #endregion
 
+                        Oid brId = default;
                         using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
                                         new Point3d(x, y, 0), bt[pv.Name]))
                         {
-                            space.AppendEntity(br);
+                            brId = space.AppendEntity(br);
                             tx.AddNewlyCreatedDBObject(br, true);
+                        }
+
+                        if (styleExaggarated)
+                        {
+                            pv.CheckOrOpenForWrite();
+                            pv.StyleId = originalStyleId;
+
+                            var br = brId.Go<BlockReference>(tx, OpenMode.ForWrite);
+                            br.ScaleFactors = new Scale3d(1, 2.5, 1);
                         }
                     }
                 }
@@ -3919,7 +3944,7 @@ namespace IntersectUtilities
                                 double userSpecifiedLabelHeightOverSurfaceM = 5;
                                 double deltaM = labelDepthUnderSurface + userSpecifiedLabelHeightOverSurfaceM;
                                 double calculatedLengthOfFirstLabel = deltaM / 250;
-                                prdDbg($"{surfaceElevation}, {labelElevation}, {labelDepthUnderSurface}, {deltaM}, {calculatedLengthOfFirstLabel}");
+                                //prdDbg($"{surfaceElevation}, {labelElevation}, {labelDepthUnderSurface}, {deltaM}, {calculatedLengthOfFirstLabel}");
                                 return calculatedLengthOfFirstLabel;
                             }
                             else return 0;
@@ -3990,7 +4015,7 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
-                    editor.WriteMessage("\n" + ex.Message);
+                    prdDbg(ex);
                     tx.Abort();
                     return;
                 }
@@ -4343,7 +4368,7 @@ namespace IntersectUtilities
                     BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
 
-                    #region Create layer for draft profile
+                    #region Create layer for afstandsmarkering
                     string afstandsMarkeringLayerName = "0-PROFILE_AFSTANDS_MARKERING";
                     using (Transaction txLag = localDb.TransactionManager.StartTransaction())
                     {
@@ -4436,6 +4461,29 @@ namespace IntersectUtilities
                         Oid brefId = brefIds[0];
                         BlockReference bref = brefId.Go<BlockReference>(tx);
 
+                        bool wasScaled = false;
+                        if (Math.Abs(bref.ScaleFactors.Y - 2.5) < 0.0001)
+                        {
+                            wasScaled = true;
+                            prdDbg("Scaled block detected!");
+                            bref.CheckOrOpenForWrite();
+                            bref.ScaleFactors = new Scale3d(1, 1, 1);
+                        }
+
+                        bool styleExaggarated = false;
+                        Oid originalStyleId = default;
+                        #region Profile view styles
+                        if (pv.StyleName != "PROFILE VIEW L TO R NO SCALE")
+                        {
+                            styleExaggarated = true;
+                            originalStyleId = pv.StyleId;
+
+                            Oid newStyleId = civilDoc.Styles.ProfileViewStyles["PROFILE VIEW L TO R NO SCALE"];
+                            pv.CheckOrOpenForWrite();
+                            pv.StyleId = newStyleId;
+                        }
+                        #endregion
+
                         HashSet<ProfileProjectionLabel> ppls = localDb.HashSetOfType<ProfileProjectionLabel>(tx);
                         #endregion
 
@@ -4475,8 +4523,17 @@ namespace IntersectUtilities
                             //Determine kOd
                             double station = 0;
                             double elevation = 0;
-                            if (!pv.FindStationAndElevationAtXY(ppl.LabelLocation.X, ppl.LabelLocation.Y, ref station, ref elevation))
-                                throw new System.Exception($"Point {ppl.Handle} couldn't finde elevation and station!!!");
+
+                            try
+                            {
+                                if (!pv.FindStationAndElevationAtXY(ppl.LabelLocation.X, ppl.LabelLocation.Y, ref station, ref elevation))
+                                    throw new System.Exception($"Point {ppl.Handle} couldn't finde elevation and station!!!");
+                            }
+                            catch (System.Exception)
+                            {
+                                //prdDbg($"Point {ppl.Handle} couldn't finde elevation and station!!!");
+                                continue;
+                            }
 
                             //Determine dn
                             double kappeOd = 0;
@@ -4611,6 +4668,19 @@ namespace IntersectUtilities
                         {
                             BlockReference br = oid.Go<BlockReference>(tx, OpenMode.ForWrite);
                             br.RecordGraphicsModified(true);
+                        }
+
+                        if (wasScaled)
+                        {
+                            prdDbg("Scaling block back!");
+                            bref.CheckOrOpenForWrite();
+                            bref.ScaleFactors = new Scale3d(1, 2.5, 1);
+                        }
+
+                        if (styleExaggarated)
+                        {
+                            pv.CheckOrOpenForWrite();
+                            pv.StyleId = originalStyleId;
                         }
                     }
                 }

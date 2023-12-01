@@ -160,27 +160,40 @@ namespace IntersectUtilities
                     LabelBase label = tx.GetObject(alObjId, OpenMode.ForRead, false) as LabelBase;
                     #endregion
 
+
+
                     Oid fId = label.FeatureId;
 
-                    CogoPoint p = tx.GetObject(fId, OpenMode.ForWrite) as CogoPoint;
+                    CogoPoint pt = tx.GetObject(fId, OpenMode.ForWrite) as CogoPoint;
+                    var pv = label.ViewId.Go<ProfileView>(tx);
+                    Alignment al = pv.AlignmentId.Go<Alignment>(tx);
+                    Profile p = default;
+                    foreach (var item in al.GetProfileIds().Entities<Profile>(tx))
+                    {
+                        if (item.Name.EndsWith("surface_P")) p = item;
+                    }
+                    if (p == null) throw new System.Exception("No surface profile found!");
+
+                    double station = al.StationAtPoint(pt.Location);
+                    double surfaceElevation = p.ElevationAt(station);
+
+                    prdDbg($"Current surface elevation: {surfaceElevation.ToString("0.000")}");
+                    editor.WriteMessage($"\nCurrent point elevation: {pt.Elevation.ToString("0.000")}");
+                    editor.WriteMessage($"\nCurrent point depth: {(surfaceElevation - pt.Elevation).ToString("0.000")}");
+
                     PromptDoubleResult result = editor.GetDouble("\nIndtast ny dybde:");
                     if (((PromptResult)result).Status != PromptStatus.OK) return;
-
                     double newDepth = result.Value;
 
-                    editor.WriteMessage($"\nCurrent elevation: {p.Elevation}");
+                    editor.WriteMessage($"\nTarget point depth: {newDepth.ToString("0.000")}");
+                    editor.WriteMessage($"\nTarget point elevation: {(surfaceElevation - newDepth).ToString("0.000")}");
 
-                    var pv = label.ViewId.Go<ProfileView>(tx);
-                    
-
-                    editor.WriteMessage($"\nCalculated elevation: {p.Elevation + distToMove}");
-
-                    p.Elevation += distToMove;
+                    pt.Elevation = surfaceElevation - newDepth;
                 }
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    editor.WriteMessage("\n" + ex.Message);
+                    editor.WriteMessage("\n" + ex.ToString());
                     return;
                 }
                 tx.Commit();
@@ -3637,19 +3650,32 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test reading profile view style name
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                        "\nSelect profile view:");
+                    promptEntityOptions1.SetRejectMessage("\n Not a profile view!");
+                    promptEntityOptions1.AddAllowedClass(typeof(ProfileView), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId pvId = entity1.ObjectId;
+
+                    var pv = pvId.Go<ProfileView>(tx);
+                    prdDbg(pv.StyleName);
+                    #endregion
+
                     #region Test alignment intersection with MPolygon
-                    var mpgs = localDb.HashSetOfType<MPolygon>(tx);
-                    Alignment al = localDb.ListOfType<Alignment>(tx).First();
-                    Polyline pline = al.GetPolyline().Go<Polyline>(tx);
-                    var line = NTSConversion.ConvertPlineToNTSLineString(pline);
-                    foreach (MPolygon mpg in mpgs)
-                    {
-                        var pgn = NTSConversion.ConvertMPolygonToNTSPolygon(mpg);
-                        var result = pgn.Intersects(line);
-                        prdDbg($"{mpg.Handle} intersects: {result}");
-                    }
-                    pline.CheckOrOpenForWrite();
-                    pline.Erase(true);
+                    //var mpgs = localDb.HashSetOfType<MPolygon>(tx);
+                    //Alignment al = localDb.ListOfType<Alignment>(tx).First();
+                    //Polyline pline = al.GetPolyline().Go<Polyline>(tx);
+                    //var line = NTSConversion.ConvertPlineToNTSLineString(pline);
+                    //foreach (MPolygon mpg in mpgs)
+                    //{
+                    //    var pgn = NTSConversion.ConvertMPolygonToNTSPolygon(mpg);
+                    //    var result = pgn.Intersects(line);
+                    //    prdDbg($"{mpg.Handle} intersects: {result}");
+                    //}
+                    //pline.CheckOrOpenForWrite();
+                    //pline.Erase(true);
                     #endregion
 
                     #region Test MPolygon to Polygon conversion
