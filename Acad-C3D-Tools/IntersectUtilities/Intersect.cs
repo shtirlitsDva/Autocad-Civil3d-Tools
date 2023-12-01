@@ -136,6 +136,57 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("CHD")]
+        public void changedephforprojectedpoint()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database db = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Select Label
+                    //Get alignment
+                    PromptEntityOptions promptEntityOptions1 = new PromptEntityOptions(
+                        "\nSelect label of Cogo Point on Profile View:");
+                    promptEntityOptions1.SetRejectMessage("\n Not a label");
+                    promptEntityOptions1.AddAllowedClass(typeof(ProfileProjectionLabel), true);
+                    PromptEntityResult entity1 = editor.GetEntity(promptEntityOptions1);
+                    if (((PromptResult)entity1).Status != PromptStatus.OK) return;
+                    Autodesk.AutoCAD.DatabaseServices.ObjectId alObjId = entity1.ObjectId;
+                    LabelBase label = tx.GetObject(alObjId, OpenMode.ForRead, false) as LabelBase;
+                    #endregion
+
+                    Oid fId = label.FeatureId;
+
+                    CogoPoint p = tx.GetObject(fId, OpenMode.ForWrite) as CogoPoint;
+                    PromptDoubleResult result = editor.GetDouble("\nIndtast ny dybde:");
+                    if (((PromptResult)result).Status != PromptStatus.OK) return;
+
+                    double newDepth = result.Value;
+
+                    editor.WriteMessage($"\nCurrent elevation: {p.Elevation}");
+
+                    var pv = label.ViewId.Go<ProfileView>(tx);
+                    
+
+                    editor.WriteMessage($"\nCalculated elevation: {p.Elevation + distToMove}");
+
+                    p.Elevation += distToMove;
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    editor.WriteMessage("\n" + ex.Message);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("selbylabel")]
         public void selectcogopointbyprojectionlabel()
         {
