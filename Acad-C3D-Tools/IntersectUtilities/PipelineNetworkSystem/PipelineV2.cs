@@ -29,6 +29,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         EntityCollection Welds { get; }
         int GetMaxDN();
         bool IsConnectedTo(IPipelineV2 other, double tol);
+        void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children);
     }
     public abstract class PipelineV2Base : IPipelineV2
     {
@@ -50,6 +51,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         public int GetMaxDN() => ents.GetMaxDN();
         public abstract bool IsConnectedTo(IPipelineV2 other, double tol);
+        public abstract void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children);
     }
     public class PipelineV2Alignment : PipelineV2Base
     {
@@ -59,6 +61,41 @@ namespace IntersectUtilities.PipelineNetworkSystem
             this.al = al;
         }
         public override string Name => al.Name;
+
+        public override void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children)
+        {
+            // Determine the direction of the alignment
+            PipelineSizeArray sizes = new PipelineSizeArray(al,
+                Entities.GetPolylines().Cast<Curve>().ToHashSet(),
+                Entities.GetBlockReferences().Cast<BlockReference>().ToHashSet());
+
+            if (parent == null)
+            {
+                // if parent is null, which means this is an entry pipeline
+                if (sizes.Arrangement == PipelineSizeArray.PipelineSizesArrangement.OneSize)
+                {
+                    //This is a hard one, because we cannot determine the direction of the pipeline
+
+                }
+                else
+                {
+
+                }
+                
+            }
+            else
+            {
+                if (sizes.Arrangement == PipelineSizeArray.PipelineSizesArrangement.MiddleDescendingToEnds)
+                {
+
+                }
+                else
+                {
+
+                }
+            }   
+        }
+
         public override bool IsConnectedTo(IPipelineV2 other, double tol)
         {
             switch (other)
@@ -78,6 +115,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public override string Name =>
             psh.Pipeline.ReadPropertyString(
                 this.Entities.First(), psh.PipelineDef.BelongsToAlignment);
+
+        public override void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children)
+        {
+            throw new NotImplementedException();
+        }
+
         public override bool IsConnectedTo(IPipelineV2 other, double tol) =>
             this.Entities.IsConnectedTo(other.Entities);
     }

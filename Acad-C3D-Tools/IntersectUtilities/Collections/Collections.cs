@@ -38,6 +38,8 @@ namespace IntersectUtilities.Collections
             _L.Add(item);
         }
         #region Custom logic
+        public IEnumerable<Entity> GetPolylines() => _L.Where(x => x is Polyline);
+        public IEnumerable<Entity> GetBlockReferences() => _L.Where(x => x is BlockReference);
         public bool IsConnectedTo(EntityCollection other)
         {
             if (this.Count == 0 || other.Count == 0) return false;

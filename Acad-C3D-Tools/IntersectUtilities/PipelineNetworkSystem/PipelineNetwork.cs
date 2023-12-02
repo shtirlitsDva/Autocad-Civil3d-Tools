@@ -5,6 +5,8 @@ using IntersectUtilities.UtilsCommon;
 
 using MoreLinq;
 
+using NetTopologySuite.Index.Bintree;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -48,7 +50,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
                 // Get the alignment that the pipeline belongs to
                 var al = als.FirstOrDefault(a => a.Name == pplName);
-                
+
                 //prdDbg($"{pplEnts.Where(x => x is Polyline).Count()} - {pplEnts.Where(x => x is BlockReference).Count()}");
 
                 // Create a pipeline network
@@ -122,6 +124,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         INode Parent { get; set; }
         List<INode> Children { get; }
         void AddChild(INode child);
+        IEnumerable<T> GetChildrenOfType<T>() where T : INode;
         string Name { get; }
         string Label { get; }
         string EdgesToDot();
@@ -142,6 +145,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             child.Parent = this;
             Children.Add(child);
         }
+        public IEnumerable<T> GetChildrenOfType<T>() where T : INode => Children.OfType<T>();
         public string EdgesToDot()
         {
             var edges = new StringBuilder();
@@ -242,7 +246,18 @@ namespace IntersectUtilities.PipelineNetworkSystem
             foreach (var graph in graphs)
             {
                 var root = graph.Root;
+                if (!(root is PipelineNode)) throw new Exception("PipelineNodes expected!");
+                var stack = new Stack<PipelineNode>();
+                stack.Push(root as PipelineNode);
 
+                while (stack.Count > 0)
+                {
+                    var current = stack.Pop();
+                    var pipeline = current.Value;
+                    pipeline.AutoReversePolylines(
+                        current.Value, 
+                        current.GetChildrenOfType<PipelineNode>().Select(x => x.Value));
+                }
             }
         }
     }
