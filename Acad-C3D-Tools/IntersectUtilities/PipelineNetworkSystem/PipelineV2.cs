@@ -1,4 +1,5 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
 using Autodesk.Civil.DatabaseServices;
 
 using IntersectUtilities.UtilsCommon;
@@ -64,6 +65,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
         public override void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children)
         {
+            var refPline = al.GetPolyline().Go<Polyline>(
+                al.Database.TransactionManager.TopTransaction);
+            var plines = Entities.GetPolylines().Cast<Polyline>();
+
             // Determine the direction of the alignment
             PipelineSizeArray sizes = new PipelineSizeArray(al,
                 Entities.GetPolylines().Cast<Curve>().ToHashSet(),
@@ -75,11 +80,31 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 if (sizes.Arrangement == PipelineSizeArray.PipelineSizesArrangement.OneSize)
                 {
                     //This is a hard one, because we cannot determine the direction of the pipeline
+                    //Right now we will just assume direction following the alignment stations
 
+                    foreach (Polyline pline in plines)
+                    {
+                        Point3d pS = refPline.GetClosestPointTo(pline.StartPoint, false);
+                        Point3d pE = refPline.GetClosestPointTo(pline.EndPoint, false);
+
+                        double sS = al.StationAtPoint(pS);
+                        double sE = al.StationAtPoint(pE);
+
+                        if (sS > sE)
+                        {
+                            pline.UpgradeOpen();
+                            pline.ReverseCurve();
+                        }
+                    }
                 }
                 else
                 {
+                    if (!(parent is PipelineV2Alignment))
+                        throw new Exception(
+                            $"Parent {parent.Name} is not an alignment pipeline, but is {parent.GetType().Name}!\n" +
+                            $"This is not supported.");
 
+                    var pal = parent as PipelineV2Alignment;
                 }
                 
             }
@@ -93,7 +118,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 {
 
                 }
-            }   
+            }
+
+            refPline.UpgradeOpen();
+            refPline.Erase(true);
         }
 
         public override bool IsConnectedTo(IPipelineV2 other, double tol)
