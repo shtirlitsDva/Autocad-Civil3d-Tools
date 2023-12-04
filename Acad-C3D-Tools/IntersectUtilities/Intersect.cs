@@ -5839,8 +5839,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
-                                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    System.Data.DataTable komponenter = CsvData.Get("fjvKomponenter");
 
                     HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, komponenter, true, false);
 
