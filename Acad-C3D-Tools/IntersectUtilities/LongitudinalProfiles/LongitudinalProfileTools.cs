@@ -1781,7 +1781,9 @@ namespace IntersectUtilities
                                     "Parallelafgrening",
                                     "Lige afgrening",
                                     "Afgrening med spring",
-                                    "Afgrening, parallel" }).Contains(type))
+                                    "Afgrening, parallel",
+                                    "Svejsetee",
+                                }).Contains(type))
                                     brSign.SetAttributeStringValue("RIGHTSIZE",
                                         psmPipeLineData.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment));
                                 else if (type == "Afgreningsstuds" || type == "Svanehals")

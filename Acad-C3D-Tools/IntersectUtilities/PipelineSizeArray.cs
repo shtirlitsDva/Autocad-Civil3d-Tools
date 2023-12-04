@@ -97,7 +97,7 @@ namespace IntersectUtilities
             foreach (Entity ent in entities) AddEntityToPOIs(ent, POIs);
 
             IEnumerable<IGrouping<POI, POI>> clusters
-                = POIs.GroupByCluster((x, y) => x.Point.GetDistanceTo(y.Point), 0.01);
+                = POIs.GroupByCluster((x, y) => x.Point.GetDistanceTo(y.Point), 0.005);
 
             foreach (IGrouping<POI, POI> cluster in clusters)
             {
