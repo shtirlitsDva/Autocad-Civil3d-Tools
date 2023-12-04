@@ -102,9 +102,10 @@ namespace IntersectUtilities
         {
             //Construct pattern which matches the parameter definition
             //Example definition r1 matches: $Præisoleret bøjning, 90gr, L {$L1}x{$L2} m
-            //Example definition r2 matches: $System
+            //Example definition r2 matches: $System <- this is used to read a dynmic property value directly
             Regex r1 = new Regex(@"{\$(?<Parameter>[a-zæøåA-ZÆØÅ0-9_:-]*)}");
             Regex r2 = new Regex(@"\$(?<Parameter>[a-zA-Z]*)$");
+            Regex r3 = new Regex(@"{#(?<Parameter>[a-zæøåA-ZÆØÅ0-9_:-]*)}");
 
             //Test if a pattern matches in the input string
             if (r1.IsMatch(stringToProcess))
@@ -134,6 +135,27 @@ namespace IntersectUtilities
                 string parameterName = match.Groups["Parameter"].Value;
                 //Read the parameter value from BR
                 string parameterValue = br.ReadDynamicPropertyValue(parameterName);
+                //Replace the captured group in original string with the parameter value
+                stringToProcess = stringToProcess.Replace(capture, parameterValue);
+                //Recursively call current function
+                //It runs on the string until no more captures remain
+                //Then it returns
+                stringToProcess = ConstructStringByRegex(br, stringToProcess);
+            }
+            if (r3.IsMatch(stringToProcess))
+            {
+                //Get the first match
+                Match match = r3.Match(stringToProcess);
+                //Get the first capture
+                string capture = match.Captures[0].Value;
+                //Get the parameter name from the regex match
+                string parameterName = match.Groups["Parameter"].Value;
+                //Convert parameter name to csv table column name
+                DynamicProperty prop;
+                if (!Enum.TryParse(parameterName, out prop))
+                    throw new Exception($"Parameter {parameterName} is not a valid DynamicProperty!");
+                //Read the value specified and parse it
+                string parameterValue = br.ReadDynamicCsvProperty(prop, CsvData.Get("fjvKomponenter"));
                 //Replace the captured group in original string with the parameter value
                 stringToProcess = stringToProcess.Replace(capture, parameterValue);
                 //Recursively call current function

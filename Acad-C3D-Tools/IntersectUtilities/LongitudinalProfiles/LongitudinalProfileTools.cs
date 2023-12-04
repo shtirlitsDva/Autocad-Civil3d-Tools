@@ -1738,7 +1738,7 @@ namespace IntersectUtilities
                             #region Place component blocks
                             foreach (BlockReference br in brs)
                             {
-                                string type = ReadStringParameterFromDataTable(br.RealName(), dt, "Type", 0);
+                                string type = br.ReadDynamicCsvProperty(DynamicProperty.Type, dt);
                                 if (type == "Reduktion" || type == "Svejsning") continue;
                                 //Buerør need special treatment
                                 if (br.RealName() == "BUEROR1" || br.RealName() == "BUEROR2") continue;
@@ -1768,13 +1768,7 @@ namespace IntersectUtilities
 
                                 BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
 
-                                //Get br type and process it if it is dynamic
-                                //Write the type of augmentedType to the Left attribute
-                                string augmentedType = default;
-                                if (type.StartsWith("$"))
-                                    augmentedType = ComponentSchedule.ReadComponentType(br, dt);
-                                if (augmentedType != default) brSign.SetAttributeStringValue("LEFTSIZE", augmentedType);
-                                else brSign.SetAttributeStringValue("LEFTSIZE", type);
+                                brSign.SetAttributeStringValue("LEFTSIZE", type);
 
                                 //Manage writing of right attribute
                                 if ((new[] {
@@ -2378,7 +2372,7 @@ namespace IntersectUtilities
                                 @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
                             foreach (BlockReference br in brs)
                             {
-                                string type = ReadStringParameterFromDataTable(br.RealName(), fjvKomponenter, "Type", 0);
+                                string type = br.ReadDynamicCsvProperty(DynamicProperty.Type, dt);
                                 if (type == "Reduktion" || type == "Svejsning") continue;
 
                                 //Buerør need special treatment
@@ -2414,8 +2408,9 @@ namespace IntersectUtilities
                                 double Y = originY + (sampledMidtElevation - pvElBottom) *
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
                                 BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
-                                brSign.SetAttributeStringValue("LEFTSIZE",
-                                    ComponentSchedule.ReadComponentType(br, fjvKomponenter));
+
+                                //Write the left side text
+                                brSign.SetAttributeStringValue("LEFTSIZE", type);
 
                                 //Manage writing of right attribute
                                 if ((new[] {
@@ -2424,7 +2419,6 @@ namespace IntersectUtilities
                                     "Afgrening med spring",
                                     "Afgrening, parallel",
                                     "Svejsetee",
-
                                 }).Contains(type))
                                     brSign.SetAttributeStringValue("RIGHTSIZE",
                                         psmPipeLineData.ReadPropertyString(

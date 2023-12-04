@@ -427,7 +427,9 @@ namespace IntersectUtilities.UtilsCommon
             Vinkel,
             Serie,
             Version,
-            TBLNavn
+            TBLNavn,
+            M1,
+            M2,
         }
         public static Dictionary<string, PipelineElementType> PipelineElementTypeDict =
             new Dictionary<string, PipelineElementType>()
