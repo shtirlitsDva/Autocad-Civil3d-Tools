@@ -509,15 +509,11 @@ namespace IntersectUtilities
                     {
                         case PipeSystemEnum.Ukendt:
                             prdDbg($"Wrong type of pline supplied: {pline.Handle}");
-                            return;
-                        case PipeSystemEnum.Stål:
-                        case PipeSystemEnum.Kobberflex:
-                        case PipeSystemEnum.AluPex:
+                            throw new System.Exception("Supplied a new PipeSystemEnum! Add to code kthxbai.");
+                        default:
                             POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.Start));
                             POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.End));
                             break;
-                        default:
-                            throw new System.Exception("Supplied a new PipeSystemEnum! Add to code kthxbai.");
                     }
                     break;
                 case BlockReference br:

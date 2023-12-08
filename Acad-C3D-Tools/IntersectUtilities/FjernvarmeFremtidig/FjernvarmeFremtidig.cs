@@ -81,12 +81,11 @@ namespace IntersectUtilities
             string projectName = dro.ProjectName;
             string etapeName = dro.EtapeName;
 
-            prdDbg("Kører med antagelse, at alle flex rør (CU, ALUPEX) er stikledninger.");
+            //prdDbg("Kører med antagelse, at alle flex rør (CU, ALUPEX) er stikledninger.");
 
             // open the xref database
-            Database alDb = new Database(false, true);
-            alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
-                FileOpenMode.OpenForReadAndAllShare, false, null);
+            var dm = new DataManager.DataManager(dro);
+            Database alDb = dm.GetForRead("Alignments");
             Transaction alTx = alDb.TransactionManager.StartTransaction();
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -139,6 +138,8 @@ namespace IntersectUtilities
                                 Polyline pline = al.GetPolyline().Go<Polyline>(alTx);
                                 Point3d tP3d = pline.GetClosestPointTo(br.Position, false);
                                 alDistTuples.Add((br, tP3d.DistanceHorizontalTo(br.Position), al));
+                                pline.UpgradeOpen();
+                                pline.Erase();
                             }
                         }
                         catch (System.Exception)
@@ -153,11 +154,11 @@ namespace IntersectUtilities
                         {
                             //If the component cannot find an alignment
                             //Repeat with increasing threshold
-                            for (int i = 0; i < 1; i++)
+                            for (int i = 0; i < 3; i++)
                             {
                                 distThreshold += 0.15;
                                 if (result.Count() != 0) break;
-                                if (i == 3)
+                                if (i == 2)
                                 {
                                     //Red line means check result
                                     //This is caught if no result found at ALL
@@ -172,9 +173,9 @@ namespace IntersectUtilities
                                 //This is caught if a result was found after some iterations
                                 //So the result must be checked to see, if components
                                 //Not belonging to the alignment got selected
-                                //Magenta
+                                //Yellow
                                 Line line = new Line(new Point3d(), br.Position);
-                                line.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
+                                line.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
                                 line.AddEntityToDbModelSpace(localDb);
                             }
                         }
@@ -227,16 +228,16 @@ namespace IntersectUtilities
                                 //Is not aligned with one of the runs
                                 //Annotate with a line for checking
                                 //And must be manually annotated
-                                //Yellow
+                                //Magenta
                                 Line line = new Line(new Point3d(), first.block.Position);
-                                line.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
+                                line.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
                                 line.AddEntityToDbModelSpace(localDb);
                                 continue;
                             }
 
                             if (
                                 //br.RealName() == "AFGRSTUDS" ||
-                                br.RealName() == "SH LIGE")
+                                br.RealName() == "SH LIGE" || br.RealName() == "SH VINKLET")
                             {
                                 psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, branchAl.Name);
                                 psm.WritePropertyString(br, driPipelineData.BranchesOffToAlignment, mainAl.Name);
@@ -277,16 +278,18 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Connection pipes
+                    //Modifications to make work with new pipeline types
                     HashSet<Polyline> mainPipes = allPipes
-                        .Where(x => GetPipeSystem(x) == PipeSystemEnum.Stål)
+                        //.Where(x => GetPipeSystem(x) == PipeSystemEnum.Stål)
                         .ToHashSet();
-                    HashSet<Polyline> conPipes = allPipes
-                        .Where(x =>
-                            GetPipeSystem(x) == PipeSystemEnum.AluPex ||
-                            GetPipeSystem(x) == PipeSystemEnum.Kobberflex
-                            )
-                        .ToHashSet();
-                    prdDbg($"Conpipes: {conPipes.Count}");
+                    HashSet<Polyline> conPipes = new HashSet<Polyline>();
+                        //allPipes
+                        //.Where(x =>
+                        //    GetPipeSystem(x) == PipeSystemEnum.AluPex ||
+                        //    GetPipeSystem(x) == PipeSystemEnum.Kobberflex
+                        //    )
+                        //.ToHashSet();
+                    //prdDbg($"Conpipes: {conPipes.Count}");
                     #endregion
 
                     #region Curves
@@ -334,10 +337,10 @@ namespace IntersectUtilities
                         if (result.Count() == 0)
                         {
                             psm.WritePropertyString(curve, driPipelineData.BelongsToAlignment, "NA");
-                            //Yellow line means check result
+                            //Red line means check result
                             //This is caught if no result found at ALL
                             Line line = new Line(new Point3d(), curve.GetPointAtParameter(curve.EndParam / 2));
-                            line.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
+                            line.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
                             line.AddEntityToDbModelSpace(localDb);
                         }
                         else if (result.Count() == 1)
@@ -372,15 +375,6 @@ namespace IntersectUtilities
                                     Point3d oneFourthClosestPoint = detectedAl.GetClosestPointTo(oneFourthPoint, false);
                                     Point3d threeFourthClosestPoint = detectedAl.GetClosestPointTo(threeFourthPoint, false);
 
-                                    //DBPoint p1 = new DBPoint(oneFourthClosestPoint);
-                                    //if (i == 0) p1.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
-                                    //else p1.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
-                                    //p1.AddEntityToDbModelSpace(localDb);
-                                    //DBPoint p2 = new DBPoint(threeFourthClosestPoint);
-                                    //if (i == 0) p2.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
-                                    //else p2.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
-                                    //p2.AddEntityToDbModelSpace(localDb);
-
                                     if (oneFourthPoint.DistanceHorizontalTo(oneFourthClosestPoint) < distThreshold &&
                                         threeFourthPoint.DistanceHorizontalTo(threeFourthClosestPoint) < distThreshold)
                                         alDetected = true;
@@ -391,10 +385,10 @@ namespace IntersectUtilities
 
                             psm.WritePropertyString(curve, driPipelineData.BelongsToAlignment, detectedAl?.Name ?? "NA");
 
-                            //Red line means check result
+                            //Yellow line means check result
                             //This is caught if multiple results
                             Line line = new Line(new Point3d(), curve.GetPointAtParameter(curve.EndParam / 2));
-                            line.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                            line.Color = Color.FromColorIndex(ColorMethod.ByAci, 2);
                             line.AddEntityToDbModelSpace(localDb);
                         }
                     }
@@ -625,7 +619,7 @@ namespace IntersectUtilities
                     alTx.Dispose();
                     alDb.Dispose();
                     tx.Abort();
-                    editor.WriteMessage("\n" + ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 alTx.Abort();
@@ -635,7 +629,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("CHECKALIGNMENTSCONNECTIVITY")]
+        //[CommandMethod("CHECKALIGNMENTSCONNECTIVITY")]
         public void checkalignmentsconnectivity()
         {
             DocumentCollection docCol = Application.DocumentManager;

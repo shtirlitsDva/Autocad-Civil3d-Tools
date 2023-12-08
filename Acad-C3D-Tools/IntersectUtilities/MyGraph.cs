@@ -110,11 +110,7 @@ namespace IntersectUtilities
                     {
                         case PipeSystemEnum.Ukendt:
                             prdDbg($"Wrong type of pline supplied: {pline.Handle}");
-                            return;
-                        case PipeSystemEnum.Stål:
-                            POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.Start, PSM, DriGraph));
-                            POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.End, PSM, DriGraph));
-                            break;
+                            throw new System.Exception("Supplied a new PipeSystemEnum! Add to code kthxbai.");
                         case PipeSystemEnum.Kobberflex:
                         case PipeSystemEnum.AluPex:
                             #region STIK//Find forbindelse til forsyningsrøret
@@ -145,7 +141,10 @@ namespace IntersectUtilities
                             POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.StikEnd, PSM, DriGraph));
                             break;
                         default:
-                            throw new System.Exception("Supplied a new PipeSystemEnum! Add to code kthxbai.");
+                            POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.Start, PSM, DriGraph));
+                            POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.End, PSM, DriGraph));
+                            break;
+
                     }
                     break;
                 case BlockReference br:
