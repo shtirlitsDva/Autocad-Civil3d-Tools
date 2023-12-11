@@ -67,25 +67,7 @@ namespace IntersectUtilities
         /// <param name="curves">All pipline curves belonging to the current alignment.</param>
         public PipelineSizeArray(Alignment al, HashSet<Curve> curves, HashSet<BlockReference> brs = default)
         {
-            #region Read CSV
-            dynamicBlocks = default;
-            try
-            {
-                dynamicBlocks = CsvReader.ReadCsvToDataTable(
-                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-            }
-            catch (System.Exception ex)
-            {
-                prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                prdDbg(ex);
-                throw;
-            }
-            if (dynamicBlocks == default)
-            {
-                prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
-            }
-            #endregion
+            dynamicBlocks = CsvData.Get("fjvKomponenter");
 
             #region Create graph
             var entities = new HashSet<Entity>(curves);
