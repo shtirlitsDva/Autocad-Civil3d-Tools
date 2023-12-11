@@ -37,8 +37,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
     }
     public abstract class PipelineV2Base : IPipelineV2
     {
-        private EntityCollection ents;
-        private EntityCollection welds;
+        protected EntityCollection ents;
+        protected EntityCollection welds;
         public EntityCollection Entities { get => ents; }
         public EntityCollection Welds { get => welds; }
         public abstract string Name { get; }
@@ -111,7 +111,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         case PipelineSizesArrangement.LargeToSmallDescending:
                             break;
                         default:
-                            throw new Exception($"{sizes.Arrangement} should be handled elsewhere!");    
+                            throw new Exception($"{sizes.Arrangement} should be handled elsewhere!");
                     }
                 }
             }
@@ -176,9 +176,34 @@ namespace IntersectUtilities.PipelineNetworkSystem
         // !!!! that is it does not connect to other pipelines (which then must be an alignment pipeline) at the end
         // !!!! because if it wasn't an alignment pipeline, it would be grouped into this pipeline
         private Polyline topology;
-        public PipelineV2Na(IEnumerable<Entity> ents) : base(ents) 
-        { 
-            
+        public PipelineV2Na(IEnumerable<Entity> source) : base(source)
+        {
+            //Access ALL objects in database because we don't know our parent
+            //Filter out the objects of the pipeline in question
+            Database db = ents.FirstOrDefault()?.Database;
+            Transaction tx = db.TransactionManager.TopTransaction;
+            var query =
+                db.GetFjvEntities(tx, CsvData.Get("fjvKomponenter"), true, false)
+                .Where(x => ents.All(y => x.Handle != y.Handle));
+            EntityCollection allEnts = new EntityCollection(query);
+
+            // Now find the other element that is connected to this pipeline
+            var findConnection = allEnts.ExternalHandles.Where(x => ents.Any(y => y.Handle == x));
+
+            // Handle different cases, most optimal case is that there is only one connection
+            int conCount = findConnection.Count();
+            switch (conCount)
+            {
+                case int n when n < 1:
+                    throw new Exception($"Pipeline {Name} is not connected to all other pipelines!");
+                case 1:
+                    // Get the connected element
+                    var con = findConnection.First().Go<Entity>(db);
+
+                    break;
+                case int n when n > 1:
+                    throw new Exception($"Pipeline {Name} is connected to more than one other pipeline!");
+            }
         }
         public override string Name =>
             psh.Pipeline.ReadPropertyString(

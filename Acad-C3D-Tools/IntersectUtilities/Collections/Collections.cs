@@ -24,18 +24,22 @@ namespace IntersectUtilities.Collections
         public Entity this[int index] { get => _L[index]; set => _L[index] = value; }
         private static Regex conRgx = new Regex(@"(?<OwnEndType>\d):(?<ConEndType>\d):(?<Handle>\w*)");
         private List<Entity> _L = new List<Entity>();
-        public IEnumerable<Handle> ExternalHandles 
-        { 
-            get => _L.SelectMany(x => GetOtherHandles(ReadConnection(x))).Where(x => _L.All(y => y.Handle != x)).Distinct(); 
+        private Dictionary<Handle, HashSet<Handle>> _C = new Dictionary<Handle, HashSet<Handle>>();
+        public IEnumerable<Handle> ExternalHandles
+        {
+            get => _L.SelectMany(x => GetOtherHandles(ReadConnection(x))).Where(x => _L.All(y => y.Handle != x)).Distinct();
         }
         public EntityCollection() { }
         public EntityCollection(IEnumerable<Entity> ents)
         {
             _L.AddRange(ents);
+            foreach (var ent in ents)
+                _C.Add(ent.Handle, new HashSet<Handle>(GetOtherHandles(ReadConnection(ent))));
         }
         public void Add(Entity item)
         {
             _L.Add(item);
+            _C.Add(item.Handle, new HashSet<Handle>(GetOtherHandles(ReadConnection(item))));
         }
         #region Custom logic
         public IEnumerable<Polyline> GetPolylines() => _L.Where(x => x is Polyline).Cast<Polyline>();
@@ -43,7 +47,7 @@ namespace IntersectUtilities.Collections
         public bool IsConnectedTo(EntityCollection other)
         {
             if (this.Count == 0 || other.Count == 0) return false;
-            return this.ExternalHandles.Any(x => other.Any(y => x == y.Handle));
+            return this._C.SelectMany(x => x.Value).Any(x => other.Any(y => x == y.Handle));
         }
         private string ReadConnection(Entity ent) =>
             psh.Graph.ReadPropertyString(ent, psh.GraphDef.ConnectedEntities);
@@ -76,8 +80,8 @@ namespace IntersectUtilities.Collections
         // Implement other members of ICollection<T>
         public void Clear() => _L.Clear();
         public bool Contains(Entity item) => _L.Contains(item);
-        public void CopyTo(Entity[] array, int arrayIndex) => _L.CopyTo(array, arrayIndex);
-        public bool Remove(Entity item) => _L.Remove(item);
+        public void CopyTo(Entity[] array, int arrayIndex) => throw new NotImplementedException();
+        public bool Remove(Entity item) => _L.Remove(item) && _C.Remove(item.Handle);
         public int Count => _L.Count;
         public bool IsReadOnly => false;
         public IEnumerator<Entity> GetEnumerator() => _L.GetEnumerator();
