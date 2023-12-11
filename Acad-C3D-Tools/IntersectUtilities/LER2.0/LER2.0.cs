@@ -88,7 +88,7 @@ namespace IntersectUtilities
 
                             //Handle the layer name
                             string currentLayerName = pl.Layer;
-                            if (currentLayerName.Contains("-3D"))
+                            if (currentLayerName.EndsWith("-3D"))
                             {
                                 string newLayerName = currentLayerName.Replace("-3D", "-2D");
                                 localDb.CheckOrCreateLayer(newLayerName);
@@ -102,10 +102,25 @@ namespace IntersectUtilities
                         {
                             //Handle the layer name
                             string currentLayerName = pl.Layer;
-                            if (!currentLayerName.Contains("-3D"))
+                            if (!currentLayerName.EndsWith("-3D"))
                             {
-                                string newLayerName = currentLayerName + "-3D";
-                                localDb.CheckOrCreateLayer(newLayerName);
+                                string newLayerName;
+                                if (currentLayerName.EndsWith("-2D"))
+                                {
+                                    newLayerName = currentLayerName.Replace("-2D", "-3D");
+                                    localDb.CheckOrCreateLayer(newLayerName);
+
+                                    pl.CheckOrOpenForWrite();
+                                    pl.Layer = newLayerName;
+                                }
+                                else
+                                {
+                                    newLayerName = currentLayerName + "-3D";
+                                    localDb.CheckOrCreateLayer(newLayerName);
+
+                                    pl.CheckOrOpenForWrite();
+                                    pl.Layer = newLayerName;
+                                }
 
                                 pl.CheckOrOpenForWrite();
                                 pl.Layer = newLayerName;
@@ -1455,8 +1470,6 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
-        
 
         private class Polyline3dHandleComparer : IEqualityComparer<Polyline3d>
         {
