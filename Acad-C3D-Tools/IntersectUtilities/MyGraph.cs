@@ -602,14 +602,15 @@ namespace IntersectUtilities
                         case Polyline pline:
                             int dn = GetPipeDN(pline);
                             string system = GetPipeType(pline).ToString();
-                            sb.AppendLine($"[label=\"{{{handle}|Rør L{pline.Length.ToString("0.##")}}}|{system}\\n{dn}\"];");
+                            var psys = GetPipeSystem(pline).ToString();
+                            sb.AppendLine($"[label=\"{{{handle}|Rør L{pline.Length.ToString("0.##")}}}|{psys} {system}\\n{dn}\"];");
                             break;
                         case BlockReference br:
                             string dn1 = ReadComponentDN1Str(br, Table);
                             string dn2 = ReadComponentDN2Str(br, Table);
                             string dnStr = dn2 == "0" ? dn1 : dn1 + "/" + dn2;
                             system = ComponentSchedule.ReadComponentSystem(br, Table);
-                            string type = ComponentSchedule.ReadComponentType(br, Table);
+                            string type = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.Type, Table);
                             string color = "";
                             if (type == "Reduktion") color = "color=\"red\"";
                             sb.AppendLine($"[label=\"{{{handle}|{type}}}|{system}\\n{dnStr}\"{color}];");
