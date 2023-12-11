@@ -95,6 +95,13 @@ namespace IntersectUtilities
 
                                 pl.CheckOrOpenForWrite();
                                 pl.Layer = newLayerName;
+                            }else if (!currentLayerName.EndsWith("-2D"))
+                            {
+                                string newLayerName = currentLayerName + "-2D";
+                                localDb.CheckOrCreateLayer(newLayerName);
+
+                                pl.CheckOrOpenForWrite();
+                                pl.Layer = newLayerName;
                             }
                         }
 
