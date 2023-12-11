@@ -68,7 +68,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
             this.al = al;
         }
         public override string Name => al.Name;
-
         public override void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children)
         {
             var refPline = al.GetPolyline().Go<Polyline>(
@@ -137,7 +136,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
             refPline.UpgradeOpen();
             refPline.Erase(true);
         }
-
         private bool PointIsOn(Alignment al, Point3d point, double tol)
         {
             Polyline pline = al.GetPolyline().Go<Polyline>(
@@ -154,7 +152,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
             // Otherwise, the point is not on the alignment
             return false;
         }
-
         public override bool IsConnectedTo(IPipelineV2 other, double tol)
         {
             switch (other)
@@ -167,25 +164,22 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     throw new Exception($"Unknown pipeline type {other.GetType()}!");
             }
         }
-
-        public override double GetPolylineStartStation(Polyline pl)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override double GetPolylineEndStation(Polyline pl)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override double GetBlockStation(BlockReference br)
-        {
-            throw new NotImplementedException();
-        }
+        public override double GetPolylineStartStation(Polyline pl) => al.StationAtPoint(pl.StartPoint);
+        public override double GetPolylineEndStation(Polyline pl) => al.StationAtPoint(pl.EndPoint);
+        public override double GetBlockStation(BlockReference br) => al.StationAtPoint(br.Position);
     }
     public class PipelineV2Na : PipelineV2Base
     {
-        public PipelineV2Na(IEnumerable<Entity> ents) : base(ents) { }
+        // This is a pipeline that does not belong to any alignment
+        // All connected elements are grouped into this pipeline
+        // !!!! it is assumed that this pipeline only connects to other pipelines at the start
+        // !!!! that is it does not connect to other pipelines (which then must be an alignment pipeline) at the end
+        // !!!! because if it wasn't an alignment pipeline, it would be grouped into this pipeline
+        private Polyline topology;
+        public PipelineV2Na(IEnumerable<Entity> ents) : base(ents) 
+        { 
+            
+        }
         public override string Name =>
             psh.Pipeline.ReadPropertyString(
                 this.Entities.First(), psh.PipelineDef.BelongsToAlignment);
