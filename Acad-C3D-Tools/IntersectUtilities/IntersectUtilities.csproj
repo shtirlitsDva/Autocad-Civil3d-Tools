@@ -334,6 +334,7 @@
     <Compile Include="Pipeline.cs" />
     <Compile Include="PipelineNetworkSystem\PipelineNetwork.cs" />
     <Compile Include="PipelineNetworkSystem\PipelineNetworkCommands.cs" />
+    <Compile Include="PipelineNetworkSystem\PipelineSizeArrayV2.cs" />
     <Compile Include="PipelineNetworkSystem\PipelineV2.cs" />
     <Compile Include="PipelineSizeArray.cs" />
     <Compile Include="PipeSchedule.cs" />

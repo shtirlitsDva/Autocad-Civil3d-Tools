@@ -29,6 +29,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
         EntityCollection Entities { get; }
         EntityCollection Welds { get; }
         int GetMaxDN();
+        double GetPolylineStartStation(Polyline pl);
+        double GetPolylineEndStation(Polyline pl);
+        double GetBlockStation(BlockReference br);
         bool IsConnectedTo(IPipelineV2 other, double tol);
         void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children);
     }
@@ -53,6 +56,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public int GetMaxDN() => ents.GetMaxDN();
         public abstract bool IsConnectedTo(IPipelineV2 other, double tol);
         public abstract void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children);
+        public abstract double GetPolylineStartStation(Polyline pl);
+        public abstract double GetPolylineEndStation(Polyline pl);
+        public abstract double GetBlockStation(BlockReference br);
     }
     public class PipelineV2Alignment : PipelineV2Base
     {
@@ -67,17 +73,14 @@ namespace IntersectUtilities.PipelineNetworkSystem
         {
             var refPline = al.GetPolyline().Go<Polyline>(
                 al.Database.TransactionManager.TopTransaction);
-            var plines = Entities.GetPolylines().Cast<Polyline>();
+            var plines = Entities.GetPolylines();
 
-            // Determine the direction of the alignment
-            PipelineSizeArray sizes = new PipelineSizeArray(al,
-                Entities.GetPolylines().Cast<Curve>().ToHashSet(),
-                Entities.GetBlockReferences().Cast<BlockReference>().ToHashSet());
+            IPipelineSizeArrayV2 sizes = PipelineSizeArrayFactory.CreateSizeArray(this);
 
             if (parent == null)
             {
                 // if parent is null, which means this is an entry pipeline
-                if (sizes.Arrangement == PipelineSizeArray.PipelineSizesArrangement.OneSize)
+                if (sizes.Arrangement == PipelineSizesArrangement.OneSize)
                 {
                     //This is a hard one, because we cannot determine the direction of the pipeline
                     //Right now we will just assume direction following the alignment stations
@@ -97,16 +100,16 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         }
                     }
                 }
-                else if (sizes.Arrangement == PipelineSizeArray.PipelineSizesArrangement.MiddleDescendingToEnds)
+                else if (sizes.Arrangement == PipelineSizesArrangement.MiddleDescendingToEnds)
                     throw new Exception("MiddleDescendingToEnds for a root pipeline is not supported!");
                 else
                 {
                     switch (sizes.Arrangement)
                     {
-                        case PipelineSizeArray.PipelineSizesArrangement.SmallToLargeAscending:
+                        case PipelineSizesArrangement.SmallToLargeAscending:
 
                             break;
-                        case PipelineSizeArray.PipelineSizesArrangement.LargeToSmallDescending:
+                        case PipelineSizesArrangement.LargeToSmallDescending:
                             break;
                         default:
                             throw new Exception($"{sizes.Arrangement} should be handled elsewhere!");    
@@ -120,7 +123,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         $"Parent {parent.Name} is not an alignment pipeline, but is {parent.GetType().Name}!\n" +
                         $"This is not supported.");
 
-                if (sizes.Arrangement == PipelineSizeArray.PipelineSizesArrangement.MiddleDescendingToEnds)
+                if (sizes.Arrangement == PipelineSizesArrangement.MiddleDescendingToEnds)
                 {
 
                 }
@@ -164,6 +167,21 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     throw new Exception($"Unknown pipeline type {other.GetType()}!");
             }
         }
+
+        public override double GetPolylineStartStation(Polyline pl)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override double GetPolylineEndStation(Polyline pl)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override double GetBlockStation(BlockReference br)
+        {
+            throw new NotImplementedException();
+        }
     }
     public class PipelineV2Na : PipelineV2Base
     {
@@ -173,6 +191,21 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 this.Entities.First(), psh.PipelineDef.BelongsToAlignment);
 
         public override void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override double GetBlockStation(BlockReference br)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override double GetPolylineEndStation(Polyline pl)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override double GetPolylineStartStation(Polyline pl)
         {
             throw new NotImplementedException();
         }

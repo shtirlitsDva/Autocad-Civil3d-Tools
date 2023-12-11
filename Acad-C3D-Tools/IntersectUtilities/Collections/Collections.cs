@@ -6,9 +6,9 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 using Autodesk.AutoCAD.DatabaseServices;
-using Autodesk.Civil.DatabaseServices;
 
 using IntersectUtilities.UtilsCommon;
+using IntersectUtilities.PipelineNetworkSystem;
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
@@ -18,7 +18,7 @@ using psh = IntersectUtilities.PropertySetPipelineGraphHelper;
 
 namespace IntersectUtilities.Collections
 {
-    #region Collections
+    #region EntityCollection
     public class EntityCollection : ICollection<Entity>
     {
         public Entity this[int index] { get => _L[index]; set => _L[index] = value; }
@@ -38,8 +38,8 @@ namespace IntersectUtilities.Collections
             _L.Add(item);
         }
         #region Custom logic
-        public IEnumerable<Entity> GetPolylines() => _L.Where(x => x is Polyline);
-        public IEnumerable<Entity> GetBlockReferences() => _L.Where(x => x is BlockReference);
+        public IEnumerable<Polyline> GetPolylines() => _L.Where(x => x is Polyline).Cast<Polyline>();
+        public IEnumerable<BlockReference> GetBlockReferences() => _L.Where(x => x is BlockReference).Cast<BlockReference>();
         public bool IsConnectedTo(EntityCollection other)
         {
             if (this.Count == 0 || other.Count == 0) return false;
@@ -83,7 +83,6 @@ namespace IntersectUtilities.Collections
         public IEnumerator<Entity> GetEnumerator() => _L.GetEnumerator();
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
-    #endregion
 
     #region Extensions
     public static class EntityCollectionExtensions
@@ -98,6 +97,34 @@ namespace IntersectUtilities.Collections
                 if (predicate(ent)) trueEnts.Add(ent);
                 else falseEnts.Add(ent);
         }
+    }
+    #endregion
+
+    #endregion
+
+    #region SizeEntryCollection
+    // implement SizeEntryCollection that implements ICollection<SizeEntryV2>
+    public class SizeEntryCollection : ICollection<SizeEntryV2>
+    {
+        private List<SizeEntryV2> _L = new List<SizeEntryV2>();
+        public SizeEntryV2 this[int index] { get => _L[index]; set => _L[index] = value; }
+        public SizeEntryCollection() { }
+        public SizeEntryCollection(IEnumerable<SizeEntryV2> sizes)
+        {
+            _L.AddRange(sizes);
+        }
+        public void Add(SizeEntryV2 item)
+        {
+            _L.Add(item);
+        }
+        public int Count => _L.Count;
+        public bool IsReadOnly => false;
+        public void Clear() => _L.Clear();
+        public bool Contains(SizeEntryV2 item) => _L.Contains(item);
+        public void CopyTo(SizeEntryV2[] array, int arrayIndex) => _L.CopyTo(array, arrayIndex);
+        public bool Remove(SizeEntryV2 item) => _L.Remove(item);
+        public IEnumerator<SizeEntryV2> GetEnumerator() => _L.GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
     #endregion
 }
