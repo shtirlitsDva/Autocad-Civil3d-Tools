@@ -67,20 +67,6 @@ namespace IntersectUtilities.UtilsCommon
     }
     public static class Utils
     {
-        private static System.Data.DataTable fjvBlocksDt = null;
-        public static System.Data.DataTable GetFjvBlocksDt()
-        {
-            if (fjvBlocksDt == null)
-            {
-                if (!File.Exists(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv"))
-                    throw new System.Exception(
-                        "FJV Dynamiske Komponenter.csv is not available at standard location!");
-
-                fjvBlocksDt = CsvReader.ReadCsvToDataTable(
-                    @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-            }
-            return fjvBlocksDt;
-        }
         public static bool atZero(this double value) => value > -0.0001 && value < 0.0001;
         public static bool at99(this double value) => value < -98.0;
         public static bool is3D(this double value) => !atZero(value) && !at99(value);
@@ -1658,7 +1644,7 @@ namespace IntersectUtilities.UtilsCommon
         }
         public static bool CheckIfBlockIsLatestVersion(this BlockReference br)
         {
-            System.Data.DataTable dt = GetFjvBlocksDt();
+            System.Data.DataTable dt = CsvData.Get("fjvKomponenter");
             Database Db = br.Database;
             if (Db.TransactionManager.TopTransaction == null)
                 throw new System.Exception("CheckIfBlockLatestVersion called outside transaction!");

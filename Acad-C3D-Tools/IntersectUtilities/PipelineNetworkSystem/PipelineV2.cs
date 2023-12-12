@@ -26,6 +26,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
     {
         string Name { get; }
         string Label { get; }
+        double EndStation { get; }
         EntityCollection Entities { get; }
         EntityCollection Welds { get; }
         int GetMaxDN();
@@ -39,6 +40,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         List<HashSet<Entity>> GetEntsToEachSideOf(Entity ent);
         bool IsConnectedTo(IPipelineV2 other, double tol);
         void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children);
+        IEnumerable<Entity> GetEntitiesWithinStations(double start, double end);
     }
     public abstract class PipelineV2Base : IPipelineV2
     {
@@ -48,6 +50,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public EntityCollection Welds { get => welds; }
         public abstract string Name { get; }
         public virtual string Label { get => $"\"{Name}\""; }
+        public abstract double EndStation { get; }
         public PipelineV2Base(IEnumerable<Entity> source)
         {
             source.Partition(IsNotWeld, out this.ents, out this.welds);
@@ -68,6 +71,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         {
             return Entities.GetConnectedEntitiesDelimited(ent);
         }
+        public abstract IEnumerable<Entity> GetEntitiesWithinStations(double start, double end);
     }
     public class PipelineV2Alignment : PipelineV2Base
     {
@@ -77,6 +81,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             this.al = al;
         }
         public override string Name => al.Name;
+        public override double EndStation => al.EndingStation;
         public override void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children)
         {
             var refPline = al.GetPolyline().Go<Polyline>(
@@ -176,6 +181,27 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public override double GetPolylineStartStation(Polyline pl) => al.StationAtPoint(pl.StartPoint);
         public override double GetPolylineEndStation(Polyline pl) => al.StationAtPoint(pl.EndPoint);
         public override double GetBlockStation(BlockReference br) => al.StationAtPoint(br.Position);
+        public override IEnumerable<Entity> GetEntitiesWithinStations(double start, double end)
+        {
+            foreach (var ent in this.ents)
+            {
+                switch (ent)
+                {
+                    case Polyline pl:
+                        {
+                            double st = al.StationAtPoint(pl.GetPointAtDist(pl.Length / 2));
+                            if (st >= start && st <= end) yield return ent;
+                        }
+                        break;
+                    case BlockReference br:
+                        {
+                            double st = al.StationAtPoint(br.Position);
+                            if (st >= start && st <= end) yield return ent; 
+                        }
+                        break;
+                }
+            }
+        }
     }
     public class PipelineV2Na : PipelineV2Base
     {
@@ -219,6 +245,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public override string Name =>
             psh.Pipeline.ReadPropertyString(
                 this.Entities.First(), psh.PipelineDef.BelongsToAlignment);
+        public override double EndStation => topology.Length;
         public override void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children)
         {
             throw new NotImplementedException();
@@ -237,6 +264,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         public override bool IsConnectedTo(IPipelineV2 other, double tol) =>
             this.Entities.IsConnectedTo(other.Entities);
+        public override IEnumerable<Entity> GetEntitiesWithinStations(double start, double end)
+        {
+            throw new NotImplementedException();
+        }
     }
     public static class PipelineV2Factory
     {

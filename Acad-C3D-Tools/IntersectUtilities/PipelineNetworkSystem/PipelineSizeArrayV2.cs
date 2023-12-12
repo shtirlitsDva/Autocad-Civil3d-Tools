@@ -11,6 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using IntersectUtilities.UtilsCommon;
+using QuikGraph.Serialization;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -64,13 +65,80 @@ namespace IntersectUtilities.PipelineNetworkSystem
             var orderedSizeBrs = sizeBrs.OrderBy(x => pipeline.GetBlockStation(x)).ToArray();
 
             // The direction is assumed to be from start to and of alignment (or NA)
+            // Use a new method using stations to gather blocks
+            // Build an array to represent the topology of the pipeline
+
+            List<(string type, double station, BlockReference br)> topology =
+                new List<(string type, double station, BlockReference br)>();
+
             for (int i = 0; i < orderedSizeBrs.Length; i++)
             {
                 var br = orderedSizeBrs[i];
 
-                if (i == 0) sizes.Add(
-                    GetDirectedSizeEntry(br, pipeline, Side.Left)
-                    );
+                topology.Add(
+                    (br.ReadDynamicCsvProperty(
+                        DynamicProperty.Type, CsvData.Get("fjvKomponenter"), false),
+                        pipeline.GetBlockStation(br), br));
+            }
+
+            #region Squash reducers with same size
+            // Handle a very specific case where there are enkelt pipes
+            // and reducers of both frem and retur are present.
+            // One of the reducers needs to be removed.
+            // It is ASSUMED that they are placed close to each other.
+            // Now iterate over the topology comparing i and i+1
+            // if they are both reducers and the same size, remove the first one
+            for (int i = topology.Count - 2; i >= 0; i--)
+            {
+                var f = topology[i];
+                var s = topology[i + 1];
+
+                if (f.type == "Reducer" && s.type == "Reducer")
+                {
+                    int fDn1 = Convert.ToInt32(f.br.ReadDynamicCsvProperty(
+                        DynamicProperty.DN1, CsvData.Get("fjvKomponenter")));
+                    int fDn2 = Convert.ToInt32(f.br.ReadDynamicCsvProperty(
+                        DynamicProperty.DN2, CsvData.Get("fjvKomponenter")));
+                    int sDn1 = Convert.ToInt32(s.br.ReadDynamicCsvProperty(
+                        DynamicProperty.DN1, CsvData.Get("fjvKomponenter")));
+                    int sDn2 = Convert.ToInt32(s.br.ReadDynamicCsvProperty(
+                        DynamicProperty.DN2, CsvData.Get("fjvKomponenter")));
+
+                    if (fDn1 == sDn1 && fDn2 == sDn2) topology.RemoveAt(i);
+                }
+            }
+            #endregion
+
+            #region Remove MATSKIFT at start and end
+            if (topology[0].type == "Materialeskift {#M1}{#DN1}x{#M2}{#DN2}")
+            {
+                double station = topology[0].station;
+                if (station < 0.1) topology.RemoveAt(0);
+            }
+            if (topology[topology.Count - 1].type == "Materialeskift {#M1}{#DN1}x{#M2}{#DN2}")
+            {
+                double station = topology[topology.Count - 1].station;
+                if (Math.Abs(pipeline.EndStation - station) < 0.1) topology.RemoveAt(topology.Count - 1);
+            }
+            #endregion
+
+            //Build the sizes array
+            for (int i = 0; i < topology.Count; i++)
+            {
+                var current = topology[i];
+
+                double start = 0;
+                double end = 0;
+                var query = pipeline.GetEntitiesWithinStations(start, end)
+                        .Where(x => sizeBrs.All(y => x.Id != y.Id));
+
+                if (i == 0) //Handle the first iteration
+                {
+                    start = 0.0; end = current.station;
+                    
+
+
+                }
             }
         }
         private SizeEntryV2 GetDirectedSizeEntry(BlockReference br, IPipelineV2 pipeline, Side side)
@@ -102,7 +170,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             {
                 if (ce.Count == 3)
                 {
-                    var query1 = ce.Where(x => x.Any(y => 
+                    var query1 = ce.Where(x => x.Any(y =>
                     CommonScheduleExtensions.GetEntityPipeType(y, true) == PipeTypeEnum.Enkelt));
                     foreach (var item in query1) one.UnionWith(item);
 
