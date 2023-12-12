@@ -82,31 +82,34 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
 
             #region Squash reducers with same size
-            // Handle a very specific case where there are enkelt pipes
-            // and reducers of both frem and retur are present.
-            // One of the reducers needs to be removed.
-            // It is ASSUMED that they are placed close to each other.
-            // Now iterate over the topology comparing i and i+1
-            // if they are both reducers and the same size, remove the first one
-            for (int i = topology.Count - 2; i >= 0; i--)
-            {
-                var f = topology[i];
-                var s = topology[i + 1];
+            //!!!!THIS WON'T WORK IF THIS IS REDUCERS ON BOTH SIDES OF A TEE!!!!
+            //The sizes need to be squashed after the final topology is built
 
-                if (f.type == "Reducer" && s.type == "Reducer")
-                {
-                    int fDn1 = Convert.ToInt32(f.br.ReadDynamicCsvProperty(
-                        DynamicProperty.DN1, CsvData.Get("fjvKomponenter")));
-                    int fDn2 = Convert.ToInt32(f.br.ReadDynamicCsvProperty(
-                        DynamicProperty.DN2, CsvData.Get("fjvKomponenter")));
-                    int sDn1 = Convert.ToInt32(s.br.ReadDynamicCsvProperty(
-                        DynamicProperty.DN1, CsvData.Get("fjvKomponenter")));
-                    int sDn2 = Convert.ToInt32(s.br.ReadDynamicCsvProperty(
-                        DynamicProperty.DN2, CsvData.Get("fjvKomponenter")));
+            //// Handle a very specific case where there are enkelt pipes
+            //// and reducers of both frem and retur are present.
+            //// One of the reducers needs to be removed.
+            //// It is ASSUMED that they are placed close to each other.
+            //// Now iterate over the topology comparing i and i+1
+            //// if they are both reducers and the same size, remove the first one
+            //for (int i = topology.Count - 2; i >= 0; i--)
+            //{
+            //    var f = topology[i];
+            //    var s = topology[i + 1];
 
-                    if (fDn1 == sDn1 && fDn2 == sDn2) topology.RemoveAt(i);
-                }
-            }
+            //    if (f.type == "Reducer" && s.type == "Reducer")
+            //    {
+            //        int fDn1 = Convert.ToInt32(f.br.ReadDynamicCsvProperty(
+            //            DynamicProperty.DN1, CsvData.Get("fjvKomponenter")));
+            //        int fDn2 = Convert.ToInt32(f.br.ReadDynamicCsvProperty(
+            //            DynamicProperty.DN2, CsvData.Get("fjvKomponenter")));
+            //        int sDn1 = Convert.ToInt32(s.br.ReadDynamicCsvProperty(
+            //            DynamicProperty.DN1, CsvData.Get("fjvKomponenter")));
+            //        int sDn2 = Convert.ToInt32(s.br.ReadDynamicCsvProperty(
+            //            DynamicProperty.DN2, CsvData.Get("fjvKomponenter")));
+
+            //        if (fDn1 == sDn1 && fDn2 == sDn2) topology.RemoveAt(i);
+            //    }
+            //}
             #endregion
 
             #region Remove MATSKIFT at start and end
@@ -127,19 +130,51 @@ namespace IntersectUtilities.PipelineNetworkSystem
             {
                 var current = topology[i];
 
+                //Deferred execution here
                 double start = 0;
                 double end = 0;
                 var query = pipeline.GetEntitiesWithinStations(start, end)
-                        .Where(x => sizeBrs.All(y => x.Id != y.Id));
+                        .Where(x => sizeBrs.All(y => x.Id != y.Id)); //<- removing SizeArray blocks from query
 
                 if (i == 0) //Handle the first iteration
                 {
                     start = 0.0; end = current.station;
-                    
 
+
+
+                    var size = new SizeEntry();
 
                 }
             }
+        }
+        private bool TryGetDN(IEnumerable<Entity> ents, out int dn)
+        {
+            dn = 0;
+
+            foreach (var item in ents)
+            {
+                switch (item)
+                {
+                    case Polyline pline:
+                        dn = GetPipeDN(pline);
+                        break;
+                    case BlockReference br:
+                        string type = br.ReadDynamicCsvProperty(
+                            DynamicProperty.Type, CsvData.Get("fjvKomponenter"), false);
+                        if (type == "Afgreningsstuds" ||
+                            type == "Svanehals")
+                        {
+                            dn = Convert.ToInt32(br.ReadDynamicCsvProperty(
+                                DynamicProperty.DN2, CsvData.Get("fjvKomponenter"), true));
+                        }
+                        else dn = Convert.ToInt32(br.ReadDynamicCsvProperty(
+                            DynamicProperty.DN1, CsvData.Get("fjvKomponenter"), true));
+                        break;
+                }
+
+                if (dn != 0) return true;
+            }
+            return false;
         }
         private SizeEntryV2 GetDirectedSizeEntry(BlockReference br, IPipelineV2 pipeline, Side side)
         {
@@ -147,7 +182,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             throw new NotImplementedException();
         }
         /// <summary>
-        /// Assuming br is a SizeArray block.
+        /// Assuming br is a SizeArray block. Currently NOT USED.
         /// </summary>
         private (HashSet<Entity> One, HashSet<Entity> Two) GatherConnectedEntities(
             BlockReference br, IPipelineV2 pipeline)

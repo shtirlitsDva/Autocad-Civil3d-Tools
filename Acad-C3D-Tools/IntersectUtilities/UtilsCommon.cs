@@ -417,6 +417,7 @@ namespace IntersectUtilities.UtilsCommon
             M1,
             M2,
             Function,
+            SysNavn,
         }
         public static Dictionary<string, PipelineElementType> PipelineElementTypeDict =
             new Dictionary<string, PipelineElementType>()
