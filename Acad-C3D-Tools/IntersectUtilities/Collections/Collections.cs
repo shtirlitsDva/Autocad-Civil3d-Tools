@@ -76,6 +76,85 @@ namespace IntersectUtilities.Collections
                 }
             });
         }
+        public bool HasSizeArrayBrs()
+        {
+            if (this.Count == 0) return false;
+            return this.Any(x =>
+            {
+                switch (x)
+                {
+                    case Polyline _:
+                        return false;
+                    case BlockReference br:
+                        return br.ReadDynamicCsvProperty(
+                            DynamicProperty.Function, CsvData.Get("fjvKomponenter")) == "SizeArray";
+                    default:
+                        return false;
+                }
+            });
+        }
+        /// <summary>
+        /// Assuming ent is a SizeArray block.
+        /// That is reducer, X-model or materialeskift.
+        /// </summary>
+        public List<HashSet<Entity>> GetConnectedEntitiesDelimited(Entity ent)
+        {
+            List<HashSet<Entity>> res = new List<HashSet<Entity>>();
+
+            if (this.Count == 0)
+            { 
+                prdDbg($"EntityCollection for Entity {ent.Handle} is empty!");
+                return res; 
+            }
+
+            Database db = ent.Database;
+
+            var otherHandles = GetOtherHandles(ReadConnection(ent)).ToArray();
+
+            #region Validity check
+            if (otherHandles.Length == 0)
+            {
+                prdDbg($"Entity {ent.Handle} does not have any entities connected!");
+                return res;
+            }
+            if (otherHandles.Length > 3)
+            {
+                prdDbg($"Entity {ent.Handle} has more than 3 entities connected!");
+                return res;
+            } 
+            #endregion
+
+            for (int i = 0; i < otherHandles.Length; i++)
+            {
+                HashSet<Entity> col = new HashSet<Entity>();
+                Stack<Entity> stack = new Stack<Entity>();
+                stack.Push(otherHandles[i].Go<Entity>(db));
+
+                while (stack.Count > 0)
+                {
+                    var item = stack.Pop();
+                    
+                    if (item is BlockReference br)
+                        if (br.ReadDynamicCsvProperty(
+                            DynamicProperty.Function, CsvData.Get("fjvKomponenter")) == "SizeArray")
+                            continue;
+
+                    col.Add(item);
+
+                    var otherHandlesCur = GetOtherHandles(ReadConnection(item));
+                    foreach (var handle in otherHandlesCur)
+                    {
+                        if (col.Any(x => x.Handle == handle)) continue;
+                        var curEnt = handle.Go<Entity>(db);
+                        stack.Push(curEnt);
+                    }
+                }
+
+                res.Add(col);
+            }
+
+            return res;
+        }
         #endregion
         // Implement other members of ICollection<T>
         public void Clear() => _L.Clear();

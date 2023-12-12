@@ -1448,7 +1448,28 @@ namespace IntersectUtilities
             CurvedPipe
         }
     }
+    public static class CommonScheduleExtensions
+    {
+        public static PipeTypeEnum GetEntityPipeType(this Entity ent, bool frToEnkelt = false)
+        {
+            PipeTypeEnum pipeTypeEnum = PipeTypeEnum.Ukendt;
+            switch (ent)
+            {
+                case Polyline pline:
+                    pipeTypeEnum = GetEntityPipeType(pline);
+                    break;
+                case BlockReference br:
+                    string system = br.ReadDynamicCsvProperty(
+                        DynamicProperty.System, CsvData.Get("fjvKomponenter"));
+                    if (!Enum.TryParse(system, out pipeTypeEnum)) return PipeTypeEnum.Ukendt;
+                    break;
+            }
 
+            if (frToEnkelt && (pipeTypeEnum == PipeTypeEnum.Frem || pipeTypeEnum == PipeTypeEnum.Retur))
+                pipeTypeEnum = PipeTypeEnum.Enkelt;
+            return pipeTypeEnum;
+        }
+    }
     public class StationPoint
     {
         public CogoPoint CogoPoint { get; }

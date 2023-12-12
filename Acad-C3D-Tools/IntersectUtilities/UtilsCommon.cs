@@ -430,6 +430,7 @@ namespace IntersectUtilities.UtilsCommon
             TBLNavn,
             M1,
             M2,
+            Function,
         }
         public static Dictionary<string, PipelineElementType> PipelineElementTypeDict =
             new Dictionary<string, PipelineElementType>()

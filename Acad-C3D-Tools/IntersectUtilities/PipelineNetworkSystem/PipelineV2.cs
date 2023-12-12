@@ -32,6 +32,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
         double GetPolylineStartStation(Polyline pl);
         double GetPolylineEndStation(Polyline pl);
         double GetBlockStation(BlockReference br);
+        /// <summary>
+        /// The collection of entities is limited by SizeArray Function blocks.
+        /// That is collection stops at the first SizeArray Function block ecountered.
+        /// </summary>
+        List<HashSet<Entity>> GetEntsToEachSideOf(Entity ent);
         bool IsConnectedTo(IPipelineV2 other, double tol);
         void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children);
     }
@@ -59,6 +64,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public abstract double GetPolylineStartStation(Polyline pl);
         public abstract double GetPolylineEndStation(Polyline pl);
         public abstract double GetBlockStation(BlockReference br);
+        public List<HashSet<Entity>> GetEntsToEachSideOf(Entity ent)
+        {
+            return Entities.GetConnectedEntitiesDelimited(ent);
+        }
     }
     public class PipelineV2Alignment : PipelineV2Base
     {
@@ -178,57 +187,54 @@ namespace IntersectUtilities.PipelineNetworkSystem
         private Polyline topology;
         public PipelineV2Na(IEnumerable<Entity> source) : base(source)
         {
-            //Access ALL objects in database because we don't know our parent
-            //Filter out the objects of the pipeline in question
-            Database db = ents.FirstOrDefault()?.Database;
-            Transaction tx = db.TransactionManager.TopTransaction;
-            var query =
-                db.GetFjvEntities(tx, CsvData.Get("fjvKomponenter"), true, false)
-                .Where(x => ents.All(y => x.Handle != y.Handle));
-            EntityCollection allEnts = new EntityCollection(query);
+            #region Preparation to have stations for NA pipelines
+            ////Access ALL objects in database because we don't know our parent
+            ////Filter out the objects of the pipeline in question
+            //Database db = ents.FirstOrDefault()?.Database;
+            //Transaction tx = db.TransactionManager.TopTransaction;
+            //var query =
+            //    db.GetFjvEntities(tx, CsvData.Get("fjvKomponenter"), true, false)
+            //    .Where(x => ents.All(y => x.Handle != y.Handle));
+            //EntityCollection allEnts = new EntityCollection(query);
 
-            // Now find the other element that is connected to this pipeline
-            var findConnection = allEnts.ExternalHandles.Where(x => ents.Any(y => y.Handle == x));
+            //// Now find the other element that is connected to this pipeline
+            //var findConnection = allEnts.ExternalHandles.Where(x => ents.Any(y => y.Handle == x));
 
-            // Handle different cases, most optimal case is that there is only one connection
-            int conCount = findConnection.Count();
-            switch (conCount)
-            {
-                case int n when n < 1:
-                    throw new Exception($"Pipeline {Name} is not connected to all other pipelines!");
-                case 1:
-                    // Get the connected element
-                    var con = findConnection.First().Go<Entity>(db);
+            //// Handle different cases, most optimal case is that there is only one connection
+            //int conCount = findConnection.Count();
+            //switch (conCount)
+            //{
+            //    case int n when n < 1:
+            //        throw new Exception($"Pipeline {Name} is not connected to all other pipelines!");
+            //    case 1:
+            //        // Get the connected element
+            //        var con = findConnection.First().Go<Entity>(db);
 
-                    break;
-                case int n when n > 1:
-                    throw new Exception($"Pipeline {Name} is connected to more than one other pipeline!");
-            }
+            //        break;
+            //    case int n when n > 1:
+            //        throw new Exception($"Pipeline {Name} is connected to more than one other pipeline!");
+            //} 
+            #endregion
         }
         public override string Name =>
             psh.Pipeline.ReadPropertyString(
                 this.Entities.First(), psh.PipelineDef.BelongsToAlignment);
-
         public override void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children)
         {
             throw new NotImplementedException();
         }
-
         public override double GetBlockStation(BlockReference br)
         {
-            throw new NotImplementedException();
+            return 0;
         }
-
-        public override double GetPolylineEndStation(Polyline pl)
-        {
-            throw new NotImplementedException();
-        }
-
         public override double GetPolylineStartStation(Polyline pl)
         {
-            throw new NotImplementedException();
+            return 0;
         }
-
+        public override double GetPolylineEndStation(Polyline pl)
+        {
+            return 0;
+        }
         public override bool IsConnectedTo(IPipelineV2 other, double tol) =>
             this.Entities.IsConnectedTo(other.Entities);
     }

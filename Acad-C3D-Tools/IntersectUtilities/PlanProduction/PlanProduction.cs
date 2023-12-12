@@ -56,6 +56,7 @@ using System.Text.Unicode;
 using Plane = Autodesk.AutoCAD.Geometry.Plane;
 using netDxf.Entities;
 using NetTopologySuite.Triangulate;
+using IntersectUtilities.LongitudinalProfiles;
 
 namespace IntersectUtilities
 {
@@ -900,15 +901,8 @@ namespace IntersectUtilities
                     Plane plane = new Plane();
 
                     #region Load linework from LER Xref
-                    // open the LER dwg database
-                    Database xRefLerDB = new Database(false, true);
-
-                    xRefLerDB.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Ler"),
-                        FileOpenMode.OpenForReadAndAllShare, false, null);
-
-                    Transaction xRefLerTx = xRefLerDB.TransactionManager.StartTransaction();
-
-                    List<Polyline3d> remoteLerData = xRefLerDB.ListOfType<Polyline3d>(xRefLerTx);
+                    ILer3dManager lman = Ler3dManagerFactory.LoadLer3d(
+                        GetPathToDataFiles(projectName, etapeName, "Ler"));
                     #endregion
 
                     try
@@ -923,12 +917,10 @@ namespace IntersectUtilities
                         var pvs = alignment.GetProfileViewIds().Entities<ProfileView>(tx);
 
                         HashSet<double> stationsOfIntersection = new HashSet<double>();
+                        var remoteLerData = lman.GetIntersectingEntities(alignment);
 
                         foreach (Entity ent in remoteLerData)
                         {
-                            string type = ReadStringParameterFromDataTable(ent.Layer, dtKrydsninger, "Type", 0);
-                            if (type == "IGNORE") continue;
-
                             using (Point3dCollection p3dcol = new Point3dCollection())
                             {
                                 alignment.IntersectWith(
@@ -956,16 +948,15 @@ namespace IntersectUtilities
                         var path = Environment.ExpandEnvironmentVariables("%temp%");
                         string fileName = path + "\\pvCount.txt";
                         File.WriteAllText(fileName, pvsWithLer.ToString());
-
-                        xRefLerTx.Abort();
-                        xRefLerDB.Dispose();
                     }
                     catch (System.Exception ex)
                     {
-                        xRefLerTx.Abort();
-                        xRefLerDB.Dispose();
                         prdDbg(ex);
                         throw;
+                    }
+                    finally
+                    {
+                        lman.Dispose(true);
                     }
 
                     System.Windows.Forms.Application.DoEvents();
