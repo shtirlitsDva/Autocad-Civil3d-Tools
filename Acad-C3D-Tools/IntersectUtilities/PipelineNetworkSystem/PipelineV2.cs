@@ -29,6 +29,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
         double EndStation { get; }
         EntityCollection Entities { get; }
         EntityCollection Welds { get; }
+        IPipelineSizeArrayV2 Sizes { get; }
+        void CreateSizeArray();
         int GetMaxDN();
         double GetPolylineStartStation(Polyline pl);
         double GetPolylineEndStation(Polyline pl);
@@ -46,11 +48,13 @@ namespace IntersectUtilities.PipelineNetworkSystem
     {
         protected EntityCollection ents;
         protected EntityCollection welds;
+        protected IPipelineSizeArrayV2 sizes;
         public EntityCollection Entities { get => ents; }
         public EntityCollection Welds { get => welds; }
         public abstract string Name { get; }
         public virtual string Label { get => $"\"{Name}\""; }
         public abstract double EndStation { get; }
+        public IPipelineSizeArrayV2 Sizes => sizes;
         public PipelineV2Base(IEnumerable<Entity> source)
         {
             source.Partition(IsNotWeld, out this.ents, out this.welds);
@@ -72,6 +76,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
             return Entities.GetConnectedEntitiesDelimited(ent);
         }
         public abstract IEnumerable<Entity> GetEntitiesWithinStations(double start, double end);
+        public void CreateSizeArray()
+        {
+            sizes = PipelineSizeArrayFactory.CreateSizeArray(this);
+        }
     }
     public class PipelineV2Alignment : PipelineV2Base
     {

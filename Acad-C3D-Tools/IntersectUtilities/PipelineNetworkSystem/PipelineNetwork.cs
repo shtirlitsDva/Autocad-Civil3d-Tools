@@ -123,7 +123,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
             foreach (var pipeline in pipelines.OrderBy(x => x.Name))
             {
                 prdDbg("Pipeline: " + pipeline.Name);
-                prdDbg(pipeline.ToString());
+                pipeline.CreateSizeArray();
+                prdDbg(pipeline.Sizes.ToString());
             }
         }
     }
