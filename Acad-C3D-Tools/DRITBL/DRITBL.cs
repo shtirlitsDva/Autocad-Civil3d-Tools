@@ -203,11 +203,11 @@ namespace IntersectUtilities.DRITBL
                             irp.Vejnavn = psm.ReadPropertyString(polygonPline, psDef.Vejnavn);
                             irp.Vejklasse = psm.ReadPropertyString(polygonPline, psDef.Vejklasse);
                             irp.Belægning = psm.ReadPropertyString(polygonPline, psDef.Belægning);
-                            irp.Navn = br.ReadDynamicCsvProperty(DynamicProperty.TBLNavn, dt, true);
-                            irp.DN1 = br.ReadDynamicCsvProperty(DynamicProperty.DN1, dt, true);
-                            irp.DN2 = br.ReadDynamicCsvProperty(DynamicProperty.DN2, dt, true);
-                            irp.System = br.ReadDynamicCsvProperty(DynamicProperty.System, dt, true);
-                            irp.Serie = br.ReadDynamicCsvProperty(DynamicProperty.Serie, dt, true);
+                            irp.Navn = br.ReadDynamicCsvProperty(DynamicProperty.TBLNavn, true);
+                            irp.DN1 = br.ReadDynamicCsvProperty(DynamicProperty.DN1, true);
+                            irp.DN2 = br.ReadDynamicCsvProperty(DynamicProperty.DN2, true);
+                            irp.System = br.ReadDynamicCsvProperty(DynamicProperty.System, true);
+                            irp.Serie = br.ReadDynamicCsvProperty(DynamicProperty.Serie, true);
 
                             allResults.Add(irp);
                         }

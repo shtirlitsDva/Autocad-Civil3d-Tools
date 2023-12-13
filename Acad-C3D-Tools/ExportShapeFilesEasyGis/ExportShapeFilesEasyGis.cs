@@ -378,7 +378,7 @@ namespace ExportShapeFiles
 
                     #region Exporting
                     var dt = ExportShapeFilesEasyGis.Utils.GetFjvBlocksDt();
-                    HashSet<Entity> ents = localDb.GetFjvEntities(tx, dt, true, true, true);
+                    HashSet<Entity> ents = localDb.GetFjvEntities(tx, true, true, true);
 
                     Log.log($"{ents.Count} entit(y/ies) found for export.");
 

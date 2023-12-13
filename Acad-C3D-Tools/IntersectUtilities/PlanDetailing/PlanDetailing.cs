@@ -363,7 +363,7 @@ namespace IntersectUtilities
 
                                 #region Read System
                                 //string system = ODDataReader.DynKomponenter.ReadComponentSystem(br, komponenter).StrValue;
-                                string system = br.ReadDynamicCsvProperty(DynamicProperty.System, dt);
+                                string system = br.ReadDynamicCsvProperty(DynamicProperty.System);
 
                                 if (system.IsNoE())
                                 {
@@ -425,7 +425,7 @@ namespace IntersectUtilities
                                     SourceEntity = br,
                                     DN = DN,
                                     System = system,
-                                    Serie = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.Serie, dt)
+                                    Serie = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.Serie)
                                 });
                             }
                         }
@@ -2112,7 +2112,7 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    var reducers = allbrs.Where(x => x.ReadDynamicCsvProperty(DynamicProperty.Type, dt) == "Reduktion");
+                    var reducers = allbrs.Where(x => x.ReadDynamicCsvProperty(DynamicProperty.Type) == "Reduktion");
 
                     foreach (BlockReference r in reducers)
                     {

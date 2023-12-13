@@ -118,6 +118,14 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 PrintNode(child, depth + 1);
             }
         }
+        public void CreateSizeArraysAndPrint()
+        {
+            foreach (var pipeline in pipelines.OrderBy(x => x.Name))
+            {
+                prdDbg("Pipeline: " + pipeline.Name);
+                prdDbg(pipeline.ToString());
+            }
+        }
     }
     public interface INode
     {

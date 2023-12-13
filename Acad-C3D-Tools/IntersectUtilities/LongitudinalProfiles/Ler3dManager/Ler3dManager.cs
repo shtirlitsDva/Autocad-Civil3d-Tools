@@ -92,7 +92,7 @@ namespace IntersectUtilities.LongitudinalProfiles
                 foreach (var pl in plines)
                 {
                     string type = UtilsDataTables.ReadStringParameterFromDataTable(
-                        pl.Layer, CsvData.Get("krydsninger"), "Type", 0);
+                        pl.Layer, CsvData.Kryds, "Type", 0);
                     if (type == "IGNORE") continue;
 
                     using (Point3dCollection p3dcol = new Point3dCollection())
@@ -208,7 +208,7 @@ namespace IntersectUtilities.LongitudinalProfiles
                     foreach (var pl in plines)
                     {
                         string type = UtilsDataTables.ReadStringParameterFromDataTable(
-                            pl.Layer, CsvData.Get("krydsninger"), "Type", 0);
+                            pl.Layer, CsvData.Kryds, "Type", 0);
                         if (type == "IGNORE") continue;
 
                         using (Point3dCollection p3dcol = new Point3dCollection())

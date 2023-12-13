@@ -1736,7 +1736,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    var ents = localDb.GetFjvEntities(tx, dt, true);
+                    var ents = localDb.GetFjvEntities(tx, true);
 
                     foreach (var ent in ents)
                     {

@@ -710,7 +710,7 @@ namespace IntersectUtilities
                     graphpopulate();
 
                     HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
-                    var ents = localDb.GetFjvEntities(tx, fjvKomponenter, true, false);
+                    var ents = localDb.GetFjvEntities(tx, true, false);
 
                     #region Initialize property set
                     PropertySetManager psmPipeline = new PropertySetManager(localDb,
@@ -796,7 +796,7 @@ namespace IntersectUtilities
                     graphpopulate();
 
                     HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
-                    var ents = localDb.GetFjvEntities(tx, fjvKomponenter, true, false);
+                    var ents = localDb.GetFjvEntities(tx, true, false);
 
                     #region Initialize property set
                     PropertySetManager psmPipeline = new PropertySetManager(localDb,
@@ -1112,7 +1112,7 @@ namespace IntersectUtilities
                     System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
                         @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
-                    HashSet<Entity> ents = localDb.GetFjvEntities(tx, fjvKomponenter, true, true);
+                    HashSet<Entity> ents = localDb.GetFjvEntities(tx, true, true);
 
                     foreach (var ent in ents)
                     {
@@ -1174,10 +1174,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
-                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-
-                    HashSet<Entity> ents = localDb.GetFjvEntities(tx, fjvKomponenter, true, true);
+                    HashSet<Entity> ents = localDb.GetFjvEntities(tx, true, true);
 
                     foreach (var ent in ents)
                     {

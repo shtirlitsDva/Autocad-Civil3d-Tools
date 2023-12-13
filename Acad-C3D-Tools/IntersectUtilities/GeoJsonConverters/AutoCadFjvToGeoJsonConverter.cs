@@ -162,7 +162,7 @@ namespace IntersectUtilities
             if (!(entity is BlockReference br))
                 throw new ArgumentException($"Entity {entity.Handle} is not a block!");
 
-            System.Data.DataTable dt = GetFjvBlocksDt();
+            System.Data.DataTable dt = CsvData.FK;
             Transaction tx = br.Database.TransactionManager.TopTransaction;
 
             var props = new Dictionary<string, object>

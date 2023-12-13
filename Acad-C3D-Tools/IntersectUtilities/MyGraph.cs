@@ -610,7 +610,7 @@ namespace IntersectUtilities
                             string dn2 = ReadComponentDN2Str(br, Table);
                             string dnStr = dn2 == "0" ? dn1 : dn1 + "/" + dn2;
                             system = ComponentSchedule.ReadComponentSystem(br, Table);
-                            string type = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.Type, Table);
+                            string type = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.Type);
                             string color = "";
                             if (type == "Reduktion") color = "color=\"red\"";
                             sb.AppendLine($"[label=\"{{{handle}|{type}}}|{system}\\n{dnStr}\"{color}];");

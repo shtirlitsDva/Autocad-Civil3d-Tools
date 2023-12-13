@@ -1459,8 +1459,7 @@ namespace IntersectUtilities
                     pipeTypeEnum = GetEntityPipeType(pline);
                     break;
                 case BlockReference br:
-                    string system = br.ReadDynamicCsvProperty(
-                        DynamicProperty.System,);
+                    string system = br.ReadDynamicCsvProperty(DynamicProperty.System);
                     if (!Enum.TryParse(system, out pipeTypeEnum)) return PipeTypeEnum.Ukendt;
                     break;
             }
