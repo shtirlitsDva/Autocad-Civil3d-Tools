@@ -70,7 +70,7 @@ namespace IntersectUtilities.Collections
                         return GetPipeDN(x);
                     case BlockReference br:
                         return Convert.ToInt32(
-                            br.ReadDynamicCsvProperty(DynamicProperty.DN1, CsvData.Get("fjvKomponenter")));
+                            br.ReadDynamicCsvProperty(DynamicProperty.DN1));
                     default:
                         return 0;
                 }
@@ -87,7 +87,7 @@ namespace IntersectUtilities.Collections
                         return false;
                     case BlockReference br:
                         return br.ReadDynamicCsvProperty(
-                            DynamicProperty.Function, CsvData.Get("fjvKomponenter")) == "SizeArray";
+                            DynamicProperty.Function) == "SizeArray";
                     default:
                         return false;
                 }
@@ -136,7 +136,7 @@ namespace IntersectUtilities.Collections
                     
                     if (item is BlockReference br)
                         if (br.ReadDynamicCsvProperty(
-                            DynamicProperty.Function, CsvData.Get("fjvKomponenter")) == "SizeArray")
+                            DynamicProperty.Function) == "SizeArray")
                             continue;
 
                     col.Add(item);

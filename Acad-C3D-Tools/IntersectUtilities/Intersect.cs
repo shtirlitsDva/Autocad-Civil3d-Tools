@@ -3787,7 +3787,7 @@ namespace IntersectUtilities
                     string etapeName = "2.26.3";
 
                     #region Read CSV
-                    System.Data.DataTable dt = CsvData.Get("fjvKomponenter");
+                    System.Data.DataTable dt = CsvData.FK;
                     #endregion
 
                     // open the xref database
@@ -5839,9 +5839,9 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable komponenter = CsvData.Get("fjvKomponenter");
+                    System.Data.DataTable komponenter = CsvData.FK;
 
-                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, komponenter, true, false);
+                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, true, false);
 
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
                     Graph graph = new Graph(localDb, psm, komponenter);
@@ -5946,7 +5946,7 @@ namespace IntersectUtilities
                     System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
                         @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
-                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, komponenter, true, false);
+                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, true, false);
                     //Remove stiktees which are special tee blocks for stikledninger
                     allEnts = allEnts.Where(x =>
                     {
@@ -5997,7 +5997,7 @@ namespace IntersectUtilities
                     System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
                                         @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
 
-                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, komponenter, true, false);
+                    HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, true, false);
 
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriGraph);
                     PSetDefs.DriGraph driGraph = new PSetDefs.DriGraph();
@@ -7641,7 +7641,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    var brs = localDb.GetFjvEntities(tx, dt)
+                    var brs = localDb.GetFjvEntities(tx)
                         .Where(x => x is BlockReference).Cast<BlockReference>();
 
                     var query = brs.Where(x =>
@@ -8122,7 +8122,7 @@ namespace IntersectUtilities
                     PSetDefs.DriPipelineData driPipelineData =
                         new PSetDefs.DriPipelineData();
 
-                    var ents = localDb.GetFjvEntities(tx, dt, false, false, true);
+                    var ents = localDb.GetFjvEntities(tx, false, false, true);
 
                     var list = ents.Select(
                         x => psmPipeLineData.ReadPropertyString(x, driPipelineData.BelongsToAlignment))
@@ -8197,7 +8197,7 @@ namespace IntersectUtilities
                     PSetDefs.DriPipelineData driPLD =
                         new PSetDefs.DriPipelineData();
 
-                    var ents = localDb.GetFjvEntities(tx, dt, true, false, true);
+                    var ents = localDb.GetFjvEntities(tx, true, true, true);
 
                     #region Create graph
                     HashSet<POI> POIs = new HashSet<POI>();
@@ -8318,8 +8318,8 @@ namespace IntersectUtilities
                                 $"{{{pline.Handle}|Rør L{pline.Length.ToString("0.##")}}}|{system}\\n{dn}";
                                 break;
                             case BlockReference br:
-                                string dn1 = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.DN1, dt);
-                                string dn2 = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.DN2, dt);
+                                string dn1 = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.DN1);
+                                string dn2 = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.DN2);
                                 string dnStr = dn2 == "0" ? dn1 : dn1 + "/" + dn2;
                                 system = ComponentSchedule.ReadComponentSystem(br, dt);
                                 string type = ComponentSchedule.ReadComponentType(br, dt);
@@ -8370,11 +8370,11 @@ namespace IntersectUtilities
                 return GetPipeDN(pline);
             else if (entity is BlockReference br)
             {
-                if (br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) == "Afgreningsstuds" ||
-                    br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) == "Svanehals")
-                    return int.Parse(ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.DN2, dt));
+                if (br.ReadDynamicCsvProperty(DynamicProperty.Type, false) == "Afgreningsstuds" ||
+                    br.ReadDynamicCsvProperty(DynamicProperty.Type, false) == "Svanehals")
+                    return int.Parse(ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.DN2));
                 else return
-                        int.Parse(ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.DN1, dt));
+                        int.Parse(ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.DN1));
             }
 
             else throw new System.Exception("Invalid entity type");

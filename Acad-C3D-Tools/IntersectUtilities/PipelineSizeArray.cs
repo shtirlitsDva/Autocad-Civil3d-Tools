@@ -67,13 +67,13 @@ namespace IntersectUtilities
         /// <param name="curves">All pipline curves belonging to the current alignment.</param>
         public PipelineSizeArray(Alignment al, HashSet<Curve> curves, HashSet<BlockReference> brs = default)
         {
-            dynamicBlocks = CsvData.Get("fjvKomponenter");
+            dynamicBlocks = CsvData.FK;
 
             #region Create graph
             var entities = new HashSet<Entity>(curves);
             if (brs != default) entities.UnionWith(
                 brs.Where(x => !graphUnwantedTypes.Contains(
-                    x.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false))));
+                    x.ReadDynamicCsvProperty(DynamicProperty.Type, false))));
 
             HashSet<POI> POIs = new HashSet<POI>();
             foreach (Entity ent in entities) AddEntityToPOIs(ent, POIs);
@@ -194,7 +194,7 @@ namespace IntersectUtilities
             //don't exists, as it looks only at polylines present.
             //So, we need to check for presence of reducers to definitely rule out one size case.
             var reducersOrdered = brs?.Where(
-                x => x.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false) == "Reduktion")
+                x => x.ReadDynamicCsvProperty(DynamicProperty.Type, false) == "Reduktion")
                 .OrderBy(x => al.StationAtPoint(x))
                 .ToArray();
 
@@ -242,7 +242,7 @@ namespace IntersectUtilities
             //To catch the case where the pipeline has F- or Y-model
             //where we need to construct with blocks and not reducers
             if (brs.Any(x => systemTransitionTypes.Contains(
-                x.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false))))
+                x.ReadDynamicCsvProperty(DynamicProperty.Type, false))))
                 HasFYModel = true;
 
             #region Construct Sizes Array
@@ -282,14 +282,14 @@ namespace IntersectUtilities
                             dn = GetDirectionallyCorrectReducerDnWithGraph(al, curBr, Side.Left);
                             ps = PipeSystemEnum.Stål;
                             pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
-                                curBr.ReadDynamicCsvProperty(DynamicProperty.System, dynamicBlocks), true);
+                                curBr.ReadDynamicCsvProperty(DynamicProperty.System), true);
                             series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
-                                curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dynamicBlocks), true);
+                                curBr.ReadDynamicCsvProperty(DynamicProperty.Serie), true);
                             kod = GetPipeKOd(ps, dn, pt, series);
                         }
                         else
                         {//F-Model og Y-Model
-                            dn = int.Parse(curBr.ReadDynamicCsvProperty(DynamicProperty.DN1, dynamicBlocks));
+                            dn = int.Parse(curBr.ReadDynamicCsvProperty(DynamicProperty.DN1));
                             ps = PipeSystemEnum.Stål;
                             pt = GetDirectionallyCorrectPropertyWithGraph<PipeTypeEnum>(al, curBr, Side.Left);
                             series = GetDirectionallyCorrectPropertyWithGraph<PipeSeriesEnum>(al, curBr, Side.Left);
@@ -311,14 +311,14 @@ namespace IntersectUtilities
                                 dn = GetDirectionallyCorrectReducerDnWithGraph(al, curBr, Side.Right);
                                 ps = PipeSystemEnum.Stål;
                                 pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
-                                    curBr.ReadDynamicCsvProperty(DynamicProperty.System, dynamicBlocks), true);
+                                    curBr.ReadDynamicCsvProperty(DynamicProperty.System), true);
                                 series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
-                                    curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dynamicBlocks), true);
+                                    curBr.ReadDynamicCsvProperty(DynamicProperty.Serie), true);
                                 kod = GetPipeKOd(ps, dn, pt, series);
                             }
                             else
                             {//F-Model og Y-Model
-                                dn = int.Parse(curBr.ReadDynamicCsvProperty(DynamicProperty.DN1, dynamicBlocks));
+                                dn = int.Parse(curBr.ReadDynamicCsvProperty(DynamicProperty.DN1));
                                 ps = PipeSystemEnum.Stål;
                                 pt = GetDirectionallyCorrectPropertyWithGraph<PipeTypeEnum>(al, curBr, Side.Right);
                                 series = GetDirectionallyCorrectPropertyWithGraph<PipeSeriesEnum>(al, curBr, Side.Right);
@@ -343,14 +343,14 @@ namespace IntersectUtilities
                             dn = GetDirectionallyCorrectReducerDnWithGraph(al, curBr, Side.Right);
                             ps = PipeSystemEnum.Stål;
                             pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
-                                curBr.ReadDynamicCsvProperty(DynamicProperty.System, dynamicBlocks), true);
+                                curBr.ReadDynamicCsvProperty(DynamicProperty.System), true);
                             series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
-                                curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dynamicBlocks), true);
+                                curBr.ReadDynamicCsvProperty(DynamicProperty.Serie), true);
                             kod = GetPipeKOd(ps, dn, pt, series);
                         }
                         else
                         {//F-Model og Y-Model
-                            dn = int.Parse(curBr.ReadDynamicCsvProperty(DynamicProperty.DN1, dynamicBlocks));
+                            dn = int.Parse(curBr.ReadDynamicCsvProperty(DynamicProperty.DN1));
                             ps = PipeSystemEnum.Stål;
                             pt = GetDirectionallyCorrectPropertyWithGraph<PipeTypeEnum>(al, curBr, Side.Right);
                             series = GetDirectionallyCorrectPropertyWithGraph<PipeSeriesEnum>(al, curBr, Side.Right);
@@ -371,14 +371,14 @@ namespace IntersectUtilities
                         dn = GetDirectionallyCorrectReducerDnWithGraph(al, curBr, Side.Right);
                         ps = PipeSystemEnum.Stål;
                         pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
-                            curBr.ReadDynamicCsvProperty(DynamicProperty.System, dynamicBlocks), true);
+                            curBr.ReadDynamicCsvProperty(DynamicProperty.System), true);
                         series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
-                            curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dynamicBlocks), true);
+                            curBr.ReadDynamicCsvProperty(DynamicProperty.Serie), true);
                         kod = GetPipeKOd(ps, dn, pt, series);
                     }
                     else
                     {//F-Model og Y-Model
-                        dn = int.Parse(curBr.ReadDynamicCsvProperty(DynamicProperty.DN1, dynamicBlocks));
+                        dn = int.Parse(curBr.ReadDynamicCsvProperty(DynamicProperty.DN1));
                         ps = PipeSystemEnum.Stål;
                         pt = GetDirectionallyCorrectPropertyWithGraph<PipeTypeEnum>(al, curBr, Side.Right);
                         series = GetDirectionallyCorrectPropertyWithGraph<PipeSeriesEnum>(al, curBr, Side.Right);
@@ -546,7 +546,7 @@ namespace IntersectUtilities
                 return GetPipeDN(pline);
             else if (entity is BlockReference br)
             {
-                if (br.ReadDynamicCsvProperty(DynamicProperty.Type, dynBlocks, false) == "Afgreningsstuds")
+                if (br.ReadDynamicCsvProperty(DynamicProperty.Type, false) == "Afgreningsstuds")
                     return ReadComponentDN2Int(br, dynBlocks);
                 else return ReadComponentDN1Int(br, dynBlocks);
             }
@@ -560,7 +560,7 @@ namespace IntersectUtilities
             else if (entity is BlockReference br)
             {
                 return (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
-                    br.ReadDynamicCsvProperty(DynamicProperty.System, dynBlocks));
+                    br.ReadDynamicCsvProperty(DynamicProperty.System));
             }
 
             else throw new System.Exception("Invalid entity type");
@@ -572,7 +572,7 @@ namespace IntersectUtilities
             else if (entity is BlockReference br)
             {
                 return (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
-                    br.ReadDynamicCsvProperty(DynamicProperty.Serie, dynBlocks));
+                    br.ReadDynamicCsvProperty(DynamicProperty.Serie));
             }
 
             else throw new System.Exception("Invalid entity type");
@@ -777,9 +777,9 @@ namespace IntersectUtilities
                         kod = GetDirectionallyCorrectKod(curBr, Side.Left, dt);
                         ps = PipeSystemEnum.Stål;
                         pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
-                            curBr.ReadDynamicCsvProperty(DynamicProperty.System, dt), true);
+                            curBr.ReadDynamicCsvProperty(DynamicProperty.System), true);
                         series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
-                            curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dt), true);
+                            curBr.ReadDynamicCsvProperty(DynamicProperty.Serie), true);
                     }
                     else
                     {//F-Model og Y-Model
@@ -818,9 +818,9 @@ namespace IntersectUtilities
                             kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
                             ps = PipeSystemEnum.Stål;
                             pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
-                                curBr.ReadDynamicCsvProperty(DynamicProperty.System, dt), true);
+                                curBr.ReadDynamicCsvProperty(DynamicProperty.System), true);
                             series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
-                                curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dt), true);
+                                curBr.ReadDynamicCsvProperty(DynamicProperty.Serie), true);
                         }
                         else
                         {//F-Model og Y-Model
@@ -862,9 +862,9 @@ namespace IntersectUtilities
                         kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
                         ps = PipeSystemEnum.Stål;
                         pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
-                            curBr.ReadDynamicCsvProperty(DynamicProperty.System, dt), true);
+                            curBr.ReadDynamicCsvProperty(DynamicProperty.System), true);
                         series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
-                            curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dt), true);
+                            curBr.ReadDynamicCsvProperty(DynamicProperty.Serie), true);
                     }
                     else
                     {
@@ -900,9 +900,9 @@ namespace IntersectUtilities
                     kod = GetDirectionallyCorrectKod(curBr, Side.Right, dt);
                     ps = PipeSystemEnum.Stål;
                     pt = (PipeTypeEnum)Enum.Parse(typeof(PipeTypeEnum),
-                        curBr.ReadDynamicCsvProperty(DynamicProperty.System, dt), true);
+                        curBr.ReadDynamicCsvProperty(DynamicProperty.System), true);
                     series = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum),
-                        curBr.ReadDynamicCsvProperty(DynamicProperty.Serie, dt), true);
+                        curBr.ReadDynamicCsvProperty(DynamicProperty.Serie), true);
                 }
                 else
                 {
@@ -938,7 +938,7 @@ namespace IntersectUtilities
         private int GetDirectionallyCorrectReducerDnWithGraph(Alignment al, BlockReference br, Side side)
         {
             if (Graph == null) throw new Exception("Graph is not initialized!");
-            if (br.ReadDynamicCsvProperty(DynamicProperty.Type, dynamicBlocks, false) != "Reduktion")
+            if (br.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Reduktion")
                 throw new Exception($"Method GetDirectionallyCorrectReducerDnWithGraph can only be used with \"Reduktion\"!");
 
             //Left side means towards the start
@@ -946,8 +946,8 @@ namespace IntersectUtilities
             double brStation = GetStation(al, br);
             var reducerSizes = new List<int>()
             {
-                int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN1,dynamicBlocks)),
-                int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN2,dynamicBlocks)),
+                int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN1)),
+                int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN2)),
             };
 
             //Gather up- and downstream vertici
@@ -1044,7 +1044,7 @@ namespace IntersectUtilities
             //Right side means towards the end
             double brStation = GetStation(al, br);
 
-            int dn = int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN1, dynamicBlocks));
+            int dn = int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN1));
 
             //Gather up- and downstream vertici
             var upstreamVertices = new List<Entity>();
@@ -1331,11 +1331,11 @@ namespace IntersectUtilities
                     Type = PipelineElementType.Pipe;
                     break;
                 case BlockReference br:
-                    DN1 = int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN1, dt));
-                    DN2 = int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN2, dt));
-                    if (PipelineElementTypeDict.ContainsKey(br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false)))
-                        Type = PipelineElementTypeDict[br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false)];
-                    else throw new Exception($"Unknown Type: {br.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false)}");
+                    DN1 = int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN1));
+                    DN2 = int.Parse(br.ReadDynamicCsvProperty(DynamicProperty.DN2));
+                    if (PipelineElementTypeDict.ContainsKey(br.ReadDynamicCsvProperty(DynamicProperty.Type, false)))
+                        Type = PipelineElementTypeDict[br.ReadDynamicCsvProperty(DynamicProperty.Type, false)];
+                    else throw new Exception($"Unknown Type: {br.ReadDynamicCsvProperty(DynamicProperty.Type, false)}");
                     break;
                 default:
                     throw new System.Exception(

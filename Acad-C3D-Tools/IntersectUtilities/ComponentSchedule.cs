@@ -155,7 +155,7 @@ namespace IntersectUtilities
                 if (!Enum.TryParse(parameterName, out prop))
                     throw new Exception($"Parameter {parameterName} is not a valid DynamicProperty!");
                 //Read the value specified and parse it
-                string parameterValue = br.ReadDynamicCsvProperty(prop, CsvData.Get("fjvKomponenter"));
+                string parameterValue = br.ReadDynamicCsvProperty(prop);
                 //Replace the captured group in original string with the parameter value
                 stringToProcess = stringToProcess.Replace(capture, parameterValue);
                 //Recursively call current function
@@ -338,9 +338,10 @@ namespace IntersectUtilities
             return "_PP";
         }
         public static string ReadDynamicCsvProperty(
-            this BlockReference br, DynamicProperty prop,
-            System.Data.DataTable dt, bool parseProperty = true)
+            this BlockReference br, DynamicProperty prop, bool parseProperty = true)
         {
+            System.Data.DataTable dt = CsvData.FK;
+
             string key = br.RealName();
             string parameter = prop.ToString();
             string version = br.GetAttributeStringValue("VERSION");
@@ -376,6 +377,14 @@ namespace IntersectUtilities
                 }
                 else return default;
             }
+        }
+        public static PipelineElementType GetPipelineType(this BlockReference br)
+        {
+            string typeString = br.ReadDynamicCsvProperty(DynamicProperty.Type, false);
+            if (PipelineElementTypeDict.ContainsKey(typeString))
+                return PipelineElementTypeDict[typeString];
+            else throw new Exception($"PipelineType {typeString} not found in dictionary!\n" +
+                $"Add this element to PipelineElementType enum");
         }
     }
 }

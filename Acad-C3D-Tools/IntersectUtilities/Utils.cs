@@ -1460,7 +1460,7 @@ namespace IntersectUtilities
                     break;
                 case BlockReference br:
                     string system = br.ReadDynamicCsvProperty(
-                        DynamicProperty.System, CsvData.Get("fjvKomponenter"));
+                        DynamicProperty.System,);
                     if (!Enum.TryParse(system, out pipeTypeEnum)) return PipeTypeEnum.Ukendt;
                     break;
             }

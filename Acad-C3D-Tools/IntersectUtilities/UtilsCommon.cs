@@ -443,7 +443,8 @@ namespace IntersectUtilities.UtilsCommon
                 { "Y-Model", PipelineElementType.Y_Model },
                 { "$Buerør V{$Vinkel}° R{$R} L{$L}", PipelineElementType.Buerør },
                 { "Stikafgrening", PipelineElementType.Stikafgrening },
-                { "Muffetee", PipelineElementType.Muffetee }
+                { "Muffetee", PipelineElementType.Muffetee },
+                { "Materialeskift {#M1}{#DN1}x{#M2}{#DN2}", PipelineElementType.Materialeskift },
             };
         public enum PipelineElementType
         {
@@ -467,7 +468,8 @@ namespace IntersectUtilities.UtilsCommon
             Y_Model,
             Buerør,
             Stikafgrening,
-            Muffetee
+            Muffetee,
+            Materialeskift,
         }
     }
     public static class UtilsDataTables
@@ -1645,7 +1647,7 @@ namespace IntersectUtilities.UtilsCommon
         }
         public static bool CheckIfBlockIsLatestVersion(this BlockReference br)
         {
-            System.Data.DataTable dt = CsvData.Get("fjvKomponenter");
+            System.Data.DataTable dt = CsvData.FK;
             Database Db = br.Database;
             if (Db.TransactionManager.TopTransaction == null)
                 throw new System.Exception("CheckIfBlockLatestVersion called outside transaction!");
@@ -2744,7 +2746,6 @@ namespace IntersectUtilities.UtilsCommon
 
             return groups;
         }
-
     }
     public static class ExtensionMethods
     {
@@ -3001,9 +3002,11 @@ namespace IntersectUtilities.UtilsCommon
         {
             return new HashSet<T>(db.ListOfType<T>(tr, discardFrozen));
         }
-        public static HashSet<Entity> GetFjvEntities(this Database db, Transaction tr, System.Data.DataTable fjvKomponenter,
+        public static HashSet<Entity> GetFjvEntities(this Database db, Transaction tr,
             bool discardWelds = true, bool discardStikBlocks = true, bool discardFrozen = false)
         {
+            System.Data.DataTable dt = CsvData.FK;
+
             HashSet<Entity> entities = new HashSet<Entity>();
 
             var rawPlines = db.ListOfType<Polyline>(tr, discardFrozen);
@@ -3011,7 +3014,7 @@ namespace IntersectUtilities.UtilsCommon
 
             var rawBrefs = db.ListOfType<BlockReference>(tr, discardFrozen);
             var brQuery = rawBrefs.Where(x => UtilsDataTables.ReadStringParameterFromDataTable(
-                            x.RealName(), fjvKomponenter, "Navn", 0) != default);
+                            x.RealName(), dt, "Navn", 0) != default);
 
             HashSet<string> weldingBlocks = new HashSet<string>()
             {
@@ -3291,8 +3294,20 @@ namespace IntersectUtilities.UtilsCommon
                 $"Csv name {name} not defined!\nUpdate registration.");
         }
         /// <summary>
-        /// krydsninger, fjvKomponenter, dybde, distances
+        /// Fjernvarme komponenter
         /// </summary>
-        public static DataTable Get(string name) => GetDataTable(name);
+        public static DataTable FK { get => GetDataTable("fjvKomponenter"); }
+        /// <summary>
+        /// Krydsninger
+        /// </summary>
+        public static DataTable Kryds { get => GetDataTable("krydsninger"); }
+        /// <summary>
+        /// Dybde
+        /// </summary>
+        public static DataTable Dybde { get => GetDataTable("dybde"); }
+        /// <summary>
+        /// Distances
+        /// </summary>
+        public static DataTable Dist { get => GetDataTable("distances"); }
     }
 }

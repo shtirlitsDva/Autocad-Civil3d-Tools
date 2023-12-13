@@ -70,7 +70,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    var ents = localDb.GetFjvEntities(tx, CsvData.Get("fjvKomponenter"), false, false);
+                    var ents = localDb.GetFjvEntities(tx, false, false);
                     var als = alDb.HashSetOfType<Alignment>(alTx);
 
                     PipelineNetwork pn = new PipelineNetwork();
@@ -112,7 +112,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    var ents = localDb.GetFjvEntities(tx, CsvData.Get("fjvKomponenter"), false, false);
+                    var ents = localDb.GetFjvEntities(tx, false, false);
                     var als = alDb.HashSetOfType<Alignment>(alTx);
 
                     PipelineNetwork pn = new PipelineNetwork();

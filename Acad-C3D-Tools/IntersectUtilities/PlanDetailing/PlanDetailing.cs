@@ -99,7 +99,7 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
-            System.Data.DataTable dt = CsvData.Get("fjvKomponenter");
+            System.Data.DataTable dt = CsvData.FK;
 
             bool noNumbers = true;
             string[] kwds = new string[] { "Uden nummer", "Med nummer" };

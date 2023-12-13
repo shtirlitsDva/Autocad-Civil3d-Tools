@@ -58,7 +58,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             bool IsNotWeld(Entity e) =>
                 (e is BlockReference br &&
                 br.ReadDynamicCsvProperty(
-                    DynamicProperty.Type, CsvData.Get("fjvKomponenter"), false) != "Svejsning") ||
+                    DynamicProperty.Type, false) != "Svejsning") ||
                     e is Polyline; //<-- this is the culprit!!!!!!!!!!!!!!!!!!!!
         }
         public int GetMaxDN() => ents.GetMaxDN();
@@ -219,7 +219,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             //Database db = ents.FirstOrDefault()?.Database;
             //Transaction tx = db.TransactionManager.TopTransaction;
             //var query =
-            //    db.GetFjvEntities(tx, CsvData.Get("fjvKomponenter"), true, false)
+            //    db.GetFjvEntities(tx, true, false)
             //    .Where(x => ents.All(y => x.Handle != y.Handle));
             //EntityCollection allEnts = new EntityCollection(query);
 

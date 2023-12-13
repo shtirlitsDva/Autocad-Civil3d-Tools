@@ -73,6 +73,11 @@ namespace IntersectUtilities.PipeScheduleV2
                 return layerNameDataParser.Match(layer).Groups["DATATYPE"].Value;
             return "Ukendt";
         }
+        public static PipeSystemEnum GetSystemType(string s)
+        {
+            if (systemDict.ContainsKey(s)) return systemDict[s];
+            return PipeSystemEnum.Ukendt;
+        }
         #endregion
 
         #region Variables and dicts

@@ -790,7 +790,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable fjvKomponenter = CsvData.Get("fjvKomponenter");
+                    System.Data.DataTable fjvKomponenter = CsvData.FK;
 
                     graphclear();
                     graphpopulate();

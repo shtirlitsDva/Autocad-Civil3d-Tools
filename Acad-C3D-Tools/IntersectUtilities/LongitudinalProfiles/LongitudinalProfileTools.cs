@@ -384,8 +384,8 @@ namespace IntersectUtilities
                     //System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
                     //System.Data.DataTable dtDybde = CsvReader.ReadCsvToDataTable(pathDybde, "Dybde");
 
-                    var dtKrydsninger = CsvData.Get("krydsninger");
-                    var dtDybde = CsvData.Get("dybde");
+                    var dtKrydsninger = CsvData.Kryds;
+                    var dtDybde = CsvData.Dybde;
                     #endregion
 
                     #region Delete existing points
@@ -1604,9 +1604,9 @@ namespace IntersectUtilities
                         prdDbg("Blocks:");
                         PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves,
                             brs.Where(x =>
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Svejsning" &&
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Stikafgrening" &&
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Muffetee").ToHashSet());
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Svejsning" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Stikafgrening" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Muffetee").ToHashSet());
                         prdDbg(sizeArray.ToString());
 
                         foreach (ProfileView pv in pvs)
@@ -1738,7 +1738,7 @@ namespace IntersectUtilities
                             #region Place component blocks
                             foreach (BlockReference br in brs)
                             {
-                                string type = br.ReadDynamicCsvProperty(DynamicProperty.Type, dt);
+                                string type = br.ReadDynamicCsvProperty(DynamicProperty.Type);
                                 if (type == "Reduktion" || type == "Svejsning") continue;
                                 //Buerør need special treatment
                                 if (br.RealName() == "BUEROR1" || br.RealName() == "BUEROR2") continue;
@@ -2178,9 +2178,9 @@ namespace IntersectUtilities
                         prdDbg("Blocks:");
                         PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves,
                             brs.Where(x =>
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Svejsning" &&
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Stikafgrening" &&
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Muffetee").ToHashSet());
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Svejsning" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Stikafgrening" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Muffetee").ToHashSet());
                         prdDbg(sizeArray.ToString());
 
                         #region Explode midt profile for later sampling
@@ -2372,7 +2372,7 @@ namespace IntersectUtilities
                                 @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
                             foreach (BlockReference br in brs)
                             {
-                                string type = br.ReadDynamicCsvProperty(DynamicProperty.Type, dt);
+                                string type = br.ReadDynamicCsvProperty(DynamicProperty.Type);
                                 if (type == "Reduktion" || type == "Svejsning") continue;
 
                                 //Buerør need special treatment
@@ -3093,9 +3093,9 @@ namespace IntersectUtilities
                     prdDbg("Blocks:");
                     PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves,
                             brs.Where(x =>
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Svejsning" &&
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Stikafgrening" &&
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Muffetee").ToHashSet());
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Svejsning" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Stikafgrening" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Muffetee").ToHashSet());
                     prdDbg(sizeArray.ToString());
 
                     #region Create polyline from centre profile
@@ -4356,9 +4356,9 @@ namespace IntersectUtilities
                 try
                 {
                     #region Read Csv Data
-                    var dtKrydsninger = CsvData.Get("krydsninger");
-                    var dtDistances = CsvData.Get("distances");
-                    var dt = CsvData.Get("fjvKomponenter");
+                    var dtKrydsninger = CsvData.Kryds;
+                    var dtDistances = CsvData.Dist;
+                    var dt = CsvData.FK;
                     #endregion
 
                     BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
@@ -4438,9 +4438,9 @@ namespace IntersectUtilities
                         #region Build size array
                         PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves,
                             brs.Where(x =>
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Svejsning" &&
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Stikafgrening" &&
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, dt, false) != "Muffetee").ToHashSet());
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Svejsning" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Stikafgrening" &&
+                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Muffetee").ToHashSet());
                         prdDbg(sizeArray.ToString());
                         #endregion
 
@@ -4908,7 +4908,7 @@ namespace IntersectUtilities
             Transaction fremTx = fremDb.TransactionManager.StartTransaction();
 
             HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
-            var allBrs = fremDb.GetFjvEntities(fremTx, dt).Where(x => x is BlockReference).Cast<BlockReference>();
+            var allBrs = fremDb.GetFjvEntities(fremTx).Where(x => x is BlockReference).Cast<BlockReference>();
             #endregion
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
