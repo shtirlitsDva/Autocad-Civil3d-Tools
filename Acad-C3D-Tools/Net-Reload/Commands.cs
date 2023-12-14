@@ -194,7 +194,7 @@ namespace NetReload
                         );
 
                     // NETLOAD new assembly file.
-                    System.Reflection.Assembly.LoadFrom(Path.Combine(netReloadDir, tempAssemblyName + ".dll"));
+                    var assembly = System.Reflection.Assembly.LoadFrom(Path.Combine(netReloadDir, tempAssemblyName + ".dll"));
 
                     // Output summary.
                     ed.WriteMessage("\nNETRELOAD complete for {0}.dll.", initAssemblyName);
