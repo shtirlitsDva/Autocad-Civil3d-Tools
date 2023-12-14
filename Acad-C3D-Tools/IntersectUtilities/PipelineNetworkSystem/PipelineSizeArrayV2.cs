@@ -12,6 +12,7 @@ using System.Text;
 using System.Threading.Tasks;
 using IntersectUtilities.UtilsCommon;
 using QuikGraph.Serialization;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.ScrollBar;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -24,10 +25,14 @@ namespace IntersectUtilities.PipelineNetworkSystem
     public abstract class PipelineSizeArrayV2Base : IPipelineSizeArrayV2
     {
         protected SizeEntryCollection sizes = new SizeEntryCollection();
+        protected BlockReference[] orderedSizeBrs;
         public SizeEntryV2 this[int index] { get => sizes[index]; set => sizes[index] = value; }
         public PipelineSizesArrangement Arrangement { get; protected set; }
-        protected bool TryGetDN(IEnumerable<Entity> ents, out int dn)
+        protected bool TryGetDN(IPipelineV2 pipeline, double start, double end, out int dn)
         {
+            IEnumerable<Entity> ents = pipeline.GetEntitiesWithinStations(start, end);
+            if (orderedSizeBrs != null) ents = ents.Where(x => orderedSizeBrs.All(y => x.Id != y.Id));
+
             dn = 0;
             if (ents.Count() == 0) return false;
 
@@ -51,8 +56,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
             return false;
         }
-        protected bool TryGetPipeSystem(IEnumerable<Entity> ents, out PipeSystemEnum ps)
+        protected bool TryGetPipeSystem(IPipelineV2 pipeline, double start, double end, out PipeSystemEnum ps)
         {
+            IEnumerable<Entity> ents = pipeline.GetEntitiesWithinStations(start, end);
+            if (orderedSizeBrs != null) ents = ents.Where(x => orderedSizeBrs.All(y => x.Id != y.Id));
+
             ps = PipeSystemEnum.Ukendt;
             if (ents.Count() == 0) return false;
 
@@ -74,8 +82,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
             return false;
         }
-        protected bool TryGetPipeType(IEnumerable<Entity> ents, out PipeTypeEnum pt)
+        protected bool TryGetPipeType(IPipelineV2 pipeline, double start, double end, out PipeTypeEnum pt)
         {
+            IEnumerable<Entity> ents = pipeline.GetEntitiesWithinStations(start, end);
+            if (orderedSizeBrs != null) ents = ents.Where(x => orderedSizeBrs.All(y => x.Id != y.Id));
+
             pt = PipeTypeEnum.Ukendt;
             if (ents.Count() == 0) return false;
 
@@ -157,12 +168,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public PipelineSizeArrayV2Blocks(IPipelineV2 pipeline)
         {
             // Get all the blocks that define the sizes
-            var sizeBrs = pipeline.Entities.GetBlockReferences()
+            IEnumerable<BlockReference> sizeBrs = pipeline.Entities.GetBlockReferences()
                 .Where(x => x.ReadDynamicCsvProperty(
                     DynamicProperty.Function, false) == "SizeArray");
 
             // Order the blocks by station
-            var orderedSizeBrs = sizeBrs.OrderBy(x => pipeline.GetBlockStation(x)).ToArray();
+            orderedSizeBrs = sizeBrs.OrderBy(x => pipeline.GetBlockStation(x)).ToArray();
 
             // The direction is assumed to be from start to and of alignment (or NA)
             // Use a new method using stations to gather blocks
@@ -238,39 +249,32 @@ namespace IntersectUtilities.PipelineNetworkSystem
             //Build the sizes array
             for (int i = 0; i < ranges.Count; i++)
             {
-                //Deferred execution here
-                double start = 0;
-                double end = 0;
-                var query = pipeline.GetEntitiesWithinStations(start, end)
-                        .Where(x => sizeBrs.All(y => x.Id != y.Id)); //<- removing SizeArray blocks from query
-
-                SizeEntryV2 size = GetSizeData(ranges[i], ref start, ref end, query);
+                SizeEntryV2 size = GetSizeData(pipeline, ranges[i]);
                 sizes.Add(size);
             }
         }
 
-        private SizeEntryV2 GetSizeData(
-            (double fsS, double fsE, double ssS, double ssE, BlockReference br) range,
-            ref double start,
-            ref double end,
-            IEnumerable<Entity> query)
+        private SizeEntryV2 GetSizeData(IPipelineV2 pipeline,
+            (double fsS, double fsE, double ssS, double ssE, BlockReference br) range)
         {
             var current = range.br;
             PipelineElementType type = current.GetPipelineType();
+            double start;
+            double end;
 
             #region TryGetDN
-            start = range.fsS; end = range.fsE;
+            start = range.fsS; end = range.fsE; 
 
             int dn;
             switch (type)
             {
                 case PipelineElementType.F_Model: //X_Model DN can be read directly
                 case PipelineElementType.Y_Model:
-                    TryGetDN(query, out dn);
+                    TryGetDN(pipeline, start, end, out dn);
                     break;
                 case PipelineElementType.Reduktion: //Need to look at sides
                 case PipelineElementType.Materialeskift:
-                    if (!TryGetDN(query, out dn))
+                    if (!TryGetDN(pipeline, start, end, out dn))
                     {//If operation fails, try other side
                         int DN1 = Convert.ToInt32(current.ReadDynamicCsvProperty(
                             DynamicProperty.DN1, true));
@@ -281,7 +285,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         start = range.ssS; end = range.ssE;
 
                         int otherSideDN;
-                        if (!TryGetDN(query, out otherSideDN))
+                        if (!TryGetDN(pipeline, start, end, out otherSideDN))
                         {
                             prdDbg($"Could not find DN for block {current.Handle}!");
                             throw new Exception("Could not find DN for block!");
@@ -313,23 +317,21 @@ namespace IntersectUtilities.PipelineNetworkSystem
             switch (type)
             {
                 case PipelineElementType.Materialeskift://Need to look at sides
-                    if (!TryGetPipeSystem(query, out ps))
+                    if (!TryGetPipeSystem(pipeline, start, end, out ps))
                     {//If operation fails, try other side
 
                         start = range.ssS; end = range.ssE;
 
                         PipeSystemEnum otherSidePS;
-                        if (!TryGetPipeSystem(query, out otherSidePS))
+                        if (!TryGetPipeSystem(pipeline, start, end, out otherSidePS))
                         {
                             prdDbg($"Could not find PipeSystem for block {current.Handle}!");
                             throw new Exception("Could not find PipeSystem for block!");
                         }
                         else
                         {
-                            var M1 = GetPipeSystem(current.ReadDynamicCsvProperty(
-                                DynamicProperty.M1, true));
-                            var M2 = GetPipeSystem(current.ReadDynamicCsvProperty(
-                                DynamicProperty.M2, true));
+                            var M1 = GetSystemType(current.ReadDynamicCsvProperty(DynamicProperty.M1));
+                            var M2 = GetSystemType(current.ReadDynamicCsvProperty(DynamicProperty.M2));
 
                             if (M1 == otherSidePS) ps = M2;
                             else ps = M1;
@@ -339,8 +341,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 case PipelineElementType.F_Model:
                 case PipelineElementType.Y_Model:
                 case PipelineElementType.Reduktion: //PipeSystemType can be read directly
-                    string psStr = current.ReadDynamicCsvProperty(
-                        DynamicProperty.SysNavn, true);
+                    string psStr = current.ReadDynamicCsvProperty(DynamicProperty.SysNavn);
                     Enum.TryParse(psStr, out ps);
                     break;
                 default:
@@ -364,13 +365,13 @@ namespace IntersectUtilities.PipelineNetworkSystem
             {
                 case PipelineElementType.F_Model:
                 case PipelineElementType.Y_Model: //Need to look at sides
-                    if (!TryGetPipeType(query, out pt))
-                    {//If operation fails, try other side
+                    if (!TryGetPipeType(pipeline, start, end, out pt))
+                    {//If operation fails, try other side   
 
                         start = range.ssS; end = range.ssE;
 
                         PipeTypeEnum otherSidePT;
-                        if (!TryGetPipeType(query, out otherSidePT))
+                        if (!TryGetPipeType(pipeline, start, end, out otherSidePT))
                         {
                             prdDbg($"Could not find PipeType for block {current.Handle}!");
                             throw new Exception("Could not find PipeType for block!");
@@ -399,14 +400,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
             #endregion
 
             #region TryGetPipeSeries
-            //Reset query params for deferred execution
-            //because they could have been changed
-            start = range.fsS; end = range.fsE;
-
             PipeSeriesEnum serie = PipeSeriesEnum.Undefined;
 
             string seriesStr = current.ReadDynamicCsvProperty(DynamicProperty.Serie);
-            Enum.TryParse(seriesStr, out pt);
+            Enum.TryParse(seriesStr, out serie);
 
             if (serie == PipeSeriesEnum.Undefined)
             {
@@ -492,21 +489,21 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public PipelineSizeArrayV2NoBlocks(IPipelineV2 pipeline)
         {
             int dn = 0;
-            if (!TryGetDN(pipeline.Entities, out dn))
+            if (!TryGetDN(pipeline, 0.0, pipeline.EndStation, out dn))
             {
                 prdDbg($"Could not find DN for pipeline {pipeline.Name}!");
                 throw new Exception("Could not find DN for pipeline!");
             }
 
             PipeSystemEnum ps = PipeSystemEnum.Ukendt;
-            if (!TryGetPipeSystem(pipeline.Entities, out ps))
+            if (!TryGetPipeSystem(pipeline, 0.0, pipeline.EndStation, out ps))
             {
                 prdDbg($"Could not find PipeSystemEnum for pipeline {pipeline.Name}!");
                 throw new Exception("Could not find PipeSystemEnum for pipeline!");
             }
 
             PipeTypeEnum pt = PipeTypeEnum.Ukendt;
-            if (!TryGetPipeType(pipeline.Entities, out pt))
+            if (!TryGetPipeType(pipeline, 0.0, pipeline.EndStation, out pt))
             {
                 prdDbg($"Could not find PipeTypeEnum for pipeline {pipeline.Name}!");
                 throw new Exception("Could not find PipeTypeEnum for pipeline!");
@@ -550,7 +547,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 !pipeline.Entities.HasSizeArrayBrs()) return new PipelineSizeArrayV2OnePolyline(pipeline);
             //Case array defining blocks exist
             else if (pipeline.Entities.HasSizeArrayBrs()) return new PipelineSizeArrayV2Blocks(pipeline);
-            else throw new NotImplementedException();
+            else return new PipelineSizeArrayV2NoBlocks(pipeline);
+
+            throw new NotImplementedException();
         }
     }
     public struct SizeEntryV2
