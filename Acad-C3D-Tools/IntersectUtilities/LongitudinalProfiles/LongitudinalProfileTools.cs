@@ -1092,23 +1092,7 @@ namespace IntersectUtilities
                 Transaction fremTx = fremDb.TransactionManager.StartTransaction();
 
                 #region Read CSV
-                System.Data.DataTable dynBlocks = default;
-                try
-                {
-                    dynBlocks = CsvReader.ReadCsvToDataTable(
-                            @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-                }
-                catch (System.Exception ex)
-                {
-                    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                    prdDbg(ex);
-                    throw;
-                }
-                if (dynBlocks == default)
-                {
-                    prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                    throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
-                }
+                System.Data.DataTable dynBlocks = CsvData.FK;
                 #endregion
 
                 HashSet<Curve> allCurves = fremDb.GetFjvPipes(fremTx).Cast<Curve>().ToHashSet();
@@ -1256,6 +1240,8 @@ namespace IntersectUtilities
                         #region Build size array
                         PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
                         prdDbg(sizeArray.ToString());
+
+
                         #endregion
 
                         #region Local method to sample profiles

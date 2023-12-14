@@ -5724,7 +5724,7 @@ namespace IntersectUtilities
             }
         }
 #endif
-        
+
         [CommandMethod("CLEANPLINE")]
         public void cleanpline()
         {
@@ -8131,25 +8131,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Read CSV
-                    System.Data.DataTable dt = default;
-                    try
-                    {
-                        dt = CsvReader.ReadCsvToDataTable(
-                                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-                    }
-                    catch (System.Exception ex)
-                    {
-                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                        prdDbg(ex);
-                        throw;
-                    }
-                    if (dt == default)
-                    {
-                        prdDbg("Reading of FJV Dynamiske Komponenter.csv failed!");
-                        throw new System.Exception("Failed to read FJV Dynamiske Komponenter.csv");
-                    }
-                    #endregion
+                    System.Data.DataTable dt = CsvData.FK;
 
                     PropertySetManager psmPipeLineData = new PropertySetManager(
                         localDb,
@@ -8196,7 +8178,83 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("TESTQUIKGRAPH")]
+        [CommandMethod("SETALLBLOCKSTOSERIE")]
+        public void setallblockstoserie()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable dt = CsvData.FK;
+
+                    var ents = localDb.GetFjvBlocks(tx, dt, false, false, true);
+
+                    List<string> brNames = ents.Select(x => x.RealName())
+                        .Distinct().OrderBy(x => x).ToList();
+
+                    StringGridForm sgf = new StringGridForm(brNames, "Select block NAME to set Serie: ");
+                    sgf.ShowDialog();
+
+                    if (sgf.SelectedValue == null)
+                    {
+                        prdDbg("Cancelled!");
+                        tx.Abort();
+                        return;
+                    }
+
+                    var result = ents.Where(x => x.RealName() == sgf.SelectedValue).ToArray();
+
+                    List<PipeSeriesEnum> list = new List<PipeSeriesEnum>()
+                    {
+                        PipeSeriesEnum.S1, PipeSeriesEnum.S2, PipeSeriesEnum.S3,
+                    };
+
+                    StringGridForm sgf2 = new StringGridForm(list.Select(x => x.ToString()), "Select Serie: ");
+                    sgf2.ShowDialog();
+
+                    if (sgf2.SelectedValue == null)
+                    {
+                        prdDbg("Cancelled!");
+                        tx.Abort();
+                        return;
+                    }
+
+                    PipeSeriesEnum pipeSeriesEnum = (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum), sgf2.SelectedValue);
+
+                    foreach (var br in result)
+                    {
+                        //br.CheckOrOpenForWrite();
+                        //br. ("Serie", pipeSeriesEnum.ToString());
+
+                        var dbrpc = br.DynamicBlockReferencePropertyCollection;
+                        foreach (DynamicBlockReferenceProperty item in dbrpc)
+                        {
+                            if (item.PropertyName == "Serie")
+                            {
+                                if (item.Value.ToString() == pipeSeriesEnum.ToString()) continue;
+                                br.CheckOrOpenForWrite();
+                                item.Value = pipeSeriesEnum.ToString();
+                            }   
+                        }
+
+                        br.CheckOrOpenForWrite();
+                        br.AttSync();
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        //[CommandMethod("TESTQUIKGRAPH")]
         public void testquikgraph()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -8548,7 +8606,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("TESTENUMS")]
+        //[CommandMethod("TESTENUMS")]
         public void testenums()
         {
             DocumentCollection docCol = Application.DocumentManager;

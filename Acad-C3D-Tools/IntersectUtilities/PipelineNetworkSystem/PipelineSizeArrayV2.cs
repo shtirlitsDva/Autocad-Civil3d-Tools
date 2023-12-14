@@ -108,6 +108,32 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
             return false;
         }
+        protected bool TryGetPipeSeries(IPipelineV2 pipeline, double start, double end, out PipeSeriesEnum series)
+        {
+            IEnumerable<Entity> ents = pipeline.GetEntitiesWithinStations(start, end);
+            if (orderedSizeBrs != null) ents = ents.Where(x => orderedSizeBrs.All(y => x.Id != y.Id));
+
+            series = PipeSeriesEnum.Undefined;
+            if (ents.Count() == 0) return false;
+
+            //First try polylines
+            var plines = ents.Where(x => x is Polyline);
+            foreach (var pline in plines)
+            {
+                series = GetPipeSeriesV2(pline);
+                if (series != PipeSeriesEnum.Undefined) return true;
+            }
+            //Fall back on blocks
+            var brs = ents.Where(x => x is BlockReference).Cast<BlockReference>();
+            if (brs.Count() == 0) return false;
+            foreach (var br in brs)
+            {
+                string seriesStr = br.ReadDynamicCsvProperty(DynamicProperty.Serie);
+                Enum.TryParse(seriesStr, out series);
+                if (series != PipeSeriesEnum.Undefined) return true;
+            }
+            return false;
+        }
         public override string ToString()
         {
             // Convert the struct data to string[][] for easier processing
@@ -263,7 +289,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             double end;
 
             #region TryGetDN
-            start = range.fsS; end = range.fsE; 
+            start = range.fsS; end = range.fsE;
 
             int dn;
             switch (type)
@@ -400,10 +426,30 @@ namespace IntersectUtilities.PipelineNetworkSystem
             #endregion
 
             #region TryGetPipeSeries
-            PipeSeriesEnum serie = PipeSeriesEnum.Undefined;
+            //Reset query params for deferred execution
+            //because they could have been changed
+            start = range.fsS; end = range.fsE;
 
-            string seriesStr = current.ReadDynamicCsvProperty(DynamicProperty.Serie);
-            Enum.TryParse(seriesStr, out serie);
+            PipeSeriesEnum serie;
+
+            switch (type)
+            {
+                case PipelineElementType.F_Model:
+                case PipelineElementType.Y_Model: //Need to look at sides
+                case PipelineElementType.Materialeskift: //because block information is unreliable
+                case PipelineElementType.Reduktion:
+                    TryGetPipeSeries(pipeline, start, end, out serie);
+                    break;
+                default:
+                    throw new Exception($"Unexpected type received {type}! Must only be SizeArray blocks.");
+            }
+
+            if (serie == PipeSeriesEnum.Undefined)
+            {
+                //Fall back on reading series from size array block, this is unstable!
+                string seriesStr = current.ReadDynamicCsvProperty(DynamicProperty.Serie);
+                Enum.TryParse(seriesStr, out serie);
+            }
 
             if (serie == PipeSeriesEnum.Undefined)
             {
