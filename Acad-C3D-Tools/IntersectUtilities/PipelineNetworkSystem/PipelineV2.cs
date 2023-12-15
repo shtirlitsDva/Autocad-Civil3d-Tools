@@ -18,7 +18,6 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using psh = IntersectUtilities.PropertySetPipelineGraphHelper;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -49,6 +48,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         protected EntityCollection ents;
         protected EntityCollection welds;
         protected IPipelineSizeArrayV2 sizes;
+        protected PropertySetHelper psh;
         public EntityCollection Entities { get => ents; }
         public EntityCollection Welds { get => welds; }
         public abstract string Name { get; }
@@ -58,6 +58,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public PipelineV2Base(IEnumerable<Entity> source)
         {
             source.Partition(IsNotWeld, out this.ents, out this.welds);
+
+            if (psh == null)
+                psh = new PropertySetHelper(ents?.FirstOrDefault()?.Database);
 
             bool IsNotWeld(Entity e) =>
                 (e is BlockReference br &&

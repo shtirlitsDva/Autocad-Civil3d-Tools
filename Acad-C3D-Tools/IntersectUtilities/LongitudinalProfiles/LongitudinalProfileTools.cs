@@ -28,20 +28,18 @@ using System.Data;
 using MoreLinq;
 using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
-using static IntersectUtilities.UtilsCommon.Utils;
+using IntersectUtilities.PipelineNetworkSystem;
 using Dreambuild.AutoCAD;
 
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
 using static IntersectUtilities.Utils;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
-
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
-using static IntersectUtilities.UtilsCommon.UtilsODData;
+using static IntersectUtilities.UtilsCommon.Utils;
 
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
-using DataType = Autodesk.Gis.Map.Constants.DataType;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
@@ -50,9 +48,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Color = Autodesk.AutoCAD.Colors.Color;
-using System.Diagnostics;
 using IntersectUtilities.LongitudinalProfiles;
-using System.Windows.Controls;
 
 namespace IntersectUtilities
 {
@@ -891,6 +887,8 @@ namespace IntersectUtilities
 
                     foreach (ProfileView pv in pvs.Select(x => x.Go<ProfileView>(tx)))
                     {
+                        prdDbg($"Processing profile view: {pv.Name}");
+
                         #region Create a block for profile view detailing
                         //First, get the profile view
 
@@ -957,7 +955,9 @@ namespace IntersectUtilities
                         HashSet<Label> labels = localDb.HashSetOfType<Label>(tx);
                         Extents3d extentsPv = pv.GeometricExtents;
 
-                        var pvLabels = labels.Where(l => extentsPv.IsPointInsideXY(l.LabelLocation));
+                        var pvLabels = labels.Where(
+                            l => extentsPv.IsPointInsideXY(l.LabelLocation) &&
+                            l is ProfileProjectionLabel);
                         prdDbg($"Number of labels inside extents: {pvLabels.Count()}");
 
                         foreach (Label label in pvLabels)
@@ -1238,10 +1238,9 @@ namespace IntersectUtilities
                         #endregion
 
                         #region Build size array
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
+                        IPipelineV2 pipeline = PipelineV2Factory.Create(curves.Cast<Entity>().Union(brs), al);
+                        IPipelineSizeArrayV2 sizeArray = PipelineSizeArrayFactory.CreateSizeArray(pipeline);
                         prdDbg(sizeArray.ToString());
-
-
                         #endregion
 
                         #region Local method to sample profiles
@@ -1286,7 +1285,8 @@ namespace IntersectUtilities
                                 allSteps.Add(new Point2d(originX + curStation, originY + (sampledSurfaceElevation - pvElBottom - cover - halfKappeOd)));
                             }
                             #region Apply Douglas Peucker reduction
-                            List<Point2d> reducedSteps = DouglasPeuckerReduction.DouglasPeuckerReductionMethod(allSteps, DouglasPeuckerTolerance);
+                            List<Point2d> reducedSteps = DouglasPeuckerReduction.DouglasPeuckerReductionMethod(
+                                allSteps, DouglasPeuckerTolerance);
                             #endregion
 
                             #region Draw middle profile
@@ -1587,12 +1587,8 @@ namespace IntersectUtilities
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                         #endregion
 
-                        prdDbg("Blocks:");
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves,
-                            brs.Where(x =>
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Svejsning" &&
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Stikafgrening" &&
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Muffetee").ToHashSet());
+                        IPipelineV2 pipeline = PipelineV2Factory.Create(curves.Cast<Entity>().Union(brs), al);
+                        IPipelineSizeArrayV2 sizeArray = PipelineSizeArrayFactory.CreateSizeArray(pipeline);
                         prdDbg(sizeArray.ToString());
 
                         foreach (ProfileView pv in pvs)
@@ -2161,13 +2157,11 @@ namespace IntersectUtilities
                         prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
                         #endregion
 
-                        prdDbg("Blocks:");
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves,
-                            brs.Where(x =>
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Svejsning" &&
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Stikafgrening" &&
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Muffetee").ToHashSet());
-                        prdDbg(sizeArray.ToString());
+                        #region Size array
+                        IPipelineV2 pipeline = PipelineV2Factory.Create(curves.Cast<Entity>().Union(brs), al);
+                        IPipelineSizeArrayV2 sizeArray = PipelineSizeArrayFactory.CreateSizeArray(pipeline);
+                        prdDbg(sizeArray.ToString()); 
+                        #endregion
 
                         #region Explode midt profile for later sampling
                         DBObjectCollection objs = new DBObjectCollection();
@@ -2610,7 +2604,7 @@ namespace IntersectUtilities
                                 #endregion
 
                                 #region Scale block to fit kappe
-                                SizeEntry curSize = sizeArray.GetSizeAtStation(station);
+                                SizeEntryV2 curSize = sizeArray.GetSizeAtStation(station);
                                 brWeld.ScaleFactors = new Scale3d(1, curSize.Kod / 1000 *
                                     profileViewStyle.GraphStyle.VerticalExaggeration, 1);
                                 #endregion
@@ -3714,7 +3708,7 @@ namespace IntersectUtilities
 
                     #region Setup styles
                     LabelStyleCollection stc = civilDoc.Styles.LabelStyles
-                                                                   .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
+                        .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
 
                     Oid profileProjection_RIGHT_Style = Oid.Null;
                     Oid profileProjection_LEFT_Style = Oid.Null;
@@ -4422,11 +4416,10 @@ namespace IntersectUtilities
                         #endregion
 
                         #region Build size array
-                        PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves,
-                            brs.Where(x =>
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Svejsning" &&
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Stikafgrening" &&
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Muffetee").ToHashSet());
+                        IPipelineV2 pipeline = PipelineV2Factory.Create(
+                            curves.Cast<Entity>().Union(brs), al);
+                        IPipelineSizeArrayV2 sizeArray = 
+                            PipelineSizeArrayFactory.CreateSizeArray(pipeline);
                         prdDbg(sizeArray.ToString());
                         #endregion
 

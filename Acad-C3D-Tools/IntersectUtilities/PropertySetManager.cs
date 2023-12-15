@@ -1263,14 +1263,14 @@ namespace IntersectUtilities
             => obj.PropertySetDefinitionName.GetHashCode();
     }
 
-    public static class PropertySetPipelineGraphHelper
+    public class PropertySetHelper
     {
-        public static PropertySetManager Graph;
-        public static PropertySetManager Pipeline;
-        public static PSetDefs.DriGraph GraphDef;
-        public static PSetDefs.DriPipelineData PipelineDef;
+        public PropertySetManager Graph;
+        public PropertySetManager Pipeline;
+        public PSetDefs.DriGraph GraphDef;
+        public PSetDefs.DriPipelineData PipelineDef;
 
-        public static void Init(Database db)
+        public PropertySetHelper(Database db)
         {
             if (db == null) throw new System.Exception(
                 "Either ents collection, first element or its' database is null!");

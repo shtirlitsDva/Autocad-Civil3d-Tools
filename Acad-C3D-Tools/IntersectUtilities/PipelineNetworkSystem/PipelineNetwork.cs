@@ -17,7 +17,7 @@ using System.Threading.Tasks;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using psh = IntersectUtilities.PropertySetPipelineGraphHelper;
+using psh = IntersectUtilities.PropertySetHelper;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -25,12 +25,14 @@ namespace IntersectUtilities.PipelineNetworkSystem
     {
         private HashSet<IPipelineV2> pipelines;
         private GraphCollection pipelineGraphs;
+        private PropertySetHelper psh;
 
         public void CreatePipelineNetwork(IEnumerable<Entity> ents, IEnumerable<Alignment> als)
         {
             pipelines = new HashSet<IPipelineV2>();
 
-            psh.Init(ents?.FirstOrDefault()?.Database);
+            if (psh == null)
+                psh = new PropertySetHelper(ents?.FirstOrDefault()?.Database);
 
             // Get all the names of the pipelines
             // because we need to create a network for each of them

@@ -650,7 +650,8 @@ namespace IntersectUtilities
 
             return table;
         }
-        private List<int> GetIndexesOfSizesAppearingInProfileView(double pvStationStart, double pvStationEnd)
+        private List<int> GetIndexesOfSizesAppearingInProfileView(
+            double pvStationStart, double pvStationEnd)
         {
             List<int> indexes = new List<int>();
             for (int i = 0; i < SizeArray.Length; i++)
