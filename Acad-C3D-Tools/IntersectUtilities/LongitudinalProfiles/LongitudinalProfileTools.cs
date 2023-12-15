@@ -3070,12 +3070,8 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    prdDbg("Blocks:");
-                    PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves,
-                            brs.Where(x =>
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Svejsning" &&
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Stikafgrening" &&
-                            x.ReadDynamicCsvProperty(DynamicProperty.Type, false) != "Muffetee").ToHashSet());
+                    IPipelineV2 pipeline = PipelineV2Factory.Create(curves.Cast<Entity>().Union(brs), al);
+                    IPipelineSizeArrayV2 sizeArray = PipelineSizeArrayFactory.CreateSizeArray(pipeline);
                     prdDbg(sizeArray.ToString());
 
                     #region Create polyline from centre profile
