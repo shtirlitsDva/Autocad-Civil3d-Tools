@@ -11,14 +11,18 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using IntersectUtilities.UtilsCommon;
-using QuikGraph.Serialization;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.ScrollBar;
+using Autodesk.Civil.DatabaseServices;
+
+using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
     public interface IPipelineSizeArrayV2
     {
         SizeEntryV2 this[int index] { get; set; }
+        int Length { get; }
+        IPipelineSizeArrayV2 GetPartialSizeArrayForPV(ProfileView pv);
+        SizeEntryV2 GetSizeAtStation(double station);
         PipelineSizesArrangement Arrangement { get; }
         string ToString();
     }
@@ -27,7 +31,44 @@ namespace IntersectUtilities.PipelineNetworkSystem
         protected SizeEntryCollection sizes = new SizeEntryCollection();
         protected BlockReference[] orderedSizeBrs;
         public SizeEntryV2 this[int index] { get => sizes[index]; set => sizes[index] = value; }
+        public int Length { get => sizes.Count; }
         public PipelineSizesArrangement Arrangement { get; protected set; }
+        #region Methods for partial arrays
+        public SizeEntryV2 GetSizeAtStation(double station)
+        {
+            for (int i = 0; i < sizes.Count; i++)
+            {
+                SizeEntryV2 curEntry = sizes[i];
+                //(stations are END stations!)
+                if (station <= curEntry.EndStation) return curEntry;
+            }
+            return default;
+        }
+        private List<int> GetIndexesOfSizesAppearingInProfileView(
+            double pvStationStart, double pvStationEnd)
+        {
+            List<int> indexes = new List<int>();
+            for (int i = 0; i < sizes.Count; i++)
+            {
+                SizeEntryV2 curEntry = sizes[i];
+                if (pvStationStart < curEntry.EndStation &&
+                    curEntry.StartStation < pvStationEnd) indexes.Add(i);
+            }
+            return indexes;
+        }
+        private SizeEntryV2[] GetArrayOfSizesForPv(ProfileView pv)
+        {
+            var list = this.GetIndexesOfSizesAppearingInProfileView(pv.StationStart, pv.StationEnd);
+            SizeEntryV2[] partialAr = new SizeEntryV2[list.Count];
+            for (int i = 0; i < list.Count; i++) partialAr[i] = this[list[i]];
+            return partialAr;
+        }
+        public IPipelineSizeArrayV2 GetPartialSizeArrayForPV(ProfileView pv)
+        {
+            return new PipelineSizeArrayV2Partial(GetArrayOfSizesForPv(pv));
+        } 
+        #endregion
+        #region Methods to read properties of sizes
         protected bool TryGetDN(IPipelineV2 pipeline, double start, double end, out int dn)
         {
             IEnumerable<Entity> ents = pipeline.GetEntitiesWithinStations(start, end);
@@ -134,6 +175,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
             return false;
         }
+        #endregion
         public override string ToString()
         {
             // Convert the struct data to string[][] for easier processing
@@ -169,6 +211,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
             return table;
         }
+    }
+    public class PipelineSizeArrayV2Partial : PipelineSizeArrayV2Base
+    {
+        public PipelineSizeArrayV2Partial(SizeEntryV2[] partial) { sizes = new SizeEntryCollection(partial); }
     }
     public class PipelineSizeArrayV2OnePolyline : PipelineSizeArrayV2Base
     {

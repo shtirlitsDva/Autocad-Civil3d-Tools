@@ -1451,7 +1451,7 @@ namespace IntersectUtilities.UtilsCommon
             }
             catch (System.Exception ex)
             {
-                prdDbg(ex);
+                //prdDbg(ex);
                 return 0;
             }
 

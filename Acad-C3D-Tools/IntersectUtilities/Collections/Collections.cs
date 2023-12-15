@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 using Autodesk.AutoCAD.DatabaseServices;
 
@@ -14,8 +13,6 @@ using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 
-using psh = IntersectUtilities.PropertySetPipelineGraphHelper;
-
 namespace IntersectUtilities.Collections
 {
     #region EntityCollection
@@ -25,6 +22,7 @@ namespace IntersectUtilities.Collections
         private static Regex conRgx = new Regex(@"(?<OwnEndType>\d):(?<ConEndType>\d):(?<Handle>\w*)");
         private List<Entity> _L = new List<Entity>();
         private Dictionary<Handle, HashSet<Handle>> _C = new Dictionary<Handle, HashSet<Handle>>();
+        private PropertySetHelper psh;
         public IEnumerable<Handle> ExternalHandles
         {
             get => _L.SelectMany(x => GetOtherHandles(ReadConnection(x))).Where(x => _L.All(y => y.Handle != x)).Distinct();
@@ -32,12 +30,18 @@ namespace IntersectUtilities.Collections
         public EntityCollection() { }
         public EntityCollection(IEnumerable<Entity> ents)
         {
+            if (psh == null) psh = new PropertySetHelper(
+                ents.First().Database);
+
             _L.AddRange(ents);
             foreach (var ent in ents)
                 _C.Add(ent.Handle, new HashSet<Handle>(GetOtherHandles(ReadConnection(ent))));
         }
         public void Add(Entity item)
         {
+            if (psh == null) psh =
+                    new PropertySetHelper(item.Database);
+
             _L.Add(item);
             _C.Add(item.Handle, new HashSet<Handle>(GetOtherHandles(ReadConnection(item))));
         }
