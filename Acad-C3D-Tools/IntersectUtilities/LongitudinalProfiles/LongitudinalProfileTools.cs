@@ -3106,7 +3106,7 @@ namespace IntersectUtilities
                     HashSet<Polyline> offsetCurvesBund = new HashSet<Polyline>();
                     //Small offset to avoid vertical segments in profile
                     //************************************************//
-                    double pDelta = 0.125;
+                    double pDelta = 0.020;
                     //************************************************//
                     //Create lines to split the offset curves
                     //And it happens for each size segment
