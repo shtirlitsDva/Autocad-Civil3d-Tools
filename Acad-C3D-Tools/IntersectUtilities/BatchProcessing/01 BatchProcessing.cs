@@ -796,6 +796,95 @@ namespace IntersectUtilities
             return new Result();
         }
         [MethodDescription(
+            "Attach a drawing as xref by filename with optional draw order",
+            "Attacher en .dwg tegning ved fuldt filnavn,\n" +
+            "samtidig giver mulighed for at angive en anden xref\n" +
+            "den skal placeres under eller over i draw order.\n" +
+            "Der skal kun angives \"Over\" eller \"Under\"!",
+            new string[4] { "Dwg fuldt sti med filnavn", 
+                "Layer hvor xref skal placeres (eksisterende eller bliver lavet)",
+                "Xref Navn til at placere i draw order (uden .dwg, tast \"mellemrum\" for at ignorere)", 
+                "Draw Order type: Over eller Under" })]
+        public static Result attachdwg(
+            Database xDb, string attachDwgFileName, string xrefLayerName, string drawOrderXref, string drawOrderType)
+        {
+            using (Transaction nestedTx = xDb.TransactionManager.StartTransaction())
+            {
+                BlockTable bt = xDb.BlockTableId.Go<BlockTable>(nestedTx, OpenMode.ForRead);
+
+                if (attachDwgFileName.IsNoE() || !File.Exists(attachDwgFileName))
+                {
+                    prdDbg("Specified xref NOT found!");
+                    nestedTx.Abort();
+                    return new Result(
+                        ResultStatus.FatalError, $"Xref {attachDwgFileName} not found or layer name is empty!");
+                }
+
+                if (xrefLayerName.IsNoE())
+                {
+                    prdDbg("Layer name is empty!");
+                    nestedTx.Abort();
+                    return new Result(ResultStatus.FatalError, $"Layer name is empty!");
+                }
+
+                Oid xrefId = xDb.AttachXref(
+                    attachDwgFileName, Path.GetFileNameWithoutExtension(attachDwgFileName));
+                if (xrefId == Oid.Null)
+                {
+                    nestedTx.Abort();
+                    return new Result(
+                        ResultStatus.FatalError, $"Could not attach dwg {attachDwgFileName}!");
+                }
+
+                try
+                {
+                    Point3d insPt = new Point3d(0, 0, 0);
+                    using (BlockReference br = new BlockReference(insPt, xrefId))
+                    {
+                        BlockTableRecord ms = xDb.GetModelspaceForWrite();
+                        ms.AppendEntity(br);
+                        nestedTx.AddNewlyCreatedDBObject(br, true);
+
+                        xDb.CheckOrCreateLayer(xrefLayerName);
+
+                        br.Layer = xrefLayerName;
+
+                        if (drawOrderXref.IsNotNoE() || !string.IsNullOrWhiteSpace(drawOrderXref))
+                        {
+                            foreach (Oid oid in ms)
+                            {
+                                var doBr = oid.Go<BlockReference>(nestedTx);
+                                if (doBr == null) continue;
+                                BlockTableRecord btr = nestedTx.GetObject(
+                                    doBr.BlockTableRecord, OpenMode.ForWrite) as BlockTableRecord;
+                                if (btr.IsFromExternalReference && btr.Name == drawOrderXref)
+                                {
+                                    prdDbg("Found specified draw order xref!");
+
+                                    DrawOrderTable dot = ms.DrawOrderTableId
+                                        .Go<DrawOrderTable>(nestedTx, OpenMode.ForWrite);
+                                    dot.CheckOrOpenForWrite();
+
+                                    ObjectIdCollection idCol = new ObjectIdCollection(new Oid[1] { br.Id });
+
+                                    if (drawOrderType == "Under") dot.MoveBelow(idCol, doBr.Id);
+                                    else if (drawOrderType == "Over") dot.MoveAbove(idCol, doBr.Id);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    nestedTx.Abort();
+                    return new Result(ResultStatus.FatalError, ex.ToString());
+                }
+
+                nestedTx.Commit();
+            }
+            return new Result();
+        }
+        [MethodDescription(
             "Detach an xref by name",
             "Detacher en xref i tegningen\n" +
             "ved navn (uden .dwg)",
