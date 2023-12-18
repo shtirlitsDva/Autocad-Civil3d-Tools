@@ -73,8 +73,10 @@ namespace IntersectUtilities.Collections
                     case Polyline _:
                         return GetPipeDN(x);
                     case BlockReference br:
-                        return Convert.ToInt32(
-                            br.ReadDynamicCsvProperty(DynamicProperty.DN1));
+                        string type = br.ReadDynamicCsvProperty(DynamicProperty.Type, false);
+                        if (type == "Afgreningsstuds" || type == "Svanehals")
+                            return Convert.ToInt32(br.ReadDynamicCsvProperty(DynamicProperty.DN2));
+                        else return Convert.ToInt32(br.ReadDynamicCsvProperty(DynamicProperty.DN1));
                     default:
                         return 0;
                 }

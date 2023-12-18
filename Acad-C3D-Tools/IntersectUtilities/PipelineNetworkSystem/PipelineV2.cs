@@ -18,6 +18,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using QuikGraph.Serialization;
+using Dreambuild.AutoCAD;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -26,6 +28,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
         string Name { get; }
         string Label { get; }
         double EndStation { get; }
+        Point3d StartPoint { get; }
+        Point3d EndPoint { get; }
         EntityCollection Entities { get; }
         EntityCollection Welds { get; }
         IPipelineSizeArrayV2 Sizes { get; }
@@ -34,14 +38,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
         double GetPolylineStartStation(Polyline pl);
         double GetPolylineEndStation(Polyline pl);
         double GetBlockStation(BlockReference br);
-        /// <summary>
-        /// The collection of entities is limited by SizeArray Function blocks.
-        /// That is collection stops at the first SizeArray Function block ecountered.
-        /// </summary>
-        List<HashSet<Entity>> GetEntsToEachSideOf(Entity ent);
+        double GetStationAtPoint(Point3d pt);
         bool IsConnectedTo(IPipelineV2 other, double tol);
-        void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children);
+        Point3d GetConnectionLocationToParent(IPipelineV2 other, double tol);
+        void AutoReversePolylines(Point3d connectionLocation);
         IEnumerable<Entity> GetEntitiesWithinStations(double start, double end);
+        Point3d GetLocationForMaxDN();
     }
     public abstract class PipelineV2Base : IPipelineV2
     {
@@ -55,6 +57,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public virtual string Label { get => $"\"{Name}\""; }
         public abstract double EndStation { get; }
         public IPipelineSizeArrayV2 Sizes => sizes;
+        public abstract Point3d StartPoint { get; }
+        public abstract Point3d EndPoint { get; }
         public PipelineV2Base(IEnumerable<Entity> source)
         {
             source.Partition(IsNotWeld, out this.ents, out this.welds);
@@ -70,18 +74,74 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         public int GetMaxDN() => ents.GetMaxDN();
         public abstract bool IsConnectedTo(IPipelineV2 other, double tol);
-        public abstract void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children);
         public abstract double GetPolylineStartStation(Polyline pl);
         public abstract double GetPolylineEndStation(Polyline pl);
         public abstract double GetBlockStation(BlockReference br);
-        public List<HashSet<Entity>> GetEntsToEachSideOf(Entity ent)
-        {
-            return Entities.GetConnectedEntitiesDelimited(ent);
-        }
+        public abstract double GetStationAtPoint(Point3d pt);
         public abstract IEnumerable<Entity> GetEntitiesWithinStations(double start, double end);
         public void CreateSizeArray()
         {
             sizes = PipelineSizeArrayFactory.CreateSizeArray(this);
+        }
+        public void AutoReversePolylines(Point3d connectionLocation)
+        {
+            var againstFlow = GetEntitiesWithinStations(0, GetStationAtPoint(connectionLocation));
+            var withFlow = GetEntitiesWithinStations(GetStationAtPoint(connectionLocation), EndStation);
+
+            foreach (var item in againstFlow)
+            {
+                switch (item)
+                {
+                    case Polyline pl:
+                        if (!isPolylineOrientedCorrectly(pl, false)) { pl.CheckOrOpenForWrite(); pl.ReverseCurve(); }
+                        break;
+                }
+            }
+            foreach (var item in withFlow)
+            {
+                switch (item)
+                {
+                    case Polyline pl:
+                        if (!isPolylineOrientedCorrectly(pl, true)) { pl.CheckOrOpenForWrite(); pl.ReverseCurve(); }
+                        break;
+                }
+            }
+        }
+        protected bool isPolylineOrientedCorrectly(Polyline pl, bool withFlow)
+        {
+            double ss = GetPolylineStartStation(pl);
+            double es = GetPolylineEndStation(pl);
+
+            if (withFlow) return ss < es;
+            else return ss > es;
+        }
+        public abstract Point3d GetConnectionLocationToParent(IPipelineV2 parent, double tol);
+        /// <summary>
+        /// Determines start or end point for max DN.
+        /// Cannot be used for pipelines supplied from the middle.
+        /// </summary>
+        public Point3d GetLocationForMaxDN()
+        {
+            if (sizes == null) CreateSizeArray();
+
+            //Case one size -> return start point
+            if (sizes.Length == 1) return this.StartPoint;
+
+            if (sizes.Sizes.First().System == PipeSystemEnum.Stål &&
+                sizes.Sizes.Last().System == PipeSystemEnum.Stål)
+            {
+                if (sizes.Sizes.First().DN > sizes.Sizes.Last().DN) return this.StartPoint; 
+                else return this.EndPoint;
+            }
+            else if (sizes.Sizes.First().System == PipeSystemEnum.Stål) return this.StartPoint;
+            else if (sizes.Sizes.Last().System == PipeSystemEnum.Stål) return this.EndPoint;
+            else
+            {
+                if (sizes.Sizes.First().DN > sizes.Sizes.Last().DN) return this.StartPoint;
+                else return this.EndPoint;
+            }
+
+            throw new Exception($"Could not determine location for max DN for pipeline {this.Name}!");
         }
     }
     public class PipelineV2Alignment : PipelineV2Base
@@ -93,90 +153,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         public override string Name => al.Name;
         public override double EndStation => al.EndingStation;
-        public override void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children)
-        {
-            var refPline = al.GetPolyline().Go<Polyline>(
-                al.Database.TransactionManager.TopTransaction);
-            var plines = Entities.GetPolylines();
-
-            IPipelineSizeArrayV2 sizes = PipelineSizeArrayFactory.CreateSizeArray(this);
-
-            if (parent == null)
-            {
-                // if parent is null, which means this is an entry pipeline
-                if (sizes.Arrangement == PipelineSizesArrangement.OneSize)
-                {
-                    //This is a hard one, because we cannot determine the direction of the pipeline
-                    //Right now we will just assume direction following the alignment stations
-
-                    foreach (Polyline pline in plines)
-                    {
-                        Point3d pS = refPline.GetClosestPointTo(pline.StartPoint, false);
-                        Point3d pE = refPline.GetClosestPointTo(pline.EndPoint, false);
-
-                        double sS = al.StationAtPoint(pS);
-                        double sE = al.StationAtPoint(pE);
-
-                        if (sS > sE)
-                        {
-                            pline.UpgradeOpen();
-                            pline.ReverseCurve();
-                        }
-                    }
-                }
-                else if (sizes.Arrangement == PipelineSizesArrangement.MiddleDescendingToEnds)
-                    throw new Exception("MiddleDescendingToEnds for a root pipeline is not supported!");
-                else
-                {
-                    switch (sizes.Arrangement)
-                    {
-                        case PipelineSizesArrangement.SmallToLargeAscending:
-
-                            break;
-                        case PipelineSizesArrangement.LargeToSmallDescending:
-                            break;
-                        default:
-                            throw new Exception($"{sizes.Arrangement} should be handled elsewhere!");
-                    }
-                }
-            }
-            else
-            {
-                if (!(parent is PipelineV2Alignment))
-                    throw new Exception(
-                        $"Parent {parent.Name} is not an alignment pipeline, but is {parent.GetType().Name}!\n" +
-                        $"This is not supported.");
-
-                if (sizes.Arrangement == PipelineSizesArrangement.MiddleDescendingToEnds)
-                {
-
-                }
-                else
-                {
-                    var pal = parent as PipelineV2Alignment;
-
-                }
-            }
-
-            refPline.UpgradeOpen();
-            refPline.Erase(true);
-        }
-        private bool PointIsOn(Alignment al, Point3d point, double tol)
-        {
-            Polyline pline = al.GetPolyline().Go<Polyline>(
-                al.Database.TransactionManager.TopTransaction);
-
-            Point3d p = pline.GetClosestPointTo(point, false);
-            pline.UpgradeOpen();
-            pline.Erase(true);
-            //prdDbg($"{offset}, {Math.Abs(offset)} < {tolerance}, {Math.Abs(offset) <= tolerance}, {station}");
-
-            // If the offset is within the tolerance, the point is on the alignment
-            if (Math.Abs(p.DistanceTo(point)) <= tol) return true;
-
-            // Otherwise, the point is not on the alignment
-            return false;
-        }
+        public override Point3d StartPoint => al.StartPoint;
+        public override Point3d EndPoint => al.EndPoint;
         public override bool IsConnectedTo(IPipelineV2 other, double tol)
         {
             switch (other)
@@ -192,6 +170,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public override double GetPolylineStartStation(Polyline pl) => al.StationAtPoint(pl.StartPoint);
         public override double GetPolylineEndStation(Polyline pl) => al.StationAtPoint(pl.EndPoint);
         public override double GetBlockStation(BlockReference br) => al.StationAtPoint(br.Position);
+        public override double GetStationAtPoint(Point3d pt) => al.StationAtPoint(pt);
         public override IEnumerable<Entity> GetEntitiesWithinStations(double start, double end)
         {
             foreach (var ent in this.ents)
@@ -207,9 +186,89 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     case BlockReference br:
                         {
                             double st = al.StationAtPoint(br.Position);
-                            if (st >= start && st <= end) yield return ent; 
+                            if (st >= start && st <= end) yield return ent;
                         }
                         break;
+                }
+            }
+        }
+        public override Point3d GetConnectionLocationToParent(IPipelineV2 parent, double tol)
+        {
+            //Assumptions:
+            //This is connected to parent by endpoints -> ConnectionType: start or end
+            //Parent is connected to this by start or end -> ConnectionType: middle
+            //Cases:
+            //1. Parent is connected S/E to this && this S/E is coincident with parent S/E -> ConnectionType: start or end
+            //2. Parent is not connected S/E to this && this S/E is connected to P -> ConnectionType: middle
+            //3. Parent is connected S/E to this && this S/E is not coincident with parent S/E -> ConnectionType: middle
+
+            //use a variable to cache the polyline reference
+            //remember to erase it at the end
+            Polyline parentPlRef = null;
+            Polyline thisPlRef = null;
+            try
+            {
+                switch (parent)
+                {
+                    case PipelineV2Alignment pal:
+                        parentPlRef = pal.al.GetPolyline().Go<Polyline>(pal.al.Database.TransactionManager.TopTransaction);
+                        thisPlRef = this.al.GetPolyline().Go<Polyline>(this.al.Database.TransactionManager.TopTransaction);
+
+                        Point3d parentStart = pal.al.StartPoint;
+                        Point3d parentEnd = pal.al.EndPoint;
+                        Point3d thisStart = this.al.StartPoint;
+                        Point3d thisEnd = this.al.EndPoint;
+
+                        Point3d testPS;
+                        Point3d testPE;
+
+                        //Test for Case 1. and 3.
+                        testPS = thisPlRef.GetClosestPointTo(parentStart, false);
+                        testPE = thisPlRef.GetClosestPointTo(parentEnd, false);
+                        if (testPS.DistanceHorizontalTo(thisStart) < tol ||
+                            testPS.DistanceHorizontalTo(thisEnd) < tol ||
+                            testPE.DistanceHorizontalTo(thisStart) < tol ||
+                            testPE.DistanceHorizontalTo(thisEnd) < tol)
+                        {
+                            //Case 1.
+                            if (testPS.Equalz(thisStart, tol) || testPE.Equalz(thisStart, tol)) return thisStart;
+                            if (testPS.Equalz(thisEnd, tol) || testPE.Equalz(thisEnd, tol)) return thisEnd;
+
+                            //Case 3.
+                            if (testPS.DistanceHorizontalTo(parentStart) < tol) return testPS;
+                            if (testPE.DistanceHorizontalTo(parentEnd) < tol) return testPE;
+                        }
+
+                        //Test for Case 2.
+                        testPS = parentPlRef.GetClosestPointTo(thisStart, false);
+                        testPE = parentPlRef.GetClosestPointTo(thisEnd, false);
+                        if (testPS.DistanceHorizontalTo(thisStart) < tol) return testPS;
+                        if (testPE.DistanceHorizontalTo(thisEnd) < tol) return testPE;
+
+                        //If we get here, we have failed to find a connection location
+                        throw new Exception($"Could not find connection location between {this.Name} and {parent.Name}!");
+                    case PipelineV2Na pna:
+                        throw new Exception($"Alignment pipeline {this.Name} cannot have NA {pna.Name} as parent!");
+                    default:
+                        throw new Exception($"Unknown pipeline type {parent.GetType()}!");
+                }
+            }
+            catch (Exception ex)
+            {
+                prdDbg(ex);
+                throw;
+            }
+            finally
+            {
+                if (parentPlRef != null)
+                {
+                    parentPlRef.UpgradeOpen();
+                    parentPlRef.Erase(true);
+                }
+                if (thisPlRef != null)
+                {
+                    thisPlRef.UpgradeOpen();
+                    thisPlRef.Erase(true);
                 }
             }
         }
@@ -257,10 +316,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
             psh.Pipeline.ReadPropertyString(
                 this.Entities.First(), psh.PipelineDef.BelongsToAlignment);
         public override double EndStation => topology.Length;
-        public override void AutoReversePolylines(IPipelineV2 parent, IEnumerable<IPipelineV2> children)
-        {
-            throw new NotImplementedException();
-        }
+        public override Point3d StartPoint => topology.StartPoint;
+        public override Point3d EndPoint => topology.EndPoint;
         public override double GetBlockStation(BlockReference br)
         {
             return 0;
@@ -273,11 +330,16 @@ namespace IntersectUtilities.PipelineNetworkSystem
         {
             return 0;
         }
+        public override double GetStationAtPoint(Point3d pt) => topology.GetDistAtPoint(pt);
         public override bool IsConnectedTo(IPipelineV2 other, double tol) =>
             this.Entities.IsConnectedTo(other.Entities);
         public override IEnumerable<Entity> GetEntitiesWithinStations(double start, double end)
         {
-            throw new NotImplementedException();
+            throw new NotImplementedException("GetEntitiesWithinStations is not implemented for PipelineV2Na YET!!!");
+        }
+        public override Point3d GetConnectionLocationToParent(IPipelineV2 other, double tol)
+        {
+            throw new NotImplementedException($"GetConnectionLocatioToParent not implemented for {this.Name}!");
         }
     }
     public static class PipelineV2Factory
@@ -287,5 +349,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
             if (al == null) return new PipelineV2Na(ents);
             else return new PipelineV2Alignment(ents, al);
         }
+    }
+    public enum ConnectionType
+    {
+        Unknown,
+        Start,
+        End,
+        Middle,
     }
 }

@@ -21,6 +21,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
     {
         SizeEntryV2 this[int index] { get; set; }
         int Length { get; }
+        IEnumerable<SizeEntryV2> Sizes { get; }
         IPipelineSizeArrayV2 GetPartialSizeArrayForPV(ProfileView pv);
         SizeEntryV2 GetSizeAtStation(double station);
         PipelineSizesArrangement Arrangement { get; }
@@ -29,6 +30,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
     public abstract class PipelineSizeArrayV2Base : IPipelineSizeArrayV2
     {
         protected SizeEntryCollection sizes = new SizeEntryCollection();
+        public IEnumerable<SizeEntryV2> Sizes { get => sizes; }
         protected BlockReference[] orderedSizeBrs;
         public SizeEntryV2 this[int index] { get => sizes[index]; set => sizes[index] = value; }
         public int Length { get => sizes.Count; }

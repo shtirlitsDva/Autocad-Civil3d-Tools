@@ -1,11 +1,10 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
 using Autodesk.Civil.DatabaseServices;
 
 using IntersectUtilities.UtilsCommon;
 
 using MoreLinq;
-
-using NetTopologySuite.Index.Bintree;
 
 using System;
 using System.Collections.Generic;
@@ -17,7 +16,6 @@ using System.Threading.Tasks;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using psh = IntersectUtilities.PropertySetHelper;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -263,11 +261,23 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
                 while (stack.Count > 0)
                 {
-                    var current = stack.Pop();
-                    var pipeline = current.Value;
-                    pipeline.AutoReversePolylines(
-                        current.Value, 
-                        current.GetChildrenOfType<PipelineNode>().Select(x => x.Value));
+                    PipelineNode currentNode = stack.Pop();
+                    IPipelineV2 currentPipeline = currentNode.Value;
+
+                    // General case
+                    if (currentNode.Parent != null)
+                    {
+                        PipelineNode parentNode = currentNode.Parent as PipelineNode;
+                        if (parentNode == null) throw new Exception("PipelineNodes expected!");
+                        Point3d connectionLocation = currentPipeline.GetConnectionLocationToParent(
+                            parentNode.Value, 0.05);
+                        currentPipeline.AutoReversePolylines(connectionLocation);
+                    }
+                    else // Root case
+                    {
+                        Point3d connectionLocation = currentPipeline.GetLocationForMaxDN();
+                        currentPipeline.AutoReversePolylines(connectionLocation);
+                    }
                 }
             }
         }
