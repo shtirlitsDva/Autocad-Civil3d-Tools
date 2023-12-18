@@ -132,10 +132,10 @@ namespace IntersectUtilities
                     alTx.Dispose();
                     alDb.Dispose();
                 }
-                tx.Abort();
+                tx.Commit();
             }
         }
-
+#if DEBUG
         [CommandMethod("TPSA")]
         public void testpipelinesizearray()
         {
@@ -177,5 +177,38 @@ namespace IntersectUtilities
                 tx.Abort();
             }
         }
+#endif
+#if DEBUG
+        [CommandMethod("RPDIRS")]
+        public void randomizepolylinedirs()
+        {
+            prdDbg("Dette skal køres i FJV Fremtid!");
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            Random rnd = new Random();
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var ents = localDb.HashSetOfType<Polyline>(tx);
+                    foreach (var item in ents)
+                        if (rnd.Next(0, 2) == 0) { item.UpgradeOpen(); item.ReverseCurve(); }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                finally
+                {
+                }
+                tx.Commit();
+            }
+        }
     }
+#endif
 }

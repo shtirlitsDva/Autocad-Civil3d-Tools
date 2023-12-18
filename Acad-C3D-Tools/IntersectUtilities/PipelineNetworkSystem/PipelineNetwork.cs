@@ -8,6 +8,7 @@ using MoreLinq;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -223,9 +224,57 @@ namespace IntersectUtilities.PipelineNetworkSystem
             for (int i = 0; i < groups.Count; i++)
             {
                 var group = groups[i];
-                var maxDN = group.MaxBy(x => x.GetMaxDN()).FirstOrDefault();
-                group.Remove(maxDN);
-                var root = new PipelineNode(maxDN);
+                var maxDNQuery = group.MaxBy(x => x.GetMaxDN());
+
+                IPipelineV2 entryPipeline;
+                if (maxDNQuery.Count() > 1)
+                {//Multiple candidates for MAXDN found
+
+                    #region Case 1
+                    // Case 1.)
+                    // Two alignments with same max DN
+                    // But one of them is connected at both ends
+                    // This is not the entry pipeline
+                    // The other is only connected on one end
+
+                    entryPipeline = maxDNQuery.Where(x => !AreBothEndsConnected(x, group, x.GetMaxDN())).First();
+
+                    bool AreBothEndsConnected(IPipelineV2 source, IEnumerable<IPipelineV2> other, int endDn)
+                    {
+                        source.CreateSizeArray();
+
+                        var startSize = source.Sizes.Sizes.First();
+                        bool startConnected = true;
+                        if (startSize.DN == endDn)
+                        {
+                            Point3d sp = source.StartPoint;
+                            startConnected = other.Where(x => x.Name != source.Name).Any(x =>
+                            {
+                                Point3d testP = x.GetClosestPointTo(sp, false);
+                                return testP.DistanceHorizontalTo(sp) < 0.05;
+                            });
+                        }
+
+                        var endSize = source.Sizes.Sizes.Last();
+                        bool endConnected = true;
+                        if (endSize.DN == endDn)
+                        {
+                            Point3d ep = source.EndPoint;
+                            endConnected = other.Where(x => x.Name != source.Name).Any(x =>
+                            {
+                                Point3d testP = x.GetClosestPointTo(ep, false);
+                                return testP.DistanceHorizontalTo(ep) < 0.05;
+                            });
+                        }
+
+                        return startConnected && endConnected;
+                    } 
+                    #endregion
+                } 
+                else entryPipeline = maxDNQuery.First();
+
+                group.Remove(entryPipeline);
+                var root = new PipelineNode(entryPipeline);
                 Graph graph = new Graph(root);
                 graphs.Add(graph);
 
@@ -255,6 +304,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             foreach (var graph in graphs)
             {
                 var root = graph.Root;
+                prdDbg("Root node: " + ((PipelineNode)root).Value.Name);
                 if (!(root is PipelineNode)) throw new Exception("PipelineNodes expected!");
                 var stack = new Stack<PipelineNode>();
                 stack.Push(root as PipelineNode);
@@ -262,6 +312,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 while (stack.Count > 0)
                 {
                     PipelineNode currentNode = stack.Pop();
+                    foreach (var child in currentNode.Children)
+                    {
+                        if (!(child is PipelineNode)) throw new Exception("PipelineNodes expected!");
+                        stack.Push(child as PipelineNode);
+                    }
                     IPipelineV2 currentPipeline = currentNode.Value;
 
                     // General case
@@ -275,8 +330,23 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     }
                     else // Root case
                     {
-                        Point3d connectionLocation = currentPipeline.GetLocationForMaxDN();
-                        currentPipeline.AutoReversePolylines(connectionLocation);
+                        Point3d connectionLocation = Point3d.Origin;
+                        if (currentNode.Children.Count == 0) connectionLocation = 
+                                currentPipeline.GetLocationForMaxDN();
+                        else
+                        {
+                            if (currentNode.Children.Any(
+                                x => currentPipeline.DetermineUnconnectedEndPoint(
+                                    ((PipelineNode)x).Value, 0.05, out connectionLocation)))
+                            {
+                                currentPipeline.AutoReversePolylines(connectionLocation);
+                            }
+                            else
+                            {
+                                connectionLocation = currentPipeline.GetLocationForMaxDN();
+                                currentPipeline.AutoReversePolylines(connectionLocation); 
+                            }
+                        }
                     }
                 }
             }
