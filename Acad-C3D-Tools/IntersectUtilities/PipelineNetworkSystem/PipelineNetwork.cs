@@ -351,5 +351,58 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 }
             }
         }
+        public void CorrectPipesToCutLengths(GraphCollection graphs)
+        {
+            foreach (var graph in graphs)
+            {
+                var root = graph.Root;
+                prdDbg("Root node: " + ((PipelineNode)root).Value.Name);
+                if (!(root is PipelineNode)) throw new Exception("PipelineNodes expected!");
+                var stack = new Stack<PipelineNode>();
+                stack.Push(root as PipelineNode);
+
+                while (stack.Count > 0)
+                {
+                    PipelineNode currentNode = stack.Pop();
+                    foreach (var child in currentNode.Children)
+                    {
+                        if (!(child is PipelineNode)) throw new Exception("PipelineNodes expected!");
+                        stack.Push(child as PipelineNode);
+                    }
+                    IPipelineV2 currentPipeline = currentNode.Value;
+
+                    // General case
+                    if (currentNode.Parent != null)
+                    {
+                        PipelineNode parentNode = currentNode.Parent as PipelineNode;
+                        if (parentNode == null) throw new Exception("PipelineNodes expected!");
+                        Point3d connectionLocation = currentPipeline.GetConnectionLocationToParent(
+                            parentNode.Value, 0.05);
+                        
+                        currentPipeline.CorrectPipesToCutLengths(connectionLocation);
+                    }
+                    else // Root case
+                    {
+                        Point3d connectionLocation = Point3d.Origin;
+                        if (currentNode.Children.Count == 0) connectionLocation =
+                                currentPipeline.GetLocationForMaxDN();
+                        else
+                        {
+                            if (currentNode.Children.Any(
+                                x => currentPipeline.DetermineUnconnectedEndPoint(
+                                    ((PipelineNode)x).Value, 0.05, out connectionLocation)))
+                            {
+                                currentPipeline.CorrectPipesToCutLengths(connectionLocation);
+                            }
+                            else
+                            {
+                                connectionLocation = currentPipeline.GetLocationForMaxDN();
+                                currentPipeline.CorrectPipesToCutLengths(connectionLocation);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
