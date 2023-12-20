@@ -1146,7 +1146,6 @@ namespace IntersectUtilities
                     #endregion
 
                     BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-
                     #region Propertyset init
                     PropertySetManager psm = new PropertySetManager(
                         localDb,

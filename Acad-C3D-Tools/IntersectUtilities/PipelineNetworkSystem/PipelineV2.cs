@@ -91,7 +91,13 @@ namespace IntersectUtilities.PipelineNetworkSystem
             Database localDb = ents.FirstOrDefault()?.Database;
             Transaction tx = localDb.TransactionManager.TopTransaction;
 
+            Queue<Polyline> orderedPlines;
 
+            // First from right to left
+            double curStart = 0;
+            double curEnd = 0;
+
+            var query = this.GetEntitiesWithinStations(curStart, curEnd);
         }
     }
     public class PipelineV2Alignment : PipelineV2Base
