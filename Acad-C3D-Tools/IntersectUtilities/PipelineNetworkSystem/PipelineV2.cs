@@ -35,6 +35,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         void CreateSizeArray();
         int GetMaxDN();
         double GetPolylineStartStation(Polyline pl);
+        double GetPolylineMiddleStation(Polyline pl);
         double GetPolylineEndStation(Polyline pl);
         double GetBlockStation(BlockReference br);
         double GetStationAtPoint(Point3d pt);
@@ -77,6 +78,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public int GetMaxDN() => ents.GetMaxDN();
         public abstract bool IsConnectedTo(IPipelineV2 other, double tol);
         public abstract double GetPolylineStartStation(Polyline pl);
+        public abstract double GetPolylineMiddleStation(Polyline pl);
         public abstract double GetPolylineEndStation(Polyline pl);
         public abstract double GetBlockStation(BlockReference br);
         public abstract double GetStationAtPoint(Point3d pt);
@@ -186,6 +188,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
             return false;
         }
+        /// <summary>
+        /// This method assumes that AutoReversePolylines has been called first
+        /// And all polylines are oriented correctly with supply flow
+        /// </summary>
         public void CorrectPipesToCutLengths(Point3d connectionLocation)
         {
             if (psh == null) psh = new PropertySetHelper(ents?.FirstOrDefault()?.Database);
@@ -193,13 +199,36 @@ namespace IntersectUtilities.PipelineNetworkSystem
             Database localDb = ents.FirstOrDefault()?.Database;
             Transaction tx = localDb.TransactionManager.TopTransaction;
 
-            Queue<Polyline> orderedPlines;
-
             // First from right to left
             double curStart = 0;
-            double curEnd = 0;
+            double curEnd = this.GetStationAtPoint(connectionLocation);
 
-            var query = this.GetEntitiesWithinStations(curStart, curEnd);
+            CorrectLengths(curStart, curEnd, true);
+
+            // Then from left to right
+            curStart = this.GetStationAtPoint(connectionLocation);
+            curEnd = this.EndStation;
+
+            CorrectLengths(curStart, curEnd, false);
+
+            void CorrectLengths(double start, double end, bool againstFlow)
+            {
+                var query = this.GetEntitiesWithinStations(start, end)
+                    .Where(x => x is Polyline).Cast<Polyline>();
+                if (againstFlow) query = query.OrderByDescending(x => this.GetPolylineMiddleStation(x));
+                else query = query.OrderBy(x => this.GetPolylineMiddleStation(x));
+                Queue<Polyline> orderedPlines = new Queue<Polyline>(query);
+
+                while (orderedPlines.Count > 0)
+                {
+                    Polyline pl = orderedPlines.Dequeue();
+
+                    
+                    double plLength = pl.Length;
+
+                    
+                }
+            }   
         }
     }
     public class PipelineV2Alignment : PipelineV2Base
@@ -226,6 +255,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
         }
         public override double GetPolylineStartStation(Polyline pl) => al.StationAtPoint(pl.StartPoint);
+        public override double GetPolylineMiddleStation(Polyline pl) => 
+            al.StationAtPoint(pl.GetPointAtDist(pl.Length / 2));
         public override double GetPolylineEndStation(Polyline pl) => al.StationAtPoint(pl.EndPoint);
         public override double GetBlockStation(BlockReference br) => al.StationAtPoint(br.Position);
         public override double GetStationAtPoint(Point3d pt) => al.StationAtPoint(pt);
@@ -397,6 +428,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
         {
             return 0;
         }
+        public override double GetPolylineMiddleStation(Polyline pl) =>
+            GetStationAtPoint(pl.GetPointAtDist(pl.Length / 2));
         public override double GetPolylineEndStation(Polyline pl)
         {
             return 0;
