@@ -45,6 +45,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         void AutoReversePolylines(Point3d connectionLocation);
         IEnumerable<Entity> GetEntitiesWithinStations(double start, double end);
         Point3d GetLocationForMaxDN();
+        void CorrectPipesToCutLengths(Point3d connectionLocation);
     }
     public abstract class PipelineV2Base : IPipelineV2
     {
@@ -184,6 +185,21 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 return true;
             }
             return false;
+        }
+        public void CorrectPipesToCutLengths(Point3d connectionLocation)
+        {
+            if (psh == null) psh = new PropertySetHelper(ents?.FirstOrDefault()?.Database);
+
+            Database localDb = ents.FirstOrDefault()?.Database;
+            Transaction tx = localDb.TransactionManager.TopTransaction;
+
+            Queue<Polyline> orderedPlines;
+
+            // First from right to left
+            double curStart = 0;
+            double curEnd = 0;
+
+            var query = this.GetEntitiesWithinStations(curStart, curEnd);
         }
     }
     public class PipelineV2Alignment : PipelineV2Base
