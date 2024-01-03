@@ -121,23 +121,8 @@ namespace IntersectUtilities.Dimensionering.ImportFraBBR
             } }
         public string Type
         {
-            get
-            {
-                DataTable instOgBr;
-                try
-                {
-                    instOgBr = ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\Installation og brændsel.csv",
-                    "InstOgBr");
-
-                    
-                    return ReadStringParameterFromDataTable(InstallationOgBrændsel, instOgBr, "Type", 0);
-                }
-                catch (Exception)
-                {
-                    throw new Exception("Failed to read Installation og brændsel.csv!");
-                }
-
-            }
+            get => ReadStringParameterFromDataTable(InstallationOgBrændsel,
+                CsvData.InstOgBrændsel, "Type", 0);
         }
     }
 

@@ -3309,5 +3309,9 @@ namespace IntersectUtilities.UtilsCommon
         /// Distances
         /// </summary>
         public static DataTable Dist { get => GetDataTable("distances"); }
+        /// <summary>
+        /// Installation og brændsel
+        /// </summary>
+        public static DataTable InstOgBrændsel { get => GetDataTable("instogbr"); }
     }
 }
