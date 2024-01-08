@@ -727,11 +727,11 @@ namespace IntersectUtilities.PipeScheduleV2
                 case PipeTypeEnum.Ukendt:
                     return "";
                 case PipeTypeEnum.Twin:
-                    return $"PEX{DN}-ø{od.ToString("N0")}+ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                    return $"PE-RT{DN}-ø{od.ToString("N0")}+ø{od.ToString("N0")}/{kOd.ToString("N0")}";
                 case PipeTypeEnum.Frem:
                 case PipeTypeEnum.Retur:
                 case PipeTypeEnum.Enkelt:
-                    return $"PEX{DN}-ø{od.ToString("N0")}/{kOd.ToString("N0")}";
+                    return $"PE-RT{DN}-ø{od.ToString("N0")}/{kOd.ToString("N0")}";
                 default:
                     return "";
             }

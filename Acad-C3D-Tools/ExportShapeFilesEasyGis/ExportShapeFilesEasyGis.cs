@@ -254,14 +254,31 @@ namespace ExportShapeFiles
                             shapePoints[0] = new PointD(br.Position.X, br.Position.Y);
 
                             string[] attributes = new string[8];
-                            attributes[0] = br.RealName();
-                            attributes[1] = ReadComponentType(br, komponenter);
-                            attributes[2] = ReadBlockRotation(br, komponenter).ToString("0.00");
-                            attributes[3] = ReadComponentSystem(br, komponenter);
-                            attributes[4] = ReadComponentDN1(br, komponenter);
-                            attributes[5] = ReadComponentDN2(br, komponenter);
-                            attributes[6] = PropertyReader.ReadComponentSeries(br, komponenter);
-                            attributes[7] = ReadComponentVinkel(br, komponenter);
+                            string cur = string.Empty;
+                            try
+                            {
+                                cur = "\"br.RealName()\"";
+                                attributes[0] = br.RealName();
+                                cur = "\"ReadComponentType(br, komponenter)\"";
+                                attributes[1] = ReadComponentType(br, komponenter);
+                                cur = "\"ReadBlockRotation(br, komponenter)\"";
+                                attributes[2] = ReadBlockRotation(br, komponenter).ToString("0.00");
+                                cur = "\"ReadComponentSystem(br, komponenter)\"";
+                                attributes[3] = ReadComponentSystem(br, komponenter);
+                                cur = "\"ReadComponentDN1(br, komponenter)\"";
+                                attributes[4] = ReadComponentDN1(br, komponenter);
+                                cur = "\"ReadComponentDN2(br, komponenter)\"";
+                                attributes[5] = ReadComponentDN2(br, komponenter);
+                                cur = "\"PropertyReader.ReadComponentSeries(br, komponenter)\"";
+                                attributes[6] = PropertyReader.ReadComponentSeries(br, komponenter);
+                                cur = "\"ReadComponentVinkel(br, komponenter)\"";
+                                attributes[7] = ReadComponentVinkel(br, komponenter);
+                            }
+                            catch (System.Exception)
+                            {
+                                prdDbg($"Failed to read {cur} for block {br.Handle}.");
+                                throw;
+                            }
 
                             writer.AddRecord(shapePoints, shapePoints.Length, attributes);
                         }
@@ -621,7 +638,7 @@ namespace ExportShapeFiles
             int count = 0;
             foreach (string fileName in list)
             {
-                Log.log($"Processing " + Path.GetFileName(fileName));
+                Log.log($"Processing " + fileName);
                 count++;
 
                 string phaseNumber = ReadStringParameterFromDataTable(fileName, dt, "Etape", 5);
