@@ -33,7 +33,7 @@ namespace IntersectUtilities.PipeScheduleV2
         public static IEnumerable<int> ListAllDnsForPipeSystemTypeSerie(
             PipeSystemEnum system, PipeTypeEnum type, PipeSeriesEnum serie)
         {
-            if (!systemDictReversed.ContainsKey(system)) 
+            if (!systemDictReversed.ContainsKey(system))
                 throw new Exception($"Undefined PipeType system {system}!");
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
             return pipeType.ListAllDnsForPipeTypeSerie(type, serie);
@@ -132,7 +132,7 @@ namespace IntersectUtilities.PipeScheduleV2
             _repository = new PipeTypeRepository();
             _repository.Initialize(new PipeTypeDataLoaderCSV().Load(csvs));
         }
-        public static void ListAllPipeTypes() => prdDbg(string.Join("\n", _repository.ListAllPipeTypes())); 
+        public static void ListAllPipeTypes() => prdDbg(string.Join("\n", _repository.ListAllPipeTypes()));
         #endregion
 
         #region Pipe schedule methods
@@ -329,7 +329,7 @@ namespace IntersectUtilities.PipeScheduleV2
         public static double GetBuerorMinRadius(Entity ent)
         {
             PipeSystemEnum system = GetPipeSystem(ent);
-            
+
             if (!systemDictReversed.ContainsKey(system)) return 0;
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
 
@@ -373,13 +373,19 @@ namespace IntersectUtilities.PipeScheduleV2
                 prdDbg("Kunne ikke finde system på valgte rør! Kontroller lag!");
                 return "";
             }
-            if (!systemDictReversed.ContainsKey(system)) 
-            { 
+            if (!systemDictReversed.ContainsKey(system))
+            {
                 prdDbg("Kunne ikke finde system på valgte rør! Kontroller lag!");
-                return ""; 
+                return "";
             }
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
             string label = pipeType.GetLabel(DN, type, od, kOd);
+
+#if DEBUG
+            prdDbg($"DN: {DN}; Type: {type}; OD: {od}; kOD: {kOd}; System: {system}; PipeType: {pipeType.Name}");
+            prdDbg($"Label: {label}");
+#endif
+
             return label;
         }
         public static short GetLayerColor(PipeSystemEnum system, PipeTypeEnum type)
@@ -415,6 +421,7 @@ namespace IntersectUtilities.PipeScheduleV2
     #region All classes
     public interface IPipeType
     {
+        string Name { get; }
         void Initialize(DataTable table);
         double GetPipeOd(int dn);
         PipeSeriesEnum GetPipeSeries(
@@ -434,6 +441,7 @@ namespace IntersectUtilities.PipeScheduleV2
     public abstract class PipeTypeBase : IPipeType
     {
         protected DataTable _data;
+        public string Name => this.GetType().Name;
         public virtual double GetPipeOd(int dn)
         {
             DataRow[] results = _data.Select($"DN = {dn}");
