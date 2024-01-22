@@ -228,8 +228,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
             sizes.Add(new SizeEntryV2(
                 GetPipeDN(pline),
-                pipeline.GetPolylineStartStation(pline),
-                pipeline.GetPolylineEndStation(pline),
+                0,
+                pipeline.EndStation,
                 GetPipeKOd(pline),
                 GetPipeSystem(pline),
                 GetPipeType(pline),
