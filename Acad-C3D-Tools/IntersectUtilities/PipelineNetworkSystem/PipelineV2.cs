@@ -211,11 +211,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
             CorrectLengths(curStart, curEnd, false);
 
-            void CorrectLengths(double start, double end, bool againstFlow)
+            void CorrectLengths(double start, double end, bool againstStationsOrder)
             {
                 var query = this.GetEntitiesWithinStations(start, end)
                     .Where(x => x is Polyline).Cast<Polyline>();
-                if (againstFlow) query = query.OrderByDescending(x => this.GetPolylineMiddleStation(x));
+                if (againstStationsOrder) query = query.OrderByDescending(x => this.GetPolylineMiddleStation(x));
                 else query = query.OrderBy(x => this.GetPolylineMiddleStation(x));
                 Queue<Polyline> orderedPlines = new Queue<Polyline>(query);
 
