@@ -1759,6 +1759,7 @@ namespace IntersectUtilities
                                     "Afgrening med spring",
                                     "Afgrening, parallel",
                                     "Svejsetee",
+                                    "Preskobling tee",
                                 }).Contains(type))
                                     brSign.SetAttributeStringValue("RIGHTSIZE",
                                         psmPipeLineData.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment));
@@ -2399,6 +2400,7 @@ namespace IntersectUtilities
                                     "Afgrening med spring",
                                     "Afgrening, parallel",
                                     "Svejsetee",
+                                    "Preskobling tee",
                                 }).Contains(type))
                                     brSign.SetAttributeStringValue("RIGHTSIZE",
                                         psmPipeLineData.ReadPropertyString(
