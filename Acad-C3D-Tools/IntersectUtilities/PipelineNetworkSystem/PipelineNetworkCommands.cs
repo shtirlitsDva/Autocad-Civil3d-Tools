@@ -220,8 +220,7 @@ namespace IntersectUtilities
                 tx.Abort();
             }
         }
-#endif
-#if DEBUG
+
         [CommandMethod("RPDIRS")]
         public void randomizepolylinedirs()
         {

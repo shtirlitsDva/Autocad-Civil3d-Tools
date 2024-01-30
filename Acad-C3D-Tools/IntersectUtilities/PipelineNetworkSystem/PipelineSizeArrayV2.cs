@@ -249,6 +249,13 @@ namespace IntersectUtilities.PipelineNetworkSystem
             // Order the blocks by station
             orderedSizeBrs = sizeBrs.OrderBy(x => pipeline.GetBlockStation(x)).ToArray();
 
+#if DEBUG
+            foreach (var item in orderedSizeBrs)
+            {
+                prdDbg($"Block {item.RealName()} at station {pipeline.GetBlockStation(item)}");
+            }
+#endif
+
             // The direction is assumed to be from start to and of alignment (or NA)
             // Use a new method using stations to gather blocks
             // Build an array to represent the topology of the pipeline
@@ -325,6 +332,30 @@ namespace IntersectUtilities.PipelineNetworkSystem
             {
                 SizeEntryV2 size = GetSizeData(pipeline, ranges[i]);
                 sizes.Add(size);
+            }
+
+            //Squash size entries with same size
+            //Is opstår when there are single pipe reducers right next to each other
+
+            for (int i = sizes.Count - 2; i >= 0; i--)
+            {
+                var f = sizes[i];
+                var s = sizes[i + 1];
+
+                if (f.DN == s.DN && f.Type == s.Type && f.Series == s.Series && f.System == s.System)
+                {
+                    SizeEntryV2 ns = new SizeEntryV2(
+                        f.DN,
+                        f.StartStation,
+                        s.EndStation,
+                        f.Kod,
+                        f.System,
+                        f.Type,
+                        f.Series);
+
+                    sizes[i] = ns;
+                    sizes.RemoveAt(i + 1);
+                }
             }
         }
 

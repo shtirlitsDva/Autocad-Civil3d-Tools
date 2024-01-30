@@ -212,6 +212,12 @@ namespace IntersectUtilities.Collections
         public bool Contains(SizeEntryV2 item) => _L.Contains(item);
         public void CopyTo(SizeEntryV2[] array, int arrayIndex) => _L.CopyTo(array, arrayIndex);
         public bool Remove(SizeEntryV2 item) => _L.Remove(item);
+        public bool RemoveAt(int index)
+        {
+            if (index < 0 || index >= _L.Count) return false;
+            _L.RemoveAt(index);
+            return true;
+        }
         public IEnumerator<SizeEntryV2> GetEnumerator() => _L.GetEnumerator();
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
