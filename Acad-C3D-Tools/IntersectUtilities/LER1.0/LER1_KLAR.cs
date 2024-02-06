@@ -67,15 +67,14 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    var plines = localDb.ListOfType<Polyline>(tx)
+                    var plines = localDb.ListOfType<Polyline3d>(tx)
                         .Where(x => x.Layer == "DDG_ledning")
                         .ToHashSet();
 
-                    string layerSpildevand = "KLAR_Spildevand";
-                    string layerRegnvand = "KLAR_Regnvand";
+                    string layerSpildevand = "DDG_Spildevand";
+                    string layerRegnvand = "DDG_Regnvand";
 
-                    localDb.CheckOrCreateLayer(layerSpildevand);
-                    localDb.CheckOrCreateLayer(layerRegnvand);
+                    string uadPostfix = "_UAD";
 
                     foreach (var pline in plines)
                     {
@@ -83,18 +82,20 @@ namespace IntersectUtilities
                             PropertySetManager.ReadNonDefinedPropertySetString(
                                 pline, "DDG_ledning", "system");
 
-                        if (system == "Regnvand")
-                        {
-                            pline.CheckOrOpenForWrite();
-                            pline.Layer = layerRegnvand;
-                        }else
-                        {
-                            pline.CheckOrOpenForWrite();
-                            pline.Layer = layerSpildevand;
-                        }
-                    }
+                        string layer;
+                        if (system == "Regnvand") layer = layerRegnvand;
+                        else layer = layerSpildevand;
 
-                    fixlerlayers();
+                        string status = 
+                            PropertySetManager.ReadNonDefinedPropertySetString(
+                                pline, "DDG_ledning", "status");
+
+                        if (status != "I brug/drift") layer += uadPostfix;
+
+                        localDb.CheckOrCreateLayer(layer);
+                        pline.CheckOrOpenForWrite();
+                        pline.Layer = layer;
+                    }
                 }
                 catch (System.Exception ex)
                 {
@@ -1464,7 +1465,7 @@ namespace IntersectUtilities
                         {
                             item.Layer = "KLAR_Spildevand-2D";
                         }
-                        
+
                         //item.Color = ColorByName("cyan");
                     }
                 }
@@ -1504,7 +1505,7 @@ namespace IntersectUtilities
                         {
                             pt.CheckOrOpenForWrite();
                             pt.Position =
-                                new Point3d(pt.Position.X, pt.Position.Y, el);   
+                                new Point3d(pt.Position.X, pt.Position.Y, el);
                         }
                     }
                 }
