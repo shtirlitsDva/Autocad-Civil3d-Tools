@@ -365,6 +365,101 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("ASTIK", CommandFlags.UsePickSet)]
+        [CommandMethod("ADJUSTSTIK", CommandFlags.UsePickSet)]
+        public void adjuststik()
+        {
+            prdDbg("FORUDSÆTNINGER:");
+            prdDbg("1. De valgte pl3d skal have en ende vertice liggende på et hovedrør.");
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
+
+            double slope = 0;
+
+            PromptSelectionResult acSSPrompt;
+            acSSPrompt = ed.SelectImplied();
+            SelectionSet acSSet;
+
+            if (acSSPrompt.Status == PromptStatus.OK)
+            {
+                using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        #region Polylines 3d
+                        acSSet = acSSPrompt.Value;
+                        var selectedPl3ds = acSSet.GetObjectIds().Select(x => x.Go<Polyline3d>(tx)).ToHashSet();
+
+                        HashSet<Polyline3d> allpls = localDb.HashSetOfType<Polyline3d>(tx, true);
+                        var notSelectedPl3ds = allpls.ExceptWhere(x => selectedPl3ds.Contains(x)).ToHashSet();
+
+                        foreach (var p3d in selectedPl3ds)
+                        {
+                            if (p3d == null) continue;
+
+                            PolylineVertex3d[] vertices = p3d.GetVertices(tx);
+
+                            bool found = false;
+                            bool atStart = false;
+
+                            PolylineVertex3d startVert = vertices[0];
+                            if (notSelectedPl3ds.Any(x => startVert.IsOn(x)))
+                            {
+                                
+
+                                
+                            }
+                            
+                        }
+                        #endregion
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        prdDbg(ex);
+                        return;
+                    }
+                    tx.Commit();
+                }
+            }
+            else
+            {
+                while (true)
+                {
+                    var id = Interaction.GetEntity("Select Plyline3d to flatten: (husk! kan også preselecte mange)", typeof(Polyline3d));
+                    if (id == Oid.Null) return;
+
+                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            #region Polylines 3d
+                            Polyline3d p3d = id.Go<Polyline3d>(tx, OpenMode.ForWrite);
+
+                            PolylineVertex3d[] vertices = p3d.GetVertices(tx);
+
+                            for (int i = 0; i < vertices.Length; i++)
+                            {
+                                vertices[i].CheckOrOpenForWrite();
+                                vertices[i].Position = new Point3d(
+                                    vertices[i].Position.X, vertices[i].Position.Y, -99);
+                            }
+                            #endregion
+                        }
+                        catch (System.Exception ex)
+                        {
+                            tx.Abort();
+                            prdDbg(ex);
+                            return;
+                        }
+                        tx.Commit();
+                    }
+                }
+            }
+        }
+
         [CommandMethod("LER2INTERPOLATEPL3DS")]
         public void ler2interpolatepl3ds()
         {

@@ -3637,12 +3637,12 @@ namespace IntersectUtilities
         }
 
 #if DEBUG
-        [CommandMethod("testing")]
+        [CommandMethod("testing", CommandFlags.UsePickSet)]
         public void testing()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
+            Editor ed = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = CivilApplication.ActiveDocument;
 
@@ -3650,6 +3650,26 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test reference equality
+                    //PromptSelectionResult acSSPrompt;
+                    //acSSPrompt = ed.SelectImplied();
+                    //SelectionSet acSSet;
+
+                    //if (acSSPrompt.Status == PromptStatus.OK)
+                    //{
+                    //    acSSet = acSSPrompt.Value;
+                    //    var selectedPl3ds = acSSet.GetObjectIds().Select(x => x.Go<Polyline3d>(tx, OpenMode.ForWrite)).ToHashSet();
+
+                    //    HashSet<Polyline3d> allpls = localDb.HashSetOfType<Polyline3d>(tx, true);
+                    //    var notSelectedPl3ds = allpls.ExceptWhere(x => selectedPl3ds.Contains(x)).ToHashSet();
+
+                    //    prdDbg(
+                    //        $"All pls: {allpls.Count}: {string.Join(", ", allpls.Select(x => x.Handle))},\n" +
+                    //        $"Selected: {selectedPl3ds.Count}: {string.Join(", ", selectedPl3ds.Select(x => x.Handle))},\n" +
+                    //        $"Not selected: {notSelectedPl3ds.Count}: {string.Join(", ", notSelectedPl3ds.Select(x => x.Handle))}");
+                    //}
+                    #endregion
+
                     #region Test deferred execution
                     //List<int> ints = new List<int>() { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
                     //int start = 0;
@@ -8237,7 +8257,7 @@ namespace IntersectUtilities
                                 if (item.Value.ToString() == pipeSeriesEnum.ToString()) continue;
                                 br.CheckOrOpenForWrite();
                                 item.Value = pipeSeriesEnum.ToString();
-                            }   
+                            }
                         }
 
                         br.CheckOrOpenForWrite();

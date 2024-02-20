@@ -2433,6 +2433,11 @@ namespace IntersectUtilities.UtilsCommon
             Oid id = al.GetPolyline();
             return id.Go<Polyline>(al.Database.TransactionManager.TopTransaction);
         }
+        public static bool IsOn(this PolylineVertex3d vert, Polyline3d pl3d, double tol)
+        {
+            var dist = vert.Position.DistanceTo(pl3d.GetClosestPointTo(vert.Position, false));
+            return dist <= tol;
+        }
         public static void UpdateElevationZ(this PolylineVertex3d vert, double newElevation)
         {
             if (!vert.Position.Z.Equalz(newElevation, Tolerance.Global.EqualPoint))
