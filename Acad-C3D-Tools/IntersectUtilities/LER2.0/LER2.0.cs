@@ -405,12 +405,12 @@ namespace IntersectUtilities
                             bool atStart = false;
 
                             PolylineVertex3d startVert = vertices[0];
-                            if (notSelectedPl3ds.Any(x => startVert.IsOn(x)))
-                            {
+                            //if (notSelectedPl3ds.Any(x => startVert.IsOn(x)))
+                            //{
                                 
 
                                 
-                            }
+                            //}
                             
                         }
                         #endregion

@@ -254,7 +254,7 @@ namespace IntersectUtilities.LongitudinalProfiles
             throw new Exception($"Entitys' {ent.Handle}\nDB {db.Filename}" +
                 $"\nnot found in IsPointWithinPolygon!");
         }
-        private Regex rgx = new Regex(@"^(?<PROJECT>[\w.]+):(?<ETAPE>[\w.]+):(?<AREA>[\w.]+?)(.dwg)?:(?<HANDLE>\w+)");
+        private Regex rgx = new Regex(@"^(?<PROJECT>[^:]+):(?<ETAPE>[^:]+):(?<AREA>[^:]+?)(.dwg):(?<HANDLE>\w+)");
         public override Entity GetEntityByHandle(string handle)
         {
             if (rgx.IsMatch(handle))
