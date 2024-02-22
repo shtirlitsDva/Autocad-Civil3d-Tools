@@ -70,6 +70,8 @@ namespace IntersectUtilities.UtilsCommon
         public static bool atZero(this double value) => value > -0.0001 && value < 0.0001;
         public static bool at99(this double value) => value < -98.0;
         public static bool is3D(this double value) => !atZero(value) && !at99(value);
+        public static bool is3D(this Point3d p) => p.Z.is3D();
+        public static bool is3D(this PolylineVertex3d v) => v.Position.is3D();
         public static bool is2D(this double value) => atZero(value) || at99(value);
         public static void prdDbg(string msg)
         {
@@ -1399,6 +1401,8 @@ namespace IntersectUtilities.UtilsCommon
             double Y2 = targetP3d.Y;
             return Math.Sqrt(Math.Pow((X2 - X1), 2) + Math.Pow((Y2 - Y1), 2));
         }
+        public static double DistanceHorizontalTo(this PolylineVertex3d v1, PolylineVertex3d v2) => 
+            v1.Position.DistanceHorizontalTo(v2.Position);
         public static double Pow(this double value, double exponent)
         {
             return Math.Pow(value, exponent);

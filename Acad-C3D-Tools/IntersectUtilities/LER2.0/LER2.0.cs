@@ -369,6 +369,7 @@ namespace IntersectUtilities
             }
         }
 
+        private static double slope = 0;
         [CommandMethod("ASTIK", CommandFlags.UsePickSet)]
         [CommandMethod("ADJUSTSTIK", CommandFlags.UsePickSet)]
         public void adjuststik()
@@ -380,7 +381,6 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
 
-            double slope = 0;
             double tol = 0.001;
 
             PromptSelectionResult acSSPrompt;
@@ -429,13 +429,15 @@ namespace IntersectUtilities
 
                             #region Detect start or end
                             PolylineVertex3d startVert = vertices[0];
-                            if (notSelectedPl3ds.Any(x => startVert.IsOn(x, tol)))
+                            if (startVert.is3D() &&
+                                notSelectedPl3ds.Any(x => startVert.IsOn(x, tol)))
                             {
                                 found = true;
                                 atStart = true;
                             }
                             PolylineVertex3d endVert = vertices.Last();
-                            if (notSelectedPl3ds.Any(x => endVert.IsOn(x, tol)))
+                            if (endVert.is3D() &&
+                                notSelectedPl3ds.Any(x => endVert.IsOn(x, tol)))
                             {
                                 found = true;
                             }
@@ -457,13 +459,14 @@ namespace IntersectUtilities
                             {
                                 vertices[i].CheckOrOpenForWrite();
 
-                                double elevationChange = slope / 1000 * 
-                                    (vertices[i].Position.DistanceHorizontalTo(vertices[i-1].Position));
+                                double elevationChange = slope / 1000 *
+                                    (vertices[i].DistanceHorizontalTo(vertices[i - 1]));
 
-                                prdDbg($"Elevation change: {elevationChange.ToString("0.##")}, " +
-                                    $"Current elevation: {currentElevation.ToString("0.##")}");
-
+                                prdDbg($"Current elevation: {currentElevation.ToString("0.##")}\n" +
+                                    $"Elevation change: {elevationChange.ToString("0.##")}");
+                                    
                                 currentElevation += elevationChange;
+                                prdDbg($"New elevation: {currentElevation.ToString("0.##")}");
 
                                 vertices[i].Position = new Point3d(vertices[i].Position.X, vertices[i].Position.Y, currentElevation);
                             }
@@ -519,13 +522,15 @@ namespace IntersectUtilities
 
                             #region Detect start or end
                             PolylineVertex3d startVert = vertices[0];
-                            if (notSelectedPl3ds.Any(x => startVert.IsOn(x, tol)))
+                            if (startVert.is3D() &&
+                                notSelectedPl3ds.Any(x => startVert.IsOn(x, tol)))
                             {
                                 found = true;
                                 atStart = true;
                             }
                             PolylineVertex3d endVert = vertices.Last();
-                            if (notSelectedPl3ds.Any(x => endVert.IsOn(x, tol)))
+                            if (endVert.is3D() &&
+                                notSelectedPl3ds.Any(x => endVert.IsOn(x, tol)))
                             {
                                 found = true;
                             }
@@ -549,7 +554,7 @@ namespace IntersectUtilities
                                 vertices[i].CheckOrOpenForWrite();
 
                                 double elevationChange = slope / 1000 *
-                                    (vertices[i].Position.DistanceHorizontalTo(vertices[i - 1].Position));
+                                    (vertices[i].DistanceHorizontalTo(vertices[i - 1]));
 
                                 prdDbg($"Elevation change: {elevationChange.ToString("0.##")}, " +
                                     $"Current elevation: {currentElevation.ToString("0.##")}");
