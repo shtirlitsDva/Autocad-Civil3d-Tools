@@ -401,10 +401,11 @@ namespace IntersectUtilities
                         var notSelectedPl3ds = allpls.ExceptWhere(x => selectedPl3ds.Contains(x)).ToHashSet();
 
                         #region Ask for slope
-                        PromptDoubleOptions pdo = new PromptDoubleOptions("\nEnter slope in promille: ");
+                        PromptDoubleOptions pdo = new PromptDoubleOptions(
+                            $"\nEnter slope in promille: Current slope <{slope.ToString("0.##")}>");
                         pdo.AllowNone = true;
                         PromptDoubleResult result = ed.GetDouble("\nEnter slope in promille: ");
-                        if (result.Status == PromptStatus.None) slope = 0;
+                        if (result.Status == PromptStatus.None) {  } //Empty clause because NONE is OK.
                         else if (((PromptResult)result).Status != PromptStatus.OK)
                         {
                             tx.Abort();
