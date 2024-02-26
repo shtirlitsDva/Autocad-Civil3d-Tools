@@ -370,8 +370,8 @@ namespace IntersectUtilities
         }
 
         private static double slope = 0;
-        [CommandMethod("ASTIK", CommandFlags.UsePickSet)]
-        [CommandMethod("ADJUSTSTIK", CommandFlags.UsePickSet)]
+        [CommandMethod("LER2ASTIK", CommandFlags.UsePickSet)]
+        [CommandMethod("LER2ADJUSTSTIK", CommandFlags.UsePickSet)]
         public void adjuststik()
         {
             prdDbg("FORUDSÆTNINGER:");
