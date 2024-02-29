@@ -1721,6 +1721,8 @@ namespace IntersectUtilities
                             foreach (BlockReference br in brs)
                             {
                                 string type = br.ReadDynamicCsvProperty(DynamicProperty.Type);
+                                if (type == null) throw new System.Exception(
+                                    $"Block {br.Handle} returns null for Type!");
                                 if (type == "Reduktion" || type == "Svejsning") continue;
                                 //Buerør need special treatment
                                 if (br.RealName() == "BUEROR1" || br.RealName() == "BUEROR2") continue;
