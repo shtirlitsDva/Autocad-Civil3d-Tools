@@ -1732,10 +1732,12 @@ namespace IntersectUtilities
                                 double offset = 0;
                                 try
                                 {
-                                    al.StationOffset(brLocation.X, brLocation.Y, ref station, ref offset);
+                                    al.StationOffset(brLocation.X, brLocation.Y, 0.1, ref station, ref offset);
                                 }
                                 catch (System.Exception)
                                 {
+                                    prdDbg($"Alignment: {al.Name}.");
+                                    prdDbg($"Offending BR handle: {br.Handle}");
                                     prdDbg(br.Position.ToString());
                                     prdDbg(brLocation.ToString());
                                     throw;
@@ -1918,11 +1920,31 @@ namespace IntersectUtilities
                                             location = al.GetClosestPointTo(pline.GetPoint3dAt(i), false);
                                             double curveStartStation = 0;
                                             double offset = 0;
-                                            al.StationOffset(location.X, location.Y, ref curveStartStation, ref offset);
+                                            try
+                                            {
+                                                al.StationOffset(location.X, location.Y, ref curveStartStation, ref offset);
+                                            }
+                                            catch (System.Exception)
+                                            {
+                                                prdDbg("Alignment: " + al.Name);
+                                                prdDbg($"Pline {pline.Handle} threw when finding START point station!");
+                                                prdDbg($"Point: {location}");
+                                                throw;
+                                            }
 
                                             location = al.GetClosestPointTo(pline.GetPoint3dAt(i + 1), false);
                                             double curveEndStation = 0;
-                                            al.StationOffset(location.X, location.Y, ref curveEndStation, ref offset);
+                                            try
+                                            {
+                                                al.StationOffset(location.X, location.Y, ref curveEndStation, ref offset);
+                                            }
+                                            catch (System.Exception)
+                                            {
+                                                prdDbg("Alignment: " + al.Name);
+                                                prdDbg($"Pline {pline.Handle} threw when finding END point station!");
+                                                prdDbg($"Point: {location}");
+                                                throw;
+                                            }
                                             double length = curveEndStation - curveStartStation;
                                             //double midStation = curveStartStation + length / 2;
 
