@@ -850,9 +850,10 @@ namespace IntersectUtilities
         [CommandMethod("POPULATEPROFILES")]
         public void populateprofiles()
         {
-            populateprofilesmethod();
+            DataReferencesOptions dro = new DataReferencesOptions();
+            populateprofilesmethod(dro);
         }
-        public void populateprofilesmethod(HashSet<Oid> pvs = null)
+        public void populateprofilesmethod(DataReferencesOptions dro, HashSet<Oid> pvs = null)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -860,16 +861,17 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            #region Get Ler data
+            ILer3dManager lman = Ler3dManagerFactory.LoadLer3d(
+                GetPathToDataFiles(dro.ProjectName, dro.EtapeName, "Ler"));
+            #endregion
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
                     #region Read Csv Data for Layers
-                    //Establish the pathnames to files
-                    //Files should be placed in a specific folder on desktop
-                    string pathKrydsninger = "X:\\AutoCAD DRI - 01 Civil 3D\\Krydsninger.csv";
-
-                    System.Data.DataTable dtKrydsninger = CsvReader.ReadCsvToDataTable(pathKrydsninger, "Krydsninger");
+                    var dtKrydsninger = CsvData.Kryds;
                     #endregion
 
                     BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
@@ -974,8 +976,13 @@ namespace IntersectUtilities
 
                             if (dia == 0 || diaOriginal == 999) dia = 0.11;
 
+                            //Determine orinial layer
+                            var originalEnt = lman.GetEntityByHandle(
+                                psm.ReadPropertyString(
+                                    fEnt, dcd.SourceEntityHandle));
+
                             string blockName = ReadStringParameterFromDataTable(
-                                fEnt.Layer, dtKrydsninger, "Block", 1);
+                                originalEnt.Layer, dtKrydsninger, "Block", 0);
 
                             if (blockName.IsNotNoE())
                             {
@@ -1045,12 +1052,15 @@ namespace IntersectUtilities
                             br.ScaleFactors = new Scale3d(1, 2.5, 1);
                         }
                     }
+
+                    lman.Dispose(true);
                 }
 
                 catch (System.Exception ex)
                 {
+                    lman.Dispose(true);
                     tx.Abort();
-                    editor.WriteMessage("\n" + ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 tx.Commit();
@@ -4838,7 +4848,7 @@ namespace IntersectUtilities
                     createsurfaceprofilesmethod(dro, new List<Alignment>() { al });
                     createprofileviewsmethod(originalProfileViewLocation);
                     createlerdatapssmethod2(dro, new List<Alignment>() { al });
-                    populateprofilesmethod(al.GetProfileViewIds().ToHashSet());
+                    populateprofilesmethod(dro, al.GetProfileViewIds().ToHashSet());
                     colorizealllerlayersmethod();
                     createprofilesmethod(dro, new HashSet<Alignment> { al });
                     createpointsatverticesmethod(bufferedOriginalBbox);

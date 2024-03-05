@@ -118,7 +118,9 @@ namespace IntersectUtilities.LongitudinalProfiles
             if (handle.Contains(":"))
             {
                 var split = handle.Split(':');
-                return _db.Go<Entity>(split[2]);
+                string hndl = split[2];
+                if (hndl.Contains("_")) hndl = hndl.Split('_')[0];
+                return _db.Go<Entity>(hndl);
             }
 
             return _db.Go<Entity>(handle);
@@ -262,11 +264,14 @@ namespace IntersectUtilities.LongitudinalProfiles
                 var match = rgx.Match(handle);
                 string area = match.Groups["AREA"].Value;
                 string hndl = match.Groups["HANDLE"].Value;
+                if (hndl.Contains("_")) hndl = hndl.Split('_')[0];
                 if (!storage.ContainsKey(area)) throw new Exception($"Area {area} not found in Ler3dManager!");
                 var db = storage[area];
                 return db.Go<Entity>(hndl);
             }
-            else return null;
+            else throw new Exception(
+                $"ERR::2024:03:05:001\n" +
+                $"Received handle {handle} which does not match the regex!");
         }
     }
     public static class Ler3dManagerFactory
