@@ -632,7 +632,7 @@ namespace IntersectUtilities
             createlerdatapssmethod2(dro);
 
             //Populateprofileviews with crossing data
-            populateprofiles();
+            populateprofilesmethod(dro);
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
