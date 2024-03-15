@@ -51,6 +51,7 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using System.Windows.Documents;
 using static IntersectUtilities.Graph;
+using IntersectUtilities.PipeScheduleV2;
 
 namespace IntersectUtilities
 {
@@ -92,8 +93,7 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable fjvKomponenter = CsvReader.ReadCsvToDataTable(
-                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    System.Data.DataTable fjvKomponenter = CsvData.FK;
 
                     HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
                     HashSet<Polyline> allPipes = localDb.GetFjvPipes(tx);
@@ -162,9 +162,9 @@ namespace IntersectUtilities
                                 {
                                     //Red line means check result
                                     //This is caught if no result found at ALL
-                                    Line line = new Line(new Point3d(), br.Position);
-                                    line.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
-                                    line.AddEntityToDbModelSpace(localDb);
+                                    //Line line = new Line(new Point3d(), br.Position);
+                                    //line.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                                    //line.AddEntityToDbModelSpace(localDb);
                                 }
                             }
 
@@ -282,13 +282,13 @@ namespace IntersectUtilities
                     HashSet<Polyline> mainPipes = allPipes
                         //.Where(x => GetPipeSystem(x) == PipeSystemEnum.Stål)
                         .ToHashSet();
-                    HashSet<Polyline> conPipes = new HashSet<Polyline>();
-                        //allPipes
-                        //.Where(x =>
-                        //    GetPipeSystem(x) == PipeSystemEnum.AluPex ||
-                        //    GetPipeSystem(x) == PipeSystemEnum.Kobberflex
-                        //    )
-                        //.ToHashSet();
+                    //HashSet<Polyline> conPipes = new HashSet<Polyline>();
+                    //allPipes
+                    //.Where(x =>
+                    //    GetPipeSystem(x) == PipeSystemEnum.AluPex ||
+                    //    GetPipeSystem(x) == PipeSystemEnum.Kobberflex
+                    //    )
+                    //.ToHashSet();
                     //prdDbg($"Conpipes: {conPipes.Count}");
                     #endregion
 
@@ -339,9 +339,9 @@ namespace IntersectUtilities
                             psm.WritePropertyString(curve, driPipelineData.BelongsToAlignment, "NA");
                             //Red line means check result
                             //This is caught if no result found at ALL
-                            Line line = new Line(new Point3d(), curve.GetPointAtParameter(curve.EndParam / 2));
-                            line.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
-                            line.AddEntityToDbModelSpace(localDb);
+                            //Line line = new Line(new Point3d(), curve.GetPointAtParameter(curve.EndParam / 2));
+                            //line.Color = Color.FromColorIndex(ColorMethod.ByAci, 1);
+                            //line.AddEntityToDbModelSpace(localDb);
                         }
                         else if (result.Count() == 1)
                         {
@@ -436,20 +436,38 @@ namespace IntersectUtilities
                         else return 1.0;
                     }
 
-                    int idx = 0;
+                    int naIdx = 0;
+                    int stikIdx = 0;
                     foreach (IGrouping<Entity, Entity> group in naGroups)
                     {
-                        idx++;
-                        foreach (Entity item in group)
-                            psm.WritePropertyString(
-                                item, driPipelineData.BelongsToAlignment,
-                                $"NA {idx.ToString("00")}");
+                        //sample the pipesystem type
+                        PipeSystemEnum ps = group.Where(x => x is Polyline)
+                            .Select(x => GetPipeSystem(x)).FirstOrDefault();
+
+                        if (group.Any(x => 
+                        ps == PipeSystemEnum.Kobberflex ||
+                        ps == PipeSystemEnum.AluPex))
+                        {
+                            stikIdx++;
+                            foreach (Entity item in group)
+                                psm.WritePropertyString(
+                                    item, driPipelineData.BelongsToAlignment,
+                                    $"Stik {stikIdx.ToString("00")}");
+                        }
+                        else
+                        {
+                            naIdx++;
+                            foreach (Entity item in group)
+                                psm.WritePropertyString(
+                                    item, driPipelineData.BelongsToAlignment,
+                                    $"NA {naIdx.ToString("00")}");
+                        }
                     }
                     #endregion
 
                     #region Take care of stik
                     //Exit gracefully if no stiks
-                    if (conPipes.Count == 0)
+                    if (stikIdx == 0)
                     {
                         alTx.Abort();
                         alTx.Dispose();
@@ -459,19 +477,19 @@ namespace IntersectUtilities
                     }
 
                     prdDbg(
-                        "**************************************************************" +
+                        "**************************************************************\n" +
                         "Projektet indeholder stikledninger!\n" +
                         "ADVARSEL: Stikledninger SKAL være forbundet i et TRÆ-struktur!\n" +
                         "Dvs. der må ikke være gennemgående polylinjer ved afgreninger.\n" +
                         "Stikledninger forbundet til komponenter skal afklares manuelt.\n" +
                         "**************************************************************");
 
-                    var grouping = conPipes.GroupByCluster((x, y) => areConnected(x, y), 0.5);
+                    var grouping = naGroups.Where(x => psm.ReadPropertyString(
+                            x.FirstOrDefault(), driPipelineData.BelongsToAlignment).StartsWith("Stik"));
 
-                    int stikGruppeCount = 0;
+                    //int stikGruppeCount = 0;
                     foreach (var group in grouping)
                     {
-                        stikGruppeCount++;
                         #region Debug connection of polylines
                         ////Determine maximum and minimum points
                         //HashSet<double> Xs = new HashSet<double>();
@@ -503,16 +521,15 @@ namespace IntersectUtilities
                         //bboxPl.Closed = true;
                         //bboxPl.AddEntityToDbModelSpace(localDb);
                         #endregion
-                        //prdDbg($"Gruppe: {stikGruppeCount}, Antal: {group.Count()}");
-                        //Write stikgruppe to the ps
-                        foreach (Polyline pl in group)
-                            psm.WritePropertyString(pl, driPipelineData.BelongsToAlignment, $"Stik {stikGruppeCount}");
+
+                        string stikGruppe = psm.ReadPropertyString(group.First(), driPipelineData.BelongsToAlignment);
+                        int number = int.Parse(stikGruppe.Substring(5));
 
                         #region Rearrange stik so that polylines always start at source
                         #region Find the one (root) connected to supply line
                         Polyline root = default;
                         Polyline supply = default;
-                        foreach (Polyline pline in group)
+                        foreach (Polyline pline in group.Where(x => x is Polyline))
                         {
                             supply = mainPipes.Where(x => pline.IsConnectedTo(x)).FirstOrDefault();
                             if (supply != default)
@@ -527,7 +544,7 @@ namespace IntersectUtilities
                         //Warn user about this to fix it and skip iteration
                         if (root == default)
                         {
-                            prdDbg($"Stikgruppe {stikGruppeCount} is not connected to a supply pipe!\nFix this before continuing!");
+                            prdDbg($"Stikgruppe {number} is not connected to a supply pipe!\nFix this before continuing!");
                             continue;
                         }
                         //Case: supply pipe is found
@@ -555,7 +572,8 @@ namespace IntersectUtilities
                                 //AND to be able to check connectivity afterwards
                                 seen.Add(parent.Id);
                                 //Find connected lines
-                                var query = group.Where(x => parent.EndIsConnectedTo(x) && !seen.Contains(x.Id));
+                                var query = group.Where(x => x is Polyline)
+                                    .Where(x => parent.EndIsConnectedTo((Polyline)x) && !seen.Contains(x.Id));
 
                                 //Check the direction and reverse if needed
                                 foreach (Polyline child in query)
@@ -579,37 +597,15 @@ namespace IntersectUtilities
                             }
 
                             //Check connectivity inside a stik group
-                            if (group.Any(x => !seen.Contains(x.Id)))
+                            if (group.Where(x => x is Polyline).Any(x => !seen.Contains(x.Id)))
                             {
-                                prdDbg($"Stikgruppe {stikGruppeCount} er ikke forbundet komplet!\nKontroller følgende handles:");
+                                prdDbg($"Stikgruppe {number} er ikke forbundet komplet!\nKontroller følgende handles:");
                                 foreach (var item in group.Where(x => !seen.Contains(x.Id))) prdDbg(item.Handle.ToString());
                             }
                         }
 
                         #endregion
                         #endregion
-                    }
-
-                    double areConnected(Polyline pl1, Polyline pl2)
-                    {
-                        if (IsPointOnCurve(pl2, pl1.StartPoint)) return 0.0;
-                        if (IsPointOnCurve(pl2, pl1.EndPoint)) return 0.0;
-                        if (IsPointOnCurve(pl1, pl2.StartPoint)) return 0.0;
-                        if (IsPointOnCurve(pl1, pl2.EndPoint)) return 0.0;
-                        return 1.0;
-                    }
-                    bool IsPointOnCurve(Curve cv, Point3d pt)
-                    {
-                        try
-                        {
-                            // Return true if operation succeeds
-                            Point3d p = cv.GetClosestPointTo(pt, false);
-                            //return (p - pt).Length <= Tolerance.Global.EqualPoint;
-                            return (p - pt).Length <= 0.025;
-                        }
-                        catch { }
-                        // Otherwise we return false
-                        return false;
                     }
                     #endregion
                 }
@@ -671,7 +667,7 @@ namespace IntersectUtilities
                         polyline.ConstantWidth = 0.5;
                         polyline.AddEntityToDbModelSpace(localDb);
                     }
-                        
+
                 }
                 catch (System.Exception ex)
                 {
@@ -1049,7 +1045,7 @@ namespace IntersectUtilities
                         }
                     }
                     #endregion
-                 
+
                 }
                 catch (System.Exception ex)
                 {
@@ -1271,7 +1267,7 @@ namespace IntersectUtilities
                         prdDbg($"Fandt gamle labels!");
                         docCol.MdiActiveDocument.Editor.SetImpliedSelection(ids.ToArray());
                     }
-                        
+
                 }
                 catch (System.Exception ex)
                 {

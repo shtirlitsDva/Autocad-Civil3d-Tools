@@ -718,6 +718,8 @@ namespace IntersectUtilities
 
                             string alignmentName = psm.ReadPropertyString(mainPipe, driPipelineData.BelongsToAlignment);
                             psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, alignmentName);
+
+                            br.AttSync();
                         }
                     }
                     #endregion
@@ -810,6 +812,8 @@ namespace IntersectUtilities
 
                         string alignmentName = psm.ReadPropertyString(curve, driPipelineData.BelongsToAlignment);
                         psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, alignmentName);
+
+                        br.AttSync();
                     }
                     #endregion
 
@@ -889,9 +893,6 @@ namespace IntersectUtilities
                     //   }
                     //}
                     #endregion
-
-                    //BlockTableRecord btr = bt[blockName].Go<BlockTableRecord>(tx);
-                    //btr.SynchronizeAttributes();
                 }
                 catch (System.Exception ex)
                 {
