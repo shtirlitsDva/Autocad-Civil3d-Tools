@@ -1588,7 +1588,11 @@ namespace IntersectUtilities
                             .Where(x =>
                                 psmPipeLineData.FilterPropetyString(
                                     x, driPipelineData.BranchesOffToAlignment, al.Name) &&
-                                (x.RealName() == "AFGRSTUDS" || x.RealName() == "SH LIGE"))
+                                (
+                                x.RealName() == "AFGRSTUDS" ||
+                                x.RealName() == "SH LIGE" ||
+                                x.RealName() == "STIKAFGRENING"
+                                ))
                             .ToHashSet();
 
                         //Tilføj afgreningsstudse til blokke
@@ -1774,6 +1778,7 @@ namespace IntersectUtilities
                                     "Afgrening, parallel",
                                     "Svejsetee",
                                     "Preskobling tee",
+                                    "Stikafgrening",
                                 }).Contains(type))
                                     brSign.SetAttributeStringValue("RIGHTSIZE",
                                         psmPipeLineData.ReadPropertyString(br, driPipelineData.BranchesOffToAlignment));
@@ -2195,7 +2200,7 @@ namespace IntersectUtilities
                         #region Size array
                         IPipelineV2 pipeline = PipelineV2Factory.Create(curves.Cast<Entity>().Union(brs), al);
                         IPipelineSizeArrayV2 sizeArray = PipelineSizeArrayFactory.CreateSizeArray(pipeline);
-                        prdDbg(sizeArray.ToString()); 
+                        prdDbg(sizeArray.ToString());
                         #endregion
 
                         #region Explode midt profile for later sampling
@@ -4450,7 +4455,7 @@ namespace IntersectUtilities
                         #region Build size array
                         IPipelineV2 pipeline = PipelineV2Factory.Create(
                             curves.Cast<Entity>().Union(brs), al);
-                        IPipelineSizeArrayV2 sizeArray = 
+                        IPipelineSizeArrayV2 sizeArray =
                             PipelineSizeArrayFactory.CreateSizeArray(pipeline);
                         prdDbg(sizeArray.ToString());
                         #endregion

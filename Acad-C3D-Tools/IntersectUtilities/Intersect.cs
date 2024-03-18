@@ -59,6 +59,7 @@ using QuikGraph;
 using QuikGraph.Graphviz;
 using QuikGraph.Algorithms.Search;
 using IntersectUtilities.NTS;
+using IntersectUtilities.PipelineNetworkSystem;
 
 [assembly: CommandClass(typeof(IntersectUtilities.Intersect))]
 
@@ -3837,72 +3838,49 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Test new PipeSizeArrays
-                    #region Open fremtidig db
-                    //string projectName = "PVF1";
-                    //string etapeName = "2.26.3";
+                    string projectName = "PVF1";
+                    string etapeName = "02.26.03";
 
-                    //#region Read CSV
-                    //System.Data.DataTable dt = CsvData.FK;
-                    #endregion
+                    System.Data.DataTable dt = CsvData.FK;
 
-                    //// open the xref database
-                    //Database alDb = new Database(false, true);
-                    //alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
-                    //    System.IO.FileShare.Read, false, string.Empty);
-                    //Transaction alTx = alDb.TransactionManager.StartTransaction();
-                    //var als = alDb.HashSetOfType<Alignment>(alTx);
-                    //var allCurves = localDb.GetFjvPipes(tx, true);
-                    //var allBrs = localDb.GetFjvBlocks(tx, dt, true);
+                    // open the xref database
+                    Database alDb = new Database(false, true);
+                    alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
+                        System.IO.FileShare.Read, false, string.Empty);
+                    Transaction alTx = alDb.TransactionManager.StartTransaction();
+                    var als = alDb.HashSetOfType<Alignment>(alTx);
+                    var allCurves = localDb.GetFjvPipes(tx, true);
+                    var allBrs = localDb.GetFjvBlocks(tx, dt, true);
 
-                    //PropertySetManager psmPipeLineData = new PropertySetManager(
-                    //    localDb,
-                    //    PSetDefs.DefinedSets.DriPipelineData);
-                    //PSetDefs.DriPipelineData driPipelineData =
-                    //    new PSetDefs.DriPipelineData();
-                    //#endregion
+                    PropertySetManager psmPipeLineData = new PropertySetManager(
+                        localDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineData =
+                        new PSetDefs.DriPipelineData();
 
-                    //var curves = allCurves.Where(
-                    //    x => psmPipeLineData.FilterPropetyString(x, driPipelineData.BelongsToAlignment, "15"));
-                    //var brs = allBrs.Where(
-                    //    x => psmPipeLineData.FilterPropetyString(x, driPipelineData.BelongsToAlignment, "15"));
-                    //var al = als.First(x => x.Name == "15");
+                    var curves = allCurves.Where(
+                        x => psmPipeLineData.FilterPropetyString(x, driPipelineData.BelongsToAlignment, "03"));
+                    var brs = allBrs.Where(
+                        x => psmPipeLineData.FilterPropetyString(x, driPipelineData.BelongsToAlignment, "03"));
+                    var al = als.First(x => x.Name == "03");
 
-                    //try
-                    //{
-                    //    PipelineSizeArray sizeArray = new PipelineSizeArray(
-                    //        al, curves.Cast<Curve>().ToHashSet(), brs.ToHashSet());
-                    //    prdDbg(al.Name + "\n" + sizeArray.ToString());
-
-                    //    //foreach (Alignment al in als)
-                    //    //{
-                    //    //    #region GetCurvesAndBRs from fremtidig
-                    //    //    HashSet<Curve> curves = allCurves.Cast<Curve>()
-                    //    //        .Where(x => psmPipeLineData
-                    //    //        .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
-                    //    //        .ToHashSet();
-
-                    //    //    HashSet<BlockReference> brs = allBrs.Cast<BlockReference>()
-                    //    //        .Where(x => psmPipeLineData
-                    //    //        .FilterPropetyString(x, driPipelineData.BelongsToAlignment, al.Name))
-                    //    //        .ToHashSet();
-                    //    //    //prdDbg($"Curves: {curves.Count}, Components: {brs.Count}");
-                    //    //    #endregion
-
-                    //    //    PipelineSizeArray sizeArray = new PipelineSizeArray(al, curves, brs);
-                    //    //    prdDbg(al.Name + "\n" + sizeArray.ToString());
-                    //    //}
-                    //}
-                    //catch (System.Exception ex)
-                    //{
-                    //    alTx.Abort();
-                    //    alTx.Dispose();
-                    //    alDb.Dispose();
-                    //    prdDbg(ex);
-                    //    throw;
-                    //}
-                    //alTx.Abort();
-                    //alTx.Dispose();
-                    //alDb.Dispose();
+                    try
+                    {
+                        IPipelineV2 pipeline = PipelineV2Factory.Create(curves.Cast<Entity>().Union(brs), al);
+                        IPipelineSizeArrayV2 sizeArray = PipelineSizeArrayFactory.CreateSizeArray(pipeline);
+                        prdDbg(sizeArray.ToString());
+                    }
+                    catch (System.Exception ex)
+                    {
+                        alTx.Abort();
+                        alTx.Dispose();
+                        alDb.Dispose();
+                        prdDbg(ex);
+                        throw;
+                    }
+                    alTx.Abort();
+                    alTx.Dispose();
+                    alDb.Dispose();
                     #endregion
 
                     #region Testing tolerance when comparing points

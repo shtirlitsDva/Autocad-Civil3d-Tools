@@ -417,6 +417,7 @@ namespace IntersectUtilities
                         }
                         line.AddEntityToDbModelSpace(Application.DocumentManager.MdiActiveDocument.Database);
                     }
+                    prdDbg("Created lines that mark faulty entities in the drawing!");
                     break;
                 }
                 prdDbg("Entry: " + ge.OwnerHandle.ToString());
@@ -500,9 +501,9 @@ namespace IntersectUtilities
                         string ownEnd = con.OwnEndType.ToString();
                         string conEnd = con.ConEndType.ToString();
                         string key = ownEnd + "-" + conEnd;
-                        if (key == "StikAfgrening-Main") prdDbg(key);
+                        //if (key == "StikAfgrening-Main") prdDbg(key);
                         if (allowedCombinations.ContainsKey(key) && !allowedCombinations[key]) continue;
-                        if (key == "StikAfgrening-Main") prdDbg("Passed!");
+                        //if (key == "StikAfgrening-Main") prdDbg("Passed!");
 
                         //Tries to prevent duplicate Main-Main edges by eliminating upstream Main-Main instance
                         //Doesn't work if recursion just returned from a branch, because previous is set the the

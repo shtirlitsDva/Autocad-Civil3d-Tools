@@ -305,16 +305,20 @@ namespace IntersectUtilities.PipelineNetworkSystem
             #endregion
 
             #region Remove MATSKIFT at start and end
-            if (topology[0].type == "Materialeskift {#M1}{#DN1}x{#M2}{#DN2}")
-            {
-                double station = topology[0].station;
-                if (station < 0.1) topology.RemoveAt(0);
-            }
-            if (topology[topology.Count - 1].type == "Materialeskift {#M1}{#DN1}x{#M2}{#DN2}")
-            {
-                double station = topology[topology.Count - 1].station;
-                if (Math.Abs(pipeline.EndStation - station) < 0.1) topology.RemoveAt(topology.Count - 1);
-            }
+            //I think this was a quick fix
+            //but it throws an exception now for a particular case
+            //Removing it makes the code work
+
+            //if (topology[0].type == "Materialeskift {#M1}{#DN1}x{#M2}{#DN2}")
+            //{
+            //    double station = topology[0].station;
+            //    if (station < 0.1) topology.RemoveAt(0);
+            //}
+            //if (topology[topology.Count - 1].type == "Materialeskift {#M1}{#DN1}x{#M2}{#DN2}")
+            //{
+            //    double station = topology[topology.Count - 1].station;
+            //    if (Math.Abs(pipeline.EndStation - station) < 0.1) topology.RemoveAt(topology.Count - 1);
+            //}
             #endregion
 
             //Prepare the ranges of stations for querying

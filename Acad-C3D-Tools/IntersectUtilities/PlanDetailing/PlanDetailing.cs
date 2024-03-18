@@ -717,7 +717,9 @@ namespace IntersectUtilities
                             Utils.SetDynBlockPropertyObject(br, "System", pipeType);
 
                             string alignmentName = psm.ReadPropertyString(mainPipe, driPipelineData.BelongsToAlignment);
-                            psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, alignmentName);
+                            string stikName = psm.ReadPropertyString(stikPipe, driPipelineData.BelongsToAlignment);
+                            psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, stikName);
+                            psm.WritePropertyString(br, driPipelineData.BranchesOffToAlignment, alignmentName);
 
                             br.AttSync();
                         }
