@@ -3785,10 +3785,10 @@ namespace IntersectUtilities.Dimensionering
                                         system = PipeSystemEnum.Stål;
                                         dim = Convert.ToInt32(item.dim.Remove(0, 2));
                                     }
-                                    else if (item.dim.StartsWith("PEX"))
+                                    else if (item.dim.StartsWith("PF"))
                                     {
-                                        system = PipeSystemEnum.PexU;
-                                        dim = Convert.ToInt32(item.dim.Remove(0, 3));
+                                        system = PipeSystemEnum.PertFlextra;
+                                        dim = Convert.ToInt32(item.dim.Remove(0, 2));
                                     }
                                     else { system = PipeSystemEnum.Stål; dim = 25; }
                                 }
