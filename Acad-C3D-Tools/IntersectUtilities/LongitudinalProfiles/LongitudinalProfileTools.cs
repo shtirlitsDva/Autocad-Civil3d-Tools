@@ -2188,7 +2188,11 @@ namespace IntersectUtilities
                             .Where(x =>
                                 psmPipeLineData.FilterPropetyString(
                                     x, driPipelineData.BranchesOffToAlignment, al.Name) &&
-                                (x.RealName() == "AFGRSTUDS" || x.RealName() == "SH LIGE"))
+                                (
+                                x.RealName() == "AFGRSTUDS" ||
+                                x.RealName() == "SH LIGE" ||
+                                x.RealName() == "STIKAFGRENING"
+                                ))
                             .ToHashSet();
 
                         //Tilføj afgreningsstudse til blokke
@@ -2440,6 +2444,7 @@ namespace IntersectUtilities
                                     "Afgrening, parallel",
                                     "Svejsetee",
                                     "Preskobling tee",
+                                    "Stikafgrening",
                                 }).Contains(type))
                                     brSign.SetAttributeStringValue("RIGHTSIZE",
                                         psmPipeLineData.ReadPropertyString(
