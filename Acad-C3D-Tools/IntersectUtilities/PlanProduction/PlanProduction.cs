@@ -1040,7 +1040,7 @@ namespace IntersectUtilities
             }
         }
 
-        S[CommandMethod("colorviewframes")]
+        [CommandMethod("colorviewframes")]
         public void colorviewframes()
         {
 
