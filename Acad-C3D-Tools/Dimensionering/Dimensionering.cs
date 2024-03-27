@@ -55,6 +55,7 @@ using Newtonsoft.Json;
 using Autodesk.Gis.Map;
 using Autodesk.Gis.Map.ObjectData;
 using IntersectUtilities.PipeScheduleV2;
+using System.Runtime.CompilerServices;
 
 namespace IntersectUtilities.Dimensionering
 {
@@ -3747,6 +3748,9 @@ namespace IntersectUtilities.Dimensionering
 
                 try
                 {
+#if DEBUG
+                    HashSet<string> sysDns = new HashSet<string>();
+#endif
                     #region Read excel workbook data into a list: dimList<(string Name, int Dim)>
                     Worksheet ws;
                     IEnumerable<int> sheetRange = Enumerable.Range(1, 100);
@@ -3878,11 +3882,22 @@ namespace IntersectUtilities.Dimensionering
                         if (group.Key == default || group.Key == zeroHandle) continue;
                         Polyline originalPipe = group.Key.Go<Polyline>(localDb);
                         List<SizeEntry> sizes = new List<SizeEntry>();
+
+                        //OrderByAlphanumeric is trying to sort the sizes from largest to smallest
+                        //But! this is from the time when there was only one system! Stål
+                        //Now we have multiple systems and we need to take into account the system
+                        //ASSUMPTION: Stål comes always before PertFlextra
+                        //ALWAYS REVIEW THIS CODE IF INPUT DATA CHANGES
+
                         IEnumerable<IGrouping<string, DimEntry>> dims =
                             group.GroupBy(x => x.SystemDN)
-                            .OrderByAlphaNumeric(x => x.Key)
+                            .OrderBySpecial(x => x.Key)
                             .Reverse();
                         IGrouping<string, DimEntry>[] dimAr = dims.ToArray();
+#if DEBUG
+                        prdDbg(string.Join(", ", dimAr.Select(x => x.First().Dim)));
+                        sysDns.UnionWith(dimAr.Select(x => x.Key));
+#endif
                         for (int i = 0; i < dimAr.Length; i++)
                         {
                             int dn = dimAr[i].First().Dim;
@@ -3895,11 +3910,10 @@ namespace IntersectUtilities.Dimensionering
                                 if (dn < 250) type = PipeTypeEnum.Twin;
                                 else type = PipeTypeEnum.Frem;
                             }
-                            else if (system == PipeSystemEnum.PexU) type = PipeTypeEnum.Twin;
+                            else if (system == PipeSystemEnum.PertFlextra) type = PipeTypeEnum.Twin;
                             else type = PipeTypeEnum.Twin;
 
                             double kod = PipeScheduleV2.PipeScheduleV2.GetPipeKOd(system, dn, type, series);
-
 
                             //Determine start
                             if (i != 0) start = dimAr[i - 1].MaxBy(x => x.Station).First().Station;
@@ -3921,8 +3935,10 @@ namespace IntersectUtilities.Dimensionering
 
                         //Create sizeArray
                         PipelineSizeArray sizeArray = new PipelineSizeArray(sizes.ToArray());
-                        //prdDbg($"{fjvFremPsm.ReadPropertyString(originalPipe, fjvFremDef.Bemærkninger)}:");
-                        //prdDbg(sizeArray.ToString()); 
+#if DEBUG
+                        prdDbg($"{fjvFremPsm.ReadPropertyString(originalPipe, fjvFremDef.Bemærkninger)}:");
+                        prdDbg(sizeArray.ToString());
+#endif
                         #endregion
 
                         #region Create pipes in sideloaded db
@@ -4029,6 +4045,9 @@ namespace IntersectUtilities.Dimensionering
                         System.Windows.Forms.Application.DoEvents();
                     }
 
+#if DEBUG
+                    prdDbg(string.Join(", ", sysDns));
+#endif
                     double DistToStart(BlockReference br, Polyline pline)
                     {
                         Point3d closestPt = pline.GetClosestPointTo(br.Position, false);

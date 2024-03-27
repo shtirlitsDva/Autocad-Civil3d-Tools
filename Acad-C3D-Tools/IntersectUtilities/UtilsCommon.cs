@@ -2358,6 +2358,37 @@ namespace IntersectUtilities.UtilsCommon
 
             return source.OrderBy(i => Regex.Replace(selector(i), @"\d+", m => m.Value.PadLeft(max, '0')));
         }
+        #region SPECIAL ORDERING METHOD DIMIMPORTDIMS
+        private static Dictionary<string, int> orderDefinition = new Dictionary<string, int>()
+        {
+            //ADD NEW STRINGS HERE!!!
+            {"DN", 1 },
+            {"PRTFLEXL", 0},
+        };
+        public static IOrderedEnumerable<T> OrderBySpecial<T>(this IEnumerable<T> source, Func<T, string> selector)
+        {
+            int maxNumberLength = source
+                .SelectMany(i => Regex.Matches(selector(i), @"\d+").Cast<Match>().Select(m => (int?)m.Value.Length))
+        .Max() ?? 0;
+
+            return source.OrderBy(i =>
+            {
+                var key = selector(i);
+                // Identify the prefix and numeric parts of the key
+                var match = System.Text.RegularExpressions.Regex.Match(key, @"^([A-Za-z]+)(\d*)");
+                var prefix = match.Groups[1].Value;
+                var numericPart = match.Groups[2].Value;
+
+                // Determine the sort order based on the prefix
+                int prefixOrder = orderDefinition.ContainsKey(prefix) ? orderDefinition[prefix] : orderDefinition.Values.Max() + 1;
+
+                // Pad the numeric part for proper alphanumeric sorting
+                var paddedNumericPart = numericPart.PadLeft(maxNumberLength, '0');
+
+                return $"{prefixOrder:D3}-{prefix}-{paddedNumericPart}";
+            });
+        }
+        #endregion
         public static double StationAtPoint(this Alignment al, Point3d p)
         {
             double station = 0.0;
