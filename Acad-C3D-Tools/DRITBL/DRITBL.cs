@@ -165,8 +165,7 @@ namespace IntersectUtilities.DRITBL
                     PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriOmråder);
                     PSetDefs.DriOmråder psDef = new PSetDefs.DriOmråder();
 
-                    System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
-                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    System.Data.DataTable dt = CsvData.FK;
 
                     #region Collect Intersection Results
                     for (int i = 0; i < cplines.Count; i++)

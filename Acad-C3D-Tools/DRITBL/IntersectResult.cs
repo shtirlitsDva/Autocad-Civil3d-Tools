@@ -23,14 +23,15 @@ namespace IntersectUtilities.DRITBL
         public string Serie { get; set; }
         public virtual string ToString(ExportType exportType)
         {
+            string dn2Value = DN2 == "0" ? "" : DN2;
             switch (exportType)
             {
                 case ExportType.Unknown:
                     break;
                 case ExportType.CWO:
-                    return $"{Vejnavn};Vejkl. {Vejklasse};{Belægning};{Navn};;;{DN1};{DN2};{System};{Serie};";
+                    return $"{Vejnavn};Vejkl. {Vejklasse};{Belægning};{Navn};;;{DN1};{dn2Value};{System};{Serie};";
                 case ExportType.JJR:
-                    return $"Vejkl. {Vejklasse};{Belægning};{Navn};{DN1};{DN2};{System};{Serie};";
+                    return $"Vejkl. {Vejklasse};{Belægning};{Navn};{DN1};{dn2Value};{System};{Serie};";
                 default:
                     break;
             }
