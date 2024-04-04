@@ -45,9 +45,11 @@ namespace IntersectUtilities.DRITBL
             IntersectType = IntersectType.Pipe;
             Navn = "Rør præisoleret";
         }
+        public double Antal { get; set; }
         public double Length { get; set; }
         public override string ToString(ExportType exportType) => 
-            base.ToString(exportType) + $"{Length.ToString(new CultureInfo("da-DK"))}";
+            base.ToString(exportType) + $"{Antal.ToString(new CultureInfo("da-DK"))};" +
+            $"{Length.ToString(new CultureInfo("da-DK"))}";
     }
     internal class IntersectResultComponent : IntersectResult
     {
@@ -68,34 +70,6 @@ namespace IntersectUtilities.DRITBL
         public bool DN2 { get; set; }
         public bool System { get; set; }
         public bool Serie { get; set; }
-    }
-    internal class PropertyConfigCWO : PropertyConfig
-    {
-        public PropertyConfigCWO()
-        {
-            Vejnavn = true;
-            Vejklasse = true;
-            Belægning = true;
-            Navn = true;
-            DN1 = true;
-            DN2 = true;
-            System = true;
-            Serie = true;
-        }
-    }
-    internal class PropertyConfigJJR : PropertyConfig
-    {
-        public PropertyConfigJJR()
-        {
-            Vejnavn = false;
-            Vejklasse = true;
-            Belægning = true;
-            Navn = true;
-            DN1 = true;
-            DN2 = true;
-            System = true;
-            Serie = true;
-        }
     }
     public enum IntersectType
     {

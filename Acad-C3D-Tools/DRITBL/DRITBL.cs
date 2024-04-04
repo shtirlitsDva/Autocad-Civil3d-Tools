@@ -404,7 +404,7 @@ namespace IntersectUtilities.DRITBL
             #region Export Intersection Results
             StringBuilder sb = new StringBuilder();
             //sb.AppendLine("BEMÆRK: Twin svejsninger bliver IKKE ganget med 2!");
-            sb.AppendLine("Vejklasse;Belægningstype;Komponent;DN1;DN2;Rørsystem;Serie;Længde/Antal");
+            sb.AppendLine("Vejklasse;Belægningstype;Komponent;DN1;DN2;Rørsystem;Serie;Antal;Længde");
 
             foreach (IntersectResult ir in results.OrderBy(x => x.IntersectType)) sb.AppendLine(ir.ToString(ExportType.JJR));
 
