@@ -1058,14 +1058,108 @@ namespace LERImporter.Schema
     }
     public partial class AndenLedningType : ILerLedning
     {
+        [PsInclude]
+        public string Forsyningsart { get => getForsyningsart(); }
+        private string getForsyningsart()
+        {
+            if (this.forsyningsart == null) return "UKENDT";
+            if (this.forsyningsart.IsNoE()) return "UKENDT";
+            if (this.forsyningsart.StartsWith("other:"))
+            {
+                string tmp = this.forsyningsart.Replace("other:", "");
+                tmp = tmp.Trim();
+                return tmp;
+            }
+            else return this.forsyningsart;
+        }
+        [PsInclude]
+        public string Tværsnitsform { get => this.getAndenLedningTværsnitsform().ToString() ?? string.Empty; }
+        private AndenLedningTværsnitsform getAndenLedningTværsnitsform()
+        {
+            if (this.tvaersnitsform == null) return AndenLedningTværsnitsform.ukendt;
+            AndenLedningTværsnitsform form;
+            if (Enum.TryParse(this.tvaersnitsform.Value, out form)) return form;
+            else
+            {
+                Log.log($"WARNING! Element id {gmlid} has non-standard Tværsnitsform {this.tvaersnitsform.Value}");
+                return AndenLedningTværsnitsform.ukendt;
+            }
+        }
+        public enum AndenLedningTværsnitsform
+        {
+            ukendt,
+            brilleformet,
+            cirkulær,
+            kvadratisk,
+            rektangulær,
+            sektorformet,
+            spidsbundet,
+            trapezformet,
+            trekantet,
+            tunnelformet,
+            ægformet,
+            øjestensprofil
+        }
+        [PsInclude]
+        public string Type { get => this.type ?? ""; }
+        [PsInclude]
+        public double UdvendigBredde { get => this.udvendigBredde?.getValueInStdUnits() ?? default; }
+        [PsInclude]
+        public double UdvendigHøjde { get => this.udvendigHoejde?.getValueInStdUnits() ?? default; }
+        private string DetermineLayerName(Database database, bool _3D = false)
+        {
+            #region Determine correct layer name
+            string layerName = "AndenLedning";
+            string driftsstatusSuffix = "";
+
+            layerName += "-" + Forsyningsart;
+
+            switch (this.Driftsstatus2)
+            {
+                case DriftsstatusType.underetablering:
+                case DriftsstatusType.idrift:
+                    break;
+                case DriftsstatusType.permanentudeafdrift:
+                    driftsstatusSuffix = "_UAD";
+                    break;
+                default:
+                    Log.log($"AndenLedning {this.GmlId} har driftsstatus lig med null! Sætter til \"i drift\".");
+                    break;
+            }
+
+            layerName += driftsstatusSuffix;
+            if (_3D) layerName += "-3D";
+
+            database.CheckOrCreateLayer(layerName);
+            return layerName;
+            #endregion
+        }
         public Oid DrawEntity2D(Database database)
         {
-            throw new NotImplementedException();
+            //Create new polyline in the base class
+            Oid id = DrawPline2D(database);
+            if (id.IsNull) return id;
+            Polyline pline = id.Go<Polyline>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            pline.Layer = DetermineLayerName(database);
+
+            pline.ConstantWidth = this.UdvendigDiameterInStdUnits;
+
+            return pline.ObjectId;
         }
 
         public Oid DrawEntity3D(Database database)
         {
-            throw new NotImplementedException();
+            Oid id = DrawPline3D(database);
+            if (id.IsNull) return id;
+            Polyline3d p3d = id
+                .Go<Polyline3d>(database.TransactionManager.TopTransaction, OpenMode.ForWrite);
+
+            string layerName = DetermineLayerName(database, true);
+
+            p3d.Layer = layerName;
+
+            return p3d.Id;
         }
     }
 
