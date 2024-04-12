@@ -58,8 +58,6 @@ using IntersectUtilities.GraphClasses;
 using QuikGraph;
 using QuikGraph.Graphviz;
 using QuikGraph.Algorithms.Search;
-using IntersectUtilities.NTS;
-using IntersectUtilities.PipelineNetworkSystem;
 
 [assembly: CommandClass(typeof(IntersectUtilities.Intersect))]
 
@@ -3054,40 +3052,88 @@ namespace IntersectUtilities
         [CommandMethod("CCL")]
         public void createcomplexlinetype()
         {
+            string lineTypeName = "BIPS_TEXT_N2";
+            string text = "N2";
+            string textStyleName = "Standard";
+
+            createcomplexlinetypemethod(lineTypeName, text, textStyleName);
+        }
+
+        [CommandMethod("UELT")]
+        public void updateexistinglinetype()
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Database db = doc.Database;
+
+            prdDbg("Text style is presumed \"Standard\"!");
+
+            Oid id = Interaction.GetEntity("Select object to update linetype: ");
+            if (id.IsNull) return;
+
+            string text = Interaction.GetString("Enter text: ", true);
+            if (text.IsNoE()) return;
+
+            Transaction tx = db.TransactionManager.StartTransaction();
+            using (tx)
+            {
+                try
+                {
+                    createcomplexlinetypemethod(
+                        id.Layer().Replace("00LT-", ""), text, "Standard");
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                }
+                tx.Commit();
+            }
+        }
+
+        public void createcomplexlinetypemethod(string lineTypeName, string text, string textStyleName)
+        {
             Document doc = Application.DocumentManager.MdiActiveDocument;
             Database db = doc.Database;
             Editor ed = doc.Editor;
-            Transaction tr = db.TransactionManager.StartTransaction();
-            using (tr)
+            Transaction tx = db.TransactionManager.StartTransaction();
+            using (tx)
             {
                 try
                 {
                     // We'll use the textstyle table to access
                     // the "Standard" textstyle for our text segment
-                    TextStyleTable tt = (TextStyleTable)tr.GetObject(db.TextStyleTableId, OpenMode.ForRead);
+                    TextStyleTable tt = (TextStyleTable)tx.GetObject(db.TextStyleTableId, OpenMode.ForRead);
                     // Get the linetype table from the drawing
-                    LinetypeTable ltt = (LinetypeTable)tr.GetObject(db.LinetypeTableId, OpenMode.ForWrite);
+                    LinetypeTable ltt = (LinetypeTable)tx.GetObject(db.LinetypeTableId, OpenMode.ForWrite);
                     // Get layer table
-                    LayerTable lt = tr.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    LayerTable lt = tx.GetObject(db.LayerTableId, OpenMode.ForRead) as LayerTable;
 
                     //**************************************
                     //Change name of line type to create new and text value
                     //**************************************
-                    string ltName = "BIPS_TEXT_DAMP-DSTR";
-                    string text = "DAMP-DSTR";
-                    string textStyleName = "Standard";
+                    
                     prdDbg($"Remember to create text style: {textStyleName}!!!");
+                    if (tt.Has(textStyleName))
+                    {
+                        prdDbg("Text style exists!");
+                    }
+                    else
+                    {
+                        prdDbg($"Text style {textStyleName} DOES NOT exist!");
+                        tx.Abort();
+                        return;
+                    }
 
                     List<string> layersToChange = new List<string>();
 
-                    if (ltt.Has(ltName))
+                    if (ltt.Has(lineTypeName))
                     {
-                        Oid existingId = ltt[ltName];
+                        Oid existingId = ltt[lineTypeName];
                         Oid placeHolderId = ltt["Continuous"];
 
                         foreach (Oid oid in lt)
                         {
-                            LayerTableRecord ltr = oid.Go<LayerTableRecord>(tr);
+                            LayerTableRecord ltr = oid.Go<LayerTableRecord>(tx);
                             if (ltr.LinetypeObjectId == existingId)
                             {
                                 ltr.CheckOrOpenForWrite();
@@ -3096,61 +3142,76 @@ namespace IntersectUtilities
                             }
                         }
 
-                        LinetypeTableRecord exLtr = existingId.Go<LinetypeTableRecord>(tr, OpenMode.ForWrite);
+                        LinetypeTableRecord exLtr = existingId.Go<LinetypeTableRecord>(tx, OpenMode.ForWrite);
                         exLtr.Erase(true);
                     }
 
                     // Create our new linetype table record...
                     LinetypeTableRecord lttr = new LinetypeTableRecord();
                     // ... and set its properties
-                    lttr.Name = ltName;
+                    lttr.Name = lineTypeName;
                     lttr.AsciiDescription =
                       $"{text} ---- {text} ---- {text} ----";
                     lttr.PatternLength = 0.9;
                     //IsScaledToFit makes so that there are no gaps at ends if text cannot fit
                     lttr.IsScaledToFit = false;
                     lttr.NumDashes = 4;
+
+                    //Dash definition
+                    double dL = 5;
+                    double textBuffer = 0.05; //On each side
+                    
+                    //Text length calculation
+                    Oid textStyleId = tt[textStyleName];
+                    var ts = new Autodesk.AutoCAD.GraphicsInterface.TextStyle();
+                    ts.FromTextStyleTableRecord(textStyleId);
+                    ts.TextSize = 0.9;
+                    var xs = ts.ExtentsBox(text, true, false, null);
+                    var tL = (xs.MaxPoint.X - xs.MinPoint.X) + 0.1;
+
+                    prdDbg($"Dash Length: {dL}, Text length: {tL}");
+
                     // Dash #1
-                    lttr.SetDashLengthAt(0, 15);
+                    lttr.SetDashLengthAt(0, dL);
                     // Dash #2
-                    lttr.SetDashLengthAt(1, -7.4);
+                    lttr.SetDashLengthAt(1, -tL);
                     lttr.SetShapeStyleAt(1, tt[textStyleName]);
                     lttr.SetShapeNumberAt(1, 0);
-                    lttr.SetShapeOffsetAt(1, new Vector2d(-7.4, -0.45));
+                    lttr.SetShapeOffsetAt(1, new Vector2d(-(tL - textBuffer), -0.45));
                     lttr.SetShapeScaleAt(1, 0.9);
                     lttr.SetShapeIsUcsOrientedAt(1, false);
                     lttr.SetShapeRotationAt(1, 0);
                     lttr.SetTextAt(1, text);
                     // Dash #3
-                    lttr.SetDashLengthAt(2, 15);
+                    lttr.SetDashLengthAt(2, dL);
                     // Dash #4
-                    lttr.SetDashLengthAt(3, -7.4);
+                    lttr.SetDashLengthAt(3, -tL);
                     lttr.SetShapeStyleAt(3, tt[textStyleName]);
                     lttr.SetShapeNumberAt(3, 0);
-                    lttr.SetShapeOffsetAt(3, new Vector2d(0.0, 0.45));
+                    lttr.SetShapeOffsetAt(3, new Vector2d(-textBuffer, 0.45));
                     lttr.SetShapeScaleAt(3, 0.9);
                     lttr.SetShapeIsUcsOrientedAt(3, false);
                     lttr.SetShapeRotationAt(3, Math.PI);
                     lttr.SetTextAt(3, text);
                     // Add the new linetype to the linetype table
-                    ObjectId ltId = ltt.Add(lttr);
-                    tr.AddNewlyCreatedDBObject(lttr, true);
+                    Oid ltId = ltt.Add(lttr);
+                    tx.AddNewlyCreatedDBObject(lttr, true);
 
                     foreach (string name in layersToChange)
                     {
                         Oid ltrId = lt[name];
-                        LayerTableRecord ltr = ltrId.Go<LayerTableRecord>(tr, OpenMode.ForWrite);
+                        LayerTableRecord ltr = ltrId.Go<LayerTableRecord>(tx, OpenMode.ForWrite);
                         ltr.LinetypeObjectId = ltId;
                     }
 
-                    db.ForEach<Polyline>(x => x.Draw(), tr);
+                    db.ForEach<Polyline>(x => x.Draw(), tx);
                 }
                 catch (System.Exception ex)
                 {
-                    tr.Abort();
+                    tx.Abort();
                     prdDbg(ex);
                 }
-                tr.Commit();
+                tx.Commit();
             }
         }
 
