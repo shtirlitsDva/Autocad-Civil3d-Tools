@@ -3052,8 +3052,11 @@ namespace IntersectUtilities
         [CommandMethod("CCL")]
         public void createcomplexlinetype()
         {
-            string lineTypeName = "BIPS_TEXT_N2";
-            string text = "N2";
+            //string lineTypeName = "BIPS_TEXT_N2";
+            string lineTypeName = Interaction.GetString("Enter LineType name: (ex: BIPS_TEXT_N2) \n");
+            if (lineTypeName.IsNoE()) return;
+            //string text = "N2";
+            string text = Interaction.GetString("Enter text to be displayed by line: (ex: 10 kV) \n");
             string textStyleName = "Standard";
 
             createcomplexlinetypemethod(lineTypeName, text, textStyleName);
