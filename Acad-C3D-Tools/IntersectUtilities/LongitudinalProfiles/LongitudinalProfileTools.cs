@@ -2396,6 +2396,10 @@ namespace IntersectUtilities
                                 @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
                             foreach (BlockReference br in brs)
                             {
+#if DEBUG
+                                string name = br.RealName();
+                                ;
+#endif
                                 string type = br.ReadDynamicCsvProperty(DynamicProperty.Type);
                                 if (type == "Reduktion" || type == "Svejsning") continue;
 
@@ -2432,6 +2436,10 @@ namespace IntersectUtilities
                                 double Y = originY + (sampledMidtElevation - pvElBottom) *
                                         profileViewStyle.GraphStyle.VerticalExaggeration;
                                 BlockReference brSign = dB.CreateBlockWithAttributes(komponentBlockName, new Point3d(X, Y, 0));
+
+#if DEBUG
+                                if (type.IsNoE()) prdDbg($"Block: {br.Handle} returns null for Type!");
+#endif
 
                                 //Write the left side text
                                 brSign.SetAttributeStringValue("LEFTSIZE", type);
