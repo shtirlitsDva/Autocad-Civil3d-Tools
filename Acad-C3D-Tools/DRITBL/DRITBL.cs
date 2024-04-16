@@ -332,6 +332,7 @@ namespace IntersectUtilities.DRITBL
                     DN1 = g.Key.DN1,
                     System = g.Key.System,
                     Serie = g.Key.Serie,
+                    Antal = g.Sum(x => x.Length),
                     Length = g.Sum(x => x.Length) // sum Length for each group
                 });
             var componentSummary = results
