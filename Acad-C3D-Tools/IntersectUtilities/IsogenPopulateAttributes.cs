@@ -6,14 +6,6 @@ using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil;
 using Autodesk.Civil.ApplicationServices;
-using Autodesk.Civil.DatabaseServices;
-using Autodesk.Civil.DatabaseServices.Styles;
-using Autodesk.Civil.DataShortcuts;
-using Autodesk.Gis.Map;
-using Autodesk.Gis.Map.ObjectData;
-using Autodesk.Gis.Map.Utilities;
-using Autodesk.Aec.PropertyData;
-using Autodesk.Aec.PropertyData.DatabaseServices;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -27,30 +19,11 @@ using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Data;
 using MoreLinq;
-using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
 
-using static IntersectUtilities.Enums;
-using static IntersectUtilities.HelperMethods;
-using static IntersectUtilities.Utils;
-using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
-
-using static IntersectUtilities.UtilsCommon.UtilsDataTables;
-using static IntersectUtilities.UtilsCommon.UtilsODData;
-
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
-using CivSurface = Autodesk.Civil.DatabaseServices.Surface;
-using DataType = Autodesk.Gis.Map.Constants.DataType;
-using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
-using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
-using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
-using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using Label = Autodesk.Civil.DatabaseServices.Label;
-using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
-using Autodesk.AutoCAD.MacroRecorder;
-using Dreambuild.AutoCAD;
 
 namespace IntersectUtilities
 {
@@ -60,9 +33,6 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             //Instantiate serializer
             XmlSerializer serializer = new XmlSerializer(typeof(BackingSheetData));
@@ -99,8 +69,8 @@ namespace IntersectUtilities
 
             var pcfPipeLineData = IsogenPopulateAttributes.CollectPipeLineData(pcf);
 
-            string kwd = GetKeywords("Select pipeline to populate: ",
-                pcfPipeLineData.Select(x => x.Key).ToArray());
+            string kwd = StringGridFormCaller.Call(
+                pcfPipeLineData.Select(x => x.Key), "Select pipeline to populate: ");
 
             if (kwd.IsNoE()) return;
 
