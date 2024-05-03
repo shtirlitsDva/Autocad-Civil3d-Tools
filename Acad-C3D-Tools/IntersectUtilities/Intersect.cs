@@ -3114,7 +3114,7 @@ namespace IntersectUtilities
                     //**************************************
                     //Change name of line type to create new and text value
                     //**************************************
-                    
+
                     prdDbg($"Remember to create text style: {textStyleName}!!!");
                     if (tt.Has(textStyleName))
                     {
@@ -3163,7 +3163,7 @@ namespace IntersectUtilities
                     //Dash definition
                     double dL = 5;
                     double textBuffer = 0.05; //On each side
-                    
+
                     //Text length calculation
                     Oid textStyleId = tt[textStyleName];
                     var ts = new Autodesk.AutoCAD.GraphicsInterface.TextStyle();
@@ -3372,9 +3372,8 @@ namespace IntersectUtilities
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            localDb.CheckOrCreateLayer("0-NONPLOT", 40, false);
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -3404,23 +3403,19 @@ namespace IntersectUtilities
                             {
                                 Viewport viewport = id.Go<Viewport>(tx);
                                 //Truncate doubles to whole numebers for easier comparison
-                                int centerX = (int)viewport.CenterPoint.X;
-                                int centerY = (int)viewport.CenterPoint.Y;
-                                if (centerX == 422 && centerY == 442)
-                                {
-                                    prdDbg("Found profile viewport!");
-                                    Extents3d ext = viewport.GeometricExtents;
-                                    Polyline pl = new Polyline(4);
-                                    pl.AddVertexAt(0, new Point2d(ext.MinPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
-                                    pl.AddVertexAt(1, new Point2d(ext.MinPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
-                                    pl.AddVertexAt(2, new Point2d(ext.MaxPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
-                                    pl.AddVertexAt(3, new Point2d(ext.MaxPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
-                                    pl.Closed = true;
-                                    pl.SetDatabaseDefaults();
-                                    pl.PaperToModel(viewport);
-                                    pl.Layer = "0-NONPLOT";
-                                    pl.AddEntityToDbModelSpace<Polyline>(localDb);
-                                }
+
+                                prdDbg("Found viewport!");
+                                Extents3d ext = viewport.GeometricExtents;
+                                Polyline pl = new Polyline(4);
+                                pl.AddVertexAt(0, new Point2d(ext.MinPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
+                                pl.AddVertexAt(1, new Point2d(ext.MinPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
+                                pl.AddVertexAt(2, new Point2d(ext.MaxPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
+                                pl.AddVertexAt(3, new Point2d(ext.MaxPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
+                                pl.Closed = true;
+                                pl.SetDatabaseDefaults();
+                                pl.PaperToModel(viewport);
+                                pl.Layer = "0-NONPLOT";
+                                pl.AddEntityToDbModelSpace<Polyline>(localDb);
                             }
                         }
                     }
@@ -3428,7 +3423,7 @@ namespace IntersectUtilities
                 }
                 catch (System.Exception ex)
                 {
-                    prdDbg("DrawViewportRectangles failed!\n" + ex.ToString());
+                    prdDbg(ex);
                     tx.Abort();
                     return;
                 }
