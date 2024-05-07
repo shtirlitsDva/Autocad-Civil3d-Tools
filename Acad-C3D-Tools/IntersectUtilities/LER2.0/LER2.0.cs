@@ -26,9 +26,7 @@ using System.Text.Json;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
 using IntersectUtilities.LER2;
-using System.Windows.Forms;
-using Autodesk.Aec.DatabaseServices;
-using Autodesk.Civil.ApplicationServices;
+using FolderSelect;
 
 namespace IntersectUtilities
 {
@@ -405,7 +403,7 @@ namespace IntersectUtilities
                             $"\nEnter slope in promille: Current slope <{slope.ToString("0.##")}>");
                         pdo.AllowNone = true;
                         PromptDoubleResult result = ed.GetDouble("\nEnter slope in promille: ");
-                        if (result.Status == PromptStatus.None) {  } //Empty clause because NONE is OK.
+                        if (result.Status == PromptStatus.None) { } //Empty clause because NONE is OK.
                         else if (((PromptResult)result).Status != PromptStatus.OK)
                         {
                             tx.Abort();
@@ -465,7 +463,7 @@ namespace IntersectUtilities
 
                                 prdDbg($"Current elevation: {currentElevation.ToString("0.##")}\n" +
                                     $"Elevation change: {elevationChange.ToString("0.##")}");
-                                    
+
                                 currentElevation += elevationChange;
                                 prdDbg($"New elevation: {currentElevation.ToString("0.##")}");
 
@@ -1840,6 +1838,80 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+        }
+
+        [CommandMethod("LER2TRANSFORMLTF")]
+        public void ler2tranformltf()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Tolerance tolerance = new Tolerance(1e-6, 2.54 * 1e-6);
+
+            #region Find folder and files
+            FolderSelectDialog fsd = new FolderSelectDialog()
+            {
+                Title = "Select folder where LER dwg files are stored: ",
+            };
+
+            string pathToFolder;
+            if (fsd.ShowDialog(IntPtr.Zero))
+            {
+                pathToFolder = fsd.FileName + "\\";
+            }
+            else return;
+
+            var ler2dbs = Directory.EnumerateFiles(pathToFolder, "2DLER.dwg");
+            if (ler2dbs.Count() != 1) return;
+
+            var ler3dbs = Directory.EnumerateFiles(pathToFolder, "*_3DLER.dwg");
+            if (ler3dbs.Count() < 1) return;
+            #endregion
+
+            //Process all lines and detect with nodes at both ends
+            string ler2dbpath = ler2dbs.First();
+            if (!File.Exists(ler2dbpath)) return;
+            Database db2d = new Database(false, true);
+            db2d.ReadDwgFile(ler2dbpath, FileShare.Read, false, "");
+            Transaction db2dTx = db2d.TransactionManager.StartTransaction();
+
+            foreach (var file in ler3dbs)
+            {
+                if (!File.Exists(file)) continue;
+                Database db3d = new Database(false, true);
+                db3d.ReadDwgFile(file, FileShare.ReadWrite, false, "");
+                Transaction db3dTx = db3d.TransactionManager.StartTransaction();
+
+                try
+                {
+                    db2d.HashSetOfType<DBPoint>(db2dTx, true);
+                }
+                catch (System.Exception ex)
+                {
+                    db2dTx.Abort();
+                    db2dTx.Dispose();
+                    db2d.Dispose();
+
+                    db3dTx.Abort();
+                    db3dTx.Dispose();
+                    db3d.Dispose();
+
+                    prdDbg(ex);
+                    return;
+                }
+
+                //Code processed successfully
+                //Dispose of the 3db and transaction
+                db3dTx.Commit();
+                //db3d.SaveAs(db3d.Filename, true, DwgVersion.Newest, db3d.SecurityParameters);
+                db3dTx.Dispose();
+                db3d.Dispose();
+            }
+
+            //Code processed successfully
+            //Dispose of the 2db and transaction
+            db2dTx.Abort();
+            db2dTx.Dispose();
+            db2d.Dispose();
         }
 
         private class Polyline3dHandleComparer : IEqualityComparer<Polyline3d>

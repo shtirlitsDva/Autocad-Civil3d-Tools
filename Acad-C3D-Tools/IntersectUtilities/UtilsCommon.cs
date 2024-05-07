@@ -3042,6 +3042,11 @@ namespace IntersectUtilities.UtilsCommon
         {
             return new HashSet<T>(db.ListOfType<T>(tr, discardFrozen));
         }
+        public static HashSet<T> HashSetOfType<T>(this Database db, Transaction tr, PSFilter filter, bool discardFrozen = false)
+            where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        {
+            return new HashSet<T>(db.ListOfType<T>(tr, discardFrozen));
+        }
         public static HashSet<Entity> GetFjvEntities(this Database db, Transaction tr,
             bool discardWelds = true, bool discardStikBlocks = true, bool discardFrozen = false)
         {
