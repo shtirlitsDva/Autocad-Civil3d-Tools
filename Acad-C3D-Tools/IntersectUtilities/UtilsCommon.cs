@@ -2476,8 +2476,10 @@ namespace IntersectUtilities.UtilsCommon
         public static void UpdateElevationZ(this PolylineVertex3d vert, double newElevation)
         {
             if (!vert.Position.Z.Equalz(newElevation, Tolerance.Global.EqualPoint))
-                vert.Position = new Point3d(
-                    vert.Position.X, vert.Position.Y, newElevation);
+            {
+                vert.CheckOrOpenForWrite();
+                vert.Position = new Point3d(vert.Position.X, vert.Position.Y, newElevation);
+            }
         }
         public static bool IsAtZeroElevation(this PolylineVertex3d vert) => vert.Position.Z < 0.0001 && vert.Position.Z > -0.0001;
         public static bool IsAtZeroElevation(this Polyline3d p3d)
@@ -2550,6 +2552,12 @@ namespace IntersectUtilities.UtilsCommon
         public static List<string> ToList(this StringCollection sc)
         {
             List<string> list = new List<string>();
+            foreach (string s in sc) list.Add(s);
+            return list;
+        }
+        public static HashSet<string> ToHashSet(this StringCollection sc)
+        {
+            HashSet<string> list = new HashSet<string>();
             foreach (string s in sc) list.Add(s);
             return list;
         }
@@ -3003,9 +3011,6 @@ namespace IntersectUtilities.UtilsCommon
         }
         public static List<T> ListOfType<T>(this Database database, Transaction tr, bool discardFrozen = false) where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
-            //using (var tr = database.TransactionManager.StartTransaction())
-            //{
-
             //Init the list of the objects
             List<T> objs = new List<T>();
 
@@ -3034,15 +3039,8 @@ namespace IntersectUtilities.UtilsCommon
                 }
             }
             return objs;
-            //tr.Commit();
-            //}
         }
         public static HashSet<T> HashSetOfType<T>(this Database db, Transaction tr, bool discardFrozen = false)
-            where T : Autodesk.AutoCAD.DatabaseServices.Entity
-        {
-            return new HashSet<T>(db.ListOfType<T>(tr, discardFrozen));
-        }
-        public static HashSet<T> HashSetOfType<T>(this Database db, Transaction tr, PSFilter filter, bool discardFrozen = false)
             where T : Autodesk.AutoCAD.DatabaseServices.Entity
         {
             return new HashSet<T>(db.ListOfType<T>(tr, discardFrozen));

@@ -6152,6 +6152,146 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("SELECTBYPSALL")]
+        public void selectbypsall()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            prdDbg("Frozen entities are discarded!");
+
+            HashSet<string> psNames = PropertySetManager.GetPropertySetNames(localDb);
+            var propertySetName = StringGridFormCaller.Call(psNames.OrderBy(x => x), "Select Property Set: ");
+            if (propertySetName.IsNoE()) return;
+
+            var pNames = PropertySetManager.GetPropertyNamesAndDataTypes(localDb, propertySetName);
+            var propertyName = StringGridFormCaller.Call(pNames.Select(x => x.Key).OrderBy(x => x), "Select Property: ");
+            if (propertyName.IsNoE()) return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var ents = localDb.HashSetOfType<Entity>(tx, true);
+
+                    HashSet<string> values = new HashSet<string>();
+
+                    foreach (var ent in ents)
+                        if (PropertySetManager.TryReadNonDefinedPropertySetObject(
+                            ent, propertySetName, propertyName, out object result))
+                            values.Add(result.ToString());
+
+                    var valueToFind = StringGridFormCaller.Call(values.OrderBy(x => x), "Select Value: ");
+
+                    HashSet<Entity> entsToSelect = new HashSet<Entity>();
+
+                    foreach (var ent in ents)
+                    {
+
+                        if (PropertySetManager.TryReadNonDefinedPropertySetObject(
+                            ent, propertySetName, propertyName, out object result))
+                        {
+                            if (result == null && valueToFind == null) entsToSelect.Add(ent);
+                            else if (result.ToString() == valueToFind) entsToSelect.Add(ent);
+                        }
+                    }
+
+                    if (entsToSelect.Count > 0)
+                        editor.SetImpliedSelection(entsToSelect.Select(x => x.Id).ToArray());
+                    else prdDbg("No entities found!");
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("SELECTBYPSET")]
+        public void selectbypset()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            prdDbg("Frozen entities are discarded!");
+
+            HashSet<string> psNames = PropertySetManager.GetPropertySetNames(localDb);
+            var propertySetName = StringGridFormCaller.Call(psNames.OrderBy(x => x), "Select Property Set: ");
+            if (propertySetName.IsNoE()) return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var ents = localDb.HashSetOfType<Entity>(tx, true);
+
+                    HashSet<Entity> entsToSelect = new HashSet<Entity>();
+
+                    foreach (var ent in ents)
+                        if (PropertySetManager.IsPropertySetAttached(ent, propertySetName))
+                            entsToSelect.Add(ent);
+
+                    if (entsToSelect.Count > 0)
+                        editor.SetImpliedSelection(entsToSelect.Select(x => x.Id).ToArray());
+                    else prdDbg("No entities found!");
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("LISTUNIQUEPSDATA")]
+        public void listuniquepsdata()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            prdDbg("Frozen entities are discarded!");
+
+            HashSet<string> psNames = PropertySetManager.GetPropertySetNames(localDb);
+            var propertySetName = StringGridFormCaller.Call(psNames.OrderBy(x => x), "Select Property Set: ");
+            if (propertySetName.IsNoE()) return;
+
+            var pNames = PropertySetManager.GetPropertyNamesAndDataTypes(localDb, propertySetName);
+            var propertyName = StringGridFormCaller.Call(pNames.Select(x => x.Key).OrderBy(x => x), "Select Property: ");
+            if (propertyName.IsNoE()) return;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var ents = localDb.HashSetOfType<Entity>(tx, true);
+
+                    HashSet<string> values = new HashSet<string>();
+
+                    foreach (var ent in ents)
+                        if (PropertySetManager.TryReadNonDefinedPropertySetObject(
+                            ent, propertySetName, propertyName, out object result))
+                            values.Add(result.ToString());
+
+                    prdDbg($"Unique values for {propertySetName} - {propertyName}:");
+                    prdDbg(string.Join("\n", values.OrderBy(x => x)));
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("DIVIDEPLINE")]
         public void dividepline()
         {

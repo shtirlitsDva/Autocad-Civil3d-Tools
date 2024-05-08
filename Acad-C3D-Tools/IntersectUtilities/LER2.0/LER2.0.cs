@@ -27,6 +27,8 @@ using System.Text.Encodings.Web;
 using System.Text.Unicode;
 using IntersectUtilities.LER2;
 using FolderSelect;
+using GroupByCluster;
+using netDxf.Collections;
 
 namespace IntersectUtilities
 {
@@ -1840,6 +1842,78 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("LER2REMOVEDUPLICATEPOINTSBUNDKOTE")]
+        public void ler2removeduplicatepointsbundkote()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Tolerance tolerance = new Tolerance(1e-6, 2.54 * 1e-6);
+
+            //Process all lines and detect with nodes at both ends
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Load linework from local db
+                    HashSet<DBPoint> ps = localDb.HashSetOfType<DBPoint>(tx, true);
+                    #endregion
+
+                    var gps = ps.GroupByCluster((x, y) =>
+                    {
+                        if (x.Position.IsEqualTo(y.Position, tolerance)) return 0;
+                        else return 1;
+                    }, 0.5);
+
+                    prdDbg($"Number of groups: {gps.Count()}");
+                    prdDbg($"Number of groups with more than one point: {gps.Where(x => x.Count() > 1).Count()}");
+
+                    //Find groups where one property is the same for all
+                    var cgps = gps
+                        .Where(g => g.Count() > 1)
+                        .Where(g =>
+                        {
+                            IEnumerable<string> getValues(IEnumerable<Entity> group)
+                            {
+                                foreach (var x in group)
+                                {
+                                    PropertySetManager.TryReadNonDefinedPropertySetObject(
+                                        x, "Afloebskomponent", "Bundkote", out object bundkote);
+                                    yield return bundkote?.ToString();
+                                }
+                            }
+
+                            return getValues(g).Distinct().Count() == 1;
+                        });
+
+                    prdDbg($"Number of groups where bundkote is the same for all: {cgps.Count()}");
+
+                    int deletedCount = 0;
+
+                    if (cgps.Count() > 0)
+                    {
+                        foreach (var gp in cgps)
+                        {
+                            foreach (var p in gp.Skip(1))
+                            {
+                                deletedCount++;
+                                p.UpgradeOpen();
+                                p.Erase();
+                            }
+                        }
+                    }
+
+                    prdDbg($"Number of deleted points: {deletedCount}");
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("LER2TRANSFORMLTF")]
         public void ler2tranformltf()
         {
@@ -1873,38 +1947,107 @@ namespace IntersectUtilities
             Database db2d = new Database(false, true);
             db2d.ReadDwgFile(ler2dbpath, FileShare.Read, false, "");
             Transaction db2dTx = db2d.TransactionManager.StartTransaction();
+            prdDbg("Opening: " + ler2dbpath);
 
-            foreach (var file in ler3dbs)
+            try
             {
-                if (!File.Exists(file)) continue;
-                Database db3d = new Database(false, true);
-                db3d.ReadDwgFile(file, FileShare.ReadWrite, false, "");
-                Transaction db3dTx = db3d.TransactionManager.StartTransaction();
+                var points = db2d.ListOfType<DBPoint>(db2dTx,
+                    "Afloebskomponent", "LedningsEjersNavn", "LYNGBY-TAARBÆK FORSYNING A/S",
+                    PropertySetManager.MatchTypeEnum.Equals, true)
+                    .Where(x => getBundkote(x) != 0)
+                    .ToHashSet();
 
-                try
+                foreach (var file in ler3dbs)
                 {
-                    db2d.HashSetOfType<DBPoint>(db2dTx, true);
-                }
-                catch (System.Exception ex)
-                {
-                    db2dTx.Abort();
-                    db2dTx.Dispose();
-                    db2d.Dispose();
+                    if (!File.Exists(file)) continue;
+                    Database db3d = new Database(false, true);
+                    db3d.ReadDwgFile(file, FileShare.ReadWrite, false, "");
+                    Transaction db3dTx = db3d.TransactionManager.StartTransaction();
+                    prdDbg("Processing: " + file);
 
-                    db3dTx.Abort();
+                    int interpolatedCount = 0;
+
+                    try
+                    {
+                        var pl3ds = db3d.ListOfType<Polyline3d>(db3dTx,
+                            "Afloebsledning", "LedningsEjersNavn", "LYNGBY-TAARBÆK FORSYNING A/S",
+                            PropertySetManager.MatchTypeEnum.Equals, true).ToHashSet();
+
+                        foreach (Polyline3d pl3d in pl3ds)
+                        {
+                            var vs = pl3d.GetVertices(db3dTx);
+                            int endIdx = vs.Length - 1;
+
+                            //Start point
+                            var sp = vs[0].Position;
+                            var querySp = points.Where(
+                                x => x.Position.HorizontalEqualz(
+                                    sp, tolerance.EqualPoint)).FirstOrDefault();
+                            if (querySp == default) continue;
+                            double se = getBundkote(querySp);
+
+                            //End point
+                            var ep = vs[endIdx].Position;
+                            var queryEp = points.Where(
+                                x => x.Position.HorizontalEqualz(
+                                    ep, tolerance.EqualPoint)).FirstOrDefault();
+                            if (queryEp == default) continue;
+                            double ee = getBundkote(queryEp);
+
+                            //Update the elevation of the start and end points
+                            vs[0].UpdateElevationZ(se);
+                            vs[endIdx].UpdateElevationZ(ee);
+
+                            //Interpolate the elevation of the other points
+                            if (vs.Length == 2) continue; //No need to interpolate
+
+                            double AB = pl3d.GetHorizontalLength(db3dTx);
+                            double m = (ee - se) / AB;
+                            double b = ee - m * AB;
+
+                            for (int i = 1; i < endIdx; i++)
+                            {
+                                double PB = pl3d.GetHorizontalLengthBetweenIdxs(0, i);
+                                double ne = m * PB + b;
+                                vs[i].UpdateElevationZ(ne);
+                            }
+
+                            interpolatedCount++;
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        db2dTx.Abort();
+                        db2dTx.Dispose();
+                        db2d.Dispose();
+
+                        db3dTx.Abort();
+                        db3dTx.Dispose();
+                        db3d.Dispose();
+
+                        prdDbg(ex);
+                        return;
+                    }
+
+                    //Code processed successfully
+                    //Dispose of the 3db and transaction
+                    db3dTx.Commit();
                     db3dTx.Dispose();
+                    db3d.SaveAs(db3d.Filename, true, DwgVersion.Newest, db3d.SecurityParameters);
                     db3d.Dispose();
 
-                    prdDbg(ex);
-                    return;
+                    prdDbg("Interpolated: " + interpolatedCount);
                 }
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg(ex);
 
-                //Code processed successfully
-                //Dispose of the 3db and transaction
-                db3dTx.Commit();
-                //db3d.SaveAs(db3d.Filename, true, DwgVersion.Newest, db3d.SecurityParameters);
-                db3dTx.Dispose();
-                db3d.Dispose();
+                db2dTx.Abort();
+                db2dTx.Dispose();
+                db2d.Dispose();
+
+                return;
             }
 
             //Code processed successfully
@@ -1912,6 +2055,14 @@ namespace IntersectUtilities
             db2dTx.Abort();
             db2dTx.Dispose();
             db2d.Dispose();
+
+            double getBundkote(DBPoint p)
+            {
+                if (PropertySetManager.TryReadNonDefinedPropertySetObject(
+                    p, "Afloebskomponent", "Bundkote", out object bundkote))
+                    return Convert.ToDouble(bundkote);
+                else return 0;
+            }
         }
 
         private class Polyline3dHandleComparer : IEqualityComparer<Polyline3d>

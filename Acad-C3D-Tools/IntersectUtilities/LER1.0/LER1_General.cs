@@ -671,28 +671,5 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
-
-        [CommandMethod("LISTUNIQUEPSDATA")]
-        public void listuniquepsdata()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    PropertySetManager.ListUniquePsData(localDb);
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
-
     }
 }

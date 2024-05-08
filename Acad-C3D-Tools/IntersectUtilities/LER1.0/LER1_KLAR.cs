@@ -180,9 +180,7 @@ namespace IntersectUtilities
                             readyLines.Add(pline3d);
 
                             //Start match
-                            vertices[0].CheckOrOpenForWrite();
                             vertices[0].UpdateElevationZ(startElevation);
-                            vertices[endIdx].CheckOrOpenForWrite();
                             vertices[endIdx].UpdateElevationZ(endElevation);
 
                             //Interpolate if pline has intermediate vertici

@@ -1418,6 +1418,63 @@ namespace IntersectUtilities
         public static Color ColorByName(string name) => UtilsCommon.Utils.AutocadStdColors[name];
     }
 
+    public static class UtilsExtensions
+    {
+        public static List<T> ListOfType<T>(this Database database, Transaction tr,
+            string propertySetNameFilter, string propertyNameFilter, string propertyValueFilter,
+            PropertySetManager.MatchTypeEnum filterType, bool discardFrozen = false)
+            where T : Autodesk.AutoCAD.DatabaseServices.Entity
+        {
+            //Init the list of the objects
+            List<T> objs = new List<T>();
+
+            // Get the block table for the current database
+            var blockTable = (BlockTable)tr.GetObject(database.BlockTableId, OpenMode.ForRead);
+
+            // Get the model space block table record
+            var modelSpace = (BlockTableRecord)tr.GetObject(blockTable[BlockTableRecord.ModelSpace], OpenMode.ForRead);
+
+            RXClass theClass = RXObject.GetClass(typeof(T));
+
+            // Loop through the entities in model space
+            foreach (Oid oid in modelSpace)
+            {
+                // Look for entities of the correct type
+                if (oid.ObjectClass.IsDerivedFrom(theClass))
+                {
+                    var entity = (T)tr.GetObject(oid, OpenMode.ForRead);
+
+                    if (discardFrozen)
+                    {
+                        LayerTableRecord layer = (LayerTableRecord)tr.GetObject(entity.LayerId, OpenMode.ForRead);
+                        if (layer.IsFrozen) continue;
+                    }
+
+                    //Filter for PS
+                    switch (filterType)
+                    {
+                        case PropertySetManager.MatchTypeEnum.Equals:
+                            if (!PropertySetManager.ReadNonDefinedPropertySetString(entity, propertySetNameFilter, propertyNameFilter)
+                                .Equals(propertyValueFilter, StringComparison.OrdinalIgnoreCase))
+                                continue;
+                            break;
+                        case PropertySetManager.MatchTypeEnum.Contains:
+                            if (!PropertySetManager.ReadNonDefinedPropertySetString(
+                                entity, propertySetNameFilter, propertyNameFilter)
+                                .Contains(propertyValueFilter, StringComparison.OrdinalIgnoreCase))
+                                continue;
+                            break;
+                        default:
+                            throw new System.Exception($"MatchTypeEnum {filterType} undefined!");
+                    }
+
+                    objs.Add(entity);
+                }
+            }
+            return objs;
+        }
+    }
+
     public static class Enums
     {
         public enum ElevationInputMethod

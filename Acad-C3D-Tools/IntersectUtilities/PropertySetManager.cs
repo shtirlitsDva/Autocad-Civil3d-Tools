@@ -363,29 +363,68 @@ namespace IntersectUtilities
         public static object ReadNonDefinedPropertySetObject(Entity ent, string propertySetName, string propertyName)
         {
             ObjectIdCollection psIds = PropertyDataServices.GetPropertySets(ent);
-            List<PropertySet> pss = new List<PropertySet>();
+            Dictionary<string, PropertySet> pss = new Dictionary<string, PropertySet>();
 
             using (OpenCloseTransaction tx = ent.Database.TransactionManager.StartOpenCloseTransaction())
             {
-                foreach (Oid oid in psIds) pss.Add(oid.Go<PropertySet>(tx));
-
-                foreach (PropertySet ps in pss)
+                foreach (Oid oid in psIds)
                 {
-                    if (ps.PropertySetDefinitionName == propertySetName)
-                    {
-                        int id = ps.PropertyNameToId(propertyName);
-                        object value = ps.GetAt(id);
-                        tx.Commit();
-                        return value;
-                    }
+                    PropertySet ps = oid.Go<PropertySet>(tx);
+                    pss[ps.PropertySetDefinitionName] = ps;
+                }
+
+                if (pss.TryGetValue(propertySetName, out PropertySet matchingPropertySet))
+                {
+                    int id = matchingPropertySet.PropertyNameToId(propertyName);
+                    object value = matchingPropertySet.GetAt(id);
+                    tx.Commit();
+                    return value;
                 }
 
                 tx.Commit();
             }
-            //Fall through
-            //If no PS found return null
-            prdDbg($"WARNING: PS {propertySetName} not found!");
             return null;
+        }
+        /// <summary>
+        /// This method handles reading intended nulls.
+        /// Otherwise one cannot know if it is intended null or indication of wrong entity for property set.
+        /// True signifies that the property was found and read and if the result value is null it is intended.
+        /// False signifies that the property was not found and the null value is not intended.
+        /// </summary>
+        public static bool TryReadNonDefinedPropertySetObject(
+            Entity ent, string propertySetName, string propertyName, out object result)
+        {
+            ObjectIdCollection psIds = PropertyDataServices.GetPropertySets(ent);
+            Dictionary<string, PropertySet> pss = new Dictionary<string, PropertySet>();
+
+            using (OpenCloseTransaction tx = ent.Database.TransactionManager.StartOpenCloseTransaction())
+            {
+                foreach (Oid oid in psIds)
+                {
+                    PropertySet ps = oid.Go<PropertySet>(tx);
+                    pss[ps.PropertySetDefinitionName] = ps;
+                }
+
+                if (pss.TryGetValue(propertySetName, out PropertySet matchingPropertySet))
+                {
+                    int id = matchingPropertySet.PropertyNameToId(propertyName);
+                    object value = matchingPropertySet.GetAt(id);
+                    tx.Commit();
+                    result = value;
+
+                    if (result == null) result = "<null>";
+                    if (result is string && result.ToString() == "") result = "<empty string>";
+#if DEBUG
+                    if (result == null)
+                        prdDbg($"Entity {ent.Handle} property value for {propertyName} is null.");
+#endif
+                    return true;
+                }
+
+                tx.Commit();
+            }
+            result = null;
+            return false;
         }
         private static object WriteNonDefinedPropertySetObject(Entity ent, string propertySetName, string propertyName, object value)
         {
@@ -580,12 +619,15 @@ namespace IntersectUtilities
                 return default;
             }
             DictionaryPropertySetDefinitions dpsdict = new DictionaryPropertySetDefinitions(db);
+            
             string psName = GetKeywords("Select property set: ", dpsdict.NamesInUse.ToList());
             if (psName == null) return default;
+            
             PropertySetDefinition psDef = dpsdict.GetAt(psName).Go<PropertySetDefinition>(db.TransactionManager.TopTransaction);
             PropertyDefinitionCollection propDefs = psDef.Definitions;
             List<string> propDefNames = new List<string>();
             foreach (PropertyDefinition propDef in propDefs) propDefNames.Add(propDef.Name);
+            
             string propName = GetKeywords("Select property name: ", propDefNames);
             if (propName == null) return default;
 
@@ -612,7 +654,7 @@ namespace IntersectUtilities
 
             switch (matchType)
             {
-                case MatchTypeEnum.Exact:
+                case MatchTypeEnum.Equals:
                     ents = db
                     .ListOfType<Entity>(tx, true)
                     .Where(x => PropertySetManager.ReadNonDefinedPropertySetString(
@@ -747,7 +789,7 @@ namespace IntersectUtilities
                         ent.Database.TransactionManager.TopTransaction);
                     switch (matchType)
                     {
-                        case MatchTypeEnum.Exact:
+                        case MatchTypeEnum.Equals:
                             if (ps.PropertySetDefinitionName == propertySetName)
                                 foundPs = true;
                             break;
@@ -802,9 +844,35 @@ namespace IntersectUtilities
             return null;
             //return completeData;
         }
+        public static HashSet<string> GetPropertySetNames(Database db)
+        {
+            DictionaryPropertySetDefinitions dpsdict = new DictionaryPropertySetDefinitions(db);
+            return dpsdict.NamesInUse.ToHashSet();
+        }
+        public static Dictionary<string, PsDataType> GetPropertyNamesAndDataTypes(Database db, string propertySetName)
+        {
+            var values = new Dictionary<string, PsDataType>();
+
+            using (OpenCloseTransaction tx = db.TransactionManager.StartOpenCloseTransaction())
+            {
+                var dpsd = new DictionaryPropertySetDefinitions(db);
+                Oid psDefId = dpsd.GetAt(propertySetName);
+
+                PropertySetDefinition psDef = psDefId.Go<PropertySetDefinition>(tx);
+                PropertyDefinitionCollection defs = psDef.Definitions;
+
+                for (int i = 0; i < defs.Count; i++)
+                {
+                    PropertyDefinition def = defs[i];
+                    values.Add(def.Name, def.DataType);
+                }
+            }
+
+            return values;
+        }
         public enum MatchTypeEnum
         {
-            Exact,
+            Equals,
             Contains
         }
     }
