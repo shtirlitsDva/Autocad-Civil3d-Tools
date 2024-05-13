@@ -822,9 +822,8 @@ namespace IntersectUtilities
                         localDb.HashSetOfType<Polyline3d>(tx, true);
                     prdDbg($"\nNr. of non-frozen 3D polies: {localPlines3d.Count}");
 
-                    //Gather all endpoints
-                    var allEndpointsAtElevation = new HashSet<(Point3d loc, Polyline3d host, int idx)>();
-                    var allVerticiAt99 = new HashSet<(Point3d loc, Polyline3d host, int idx)>();
+                    var allEndpointsAt99 = new HashSet<(Point3d loc, Polyline3d host, int idx)>();
+                    var allVerticiAtElevation = new HashSet<(Point3d loc, Polyline3d host, int idx)>();
 
                     foreach (Polyline3d pline3d in localPlines3d)
                     {
@@ -834,26 +833,27 @@ namespace IntersectUtilities
                         double startElevation = vertices[0].Position.Z;
                         double endElevation = vertices[endIdx].Position.Z;
 
-                        if (!startElevation.is2D()) allEndpointsAtElevation.Add((vertices[0].Position, pline3d, 0));
-                        if (!endElevation.is2D()) allEndpointsAtElevation.Add((vertices[endIdx].Position, pline3d, endIdx));
+                        if (startElevation.is2D()) allEndpointsAt99.Add((vertices[0].Position, pline3d, 0));
+                        if (endElevation.is2D()) allEndpointsAt99.Add((vertices[endIdx].Position, pline3d, endIdx));
 
                         //Iterate through all vertices and detect those at -99.0
-                        //skipping first and last
+                        //skipping first and last because I don't want to catch pipes
+                        //That are continuos with the pipe
 
                         for (int i = 1; i < endIdx; i++)
                         {
-                            if (vertices[i].Position.Z.is2D())
+                            if (!vertices[i].Position.Z.is2D())
                             {
-                                allVerticiAt99.Add((vertices[i].Position, pline3d, i));
+                                allVerticiAtElevation.Add((vertices[i].Position, pline3d, i));
                             }
                         }
                     }
 
                     //Analyze points
-                    foreach (var verticeAt99 in allVerticiAt99)
+                    foreach (var verticeAt99 in allEndpointsAt99)
                     {
                         //Detect the coincident 3d location
-                        var atElevation = allEndpointsAtElevation.Where(
+                        var atElevation = allVerticiAtElevation.Where(
                             x => verticeAt99.loc.HorizontalEqualz(x.loc, 0.001)).FirstOrDefault();
 
                         if (atElevation == default) continue;
@@ -862,6 +862,49 @@ namespace IntersectUtilities
                         vert.CheckOrOpenForWrite();
                         vert.Position = atElevation.loc;
                     }
+
+                    #region Old code that I can't explain
+                    ////Gather all endpoints
+                    //var allEndpointsAtElevation = new HashSet<(Point3d loc, Polyline3d host, int idx)>();
+                    //var allVerticiAt99 = new HashSet<(Point3d loc, Polyline3d host, int idx)>();
+
+                    //foreach (Polyline3d pline3d in localPlines3d)
+                    //{
+                    //    var vertices = pline3d.GetVertices(tx);
+                    //    int endIdx = vertices.Length - 1;
+
+                    //    double startElevation = vertices[0].Position.Z;
+                    //    double endElevation = vertices[endIdx].Position.Z;
+
+                    //    if (!startElevation.is2D()) allEndpointsAtElevation.Add((vertices[0].Position, pline3d, 0));
+                    //    if (!endElevation.is2D()) allEndpointsAtElevation.Add((vertices[endIdx].Position, pline3d, endIdx));
+
+                    //    //Iterate through all vertices and detect those at -99.0
+                    //    //skipping first and last
+
+                    //    for (int i = 1; i < endIdx; i++)
+                    //    {
+                    //        if (vertices[i].Position.Z.is2D())
+                    //        {
+                    //            allVerticiAt99.Add((vertices[i].Position, pline3d, i));
+                    //        }
+                    //    }
+                    //}
+
+                    ////Analyze points
+                    //foreach (var verticeAt99 in allVerticiAt99)
+                    //{
+                    //    //Detect the coincident 3d location
+                    //    var atElevation = allEndpointsAtElevation.Where(
+                    //        x => verticeAt99.loc.HorizontalEqualz(x.loc, 0.01)).FirstOrDefault();
+
+                    //    if (atElevation == default) continue;
+
+                    //    var vert = verticeAt99.host.GetVertices(tx)[verticeAt99.idx];
+                    //    vert.CheckOrOpenForWrite();
+                    //    vert.Position = atElevation.loc;
+                    //} 
+                    #endregion
                     #endregion
                 }
                 catch (System.Exception ex)
