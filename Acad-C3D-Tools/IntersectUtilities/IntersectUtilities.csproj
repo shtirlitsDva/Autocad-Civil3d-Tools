@@ -308,6 +308,7 @@
     <Compile Include="LER1.0\LER1_Fibia.cs" />
     <Compile Include="LER1.0\LER1_MassImporter.cs" />
     <Compile Include="LER1.0\LER1_Taarnby.cs" />
+    <Compile Include="LER1.0\LER1_LyngbyTaarbaekForsyning.cs" />
     <Compile Include="LER1.0\Partial_Template.cs" />
     <Compile Include="LER2.0\HtmlGenerator.cs" />
     <Compile Include="LER2.0\LER2.0.cs" />
