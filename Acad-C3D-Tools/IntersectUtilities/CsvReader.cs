@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.VisualBasic.FileIO;
 using System.Data;
+using System.Dynamic;
 
 namespace IntersectUtilities
 {
@@ -53,6 +54,38 @@ namespace IntersectUtilities
                     }
                 }
                 return dt;
+            }
+        }
+
+        internal static IEnumerable<ExpandoObject> ReadCsvToExpando(string path)
+        {
+            using (TextFieldParser csvParser = new TextFieldParser(path))
+            {
+                csvParser.CommentTokens = new string[] { "#" };
+                csvParser.SetDelimiters(new string[] { ";" });
+                csvParser.HasFieldsEnclosedInQuotes = false;
+
+                string[] colNames = null;
+
+                // Skip the header row and initialize column names
+                if (!csvParser.EndOfData)
+                {
+                    colNames = csvParser.ReadFields();
+                }
+
+                while (!csvParser.EndOfData)
+                {
+                    string[] fields = csvParser.ReadFields();
+                    dynamic record = new ExpandoObject();
+                    var recordDict = (IDictionary<string, object>)record;
+
+                    for (int i = 0; i < colNames.Length; i++)
+                    {
+                        recordDict[colNames[i]] = fields.Length > i ? fields[i] : null;
+                    }
+
+                    yield return record;
+                }
             }
         }
     }
