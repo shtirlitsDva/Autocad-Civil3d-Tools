@@ -131,21 +131,77 @@ namespace IntersectUtilities
                 .Select(x => x.Count + ": " + x.Frequency +
                 (x.Keys.Any() ? " Keys: [" + string.Join(", ", x.Keys) + "]" : "")))); // Format the output with keys if present
 
-            prdDbg(string.Join("\n", kps
-                .GroupBy(x => x.Knudenavn)
-                .GroupBy(x => x.Count())  // Group by the count of items in each group
-                .Select(g => new
+            //prdDbg(string.Join("\n", kps
+            //    .GroupBy(x => x.Knudenavn)
+            //    .GroupBy(x => x.Count())  // Group by the count of items in each group
+            //    .Select(g => new
+            //    {
+            //        Count = g.Key,
+            //        Frequency = g.Count(),
+            //        Keys = g.Key > 1 ? g.Select(x => x.Key).Distinct() : new List<string>(), // Collect keys if count > 2
+            //        BundKoter = g.Key > 1 ? g.SelectMany(x => x.Select(y => y.Bundkote)).Distinct() : new List<double>(), // Collect keys if count > 2
+            //    })
+            //    .OrderBy(x => x.Count)  // Order by the count of items
+            //    .Select(x => x.Count + ": " + x.Frequency +
+            //    (x.BundKoter.Count() > 1 ?
+            //    //$"\n[{string.Join(", ", x.Keys)}]" +
+            //    $"\n[{string.Join(", ", x.Keys)} : {string.Join(", ", x.BundKoter)}]"
+            //    : "")))); // Format the output with keys if present
+
+            var gsNavn = kps.GroupBy(x => x.Knudenavn);
+            var gsCount = gsNavn.GroupBy(x => x.Count());
+
+            foreach (var cg in gsCount)
+            {
+                if (cg.Key < 2) continue;
+
+                prdDbg($"Count: {cg.Key}, Frequency: {cg.Count()}");
+
+                foreach (var kg in cg)
                 {
-                    Count = g.Key,
-                    Frequency = g.Count(),
-                    Keys = g.Key > 2 ? g.Select(x => x.Key).Distinct() : new List<string>() // Collect keys if count > 2
-                })
-                .OrderBy(x => x.Count)  // Order by the count of items
-                .Select(x => x.Count + ": " + x.Frequency +
-                (x.Keys.Any() ? " Keys: [" + string.Join(", ", x.Keys) + "]" : "")))); // Format the output with keys if present 
+                    var bks = kg.Select(x => x.Bundkote).Distinct();
+
+                    if (bks.Count() < 2) continue;
+
+                    prdDbg($"Knudenavn: {kg.Key}, Bundkoter: {string.Join(", ", bks)}");
+                }
+            }
             #endregion
 
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    foreach (var kg in gsNavn)
+                    {
+                        //Check to see if BK might be different
+                        var bks = kg.Select(x => x.Bundkote).Distinct();
+                        if (bks.Count() > 1)
+                            throw new System.Exception(
+                                $"Requirement of only one BK per group is NOT kept!\n"+
+                                $"Knudenavn: {kg.Key}, Bundkoter: {string.Join(", ", bks)}");
 
+                        var k = kg.First();
+
+                        if (k.X.Equalz(0.0, 0.00001) || k.Y.Equalz(0.0, 0.00001))
+                            throw new System.Exception(
+                                $"Requirement of X and Y being different from 0 is NOT kept!\n" +
+                                $"Knudenavn: {kg.Key}, X: {k.X}, Y: {k.Y}");
+
+                        if (k.Bundkote.Equalz(0.0, 0.00001)) k.Bundkote = -99;
+
+                        DBPoint p = new DBPoint(new Point3d(k.X, k.Y, k.Bundkote));
+                        p.AddEntityToDbModelSpace(localDb);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
         }
     }
 }
