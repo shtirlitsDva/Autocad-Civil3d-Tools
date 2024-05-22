@@ -56,6 +56,10 @@ using Autodesk.Gis.Map;
 using Autodesk.Gis.Map.ObjectData;
 using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.Dimensionering.Forms;
+using Schema.Datafordeler;
+using Dimensionering;
+using IntersectUtilities.Dimensionering.ImportFraBBR;
+using System.Text.Json;
 
 namespace IntersectUtilities.Dimensionering
 {
@@ -84,6 +88,11 @@ namespace IntersectUtilities.Dimensionering
             doc.Editor.WriteMessage("\n-> Dump all addresses to file: DIMADRESSERDUMP");
             doc.Editor.WriteMessage("\n-> Write data to excel: DIMWRITEEXCEL");
             doc.Editor.WriteMessage("\n-> 1) Prepare 2) Import BBR 3) Intersect 4) Husnr 5) Populate 6) Dump adresser 7) Write excel");
+
+#if DEBUG
+            AppDomain.CurrentDomain.AssemblyResolve += 
+                new ResolveEventHandler(MissingAssemblyLoader.Debug_AssemblyResolve);
+#endif
         }
 
         public void Terminate()
@@ -1549,10 +1558,14 @@ namespace IntersectUtilities.Dimensionering
             if (!File.Exists(bygningerPath)) { prdDbg("BBR_bygning.json does not exist!"); return; }
             string enhederPath = path + "BBR_enhed.json";
             if (!File.Exists(enhederPath)) { prdDbg("BBR_enhed.json does not exist!"); return; }
-            string husnumrePath = path + "BBR_husnummer.json";
-            if (!File.Exists(husnumrePath)) { prdDbg("BBR_husnummer.json does not exist!"); return; }
+            string adresserPath = path + "DAR_adresse.json";
+            if (!File.Exists(adresserPath)) { prdDbg("DAR_adresse.json does not exist!"); return; }
 
-            var bygninger = IntersectUtilities.UtilsCommon.Jso
+            var bygninger = UtilsCommon.Json.Deserialize<HashSet<BBRBygning.Bygning>>(bygningerPath)
+                .Where(x => x.status == "6");
+            var adresser = UtilsCommon.Json.Deserialize<HashSet<DARAdresse.Adresse>>(adresserPath)
+                .Where(x => x.status == "3");
+            var enheder = UtilsCommon.Json.ReadJson(enhederPath);
             #endregion
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -1560,19 +1573,89 @@ namespace IntersectUtilities.Dimensionering
                 PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
                 PSetDefs.BBR bbrDef = new PSetDefs.BBR();
 
+                var enhKoder = CsvData.EnhKoder;
+                Dictionary<string, string> enhKoderDict = new Dictionary<string, string>();
+                foreach (DataRow row in enhKoder.Rows)
+                {
+                    string key = row[0].ToString();
+                    string value = row[1].ToString();
+                    enhKoderDict.Add(key, value);
+                }
+
+                var brs = localDb.HashSetOfType<BlockReference>(tx, true);
+
+                var pm = new ProgressMeter();
+                pm.Start("Processing...");
+                pm.SetLimit(brs.Count);
+
+                var list = new List<(string bygning, string adresse, string enhedstype)>();
                 try
                 {
-                    var brs = localDb.HashSetOfType<BlockReference>(tx, true);
-
                     foreach (var br in brs)
                     {
-                        string brId = bbrPsm.ReadPropertyString(br, bbrDef.id_lokalId);
+                        string brId = bbrPsm.ReadPropertyString(br, bbrDef.id_lokalId).ToLower();
+                        if (brId.IsNoE())
+                        {
+                            if (br.BlockTableRecord.Go<BlockTableRecord>(tx).IsFromExternalReference)
+                                continue;
+
+                            prdDbg($"WARNING! id_lokalId is empty for block {br.Handle}!");
+                        }
+
+                        var buildings = bygninger.Where(x => x.id_lokalId.ToLower() == brId);
+
+                        if (buildings.Count() == 0)
+                        {
+                            prdDbg($"WARNING! No building found for block {br.Handle}!");
+                            prdDbg(brId);
+                            prdDbg(br.Handle);
+                        }
+
+                        foreach (var building in buildings)
+                        {
+                            var units = enheder.Where(
+                                x => x.GetProperty("bygning").GetString().ToLower() == 
+                                building.id_lokalId.ToLower());
+
+                            foreach (var unit in units)
+                            {
+                                var addrs = adresser.Where(x => {
+                                    if (unit.TryGetProperty("adresseIdentificerer", out JsonElement id))
+                                        return x.id_lokalId == id.GetString();
+                                    return false;
+                                    });
+
+                                foreach (var addr in addrs)
+                                {
+                                    if (unit.TryGetProperty("enh020EnhedensAnvendelse", out JsonElement anvStr))
+                                    {
+                                        if (!enhKoderDict.ContainsKey(anvStr.GetString()))
+                                        {
+                                            prdDbg($"Anvendelseskode {anvStr.GetString()} not found in anvendelseskoder.csv!");
+                                            continue;
+                                        }
+
+                                        list.Add((
+                                        building.id_lokalId,
+                                        addr?.adressebetegnelse,
+                                        enhKoderDict[anvStr.GetString()]));
+                                    }
+                                }
+                            }
+                        }
+
+                        pm.MeterProgress();
                     }
+
+                    pm.Stop();
+                    pm.Dispose();
                 }
                 catch (System.Exception ex)
                 {
                     tx.Abort();
                     prdDbg(ex);
+                    pm.Stop();
+                    pm.Dispose();
                     return;
                 }
                 finally
@@ -1580,10 +1663,50 @@ namespace IntersectUtilities.Dimensionering
 
                 }
                 tx.Commit();
+
+                string html = ConvertToHtmlTree(list);
+                string htmlPath = "C:\\Temp\\" + "enheder.html";
+                File.WriteAllText(htmlPath, html);
             }
 
             prdDbg("Finished!");
+        }
 
+        public static string ConvertToHtmlTree(List<(string bygning, string adresse, string enhedstype)> tuples)
+        {
+            var sb = new StringBuilder();
+            sb.Append("<ul>");  // Start of the top-level list
+
+            // Group by the first property (bygning)
+            var bygningGroups = tuples.GroupBy(t => t.bygning);
+
+            foreach (var bygningGroup in bygningGroups)
+            {
+                sb.AppendFormat("<li>{0}", bygningGroup.Key);  // Each bygning becomes a list item
+                sb.Append("<ul>");  // Start a new list for addresses under this bygning
+
+                // Group by the second property (adresse) within the current bygning group
+                var adresseGroups = bygningGroup.GroupBy(t => t.adresse);
+
+                foreach (var adresseGroup in adresseGroups)
+                {
+                    sb.AppendFormat("<li>{0}", adresseGroup.Key);  // Each adresse becomes a list item
+                    sb.Append("<ul>");  // Start a new list for enhedstype under this adresse
+
+                    // List each enhedstype under the current adresse
+                    foreach (var item in adresseGroup)
+                    {
+                        sb.AppendFormat("<li>{0}</li>", item.enhedstype);  // Each enhedstype becomes a list item
+                    }
+
+                    sb.Append("</ul></li>");  // Close the enhedstype list and adresse list item
+                }
+
+                sb.Append("</ul></li>");  // Close the adresse list and bygning list item
+            }
+
+            sb.Append("</ul>");  // Close the top-level list
+            return sb.ToString();
         }
     }
 

@@ -8,6 +8,25 @@ namespace IntersectUtilities.UtilsCommon
 {
     public static class Json
     {
+        public static IEnumerable<JsonElement> ReadJson(string path)
+        {
+            using (FileStream fs = File.OpenRead(path))
+            using (JsonDocument doc = JsonDocument.Parse(fs))
+            {
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (JsonElement element in doc.RootElement.EnumerateArray())
+                    {
+                        yield return element.Clone();
+                    }
+                }
+                else
+                {
+                    yield return doc.RootElement.Clone();
+                }
+            }
+        }
+
         // Deserialize a single T object from a file
         public static T Deserialize<T>(string filePath)
         {

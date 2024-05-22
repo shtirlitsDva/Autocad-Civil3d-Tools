@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Windows.Forms;
+using Dimensionering.Properties;
 
 namespace IntersectUtilities.Dimensionering.Forms
 {
@@ -31,12 +32,26 @@ namespace IntersectUtilities.Dimensionering.Forms
             }
 
             this.comboBox1.DataSource = dirsSparse;
+
+            if (Settings.Default.ChosenPath != string.Empty)
+            {
+                this.comboBox1.SelectedIndex = Array.IndexOf(
+                    dirsSparse, Settings.Default.ChosenPath);
+
+            }
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
             Path = dirsSparse[comboBox1.SelectedIndex];
+            Settings.Default.ChosenPath = Path;
+            Settings.Default.Save();
             this.Close();
+        }
+
+        private void ChoosePath_Shown(object sender, EventArgs e)
+        {
+            button1.Focus();
         }
     }
 }

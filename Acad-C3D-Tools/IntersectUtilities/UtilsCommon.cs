@@ -3283,7 +3283,8 @@ namespace IntersectUtilities.UtilsCommon
                 throw new FileNotFoundException("CSV register not found!");
 
             var lines = File.ReadAllLines(
-                @"X:\AutoCAD DRI - 01 Civil 3D\_csv_register.csv")
+                @"X:\AutoCAD DRI - 01 Civil 3D\_csv_register.csv",
+                Encoding.UTF8)
                 .Skip(1);
 
             foreach (var line in lines)
@@ -3356,5 +3357,13 @@ namespace IntersectUtilities.UtilsCommon
         /// Installation og brændsel
         /// </summary>
         public static DataTable InstOgBrændsel { get => GetDataTable("instogbr"); }
+        /// <summary>
+        /// Anvendelseskoder for bygninger fra BBR registeret
+        /// </summary>
+        public static DataTable AnvKoder { get => GetDataTable("AnvKoder"); }
+        /// <summary>
+        /// Anvendelseskoder for enheder fra BBR registeret
+        /// </summary>
+        public static DataTable EnhKoder { get => GetDataTable("EnhKoder"); }
     }
 }

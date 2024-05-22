@@ -71,6 +71,7 @@
             this.Controls.Add(this.textBox1);
             this.Name = "ChoosePath";
             this.Text = "ChoosePath";
+            this.Shown += new System.EventHandler(this.ChoosePath_Shown);
             this.ResumeLayout(false);
             this.PerformLayout();
 

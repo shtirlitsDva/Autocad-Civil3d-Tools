@@ -3,14 +3,14 @@ using System.Reflection;
 using System.IO;
 using static IntersectUtilities.UtilsCommon.Utils;
 
-namespace IntersectUtilities
+namespace Dimensionering
 {
-    public partial class Intersect
+    public static class MissingAssemblyLoader
     {
 #if DEBUG
-        private static Assembly Debug_AssemblyResolve(object sender, ResolveEventArgs args)
+        public static Assembly Debug_AssemblyResolve(object sender, ResolveEventArgs args)
         {
-            string assemblyFolder = @"X:\GitHub\shtirlitsDva\Autocad-Civil3d-Tools\Acad-C3D-Tools\IntersectUtilities\bin\Debug";
+            string assemblyFolder = @"X:\GitHub\shtirlitsDva\Autocad-Civil3d-Tools\Acad-C3D-Tools\Dimensionering\bin\Debug";
             prdDbg($"Asked for assembly: {args.Name}!");
 
             var name = args.Name.Split(',')[0];
