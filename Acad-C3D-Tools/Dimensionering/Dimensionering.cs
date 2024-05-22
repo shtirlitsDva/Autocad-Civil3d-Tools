@@ -55,7 +55,7 @@ using Newtonsoft.Json;
 using Autodesk.Gis.Map;
 using Autodesk.Gis.Map.ObjectData;
 using IntersectUtilities.PipeScheduleV2;
-using System.Runtime.CompilerServices;
+using IntersectUtilities.Dimensionering.Forms;
 
 namespace IntersectUtilities.Dimensionering
 {
@@ -1526,6 +1526,64 @@ namespace IntersectUtilities.Dimensionering
                 }
                 tx.Commit();
             }
+        }
+
+        [CommandMethod("DIMLISTENHEDER")]
+        public void dimlistenheder()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            #region Get path
+            ChoosePath cp = new ChoosePath();
+            cp.ShowDialog();
+            cp.Close();
+            if (cp.Path.IsNoE()) return;
+            #endregion
+
+            #region Read data
+            string basePath = @"X:\AutoCAD DRI - QGIS\BBR UDTRÆK";
+            string path = basePath + "\\" + cp.Path + "\\";
+
+            string bygningerPath = path + "BBR_bygning.json";
+            if (!File.Exists(bygningerPath)) { prdDbg("BBR_bygning.json does not exist!"); return; }
+            string enhederPath = path + "BBR_enhed.json";
+            if (!File.Exists(enhederPath)) { prdDbg("BBR_enhed.json does not exist!"); return; }
+            string husnumrePath = path + "BBR_husnummer.json";
+            if (!File.Exists(husnumrePath)) { prdDbg("BBR_husnummer.json does not exist!"); return; }
+
+            var bygninger = IntersectUtilities.UtilsCommon.Jso
+            #endregion
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                try
+                {
+                    var brs = localDb.HashSetOfType<BlockReference>(tx, true);
+
+                    foreach (var br in brs)
+                    {
+                        string brId = bbrPsm.ReadPropertyString(br, bbrDef.id_lokalId);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+            }
+
+            prdDbg("Finished!");
+
         }
     }
 
