@@ -28,7 +28,6 @@ using System.Text.Unicode;
 using IntersectUtilities.LER2;
 using FolderSelect;
 using GroupByCluster;
-using netDxf.Collections;
 
 namespace IntersectUtilities
 {
@@ -1977,28 +1976,28 @@ namespace IntersectUtilities
             }
             else return;
 
-            var ler2dbs = Directory.EnumerateFiles(pathToFolder, "2DLER.dwg");
-            if (ler2dbs.Count() != 1) return;
+            var ptsdbs = Directory.EnumerateFiles(pathToFolder, "Afl punkter m koter.dwg");
+            if (ptsdbs.Count() != 1) return;
 
             var ler3dbs = Directory.EnumerateFiles(pathToFolder, "*_3DLER.dwg");
             if (ler3dbs.Count() < 1) return;
             #endregion
 
             //Process all lines and detect with nodes at both ends
-            string ler2dbpath = ler2dbs.First();
-            if (!File.Exists(ler2dbpath)) return;
-            Database db2d = new Database(false, true);
-            db2d.ReadDwgFile(ler2dbpath, FileShare.Read, false, "");
-            Transaction db2dTx = db2d.TransactionManager.StartTransaction();
-            prdDbg("Opening: " + ler2dbpath);
+            string ptsdbpath = ptsdbs.First();
+            if (!File.Exists(ptsdbpath)) return;
+            Database dbpts = new Database(false, true);
+            dbpts.ReadDwgFile(ptsdbpath, FileShare.Read, false, "");
+            Transaction ptsTx = dbpts.TransactionManager.StartTransaction();
+            prdDbg("Opening: " + ptsdbpath);
 
             try
             {
-                var points = db2d.ListOfType<DBPoint>(db2dTx,
-                    "Afloebskomponent", "LedningsEjersNavn", "LYNGBY-TAARBÆK FORSYNING A/S",
-                    PropertySetManager.MatchTypeEnum.Equals, true)
-                    .Where(x => getBundkote(x) != 0)
+                var points = dbpts.ListOfType<DBPoint>(ptsTx)
                     .ToHashSet();
+
+                if (points.Any(x => x.Position.Z.is2D()))
+                    throw new System.Exception("Some points are not 3D!");
 
                 foreach (var file in ler3dbs)
                 {
@@ -2025,17 +2024,17 @@ namespace IntersectUtilities
                             var sp = vs[0].Position;
                             var querySp = points.Where(
                                 x => x.Position.HorizontalEqualz(
-                                    sp, tolerance.EqualPoint)).FirstOrDefault();
+                                    sp, 0.01)).FirstOrDefault();
                             if (querySp == default) continue;
-                            double se = getBundkote(querySp);
+                            double se = querySp.Position.Z;
 
                             //End point
                             var ep = vs[endIdx].Position;
                             var queryEp = points.Where(
                                 x => x.Position.HorizontalEqualz(
-                                    ep, tolerance.EqualPoint)).FirstOrDefault();
+                                    ep, 0.01)).FirstOrDefault();
                             if (queryEp == default) continue;
-                            double ee = getBundkote(queryEp);
+                            double ee = queryEp.Position.Z;
 
                             //Update the elevation of the start and end points
                             vs[0].UpdateElevationZ(se);
@@ -2060,9 +2059,9 @@ namespace IntersectUtilities
                     }
                     catch (System.Exception ex)
                     {
-                        db2dTx.Abort();
-                        db2dTx.Dispose();
-                        db2d.Dispose();
+                        ptsTx.Abort();
+                        ptsTx.Dispose();
+                        dbpts.Dispose();
 
                         db3dTx.Abort();
                         db3dTx.Dispose();
@@ -2086,26 +2085,18 @@ namespace IntersectUtilities
             {
                 prdDbg(ex);
 
-                db2dTx.Abort();
-                db2dTx.Dispose();
-                db2d.Dispose();
+                ptsTx.Abort();
+                ptsTx.Dispose();
+                dbpts.Dispose();
 
                 return;
             }
 
             //Code processed successfully
             //Dispose of the 2db and transaction
-            db2dTx.Abort();
-            db2dTx.Dispose();
-            db2d.Dispose();
-
-            double getBundkote(DBPoint p)
-            {
-                if (PropertySetManager.TryReadNonDefinedPropertySetObject(
-                    p, "Afloebskomponent", "Bundkote", out object bundkote))
-                    return Convert.ToDouble(bundkote);
-                else return 0;
-            }
+            ptsTx.Abort();
+            ptsTx.Dispose();
+            dbpts.Dispose();
         }
 
         private class Polyline3dHandleComparer : IEqualityComparer<Polyline3d>
