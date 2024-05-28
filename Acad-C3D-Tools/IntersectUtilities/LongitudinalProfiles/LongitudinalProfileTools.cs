@@ -2743,11 +2743,20 @@ namespace IntersectUtilities
                                 if (curve is Polyline pline)
                                 {
                                     //Detect arcs and determine if it is a buerør or not
-                                    for (int i = 0; i < pline.NumberOfVertices; i++)
+                                    for (int i = 0; i < pline.NumberOfVertices - 1; i++)
                                     {
                                         TypeOfSegment tos;
-                                        double bulge = pline.GetBulgeAt(i);
-                                        if (bulge == 0) tos = TypeOfSegment.Straight;
+
+                                        SegmentType segType = pline.GetSegmentType(i);
+                                        if ((int)segType == 2 || (int)segType == 3 || (int)segType == 4)
+                                        {
+
+                                            prdDbg($"SegmentType for polyline {pline.Handle} at index {i} is {segType}!");
+                                            prdDbg("This is not allowed, fix it before proceeding.");
+                                            prdDbg("Try to use CLEANPLINES.");
+                                            throw new System.Exception("Wrong segment type!");
+                                        }
+                                        if (segType == SegmentType.Line) tos = TypeOfSegment.Straight;
                                         else
                                         {
                                             //Determine if centre of arc is within view
@@ -2763,6 +2772,7 @@ namespace IntersectUtilities
                                             if (!(centreStation > pvStStart && centreStation < pvStEnd)) continue;
 
                                             //Calculate radius
+                                            double bulge = pline.GetBulgeAt(i);
                                             double u = pline.GetPoint2dAt(i).GetDistanceTo(pline.GetPoint2dAt(i + 1));
                                             double radius = u * ((1 + bulge.Pow(2)) / (4 * Math.Abs(bulge)));
                                             double minRadius = GetPipeMinElasticRadius(pline);

@@ -325,6 +325,9 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
+            resetprofileviews();
+            importlabelstyles();
+
             #region Fix wrong PV style at start
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -373,7 +376,7 @@ namespace IntersectUtilities
             createlerdatapssmethod2(dro);
 
             //Populateprofileviews with crossing data
-            populateprofiles();
+            populateprofilesmethod(dro);
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -603,6 +606,7 @@ namespace IntersectUtilities
             }
             if (hasMidt) createdetailingmethod(dro, localDb);
             else createdetailingpreliminarymethod(dro, localDb);
+            
             //Auto stagger all labels to right
             staggerlabelsall();
             //Draw rectangles representing viewports around longitudinal profiles
@@ -610,6 +614,8 @@ namespace IntersectUtilities
             drawviewportrectangles();
             //Colorize layer as per krydsninger table
             colorizealllerlayersmethod();
+
+            prdDbg("FINISHED!");
         }
 
         [CommandMethod("FINALIZESHEETSUIPATH")]
