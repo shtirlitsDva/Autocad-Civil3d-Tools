@@ -1256,7 +1256,6 @@ namespace IntersectUtilities
                 "Distriktets_navn",
                 PsDataType.Text,
                 "");
-
             public Property AntalEnheder { get; } = new Property(
                 "AntalEnheder",
                 "AntalEnheder",

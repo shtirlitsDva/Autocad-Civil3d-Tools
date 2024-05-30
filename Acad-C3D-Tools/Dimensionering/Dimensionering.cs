@@ -1820,6 +1820,7 @@ namespace IntersectUtilities.Dimensionering
             }
 
             prdDbg("Finished!");
+            prdDbg("ADVARSEL: ER IKKE TESTET SAMMEN MED DIMCONNECTHUSNR!!!!!!!!!");
         }
 
         public static string ConvertToHtmlTree(List<(string bygning, string adresse, string enhedstype)> tuples)
@@ -2035,9 +2036,6 @@ namespace IntersectUtilities.Dimensionering
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
-            CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -2054,7 +2052,6 @@ namespace IntersectUtilities.Dimensionering
 
                     #region dump af adresser
                     int antalEjendomme = 1;
-                    int antalBoligerOsv = 1;
 
                     Worksheet ws1 = (Worksheet)wb.Worksheets["Forbrugeroversigt"];
                     Worksheet ws2 = (Worksheet)wb.Worksheets["Stikledninger"];
@@ -2065,7 +2062,7 @@ namespace IntersectUtilities.Dimensionering
                     //1: Adresse + number
                     //2: Energiforbrug
                     //3: Antal ejendomme
-                    //4: Antal boliger med varmtvandsforbrug
+                    //4: Antal boliger med varmtvandsforbrug <- Enheder kommer her
                     //5: Stik længde i m
                     //6: Dim afkøling = 35
 
@@ -2122,6 +2119,7 @@ namespace IntersectUtilities.Dimensionering
                         string adresse = bbrPsm.ReadPropertyString(building, bbrDef.Adresse);
                         int duplicateNr = bbrPsm.ReadPropertyInt(building, bbrDef.AdresseDuplikatNr);
                         string duplicateNrString = duplicateNr == 0 ? "" : " " + duplicateNr.ToString();
+                        int antalBoligerOsv = bbrPsm.ReadPropertyInt(building, bbrDef.AntalEnheder);
                         double estVarmeForbrugHusnr = (bbrPsm.ReadPropertyDouble(
                             building, bbrDef.EstimeretVarmeForbrug) * 1000.0);
                         string anvKodeTekst = bbrPsm.ReadPropertyString(building, bbrDef.BygningsAnvendelseNyTekst);
@@ -2203,7 +2201,7 @@ namespace IntersectUtilities.Dimensionering
                 catch (System.Exception ex)
                 {
                     tx.Abort();
-                    editor.WriteMessage("\n" + ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 finally
