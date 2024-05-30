@@ -1256,6 +1256,12 @@ namespace IntersectUtilities
                 "Distriktets_navn",
                 PsDataType.Text,
                 "");
+
+            public Property AntalEnheder { get; } = new Property(
+                "AntalEnheder",
+                "AntalEnheder",
+                PsDataType.Integer,
+                1);
             public StringCollection AppliesTo { get; } = new StringCollection()
                 {
                     RXClass.GetClass(typeof(BlockReference)).Name

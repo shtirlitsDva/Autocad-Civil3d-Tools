@@ -289,6 +289,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
     <Compile Include="Schema\DF BBR Bygning Class.cs" />
+    <Compile Include="Schema\DF BBR Enhed Class.cs" />
     <Compile Include="Schema\DF DAR Adresse Class.cs" />
     <Compile Include="Schema\DF DAR Husnummer Class.cs" />
   </ItemGroup>

@@ -21,6 +21,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Text.Json;
 using System.Windows.Forms;
 using System.Data;
 using System.Data.SqlClient;
@@ -47,7 +48,6 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Line = Autodesk.AutoCAD.DatabaseServices.Line;
 using JsonConvert = Newtonsoft.Json.JsonConvert;
@@ -58,8 +58,6 @@ using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.Dimensionering.Forms;
 using Schema.Datafordeler;
 using Dimensionering;
-using IntersectUtilities.Dimensionering.ImportFraBBR;
-using System.Text.Json;
 
 namespace IntersectUtilities.Dimensionering
 {
@@ -90,7 +88,7 @@ namespace IntersectUtilities.Dimensionering
             doc.Editor.WriteMessage("\n-> 1) Prepare 2) Import BBR 3) Intersect 4) Husnr 5) Populate 6) Dump adresser 7) Write excel");
 
 #if DEBUG
-            AppDomain.CurrentDomain.AssemblyResolve += 
+            AppDomain.CurrentDomain.AssemblyResolve +=
                 new ResolveEventHandler(MissingAssemblyLoader.Debug_AssemblyResolve);
 #endif
         }
@@ -1537,8 +1535,8 @@ namespace IntersectUtilities.Dimensionering
             }
         }
 
-        [CommandMethod("DIMLISTENHEDER")]
-        public void dimlistenheder()
+        [CommandMethod("DIMENHEDERLIST")]
+        public void dimenhederlist()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -1614,16 +1612,17 @@ namespace IntersectUtilities.Dimensionering
                         foreach (var building in buildings)
                         {
                             var units = enheder.Where(
-                                x => x.GetProperty("bygning").GetString().ToLower() == 
+                                x => x.GetProperty("bygning").GetString().ToLower() ==
                                 building.id_lokalId.ToLower());
 
                             foreach (var unit in units)
                             {
-                                var addrs = adresser.Where(x => {
+                                var addrs = adresser.Where(x =>
+                                {
                                     if (unit.TryGetProperty("adresseIdentificerer", out JsonElement id))
                                         return x.id_lokalId == id.GetString();
                                     return false;
-                                    });
+                                });
 
                                 foreach (var addr in addrs)
                                 {
@@ -1667,6 +1666,157 @@ namespace IntersectUtilities.Dimensionering
                 string html = ConvertToHtmlTree(list);
                 string htmlPath = "C:\\Temp\\" + "enheder.html";
                 File.WriteAllText(htmlPath, html);
+            }
+
+            prdDbg("Finished!");
+        }
+
+        [CommandMethod("DIMENHEDERANALYZE")]
+        public void dimenhederanalyze()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
+            #region Get path
+            ChoosePath cp = new ChoosePath();
+            cp.ShowDialog();
+            cp.Close();
+            if (cp.Path.IsNoE()) return;
+            #endregion
+
+            #region Read data
+            string basePath = @"X:\AutoCAD DRI - QGIS\BBR UDTRÆK";
+            string path = basePath + "\\" + cp.Path + "\\";
+
+            string enhederPath = path + "BBR_enhed.json";
+            if (!File.Exists(enhederPath))
+            { prdDbg("BBR_enhed.json does not exist! Download med RestHenter!"); return; }
+
+            var enheder = UtilsCommon.Json.Deserialize<HashSet<BBREnhed.Enhed>>(enhederPath)
+                .Where(x => x.status == "6" || x.status == "7");
+
+            var enhedsDict = enheder
+                .Where(x => x.status.IsNotNoE())
+                .Where(x => x.enh020EnhedensAnvendelse.IsNotNoE())
+                .GroupBy(x => x.bygning)
+                .ToDictionary(x => x.Key, x => x.ToHashSet());
+            #endregion
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                PropertySetManager bbrPsm = new PropertySetManager(localDb, PSetDefs.DefinedSets.BBR);
+                PSetDefs.BBR bbrDef = new PSetDefs.BBR();
+
+                var enhKoder = CsvData.EnhKoder;
+                var enhKoderDict = new Dictionary<string, bool>();
+                foreach (DataRow row in enhKoder.Rows)
+                {
+                    //Column "Nr."
+                    string key = row[0].ToString();
+                    //Column "Beboelse"
+                    bool result = int.Parse(row[2].ToString()) == 1;
+                    enhKoderDict.Add(key, result);
+                }
+
+                //PrintTable(
+                //    new string[] { "Anvendelseskode", "Beboelse" },
+                //    enhKoderDict.Select(x => new object[] { x.Key, x.Value } as IEnumerable<object>)
+                //    );
+
+                var brs = localDb.HashSetOfType<BlockReference>(tx, true)
+                    .Where(x => !x.BlockTableRecord.Go<BlockTableRecord>(tx).IsFromExternalReference);
+
+                var pm = new ProgressMeter();
+                pm.Start("Processing...");
+                pm.SetLimit(brs.Count());
+
+                try
+                {
+                    //Test to see if there are multiple bygninger with same id_lokalId
+                    var test = brs.GroupBy(x => bbrPsm.ReadPropertyString(x, bbrDef.id_lokalId))
+                        .Where(x => x.Count() > 1);
+
+                    if (test.Count() > 0)
+                    {
+                        prdDbg(
+                            $"Buildings with non-unique id_lokalId present!" +
+                            $"Analysis cannot continue!");
+                        prdDbg(string.Join("\n", test.Select(x => x.Key)));
+
+                        prdDbg("Bygninger med samme bygningsnummer:");
+                        var groupByCount = test
+                            .Select(g => g.Count())
+                            .GroupBy(count => count)
+                            .Select(g => new { Antal = g.Key, Forekomst = g.Count() })
+                            .OrderBy(x => x.Antal);
+
+                        PrintTable(
+                            new string[] {"Antal", "Forekomster"},
+                            groupByCount.Select(g => new object[] {g.Antal, g.Forekomst} as IEnumerable<object>)
+                            );
+
+                        throw new System.Exception(
+                            $"Buildings with non-unique id_lokalId present!" +
+                            $"Analysis cannot continue!");
+                    }
+
+                    var results = new HashSet<(string, int)>();
+
+                    foreach (var br in brs)
+                    {
+                        string brId = bbrPsm.ReadPropertyString(br, bbrDef.id_lokalId).ToLower();
+                        if (brId.IsNoE())
+                        {
+                            if (br.BlockTableRecord.Go<BlockTableRecord>(tx).IsFromExternalReference)
+                                continue;
+
+                            prdDbg($"WARNING! id_lokalId is empty for block {br.Handle}!");
+                        }
+
+                        if (enhedsDict.TryGetValue(brId, out HashSet<BBREnhed.Enhed> units))
+                        {
+                            int count = units.Count(x => enhKoderDict[x.enh020EnhedensAnvendelse]);
+                            if (count > 1)
+                                bbrPsm.WritePropertyObject(br, bbrDef.AntalEnheder, count);
+
+                            results.Add((brId, count == 0 ? 1 : count));
+                        }
+
+                        pm.MeterProgress();
+                    }
+
+                    pm.Stop();
+                    pm.Dispose();
+
+                    var analysis = results
+                        .GroupBy(tuple => tuple.Item2)
+                        .Select(group => new { Value = group.Key, Count = group.Select(x => x.Item1).Count() })
+                        .OrderByDescending(x => x.Count);
+
+                    PrintTable(
+                        new string[] {"Antal enheder", "Antal forekomster"},
+                        analysis.Select(x => new object[] {x.Value, x.Count} as IEnumerable<object>)
+                        );
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    pm.Stop();
+                    pm.Dispose();
+                    return;
+                }
+                finally
+                {
+
+                }
+                tx.Commit();
+
+                //string html = ConvertToHtmlTree(list);
+                //string htmlPath = "C:\\Temp\\" + "enheder.html";
+                //File.WriteAllText(htmlPath, html);
             }
 
             prdDbg("Finished!");

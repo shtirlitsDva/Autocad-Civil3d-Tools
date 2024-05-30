@@ -73,17 +73,45 @@ namespace IntersectUtilities.UtilsCommon
         public static bool is3D(this Point3d p) => p.Z.is3D();
         public static bool is3D(this PolylineVertex3d v) => v.Position.is3D();
         public static bool is2D(this double value) => atZero(value) || at99(value);
-        public static void prdDbg(string msg)
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            editor.WriteMessage("\n" + msg);
-        }
+        public static void prdDbg(string msg = "") => Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n" + msg);
         public static void prdDbg(object obj)
         {
             if (obj is SystemException ex1) prdDbg(obj.ToString().Wrap(70));
             else if (obj is System.Exception ex2) prdDbg(obj.ToString().Wrap(70));
             else prdDbg(obj.ToString());
+        }
+        public static void PrintTable(string[] headers, IEnumerable<IEnumerable<object>> rows)
+        {
+            // Calculate the maximum width of each column
+            int[] columnWidths = new int[headers.Length];
+            for (int i = 0; i < headers.Length; i++)
+            {
+                columnWidths[i] = headers[i].Length;  // Start with the header width
+                foreach (var row in rows)
+                {
+                    var rowList = row.ToList();  // Convert to list for easier indexing
+                    if (i < rowList.Count && rowList[i] != null)
+                    {
+                        columnWidths[i] = Math.Max(columnWidths[i], rowList[i].ToString().Length);
+                    }
+                }
+            }
+
+            // Create the format string for each row
+            string format = string.Join(" | ", columnWidths.Select((w, i) => $"{{{i},-{w}}}"));
+
+            // Print the header
+            prdDbg(string.Format(format, headers.Cast<object>().ToArray()));
+
+            // Print a separator
+            prdDbg(string.Join("-+-", columnWidths.Select(w => new string('-', w))));
+
+            // Print each row of data
+            foreach (var row in rows)
+            {
+                var rowData = row.Select(cell => cell?.ToString() ?? string.Empty).ToArray();
+                prdDbg(string.Format(format, rowData));
+            }
         }
         /// <summary>
         /// Gets keywords.
