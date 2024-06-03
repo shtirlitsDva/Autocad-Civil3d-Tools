@@ -263,6 +263,12 @@
     <Compile Include="Forms\OverlayForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\PipeSettingsForm\PipeSettingsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\PipeSettingsForm\PipeSettingsForm.Designer.cs">
+      <DependentUpon>PipeSettingsForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\StringGridForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -331,9 +337,11 @@
     <Compile Include="ODDataConverter.cs" />
     <Compile Include="Pipeline.cs" />
     <Compile Include="PipelineNetworkSystem\PipelineNetwork.cs" />
+    <Compile Include="PipelineNetworkSystem\PipeSettingsCommands.cs" />
     <Compile Include="PipelineNetworkSystem\PipelineNetworkCommands.cs" />
     <Compile Include="PipelineNetworkSystem\PipelineSizeArrayV2.cs" />
     <Compile Include="PipelineNetworkSystem\PipelineV2.cs" />
+    <Compile Include="PipelineNetworkSystem\PipeSettings.cs" />
     <Compile Include="PipelineSizeArray.cs" />
     <Compile Include="PipeSchedule.cs" />
     <Compile Include="PipeScheduleV2\PipeScheduleV2.cs" />
@@ -392,6 +400,9 @@
   <ItemGroup>
     <EmbeddedResource Include="Forms\OverlayForm.resx">
       <DependentUpon>OverlayForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\PipeSettingsForm\PipeSettingsForm.resx">
+      <DependentUpon>PipeSettingsForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\StringGridForm.resx">
       <DependentUpon>StringGridForm.cs</DependentUpon>

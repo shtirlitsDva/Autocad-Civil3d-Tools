@@ -122,7 +122,8 @@ namespace IntersectUtilities.PipeScheduleV2
             {"minElasticRadii", typeof(double)},
             {"VpMax12", typeof(double)},
             {"VpMax16", typeof(double)},
-            {"color",typeof(short)},
+            {"color", typeof(short)},
+            {"DefaultL", typeof(double)}
         };
         public static void LoadPipeTypeData(string pathToPipeTypesStore)
         {
