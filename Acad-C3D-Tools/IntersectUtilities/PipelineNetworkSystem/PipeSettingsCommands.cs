@@ -60,6 +60,7 @@ namespace IntersectUtilities
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             string settingsLayerName = "0-PIPESETTINGS";
+            string pipeSettingsFileName = "_PipeSettings.json";
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -85,8 +86,23 @@ namespace IntersectUtilities
                     #region Manage pipe settings
                     //First check if settings exist
                     //If not, create them and edit immidiately
-                    
-                    
+                    string dbFilenameWithPath = localDb.OriginalFileName;
+                    string path = Path.GetDirectoryName(dbFilenameWithPath);
+                    string dbFileName = Path.GetFileNameWithoutExtension(dbFilenameWithPath);
+                    string settingsFileName = Path.Combine(path, dbFileName + pipeSettingsFileName);
+
+                    //Check if settings file exists
+                    if (!File.Exists(settingsFileName))
+                    {
+                        prdDbg("Settings file missing! Creating...");
+                        //PipeSettings pipeSettings = new PipeSettings();
+                        //pipeSettings.Save(settingsFileName);
+                        prdDbg($"Created settings file \"{settingsFileName}\".");
+                        prdDbg("Exiting...");
+                        tx.Abort();
+                        return;
+                    }
+
                     HashSet<Polyline> settingsPlines = localDb
                         .HashSetOfType<Polyline>(tx)
                         .Where(p => p.Layer == settingsLayerName)

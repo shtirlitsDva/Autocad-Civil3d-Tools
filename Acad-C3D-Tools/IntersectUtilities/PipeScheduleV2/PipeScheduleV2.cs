@@ -123,7 +123,7 @@ namespace IntersectUtilities.PipeScheduleV2
             {"VpMax12", typeof(double)},
             {"VpMax16", typeof(double)},
             {"color", typeof(short)},
-            {"DefaultL", typeof(double)}
+            {"DefaultL", typeof(int)}
         };
         public static void LoadPipeTypeData(string pathToPipeTypesStore)
         {
@@ -134,6 +134,7 @@ namespace IntersectUtilities.PipeScheduleV2
             _repository.Initialize(new PipeTypeDataLoaderCSV().Load(csvs));
         }
         public static void ListAllPipeTypes() => prdDbg(string.Join("\n", _repository.ListAllPipeTypes()));
+        public static IEnumerable<IPipeType> GetPipeTypes() => _repository.GetPipeTypes();
         #endregion
 
         #region Pipe schedule methods
@@ -280,7 +281,19 @@ namespace IntersectUtilities.PipeScheduleV2
                 throw new Exception($"Determination of Series failed for pipe: {ent.Handle}!");
             return series;
         }
-        public static double GetPipeStdLength(Entity ent) => GetPipeDN(ent) <= 80 ? 12 : 16;
+        //public static double GetPipeStdLength(Entity ent) => GetPipeDN(ent) <= 80 ? 12 : 16;
+        public static int GetPipeStdLength(Entity ent)
+        {
+            PipeSystemEnum system = GetPipeSystem(ent);
+
+            if (!systemDictReversed.ContainsKey(system)) return 0;
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+
+            return pipeType.GetPipeStdLength(
+                GetPipeDN(ent),
+                GetPipeType(ent)
+                );
+        }
         public static bool IsInSituBent(Entity ent)
         {
             PipeTypeEnum type = GetPipeType(ent);
@@ -332,7 +345,7 @@ namespace IntersectUtilities.PipeScheduleV2
             PipeSystemEnum system = GetPipeSystem(ent);
 
             if (!systemDictReversed.ContainsKey(system)) return 0;
-            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+            IPipeType pipeType = _repository.GetPipeType(systemDictReversed[system]);
 
             int dn = GetPipeDN(ent);
             //int std = (int)GetPipeStdLength(ent);
@@ -430,6 +443,7 @@ namespace IntersectUtilities.PipeScheduleV2
         double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum pipeSeries);
         double GetMinElasticRadius(int dn, PipeTypeEnum type, PipeSeriesEnum series);
         double GetBuerorMinRadius(int dn, int std);
+        int GetPipeStdLength(int dn, PipeTypeEnum type);
         IEnumerable<int> ListAllDnsForPipeTypeSerie(PipeTypeEnum type, PipeSeriesEnum serie);
         string GetLabel(int DN, PipeTypeEnum type, double od, double kOd);
         short GetLayerColor(PipeTypeEnum type);
@@ -438,6 +452,7 @@ namespace IntersectUtilities.PipeScheduleV2
         IEnumerable<int> ListAllDnsForPipeType(PipeTypeEnum type);
         IEnumerable<PipeTypeEnum> GetAvailableTypes();
         IEnumerable<PipeSeriesEnum> GetAvailableSeriesForType(PipeTypeEnum type);
+        int GetDefaultLengthForDnAndType(int DN, PipeTypeEnum type);
     }
     public abstract class PipeTypeBase : IPipeType
     {
@@ -517,6 +532,16 @@ namespace IntersectUtilities.PipeScheduleV2
             return 0;
         }
         public abstract double GetBuerorMinRadius(int dn, int std);
+        public int GetPipeStdLength(int dn, PipeTypeEnum type)
+        {
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
+
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
+            if (results != null && results.Length > 0) return (int)results[0]["DefaultL"];
+            else return 999;
+        }
         public virtual IEnumerable<int> ListAllDnsForPipeTypeSerie(PipeTypeEnum type, PipeSeriesEnum series)
         {
             if (type == PipeTypeEnum.Retur ||
@@ -595,6 +620,19 @@ namespace IntersectUtilities.PipeScheduleV2
                     .Distinct().OrderBy(x => x)
                     .Select(x => (PipeSeriesEnum)Enum.Parse(typeof(PipeSeriesEnum), x));
             return null;
+        }
+        public int GetDefaultLengthForDnAndType(int dn, PipeTypeEnum type)
+        {
+            //It is assumed that series does not matter for default length
+
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
+
+            DataRow[] results = 
+                _data.Select($"DN = {dn} AND PipeType = '{type}'");
+            if (results != null && results.Length > 0) return (int)results[0]["DefaultL"];
+            return 999;
         }
     }
     public class PipeTypeDN : PipeTypeBase
@@ -778,6 +816,7 @@ namespace IntersectUtilities.PipeScheduleV2
         void Initialize(Dictionary<string, IPipeType> pipeTypeDict);
         IPipeType GetPipeType(string type);
         IEnumerable<string> ListAllPipeTypes();
+        IEnumerable<IPipeType> GetPipeTypes();
     }
     public class PipeTypeRepository : IPipeTypeRepository
     {
@@ -797,6 +836,10 @@ namespace IntersectUtilities.PipeScheduleV2
         public IEnumerable<string> ListAllPipeTypes()
         {
             foreach (var k in _pipeTypeDictionary) yield return k.Key;
+        }
+        public IEnumerable<IPipeType> GetPipeTypes()
+        {
+            foreach (var k in _pipeTypeDictionary) yield return k.Value;
         }
     }
     public class PipeTypeDataLoaderCSV

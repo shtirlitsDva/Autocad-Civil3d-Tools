@@ -3537,7 +3537,15 @@ namespace IntersectUtilities
                             double X = 0;
                             double Y = 0;
 
-                            al.PointLocation(curStation, 0, ref X, ref Y);
+                            try
+                            {
+                                al.PointLocation(curStation, 0, ref X, ref Y);
+                            }
+                            catch (System.Exception ex)
+                            {
+                                prdDbg("Problem reading al.PointLocation for " + al.Name);
+                                throw;
+                            }
 
                             double Z = 0;
                             try
@@ -7469,8 +7477,8 @@ namespace IntersectUtilities
 
             FolderSelectDialog fsd = new FolderSelectDialog()
             {
-                Title = "Choose folder where drawings are stored: ",
-                InitialDirectory = @"C:\"
+                Title = "Choose folder where drawings are stored: "
+                //InitialDirectory = @"C:\"
             };
             if (fsd.ShowDialog(IntPtr.Zero))
             {
