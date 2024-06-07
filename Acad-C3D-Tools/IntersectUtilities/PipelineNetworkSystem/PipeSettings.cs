@@ -5,6 +5,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 using static IntersectUtilities.UtilsCommon.Utils;
@@ -13,13 +15,26 @@ namespace IntersectUtilities.PipelineNetworkSystem
 {
     public class PipeSettingsCollection : IDictionary<string, PipeSettings>
     {
-        private Dictionary<string, PipeSettings> _dictionary;
+        [JsonInclude]
+        public Dictionary<string, PipeSettings> _dictionary;
         public PipeSettingsCollection()
         {
             _dictionary = new Dictionary<string, PipeSettings>();
             _dictionary.Add("Default", new PipeSettings("Default"));
         }
-
+        internal void Save(string settingsFileName)
+        {
+            string jsonString = JsonSerializer.Serialize(
+                this, new JsonSerializerOptions { WriteIndented = true });
+            System.IO.File.WriteAllText(settingsFileName, jsonString);
+        }
+        public static PipeSettingsCollection Load(string settingsFileName)
+        {
+            string jsonString = System.IO.File.ReadAllText(settingsFileName);
+            PipeSettingsCollection settings = 
+                JsonSerializer.Deserialize<PipeSettingsCollection>(jsonString);
+            return settings;
+        }
         #region Interface Members
         public PipeSettings this[string key] { get => _dictionary[key]; set => _dictionary[key] = value; }
         public ICollection<string> Keys => _dictionary.Keys;
@@ -37,7 +52,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public bool Remove(string key) => _dictionary.Remove(key);
         public bool Remove(KeyValuePair<string, PipeSettings> item) => _dictionary.Remove(item.Key);
         public bool TryGetValue(string key, out PipeSettings value) => _dictionary.TryGetValue(key, out value);
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator(); 
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         #endregion
     }
     public class PipeSettings
@@ -47,23 +62,34 @@ namespace IntersectUtilities.PipelineNetworkSystem
         /// The handle corresponds to the entity that the setting is applied to.
         /// </summary>
         public string Name { get; set; }
+        [JsonInclude]
         public Dictionary<string, PipeSettingSystem> Settings = new Dictionary<string, PipeSettingSystem>();
-        public PipeSettings(string name) 
-        { 
+        public PipeSettings(string name)
+        {
             Name = name;
             foreach (IPipeType pt in PipeScheduleV2.PipeScheduleV2.GetPipeTypes())
             {
                 Settings.Add(pt.Name, new PipeSettingSystem(pt));
             }
         }
+        internal void UpdateSettings()
+        {
+            PipeSettingsForm form = new PipeSettingsForm();
+            form.CreatePipeSettingsGrid(this);
+            form.ShowDialog();
+            form.Close();
+        }
     }
     public class PipeSettingSystem
     {
         public string Name { get; }
+        public IPipeType PipeType { get; }
+        [JsonInclude]
         public Dictionary<PipeTypeEnum, PipeSettingType> Settings = new Dictionary<PipeTypeEnum, PipeSettingType>();
         public PipeSettingSystem(IPipeType pt)
         {
             Name = pt.Name;
+            PipeType = pt;
             foreach (PipeTypeEnum type in pt.GetAvailableTypes())
             {
                 Settings.Add(type, new PipeSettingType(type, pt));
@@ -73,6 +99,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
     public class PipeSettingType
     {
         public PipeTypeEnum Name { get; set; }
+        [JsonInclude]
         public Dictionary<int, int> Settings = new Dictionary<int, int>();
         public PipeSettingType(PipeTypeEnum type, IPipeType pt)
         {

@@ -129,6 +129,9 @@
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2024\ACA\AecPropDataMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="DarkUI, Version=2.0.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\DarkUI.2.0.2\lib\DarkUI.dll</HintPath>
+    </Reference>
     <Reference Include="ManagedMapApi">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2024\Map\ManagedMapApi.dll</HintPath>
       <Private>False</Private>
@@ -177,8 +180,8 @@
     <Reference Include="System.Text.Encodings.Web, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Text.Encodings.Web.8.0.0\lib\net462\System.Text.Encodings.Web.dll</HintPath>
     </Reference>
-    <Reference Include="System.Text.Json, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Text.Json.8.0.0\lib\net462\System.Text.Json.dll</HintPath>
+    <Reference Include="System.Text.Json, Version=8.0.0.3, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Text.Json.8.0.3\lib\net462\System.Text.Json.dll</HintPath>
     </Reference>
     <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Threading.Tasks.Extensions.4.5.4\lib\net461\System.Threading.Tasks.Extensions.dll</HintPath>
@@ -187,7 +190,9 @@
       <HintPath>..\packages\System.ValueTuple.4.5.0\lib\net47\System.ValueTuple.dll</HintPath>
     </Reference>
     <Reference Include="System.Web" />
-    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Windows.Forms">
+      <Private>False</Private>
+    </Reference>
     <Reference Include="System.Xaml" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -342,6 +347,12 @@
     <Compile Include="PipelineNetworkSystem\PipelineSizeArrayV2.cs" />
     <Compile Include="PipelineNetworkSystem\PipelineV2.cs" />
     <Compile Include="PipelineNetworkSystem\PipeSettings.cs" />
+    <Compile Include="PipelineNetworkSystem\PipeSettingsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="PipelineNetworkSystem\PipeSettingsForm.Designer.cs">
+      <DependentUpon>PipeSettingsForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="PipelineSizeArray.cs" />
     <Compile Include="PipeSchedule.cs" />
     <Compile Include="PipeScheduleV2\PipeScheduleV2.cs" />

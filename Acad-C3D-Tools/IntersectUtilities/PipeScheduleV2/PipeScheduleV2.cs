@@ -89,7 +89,7 @@ namespace IntersectUtilities.PipeScheduleV2
             { "PEXU", typeof(PipeTypePEXU) },
             { "PRTFLEXL", typeof(PipeTypePRTFLEXL) },
         };
-        private static Dictionary<string, PipeSystemEnum> systemDict = new Dictionary<string, PipeSystemEnum>()
+        public static Dictionary<string, PipeSystemEnum> systemDict = new Dictionary<string, PipeSystemEnum>()
         {
             {"DN", PipeSystemEnum.Stål },
             {"ALUPEX", PipeSystemEnum.AluPex },
@@ -105,6 +105,15 @@ namespace IntersectUtilities.PipeScheduleV2
             {PipeSystemEnum.PexU , "PEXU" },
             {PipeSystemEnum.PertFlextra , "PRTFLEXL" },
         };
+        private static Dictionary<PipeSystemEnum, int[]> availableStdLengths = new Dictionary<PipeSystemEnum, int[]>()
+        {
+            {PipeSystemEnum.Stål, new[] {12, 16}},
+            {PipeSystemEnum.AluPex, new[] {100}},
+            {PipeSystemEnum.Kobberflex, new[] {100}},
+            {PipeSystemEnum.PexU, new[] {100}},
+            {PipeSystemEnum.PertFlextra, new[] {12, 16, 100} },
+        };
+        public static int[] GetStdLengthsForSystem(PipeSystemEnum pipeSystem) => availableStdLengths[pipeSystem];
         private static string pipeTypes = string.Join(
             "|", Enum.GetNames(typeof(PipeTypeEnum)).Select(x => x.ToUpper()));
         private static string pipeDataTypes = string.Join(
@@ -436,7 +445,8 @@ namespace IntersectUtilities.PipeScheduleV2
     public interface IPipeType
     {
         string Name { get; }
-        void Initialize(DataTable table);
+        PipeSystemEnum System { get; }
+        void Initialize(DataTable table, PipeSystemEnum pipeSystemEnum);
         double GetPipeOd(int dn);
         PipeSeriesEnum GetPipeSeries(
             int dn, PipeTypeEnum type, double realKod);
@@ -456,8 +466,11 @@ namespace IntersectUtilities.PipeScheduleV2
     }
     public abstract class PipeTypeBase : IPipeType
     {
+        private PipeSystemEnum _system;
+        public PipeSystemEnum System => _system;
         protected DataTable _data;
         public string Name => this.GetType().Name;
+
         public virtual double GetPipeOd(int dn)
         {
             DataRow[] results = _data.Select($"DN = {dn}");
@@ -490,8 +503,8 @@ namespace IntersectUtilities.PipeScheduleV2
 
             _data = newTable;
         }
-        public void Initialize(DataTable table)
-        { _data = table; ConvertDataTypes(); }
+        public void Initialize(DataTable table, PipeSystemEnum pipeSystemEnum)
+        { _data = table; ConvertDataTypes(); _system = pipeSystemEnum; }
         public virtual PipeSeriesEnum GetPipeSeries(
             int dn, PipeTypeEnum type, double realKod)
         {
@@ -629,7 +642,7 @@ namespace IntersectUtilities.PipeScheduleV2
                 type == PipeTypeEnum.Frem)
                 type = PipeTypeEnum.Enkelt;
 
-            DataRow[] results = 
+            DataRow[] results =
                 _data.Select($"DN = {dn} AND PipeType = '{type}'");
             if (results != null && results.Length > 0) return (int)results[0]["DefaultL"];
             return 999;
@@ -855,7 +868,7 @@ namespace IntersectUtilities.PipeScheduleV2
                     throw new Exception($"PipeType {type} is not defined in PipeScheduleV2!");
                 IPipeType pipeType = Activator.CreateInstance(
                     PipeScheduleV2.typeDict[type]) as IPipeType;
-                pipeType.Initialize(dataTable);
+                pipeType.Initialize(dataTable, PipeScheduleV2.systemDict[type]);
                 dict.Add(type, pipeType);
             }
 

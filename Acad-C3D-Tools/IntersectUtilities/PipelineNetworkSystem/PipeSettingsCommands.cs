@@ -52,6 +52,7 @@ namespace IntersectUtilities
 {
     public partial class Intersect
     {
+        [CommandMethod("PSTS")]
         [CommandMethod("PIPESETTINGS")]
         public void testpipenetwork()
         {
@@ -78,7 +79,7 @@ namespace IntersectUtilities
                             $"and/or draw closed polylines in the settings layer " +
                             $"to create areas for different length settings.");
                         prdDbg("Exiting...");
-                        tx.Abort();
+                        tx.Commit();
                         return;
                     }
                     #endregion
@@ -95,13 +96,18 @@ namespace IntersectUtilities
                     if (!File.Exists(settingsFileName))
                     {
                         prdDbg("Settings file missing! Creating...");
-                        //PipeSettings pipeSettings = new PipeSettings();
-                        //pipeSettings.Save(settingsFileName);
-                        prdDbg($"Created settings file \"{settingsFileName}\".");
+                        var defaultSettingsCollection = new PipeSettingsCollection();
+                        var defaultSettings = defaultSettingsCollection["Default"];
+                        defaultSettings.UpdateSettings();
+                        defaultSettingsCollection.Save(settingsFileName);
+
+                        prdDbg($"Created default settings file:\n\"{settingsFileName}\".");
                         prdDbg("Exiting...");
                         tx.Abort();
                         return;
                     }
+
+                    var settingsCollection = PipeSettingsCollection.Load(settingsFileName);
 
                     HashSet<Polyline> settingsPlines = localDb
                         .HashSetOfType<Polyline>(tx)
