@@ -38,7 +38,6 @@ namespace NetReload
 
     public class Commands
     {
-
         #region // Sources.
 
         //
@@ -57,15 +56,35 @@ namespace NetReload
         [CommandMethod("NRL")]
         public static void NRL()
         {
+            // Current AutoCAD Document, Database and Editor.
+            Autodesk.AutoCAD.ApplicationServices.Document doc = Application.DocumentManager.MdiActiveDocument;
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+
+            string netReloadDir = null;
+
+            ResolveEventHandler assemblyResolveHandler = (sender, args) =>
+            {
+                if (netReloadDir == null) return null;
+                ed.WriteMessage($"Resolving assembly: {args.Name}\n");
+
+                string parentDir = Directory.GetParent(netReloadDir).FullName;
+                string assemblyPath = Path.Combine(parentDir, new AssemblyName(args.Name).Name + ".dll");
+
+                if (File.Exists(assemblyPath))
+                {
+                    ed.WriteMessage($"Found and loading assembly!\n");
+                    return Assembly.LoadFrom(assemblyPath);
+                }
+
+                ed.WriteMessage($"Assembly not found in parent path!\n");
+                return null; // Let the default resolution process handle it
+            };
+
+            AppDomain.CurrentDomain.AssemblyResolve += assemblyResolveHandler;
 
             try
             {
-
-                // Current AutoCAD Document, Database and Editor.
-                Autodesk.AutoCAD.ApplicationServices.Document doc = Application.DocumentManager.MdiActiveDocument;
-                Database db = doc.Database;
-                Editor ed = doc.Editor;
-
                 // Get running Visual Studio instances (using helper class).
                 IDictionary<string, _DTE> vsInstances = RunningObjectTable.GetRunningVSIDETable();
 
@@ -144,7 +163,7 @@ namespace NetReload
                     debugDir = Path.Combine(debugDir, @"bin\Debug");
 
                     // NetReload directory - i.e. \bin\Debug\NetReload.
-                    string netReloadDir = Path.Combine(debugDir, "NetReload");
+                    netReloadDir = Path.Combine(debugDir, "NetReload");
 
                     // Create NetReload directory if it doens't exist.
                     if (Directory.Exists(netReloadDir) == false)
@@ -203,7 +222,6 @@ namespace NetReload
             }
             catch (Autodesk.AutoCAD.Runtime.Exception ex)
             {
-
                 // Catch AutoCAD exception.
                 Application.ShowAlertDialog(String.Format("ERROR" +
                     "\nMessage: {0}\nErrorStatus: {1}", ex.Message, ex.ErrorStatus));
@@ -211,10 +229,13 @@ namespace NetReload
             }
             catch (System.Exception ex)
             {
-
                 // Catch Windows exception.
                 Application.ShowAlertDialog(String.Format("ERROR" +
                     "\nMessage: {0}", ex.Message));
+            }
+            finally
+            {
+                AppDomain.CurrentDomain.AssemblyResolve -= assemblyResolveHandler;
             }
         }
 
