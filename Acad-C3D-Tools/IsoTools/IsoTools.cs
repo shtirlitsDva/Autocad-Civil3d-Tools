@@ -42,6 +42,8 @@ namespace IsoTools
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
 
+            Encoding encoding = Encoding.UTF8;
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
@@ -59,7 +61,7 @@ namespace IsoTools
                     string matFile = Path.Combine(reportsDir, pipelineName + "-MATERIAL.txt");
                     if (!File.Exists(matFile)) throw new System.Exception("Material file not found!");
 
-                    Encoding encoding = DetectFileEncoding(matFile);
+                    //Encoding encoding = DetectFileEncoding(matFile);
 
                     var cws = new[] { 6, 15, 52, 20 };
 
@@ -86,7 +88,7 @@ namespace IsoTools
                     string cutFile = Path.Combine(reportsDir, pipelineName + "-CUT_LIST.txt");
                     if (!File.Exists(cutFile)) throw new System.Exception("Cut list file not found!");
 
-                    encoding = DetectFileEncoding(cutFile);
+                    //encoding = DetectFileEncoding(cutFile);
 
                     cws = new[] { 5, 9, 11, 100 };
 
@@ -197,7 +199,7 @@ namespace IsoTools
                     string wldFile = Path.Combine(reportsDir, pipelineName + "-WELD_LIST.txt");
                     if (!File.Exists(wldFile)) throw new System.Exception("Weld list file not found!");
 
-                    encoding = DetectFileEncoding(wldFile);
+                    //encoding = DetectFileEncoding(wldFile);
 
                     cws = new[] { 10, 10, 100 };
 
@@ -283,7 +285,8 @@ namespace IsoTools
                                 prdDbg($"File {file} detected encoding: {cd.Charset} with confidence {cd.Confidence}");
                                 return Encoding.GetEncoding(cd.Charset);
                             }
-                            throw new System.Exception("Material file could not establish an encoding!");
+                            throw new System.Exception($"{Path.GetFileName(filePath)}" +
+                                $" file could not establish an encoding!");
                         }
                     }
                     #endregion
