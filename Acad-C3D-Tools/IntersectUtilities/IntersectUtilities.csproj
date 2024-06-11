@@ -418,6 +418,9 @@
     <EmbeddedResource Include="Forms\StringGridForm.resx">
       <DependentUpon>StringGridForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="PipelineNetworkSystem\PipeSettingsForm.resx">
+      <DependentUpon>PipeSettingsForm.cs</DependentUpon>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <Content Include="DebugCommandLineAttribute.txt" />

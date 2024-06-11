@@ -54,7 +54,7 @@ namespace IntersectUtilities
     {
         [CommandMethod("PSTS")]
         [CommandMethod("PIPESETTINGS")]
-        public void testpipenetwork()
+        public void pipesettings()
         {
             prdDbg("Dette skal køres i FJV Fremtid!");
 
@@ -107,14 +107,26 @@ namespace IntersectUtilities
                         return;
                     }
 
+                    //Load settings
                     var settingsCollection = PipeSettingsCollection.Load(settingsFileName);
 
-                    HashSet<Polyline> settingsPlines = localDb
-                        .HashSetOfType<Polyline>(tx)
-                        .Where(p => p.Layer == settingsLayerName)
-                        .ToHashSet();
+                    prdDbg($"Following pipe settings detected: \n" +
+                        $"{string.Join(", ", settingsCollection.ListSettings())}");
 
+                    string settingsToEdit = 
+                        StringGridFormCaller.Call(
+                            settingsCollection.ListSettings(), "Choose settings to edit: ");
 
+                    if (settingsToEdit.IsNoE()) { tx.Abort(); return; }
+
+                    var settings = settingsCollection[settingsToEdit];
+                    settings.UpdateSettings();
+                    settingsCollection.Save(settingsFileName);
+
+                    //HashSet<Polyline> settingsPlines = localDb
+                    //    .HashSetOfType<Polyline>(tx)
+                    //    .Where(p => p.Layer == settingsLayerName)
+                    //    .ToHashSet();
                     #endregion
                 }
                 catch (System.Exception ex)

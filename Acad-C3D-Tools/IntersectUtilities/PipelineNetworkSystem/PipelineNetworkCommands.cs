@@ -53,7 +53,7 @@ namespace IntersectUtilities
     public partial class Intersect
     {
         [CommandMethod("GRAPHPIPELINES")]
-        public void pipesettings()
+        public void graphpipelines()
         {
             prdDbg("Dette skal køres i FJV Fremtid!");
 

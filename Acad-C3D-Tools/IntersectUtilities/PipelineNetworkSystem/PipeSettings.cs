@@ -35,6 +35,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 JsonSerializer.Deserialize<PipeSettingsCollection>(jsonString);
             return settings;
         }
+        public IEnumerable<string> ListSettings() => _dictionary.Keys;
         #region Interface Members
         public PipeSettings this[string key] { get => _dictionary[key]; set => _dictionary[key] = value; }
         public ICollection<string> Keys => _dictionary.Keys;
@@ -61,9 +62,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
         /// 'Default' or value of ents' Handle.
         /// The handle corresponds to the entity that the setting is applied to.
         /// </summary>
+        [JsonInclude]
         public string Name { get; set; }
         [JsonInclude]
         public Dictionary<string, PipeSettingSystem> Settings = new Dictionary<string, PipeSettingSystem>();
+        public PipeSettings() { }
         public PipeSettings(string name)
         {
             Name = name;
@@ -82,14 +85,17 @@ namespace IntersectUtilities.PipelineNetworkSystem
     }
     public class PipeSettingSystem
     {
-        public string Name { get; }
-        public IPipeType PipeType { get; }
+        [JsonInclude]
+        public string Name { get; set; }
+        [JsonInclude]
+        public PipeSystemEnum PipeTypeSystem { get; set; }
         [JsonInclude]
         public Dictionary<PipeTypeEnum, PipeSettingType> Settings = new Dictionary<PipeTypeEnum, PipeSettingType>();
+        public PipeSettingSystem() { }
         public PipeSettingSystem(IPipeType pt)
         {
             Name = pt.Name;
-            PipeType = pt;
+            PipeTypeSystem = pt.System;
             foreach (PipeTypeEnum type in pt.GetAvailableTypes())
             {
                 Settings.Add(type, new PipeSettingType(type, pt));
@@ -98,9 +104,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
     }
     public class PipeSettingType
     {
+        [JsonInclude]
         public PipeTypeEnum Name { get; set; }
         [JsonInclude]
         public Dictionary<int, int> Settings = new Dictionary<int, int>();
+        public PipeSettingType() { }
         public PipeSettingType(PipeTypeEnum type, IPipeType pt)
         {
             Name = type;

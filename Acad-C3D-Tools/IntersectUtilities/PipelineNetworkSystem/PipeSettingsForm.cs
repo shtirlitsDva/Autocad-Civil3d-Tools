@@ -22,7 +22,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
         public PipeSettingsForm()
         {
-            this.FormClosing += Form_FormClosing;
             InitializeComponent();
         }
         public void CreatePipeSettingsGrid(PipeSettings settings)
@@ -57,7 +56,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
             foreach (var settingSystem in settings.Settings.Values)
             {
-                var options = PipeScheduleV2.PipeScheduleV2.GetStdLengthsForSystem(settingSystem.PipeType.System);
+                var options = PipeScheduleV2.PipeScheduleV2.GetStdLengthsForSystem(settingSystem.PipeTypeSystem);
                 if (options.Length == 1) continue;
 
                 DarkLabel systemLabel = new DarkLabel
@@ -109,7 +108,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             {
                                 Text = option.ToString(),
                                 Tag = new { 
-                                    PipeTypeName = settingSystem.PipeType.Name, 
+                                    PipeTypeName = settingSystem.Name, 
                                     PipeTypeType = settingType.Name,
                                     Size = sizeSetting,
                                     Option = option 
@@ -134,21 +133,27 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 Console.WriteLine($"Size {tag.Size}: Set to {tag.Option}");
             }
         }
-        private void Form_FormClosing(object sender, FormClosingEventArgs e)
+        private void PipeSettingsForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            foreach (Control control in this.Controls)
+            foreach (Control c1 in this.Controls)
             {
-                if (control is FlowLayoutPanel flowPanel)
+                if (c1 is TableLayoutPanel panel)
                 {
-                    foreach (RadioButton rb in flowPanel.Controls.OfType<RadioButton>())
+                    foreach (Control c2 in panel.Controls)
                     {
-                        if (rb.Checked)
+                        if (c2 is FlowLayoutPanel flowPanel)
                         {
-                            dynamic tag = rb.Tag;
-                            _settings.Settings[tag.PipeTypeName]
-                                .Settings[tag.PipeTypeType]
-                                .Settings[tag.Size] = tag.Option;
-                        }
+                            foreach (RadioButton rb in flowPanel.Controls.OfType<RadioButton>())
+                            {
+                                if (rb.Checked)
+                                {
+                                    dynamic tag = rb.Tag;
+                                    _settings.Settings[tag.PipeTypeName]
+                                        .Settings[tag.PipeTypeType]
+                                        .Settings[tag.Size] = tag.Option;
+                                }
+                            }
+                        } 
                     }
                 }
             }
