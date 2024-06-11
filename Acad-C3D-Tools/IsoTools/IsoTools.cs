@@ -46,7 +46,6 @@ namespace IsoTools
             {
                 try
                 {
-                    #region Start processing
                     var brefs = localDb.GetBlockReferenceByName("Title Block");
                     if (brefs.Count == 0) throw new System.Exception("No block named Title Block found!");
                     var localTb = brefs.FirstOrDefault();
@@ -294,7 +293,6 @@ namespace IsoTools
                     //knows its' new location
                     //prdDbg(localDb.Filename);
                     //prdDbg(localDb.OriginalFileName); 
-                    #endregion
                     #endregion
                 }
                 catch (System.Exception ex)
