@@ -729,7 +729,7 @@ namespace IntersectUtilities
                                 }
                                 catch (System.Exception)
                                 {
-                                    editor.WriteMessage($"\nTop profile at {pvStStart + delta * i} threw an exception! " +
+                                    editor.WriteMessage($"\nTop profile at {pvStStart + delta * j} threw an exception! " +
                                         $"PV: {pv.StationStart}-{pv.StationEnd}.");
                                     continue;
                                 }
