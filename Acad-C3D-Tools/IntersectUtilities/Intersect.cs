@@ -7109,6 +7109,8 @@ namespace IntersectUtilities
             Document doc = docCol.CurrentDocument;
             Database localDb = docCol.MdiActiveDocument.Database;
 
+            PropertySetManager.UpdatePropertySetDefinition(localDb, PSetDefs.DefinedSets.BBR);
+
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
