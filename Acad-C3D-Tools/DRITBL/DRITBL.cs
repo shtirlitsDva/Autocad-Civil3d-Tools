@@ -189,6 +189,7 @@ namespace IntersectUtilities.DRITBL
                             irp.System = GetPipeType(pipe, true).ToString();
                             irp.Serie = GetPipeSeriesV2(pipe, true).ToString();
                             irp.Length = intersect.Length;
+                            irp.SystemType = GetPipeSystem(pipe).ToString();
 
                             allResults.Add(irp);
                         }
@@ -207,6 +208,7 @@ namespace IntersectUtilities.DRITBL
                             irp.DN2 = br.ReadDynamicCsvProperty(DynamicProperty.DN2, true);
                             irp.System = br.ReadDynamicCsvProperty(DynamicProperty.System, true);
                             irp.Serie = br.ReadDynamicCsvProperty(DynamicProperty.Serie, true);
+                            irp.SystemType = br.ReadDynamicCsvProperty(DynamicProperty.SysNavn, false);
 
                             allResults.Add(irp);
                         }
@@ -250,7 +252,8 @@ namespace IntersectUtilities.DRITBL
                     x.Navn,
                     x.DN1,
                     x.System,
-                    x.Serie
+                    x.Serie,
+                    x.SystemType
                 })
                 .Select(g => new IntersectResultPipe
                 {
@@ -262,7 +265,8 @@ namespace IntersectUtilities.DRITBL
                     DN1 = g.Key.DN1,
                     System = g.Key.System,
                     Serie = g.Key.Serie,
-                    Length = g.Sum(x => x.Length) // sum Length for each group
+                    Length = g.Sum(x => x.Length), // sum Length for each group
+                    SystemType = g.Key.SystemType
                 });
             var componentSummary = results
                 .Where(x => x is IntersectResultComponent)
@@ -277,7 +281,8 @@ namespace IntersectUtilities.DRITBL
                     x.DN1,
                     x.DN2,
                     x.System,
-                    x.Serie
+                    x.Serie,
+                    x.SystemType
                 })
                 .Select(g => new IntersectResultComponent
                 {
@@ -290,7 +295,8 @@ namespace IntersectUtilities.DRITBL
                     DN2 = g.Key.DN2,
                     System = g.Key.System,
                     Serie = g.Key.Serie,
-                    Count = g.Count() // count items for each group
+                    Count = g.Count(), // count items for each group
+                    SystemType = g.Key.SystemType
                 });
 
             HashSet<IntersectResult> allResults = new HashSet<IntersectResult>();
@@ -320,7 +326,8 @@ namespace IntersectUtilities.DRITBL
                     x.Navn,
                     x.DN1,
                     x.System,
-                    x.Serie
+                    x.Serie,
+                    x.SystemType
                 })
                 .Select(g => new IntersectResultPipe
                 {
@@ -333,7 +340,8 @@ namespace IntersectUtilities.DRITBL
                     System = g.Key.System,
                     Serie = g.Key.Serie,
                     Antal = g.Sum(x => x.Length),
-                    Length = g.Sum(x => x.Length) // sum Length for each group
+                    Length = g.Sum(x => x.Length), // sum Length for each group
+                    SystemType = g.Key.SystemType
                 });
             var componentSummary = results
                 .Where(x => x is IntersectResultComponent)
@@ -348,7 +356,8 @@ namespace IntersectUtilities.DRITBL
                     x.DN1,
                     x.DN2,
                     x.System,
-                    x.Serie
+                    x.Serie,
+                    x.SystemType
                 })
                 .Select(g => new IntersectResultComponent
                 {
@@ -361,7 +370,8 @@ namespace IntersectUtilities.DRITBL
                     DN2 = g.Key.DN2,
                     System = g.Key.System,
                     Serie = g.Key.Serie,
-                    Count = g.Count() // count items for each group
+                    Count = g.Count(), // count items for each group
+                    SystemType = g.Key.SystemType
                 });
 
             HashSet<IntersectResult> allResults = new HashSet<IntersectResult>();
@@ -405,7 +415,7 @@ namespace IntersectUtilities.DRITBL
             #region Export Intersection Results
             StringBuilder sb = new StringBuilder();
             //sb.AppendLine("BEMÆRK: Twin svejsninger bliver IKKE ganget med 2!");
-            sb.AppendLine("Vejklasse;Belægningstype;Komponent;DN1;DN2;Rørsystem;Serie;Antal;Længde");
+            sb.AppendLine("Vejklasse;Belægningstype;Komponent;DN1;DN2;Rørsystem;Serie;Antal;Længde;SystemType");
 
             foreach (IntersectResult ir in results.OrderBy(x => x.IntersectType)) sb.AppendLine(ir.ToString(ExportType.JJR));
 

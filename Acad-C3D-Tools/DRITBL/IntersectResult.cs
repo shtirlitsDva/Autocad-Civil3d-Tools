@@ -21,6 +21,7 @@ namespace IntersectUtilities.DRITBL
         public string DN2 { get; set; }
         public string System { get; set; }
         public string Serie { get; set; }
+        public string SystemType { get; set; }
         public virtual string ToString(ExportType exportType)
         {
             string dn2Value = DN2 == "0" ? "" : DN2;
@@ -49,7 +50,7 @@ namespace IntersectUtilities.DRITBL
         public double Length { get; set; }
         public override string ToString(ExportType exportType) => 
             base.ToString(exportType) + $"{Antal.ToString(new CultureInfo("da-DK"))};" +
-            $"{Length.ToString(new CultureInfo("da-DK"))}";
+            $"{Length.ToString(new CultureInfo("da-DK"))};{SystemType}";
     }
     internal class IntersectResultComponent : IntersectResult
     {
@@ -58,7 +59,7 @@ namespace IntersectUtilities.DRITBL
             IntersectType = IntersectType.Component;
         }
         public int Count { get; set; }
-        public override string ToString(ExportType exportType) => base.ToString(exportType) + $"{Count};";
+        public override string ToString(ExportType exportType) => base.ToString(exportType) + $"{Count};;{SystemType}";
     }
     internal abstract class PropertyConfig
     {
@@ -70,6 +71,7 @@ namespace IntersectUtilities.DRITBL
         public bool DN2 { get; set; }
         public bool System { get; set; }
         public bool Serie { get; set; }
+        public bool SystemType { get; set; }
     }
     public enum IntersectType
     {
