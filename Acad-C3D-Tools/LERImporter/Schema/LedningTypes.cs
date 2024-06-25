@@ -507,7 +507,7 @@ namespace LERImporter.Schema
                     layerName += "Ukendt";
                     break;
                 default:
-                    layerName += Type;
+                    layerName += "Ukendt";
                     break;
             }
 
