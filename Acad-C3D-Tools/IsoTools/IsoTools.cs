@@ -10,9 +10,8 @@ using Autodesk.AutoCAD.Runtime;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
-using Autodesk.AutoCAD.EditorInput;
+using Autodesk.AutoCAD.Windows;
 
-using static IntersectUtilities.CsvReader;
 using static IsoTools.Utils;
 using System.IO;
 using Ude;
@@ -297,6 +296,95 @@ namespace IsoTools
                     //prdDbg(localDb.Filename);
                     //prdDbg(localDb.OriginalFileName); 
                     #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("ISOPOSTPROCESS")]
+        public void isopostprocess()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    #region Select file
+                    OpenFileDialog ofd = new OpenFileDialog(
+                                    "Select XML to postprocess: ", "", "xml", "Select XML",
+                                    OpenFileDialog.OpenFileDialogFlags.NoFtpSites);
+                    System.Windows.Forms.DialogResult result = ofd.ShowDialog();
+
+                    string drawingXml;
+                    if (result == System.Windows.Forms.DialogResult.OK)
+                    {
+                        drawingXml = ofd.Filename;
+                    }
+                    else
+                    {
+                        prdDbg("No file selected!");
+                        tx.Abort();
+                        return;
+                    }
+                    #endregion
+
+                    if (!File.Exists(drawingXml)) throw new System.Exception("Drawing XML file not found!");
+
+                    XDocument xmlDoc = XDocument.Load(drawingXml);
+                    var outputFiles = xmlDoc.Descendants("OUTPUT-FILE")
+                        .Select(node => node.Value.Trim()).ToList();
+
+                    var skeys = new HashSet<string>() { "GUIB", "HGRD", "HGSP" };
+
+                    //Process the files
+                    foreach (var file in outputFiles)
+                    {
+                        prdDbg($"Processing {file}.");
+                        if (!File.Exists(file))
+                        {
+                            prdDbg($"File {Path.GetFileName(file)} not found!");
+                            continue;
+                        }
+
+                        var db = new Database(false, true);
+                        db.ReadDwgFile(file, FileOpenMode.OpenForReadAndAllShare, false, "");
+
+                        using (Transaction t = db.TransactionManager.StartTransaction())
+                        {
+                            try
+                            {
+                                var brs = db.HashSetOfType<BlockReference>(t);
+                                foreach (var br in brs)
+                                {
+                                    var value = br.GetAttributeStringValue("Description");
+                                    if (skeys.Any(x => value.Contains(x)))
+                                    {
+                                        br.UpgradeOpen();
+                                        br.ScaleFactors = new Scale3d(-1, 1, 1);
+                                    }
+                                }
+                            }
+                            catch (System.Exception)
+                            {
+                                prdDbg($"Processing failed for file {Path.GetFileName(file)}!");
+                                t.Abort();
+                                t.Dispose();
+                                db.Dispose();
+                                throw;
+                            }
+                            t.Commit();
+                        }
+                        db.SaveAs(db.Filename, true, DwgVersion.Newest, null);
+                        db.Dispose();
+                    }
                 }
                 catch (System.Exception ex)
                 {
