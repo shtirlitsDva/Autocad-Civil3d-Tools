@@ -149,7 +149,10 @@ namespace IntersectUtilities.LongitudinalProfiles
                 MPolygon mpg = db.ListOfType<MPolygon>(tx).FirstOrDefault();
 
                 if (mpg == null)
+                {
+                    this.Dispose(true);
                     throw new Exception($"No MPolygon found in {file}!");
+                }
 
                 trans.Add(name, tx);
                 areas.Add(name, NTS.NTSConversion.ConvertMPolygonToNTSPolygon(mpg));
