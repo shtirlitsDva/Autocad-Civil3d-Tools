@@ -67,7 +67,10 @@ namespace IntersectUtilities
         public IEnumerable<GeoJsonFeature> Convert(Entity entity)
         {
             if (!(entity is ViewFrame vf))
-                throw new ArgumentException($"Entity {entity.Handle} is not a polyline!");
+                throw new ArgumentException($"Entity {entity.Handle} is not a ViewFrame!");
+
+            //Determine the rotation angle of the view frame
+            
 
             var feature = new GeoJsonFeature
             {
