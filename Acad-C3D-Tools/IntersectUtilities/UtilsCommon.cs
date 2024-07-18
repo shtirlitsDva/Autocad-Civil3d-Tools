@@ -64,6 +64,7 @@ namespace IntersectUtilities.UtilsCommon
         public static bool is3D(this Point3d p) => p.Z.is3D();
         public static bool is3D(this PolylineVertex3d v) => v.Position.is3D();
         public static bool is2D(this double value) => atZero(value) || at99(value);
+        public static double[] ToLatLongFromUtm32N(double X, double Y) => Extensions.ToLatLongFromUtm32N(new Point2d(X, Y));
         public static void prdDbg(string msg = "") => Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n" + msg);
         public static void prdDbg(object obj)
         {
@@ -1420,7 +1421,7 @@ namespace IntersectUtilities.UtilsCommon
             double Y2 = targetP3d.Y;
             return Math.Sqrt(Math.Pow((X2 - X1), 2) + Math.Pow((Y2 - Y1), 2));
         }
-        public static double DistanceHorizontalTo(this PolylineVertex3d v1, PolylineVertex3d v2) => 
+        public static double DistanceHorizontalTo(this PolylineVertex3d v1, PolylineVertex3d v2) =>
             v1.Position.DistanceHorizontalTo(v2.Position);
         public static double Pow(this double value, double exponent)
         {
@@ -2268,6 +2269,52 @@ namespace IntersectUtilities.UtilsCommon
         public static (long, long) Get2DKey(this Point3d p3d, double precision = 1000.0) =>
             ((long)(p3d.X * precision), (long)(p3d.Y * precision));
         public static Point2d To2D(this Point3d p3d) => new Point2d(p3d.X, p3d.Y);
+        public static double[] ToLatLongFromUtm32N(this Point3d p)
+        {
+            double easting = p.X; double northing = p.Y; string zone = "32N";
+
+            int ZoneNumber = int.Parse(zone.Substring(0, zone.Length - 1));
+            //char ZoneLetter = zone[zone.Length - 1];
+
+            double a = 6378137; // WGS-84 ellipsiod parameters
+            double eccSquared = 0.00669438;
+            double eccPrimeSquared;
+            double e1 = (1 - Math.Sqrt(1 - eccSquared)) / (1 + Math.Sqrt(1 - eccSquared));
+
+            double N1, T1, C1, R1, D, M;
+            double LongOrigin;
+            double mu, phi1Rad;
+
+            double x = easting - 500000.0; // remove 500,000 meter offset for longitude
+            double y = northing;
+
+            LongOrigin = (ZoneNumber - 1) * 6 - 180 + 3;  //+3 puts origin in middle of zone
+
+            eccPrimeSquared = (eccSquared) / (1 - eccSquared);
+
+            M = y / 0.9996;
+            mu = M / (a * (1 - eccSquared / 4 - 3 * eccSquared * eccSquared / 64 - 5 * eccSquared * eccSquared * eccSquared / 256));
+
+            phi1Rad = mu + (3 * e1 / 2 - 27 * Math.Pow(e1, 3) / 32) * Math.Sin(2 * mu) +
+                     (21 * e1 * e1 / 16 - 55 * Math.Pow(e1, 4) / 32) * Math.Sin(4 * mu) +
+                     (151 * Math.Pow(e1, 3) / 96) * Math.Sin(6 * mu);
+
+            N1 = a / Math.Sqrt(1 - eccSquared * Math.Sin(phi1Rad) * Math.Sin(phi1Rad));
+            T1 = Math.Tan(phi1Rad) * Math.Tan(phi1Rad);
+            C1 = eccPrimeSquared * Math.Cos(phi1Rad) * Math.Cos(phi1Rad);
+            R1 = a * (1 - eccSquared) / Math.Pow(1 - eccSquared * Math.Sin(phi1Rad) * Math.Sin(phi1Rad), 1.5);
+            D = x / (N1 * 0.9996);
+
+            double lat = phi1Rad - (N1 * Math.Tan(phi1Rad) / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * eccPrimeSquared) * Math.Pow(D, 4) / 24 +
+                                                           (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * eccPrimeSquared - 3 * C1 * C1) * Math.Pow(D, 6) / 720);
+            lat = lat * 180.0 / Math.PI;
+
+            double lon = (D - (1 + 2 * T1 + C1) * Math.Pow(D, 3) / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * eccPrimeSquared + 24 * T1 * T1) * Math.Pow(D, 5) / 120) / Math.Cos(phi1Rad);
+            lon = LongOrigin + (lon * 180.0 / Math.PI);
+
+            return new double[] { lat, lon };
+        }
+        public static double[] ToLatLongFromUtm32N(this Point2d p) => ToLatLongFromUtm32N(p.To3D());
         public static bool IsOnCurve(this Point3d pt, Curve cv, double tol)
         {
             try

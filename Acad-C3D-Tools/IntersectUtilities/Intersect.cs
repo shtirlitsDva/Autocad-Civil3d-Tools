@@ -8237,57 +8237,12 @@ namespace IntersectUtilities
             Point3d p = Interaction.GetPoint($"Pick point for Google Street View: ");
             if (p == Algorithms.NullPoint3d) { return; }
 
-            var latlong = UTMToLatLon(p.X, p.Y, "32N");
+            var latlong = p.ToLatLongFromUtm32N();
             prdDbg($"Opening Google Street View with coordinates: {latlong[0]}, {latlong[1]}.");
 
             string url = $"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={latlong[0]},{latlong[1]}";
 
             System.Diagnostics.Process.Start(url);
-
-            double[] UTMToLatLon(double easting, double northing, string zone)
-            {
-                int ZoneNumber = int.Parse(zone.Substring(0, zone.Length - 1));
-                //char ZoneLetter = zone[zone.Length - 1];
-
-                double a = 6378137; // WGS-84 ellipsiod parameters
-                double eccSquared = 0.00669438;
-                double eccPrimeSquared;
-                double e1 = (1 - Math.Sqrt(1 - eccSquared)) / (1 + Math.Sqrt(1 - eccSquared));
-
-                double N1, T1, C1, R1, D, M;
-                double LongOrigin;
-                double mu, phi1Rad;
-
-                double x = easting - 500000.0; // remove 500,000 meter offset for longitude
-                double y = northing;
-
-                LongOrigin = (ZoneNumber - 1) * 6 - 180 + 3;  //+3 puts origin in middle of zone
-
-                eccPrimeSquared = (eccSquared) / (1 - eccSquared);
-
-                M = y / 0.9996;
-                mu = M / (a * (1 - eccSquared / 4 - 3 * eccSquared * eccSquared / 64 - 5 * eccSquared * eccSquared * eccSquared / 256));
-
-                phi1Rad = mu + (3 * e1 / 2 - 27 * Math.Pow(e1, 3) / 32) * Math.Sin(2 * mu) +
-                         (21 * e1 * e1 / 16 - 55 * Math.Pow(e1, 4) / 32) * Math.Sin(4 * mu) +
-                         (151 * Math.Pow(e1, 3) / 96) * Math.Sin(6 * mu);
-
-                N1 = a / Math.Sqrt(1 - eccSquared * Math.Sin(phi1Rad) * Math.Sin(phi1Rad));
-                T1 = Math.Tan(phi1Rad) * Math.Tan(phi1Rad);
-                C1 = eccPrimeSquared * Math.Cos(phi1Rad) * Math.Cos(phi1Rad);
-                R1 = a * (1 - eccSquared) / Math.Pow(1 - eccSquared * Math.Sin(phi1Rad) * Math.Sin(phi1Rad), 1.5);
-                D = x / (N1 * 0.9996);
-
-                double lat = phi1Rad - (N1 * Math.Tan(phi1Rad) / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * eccPrimeSquared) * Math.Pow(D, 4) / 24 +
-                                                               (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * eccPrimeSquared - 3 * C1 * C1) * Math.Pow(D, 6) / 720);
-                lat = lat * 180.0 / Math.PI;
-
-                double lon = (D - (1 + 2 * T1 + C1) * Math.Pow(D, 3) / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * eccPrimeSquared + 24 * T1 * T1) * Math.Pow(D, 5) / 120) / Math.Cos(phi1Rad);
-                lon = LongOrigin + (lon * 180.0 / Math.PI);
-
-                return new double[] { lat, lon };
-            }
-
         }
 
         [CommandMethod("MODIFYPOINTSELEVATIONFROMSURFACE")]

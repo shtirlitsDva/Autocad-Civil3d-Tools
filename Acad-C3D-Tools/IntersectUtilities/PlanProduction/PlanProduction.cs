@@ -54,9 +54,9 @@ using IntersectUtilities.DynamicBlocks;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
 using Plane = Autodesk.AutoCAD.Geometry.Plane;
-using netDxf.Entities;
 using NetTopologySuite.Triangulate;
 using IntersectUtilities.LongitudinalProfiles;
+using NetTopologySuite.Algorithm;
 
 namespace IntersectUtilities
 {
@@ -1454,8 +1454,21 @@ namespace IntersectUtilities
                                         {
                                             var converter = ViewFrameToGeoJsonConverterFactory.CreateConverter(vf);
                                             if (converter == null) continue;
-                                            var geoJsonFeature = converter.Convert(vf);
-                                            gjfc.Features.AddRange(geoJsonFeature);
+                                            var geoJsonFeatures = converter.Convert(vf);
+                                            gjfc.Features.AddRange(geoJsonFeatures);
+
+                                            #region Debug
+                                            ////Debug
+                                            //var f = geoJsonFeatures.First();
+                                            //double rotationRad = (double)f.Properties["Rotation"] * (Math.PI / 180.0);
+                                            //Point2d startPoint = new Point2d((double[])f.Properties["Centroid"]);
+                                            //Point3d endPoint = new Point3d(
+                                            //    startPoint.X + 25 * Math.Cos(rotationRad),
+                                            //    startPoint.Y + 25 * Math.Sin(rotationRad), 0);
+
+                                            //Line line = new Line(startPoint.To3D(), endPoint);
+                                            //line.AddEntityToDbModelSpace(localDb); 
+                                            #endregion
                                         }
                                     }
                                     catch (System.Exception)
