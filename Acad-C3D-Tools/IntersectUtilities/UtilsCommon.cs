@@ -21,6 +21,8 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
 
@@ -1433,6 +1435,11 @@ namespace IntersectUtilities.UtilsCommon
         public static double Pow(this double value, double exponent)
         {
             return Math.Pow(value, exponent);
+        }
+        public static double TruncateToDecimalPlaces(double value, int decimalPlaces)
+        {
+            double factor = Math.Pow(10, decimalPlaces);
+            return Math.Truncate(value * factor) / factor;
         }
         public static double GetBulge(this ProfileCircular profileCircular, ProfileView profileView)
         {
@@ -3357,6 +3364,26 @@ namespace IntersectUtilities.UtilsCommon
             int xHash = ((int)(bv.Vertex.X * _scale)).GetHashCode();
             int yHash = ((int)(bv.Vertex.Y * _scale)).GetHashCode();
             return xHash ^ yHash;
+        }
+    }
+    public class JsonConverterDouble : JsonConverter<double>
+    {
+        private readonly int _decimalPlaces;
+
+        public JsonConverterDouble(int decimalPlaces)
+        {
+            _decimalPlaces = decimalPlaces;
+        }
+
+        public override double Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            return reader.GetDouble();
+        }
+
+        public override void Write(Utf8JsonWriter writer, double value, JsonSerializerOptions options)
+        {
+            string format = $"0.{new string('#', _decimalPlaces)}";
+            writer.WriteRawValue(value.ToString(format, CultureInfo.InvariantCulture));
         }
     }
     public static class CsvData

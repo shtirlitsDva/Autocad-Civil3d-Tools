@@ -606,7 +606,7 @@ namespace IntersectUtilities
             }
             if (hasMidt) createdetailingmethod(dro, localDb);
             else createdetailingpreliminarymethod(dro, localDb);
-            
+
             //Auto stagger all labels to right
             staggerlabelsall();
             //Draw rectangles representing viewports around longitudinal profiles
@@ -1500,8 +1500,8 @@ namespace IntersectUtilities
 
             var options = new JsonSerializerOptions
             {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                //WriteIndented = true,
+                Converters = { new JsonConverterDouble(8) }
             };
 
             string path = Path.GetDirectoryName(localDb.Filename);
@@ -1520,7 +1520,7 @@ namespace IntersectUtilities
             Database blockDb = new Database(false, true);
             if (!File.Exists(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt"))
                 throw new System.Exception(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt does not exist!");
-            blockDb.ReadDwgFile(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt", 
+            blockDb.ReadDwgFile(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt",
                 FileOpenMode.OpenForReadAndAllShare, false, null);
 
             string lyrName = "0-ViewFrames";
@@ -1623,7 +1623,7 @@ namespace IntersectUtilities
                                                                 (extents.MaxPoint.X + extents.MinPoint.X) / 2.0,
                                                                 (extents.MaxPoint.Y + extents.MinPoint.Y) / 2.0,
                                                                 0);
-                                                            
+
                                                             text.Location = center;
                                                             text.Attachment = AttachmentPoint.MiddleCenter;
 
