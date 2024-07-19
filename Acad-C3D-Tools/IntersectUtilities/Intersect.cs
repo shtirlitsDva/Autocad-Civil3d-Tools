@@ -8237,7 +8237,7 @@ namespace IntersectUtilities
             Point3d p = Interaction.GetPoint($"Pick point for Google Street View: ");
             if (p == Algorithms.NullPoint3d) { return; }
 
-            var latlong = p.ToLatLongFromUtm32N();
+            var latlong = p.ToWGS84FromUtm32N();
             prdDbg($"Opening Google Street View with coordinates: {latlong[0]}, {latlong[1]}.");
 
             string url = $"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={latlong[0]},{latlong[1]}";

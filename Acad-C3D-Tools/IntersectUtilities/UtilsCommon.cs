@@ -64,7 +64,14 @@ namespace IntersectUtilities.UtilsCommon
         public static bool is3D(this Point3d p) => p.Z.is3D();
         public static bool is3D(this PolylineVertex3d v) => v.Position.is3D();
         public static bool is2D(this double value) => atZero(value) || at99(value);
-        public static double[] ToLatLongFromUtm32N(double X, double Y) => Extensions.ToLatLongFromUtm32N(new Point2d(X, Y));
+        /// <summary>
+        /// Order of returned coordinates explained here:
+        /// https://macwright.com/lonlat/
+        /// GeoJson is lon, lat.
+        /// </summary>
+        /// <param name="latlon">If false, reverses the returned array to lon, lat.</param
+        public static double[] ToWGS84FromUtm32N(double X, double Y, bool latlon = true) =>
+            Extensions.ToWGS84FromUtm32N(new Point2d(X, Y), latlon);
         public static void prdDbg(string msg = "") => Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n" + msg);
         public static void prdDbg(object obj)
         {
@@ -2269,7 +2276,13 @@ namespace IntersectUtilities.UtilsCommon
         public static (long, long) Get2DKey(this Point3d p3d, double precision = 1000.0) =>
             ((long)(p3d.X * precision), (long)(p3d.Y * precision));
         public static Point2d To2D(this Point3d p3d) => new Point2d(p3d.X, p3d.Y);
-        public static double[] ToLatLongFromUtm32N(this Point3d p)
+        /// <summary>
+        /// Order of returned coordinates explained here:
+        /// https://macwright.com/lonlat/
+        /// GeoJson is lon, lat.
+        /// </summary>
+        /// <param name="latlon">If false, reverses the returned array to lon, lat.</param>
+        public static double[] ToWGS84FromUtm32N(this Point3d p, bool latlon = true)
         {
             double easting = p.X; double northing = p.Y; string zone = "32N";
 
@@ -2312,9 +2325,17 @@ namespace IntersectUtilities.UtilsCommon
             double lon = (D - (1 + 2 * T1 + C1) * Math.Pow(D, 3) / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * eccPrimeSquared + 24 * T1 * T1) * Math.Pow(D, 5) / 120) / Math.Cos(phi1Rad);
             lon = LongOrigin + (lon * 180.0 / Math.PI);
 
-            return new double[] { lat, lon };
+            if (latlon) return new double[] { lat, lon };
+            else return new double[] { lon, lat };
         }
-        public static double[] ToLatLongFromUtm32N(this Point2d p) => ToLatLongFromUtm32N(p.To3D());
+        /// <summary>
+        /// Order of returned coordinates explained here:
+        /// https://macwright.com/lonlat/
+        /// GeoJson is lon, lat.
+        /// </summary>
+        /// <param name="latlon">If false, reverses the returned array to lon, lat.</param
+        public static double[] ToWGS84FromUtm32N(this Point2d p, bool latlon = true) => 
+            ToWGS84FromUtm32N(p.To3D(), latlon);
         public static bool IsOnCurve(this Point3d pt, Curve cv, double tol)
         {
             try

@@ -108,8 +108,7 @@ namespace IntersectUtilities
                                         break;
                                 }
                                 ((GeoJsonGeometryLineString)feature.Geometry).Coordinates[i]
-                                    //= new double[] { p.X, p.Y };
-                                    = p.ToLatLongFromUtm32N();
+                                    = p.ToWGS84FromUtm32N(false); //GeoJson is lonlat
                             }
 
                             //Determine rotation
@@ -123,7 +122,8 @@ namespace IntersectUtilities
                             p2 = pline.GetPoint3dAt(2);
                             double midX = (p1.X + p2.X) / 2;
                             double midY = (p1.Y + p2.Y) / 2;
-                            feature.Properties["Centroid"] = ToLatLongFromUtm32N(midX, midY);
+                            feature.Properties["Centroid"] = 
+                                ToWGS84FromUtm32N(midX, midY, false); //GeoJson is lonlat
                         }
                     }
                 }
