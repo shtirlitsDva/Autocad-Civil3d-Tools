@@ -74,6 +74,11 @@ namespace IntersectUtilities.UtilsCommon
         /// <param name="latlon">If false, reverses the returned array to lon, lat.</param
         public static double[] ToWGS84FromUtm32N(double X, double Y, bool latlon = true) =>
             Extensions.ToWGS84FromUtm32N(new Point2d(X, Y), latlon);
+        /// <summary>
+        /// Coords must by X, Y (lat, long).
+        /// </summary>
+        public static double[] ToWGS84FromUtm32N(double[] coords, bool latlon = true) =>
+            Extensions.ToWGS84FromUtm32N(new Point2d(coords[0], coords[1]), latlon);
         public static void prdDbg(string msg = "") => Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n" + msg);
         public static void prdDbg(object obj)
         {
@@ -3479,5 +3484,70 @@ namespace IntersectUtilities.UtilsCommon
         /// Anvendelseskoder for enheder fra BBR registeret
         /// </summary>
         public static DataTable EnhKoder { get => GetDataTable("EnhKoder"); }
+    }
+    public static class AutocadColors
+    {
+        private static Dictionary<short, ColorData> _colorDictionary;
+
+        static AutocadColors()
+        {
+            _colorDictionary = new Dictionary<short, ColorData>();
+            LoadColorData();
+        }
+
+        private static void LoadColorData()
+        {
+            var lines = File.ReadAllLines(
+                @"X:\AutoCAD DRI - 01 Civil 3D\AutoCAD Colors\AutoCAD Color Index RGB Equivalents.csv");
+            foreach (var line in lines.Skip(1))
+            {
+                var parts = line.Split(';');
+                var colorIndex = short.Parse(parts[0]);
+                var hexRed = parts[1];
+                var hexGreen = parts[2];
+                var hexBlue = parts[3];
+                var dRed = short.Parse(parts[4]);
+                var dGreen = short.Parse(parts[5]);
+                var dBlue = short.Parse(parts[6]);
+
+                _colorDictionary[colorIndex] = new ColorData
+                {
+                    HexRed = hexRed,
+                    HexGreen = hexGreen,
+                    HexBlue = hexBlue,
+                    DRed = dRed,
+                    DGreen = dGreen,
+                    DBlue = dBlue
+                };
+            }
+        }
+
+        public static string GetHexColor(short colorIndex)
+        {
+            if (_colorDictionary.TryGetValue(colorIndex, out var colorData))
+            {
+                return $"#{colorData.HexRed}{colorData.HexGreen}{colorData.HexBlue}";
+            }
+            return null;
+        }
+
+        public static (short red, short green, short blue) GetRGBColor(short colorIndex)
+        {
+            if (_colorDictionary.TryGetValue(colorIndex, out var colorData))
+            {
+                return (colorData.DRed, colorData.DGreen, colorData.DBlue);
+            }
+            return (0, 0, 0);
+        }
+
+        private class ColorData
+        {
+            public string HexRed { get; set; }
+            public string HexGreen { get; set; }
+            public string HexBlue { get; set; }
+            public short DRed { get; set; }
+            public short DGreen { get; set; }
+            public short DBlue { get; set; }
+        }
     }
 }

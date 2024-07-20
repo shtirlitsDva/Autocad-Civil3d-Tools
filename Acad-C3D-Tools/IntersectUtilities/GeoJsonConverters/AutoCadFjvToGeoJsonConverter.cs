@@ -68,6 +68,13 @@ namespace IntersectUtilities
 
     public class PolylineFjvToGeoJsonPolygonConverter : IAutoCadFjvToGeoJsonConverter
     {
+        private FjvToGeoJsonConverterOptions _options;
+        public PolylineFjvToGeoJsonPolygonConverter(FjvToGeoJsonConverterOptions options = null)
+        {
+            if (options == null) _options = new FjvToGeoJsonConverterOptions();
+            else _options = options;
+        }
+
         public IEnumerable<GeoJsonFeature> Convert(Entity entity)
         {
             if (!(entity is Polyline pl))
@@ -87,22 +94,10 @@ namespace IntersectUtilities
                 Geometry = new GeoJsonGeometryPolygon() { },
             };
 
-            switch (GetPipeType(pl))
-            {
-                case PipeTypeEnum.Twin:
-                    feature.Properties.Add("color", "#FF00FF");
-                    break;
-                case PipeTypeEnum.Frem:
-                    feature.Properties.Add("color", "#FF0000");
-                    break;
-                case PipeTypeEnum.Retur:
-                    feature.Properties.Add("color", "#0000FF");
-                    break;
-                case PipeTypeEnum.Enkelt:
-                default:
-                    throw new System.Exception(
-                        $"{GetPipeType(pl)} of {pl.Handle} is not supported.");
-            }
+            var type = GetPipeType(pl);
+            var system = GetPipeSystem(pl);
+            short color = GetLayerColor(system, type);
+            feature.Properties["color"] = AutocadColors.GetHexColor(color);
 
             if (pl.Closed) throw new System.NotSupportedException(
                 $"Polyline {pl.Handle} is closed! Closed polylines are not supported yet!");
@@ -147,7 +142,20 @@ namespace IntersectUtilities
             List<double[][]> coordinatesGatherer = new List<double[][]>();
             double[][] coordinates = new double[points.Count][];
             for (int i = 0; i < points.Count; i++)
-                coordinates[i] = new double[] { points[i].X, points[i].Y };
+            {
+                switch (_options.CRS)
+                {
+                    case CRS.UTM32N:
+                        coordinates[i] = new double[] { points[i].X, points[i].Y };
+                        break;
+                    case CRS.WGS84:
+                        coordinates[i] = points[i].ToWGS84FromUtm32N(false);
+                        break;
+                    default:
+                        throw new System.Exception(
+                            $"Undefined CRS {_options.CRS} encountered! #476354");
+                }
+            }
             coordinatesGatherer.Add(coordinates);
             (feature.Geometry as GeoJsonGeometryPolygon).Coordinates = coordinatesGatherer.ToArray();
 
@@ -157,6 +165,13 @@ namespace IntersectUtilities
 
     public class BlockFjvToGeoJsonConverter : IAutoCadFjvToGeoJsonConverter
     {
+        private FjvToGeoJsonConverterOptions _options;
+        public BlockFjvToGeoJsonConverter(FjvToGeoJsonConverterOptions options = null)
+        {
+            if (options == null) _options = new FjvToGeoJsonConverterOptions();
+            else _options = options;
+        }
+
         public IEnumerable<GeoJsonFeature> Convert(Entity entity)
         {
             if (!(entity is BlockReference br))
@@ -486,8 +501,8 @@ namespace IntersectUtilities
                 {
                     Coordinate[] coordinates = new Coordinate[]
                     {
-                    new Coordinate(cadLine.StartPoint.X, cadLine.StartPoint.Y),
-                    new Coordinate(cadLine.EndPoint.X, cadLine.EndPoint.Y)
+                        new Coordinate(cadLine.StartPoint.X, cadLine.StartPoint.Y),
+                        new Coordinate(cadLine.EndPoint.X, cadLine.EndPoint.Y)
                     };
                     lineStrings.Add(new LineString(coordinates));
                 }
@@ -510,7 +525,22 @@ namespace IntersectUtilities
                 var union = CascadedPolygonUnion.Union(polygons.ToArray());
 
                 // Convert the union Polygon back to GeoJsonGeometryPolygon format
-                var coordinates = union.Coordinates.Select(c => new double[] { c.X, c.Y }).ToArray();
+                double[][] coordinates = union.Coordinates.Select(c => new double[] { c.X, c.Y }).ToArray();
+
+                switch (_options.CRS)
+                {
+                    case CRS.UTM32N:
+                        // already in UTM32N, no conversion needed
+                        break;
+                    case CRS.WGS84:
+                        for (int i = 0; i < coordinates.Length; i++)
+                            coordinates[i] = ToWGS84FromUtm32N(coordinates[i], false);
+                        break;
+                    default:
+                        throw new System.Exception(
+                            $"Undefined CRS {_options.CRS} encountered! #928347");
+                }
+
                 var geoJsonUnion = new GeoJsonGeometryPolygon
                 {
                     Coordinates = new double[][][] { coordinates }
@@ -527,16 +557,35 @@ namespace IntersectUtilities
         }
     }
 
+    public class FjvToGeoJsonConverterOptions
+    {
+        public CRS CRS { get; set; }
+
+        public FjvToGeoJsonConverterOptions()
+        {
+            CRS = CRS.UTM32N;
+        }
+    }
+
+    public enum CRS
+    {
+        UTM32N,
+        WGS84
+    }
+
     public static class FjvToGeoJsonConverterFactory
     {
-        public static IAutoCadFjvToGeoJsonConverter CreateConverter(Entity entity)
+        public static IAutoCadFjvToGeoJsonConverter CreateConverter(
+            Entity entity, FjvToGeoJsonConverterOptions options = null)
         {
+            if (options == null) options = new FjvToGeoJsonConverterOptions();
+
             switch (entity)
             {
                 case BlockReference _:
-                    return new BlockFjvToGeoJsonConverter();
+                    return new BlockFjvToGeoJsonConverter(options);
                 case Polyline _:
-                    return new PolylineFjvToGeoJsonPolygonConverter();
+                    return new PolylineFjvToGeoJsonPolygonConverter(options);
                 default:
                     prdDbg($"Unsupported AutoCAD entity type {entity.GetType()} encountered.");
                     return null;

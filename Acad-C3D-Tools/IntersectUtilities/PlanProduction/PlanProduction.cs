@@ -1687,9 +1687,6 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
 
-            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
-                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
-
             GeoJsonFeatureCollection gjfc = new GeoJsonFeatureCollection("FjernVarme");
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -1700,7 +1697,11 @@ namespace IntersectUtilities
 
                     foreach (var ent in ents)
                     {
-                        var converter = FjvToGeoJsonConverterFactory.CreateConverter(ent);
+                        var opts = new FjvToGeoJsonConverterOptions()
+                        {
+                            CRS = CRS.WGS84
+                        };
+                        var converter = FjvToGeoJsonConverterFactory.CreateConverter(ent, opts);
                         if (converter == null) continue;
                         var geoJsonFeature = converter.Convert(ent);
                         gjfc.Features.AddRange(geoJsonFeature);
@@ -1720,9 +1721,10 @@ namespace IntersectUtilities
 
             var options = new JsonSerializerOptions
             {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                Encoder = JavaScriptEncoder.Create(encoderSettings)
+                //WriteIndented = true,
+                //PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Encoder = JavaScriptEncoder.Create(encoderSettings),
+                Converters = { new JsonConverterDouble(8) }
             };
 
             string path = Path.GetDirectoryName(localDb.Filename);
