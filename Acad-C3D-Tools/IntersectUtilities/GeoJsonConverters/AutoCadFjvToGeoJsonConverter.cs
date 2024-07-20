@@ -89,6 +89,7 @@ namespace IntersectUtilities
                     { "Serie", GetPipeSeriesV2(pl).ToString() },
                     { "Type", GetPipeSystem(pl).ToString() },
                     { "KOd", GetPipeKOd(pl) },
+                    { "Handle", pl.Handle.ToString() },
                 },
 
                 Geometry = new GeoJsonGeometryPolygon() { },
@@ -191,6 +192,7 @@ namespace IntersectUtilities
                 { "Serie", PropertyReader.ReadComponentSeries(br, dt) },
                 { "Vinkel", ComponentSchedule.ReadComponentVinkel(br, dt) },
                 { "color", "#000000" },
+                { "Handle", br.Handle.ToString() }
             };
 
             string realName = br.RealName();

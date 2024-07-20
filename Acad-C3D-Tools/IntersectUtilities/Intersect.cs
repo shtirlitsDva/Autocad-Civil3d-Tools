@@ -3718,6 +3718,29 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test geometry of geojson
+                    string path = string.Empty;
+                    OpenFileDialog dialog = new OpenFileDialog()
+                    {
+                        Title = "Choose geojson file: ",
+                        DefaultExt = "geojson",
+                        Filter = "geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
+                        FilterIndex = 0
+                    };
+                    if (dialog.ShowDialog() == DialogResult.OK)
+                    {
+                        path = dialog.FileName;
+                    }
+                    else return;
+
+                    string json = File.ReadAllText(path);
+                    var reader = new NetTopologySuite.IO.GeoJsonReader();
+                    var features = reader.Read<NetTopologySuite.Features.FeatureCollection>(json);
+                    var geos = new NetTopologySuite.Geometries.GeometryCollection(
+                        features?.Select(x => x.Geometry).ToArray());
+                    prdDbg(geos.Centroid);
+                    #endregion
+
                     #region Test reference equality
                     //PromptSelectionResult acSSPrompt;
                     //acSSPrompt = ed.SelectImplied();

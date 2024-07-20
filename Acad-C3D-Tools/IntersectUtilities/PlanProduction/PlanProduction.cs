@@ -1724,7 +1724,7 @@ namespace IntersectUtilities
                 //WriteIndented = true,
                 //PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 Encoder = JavaScriptEncoder.Create(encoderSettings),
-                Converters = { new JsonConverterDouble(8) }
+                //Converters = { new JsonConverterDouble(8) }
             };
 
             string path = Path.GetDirectoryName(localDb.Filename);
