@@ -1508,7 +1508,7 @@ namespace IntersectUtilities
             string geoJsonFileName = Path.Combine(path, "ViewFrames.geojson");
 
             string json = JsonSerializer.Serialize(gjfc, options);
-            File.WriteAllText(geoJsonFileName, json);
+            File.WriteAllText(geoJsonFileName, json, new UTF8Encoding(false));
         }
 
         [CommandMethod("EXPORTVIEWFRAMESTODWG")]
@@ -1612,9 +1612,6 @@ namespace IntersectUtilities
 
                                                             if (rotationDegrees > 90 && rotationDegrees < 270)
                                                                 rotationRadians += Math.PI;
-
-                                                            if (name == "011")
-                                                                prdDbg($"Rad: {rotationRadians}, Deg: {rotationDegrees}");
 
                                                             text.Rotation = rotationRadians;
 
