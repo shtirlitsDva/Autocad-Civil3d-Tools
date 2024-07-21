@@ -98,7 +98,7 @@ namespace IntersectUtilities
             var type = GetPipeType(pl);
             var system = GetPipeSystem(pl);
             short color = GetLayerColor(system, type);
-            feature.Properties["color"] = AutocadColors.GetHexColor(color);
+            feature.Properties["color"] = AutocadColors.GetHexColor(color).ToLower();
 
             if (pl.Closed) throw new System.NotSupportedException(
                 $"Polyline {pl.Handle} is closed! Closed polylines are not supported yet!");
