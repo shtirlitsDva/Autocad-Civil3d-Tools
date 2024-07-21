@@ -1680,8 +1680,8 @@ namespace IntersectUtilities
             blockDb.Dispose();
         }
 
-        [CommandMethod("EXPORTFJVTOGEOJSON")]
-        public void exportfjvtogeojson3()
+        [CommandMethod("EXPORTFJVTOGEOJSONWGS84")]
+        public void exportfjvtogeojson3wgs84()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -1724,7 +1724,66 @@ namespace IntersectUtilities
                 //WriteIndented = true,
                 //PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 Encoder = JavaScriptEncoder.Create(encoderSettings),
-                //Converters = { new JsonConverterDouble(8) }
+                Converters = { new JsonConverterDouble(8) }
+            };
+
+            string path = Path.GetDirectoryName(localDb.Filename);
+
+            string geoJsonFileName = Path.Combine(path, "Fjernvarme.geojson");
+            string json = JsonSerializer.Serialize(gjfc, options);
+
+            try
+            {
+                File.WriteAllText(geoJsonFileName, json);
+            }
+            catch (System.IO.IOException)
+            {
+                prdDbg("File is locked for write! Abort operation.");
+                return;
+            }
+        }
+
+        [CommandMethod("EXPORTFJVTOGEOJSONUTM32N")]
+        public void exportfjvtogeojson3utm32N()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+
+            GeoJsonFeatureCollection gjfc = new GeoJsonFeatureCollection("FjernVarme");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var ents = localDb.GetFjvEntities(tx, true);
+
+                    foreach (var ent in ents)
+                    {
+                        var converter = FjvToGeoJsonConverterFactory.CreateConverter(ent);
+                        if (converter == null) continue;
+                        var geoJsonFeature = converter.Convert(ent);
+                        gjfc.Features.AddRange(geoJsonFeature);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+
+            var encoderSettings = new TextEncoderSettings();
+            encoderSettings.AllowRange(UnicodeRanges.All);
+
+            var options = new JsonSerializerOptions
+            {
+                //WriteIndented = true,
+                //PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Encoder = JavaScriptEncoder.Create(encoderSettings),
+                Converters = { new JsonConverterDouble(4) }
             };
 
             string path = Path.GetDirectoryName(localDb.Filename);

@@ -58,6 +58,8 @@ using IntersectUtilities.GraphClasses;
 using QuikGraph;
 using QuikGraph.Graphviz;
 using QuikGraph.Algorithms.Search;
+using System.Text.Json.Nodes;
+using NetTopologySuite.Features;
 
 [assembly: CommandClass(typeof(IntersectUtilities.Intersect))]
 
@@ -3735,10 +3737,48 @@ namespace IntersectUtilities
 
                     string json = File.ReadAllText(path);
                     var reader = new NetTopologySuite.IO.GeoJsonReader();
-                    var features = reader.Read<NetTopologySuite.Features.FeatureCollection>(json);
-                    var geos = new NetTopologySuite.Geometries.GeometryCollection(
-                        features?.Select(x => x.Geometry).ToArray());
-                    prdDbg(geos.Centroid);
+
+                    var geos = reader.Read<FeatureCollection>(json);
+                    foreach (IFeature geo in geos)
+                    {
+                        prdDbg($"{geo.Geometry.Centroid}");
+                    }
+
+                    #region Test writing polygon linerings
+                    //var geoJsonObj = JsonNode.Parse(json);
+                    //var features = geoJsonObj["features"].AsArray();
+
+                    //foreach (var feature in features)
+                    //{
+                    //    string handle = feature["properties"]["Handle"].ToString();
+                    //    //if (handle != "2978D") continue;
+
+                    //    try
+                    //    {
+                    //        var geometry = feature["geometry"];
+                    //        //var geom = reader.Read<NetTopologySuite.Geometries.Geometry>(geometry.ToString());
+                    //        var coordinates = geometry["coordinates"].AsArray();
+
+                    //        foreach (JsonArray sequence in coordinates.AsArray())
+                    //        {
+                    //            Polyline pline = new Polyline(sequence.Count);
+                    //            for (int i = 0; i < sequence.Count; i++)
+                    //            {
+                    //                var point = sequence[i];
+                    //                var val = point.Deserialize<double[]>();
+                    //                pline.AddVertexAt(
+                    //                    i, new Point2d(val), 0, 0, 0);
+                    //            }
+                    //            pline.AddEntityToDbModelSpace(localDb);
+                    //        }
+                    //    }
+                    //    catch (System.Exception ex)
+                    //    {
+                    //        prdDbg($"{handle}: {ex.Message}");
+                    //        //throw;
+                    //    }
+                    //} 
+                    #endregion
                     #endregion
 
                     #region Test reference equality

@@ -345,7 +345,7 @@ namespace IntersectUtilities
                             feature.Geometry = new GeoJsonGeometryPolygon();
                             List<double[][]> coordinatesGatherer = new List<double[][]>();
 
-                            int nrOfSamples = (int)(2 * Math.PI / 0.1);
+                            int nrOfSamples = (int)(2 * Math.PI / 0.5);
                             Point2dCollection points = new Point2dCollection(nrOfSamples);
 
                             Circle circle = new Circle(
@@ -524,10 +524,20 @@ namespace IntersectUtilities
             //Now do the final merging
             {
                 // Merge the polygons into a single polygon
-                var union = CascadedPolygonUnion.Union(polygons.ToArray());
+                var union = CascadedPolygonUnion.Union(polygons.ToArray()) as Polygon;
+                if (union == null)
+                    throw new System.Exception(
+                        $"Polygon union failed for {br.Handle}!");
 
-                // Convert the union Polygon back to GeoJsonGeometryPolygon format
-                double[][] coordinates = union.Coordinates.Select(c => new double[] { c.X, c.Y }).ToArray();
+                var shell = union.Shell.Coordinates
+                    .Select(c => new double[] { c.X, c.Y }).ToArray();
+
+                var holes = union.Holes
+                    .Select(h => h.Coordinates.Select(
+                        c => new double[] { c.X, c.Y }).ToArray());
+
+                var coordinates = new List<double[][]> { shell };
+                coordinates.AddRange(holes);
 
                 switch (_options.CRS)
                 {
@@ -535,8 +545,13 @@ namespace IntersectUtilities
                         // already in UTM32N, no conversion needed
                         break;
                     case CRS.WGS84:
-                        for (int i = 0; i < coordinates.Length; i++)
-                            coordinates[i] = ToWGS84FromUtm32N(coordinates[i], false);
+                        for (int i = 0; i < coordinates.Count; i++)
+                        {
+                            for (int j = 0; j < coordinates[i].Length; j++)
+                            {
+                                coordinates[i][j] = ToWGS84FromUtm32N(coordinates[i][j], false);
+                            }
+                        }
                         break;
                     default:
                         throw new System.Exception(
@@ -545,7 +560,7 @@ namespace IntersectUtilities
 
                 var geoJsonUnion = new GeoJsonGeometryPolygon
                 {
-                    Coordinates = new double[][][] { coordinates }
+                    Coordinates = coordinates.ToArray()
                 };
 
                 var feature = new GeoJsonFeature
