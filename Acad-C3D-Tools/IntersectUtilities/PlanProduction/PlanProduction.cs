@@ -1452,6 +1452,8 @@ namespace IntersectUtilities
 
                                         foreach (Entity vf in vfs)
                                         {
+                                            prdDbg($"Processing: {((ViewFrame)vf).Name}");
+                                            System.Windows.Forms.Application.DoEvents();
                                             var converter = ViewFrameToGeoJsonConverterFactory.CreateConverter(vf);
                                             if (converter == null) continue;
                                             var geoJsonFeatures = converter.Convert(vf);
