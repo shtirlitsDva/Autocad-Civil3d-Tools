@@ -21,6 +21,8 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
 
@@ -64,6 +66,19 @@ namespace IntersectUtilities.UtilsCommon
         public static bool is3D(this Point3d p) => p.Z.is3D();
         public static bool is3D(this PolylineVertex3d v) => v.Position.is3D();
         public static bool is2D(this double value) => atZero(value) || at99(value);
+        /// <summary>
+        /// Order of returned coordinates explained here:
+        /// https://macwright.com/lonlat/
+        /// GeoJson is lon, lat.
+        /// </summary>
+        /// <param name="latlon">If false, reverses the returned array to lon, lat.</param
+        public static double[] ToWGS84FromUtm32N(double X, double Y, bool latlon = true) =>
+            Extensions.ToWGS84FromUtm32N(new Point2d(X, Y), latlon);
+        /// <summary>
+        /// Coords must by X, Y (lat, long).
+        /// </summary>
+        public static double[] ToWGS84FromUtm32N(double[] coords, bool latlon = true) =>
+            Extensions.ToWGS84FromUtm32N(new Point2d(coords[0], coords[1]), latlon);
         public static void prdDbg(string msg = "") => Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n" + msg);
         public static void prdDbg(object obj)
         {
@@ -1420,11 +1435,16 @@ namespace IntersectUtilities.UtilsCommon
             double Y2 = targetP3d.Y;
             return Math.Sqrt(Math.Pow((X2 - X1), 2) + Math.Pow((Y2 - Y1), 2));
         }
-        public static double DistanceHorizontalTo(this PolylineVertex3d v1, PolylineVertex3d v2) => 
+        public static double DistanceHorizontalTo(this PolylineVertex3d v1, PolylineVertex3d v2) =>
             v1.Position.DistanceHorizontalTo(v2.Position);
         public static double Pow(this double value, double exponent)
         {
             return Math.Pow(value, exponent);
+        }
+        public static double TruncateToDecimalPlaces(double value, int decimalPlaces)
+        {
+            double factor = Math.Pow(10, decimalPlaces);
+            return Math.Truncate(value * factor) / factor;
         }
         public static double GetBulge(this ProfileCircular profileCircular, ProfileView profileView)
         {
@@ -2268,6 +2288,66 @@ namespace IntersectUtilities.UtilsCommon
         public static (long, long) Get2DKey(this Point3d p3d, double precision = 1000.0) =>
             ((long)(p3d.X * precision), (long)(p3d.Y * precision));
         public static Point2d To2D(this Point3d p3d) => new Point2d(p3d.X, p3d.Y);
+        /// <summary>
+        /// Order of returned coordinates explained here:
+        /// https://macwright.com/lonlat/
+        /// GeoJson is lon, lat.
+        /// </summary>
+        /// <param name="latlon">If false, reverses the returned array to lon, lat.</param>
+        public static double[] ToWGS84FromUtm32N(this Point3d p, bool latlon = true)
+        {
+            double easting = p.X; double northing = p.Y; string zone = "32N";
+
+            int ZoneNumber = int.Parse(zone.Substring(0, zone.Length - 1));
+            //char ZoneLetter = zone[zone.Length - 1];
+
+            double a = 6378137; // WGS-84 ellipsiod parameters
+            double eccSquared = 0.00669438;
+            double eccPrimeSquared;
+            double e1 = (1 - Math.Sqrt(1 - eccSquared)) / (1 + Math.Sqrt(1 - eccSquared));
+
+            double N1, T1, C1, R1, D, M;
+            double LongOrigin;
+            double mu, phi1Rad;
+
+            double x = easting - 500000.0; // remove 500,000 meter offset for longitude
+            double y = northing;
+
+            LongOrigin = (ZoneNumber - 1) * 6 - 180 + 3;  //+3 puts origin in middle of zone
+
+            eccPrimeSquared = (eccSquared) / (1 - eccSquared);
+
+            M = y / 0.9996;
+            mu = M / (a * (1 - eccSquared / 4 - 3 * eccSquared * eccSquared / 64 - 5 * eccSquared * eccSquared * eccSquared / 256));
+
+            phi1Rad = mu + (3 * e1 / 2 - 27 * Math.Pow(e1, 3) / 32) * Math.Sin(2 * mu) +
+                     (21 * e1 * e1 / 16 - 55 * Math.Pow(e1, 4) / 32) * Math.Sin(4 * mu) +
+                     (151 * Math.Pow(e1, 3) / 96) * Math.Sin(6 * mu);
+
+            N1 = a / Math.Sqrt(1 - eccSquared * Math.Sin(phi1Rad) * Math.Sin(phi1Rad));
+            T1 = Math.Tan(phi1Rad) * Math.Tan(phi1Rad);
+            C1 = eccPrimeSquared * Math.Cos(phi1Rad) * Math.Cos(phi1Rad);
+            R1 = a * (1 - eccSquared) / Math.Pow(1 - eccSquared * Math.Sin(phi1Rad) * Math.Sin(phi1Rad), 1.5);
+            D = x / (N1 * 0.9996);
+
+            double lat = phi1Rad - (N1 * Math.Tan(phi1Rad) / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * eccPrimeSquared) * Math.Pow(D, 4) / 24 +
+                                                           (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * eccPrimeSquared - 3 * C1 * C1) * Math.Pow(D, 6) / 720);
+            lat = lat * 180.0 / Math.PI;
+
+            double lon = (D - (1 + 2 * T1 + C1) * Math.Pow(D, 3) / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * eccPrimeSquared + 24 * T1 * T1) * Math.Pow(D, 5) / 120) / Math.Cos(phi1Rad);
+            lon = LongOrigin + (lon * 180.0 / Math.PI);
+
+            if (latlon) return new double[] { lat, lon };
+            else return new double[] { lon, lat };
+        }
+        /// <summary>
+        /// Order of returned coordinates explained here:
+        /// https://macwright.com/lonlat/
+        /// GeoJson is lon, lat.
+        /// </summary>
+        /// <param name="latlon">If false, reverses the returned array to lon, lat.</param
+        public static double[] ToWGS84FromUtm32N(this Point2d p, bool latlon = true) => 
+            ToWGS84FromUtm32N(p.To3D(), latlon);
         public static bool IsOnCurve(this Point3d pt, Curve cv, double tol)
         {
             try
@@ -3291,6 +3371,26 @@ namespace IntersectUtilities.UtilsCommon
             return xHash ^ yHash;
         }
     }
+    public class JsonConverterDouble : JsonConverter<double>
+    {
+        private readonly int _decimalPlaces;
+
+        public JsonConverterDouble(int decimalPlaces)
+        {
+            _decimalPlaces = decimalPlaces;
+        }
+
+        public override double Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            return reader.GetDouble();
+        }
+
+        public override void Write(Utf8JsonWriter writer, double value, JsonSerializerOptions options)
+        {
+            string format = $"0.{new string('#', _decimalPlaces)}";
+            writer.WriteRawValue(value.ToString(format, CultureInfo.InvariantCulture));
+        }
+    }
     public static class CsvData
     {
         private static readonly Dictionary<string, (DataTable data, DateTime lastModified)> cache =
@@ -3384,5 +3484,70 @@ namespace IntersectUtilities.UtilsCommon
         /// Anvendelseskoder for enheder fra BBR registeret
         /// </summary>
         public static DataTable EnhKoder { get => GetDataTable("EnhKoder"); }
+    }
+    public static class AutocadColors
+    {
+        private static Dictionary<short, ColorData> _colorDictionary;
+
+        static AutocadColors()
+        {
+            _colorDictionary = new Dictionary<short, ColorData>();
+            LoadColorData();
+        }
+
+        private static void LoadColorData()
+        {
+            var lines = File.ReadAllLines(
+                @"X:\AutoCAD DRI - 01 Civil 3D\AutoCAD Colors\AutoCAD Color Index RGB Equivalents.csv");
+            foreach (var line in lines.Skip(1))
+            {
+                var parts = line.Split(';');
+                var colorIndex = short.Parse(parts[0]);
+                var hexRed = parts[1];
+                var hexGreen = parts[2];
+                var hexBlue = parts[3];
+                var dRed = short.Parse(parts[4]);
+                var dGreen = short.Parse(parts[5]);
+                var dBlue = short.Parse(parts[6]);
+
+                _colorDictionary[colorIndex] = new ColorData
+                {
+                    HexRed = hexRed,
+                    HexGreen = hexGreen,
+                    HexBlue = hexBlue,
+                    DRed = dRed,
+                    DGreen = dGreen,
+                    DBlue = dBlue
+                };
+            }
+        }
+
+        public static string GetHexColor(short colorIndex)
+        {
+            if (_colorDictionary.TryGetValue(colorIndex, out var colorData))
+            {
+                return $"#{colorData.HexRed}{colorData.HexGreen}{colorData.HexBlue}";
+            }
+            return null;
+        }
+
+        public static (short red, short green, short blue) GetRGBColor(short colorIndex)
+        {
+            if (_colorDictionary.TryGetValue(colorIndex, out var colorData))
+            {
+                return (colorData.DRed, colorData.DGreen, colorData.DBlue);
+            }
+            return (0, 0, 0);
+        }
+
+        private class ColorData
+        {
+            public string HexRed { get; set; }
+            public string HexGreen { get; set; }
+            public string HexBlue { get; set; }
+            public short DRed { get; set; }
+            public short DGreen { get; set; }
+            public short DBlue { get; set; }
+        }
     }
 }

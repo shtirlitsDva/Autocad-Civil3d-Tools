@@ -67,7 +67,7 @@ namespace IntersectUtilities
         public IEnumerable<GeoJsonFeature> Convert(Entity entity)
         {
             if (!(entity is ViewFrame vf))
-                throw new ArgumentException($"Entity {entity.Handle} is not a polyline!");
+                throw new ArgumentException($"Entity {entity.Handle} is not a ViewFrame!");
 
             var feature = new GeoJsonFeature
             {
@@ -79,6 +79,7 @@ namespace IntersectUtilities
                 Geometry = new GeoJsonGeometryLineString() { },
             };
 
+            double rotation;
             DBObjectCollection dboc1 = new DBObjectCollection();
             vf.Explode(dboc1);
             foreach (var item in dboc1)
@@ -107,8 +108,22 @@ namespace IntersectUtilities
                                         break;
                                 }
                                 ((GeoJsonGeometryLineString)feature.Geometry).Coordinates[i]
-                                    = new double[] { p.X, p.Y };
+                                    = p.ToWGS84FromUtm32N(false); //GeoJson is lonlat
                             }
+
+                            //Determine rotation
+                            Point3d p1, p2;
+                            p1 = pline.GetPoint3dAt(0);
+                            p2 = pline.GetPoint3dAt(1);
+                            rotation = Math.Atan2(p2.Y - p1.Y, p2.X - p1.X) * 180 / Math.PI;
+                            feature.Properties["Rotation"] = rotation;
+
+                            //Determine centroid
+                            p2 = pline.GetPoint3dAt(2);
+                            double midX = (p1.X + p2.X) / 2;
+                            double midY = (p1.Y + p2.Y) / 2;
+                            feature.Properties["Centroid"] = 
+                                ToWGS84FromUtm32N(midX, midY, false); //GeoJson is lonlat
                         }
                     }
                 }

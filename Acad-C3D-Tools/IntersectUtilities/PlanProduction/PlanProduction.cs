@@ -54,9 +54,9 @@ using IntersectUtilities.DynamicBlocks;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
 using Plane = Autodesk.AutoCAD.Geometry.Plane;
-using netDxf.Entities;
 using NetTopologySuite.Triangulate;
 using IntersectUtilities.LongitudinalProfiles;
+using NetTopologySuite.Algorithm;
 
 namespace IntersectUtilities
 {
@@ -606,7 +606,7 @@ namespace IntersectUtilities
             }
             if (hasMidt) createdetailingmethod(dro, localDb);
             else createdetailingpreliminarymethod(dro, localDb);
-            
+
             //Auto stagger all labels to right
             staggerlabelsall();
             //Draw rectangles representing viewports around longitudinal profiles
@@ -1454,8 +1454,21 @@ namespace IntersectUtilities
                                         {
                                             var converter = ViewFrameToGeoJsonConverterFactory.CreateConverter(vf);
                                             if (converter == null) continue;
-                                            var geoJsonFeature = converter.Convert(vf);
-                                            gjfc.Features.AddRange(geoJsonFeature);
+                                            var geoJsonFeatures = converter.Convert(vf);
+                                            gjfc.Features.AddRange(geoJsonFeatures);
+
+                                            #region Debug
+                                            ////Debug
+                                            //var f = geoJsonFeatures.First();
+                                            //double rotationRad = (double)f.Properties["Rotation"] * (Math.PI / 180.0);
+                                            //Point2d startPoint = new Point2d((double[])f.Properties["Centroid"]);
+                                            //Point3d endPoint = new Point3d(
+                                            //    startPoint.X + 25 * Math.Cos(rotationRad),
+                                            //    startPoint.Y + 25 * Math.Sin(rotationRad), 0);
+
+                                            //Line line = new Line(startPoint.To3D(), endPoint);
+                                            //line.AddEntityToDbModelSpace(localDb); 
+                                            #endregion
                                         }
                                     }
                                     catch (System.Exception)
@@ -1487,15 +1500,15 @@ namespace IntersectUtilities
 
             var options = new JsonSerializerOptions
             {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                //WriteIndented = true,
+                Converters = { new JsonConverterDouble(8) }
             };
 
             string path = Path.GetDirectoryName(localDb.Filename);
             string geoJsonFileName = Path.Combine(path, "ViewFrames.geojson");
 
             string json = JsonSerializer.Serialize(gjfc, options);
-            File.WriteAllText(geoJsonFileName, json);
+            File.WriteAllText(geoJsonFileName, json, new UTF8Encoding(false));
         }
 
         [CommandMethod("EXPORTVIEWFRAMESTODWG")]
@@ -1507,7 +1520,7 @@ namespace IntersectUtilities
             Database blockDb = new Database(false, true);
             if (!File.Exists(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt"))
                 throw new System.Exception(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt does not exist!");
-            blockDb.ReadDwgFile(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt", 
+            blockDb.ReadDwgFile(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt",
                 FileOpenMode.OpenForReadAndAllShare, false, null);
 
             string lyrName = "0-ViewFrames";
@@ -1600,9 +1613,6 @@ namespace IntersectUtilities
                                                             if (rotationDegrees > 90 && rotationDegrees < 270)
                                                                 rotationRadians += Math.PI;
 
-                                                            if (name == "011")
-                                                                prdDbg($"Rad: {rotationRadians}, Deg: {rotationDegrees}");
-
                                                             text.Rotation = rotationRadians;
 
                                                             Extents3d extents = newPline.GeometricExtents;
@@ -1610,7 +1620,7 @@ namespace IntersectUtilities
                                                                 (extents.MaxPoint.X + extents.MinPoint.X) / 2.0,
                                                                 (extents.MaxPoint.Y + extents.MinPoint.Y) / 2.0,
                                                                 0);
-                                                            
+
                                                             text.Location = center;
                                                             text.Attachment = AttachmentPoint.MiddleCenter;
 
@@ -1667,15 +1677,75 @@ namespace IntersectUtilities
             blockDb.Dispose();
         }
 
-        [CommandMethod("EXPORTFJVTOGEOJSON")]
-        public void exportfjvtogeojson3()
+        [CommandMethod("EXPORTFJVTOGEOJSONWGS84")]
+        public void exportfjvtogeojson3wgs84()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
 
-            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
-                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+            GeoJsonFeatureCollection gjfc = new GeoJsonFeatureCollection("FjernVarme");
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var ents = localDb.GetFjvEntities(tx, true);
+
+                    foreach (var ent in ents)
+                    {
+                        var opts = new FjvToGeoJsonConverterOptions()
+                        {
+                            CRS = CRS.WGS84
+                        };
+                        var converter = FjvToGeoJsonConverterFactory.CreateConverter(ent, opts);
+                        if (converter == null) continue;
+                        var geoJsonFeature = converter.Convert(ent);
+                        gjfc.Features.AddRange(geoJsonFeature);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+
+            var encoderSettings = new TextEncoderSettings();
+            encoderSettings.AllowRange(UnicodeRanges.All);
+
+            var options = new JsonSerializerOptions
+            {
+                //WriteIndented = true,
+                //PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Encoder = JavaScriptEncoder.Create(encoderSettings),
+                Converters = { new JsonConverterDouble(8) }
+            };
+
+            string path = Path.GetDirectoryName(localDb.Filename);
+
+            string geoJsonFileName = Path.Combine(path, "Fjernvarme.geojson");
+            string json = JsonSerializer.Serialize(gjfc, options);
+
+            try
+            {
+                File.WriteAllText(geoJsonFileName, json);
+            }
+            catch (System.IO.IOException)
+            {
+                prdDbg("File is locked for write! Abort operation.");
+                return;
+            }
+        }
+
+        [CommandMethod("EXPORTFJVTOGEOJSONUTM32N")]
+        public void exportfjvtogeojson3utm32N()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
 
             GeoJsonFeatureCollection gjfc = new GeoJsonFeatureCollection("FjernVarme");
 
@@ -1707,9 +1777,10 @@ namespace IntersectUtilities
 
             var options = new JsonSerializerOptions
             {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                Encoder = JavaScriptEncoder.Create(encoderSettings)
+                //WriteIndented = true,
+                //PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Encoder = JavaScriptEncoder.Create(encoderSettings),
+                Converters = { new JsonConverterDouble(4) }
             };
 
             string path = Path.GetDirectoryName(localDb.Filename);
