@@ -104,8 +104,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             pl.CheckOrOpenForWrite(); 
                             pl.ReverseCurve();
 #if DEBUG
-                            Line l = new Line(Point3d.Origin, pl.GetPointAtDist(pl.Length / 2));
-                            l.AddEntityToDbModelSpace(Application.DocumentManager.MdiActiveDocument.Database);
+                            //Line l = new Line(Point3d.Origin, pl.GetPointAtDist(pl.Length / 2));
+                            //l.AddEntityToDbModelSpace(Application.DocumentManager.MdiActiveDocument.Database);
 #endif
                         }
                         break;
@@ -121,8 +121,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             pl.CheckOrOpenForWrite();
                             pl.ReverseCurve();
 #if DEBUG
-                            Line l = new Line(Point3d.Origin, pl.GetPointAtDist(pl.Length / 2));
-                            l.AddEntityToDbModelSpace(Application.DocumentManager.MdiActiveDocument.Database);
+                            //Line l = new Line(Point3d.Origin, pl.GetPointAtDist(pl.Length / 2));
+                            //l.AddEntityToDbModelSpace(Application.DocumentManager.MdiActiveDocument.Database);
 #endif
                         }
                         break;
