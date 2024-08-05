@@ -54,6 +54,7 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using IntersectUtilities.DynamicBlocks;
 
 using Autodesk.Aec.DatabaseServices;
+using Microsoft.Office.Interop.Excel;
 
 namespace IntersectUtilities
 {
@@ -64,16 +65,28 @@ namespace IntersectUtilities
 
     public class ViewFrameToGeoJsonLineStringConverter : IAutoCadVFToGeoJsonConverter
     {
+        private static string nrReg = @"^\d{2,3}";
+
         public IEnumerable<GeoJsonFeature> Convert(Entity entity)
         {
             if (!(entity is ViewFrame vf))
                 throw new ArgumentException($"Entity {entity.Handle} is not a ViewFrame!");
 
+            var al = vf.AlignmentId.QOpenForRead() as Alignment;
+            string alignmentName = al.Name;
+
+            Match match = Regex.Match(alignmentName, nrReg);
+            if (!match.Success) throw new System.Exception(
+                $"Alignment name {alignmentName} does not contain a number!");
+
+            int pipelineNumber = int.Parse(match.Value);
+            
             var feature = new GeoJsonFeature
             {
                 Properties = new Dictionary<string, object>
                 {
                     { "DwgNumber", vf.Name },
+                    { "PipelineNumber", pipelineNumber },
                 },
 
                 Geometry = new GeoJsonGeometryLineString() { },

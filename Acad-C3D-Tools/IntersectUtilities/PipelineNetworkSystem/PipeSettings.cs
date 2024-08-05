@@ -1,4 +1,7 @@
-﻿using IntersectUtilities.PipeScheduleV2;
+﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.DatabaseServices;
+
+using IntersectUtilities.PipeScheduleV2;
 
 using System;
 using System.Collections;
@@ -8,6 +11,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using System.IO;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -15,6 +19,19 @@ namespace IntersectUtilities.PipelineNetworkSystem
 {
     public class PipeSettingsCollection : IDictionary<string, PipeSettings>
     {
+        //Common settings
+        public static string SettingsLayerName = "0-PIPESETTINGS";
+        private static string PipeSettingsFileName = "_PipeSettings.json";
+        public static string GetSettingsFileNameWithPath()
+        {
+            Database localDb = Application.DocumentManager.MdiActiveDocument.Database;
+            string dbFilenameWithPath = localDb.OriginalFileName;
+            string path = Path.GetDirectoryName(dbFilenameWithPath);
+            string dbFileName = Path.GetFileNameWithoutExtension(dbFilenameWithPath);
+            string settingsFileName = Path.Combine(path, dbFileName + PipeSettingsFileName);
+            return settingsFileName;
+        }
+
         [JsonInclude]
         public Dictionary<string, PipeSettings> _dictionary;
         public PipeSettingsCollection()
@@ -28,12 +45,31 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 this, new JsonSerializerOptions { WriteIndented = true });
             System.IO.File.WriteAllText(settingsFileName, jsonString);
         }
+        public static PipeSettingsCollection Load()
+        {
+            string f = GetSettingsFileNameWithPath();
+            return Load(f);
+        }
         public static PipeSettingsCollection Load(string settingsFileName)
         {
-            string jsonString = System.IO.File.ReadAllText(settingsFileName);
-            PipeSettingsCollection settings = 
-                JsonSerializer.Deserialize<PipeSettingsCollection>(jsonString);
-            return settings;
+            if (string.IsNullOrEmpty(settingsFileName)) throw new Exception("Settings file name is empty!");
+            if (File.Exists(settingsFileName))
+            {
+                string jsonString = System.IO.File.ReadAllText(settingsFileName);
+                PipeSettingsCollection settings =
+                    JsonSerializer.Deserialize<PipeSettingsCollection>(jsonString);
+                return settings;
+            }
+            else
+            {
+                prdDbg("Settings file missing! Creating...");
+                var defaultSettingsCollection = new PipeSettingsCollection();
+                var defaultSettings = defaultSettingsCollection["Default"];
+                defaultSettings.UpdateSettings();
+                defaultSettingsCollection.Save(settingsFileName);
+                prdDbg($"Created default settings file:\n\"{settingsFileName}\".");
+                return defaultSettingsCollection;
+            }
         }
         public IEnumerable<string> ListSettings() => _dictionary.Keys;
         #region Interface Members

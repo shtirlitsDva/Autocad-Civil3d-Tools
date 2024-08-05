@@ -99,9 +99,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 switch (item)
                 {
                     case Polyline pl:
-                        if (!isPolylineOrientedCorrectly(pl, false)) 
-                        { 
-                            pl.CheckOrOpenForWrite(); 
+                        if (!isPolylineOrientedCorrectly(pl, false))
+                        {
+                            pl.CheckOrOpenForWrite();
                             pl.ReverseCurve();
 #if DEBUG
                             //Line l = new Line(Point3d.Origin, pl.GetPointAtDist(pl.Length / 2));
@@ -117,7 +117,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 {
                     case Polyline pl:
                         if (!isPolylineOrientedCorrectly(pl, true))
-                        { 
+                        {
                             pl.CheckOrOpenForWrite();
                             pl.ReverseCurve();
 #if DEBUG
@@ -152,7 +152,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             if (sizes.Sizes.First().System == PipeSystemEnum.Stål &&
                 sizes.Sizes.Last().System == PipeSystemEnum.Stål)
             {
-                if (sizes.Sizes.First().DN > sizes.Sizes.Last().DN) return this.StartPoint; 
+                if (sizes.Sizes.First().DN > sizes.Sizes.Last().DN) return this.StartPoint;
                 else return this.EndPoint;
             }
             else if (sizes.Sizes.First().System == PipeSystemEnum.Stål) return this.StartPoint;
@@ -199,6 +199,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
             Database localDb = ents.FirstOrDefault()?.Database;
             Transaction tx = localDb.TransactionManager.TopTransaction;
 
+            PipeSettingsCollection psc = PipeSettingsCollection.Load();
+
             // First from right to left
             double curStart = 0;
             double curEnd = this.GetStationAtPoint(connectionLocation);
@@ -223,12 +225,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 {
                     Polyline pl = orderedPlines.Dequeue();
 
-                    
+
                     double plLength = pl.Length;
 
-                    
+
                 }
-            }   
+            }
         }
     }
     public class PipelineV2Alignment : PipelineV2Base
@@ -255,7 +257,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
         }
         public override double GetPolylineStartStation(Polyline pl) => al.StationAtPoint(pl.StartPoint);
-        public override double GetPolylineMiddleStation(Polyline pl) => 
+        public override double GetPolylineMiddleStation(Polyline pl) =>
             al.StationAtPoint(pl.GetPointAtDist(pl.Length / 2));
         public override double GetPolylineEndStation(Polyline pl) => al.StationAtPoint(pl.EndPoint);
         public override double GetBlockStation(BlockReference br) => al.StationAtPoint(br.Position);
@@ -278,26 +280,25 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 if (plRef != null) { plRef.UpgradeOpen(); plRef.Erase(true); }
             }
         }
+        /// <summary>
+        /// The entities are ordered by station (from start to end).
+        /// Assuming start is always less than end.
+        /// </summary>
         public override IEnumerable<Entity> GetEntitiesWithinStations(double start, double end)
         {
-            foreach (var ent in this.ents)
-            {
-                switch (ent)
+            return this.ents
+                .Select(ent =>
                 {
-                    case Polyline pl:
-                        {
-                            double st = al.StationAtPoint(pl.GetPointAtDist(pl.Length / 2));
-                            if (st >= start && st <= end) yield return ent;
-                        }
-                        break;
-                    case BlockReference br:
-                        {
-                            double st = al.StationAtPoint(br.Position);
-                            if (st >= start && st <= end) yield return ent;
-                        }
-                        break;
-                }
-            }
+                    double station = double.NaN;
+                    if (ent is Polyline pl)
+                        station = al.StationAtPoint(pl.GetPointAtDist(pl.Length / 2));
+                    else if (ent is BlockReference br)
+                        station = al.StationAtPoint(br.Position);
+                    return new { Entity = ent, Station = station };
+                })
+                .Where(e => e.Station >= start && e.Station <= end)
+                .OrderBy(e => e.Station)
+                .Select(e => e.Entity);
         }
         public override Point3d GetConnectionLocationToParent(IPipelineV2 parent, double tol)
         {
