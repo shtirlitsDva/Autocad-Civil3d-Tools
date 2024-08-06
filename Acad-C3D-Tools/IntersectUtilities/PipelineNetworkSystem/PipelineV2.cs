@@ -94,6 +94,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
             var againstFlow = GetEntitiesWithinStations(0, st);
             var withFlow = GetEntitiesWithinStations(st, EndStation);
 
+            //UtilsCommon.Utils.Debug.CreateDebugLine(
+            //    connectionLocation, AutocadStdColors["red"]);
+
             foreach (var item in againstFlow)
             {
                 switch (item)
@@ -197,40 +200,28 @@ namespace IntersectUtilities.PipelineNetworkSystem
             if (psh == null) psh = new PropertySetHelper(ents?.FirstOrDefault()?.Database);
 
             Database localDb = ents.FirstOrDefault()?.Database;
-            Transaction tx = localDb.TransactionManager.TopTransaction;
 
             PipeSettingsCollection psc = PipeSettingsCollection.Load();
 
-            // First from right to left
-            double curStart = 0;
-            double curEnd = this.GetStationAtPoint(connectionLocation);
+            PipesLengthCorrectionHandler plch;
+            double curStart;
+            double curEnd;
 
-            CorrectLengths(curStart, curEnd, true);
+            // First from right to left
+            curStart = 0;
+            curEnd = this.GetStationAtPoint(connectionLocation);
+
+            plch = new PipesLengthCorrectionHandler(
+                this.GetEntitiesWithinStations(curStart, curEnd), true, psc, connectionLocation);
+            plch.CorrectLengths(localDb);
 
             // Then from left to right
             curStart = this.GetStationAtPoint(connectionLocation);
             curEnd = this.EndStation;
 
-            CorrectLengths(curStart, curEnd, false);
-
-            void CorrectLengths(double start, double end, bool againstStationsOrder)
-            {
-                var query = this.GetEntitiesWithinStations(start, end)
-                    .Where(x => x is Polyline).Cast<Polyline>();
-                if (againstStationsOrder) query = query.OrderByDescending(x => this.GetPolylineMiddleStation(x));
-                else query = query.OrderBy(x => this.GetPolylineMiddleStation(x));
-                Queue<Polyline> orderedPlines = new Queue<Polyline>(query);
-
-                while (orderedPlines.Count > 0)
-                {
-                    Polyline pl = orderedPlines.Dequeue();
-
-
-                    double plLength = pl.Length;
-
-
-                }
-            }
+            plch = new PipesLengthCorrectionHandler(
+                this.GetEntitiesWithinStations(curStart, curEnd), false, psc, connectionLocation);
+            plch.CorrectLengths(localDb);
         }
     }
     public class PipelineV2Alignment : PipelineV2Base
@@ -296,9 +287,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         station = al.StationAtPoint(br.Position);
                     return new { Entity = ent, Station = station };
                 })
-                .Where(e => e.Station >= start && e.Station <= end)
-                .OrderBy(e => e.Station)
-                .Select(e => e.Entity);
+                .Where(x => x.Station >= start && x.Station <= end)
+                .OrderBy(x => x.Station)
+                .Select(x => x.Entity);
         }
         public override Point3d GetConnectionLocationToParent(IPipelineV2 parent, double tol)
         {

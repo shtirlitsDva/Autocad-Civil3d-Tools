@@ -331,8 +331,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     else // Root case
                     {
                         Point3d connectionLocation = Point3d.Origin;
-                        if (currentNode.Children.Count == 0) connectionLocation = 
-                                currentPipeline.GetLocationForMaxDN();
+                        if (currentNode.Children.Count == 0)
+                        {
+                            connectionLocation = currentPipeline.GetLocationForMaxDN();
+                            currentPipeline.AutoReversePolylines(connectionLocation);
+                        }
                         else
                         {
                             if (currentNode.Children.Any(
@@ -344,7 +347,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             else
                             {
                                 connectionLocation = currentPipeline.GetLocationForMaxDN();
-                                currentPipeline.AutoReversePolylines(connectionLocation); 
+                                currentPipeline.AutoReversePolylines(connectionLocation);
                             }
                         }
                     }

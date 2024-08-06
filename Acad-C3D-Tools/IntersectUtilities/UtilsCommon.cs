@@ -377,6 +377,7 @@ namespace IntersectUtilities.UtilsCommon
             }
             return station;
         }
+        #region Enums
         public enum EndType
         {
             None,            //0:
@@ -506,6 +507,17 @@ namespace IntersectUtilities.UtilsCommon
             Stikafgrening,
             Muffetee,
             Materialeskift,
+        }
+        #endregion
+        public static class Debug
+        {
+            public static void CreateDebugLine(Point3d end, Color color)
+            {
+                Database db = Application.DocumentManager.MdiActiveDocument.Database;
+                Line line = new Line(Point3d.Origin, end);
+                line.Color = color;
+                line.AddEntityToDbModelSpace(db);
+            }
         }
     }
     public static class UtilsDataTables
@@ -2346,7 +2358,7 @@ namespace IntersectUtilities.UtilsCommon
         /// GeoJson is lon, lat.
         /// </summary>
         /// <param name="latlon">If false, reverses the returned array to lon, lat.</param
-        public static double[] ToWGS84FromUtm32N(this Point2d p, bool latlon = true) => 
+        public static double[] ToWGS84FromUtm32N(this Point2d p, bool latlon = true) =>
             ToWGS84FromUtm32N(p.To3D(), latlon);
         public static bool IsOnCurve(this Point3d pt, Curve cv, double tol)
         {

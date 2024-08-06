@@ -1277,8 +1277,6 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
-
-            Application.DocumentManager.MdiActiveDocument.Editor.Regen();
         }
 
         [CommandMethod("decoratepolylines")]

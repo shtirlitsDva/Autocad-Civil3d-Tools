@@ -350,6 +350,8 @@
     <Compile Include="MoreLinq\MoreLinq.cs" />
     <Compile Include="ODDataConverter.cs" />
     <Compile Include="Pipeline.cs" />
+    <Compile Include="PipelineNetworkSystem\PipelineSegment.cs" />
+    <Compile Include="PipelineNetworkSystem\PipesLengthCorrectionHandler.cs" />
     <Compile Include="PipelineNetworkSystem\PipelineNetwork.cs" />
     <Compile Include="PipelineNetworkSystem\PipeSettingsCommands.cs" />
     <Compile Include="PipelineNetworkSystem\PipelineNetworkCommands.cs" />
