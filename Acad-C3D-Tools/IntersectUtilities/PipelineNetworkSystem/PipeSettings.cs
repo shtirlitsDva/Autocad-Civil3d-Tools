@@ -72,6 +72,24 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
         }
         public IEnumerable<string> ListSettings() => _dictionary.Keys;
+        internal PipeSettings DetermineSettingsForPipe(Polyline pline)
+        {
+            return _dictionary["Default"];
+        }
+        internal double GetSettingsLength(Polyline pline)
+        {
+            PipeSettings pss = DetermineSettingsForPipe(pline);
+            var system = "PipeType" + 
+                PipeScheduleV2.PipeScheduleV2.GetSystemString(
+                PipeScheduleV2.PipeScheduleV2.GetPipeSystem(pline));
+            var typeSettings = pss.Settings[system];
+            var type = PipeScheduleV2.PipeScheduleV2.GetPipeType(pline, true);
+            var sizeSettings = typeSettings.Settings[type];
+            var dn = PipeScheduleV2.PipeScheduleV2.GetPipeDN(pline);
+            var length = sizeSettings.Settings[dn];
+            return length;
+        }
+
         #region Interface Members
         public PipeSettings this[string key] { get => _dictionary[key]; set => _dictionary[key] = value; }
         public ICollection<string> Keys => _dictionary.Keys;
@@ -101,7 +119,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
         [JsonInclude]
         public string Name { get; set; }
         [JsonInclude]
-        public Dictionary<string, PipeSettingSystem> Settings = new Dictionary<string, PipeSettingSystem>();
+        public Dictionary<string, PipeSettingSystem> Settings = 
+            new Dictionary<string, PipeSettingSystem>();
         public PipeSettings() { }
         public PipeSettings(string name)
         {

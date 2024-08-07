@@ -15,14 +15,14 @@ namespace IntersectUtilities.PipelineNetworkSystem
 {
     internal class PipelineSegment
     {
-        private List<Entity> _ents;
+        private readonly Entity[] _ents;
         public int UnprocessedPolylines { get; private set; }
         private int[] _polyIndici;
         private int _currentPolyIndex = -1;
 
         public PipelineSegment(List<Entity> segmentMembers)
-        { 
-            _ents = segmentMembers;
+        {
+            _ents = segmentMembers.ToArray();
             UnprocessedPolylines = _ents.Count(x => x is Polyline);
             _polyIndici = _ents
                 .Select((x, i) => new { x, i })
@@ -36,6 +36,13 @@ namespace IntersectUtilities.PipelineNetworkSystem
             if (_currentPolyIndex >= _polyIndici.Length) return null;
             UnprocessedPolylines--;
             return _ents[_polyIndici[_currentPolyIndex]] as Polyline;
+        }
+
+        internal Entity PeekNextEntity()
+        {
+            int idx = _polyIndici[_currentPolyIndex] + 1;
+            if (idx >= _ents.Length) return null;
+            return _ents[idx];
         }
     }
     internal static class PipelineSegmentFactory
