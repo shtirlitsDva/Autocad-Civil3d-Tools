@@ -161,7 +161,7 @@ namespace IntersectUtilities
                     pn.CreatePipelineNetwork(ents, als);
                     pn.CreatePipelineGraph();
                     //pn.AutoReversePolylines();
-
+                    pn.AutoCorrectLengths();
                 }
                 catch (System.Exception ex)
                 {

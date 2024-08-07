@@ -212,7 +212,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             curEnd = this.GetStationAtPoint(connectionLocation);
 
             plch = new PipesLengthCorrectionHandler(
-                this.GetEntitiesWithinStations(curStart, curEnd), true, psc, connectionLocation);
+                this.GetEntitiesWithinStations(curStart, curEnd), true, psc);
             plch.CorrectLengths(localDb);
 
             // Then from left to right
@@ -220,7 +220,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             curEnd = this.EndStation;
 
             plch = new PipesLengthCorrectionHandler(
-                this.GetEntitiesWithinStations(curStart, curEnd), false, psc, connectionLocation);
+                this.GetEntitiesWithinStations(curStart, curEnd), false, psc);
             plch.CorrectLengths(localDb);
         }
     }

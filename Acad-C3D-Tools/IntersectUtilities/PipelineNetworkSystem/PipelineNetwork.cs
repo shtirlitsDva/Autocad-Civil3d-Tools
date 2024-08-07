@@ -110,6 +110,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
             GraphWorker gw = new GraphWorker();
             gw.AutoReversePolylines(pipelineGraphs);
         }
+        public void AutoCorrectLengths()
+        {
+            GraphWorker gw = new GraphWorker();
+            gw.CorrectPipesToCutLengths(pipelineGraphs);
+        }
         private void PrintNode(INode node, int depth)
         {
             prdDbg(new String(' ', depth * 2) + node.Name); // Indent based on depth
@@ -387,22 +392,21 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     else // Root case
                     {
                         Point3d connectionLocation = Point3d.Origin;
-                        if (currentNode.Children.Count == 0) connectionLocation =
-                                currentPipeline.GetLocationForMaxDN();
+                        if (currentNode.Children.Count == 0)
+                            connectionLocation = currentPipeline.GetLocationForMaxDN();
                         else
                         {
                             if (currentNode.Children.Any(
                                 x => currentPipeline.DetermineUnconnectedEndPoint(
                                     ((PipelineNode)x).Value, 0.05, out connectionLocation)))
-                            {
-                                currentPipeline.CorrectPipesToCutLengths(connectionLocation);
-                            }
+                            {}
                             else
                             {
                                 connectionLocation = currentPipeline.GetLocationForMaxDN();
-                                currentPipeline.CorrectPipesToCutLengths(connectionLocation);
                             }
                         }
+
+                        currentPipeline.CorrectPipesToCutLengths(connectionLocation);
                     }
                 }
             }

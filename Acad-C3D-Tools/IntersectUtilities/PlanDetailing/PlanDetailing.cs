@@ -1115,8 +1115,8 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("CORRECTPIPESTOCUTLENGTHS")]
-        [CommandMethod("CPTCL")]
+        //[CommandMethod("CORRECTPIPESTOCUTLENGTHS")]
+        //[CommandMethod("CPTCL")]
         public void callcptcl() => correctpipestocutlengths();
         public void correctpipestocutlengths()
         {

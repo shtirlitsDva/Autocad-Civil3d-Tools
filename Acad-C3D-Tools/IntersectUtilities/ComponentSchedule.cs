@@ -12,6 +12,7 @@ using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.Utils;
 using System.Security.Cryptography;
 using System.Data;
+using System.Collections.Generic;
 
 namespace IntersectUtilities
 {
@@ -383,8 +384,21 @@ namespace IntersectUtilities
             string typeString = br.ReadDynamicCsvProperty(DynamicProperty.Type, false);
             if (PipelineElementTypeDict.ContainsKey(typeString))
                 return PipelineElementTypeDict[typeString];
-            else throw new Exception($"PipelineType {typeString} not found in dictionary!\n" +
+            else
+            {
+                HashSet<string> missing = new HashSet<string>();
+                foreach (DataRow row in CsvData.FK.Rows)
+                {
+                    var type = row["Type"].ToString();
+                    if (!PipelineElementTypeDict.ContainsKey(type))
+                        missing.Add(type);
+                }
+
+                prdDbg(string.Join("\n", missing.OrderBy(x => x)));
+
+                throw new Exception($"PipelineType {typeString} not found in dictionary!\n" +
                 $"Add this element to PipelineElementType enum");
+            }
         }
     }
 }

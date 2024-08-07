@@ -14,10 +14,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
         private List<PipelineSegment> _segments;
         private PipeSettingsCollection _pipeSettings;
         public PipesLengthCorrectionHandler(
-            IEnumerable<Entity> entities, bool againstStationsOrder, 
-            PipeSettingsCollection psc, Point3d connectionLocation)
+            IEnumerable<Entity> entities, bool againstStationsOrder, PipeSettingsCollection psc)
         {
-            _segments = PipelineSegmentFactory.CreateSegments(entities);
+            _segments = PipelineSegmentFactory.CreateSegments(
+                againstStationsOrder ? entities.Reverse() : entities);
             _pipeSettings = psc;
         }
 
@@ -26,12 +26,15 @@ namespace IntersectUtilities.PipelineNetworkSystem
             Database db = localDb;
             Transaction tx = db.TransactionManager.TopTransaction;
 
-            //while (_ents.UnprocessedPolylines > 0)
-            //{
-            //    Polyline pl = _ents.ProcessNextPolyline();
+            foreach (PipelineSegment ps in _segments)
+            {
+                while (ps.UnprocessedPolylines > 0)
+                {
+                    Polyline pline = ps.ProcessNextPolyline();
 
 
-            //}
+                }
+            }
         }
     }
 }
