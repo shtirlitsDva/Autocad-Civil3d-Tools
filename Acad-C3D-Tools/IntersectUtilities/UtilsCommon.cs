@@ -41,7 +41,6 @@ using ObjectId = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
-using Autodesk.AutoCAD.MacroRecorder;
 
 namespace IntersectUtilities.UtilsCommon
 {

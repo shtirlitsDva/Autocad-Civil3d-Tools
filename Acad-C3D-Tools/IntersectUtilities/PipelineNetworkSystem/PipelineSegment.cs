@@ -51,6 +51,18 @@ namespace IntersectUtilities.PipelineNetworkSystem
             if (idx >= _polyIndici.Length) return null;
             return _ents[_polyIndici[idx]] as Polyline;
         }
+        internal Entity PeekNextEntityByRelativeIndex(int relativeIndex)
+        {   
+            int newPolyIdx = _currentPolyIndex + relativeIndex;
+            if (newPolyIdx >= _polyIndici.Length) return null;
+            int newEntIdx = _polyIndici[newPolyIdx] + 1;
+            if (newEntIdx >= _ents.Length) return null;
+            return _ents[newEntIdx];
+        }
+        internal Polyline PeekPolylineByRelativeIndex(int relativeIndex)
+        {
+            int 
+        }
     }
     internal static class PipelineSegmentFactory
     {
