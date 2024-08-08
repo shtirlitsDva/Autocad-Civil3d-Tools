@@ -41,6 +41,7 @@ using ObjectId = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
+using Autodesk.AutoCAD.MacroRecorder;
 
 namespace IntersectUtilities.UtilsCommon
 {
@@ -2921,8 +2922,7 @@ namespace IntersectUtilities.UtilsCommon
             Autodesk.AutoCAD.DatabaseServices.OpenMode.ForRead) where T : Autodesk.AutoCAD.DatabaseServices.DBObject
         {
             var obj = tx.GetObject(oid, openMode, false);
-            if (obj is T) return (T)obj;
-            else return null;
+            return obj as T;
         }
         public static T Go<T>(this Handle handle, Database database) where T : Autodesk.AutoCAD.DatabaseServices.DBObject
         {
@@ -3073,6 +3073,10 @@ namespace IntersectUtilities.UtilsCommon
             }
             //tr.Commit();
             //}
+        }
+        public static IEnumerable<ObjectId> ToIEnumerable(this BlockTableRecord btr)
+        {
+            foreach (Oid oid in btr) yield return oid;
         }
         public static HashSet<Oid> HashSetOfFjvPipeIds(this Database db, bool discardFrozen = true)
         {

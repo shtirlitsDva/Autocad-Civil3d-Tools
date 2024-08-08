@@ -23,7 +23,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             _pipeSettings = psc;
         }
 
-        internal void CorrectLengths(Database localDb)
+        internal Result CorrectLengths(Database localDb)
         {
             Database db = localDb;
             Transaction tx = db.TransactionManager.TopTransaction;
@@ -52,6 +52,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     }
                     //prdDbg($"{pline.Handle} ML:{missingLength} R:{remainder} RI:{pipeStdLength - remainder}");
                     var nextEnt = ps.PeekNextEntity();
+                    BlockReference br = nextEnt as BlockReference;
                     #region Validating next entity
                     //Validating next entity
                     if (nextEnt == null)
@@ -64,23 +65,37 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         throw new Exception($"Next entity after polyline {pline.Handle} is a polyline {pl.Handle}! " +
                             $"This is not expected.");
                     }
-
-                    BlockReference br = nextEnt as BlockReference;
                     if (br == null)
                         throw new Exception($"Next entity after polyline {pline.Handle} is not a block reference! " +
                             $"This is not expected.");
-
                     if (br.GetPipelineType() != PipelineElementType.Reduktion)
                     {
                         prdDbg($"Next entity {br.Handle} after {pline.Handle} is not a reducer. Length correction stopped.");
                         break;
-                    } 
+                    }
                     #endregion
 
-                    //TODO: Continue here!
-                    //Now we need to get the next polyline and validate it
+                    Polyline nextPline = ps.PeekNextPolyline();
+                    #region Validate next polyline
+                    if (nextPline == null)
+                    {
+                        prdDbg($"No next polyline after {pline.Handle}. Length correction stopped.");
+                        break;
+                    }
+                    #endregion
+
+                    //Now to correcting lengths
+                    double transitionLength = Utils.GetTransitionLength(tx, br);
+
+                    //Test to see if nexts polyline new start point is going to land in an arc
+                    //If so, the correction stops as I don't know how to handle that
+                    //The resulting point must be marked and user warned that the correction
+                    //needs to be done manually. Then the correction must be run again.
+
                 }
             }
         }
+
+        private class 
     }
 }

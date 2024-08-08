@@ -361,6 +361,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         public void CorrectPipesToCutLengths(GraphCollection graphs)
         {
+            Result result = new Result();
             foreach (var graph in graphs)
             {
                 var root = graph.Root;
@@ -379,19 +380,17 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     }
                     IPipelineV2 currentPipeline = currentNode.Value;
 
+                    Point3d connectionLocation = Point3d.Origin;
                     // General case
                     if (currentNode.Parent != null)
                     {
                         PipelineNode parentNode = currentNode.Parent as PipelineNode;
                         if (parentNode == null) throw new Exception("PipelineNodes expected!");
-                        Point3d connectionLocation = currentPipeline.GetConnectionLocationToParent(
-                            parentNode.Value, 0.05);
-                        
-                        currentPipeline.CorrectPipesToCutLengths(connectionLocation);
+                        connectionLocation = currentPipeline
+                            .GetConnectionLocationToParent(parentNode.Value, 0.05);
                     }
                     else // Root case
                     {
-                        Point3d connectionLocation = Point3d.Origin;
                         if (currentNode.Children.Count == 0)
                             connectionLocation = currentPipeline.GetLocationForMaxDN();
                         else
@@ -405,11 +404,14 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                 connectionLocation = currentPipeline.GetLocationForMaxDN();
                             }
                         }
-
-                        currentPipeline.CorrectPipesToCutLengths(connectionLocation);
                     }
+
+                    Result r = currentPipeline.CorrectPipesToCutLengths(connectionLocation);
+                    result.Combine(r);
                 }
             }
+
+            prdDbg(result.ToString());
         }
     }
 }

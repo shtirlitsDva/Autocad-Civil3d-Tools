@@ -67,7 +67,7 @@ namespace IntersectUtilities
     public static class Utils
     {
         public static TValue GetValueOrDefault<TKey, TValue>
-                            (this IDictionary<TKey, TValue> dictionary, TKey key, TValue defaultValue)
+            (this IDictionary<TKey, TValue> dictionary, TKey key, TValue defaultValue)
         {
             TValue value;
             return dictionary.TryGetValue(key, out value) ? value : defaultValue;
@@ -75,7 +75,7 @@ namespace IntersectUtilities
         public static IEnumerable<T> ExceptWhere<T>(
             this IEnumerable<T> source, Predicate<T> predicate) => source.Where(x => !predicate(x));
         public static Dictionary<TValue, TKey> ToInvertedDictionary
-                <TKey, TValue>(this IDictionary<TKey, TValue> source) =>
+            <TKey, TValue>(this IDictionary<TKey, TValue> source) =>
                 source.ToDictionary(x => x.Value, x => x.Key);
         public static void ClrFile(string fullPathAndName)
         {
@@ -109,7 +109,7 @@ namespace IntersectUtilities
             }
 
 
-            
+
         }
         /// <summary>
         /// Reads a string value from supplied datatable.
@@ -545,7 +545,6 @@ namespace IntersectUtilities
             }
             return blkIsErased;
         }
-        
         /// <summary>
         /// Gets the working folder path for selected project
         /// </summary>
@@ -1027,44 +1026,6 @@ namespace IntersectUtilities
             #endregion
             return kø;
         }
-        /// <summary>
-        /// Works only on blocks with TWO MuffeIntern such as transitions.
-        /// For less than TWO it will throw an exception.
-        /// For more than TWO it will return distance between two first MuffeIntern.
-        /// </summary>
-        public static double GetTransitionLength(Transaction tx, BlockReference nearestBlock)
-        {
-            if (nearestBlock == null) return 0;
-            if (nearestBlock.RealName() != "RED KDLR" &&
-                nearestBlock.RealName() != "RED KDLR x2")
-            {
-                prdDbg($"GetTransitionLength recieved non-transition block {nearestBlock.RealName()}, {nearestBlock.Handle}!");
-            }
-
-            BlockTableRecord btr = nearestBlock.BlockTableRecord.Go<BlockTableRecord>(tx);
-            int count = 0;
-            Point3d fp = default;
-            Point3d sp = default;
-            foreach (Oid oid in btr)
-            {
-                if (!oid.IsDerivedFrom<BlockReference>()) continue;
-                BlockReference nestedBr = oid.Go<BlockReference>(tx);
-                if (!nestedBr.Name.Contains("MuffeIntern")) continue;
-                count++;
-                switch (count)
-                {
-                    case 1:
-                        fp = nestedBr.Position;
-                        break;
-                    case 2:
-                        sp = nestedBr.Position;
-                        break;
-                    default:
-                        break;
-                }
-            }
-            return fp.DistanceHorizontalTo(sp);
-        }
         public static void RemoveColinearVerticesPolyline(
             Polyline pline, ref int guiltyPlineCount, ref int removedVerticesCount)
         {
@@ -1267,7 +1228,6 @@ namespace IntersectUtilities
                 }
             }
         }
-
         private static bool Clockwise(Point2d p1, Point2d p2, Point2d p3)
         {
             return ((p2.X - p1.X) * (p3.Y - p1.Y) - (p2.Y - p1.Y) * (p3.X - p1.X)) < 1e-9;
@@ -1413,9 +1373,33 @@ namespace IntersectUtilities
             Partial,
             Full
         }
-
         /// <param name="name">byblock, red, yellow, green, cyan, blue, magenta, white, grey, bylayer</param>
         public static Color ColorByName(string name) => UtilsCommon.Utils.AutocadStdColors[name];
+        public static double GetTransitionLength(Transaction tx, BlockReference transition)
+        {
+            if (transition == null) return 0;
+            if (transition.GetPipelineType() != PipelineElementType.Reduktion)
+            {
+                throw new System.Exception(
+                    $"GetTransitionLength recieved non-transition block " +
+                    $"{transition.RealName()}, {transition.Handle}!");
+            }
+
+            BlockTableRecord btr = transition.BlockTableRecord.Go<BlockTableRecord>(tx);
+
+            var points = btr
+                .ToIEnumerable()
+                .Select(id => id.Go<BlockReference>(tx))
+                .Where(br => br != null && br.Name.Contains("MuffeIntern"))
+                .Select(br => br.Position)
+                .Take(2)
+                .ToArray();
+
+            if (points.Length != 2) throw new System.Exception(
+                $"Transition {transition.Handle} does not have EXACTLY two MuffeIntern blocks!");
+
+            return points[0].DistanceHorizontalTo(points[1]);
+        }
     }
 
     public static class UtilsExtensions
@@ -1559,7 +1543,7 @@ namespace IntersectUtilities
             return this.Where(x => x.StationStart <= station && x.StationEnd >= station).FirstOrDefault();
         }
     }
-    
+
     public static class HelperMethods
     {
         public static bool IsFullPath(string path)

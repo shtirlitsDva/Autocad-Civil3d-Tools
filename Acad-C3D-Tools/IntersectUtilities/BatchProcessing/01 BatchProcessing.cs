@@ -602,7 +602,7 @@ namespace IntersectUtilities
         //    }
         //    return new Result();
         //}
-        
+
 
         //    return new Result();
         //}
@@ -801,9 +801,9 @@ namespace IntersectUtilities
             "samtidig giver mulighed for at angive en anden xref\n" +
             "den skal placeres under eller over i draw order.\n" +
             "Der skal kun angives \"Over\" eller \"Under\"!",
-            new string[4] { "Dwg fuldt sti med filnavn", 
+            new string[4] { "Dwg fuldt sti med filnavn",
                 "Layer hvor xref skal placeres (eksisterende eller bliver lavet)",
-                "Xref Navn til at placere i draw order (uden .dwg, tast \"mellemrum\" for at ignorere)", 
+                "Xref Navn til at placere i draw order (uden .dwg, tast \"mellemrum\" for at ignorere)",
                 "Draw Order type: Over eller Under" })]
         public static Result attachdwg(
             Database xDb, string attachDwgFileName, string xrefLayerName, string drawOrderXref, string drawOrderType)
@@ -1825,7 +1825,7 @@ namespace IntersectUtilities
         [MethodDescription(
             "Change layer for an xref with partial name match",
             "Skifter laget til det angivne\n" +
-            "for en xref, hvor navnet på xref'en\n"+
+            "for en xref, hvor navnet på xref'en\n" +
             "matches med en del af navnet.",
             new string[2] { "Xref Del af Navnet", "Laget Xref'en skal sættes til" })]
         public static Result changelayerforxref(Database xDb, string xrefPartialName, string layerName)
@@ -1891,7 +1891,7 @@ namespace IntersectUtilities
     {
         private ResultStatus _status = ResultStatus.OK;
         internal ResultStatus Status { get { return _status; } set { if (_status != ResultStatus.FatalError) _status = value; } }
-        private string _errorMsg;
+        private string _errorMsg = "";
         internal string ErrorMsg
         {
             get { return _errorMsg + "\n"; }
@@ -1907,12 +1907,34 @@ namespace IntersectUtilities
             Status = status;
             ErrorMsg = errorMsg;
         }
+        internal void Combine(Result input)
+        {
+            if (input._status > this._status) this._status = input._status;
+            this.ErrorMsg += input.ErrorMsg;
+        }
+        public override string ToString()
+        {
+            switch (this._status)
+            {
+                case ResultStatus.OK:
+                    if (this._errorMsg.IsNoE()) return "Operation completed OK";
+                    else return "Operation completed OK with message: \n" + this._errorMsg;
+                case ResultStatus.SoftError:
+                    if (this._errorMsg.IsNoE()) return "Operation completed with unknown Warnings.";
+                    else return "Operation completed with Warnings: \n" + this._errorMsg;
+                case ResultStatus.FatalError:
+                    if (this._errorMsg.IsNoE()) return "Operation aborted with Fatal Error!.";
+                    else return "Operation aborted with Fatal Error! \n" + this._errorMsg;
+                default:
+                    throw new NotImplementedException($"ResultStatus {this._status} is not implemented!");
+            }
+        }
     }
     internal enum ResultStatus
     {
         OK,
+        SoftError, //Exection may continue, changes to current drawing aborted
         FatalError, //Execution of processing must stop
-        SoftError //Exection may continue, changes to current drawing aborted
     }
     public class MethodDescription : Attribute
     {

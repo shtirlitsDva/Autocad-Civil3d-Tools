@@ -46,7 +46,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         void AutoReversePolylines(Point3d connectionLocation);
         IEnumerable<Entity> GetEntitiesWithinStations(double start, double end);
         Point3d GetLocationForMaxDN();
-        void CorrectPipesToCutLengths(Point3d connectionLocation);
+        Result CorrectPipesToCutLengths(Point3d connectionLocation);
     }
     public abstract class PipelineV2Base : IPipelineV2
     {
@@ -195,7 +195,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         /// This method assumes that AutoReversePolylines has been called first
         /// And all polylines are oriented correctly with supply flow
         /// </summary>
-        public void CorrectPipesToCutLengths(Point3d connectionLocation)
+        public Result CorrectPipesToCutLengths(Point3d connectionLocation)
         {
             if (psh == null) psh = new PropertySetHelper(ents?.FirstOrDefault()?.Database);
 
@@ -206,6 +206,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             PipesLengthCorrectionHandler plch;
             double curStart;
             double curEnd;
+            Result result;
 
             // First from right to left
             curStart = 0;
@@ -213,7 +214,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
             plch = new PipesLengthCorrectionHandler(
                 this.GetEntitiesWithinStations(curStart, curEnd), true, psc);
-            plch.CorrectLengths(localDb);
+            result = plch.CorrectLengths(localDb);
 
             // Then from left to right
             curStart = this.GetStationAtPoint(connectionLocation);
@@ -221,7 +222,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
             plch = new PipesLengthCorrectionHandler(
                 this.GetEntitiesWithinStations(curStart, curEnd), false, psc);
-            plch.CorrectLengths(localDb);
+            result.Combine(plch.CorrectLengths(localDb));
+
+            return result;
         }
     }
     public class PipelineV2Alignment : PipelineV2Base

@@ -44,6 +44,13 @@ namespace IntersectUtilities.PipelineNetworkSystem
             if (idx >= _ents.Length) return null;
             return _ents[idx];
         }
+
+        internal Polyline PeekNextPolyline()
+        {
+            int idx = _currentPolyIndex + 1;
+            if (idx >= _polyIndici.Length) return null;
+            return _ents[_polyIndici[idx]] as Polyline;
+        }
     }
     internal static class PipelineSegmentFactory
     {
