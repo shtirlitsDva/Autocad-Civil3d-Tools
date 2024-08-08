@@ -51,6 +51,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
             if (idx >= _polyIndici.Length) return null;
             return _ents[_polyIndici[idx]] as Polyline;
         }
+        /// <summary>
+        /// Takes an index relative to currently processed polyline,
+        /// gets the specified polyline and peeks at the next element
+        /// after it.
+        /// </summary>
         internal Entity PeekNextEntityByRelativeIndex(int relativeIndex)
         {   
             int newPolyIdx = _currentPolyIndex + relativeIndex;
@@ -61,7 +66,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         internal Polyline PeekPolylineByRelativeIndex(int relativeIndex)
         {
-            int 
+            int newPolyIdx = _currentPolyIndex + relativeIndex;
+            if (newPolyIdx >= _polyIndici.Length) return null;
+            return _ents[newPolyIdx] as Polyline;
         }
     }
     internal static class PipelineSegmentFactory

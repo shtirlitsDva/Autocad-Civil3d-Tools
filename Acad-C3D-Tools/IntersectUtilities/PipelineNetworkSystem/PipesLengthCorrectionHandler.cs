@@ -1,11 +1,14 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
+using Dreambuild.AutoCAD;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Media.TextFormatting;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -93,7 +96,27 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     //So we 'push' the missing length down the line until we find space
                     //Or segment terminates
                     //This must be done before all else
+                    if (missingLength > nextPline.Length)
+                    {
+                        using (Transaction tooShortTx = db.TransactionManager.StartTransaction())
+                        {
+                            Result pushResult = PushMissingLengthDownTheLine(db, nextPline, ps, missingLength);
+                            if (pushResult.Status != ResultStatus.OK)
+                            {
+                                //If pushing the missing length down the line failed
+                                //we must continue trying to correct the rest of polylines
+                                tooShortTx.Abort();
+                                continue;
+                            }
+                            tooShortTx.Commit();
+                        }
+                    }
 
+                    //(Old) Case 4: Missing length is relatively small -> move transition back
+                    if (missingLength >= pipeStdLength - 2 && nrOfSections != 0)
+                    {
+
+                    }
 
                     //Test to see if nexts polyline new start point is going to land in an arc
                     //If so, the correction stops as I don't know how to handle that
@@ -113,7 +136,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     }
 
                     #region Case 1. Missing length <= transitionLength
-                    
+
                     #endregion
                 }
             }
@@ -124,22 +147,34 @@ namespace IntersectUtilities.PipelineNetworkSystem
         /// If next polyline is shorter than missing length, push the missing length down the line
         /// using recursion.
         /// </summary>
-        /// <param name="nextPline">The nextPline from where the need to do this arose.</param>
+        /// <param name="pline1">
+        /// The nextPline from where the need to do this arose.
+        /// This polyline is the next from the currently processed as noted by PipelineSegment.
+        /// </param>
+        /// <param name="depth">
+        /// Index to keep tabs on how far we have dived. Starts at 1
+        /// because we already start at next polyline after the currently processing one.
+        /// </param>
         /// <returns>
         /// The result of operation. 
         /// OK - ok to proceed, SoftError - pushing down the line cannot be done.
         /// </returns>
         private Result PushMissingLengthDownTheLine(
-            Transaction tx, Polyline nextPline, PipelineSegment ps, double missingLength, int depth = 1)
+            Database db, Polyline pline1, PipelineSegment ps, double missingLength, int depth = 1)
         {
             depth++;
+            Result result = new Result();
             //If unprocessed polylines is 1, we are at the end of the segment
             //and in current implementation we do not move last segment.
+
+            //!!!!Remember: ps.UnprocessedPolylines refers to currently processed polyline
+            //And we are working here with the NEXT polyline after it ON FIRST ITERATION
+
             if (ps.UnprocessedPolylines == 1)
-            { 
+            {
                 throw new Exception(
                     $"PushMissingLengthDownTheLine encountered ps.UnprocessedPolylines == 1.\n" +
-                    $"This shouldn't be possible as we fail already at 2."); 
+                    $"This is not the intention of the calling code, which assummes that we do not modify last polyline.");
             }
             //If nprocessedPolylines is 2, we are at the second to last polyline
             //and this means that nextPline is the last polyline in the segment
@@ -147,11 +182,79 @@ namespace IntersectUtilities.PipelineNetworkSystem
             //This also means that we failed to push the missing length down the line.
             //And thus return SoftError.
             if (ps.UnprocessedPolylines == 2)
-                return new Result(
+            {
+                result.Combine(new Result(
                     ResultStatus.SoftError,
-                    "Pushing MissingLength reached the end of segment without finding space for missing length.");
+                    "Pushing MissingLength reached the end of segment without finding space for missing length."));
+                return result;
+            }
 
+            Polyline pline2 = ps.PeekPolylineByRelativeIndex(depth);
+            if (pline2 == null)
+            {
+                result.Combine(new Result(
+                    ResultStatus.SoftError,
+                    "Segment does not have further polyline down the line. Pushing aborted."));
+                return result;
+            }
 
+            //Test if the polyline is too short
+            bool tooShort = false;
+            if (missingLength > pline2.Length) { tooShort = true; }
+
+            //Test if the moved point lands on arc
+            if (tooShort)
+            {
+                Result intermediateResult = PushMissingLengthDownTheLine(db, pline2, ps, missingLength, depth);
+                result.Combine(intermediateResult);
+                if (intermediateResult.Status == ResultStatus.OK) //The pushing succeded down the line, push here then
+                {
+                    //Test again to see if modified endpoint lands on an arc
+                    //Testing for where the endpoint lands
+                    SegmentType landingSegmentType = pline2.GetSegmentType(
+                                (int)pline2.GetParameterAtDistance(missingLength));
+                    if (landingSegmentType == SegmentType.Arc)
+                    {
+                        result.Combine(new Result(
+                            ResultStatus.FatalError,
+                            "Moved end landed on arc segment after modifying later polylines. Pushing aborted."));
+                        return result;
+                    }
+                    else
+                    {
+                        //Fall through to after the ifs for actual pushing
+                    }
+
+                    //Fall through to after the ifs for actual pushing
+                }
+                else //The pushing failed thus return result signaling failure
+                {
+                    return result;
+                }
+            }
+            else //Polyline is not too short for operation
+            {
+                //Testing for where the endpoint lands
+                SegmentType landingSegmentType = pline2.GetSegmentType(
+                            (int)pline2.GetParameterAtDistance(missingLength));
+                if (landingSegmentType == SegmentType.Arc)
+                {
+                    result.Combine(new Result(
+                        ResultStatus.SoftError,
+                        "Moved end landed on arc segment. Pushing aborted."));
+                    return result;
+                }
+
+                //Fall through to after the ifs for actual pushing
+            }
+
+            ModifyCurrentPlines(db, pline1, pline2, ps, missingLength);
+            return result;
+        }
+
+        private void ModifyCurrentPlines(Database db, Polyline pline1, Polyline pline2, PipelineSegment ps, double missingLength)
+        {
+            throw new NotImplementedException();
         }
 
         private void Case1(Polyline firstPoly, Polyline secondPoly, BlockReference transition)
