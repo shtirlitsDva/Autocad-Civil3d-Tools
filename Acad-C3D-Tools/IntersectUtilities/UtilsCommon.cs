@@ -167,6 +167,8 @@ namespace IntersectUtilities.UtilsCommon
         {
             return Regex.Replace(str, regex, "", RegexOptions.Compiled);
         }
+        /// <param name="name">byblock, red, yellow, green, cyan, blue, magenta, white, grey, bylayer</param>
+        public static Color ColorByName(string name) => AutocadStdColors[name];
         public static Dictionary<string, Color> AutocadStdColors = new Dictionary<string, Color>()
         {
             {"byblock", Color.FromColorIndex(ColorMethod.ByAci, 0) },
@@ -455,6 +457,11 @@ namespace IntersectUtilities.UtilsCommon
             M2,
             Function,
             SysNavn,
+        }
+        public enum CompanyEnum
+        {
+            Logstor,
+            Isoplus
         }
         public static Dictionary<string, PipelineElementType> PipelineElementTypeDict =
             new Dictionary<string, PipelineElementType>()

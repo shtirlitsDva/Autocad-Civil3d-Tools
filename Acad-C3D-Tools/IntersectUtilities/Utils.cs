@@ -1373,8 +1373,6 @@ namespace IntersectUtilities
             Partial,
             Full
         }
-        /// <param name="name">byblock, red, yellow, green, cyan, blue, magenta, white, grey, bylayer</param>
-        public static Color ColorByName(string name) => UtilsCommon.Utils.AutocadStdColors[name];
         public static double GetTransitionLength(Transaction tx, BlockReference transition)
         {
             if (transition == null) return 0;

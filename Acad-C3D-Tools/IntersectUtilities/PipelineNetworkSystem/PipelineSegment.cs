@@ -45,6 +45,15 @@ namespace IntersectUtilities.PipelineNetworkSystem
             return _ents[idx];
         }
 
+        internal Entity PeekNextEntityByPolyline(Polyline pline)
+        {
+            int plineIdx = Array.IndexOf(_ents, pline);
+            if (plineIdx == -1) return null;
+            int idx = plineIdx + 1;
+            if (idx >= _ents.Length) return null;
+            return _ents[idx];
+        }
+
         internal Polyline PeekNextPolyline()
         {
             int idx = _currentPolyIndex + 1;

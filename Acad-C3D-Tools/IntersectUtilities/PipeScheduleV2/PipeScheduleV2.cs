@@ -23,10 +23,12 @@ namespace IntersectUtilities.PipeScheduleV2
     public static class PipeScheduleV2
     {
         private static IPipeTypeRepository _repository;
+        private static IPipeRadiusDataRepository _radiiRepo;
 
         static PipeScheduleV2()
         {
-            LoadPipeTypeData(@"X:\AutoCAD DRI - 01 Civil 3D\PipeSchedule\");
+            LoadPipeTypeData(@"X:\AutoCAD DRI - 01 Civil 3D\PipeSchedule\Schedule\");
+            LoadRadiiData(@"X:\AutoCAD DRI - 01 Civil 3D\PipeSchedule\Radier\");
         }
 
         #region Utility methods
@@ -81,6 +83,35 @@ namespace IntersectUtilities.PipeScheduleV2
         #endregion
 
         #region Variables and dicts
+        #region Radii
+        public static Dictionary<string, Type> companyDict = new Dictionary<string, Type>()
+        {
+            { "LOGSTOR", typeof(Logstor) },
+            { "ISOPLUS", typeof(Isoplus) },
+        };
+        public static Dictionary<string, CompanyEnum> companyEnumDict = new Dictionary<string, CompanyEnum>()
+        {
+            {"LOGSTOR", CompanyEnum.Logstor },
+            {"ISOPLUS", CompanyEnum.Isoplus },
+        };
+        public static Dictionary<string, Type> radiiColumnTypeDict = new Dictionary<string, Type>()
+        {
+            {"DN", typeof(int)},
+            {"PipeType", typeof(string)},
+            {"PipeLength" , typeof(int)},
+            {"BRpmin", typeof(double)},
+            {"ERpmin", typeof(double)},
+        };
+        public static void LoadRadiiData(string pathToPipeTypesStore)
+        {
+            var csvs = System.IO.Directory.EnumerateFiles(
+                pathToPipeTypesStore, "*.csv", System.IO.SearchOption.TopDirectoryOnly);
+
+            _radiiRepo = new PipeRadiusDataRepository();
+            _radiiRepo.Initialize(new PipeRadiusDataLoaderCSV().Load(csvs));
+        }
+        #endregion
+        #region PipeTypes
         public static Dictionary<string, Type> typeDict = new Dictionary<string, Type>()
         {
             { "DN", typeof(PipeTypeDN) },
@@ -129,8 +160,6 @@ namespace IntersectUtilities.PipeScheduleV2
             {"kOd", typeof(double)},
             {"tWdth", typeof(double)},
             {"minElasticRadii", typeof(double)},
-            {"VpMax12", typeof(double)},
-            {"VpMax16", typeof(double)},
             {"color", typeof(short)},
             {"DefaultL", typeof(int)}
         };
@@ -144,6 +173,7 @@ namespace IntersectUtilities.PipeScheduleV2
         }
         public static void ListAllPipeTypes() => prdDbg(string.Join("\n", _repository.ListAllPipeTypes()));
         public static IEnumerable<IPipeType> GetPipeTypes() => _repository.GetPipeTypes();
+        #endregion
         #endregion
 
         #region Pipe schedule methods
@@ -364,6 +394,19 @@ namespace IntersectUtilities.PipeScheduleV2
 
             return rad;
         }
+        /// <param name="company">Logstor, Isoplus</param>
+        public static double GetBuerorMinRadius(Entity ent, string company, int pipeLength)
+        {
+            PipeSystemEnum system = GetPipeSystem(ent);
+
+            int dn = GetPipeDN(ent);
+
+            IPipeRadiusData radiusData = _radiiRepo.GetPipeRadiusData(company);
+
+            double rad = radiusData.GetBuerorMinRadius(dn, pipeLength);
+
+            return rad;
+        }
         public static string GetLabel(Entity ent)
         {
             int DN = GetPipeDN(ent);
@@ -470,7 +513,6 @@ namespace IntersectUtilities.PipeScheduleV2
         public PipeSystemEnum System => _system;
         protected DataTable _data;
         public string Name => this.GetType().Name;
-
         public virtual double GetPipeOd(int dn)
         {
             DataRow[] results = _data.Select($"DN = {dn}");
@@ -874,6 +916,114 @@ namespace IntersectUtilities.PipeScheduleV2
 
             return dict;
         }
+    }
+    public interface IPipeRadiusData
+    {
+        void Initialize(DataTable table, CompanyEnum compType);
+        double GetBuerorMinRadius(int dn, int pipeLength);
+
+        CompanyEnum Company { get; }
+    }
+    public class PipeRadiusData : IPipeRadiusData
+    {
+        protected DataTable _data;
+        protected CompanyEnum _company;
+        public CompanyEnum Company => _company;
+        private void ConvertDataTypes()
+        {
+            DataTable newTable = _data.Clone();
+
+            #region Check if columns are missing from dict
+            // Check for columns in originalTable not present in dictionary
+            List<string> missingColumns = new List<string>();
+            foreach (DataColumn col in _data.Columns)
+                if (!PipeScheduleV2.radiiColumnTypeDict.ContainsKey(col.ColumnName))
+                    missingColumns.Add(col.ColumnName);
+
+            if (missingColumns.Count > 0)
+                throw new Exception($"Missing data type definitions for columns: " +
+                    $"{string.Join(", ", missingColumns)}");
+            #endregion
+
+            // Set data types based on dictionary
+            foreach (var columnType in PipeScheduleV2.radiiColumnTypeDict)
+                if (newTable.Columns.Contains(columnType.Key))
+                    newTable.Columns[columnType.Key].DataType = columnType.Value;
+
+            foreach (DataRow row in _data.Rows) newTable.ImportRow(row);
+
+            _data = newTable;
+        }
+        public void Initialize(DataTable table, CompanyEnum companyEnum)
+        { _data = table; ConvertDataTypes(); _company = companyEnum; }
+        public double GetBuerorMinRadius(int dn, int pipeLength)
+        {
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeLength = {pipeLength}");
+            if (results != null && results.Length > 0)
+                return (double)results[0]["BRpmin"];
+            return 0;
+        }
+    }
+    public class Logstor : PipeRadiusData
+    {
+
+    }
+    public class Isoplus : PipeRadiusData
+    {
+
+    }
+    public interface IPipeRadiusDataRepository
+    {
+        void Initialize(Dictionary<string, IPipeRadiusData> pipeRadiusDataDict);
+        IPipeRadiusData GetPipeRadiusData(string company);
+        IEnumerable<string> ListAllPipeRadiusData();
+        IEnumerable<IPipeRadiusData> GetPipeRadiusData();
+    }
+    public class PipeRadiusDataRepository : IPipeRadiusDataRepository
+    {
+        private Dictionary<string, IPipeRadiusData> _pipeRadiusDataDictionary
+            = new Dictionary<string, IPipeRadiusData>();
+        public IPipeRadiusData GetPipeRadiusData(string company)
+        {
+            if (string.IsNullOrEmpty(company))
+                throw new ArgumentNullException($"PipeRadiusData is Null or Empty!");
+
+            if (_pipeRadiusDataDictionary.ContainsKey(company)) return _pipeRadiusDataDictionary[company];
+            else throw new ArgumentNullException($"PipeRadiusData {company} does not exist!");
+        }
+        public void Initialize(Dictionary<string, IPipeRadiusData> pipeRadiusDataDict)
+        {
+            _pipeRadiusDataDictionary = pipeRadiusDataDict;
+        }
+        public IEnumerable<string> ListAllPipeRadiusData()
+        {
+            foreach (var k in _pipeRadiusDataDictionary) yield return k.Key;
+        }
+        public IEnumerable<IPipeRadiusData> GetPipeRadiusData()
+        {
+            foreach (var k in _pipeRadiusDataDictionary) yield return k.Value;
+        }
+    }
+    public class PipeRadiusDataLoaderCSV
+    {
+        public Dictionary<string, IPipeRadiusData> Load(IEnumerable<string> paths)
+        {
+            Dictionary<string, IPipeRadiusData> dict = new Dictionary<string, IPipeRadiusData>();
+            foreach (var path in paths)
+            {
+                string company = System.IO.Path.GetFileNameWithoutExtension(path);
+                DataTable dataTable = CsvReader.ReadCsvToDataTable(path, company);
+                if (!PipeScheduleV2.companyDict.ContainsKey(company))
+                    throw new Exception($"PipeType {company} is not defined in PipeScheduleV2!");
+                IPipeRadiusData pipeRadiusData = Activator.CreateInstance(
+                    PipeScheduleV2.companyDict[company]) as IPipeRadiusData;
+                pipeRadiusData.Initialize(dataTable, PipeScheduleV2.companyEnumDict[company]);
+                dict.Add(company, pipeRadiusData);
+            }
+
+            return dict;
+        }
+
     }
     #endregion
 }

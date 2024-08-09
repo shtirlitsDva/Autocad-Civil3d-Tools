@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media.TextFormatting;
+using System.Windows.Navigation;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
@@ -39,10 +40,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 //To process last polyline set > 0
                 while (ps.UnprocessedPolylines > 1)
                 {
-                    Polyline pline = ps.ProcessNextPolyline();
+                    Polyline pline1 = ps.ProcessNextPolyline();
 
-                    double pipeStdLength = _pipeSettings.GetSettingsLength(pline);
-                    double pipeLength = pline.Length;
+                    double pipeStdLength = _pipeSettings.GetSettingsLength(pline1);
+                    //We don't want to correct 100 m pipes
+                    if (pipeStdLength > 99) continue;
+                    double pipeLength = pline1.Length;
                     double division = pipeLength / pipeStdLength;
                     int nrOfSections = (int)division;
                     double remainder = pipeLength - nrOfSections * pipeStdLength;
@@ -51,56 +54,64 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     //Skip if pipe is missing less than 1 mm
                     if (remainder < 1e-3 || pipeStdLength - remainder < 1e-3)
                     {
-                        prdDbg($"Pipe {pline.Handle} is OK. {remainder} {pipeStdLength - remainder}");
+                        prdDbg($"Pipe {pline1.Handle} is OK. {remainder} {pipeStdLength - remainder}");
                         continue;
                     }
-                    prdDbg($"{pline.Handle} ML:{missingLength} R:{remainder} RI:{pipeStdLength - remainder}");
-                    var nextEnt = ps.PeekNextEntity();
+                    prdDbg($"{pline1.Handle} ML:{missingLength} R:{remainder} RI:{pipeStdLength - remainder}");
+
+                    Polyline pline2 = ps.PeekNextPolyline();
+                    #region Validate next polyline
+                    if (pline2 == null)
+                    {
+                        prdDbg($"No next polyline after {pline1.Handle}. Length correction stopped.");
+                        break;
+                    }
+                    #endregion
+                    var nextEnt = ps.PeekNextEntityByPolyline(pline1);
                     BlockReference br = nextEnt as BlockReference;
                     #region Validating next entity
                     //Validating next entity
                     if (nextEnt == null)
                     {
-                        prdDbg($"No next entity after {pline.Handle}. Length correction stopped.");
-                        break;
+                        prdDbg($"No next entity after {pline1.Handle}. Length correction stopped.");
+                        return new Result(
+                            ResultStatus.SoftError,
+                            $"No next entity after {pline1.Handle}. Length correction stopped.");
                     }
                     if (nextEnt is Polyline pl)
                     {
-                        throw new Exception($"Next entity after polyline {pline.Handle} is a polyline {pl.Handle}! " +
-                            $"This is not expected.");
+                        throw new Exception($"Next entity after polyline {pline1.Handle} is a polyline {pl.Handle}! " +
+                            $"This is not expected -- no consecutive polylines allowed in projects.");
                     }
                     if (br == null)
-                        throw new Exception($"Next entity after polyline {pline.Handle} is not a block reference! " +
-                            $"This is not expected.");
+                        throw new Exception($"Next entity after polyline {pline1.Handle} is not a block reference! " +
+                            $"This is not expected. Offending element: {nextEnt.Handle}.");
                     if (br.GetPipelineType() != PipelineElementType.Reduktion)
                     {
-                        prdDbg($"Next entity {br.Handle} after {pline.Handle} is not a reducer. Length correction stopped.");
-                        break;
+                        prdDbg($"Next entity {br.Handle} after {pline1.Handle} is not a reducer. " +
+                            $"Length correction stopped.");
+                        return new Result(ResultStatus.SoftError,
+                            $"Next entity {br.Handle} after {pline1.Handle} is not a reducer. " +
+                            $"Length correction stopped.");
                     }
                     #endregion
 
-                    Polyline nextPline = ps.PeekNextPolyline();
-                    #region Validate next polyline
-                    if (nextPline == null)
+                    //(Old) Case 4: Missing length is relatively small (now 2 meters) -> move transition back
+                    if (missingLength >= pipeStdLength - 2 && nrOfSections != 0)
                     {
-                        prdDbg($"No next polyline after {pline.Handle}. Length correction stopped.");
-                        break;
-                    }
-                    #endregion
 
-                    //Now to correcting lengths
-                    double transitionLength = Utils.GetTransitionLength(tx, br);
+                    }
 
                     //Test to see if the next polylines' length is less than the missing length
                     //If so, the correction tries to check next polyline again and so on
                     //So we 'push' the missing length down the line until we find space
                     //Or segment terminates
                     //This must be done before all else
-                    if (missingLength > nextPline.Length)
+                    if (missingLength > pline2.Length)
                     {
                         using (Transaction tooShortTx = db.TransactionManager.StartTransaction())
                         {
-                            Result pushResult = PushMissingLengthDownTheLine(db, nextPline, ps, missingLength);
+                            Result pushResult = PushMissingLengthDownTheLine(db, pline2, ps, missingLength);
                             if (pushResult.Status != ResultStatus.OK)
                             {
                                 //If pushing the missing length down the line failed
@@ -112,32 +123,22 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         }
                     }
 
-                    //(Old) Case 4: Missing length is relatively small -> move transition back
-                    if (missingLength >= pipeStdLength - 2 && nrOfSections != 0)
-                    {
-
-                    }
-
                     //Test to see if nexts polyline new start point is going to land in an arc
                     //If so, the correction stops as I don't know how to handle that
                     //The resulting point must be marked and user warned that the correction
                     //needs to be done manually. Then the correction must be run again.
-                    SegmentType landingSegmentType = nextPline.GetSegmentType(
-                        (int)nextPline.GetParameterAtDistance(missingLength));
+                    SegmentType landingSegmentType = pline2.GetSegmentType(
+                        (int)pline2.GetParameterAtDistance(missingLength));
                     if (landingSegmentType == SegmentType.Arc)
                     {
                         result.Status = ResultStatus.SoftError;
                         result.ErrorMsg =
                             $"***WARNING***\n" +
-                            $"For polyline {nextPline.Handle} length correction points ends in an Arc segment.\n" +
+                            $"For polyline {pline2.Handle} length correction points ends in an Arc segment.\n" +
                             $"Automatic cut length correction is not possible. If you wish, correct lengths manually.\n" +
                             $"In that case run CORRECTCUTLENGTHSV2 afterwards again.";
                         continue;
                     }
-
-                    #region Case 1. Missing length <= transitionLength
-
-                    #endregion
                 }
             }
 
@@ -189,6 +190,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 return result;
             }
 
+            //Remember, we are looking for CurrentProccessingPolyline + depth which starts at 2 in the first iteration
             Polyline pline2 = ps.PeekPolylineByRelativeIndex(depth);
             if (pline2 == null)
             {
@@ -198,15 +200,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 return result;
             }
 
-            //Test if the polyline is too short
-            bool tooShort = false;
-            if (missingLength > pline2.Length) { tooShort = true; }
-
             //Test if the moved point lands on arc
-            if (tooShort)
+            if (missingLength > pline2.Length)
             {
                 Result intermediateResult = PushMissingLengthDownTheLine(db, pline2, ps, missingLength, depth);
-                result.Combine(intermediateResult);
                 if (intermediateResult.Status == ResultStatus.OK) //The pushing succeded down the line, push here then
                 {
                     //Test again to see if modified endpoint lands on an arc
@@ -216,12 +213,15 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     if (landingSegmentType == SegmentType.Arc)
                     {
                         result.Combine(new Result(
-                            ResultStatus.FatalError,
+                            ResultStatus.SoftError,
                             "Moved end landed on arc segment after modifying later polylines. Pushing aborted."));
+                        Debug.CreateDebugLine(
+                            pline2.GetPointAtDist(missingLength), ColorByName("red"));
                         return result;
                     }
                     else
                     {
+                        result.Combine(intermediateResult);
                         //Fall through to after the ifs for actual pushing
                     }
 
@@ -229,32 +229,94 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 }
                 else //The pushing failed thus return result signaling failure
                 {
+                    result.Combine(intermediateResult);
                     return result;
                 }
             }
             else //Polyline is not too short for operation
             {
                 //Testing for where the endpoint lands
-                SegmentType landingSegmentType = pline2.GetSegmentType(
-                            (int)pline2.GetParameterAtDistance(missingLength));
-                if (landingSegmentType == SegmentType.Arc)
-                {
-                    result.Combine(new Result(
-                        ResultStatus.SoftError,
-                        "Moved end landed on arc segment. Pushing aborted."));
-                    return result;
-                }
+                //Change: this check is done in ModifyCurrentPlines
 
                 //Fall through to after the ifs for actual pushing
             }
-
-            ModifyCurrentPlines(db, pline1, pline2, ps, missingLength);
-            return result;
+            var nextEnt = ps.PeekNextEntityByPolyline(pline1);
+            BlockReference br = nextEnt as BlockReference;
+            #region Validating next entity
+            //Validating next entity
+            if (nextEnt == null)
+            {
+                prdDbg($"No next entity after {pline1.Handle}. Length correction stopped.");
+                return new Result(
+                    ResultStatus.SoftError,
+                    $"No next entity after {pline1.Handle}. Length correction stopped.");
+            }
+            if (nextEnt is Polyline pl)
+            {
+                throw new Exception($"Next entity after polyline {pline1.Handle} is a polyline {pl.Handle}! " +
+                    $"This is not expected -- no consecutive polylines allowed in projects.");
+            }
+            if (br == null)
+                throw new Exception($"Next entity after polyline {pline1.Handle} is not a block reference! " +
+                    $"This is not expected. Offending element: {nextEnt.Handle}.");
+            if (br.GetPipelineType() != PipelineElementType.Reduktion)
+            {
+                prdDbg($"Next entity {br.Handle} after {pline1.Handle} is not a reducer. " +
+                    $"Length correction stopped.");
+                return new Result(ResultStatus.SoftError,
+                    $"Next entity {br.Handle} after {pline1.Handle} is not a reducer. " +
+                    $"Length correction stopped.");
+            }
+            #endregion
+            Result modifyResult = CorrectPlines(db, pline1, br, pline2, missingLength);
+            return modifyResult;
         }
 
-        private void ModifyCurrentPlines(Database db, Polyline pline1, Polyline pline2, PipelineSegment ps, double missingLength)
+        private Result CorrectPlines(
+            Database db, Polyline pline1, BlockReference reducer, Polyline pline2, double missingLength)
         {
-            throw new NotImplementedException();
+            using (Transaction tx = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    //Now to correcting lengths
+                    double transitionLength = Utils.GetTransitionLength(tx, reducer);
+
+                    SegmentType landingSegmentType = pline2.GetSegmentType(
+                                (int)pline2.GetParameterAtDistance(missingLength));
+                    if (landingSegmentType == SegmentType.Arc)
+                    {
+                        prdDbg(
+                        $"***WARNING***\n" +
+                                $"For polyline {pline2.Handle} length correction points ends in an Arc segment.\n" +
+                                $"Automatic cut length correction is not possible. If you wish, correct lengths manually.\n" +
+                                $"In that case run CORRECTCUTLENGTHSV2 afterwards again.");
+                        Debug.CreateDebugLine(
+                            pline2.GetPointAtDist(missingLength), ColorByName("red"));
+                        return new Result(
+                            ResultStatus.SoftError,
+                            "Moved end landed on arc segment. Modify length aborted.");
+                    }
+
+                    #region Case 1. Missing length <= transitionLength
+
+
+
+                    #endregion
+                }
+                catch (Exception ex)
+                {
+                    prdDbg($"Pline1: {pline1.Handle}, Pline2: {pline2.Handle}, Br: {reducer.Handle}" +
+                        $"ML: {missingLength}");
+                    prdDbg(ex);
+                    tx.Abort();
+                    return new Result(
+                        ResultStatus.FatalError,
+                        "Exception thrown.");
+                }
+                tx.Commit();
+                return new Result();
+            }
         }
 
         private void Case1(Polyline firstPoly, Polyline secondPoly, BlockReference transition)
