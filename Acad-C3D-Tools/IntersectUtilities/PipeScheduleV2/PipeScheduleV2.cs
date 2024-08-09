@@ -86,13 +86,13 @@ namespace IntersectUtilities.PipeScheduleV2
         #region Radii
         public static Dictionary<string, Type> companyDict = new Dictionary<string, Type>()
         {
-            { "LOGSTOR", typeof(Logstor) },
-            { "ISOPLUS", typeof(Isoplus) },
+            { "Logstor", typeof(Logstor) },
+            { "Isoplus", typeof(Isoplus) },
         };
         public static Dictionary<string, CompanyEnum> companyEnumDict = new Dictionary<string, CompanyEnum>()
         {
-            {"LOGSTOR", CompanyEnum.Logstor },
-            {"ISOPLUS", CompanyEnum.Isoplus },
+            {"Logstor", CompanyEnum.Logstor },
+            {"Isoplus", CompanyEnum.Isoplus },
         };
         public static Dictionary<string, Type> radiiColumnTypeDict = new Dictionary<string, Type>()
         {
@@ -388,24 +388,44 @@ namespace IntersectUtilities.PipeScheduleV2
 
             int dn = GetPipeDN(ent);
             //int std = (int)GetPipeStdLength(ent);
-            int std = 12; //Bruger kun radier for 12m rør
+            int std = 12; //Bruger kun radier for 12m rør bestemt af ledelsen
 
-            double rad = pipeType.GetBuerorMinRadius(dn, std);
+            double rad = GetBuerorMinRadius(ent, "Isoplus", std);
 
             return rad;
         }
         /// <param name="company">Logstor, Isoplus</param>
-        public static double GetBuerorMinRadius(Entity ent, string company, int pipeLength)
+        public static double GetBuerorMinRadius(Entity ent, string company, int pipeLength = 12)
         {
             PipeSystemEnum system = GetPipeSystem(ent);
-
             int dn = GetPipeDN(ent);
-
             IPipeRadiusData radiusData = _radiiRepo.GetPipeRadiusData(company);
-
             double rad = radiusData.GetBuerorMinRadius(dn, pipeLength);
-
             return rad;
+        }
+        public static double AskForBuerorMinRadius(Entity ent, int pipeLength = 12)
+        {
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Editor ed = doc.Editor;
+
+            PromptKeywordOptions options = new PromptKeywordOptions("\nChoose an option [Isoplus/Logstor]: ")
+            {
+                AllowNone = false,
+            };
+            options.Keywords.Add("Logstor");
+            options.Keywords.Add("Isoplus");
+            options.Keywords.Default = "Isoplus";
+
+            PromptResult result = ed.GetKeywords(options);
+
+            if (result.Status == PromptStatus.OK)
+            {
+                return GetBuerorMinRadius(ent, result.StringResult, pipeLength);
+            }
+            else
+            {
+                return GetBuerorMinRadius(ent, "Isoplus", pipeLength);
+            }
         }
         public static string GetLabel(Entity ent)
         {
@@ -921,7 +941,6 @@ namespace IntersectUtilities.PipeScheduleV2
     {
         void Initialize(DataTable table, CompanyEnum compType);
         double GetBuerorMinRadius(int dn, int pipeLength);
-
         CompanyEnum Company { get; }
     }
     public class PipeRadiusData : IPipeRadiusData

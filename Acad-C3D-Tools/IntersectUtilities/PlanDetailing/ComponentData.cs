@@ -809,7 +809,7 @@ namespace IntersectUtilities
 
                 double actualRadius = seg.Radius;
                 double minElasticRadius = GetPipeMinElasticRadius(run);
-                double minBuerorRadius = GetBuerorMinRadius(run);
+                double minBuerorRadius = AskForBuerorMinRadius(run);
 
                 //Check arc segment radius to be whithin bueror range
                 if (actualRadius > minElasticRadius)
@@ -848,16 +848,17 @@ namespace IntersectUtilities
                 Polyline run = RunId.Go<Polyline>(tx);
 
                 int idx = (int)run.GetParamAtPointX(Location);
-                double pipeStdLength = GetPipeStdLength(run);
+                //double pipeStdLength = GetPipeStdLength(run);
+                double pipeStdLength = 12; //Alle buerør er 12m
                 var arc = run.GetArcSegmentAt(idx);
                 double radius = arc.Radius;
                 double arcLength = run.GetLengthOfSegmentAt(idx);
                 int nrOfPipes = (int)(arcLength / pipeStdLength) + 1;
-                double lengthUpToArc = run.GetDistanceAtParameter((double)idx);
+                double lengthUpToArc = run.GetDistanceAtParameter(idx);
 
                 //Determine if blocks must be mirrored
-                var dir1 = run.GetFirstDerivative((double)idx);
-                var dir2 = run.GetFirstDerivative((double)(idx + 1));
+                var dir1 = run.GetFirstDerivative(idx);
+                var dir2 = run.GetFirstDerivative((idx + 1));
                 var cp = dir1.CrossProduct(dir2);
                 bool mustBeMirrored = false;
                 if (cp.Z < 0.0) mustBeMirrored = true;
