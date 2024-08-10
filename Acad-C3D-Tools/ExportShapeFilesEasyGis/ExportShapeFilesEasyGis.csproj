@@ -1,372 +1,232 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <PropertyGroup>
-    <NsPath>X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\ExportShapeFilesEasyGis</NsPath>
-  </PropertyGroup>
-  <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{774D8C82-954D-40A1-993A-62C9385FDF12}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>ExportShapeFilesEasyGis</RootNamespace>
-    <AssemblyName>ExportShapeFilesEasyGis</AssemblyName>
-    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <Deterministic>true</Deterministic>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <DebugSymbols>true</DebugSymbols>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
-    <DebugSymbols>true</DebugSymbols>
-    <OutputPath>bin\x64\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <DebugType>full</DebugType>
-    <PlatformTarget>x64</PlatformTarget>
-    <LangVersion>7.3</LangVersion>
-    <ErrorReport>prompt</ErrorReport>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
-    <OutputPath>bin\x64\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <Optimize>true</Optimize>
-    <DebugType>pdbonly</DebugType>
-    <PlatformTarget>x64</PlatformTarget>
-    <LangVersion>7.3</LangVersion>
-    <ErrorReport>prompt</ErrorReport>
-  </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="accoremgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AcCui">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcCui.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="acdbmgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acdbmgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="acdbmgdbrep">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acdbmgdbrep.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AcDx">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcDx.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="acmgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acmgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AcMr">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcMr.DLL</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AcSeamless">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcSeamless.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AcTcMgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcTcMgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AcWindows">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcWindows.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AdUIMgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdUIMgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AdUiPalettes">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdUiPalettes.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AdWindows">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdWindows.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AecBaseMgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AecBaseMgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AeccDbMgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\C3D\AeccDbMgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="AecPropDataMgd">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecPropDataMgd.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="EGIS.Controls">
-      <HintPath>X:\AutoCAD DRI - QGIS\EGIS\EGIS.Controls.dll</HintPath>
-    </Reference>
-    <Reference Include="EGIS.Projections">
-      <HintPath>X:\AutoCAD DRI - QGIS\EGIS\EGIS.Projections.dll</HintPath>
-    </Reference>
-    <Reference Include="EGIS.ShapeFileLib">
-      <HintPath>X:\AutoCAD DRI - QGIS\EGIS\EGIS.ShapeFileLib.dll</HintPath>
-    </Reference>
-    <Reference Include="GeoAPI, Version=1.7.5.0, Culture=neutral, PublicKeyToken=a1a0da7def465678, processorArchitecture=MSIL">
-      <HintPath>..\packages\GeoAPI.Core.1.7.5\lib\net45\GeoAPI.dll</HintPath>
-    </Reference>
-    <Reference Include="GeoAPI.CoordinateSystems, Version=1.7.5.0, Culture=neutral, PublicKeyToken=a1a0da7def465678, processorArchitecture=MSIL">
-      <HintPath>..\packages\GeoAPI.CoordinateSystems.1.7.5\lib\net45\GeoAPI.CoordinateSystems.dll</HintPath>
-    </Reference>
-    <Reference Include="ManagedMapApi">
-      <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\Map\ManagedMapApi.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.Bcl.AsyncInterfaces.8.0.0\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.VisualBasic" />
-    <Reference Include="NetTopologySuite, Version=2.0.0.0, Culture=neutral, PublicKeyToken=f580a05016ebada1, processorArchitecture=MSIL">
-      <HintPath>..\packages\NetTopologySuite.2.5.0\lib\netstandard2.0\NetTopologySuite.dll</HintPath>
-    </Reference>
-    <Reference Include="NetTopologySuite.Features, Version=2.0.0.0, Culture=neutral, PublicKeyToken=f580a05016ebada1, processorArchitecture=MSIL">
-      <HintPath>..\packages\NetTopologySuite.Features.2.1.0\lib\netstandard2.0\NetTopologySuite.Features.dll</HintPath>
-    </Reference>
-    <Reference Include="NetTopologySuite.IO.ShapeFile, Version=2.0.0.0, Culture=neutral, PublicKeyToken=f580a05016ebada1, processorArchitecture=MSIL">
-      <HintPath>..\packages\NetTopologySuite.IO.ShapeFile.2.1.0\lib\netstandard2.0\NetTopologySuite.IO.ShapeFile.dll</HintPath>
-    </Reference>
-    <Reference Include="PresentationCore" />
-    <Reference Include="PresentationFramework" />
-    <Reference Include="ProjNET, Version=1.4.0.0, Culture=neutral, PublicKeyToken=a1f5bdcd9c6f5740, processorArchitecture=MSIL">
-      <HintPath>..\packages\ProjNET4GeoAPI.1.4.1\lib\net45\ProjNET.dll</HintPath>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Core" />
-    <Reference Include="System.Drawing" />
-    <Reference Include="System.IO.Compression" />
-    <Reference Include="System.IO.Compression.FileSystem" />
-    <Reference Include="System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Memory.4.5.5\lib\net461\System.Memory.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Numerics" />
-    <Reference Include="System.Numerics.Vectors, Version=4.1.4.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Numerics.Vectors.4.5.0\lib\net46\System.Numerics.Vectors.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.6.0.0\lib\net461\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Text.Encoding.CodePages, Version=4.1.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Text.Encoding.CodePages.4.5.1\lib\net461\System.Text.Encoding.CodePages.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Text.Encodings.Web, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Text.Encodings.Web.8.0.0\lib\net462\System.Text.Encodings.Web.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Text.Json, Version=8.0.0.4, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Text.Json.8.0.4\lib\net462\System.Text.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Threading.Tasks.Extensions.4.5.4\lib\net461\System.Threading.Tasks.Extensions.dll</HintPath>
-    </Reference>
-    <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.ValueTuple.4.5.0\lib\net47\System.ValueTuple.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.Xaml" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Xml" />
-    <Reference Include="WindowsBase" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="..\autocadcommands\Algorithms.cs">
-      <Link>ACC\Algorithms.cs</Link>
-    </Compile>
-    <Compile Include="..\autocadcommands\App.cs">
-      <Link>ACC\App.cs</Link>
-    </Compile>
-    <Compile Include="..\autocadcommands\Commands.cs">
-      <Link>ACC\Commands.cs</Link>
-    </Compile>
-    <Compile Include="..\autocadcommands\DbHelper.cs">
-      <Link>ACC\DbHelper.cs</Link>
-    </Compile>
-    <Compile Include="..\autocadcommands\FlexDataStore.cs">
-      <Link>ACC\FlexDataStore.cs</Link>
-    </Compile>
-    <Compile Include="..\autocadcommands\Gui.cs">
-      <Link>ACC\Gui.cs</Link>
-    </Compile>
-    <Compile Include="..\autocadcommands\guis\DictionaryViewer.xaml.cs">
-      <Link>ACC\GUIs\DictionaryViewer.xaml.cs</Link>
-      <DependentUpon>DictionaryViewer.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="..\autocadcommands\guis\InputBox.xaml.cs">
-      <Link>ACC\GUIs\InputBox.xaml.cs</Link>
-      <DependentUpon>InputBox.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="..\autocadcommands\guis\MultiInputs.xaml.cs">
-      <Link>ACC\GUIs\MultiInputs.xaml.cs</Link>
-      <DependentUpon>MultiInputs.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="..\autocadcommands\guis\TaskProgressWindow.xaml.cs">
-      <Link>ACC\GUIs\TaskProgressWindow.xaml.cs</Link>
-      <DependentUpon>TaskProgressWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="..\autocadcommands\guis\TextReport.xaml.cs">
-      <Link>ACC\GUIs\TextReport.xaml.cs</Link>
-      <DependentUpon>TextReport.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="..\autocadcommands\Interaction.cs">
-      <Link>ACC\Interaction.cs</Link>
-    </Compile>
-    <Compile Include="..\autocadcommands\internal\CustomDictionary.cs">
-      <Link>ACC\Internal\CustomDictionary.cs</Link>
-    </Compile>
-    <Compile Include="..\autocadcommands\internal\JigDrag.cs">
-      <Link>ACC\Internal\JigDrag.cs</Link>
-    </Compile>
-    <Compile Include="..\autocadcommands\Layouts.cs">
-      <Link>ACC\Layouts.cs</Link>
-    </Compile>
-    <Compile Include="..\autocadcommands\QuickSelection.cs">
-      <Link>ACC\QuickSelection.cs</Link>
-    </Compile>
-    <Compile Include="..\autocadcommands\SymbolPack.cs">
-      <Link>ACC\SymbolPack.cs</Link>
-    </Compile>
-    <Compile Include="..\autocadcommands\Test.cs">
-      <Link>ACC\Test.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\ComponentSchedule.cs">
-      <Link>ComponentSchedule.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\CsvReader.cs">
-      <Link>CsvReader.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\DynamicBlockPropertyReader.cs">
-      <Link>DynamicBlockPropertyReader.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\FolderSelectDialog.cs">
-      <Link>FolderSelectDialog.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\MoreLinq\MoreLinq.cs">
-      <Link>MoreLinq.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\PipeSchedule.cs">
-      <Link>PipeSchedule.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
-      <Link>PipeScheduleV2\PipeScheduleV2.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\PropertySetManager.cs">
-      <Link>PropertySetManager.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\Reflector.cs">
-      <Link>Reflector.cs</Link>
-    </Compile>
-    <Compile Include="..\IntersectUtilities\UtilsCommon.cs">
-      <Link>UtilsCommon.cs</Link>
-    </Compile>
-    <Compile Include="AutoCadFjvToGeoJsonConverter.cs" />
-    <Compile Include="ExportShapeFilesEasyGis.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Utils.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="app.config" />
-    <None Include="loadNet.scr" />
-    <None Include="packages.config" />
-    <Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\proj.db">
-      <Link>Proj6\proj.db</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="X:\AutoCAD DRI - QGIS\EGIS\geomutil_lib.dll">
-      <Link>geomutil_lib.dll</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="X:\AutoCAD DRI - QGIS\EGIS\geomutil_libx64.dll">
-      <Link>geomutil_libx64.dll</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\x64\proj_6_1.dll">
-      <Link>Proj6\x64\proj_6_1.dll</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\x64\sqlite3.dll">
-      <Link>Proj6\x64\sqlite3.dll</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\x86\proj_6_1.dll">
-      <Link>Proj6\x86\proj_6_1.dll</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\x86\sqlite3.dll">
-      <Link>Proj6\x86\sqlite3.dll</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-  <ItemGroup>
-    <Page Include="..\autocadcommands\guis\DictionaryViewer.xaml">
-      <Link>ACC\GUIs\DictionaryViewer.xaml</Link>
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="..\autocadcommands\guis\InputBox.xaml">
-      <Link>ACC\GUIs\InputBox.xaml</Link>
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="..\autocadcommands\guis\MultiInputs.xaml">
-      <Link>ACC\GUIs\MultiInputs.xaml</Link>
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="..\autocadcommands\guis\TaskProgressWindow.xaml">
-      <Link>ACC\GUIs\TaskProgressWindow.xaml</Link>
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="..\autocadcommands\guis\TextReport.xaml">
-      <Link>ACC\GUIs\TextReport.xaml</Link>
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <PostBuildEvent>if "$(ConfigurationName)"=="Release" (
-    for /D %25%25i in ("$(TargetDir)*") do (
-        if /I not "%25%25~nxi"=="NetReload" (
-            xcopy "%25%25i" "$(NsPath)\%25%25~nxi\" /E /Y /D
-        )
-    )
-    for %25%25i in ("$(TargetDir)*.*") do (
-        if /I not "%25%25~dpxi"=="$(TargetDir)NetReload\" (
-            xcopy "%25%25i" "$(NsPath)\" /Y /D
-        )
-    )
-)</PostBuildEvent>
-  </PropertyGroup>
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<NsPath>X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\ExportShapeFilesEasyGis</NsPath>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<UseWindowsForms>true</UseWindowsForms>
+		<UseWPF>true</UseWPF>
+		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+	<PropertyGroup>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+	</PropertyGroup>
+	<PropertyGroup>
+		<OutputType>Library</OutputType>
+	</PropertyGroup>
+	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+		<DebugSymbols>true</DebugSymbols>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+		<OutputPath>bin\x64\Debug\</OutputPath>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+		<OutputPath>bin\x64\Release\</OutputPath>
+	</PropertyGroup>
+	<ItemGroup>
+		<Reference Include="accoremgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcCui">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcCui.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="acdbmgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acdbmgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="acdbmgdbrep">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acdbmgdbrep.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcDx">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcDx.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="acmgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acmgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcMr">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcMr.DLL</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcSeamless">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcSeamless.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcTcMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcTcMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AcWindows">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcWindows.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AdUIMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdUIMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AdUiPalettes">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdUiPalettes.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AdWindows">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AdWindows.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AecBaseMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AecBaseMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AeccDbMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\C3D\AeccDbMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="AecPropDataMgd">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecPropDataMgd.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="ManagedMapApi">
+			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\Map\ManagedMapApi.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+	</ItemGroup>
+	<ItemGroup>
+		<Compile Include="..\autocadcommands\Algorithms.cs">
+			<Link>ACC\Algorithms.cs</Link>
+		</Compile>
+		<Compile Include="..\autocadcommands\App.cs">
+			<Link>ACC\App.cs</Link>
+		</Compile>
+		<Compile Include="..\autocadcommands\Commands.cs">
+			<Link>ACC\Commands.cs</Link>
+		</Compile>
+		<Compile Include="..\autocadcommands\DbHelper.cs">
+			<Link>ACC\DbHelper.cs</Link>
+		</Compile>
+		<Compile Include="..\autocadcommands\FlexDataStore.cs">
+			<Link>ACC\FlexDataStore.cs</Link>
+		</Compile>
+		<Compile Include="..\autocadcommands\Gui.cs">
+			<Link>ACC\Gui.cs</Link>
+		</Compile>
+		<Compile Include="..\autocadcommands\Interaction.cs">
+			<Link>ACC\Interaction.cs</Link>
+		</Compile>
+		<Compile Include="..\autocadcommands\internal\CustomDictionary.cs">
+			<Link>ACC\Internal\CustomDictionary.cs</Link>
+		</Compile>
+		<Compile Include="..\autocadcommands\internal\JigDrag.cs">
+			<Link>ACC\Internal\JigDrag.cs</Link>
+		</Compile>
+		<Compile Include="..\autocadcommands\Layouts.cs">
+			<Link>ACC\Layouts.cs</Link>
+		</Compile>
+		<Compile Include="..\autocadcommands\QuickSelection.cs">
+			<Link>ACC\QuickSelection.cs</Link>
+		</Compile>
+		<Compile Include="..\autocadcommands\SymbolPack.cs">
+			<Link>ACC\SymbolPack.cs</Link>
+		</Compile>
+		<Compile Include="..\autocadcommands\Test.cs">
+			<Link>ACC\Test.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\ComponentSchedule.cs">
+			<Link>ComponentSchedule.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\CsvReader.cs">
+			<Link>CsvReader.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\DynamicBlockPropertyReader.cs">
+			<Link>DynamicBlockPropertyReader.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\FolderSelectDialog.cs">
+			<Link>FolderSelectDialog.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\MoreLinq\MoreLinq.cs">
+			<Link>MoreLinq.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\PipeSchedule.cs">
+			<Link>PipeSchedule.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
+			<Link>PipeScheduleV2\PipeScheduleV2.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\PropertySetManager.cs">
+			<Link>PropertySetManager.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Reflector.cs">
+			<Link>Reflector.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\UtilsCommon.cs">
+			<Link>UtilsCommon.cs</Link>
+		</Compile>
+	</ItemGroup>
+	<ItemGroup>
+		<Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\proj.db">
+			<Link>Proj6\proj.db</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+	<ItemGroup>
+		<Content Include="X:\AutoCAD DRI - QGIS\EGIS\geomutil_lib.dll">
+			<Link>geomutil_lib.dll</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="X:\AutoCAD DRI - QGIS\EGIS\geomutil_libx64.dll">
+			<Link>geomutil_libx64.dll</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\x64\proj_6_1.dll">
+			<Link>Proj6\x64\proj_6_1.dll</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\x64\sqlite3.dll">
+			<Link>Proj6\x64\sqlite3.dll</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\x86\proj_6_1.dll">
+			<Link>Proj6\x86\proj_6_1.dll</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\x86\sqlite3.dll">
+			<Link>Proj6\x86\sqlite3.dll</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="GeoAPI.CoordinateSystems" Version="1.7.5" />
+		<PackageReference Include="GeoAPI.Core" Version="1.7.5" />
+		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+		<PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
+		<PackageReference Include="NetTopologySuite" Version="2.5.0" />
+		<PackageReference Include="NetTopologySuite.Features" Version="2.1.0" />
+		<PackageReference Include="NetTopologySuite.IO.ShapeFile" Version="2.1.0" />
+		<PackageReference Include="ProjNET4GeoAPI" Version="1.4.1" />
+		<PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
+		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
+		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
+		<PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
+		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
+		<PackageReference Include="System.Text.Json" Version="8.0.4" />
+	</ItemGroup>
+	<PropertyGroup>
+		<PostBuildEvent>
+			if "$(ConfigurationName)"=="Release" (
+			for /D %25%25i in ("$(TargetDir)*") do (
+			if /I not "%25%25~nxi"=="NetReload" (
+			xcopy "%25%25i" "$(NsPath)\%25%25~nxi\" /E /Y /D
+			)
+			)
+			for %25%25i in ("$(TargetDir)*.*") do (
+			if /I not "%25%25~dpxi"=="$(TargetDir)NetReload\" (
+			xcopy "%25%25i" "$(NsPath)\" /Y /D
+			)
+			)
+			)
+		</PostBuildEvent>
+	</PropertyGroup>
 </Project>

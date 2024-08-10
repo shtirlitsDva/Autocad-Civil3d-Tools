@@ -1,21 +1,20 @@
-
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntersectUtilities", "IntersectUtilities\IntersectUtilities.csproj", "{3DBCDE07-D2C7-45A3-9BD6-5B7873A85166}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IntersectUtilities", "IntersectUtilities\IntersectUtilities.csproj", "{3DBCDE07-D2C7-45A3-9BD6-5B7873A85166}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Net-Reload", "Net-Reload\Net-Reload.csproj", "{C128E226-003B-4E66-8D49-B7F6CF8D7901}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Net-Reload", "Net-Reload\Net-Reload.csproj", "{C128E226-003B-4E66-8D49-B7F6CF8D7901}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoCadUtils", "AutoCadUtils\AutoCadUtils.csproj", "{88E731A7-B0D5-4922-ACF4-2CF9778F7028}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReverseLayoutProfileLANDXML", "ReverseLayoutProfileLANDXML\ReverseLayoutProfileLANDXML.csproj", "{B1B68118-C536-4692-8CCA-E91FD45F89AA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReverseLayoutProfileLANDXML", "ReverseLayoutProfileLANDXML\ReverseLayoutProfileLANDXML.csproj", "{B1B68118-C536-4692-8CCA-E91FD45F89AA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExportBlocksToSvg", "ExportBlocksToSvg\ExportBlocksToSvg.csproj", "{33DBF6F7-DA92-496E-985F-ED3FA39165AE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExportBlocksToSvg", "ExportBlocksToSvg\ExportBlocksToSvg.csproj", "{33DBF6F7-DA92-496E-985F-ED3FA39165AE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExportShapeFilesEasyGis", "ExportShapeFilesEasyGis\ExportShapeFilesEasyGis.csproj", "{774D8C82-954D-40A1-993A-62C9385FDF12}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExportShapeFilesEasyGis", "ExportShapeFilesEasyGis\ExportShapeFilesEasyGis.csproj", "{774D8C82-954D-40A1-993A-62C9385FDF12}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SheetCreationAutomation", "SheetCreationAutomation\SheetCreationAutomation.csproj", "{96AE4F77-001B-4C48-8ED9-590009510DE5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SheetCreationAutomation", "SheetCreationAutomation\SheetCreationAutomation.csproj", "{96AE4F77-001B-4C48-8ED9-590009510DE5}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{CCE3789B-D3E9-420D-85D5-EE143705A56D}"
 	ProjectSection(SolutionItems) = preProject
@@ -26,23 +25,21 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AcCoreConsoleAutomation", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AcadOverrules", "AcadOverrules\AcadOverrules.csproj", "{BB421B54-812E-4C32-868B-41FA76569772}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LERImporter", "LERImporter\LERImporter.csproj", "{FBEE18FE-055A-4901-9D67-DC0A18588F7D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LERImporter", "LERImporter\LERImporter.csproj", "{FBEE18FE-055A-4901-9D67-DC0A18588F7D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DriPaletteSet", "DriPaletteSet\DriPaletteSet.csproj", "{0F92C1BB-FADB-4DF2-8FF8-F28391C1ED3C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DriPaletteSet", "DriPaletteSet\DriPaletteSet.csproj", "{0F92C1BB-FADB-4DF2-8FF8-F28391C1ED3C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dimensionering", "Dimensionering\Dimensionering.csproj", "{C578718C-90F5-4546-ADAC-6C9D91E02A95}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dimensionering", "Dimensionering\Dimensionering.csproj", "{C578718C-90F5-4546-ADAC-6C9D91E02A95}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AutoCADCommands", "AutoCADCommands\AutoCADCommands.csproj", "{C5F6C326-952B-43E8-9830-311F190BAB11}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "netDxf", "netDxf\netDxf.csproj", "{4F67B4FC-98C1-412D-A149-87402FD6A913}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DRILOAD", "DRILOAD\DRILOAD.csproj", "{48B5495F-32D5-45F9-B9F8-2E133D33653F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRILOAD", "DRILOAD\DRILOAD.csproj", "{48B5495F-32D5-45F9-B9F8-2E133D33653F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DRITBL", "DRITBL\DRITBL.csproj", "{8E289862-D2B1-46B9-99CF-F13925F2D562}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DRITBL", "DRITBL\DRITBL.csproj", "{8E289862-D2B1-46B9-99CF-F13925F2D562}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ler2PolygonSplitting", "Ler2PolygonSplitting\Ler2PolygonSplitting.csproj", "{322E89DD-D28E-48C9-8807-3C3A593D9892}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ler2PolygonSplitting", "Ler2PolygonSplitting\Ler2PolygonSplitting.csproj", "{322E89DD-D28E-48C9-8807-3C3A593D9892}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IsoTools", "IsoTools\IsoTools.csproj", "{4EEFE674-6288-4036-97C6-E5AE1C61278F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IsoTools", "IsoTools\IsoTools.csproj", "{4EEFE674-6288-4036-97C6-E5AE1C61278F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -152,14 +149,6 @@ Global
 		{C5F6C326-952B-43E8-9830-311F190BAB11}.Release|Any CPU.Build.0 = Release|Any CPU
 		{C5F6C326-952B-43E8-9830-311F190BAB11}.Release|x64.ActiveCfg = Release|Any CPU
 		{C5F6C326-952B-43E8-9830-311F190BAB11}.Release|x64.Build.0 = Release|Any CPU
-		{4F67B4FC-98C1-412D-A149-87402FD6A913}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4F67B4FC-98C1-412D-A149-87402FD6A913}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4F67B4FC-98C1-412D-A149-87402FD6A913}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{4F67B4FC-98C1-412D-A149-87402FD6A913}.Debug|x64.Build.0 = Debug|Any CPU
-		{4F67B4FC-98C1-412D-A149-87402FD6A913}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4F67B4FC-98C1-412D-A149-87402FD6A913}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4F67B4FC-98C1-412D-A149-87402FD6A913}.Release|x64.ActiveCfg = Release|Any CPU
-		{4F67B4FC-98C1-412D-A149-87402FD6A913}.Release|x64.Build.0 = Release|Any CPU
 		{48B5495F-32D5-45F9-B9F8-2E133D33653F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{48B5495F-32D5-45F9-B9F8-2E133D33653F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{48B5495F-32D5-45F9-B9F8-2E133D33653F}.Debug|x64.ActiveCfg = Debug|Any CPU
