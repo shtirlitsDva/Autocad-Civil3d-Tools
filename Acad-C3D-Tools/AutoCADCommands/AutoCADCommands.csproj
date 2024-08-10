@@ -8,6 +8,7 @@
 		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
 		<PlatformTarget>x64</PlatformTarget>
 		<Nullable>enable</Nullable>
+		<Platforms>AnyCPU;ARM32</Platforms>
 	</PropertyGroup>
 	<PropertyGroup>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
@@ -21,10 +22,20 @@
 		<CodeAnalysisRuleSet>AutoCADCommands.ruleset</CodeAnalysisRuleSet>
 		<RunCodeAnalysis>true</RunCodeAnalysis>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM32'">
+	  <DocumentationFile>bin\Debug\AutoCADCommands.xml</DocumentationFile>
+	  <CodeAnalysisRuleSet>AutoCADCommands.ruleset</CodeAnalysisRuleSet>
+	  <RunCodeAnalysis>true</RunCodeAnalysis>
+	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
 		<OutputPath>..\bin\Release\r23\</OutputPath>
 		<DefineConstants>TRACE;R23</DefineConstants>
 		<CodeAnalysisRuleSet>AutoCADCommands.ruleset</CodeAnalysisRuleSet>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM32'">
+	  <OutputPath>..\bin\Release\r23\</OutputPath>
+	  <DefineConstants>TRACE;R23</DefineConstants>
+	  <CodeAnalysisRuleSet>AutoCADCommands.ruleset</CodeAnalysisRuleSet>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="AutoCAD.NET" Version="25.0.1" />
