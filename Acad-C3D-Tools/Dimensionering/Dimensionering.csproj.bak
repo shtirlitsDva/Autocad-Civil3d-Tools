@@ -1,6 +1,9 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <NsPath>X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2024\Dimensionering</NsPath>
+  </PropertyGroup>
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -23,12 +26,16 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>none</DebugType>
+    <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="accoremgd">
@@ -103,6 +110,9 @@
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2024\Map\ManagedMapApi.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Bcl.AsyncInterfaces.8.0.0\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.Office.Interop.Excel, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
       <EmbedInteropTypes>True</EmbedInteropTypes>
     </Reference>
@@ -112,8 +122,40 @@
     </Reference>
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
+    <Reference Include="QuikGraph, Version=2.5.0.0, Culture=neutral, PublicKeyToken=46bd58b0789759cb, processorArchitecture=MSIL">
+      <HintPath>..\packages\QuikGraph.2.5.0\lib\net45\QuikGraph.dll</HintPath>
+    </Reference>
+    <Reference Include="QuikGraph.Graphviz, Version=2.5.0.0, Culture=neutral, PublicKeyToken=46bd58b0789759cb, processorArchitecture=MSIL">
+      <HintPath>..\packages\QuikGraph.Graphviz.2.5.0\lib\net45\QuikGraph.Graphviz.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
+    </Reference>
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Memory.4.5.5\lib\net461\System.Memory.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Numerics.Vectors, Version=4.1.4.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Numerics.Vectors.4.5.0\lib\net46\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.6.0.0\lib\net461\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Text.Encodings.Web, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Text.Encodings.Web.8.0.0\lib\net462\System.Text.Encodings.Web.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Text.Json, Version=8.0.0.4, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Text.Json.8.0.4\lib\net462\System.Text.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Threading.Tasks.Extensions.4.5.4\lib\net461\System.Threading.Tasks.Extensions.dll</HintPath>
+    </Reference>
+    <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.ValueTuple.4.5.0\lib\net47\System.ValueTuple.dll</HintPath>
+    </Reference>
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xaml" />
     <Reference Include="System.Xml.Linq" />
@@ -199,11 +241,23 @@
     <Compile Include="..\IntersectUtilities\GroupByCluster.cs">
       <Link>GroupByCluster.cs</Link>
     </Compile>
+    <Compile Include="..\IntersectUtilities\Json.cs">
+      <Link>Json.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\MoreLinq\DistinctBy.cs">
+      <Link>MoreLinq\DistinctBy.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\MoreLinq\MoreLinq.cs">
       <Link>MoreLinq.cs</Link>
     </Compile>
+    <Compile Include="..\IntersectUtilities\PipelineSizeArray.cs">
+      <Link>PipelineSizeArray.cs</Link>
+    </Compile>
     <Compile Include="..\IntersectUtilities\PipeSchedule.cs">
       <Link>PipeSchedule.cs</Link>
+    </Compile>
+    <Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
+      <Link>PipeScheduleV2\PipeScheduleV2.cs</Link>
     </Compile>
     <Compile Include="..\IntersectUtilities\PropertySetManager.cs">
       <Link>PropertySetManager.cs</Link>
@@ -218,14 +272,35 @@
       <Link>UtilsCommon.cs</Link>
     </Compile>
     <Compile Include="DAR_Husnummer_geojson.cs" />
+    <Compile Include="DebugHelper.cs" />
     <Compile Include="Dimensionering.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="FeatureCollection.cs" />
+    <Compile Include="Forms\ChoosePath.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\ChoosePath.Designer.cs">
+      <DependentUpon>ChoosePath.cs</DependentUpon>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
+    <Compile Include="Schema\DF BBR Bygning Class.cs" />
+    <Compile Include="Schema\DF BBR Enhed Class.cs" />
+    <Compile Include="Schema\DF DAR Adresse Class.cs" />
+    <Compile Include="Schema\DF DAR Husnummer Class.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="app.config" />
     <None Include="loadNet.scr" />
     <None Include="packages.config" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Content Include="DebugCommandLineAttribute.txt" />
@@ -257,9 +332,25 @@
       <SubType>Designer</SubType>
     </Page>
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Forms\ChoosePath.resx">
+      <DependentUpon>ChoosePath.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>
-    </PostBuildEvent>
+    <PostBuildEvent>if "$(ConfigurationName)"=="Release" (
+    for /D %25%25i in ("$(TargetDir)*") do (
+        if /I not "%25%25~nxi"=="NetReload" (
+            xcopy "%25%25i" "$(NsPath)\%25%25~nxi\" /E /Y /D
+        )
+    )
+    for %25%25i in ("$(TargetDir)*.*") do (
+        if /I not "%25%25~dpxi"=="$(TargetDir)NetReload\" (
+            xcopy "%25%25i" "$(NsPath)\" /Y /D
+        )
+    )
+)</PostBuildEvent>
   </PropertyGroup>
 </Project>

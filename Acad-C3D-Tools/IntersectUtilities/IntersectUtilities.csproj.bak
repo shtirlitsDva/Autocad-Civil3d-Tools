@@ -1,11 +1,16 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <NsPath>X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2024\IntersectUtilities</NsPath>
+  </PropertyGroup>
   <PropertyGroup>
     <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
       None
     </ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
     <TargetFrameworkProfile />
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -29,12 +34,13 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>none</DebugType>
+    <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <DebugSymbols>true</DebugSymbols>
@@ -53,6 +59,7 @@
     <LangVersion>7.3</LangVersion>
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
+  <PropertyGroup />
   <ItemGroup>
     <Reference Include="accoremgd">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2024\accoremgd.dll</HintPath>
@@ -122,27 +129,52 @@
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2024\ACA\AecPropDataMgd.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="csdot, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\csdot.2.0.1\lib\net461\csdot.dll</HintPath>
+    <Reference Include="DarkUI, Version=2.0.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\DarkUI.2.0.2\lib\DarkUI.dll</HintPath>
     </Reference>
     <Reference Include="ManagedMapApi">
       <HintPath>C:\Program Files\Autodesk\AutoCAD 2024\Map\ManagedMapApi.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=7.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.Bcl.AsyncInterfaces.7.0.0\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
+    <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Bcl.AsyncInterfaces.8.0.0\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Office.Interop.Excel, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
       <EmbedInteropTypes>True</EmbedInteropTypes>
     </Reference>
     <Reference Include="Microsoft.VisualBasic" />
+    <Reference Include="NetTopologySuite, Version=2.0.0.0, Culture=neutral, PublicKeyToken=f580a05016ebada1, processorArchitecture=MSIL">
+      <HintPath>..\packages\NetTopologySuite.2.5.0\lib\netstandard2.0\NetTopologySuite.dll</HintPath>
+    </Reference>
+    <Reference Include="NetTopologySuite.Features, Version=2.0.0.0, Culture=neutral, PublicKeyToken=f580a05016ebada1, processorArchitecture=MSIL">
+      <HintPath>..\packages\NetTopologySuite.Features.2.0.0\lib\netstandard2.0\NetTopologySuite.Features.dll</HintPath>
+    </Reference>
+    <Reference Include="NetTopologySuite.IO.GeoJSON, Version=4.0.0.0, Culture=neutral, PublicKeyToken=f580a05016ebada1, processorArchitecture=MSIL">
+      <HintPath>..\packages\NetTopologySuite.IO.GeoJSON.4.0.0\lib\netstandard2.0\NetTopologySuite.IO.GeoJSON.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.13.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
+    <Reference Include="QuikGraph, Version=2.5.0.0, Culture=neutral, PublicKeyToken=46bd58b0789759cb, processorArchitecture=MSIL">
+      <HintPath>..\packages\QuikGraph.2.5.0\lib\net45\QuikGraph.dll</HintPath>
+    </Reference>
+    <Reference Include="QuikGraph.Data, Version=2.5.0.0, Culture=neutral, PublicKeyToken=46bd58b0789759cb, processorArchitecture=MSIL">
+      <HintPath>..\packages\QuikGraph.Data.2.5.0\lib\net35\QuikGraph.Data.dll</HintPath>
+    </Reference>
+    <Reference Include="QuikGraph.Graphviz, Version=2.5.0.0, Culture=neutral, PublicKeyToken=46bd58b0789759cb, processorArchitecture=MSIL">
+      <HintPath>..\packages\QuikGraph.Graphviz.2.5.0\lib\net45\QuikGraph.Graphviz.dll</HintPath>
+    </Reference>
+    <Reference Include="QuikGraph.Serialization, Version=2.5.0.0, Culture=neutral, PublicKeyToken=46bd58b0789759cb, processorArchitecture=MSIL">
+      <HintPath>..\packages\QuikGraph.Serialization.2.5.0\lib\net461\QuikGraph.Serialization.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
     </Reference>
     <Reference Include="System.Core" />
+    <Reference Include="System.Design" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Memory.4.5.5\lib\net461\System.Memory.dll</HintPath>
@@ -154,11 +186,11 @@
     <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.6.0.0\lib\net461\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
     </Reference>
-    <Reference Include="System.Text.Encodings.Web, Version=7.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Text.Encodings.Web.7.0.0\lib\net462\System.Text.Encodings.Web.dll</HintPath>
+    <Reference Include="System.Text.Encodings.Web, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Text.Encodings.Web.8.0.0\lib\net462\System.Text.Encodings.Web.dll</HintPath>
     </Reference>
-    <Reference Include="System.Text.Json, Version=7.0.0.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Text.Json.7.0.2\lib\net462\System.Text.Json.dll</HintPath>
+    <Reference Include="System.Text.Json, Version=8.0.0.4, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Text.Json.8.0.4\lib\net462\System.Text.Json.dll</HintPath>
     </Reference>
     <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Threading.Tasks.Extensions.4.5.4\lib\net461\System.Threading.Tasks.Extensions.dll</HintPath>
@@ -167,7 +199,9 @@
       <HintPath>..\packages\System.ValueTuple.4.5.0\lib\net47\System.ValueTuple.dll</HintPath>
     </Reference>
     <Reference Include="System.Web" />
-    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Windows.Forms">
+      <Private>False</Private>
+    </Reference>
     <Reference Include="System.Xaml" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -234,6 +268,34 @@
     <Compile Include="..\AutoCADCommands\SymbolPack.cs">
       <Link>ACC\SymbolPack.cs</Link>
     </Compile>
+    <Compile Include="Algorithms\KMeansPP.cs" />
+    <Compile Include="Collections\Collections.cs" />
+    <Compile Include="ConvexHull.cs" />
+    <Compile Include="DataManager\DataManager.cs" />
+    <Compile Include="DataReferenceOptions.cs" />
+    <Compile Include="DebugHelpers\AssemblyResolveEvents.cs" />
+    <Compile Include="Forms\OverlayForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\PipeSettingsForm\PipeSettingsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\PipeSettingsForm\PipeSettingsForm.Designer.cs">
+      <DependentUpon>PipeSettingsForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\StringGridForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\StringGridForm.Designer.cs">
+      <DependentUpon>StringGridForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\StringGridFormCaller.cs" />
+    <Compile Include="Forms\TestSuiteForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\TestSuiteForm.Designer.cs">
+      <DependentUpon>TestSuiteForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="GeoJsonConverters\AutoCadVFToGeoJsonConverter.cs" />
     <Compile Include="GeoJsonConverters\AutoCadFjvToGeoJsonConverter.cs" />
     <Compile Include="BatchProcessing\01 BatchProcessing.cs" />
@@ -245,34 +307,66 @@
     </Compile>
     <Compile Include="ColorUtils.cs" />
     <Compile Include="ComponentSchedule.cs" />
-    <Compile Include="CreateGisData.cs" />
     <Compile Include="CsvReader.cs" />
     <Compile Include="DataQAClass.cs" />
     <Compile Include="DouglasPeuckerReduction.cs" />
     <Compile Include="DynamicBlockPropertyReader.cs" />
     <Compile Include="FjernvarmeFremtidig\FjernvarmeFremtidig.cs" />
     <Compile Include="FolderSelectDialog.cs" />
+    <Compile Include="GraphClasses\EdgeTyped.cs" />
+    <Compile Include="GraphClasses\GraphClasses.cs" />
     <Compile Include="GroupByCluster.cs" />
     <Compile Include="IsogenPopulateAttributes.cs" />
+    <Compile Include="Jigs\ProfileJig.cs" />
     <Compile Include="Jigs\FjvJig.cs" />
     <Compile Include="Jigs\ExampleJigs.cs" />
+    <Compile Include="Json.cs" />
+    <Compile Include="LER1.0\Eksisterende_fjernvarme.cs" />
     <Compile Include="LER1.0\LER1_Evida.cs" />
     <Compile Include="LER1.0\LER1_General.cs" />
     <Compile Include="LER1.0\LER1_KLAR.cs" />
     <Compile Include="LER1.0\LER1_Novafos.cs" />
     <Compile Include="LER1.0\LER1_Fibia.cs" />
     <Compile Include="LER1.0\LER1_MassImporter.cs" />
+    <Compile Include="LER1.0\LER1_Taarnby.cs" />
+    <Compile Include="LER1.0\LER1_LyngbyTaarbaekForsyning.cs" />
     <Compile Include="LER1.0\Partial_Template.cs" />
+    <Compile Include="LER2.0\HtmlGenerator.cs" />
+    <Compile Include="LER2.0\LER2.0.cs" />
+    <Compile Include="LER2.0\LER2.0_Extensions.cs" />
+    <Compile Include="LER2.0\Ler2MergeValidator.cs" />
+    <Compile Include="LER2.0\MyPl3d.cs" />
+    <Compile Include="LER2.0\SerializablePolyline3d.cs" />
+    <Compile Include="LongitudinalProfiles\Ler3dManager\Ler3dManager.cs" />
     <Compile Include="LongitudinalProfiles\LongitudinalProfileTools.cs" />
+    <Compile Include="LongitudinalProfiles\TrenchSamplingPoint.cs" />
     <Compile Include="MoreLinq\DistinctBy.cs" />
     <Compile Include="MyGraphQA.cs" />
     <Compile Include="MyGraph.cs" />
+    <Compile Include="MyGraphV2.cs" />
+    <Compile Include="NetTopologySuite\NTSConversion.cs" />
     <Compile Include="ObsoleteMethods.cs" />
     <Compile Include="Intersect.cs" />
     <Compile Include="MoreLinq\MoreLinq.cs" />
     <Compile Include="ODDataConverter.cs" />
-    <Compile Include="ODDataReader.cs" />
+    <Compile Include="Pipeline.cs" />
+    <Compile Include="PipelineNetworkSystem\PipelineSegment.cs" />
+    <Compile Include="PipelineNetworkSystem\PipesLengthCorrectionHandler.cs" />
+    <Compile Include="PipelineNetworkSystem\PipelineNetwork.cs" />
+    <Compile Include="PipelineNetworkSystem\PipeSettingsCommands.cs" />
+    <Compile Include="PipelineNetworkSystem\PipelineNetworkCommands.cs" />
+    <Compile Include="PipelineNetworkSystem\PipelineSizeArrayV2.cs" />
+    <Compile Include="PipelineNetworkSystem\PipelineV2.cs" />
+    <Compile Include="PipelineNetworkSystem\PipeSettings.cs" />
+    <Compile Include="PipelineNetworkSystem\PipeSettingsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="PipelineNetworkSystem\PipeSettingsForm.Designer.cs">
+      <DependentUpon>PipeSettingsForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="PipelineSizeArray.cs" />
     <Compile Include="PipeSchedule.cs" />
+    <Compile Include="PipeScheduleV2\PipeScheduleV2.cs" />
     <Compile Include="PlanDetailing\ComponentData.cs" />
     <Compile Include="PlanDetailing\PlanDetailing.cs" />
     <Compile Include="PlanProduction\PlanProduction.cs" />
@@ -325,5 +419,36 @@
       <Name>netDxf</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Forms\OverlayForm.resx">
+      <DependentUpon>OverlayForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\PipeSettingsForm\PipeSettingsForm.resx">
+      <DependentUpon>PipeSettingsForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\StringGridForm.resx">
+      <DependentUpon>StringGridForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="PipelineNetworkSystem\PipeSettingsForm.resx">
+      <DependentUpon>PipeSettingsForm.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="DebugCommandLineAttribute.txt" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>if "$(ConfigurationName)"=="Release" (
+    for /D %25%25i in ("$(TargetDir)*") do (
+        if /I not "%25%25~nxi"=="NetReload" (
+            xcopy "%25%25i" "$(NsPath)\%25%25~nxi\" /E /Y /D
+        )
+    )
+    for %25%25i in ("$(TargetDir)*.*") do (
+        if /I not "%25%25~dpxi"=="$(TargetDir)NetReload\" (
+            xcopy "%25%25i" "$(NsPath)\" /Y /D
+        )
+    )
+)</PostBuildEvent>
+  </PropertyGroup>
 </Project>
