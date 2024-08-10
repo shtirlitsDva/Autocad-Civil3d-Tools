@@ -53,9 +53,6 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using IntersectUtilities.DynamicBlocks;
 
-using Autodesk.Aec.DatabaseServices;
-using Microsoft.Office.Interop.Excel;
-
 namespace IntersectUtilities
 {
     public interface IAutoCadVFToGeoJsonConverter
