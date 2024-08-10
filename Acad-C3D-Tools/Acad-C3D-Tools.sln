@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -22,9 +22,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AcCoreConsoleAutomation", "AcCoreConsoleAutomation\AcCoreConsoleAutomation.csproj", "{9158E3C9-51DA-4DAF-869E-57F1C9E8213D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AcCoreConsoleAutomation", "AcCoreConsoleAutomation\AcCoreConsoleAutomation.csproj", "{9158E3C9-51DA-4DAF-869E-57F1C9E8213D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AcadOverrules", "AcadOverrules\AcadOverrules.csproj", "{BB421B54-812E-4C32-868B-41FA76569772}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AcadOverrules", "AcadOverrules\AcadOverrules.csproj", "{BB421B54-812E-4C32-868B-41FA76569772}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LERImporter", "LERImporter\LERImporter.csproj", "{FBEE18FE-055A-4901-9D67-DC0A18588F7D}"
 EndProject
@@ -32,7 +32,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DriPaletteSet", "DriPalette
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dimensionering", "Dimensionering\Dimensionering.csproj", "{C578718C-90F5-4546-ADAC-6C9D91E02A95}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoCADCommands", "AutoCADCommands\AutoCADCommands.csproj", "{C5F6C326-952B-43E8-9830-311F190BAB11}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AutoCADCommands", "AutoCADCommands\AutoCADCommands.csproj", "{C5F6C326-952B-43E8-9830-311F190BAB11}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "netDxf", "netDxf\netDxf.csproj", "{4F67B4FC-98C1-412D-A149-87402FD6A913}"
 EndProject
