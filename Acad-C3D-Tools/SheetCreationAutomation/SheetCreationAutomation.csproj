@@ -98,20 +98,4 @@
 		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.4" />
 	</ItemGroup>
-	<PropertyGroup>
-		<PostBuildEvent>
-			if "$(ConfigurationName)"=="Release" (
-			for /D %25%25i in ("$(TargetDir)*") do (
-			if /I not "%25%25~nxi"=="NetReload" (
-			xcopy "%25%25i" "$(NsPath)\%25%25~nxi\" /E /Y /D
-			)
-			)
-			for %25%25i in ("$(TargetDir)*.*") do (
-			if /I not "%25%25~dpxi"=="$(TargetDir)NetReload\" (
-			xcopy "%25%25i" "$(NsPath)\" /Y /D
-			)
-			)
-			)
-		</PostBuildEvent>
-	</PropertyGroup>
 </Project>
