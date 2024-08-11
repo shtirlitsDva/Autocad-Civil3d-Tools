@@ -13,13 +13,13 @@ using System.Reflection;
 
 namespace DRILOAD
 {
-    public partial class DriLoad : IExtensionApplication
+    public partial class NsLoad : IExtensionApplication
     {
         #region IExtensionApplication members
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
-            doc.Editor.WriteMessage("\nUse DRILOAD to load DRI programs!");
+            doc.Editor.WriteMessage("\nUse NSLOAD to load Norsyn programs!");
         }
 
         public void Terminate()
@@ -27,18 +27,19 @@ namespace DRILOAD
         }
         #endregion
 
-        [CommandMethod("DRILOAD")]
-        public void DRILOAD()
+        [CommandMethod("NSLOAD")]
+        public void nsload()
         {
             System.Data.DataTable dt = ReadCsvToDataTable(
-                @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\Register-2024.csv", "Register");
+                @"X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\Register-2025.csv", "Register");
 
             Dictionary<string, string> dllDict = new Dictionary<string, string>();
 
             foreach (System.Data.DataRow row in dt.Rows)
                 dllDict.Add(row["DisplayName"].ToString(), row["Path"].ToString());
 
-            string kwd = GetKeywords("Select DLL to load: ", dllDict.Keys);
+            var kwd = IntersectUtilities.StringGridFormCaller.Call(
+                dllDict.Keys, "Select Norsyn program to load: ");
 
             if (kwd == null) return;
 
@@ -68,31 +69,31 @@ namespace DRILOAD
                 $"DLL {System.IO.Path.GetFileName(pathToLoad)} loaded!");
         }
 
-        private static string GetKeywords(string message, ICollection<string> keywords)
-        {
-            if (keywords.Count == 0) return null;
+        //private static string GetKeywords(string message, ICollection<string> keywords)
+        //{
+        //    if (keywords.Count == 0) return null;
 
-            string messageAndKeywords = message + " [";
-            messageAndKeywords += string.Join("/", keywords.ToArray());
-            messageAndKeywords += "]";
+        //    string messageAndKeywords = message + " [";
+        //    messageAndKeywords += string.Join("/", keywords.ToArray());
+        //    messageAndKeywords += "]";
 
-            string globalKeywords = string.Join(" ", keywords.ToArray());
+        //    string globalKeywords = string.Join(" ", keywords.ToArray());
 
-            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
-            var opt = new PromptKeywordOptions(message);
-            opt.AllowNone = true;
+        //    var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+        //    var opt = new PromptKeywordOptions(message);
+        //    opt.AllowNone = true;
 
-            opt.SetMessageAndKeywords(messageAndKeywords, globalKeywords);
-            opt.Keywords.Default = keywords.FirstOrDefault();
+        //    opt.SetMessageAndKeywords(messageAndKeywords, globalKeywords);
+        //    opt.Keywords.Default = keywords.FirstOrDefault();
 
-            var res = ed.GetKeywords(opt);
-            if (res.Status == PromptStatus.OK)
-            {
-                return res.StringResult;
-            }
+        //    var res = ed.GetKeywords(opt);
+        //    if (res.Status == PromptStatus.OK)
+        //    {
+        //        return res.StringResult;
+        //    }
 
-            return null;
-        }
+        //    return null;
+        //}
     }
 }
 

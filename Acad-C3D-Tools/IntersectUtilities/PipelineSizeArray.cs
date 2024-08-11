@@ -1,7 +1,6 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.Civil.DatabaseServices;
-using MoreLinq;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.ComponentSchedule;
@@ -36,8 +35,8 @@ namespace IntersectUtilities
         public bool HasFYModel { get; private set; } = false;
         public int StartingDn { get; }
         public SizeEntry this[int index] { get => SizeArray[index]; }
-        public int MaxDn { get => SizeArray.MaxBy(x => x.DN).FirstOrDefault().DN; }
-        public int MinDn { get => SizeArray.MinBy(x => x.DN).FirstOrDefault().DN; }
+        public int MaxDn { get => SizeArray.MaxBy(x => x.DN).DN; }
+        public int MinDn { get => SizeArray.MinBy(x => x.DN).DN; }
         private System.Data.DataTable dynamicBlocks { get; }
         private static readonly HashSet<string> unwantedTypes = new HashSet<string>()
         {
@@ -691,7 +690,7 @@ namespace IntersectUtilities
                             (curve, curSamplePoint.DistanceHorizontalTo(closestPoint),
                                 GetPipeKOd(curve)));
                 }
-                var result = curveDistTuples.MinBy(x => x.dist).FirstOrDefault();
+                var result = curveDistTuples.MinBy(x => x.dist);
                 //Detect current dn and kod
                 currentDn = GetPipeDN(result.curve);
                 currentKod = result.kappeOd;
@@ -791,8 +790,7 @@ namespace IntersectUtilities
                         var minCurve = query.MinBy(
                             x => al.StationAtPoint(
                                 x.GetPointAtDist(
-                                    x.GetDistAtPoint(x.EndPoint) / 2.0)))
-                            .FirstOrDefault();
+                                    x.GetDistAtPoint(x.EndPoint) / 2.0)));
 
                         if (minCurve == default)
                             throw new Exception($"Br {curBr.Handle} does not find minCurve!");
@@ -832,8 +830,7 @@ namespace IntersectUtilities
                             var maxCurve = query.MaxBy(
                                 x => al.StationAtPoint(
                                     x.GetPointAtDist(
-                                        x.GetDistAtPoint(x.EndPoint) / 2.0)))
-                                .FirstOrDefault();
+                                        x.GetDistAtPoint(x.EndPoint) / 2.0)));
 
                             dn = GetPipeDN(maxCurve);
                             kod = GetPipeKOd(maxCurve);
@@ -876,8 +873,7 @@ namespace IntersectUtilities
                         var maxCurve = query.MaxBy(
                             x => al.StationAtPoint(
                                 x.GetPointAtDist(
-                                    x.GetDistAtPoint(x.EndPoint) / 2.0)))
-                            .FirstOrDefault();
+                                    x.GetDistAtPoint(x.EndPoint) / 2.0)));
 
                         dn = GetPipeDN(maxCurve);
                         kod = GetPipeKOd(maxCurve);
@@ -914,8 +910,7 @@ namespace IntersectUtilities
                     var maxCurve = query.MaxBy(
                         x => al.StationAtPoint(
                             x.GetPointAtDist(
-                                x.GetDistAtPoint(x.EndPoint) / 2.0)))
-                        .FirstOrDefault();
+                                x.GetDistAtPoint(x.EndPoint) / 2.0)));
 
                     if (maxCurve == default)
                         prdDbg($"Br {curBr.Handle} does not find maxCurve!");

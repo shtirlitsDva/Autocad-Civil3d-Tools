@@ -1,12 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows</TargetFramework>
+		<TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
+		<TargetPlatformVersion>8.0</TargetPlatformVersion>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<UseWindowsForms>true</UseWindowsForms>
 		<UseWPF>true</UseWPF>
 		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
 		<Nullable>enable</Nullable>
-		<Platforms>AnyCPU</Platforms>
+		<Platforms>x64</Platforms>
 	</PropertyGroup>
 	<PropertyGroup>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
@@ -15,11 +18,16 @@
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
 	</PropertyGroup>
-	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>
 	</PropertyGroup>
-	<PropertyGroup>
-		<RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+		<OutputPath>bin\x64\Debug\</OutputPath>
+		<DebugType>full</DebugType>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+		<OutputPath>bin\x64\Release\</OutputPath>
+		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<ItemGroup>
 		<Reference Include="accoremgd">
@@ -28,10 +36,6 @@
 		</Reference>
 		<Reference Include="AcCui">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AcCui.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="acdbmgd">
-			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\acdbmgd.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="acdbmgdbrep">
@@ -96,45 +100,6 @@
 		</Reference>
 	</ItemGroup>
 	<ItemGroup>
-		<Compile Include="..\AutoCADCommands\Algorithms.cs">
-			<Link>ACC\Algorithms.cs</Link>
-		</Compile>
-		<Compile Include="..\AutoCADCommands\App.cs">
-			<Link>ACC\App.cs</Link>
-		</Compile>
-		<Compile Include="..\AutoCADCommands\Commands.cs">
-			<Link>ACC\Commands.cs</Link>
-		</Compile>
-		<Compile Include="..\AutoCADCommands\DbHelper.cs">
-			<Link>ACC\DbHelper.cs</Link>
-		</Compile>
-		<Compile Include="..\AutoCADCommands\FlexDataStore.cs">
-			<Link>ACC\FlexDataStore.cs</Link>
-		</Compile>
-		<Compile Include="..\AutoCADCommands\Gui.cs">
-			<Link>ACC\Gui.cs</Link>
-		</Compile>
-		<Compile Include="..\AutoCADCommands\Interaction.cs">
-			<Link>ACC\Interaction.cs</Link>
-		</Compile>
-		<Compile Include="..\AutoCADCommands\Internal\CustomDictionary.cs">
-			<Link>ACC\Internal\CustomDictionary.cs</Link>
-		</Compile>
-		<Compile Include="..\AutoCADCommands\Internal\JigDrag.cs">
-			<Link>ACC\Internal\JigDrag.cs</Link>
-		</Compile>
-		<Compile Include="..\AutoCADCommands\Layouts.cs">
-			<Link>ACC\Layouts.cs</Link>
-		</Compile>
-		<Compile Include="..\AutoCADCommands\QuickSelection.cs">
-			<Link>ACC\QuickSelection.cs</Link>
-		</Compile>
-		<Compile Include="..\AutoCADCommands\SymbolPack.cs">
-			<Link>ACC\SymbolPack.cs</Link>
-		</Compile>
-		<Compile Include="..\AutoCADCommands\Test.cs">
-			<Link>ACC\Test.cs</Link>
-		</Compile>
 		<Compile Include="..\IntersectUtilities\ComponentSchedule.cs">
 			<Link>ComponentSchedule.cs</Link>
 		</Compile>
@@ -182,12 +147,25 @@
 		</Compile>
 	</ItemGroup>
 	<ItemGroup>
+	  <COMReference Include="Microsoft.Office.Interop.Excel">
+	    <WrapperTool>tlbimp</WrapperTool>
+	    <VersionMinor>9</VersionMinor>
+	    <VersionMajor>1</VersionMajor>
+	    <Guid>00020813-0000-0000-c000-000000000046</Guid>
+	    <Lcid>0</Lcid>
+	    <Isolated>false</Isolated>
+	    <EmbedInteropTypes>true</EmbedInteropTypes>
+	  </COMReference>
+	</ItemGroup>
+	<ItemGroup>
 		<Content Include="DebugCommandLineAttribute.txt" />
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
-		<PackageReference Include="Speckle.Civil3D.API" Version="2025.0.0" />
+		<PackageReference Include="Speckle.Civil3D.API" Version="2025.0.0">
+			<ExcludeAssets>runtime</ExcludeAssets>
+		</PackageReference>
 		<PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
@@ -198,5 +176,8 @@
 	<ItemGroup>
 		<PackageReference Include="QuikGraph" Version="2.5.0" />
 		<PackageReference Include="QuikGraph.Graphviz" Version="2.5.0" />
+	</ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="..\AutoCADCommands\AutoCADCommands.csproj" />
 	</ItemGroup>
 </Project>

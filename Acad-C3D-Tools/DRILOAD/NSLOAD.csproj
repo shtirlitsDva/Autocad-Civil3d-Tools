@@ -3,20 +3,29 @@
 		<TargetFramework>net8.0-windows</TargetFramework>
 		<OutputType>Library</OutputType>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-		<AssemblyTitle>DRILOAD</AssemblyTitle>
-		<Product>DRILOAD</Product>
-		<Copyright>Copyright ©  2023</Copyright>
+		<AssemblyTitle>NSLOAD</AssemblyTitle>
+		<Product>NSLOAD</Product>
+		<Copyright>Copyright ©  2024</Copyright>
 		<AssemblyVersion>1.0.0.0</AssemblyVersion>
 		<FileVersion>1.0.0.0</FileVersion>
 		<Nullable>enable</Nullable>
-		<Platforms>AnyCPU</Platforms>
+		<Platforms>x64</Platforms>
+		<UseWindowsForms>true</UseWindowsForms>
 	</PropertyGroup>
 	<PropertyGroup>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 	</PropertyGroup>
-	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-		<DebugType>none</DebugType>
+	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
+		<DebugSymbols>true</DebugSymbols>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+		<OutputPath>bin\x64\Debug\</OutputPath>
+		<DebugType>full</DebugType>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+		<OutputPath>bin\x64\Release\</OutputPath>
+		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<ItemGroup>
 		<Reference Include="accoremgd">
@@ -45,5 +54,13 @@
 		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
 		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.4" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Compile Update="Forms\OverlayForm.cs">
+	    <SubType>Form</SubType>
+	  </Compile>
+	  <Compile Update="Forms\StringGridForm.cs">
+	    <SubType>Form</SubType>
+	  </Compile>
 	</ItemGroup>
 </Project>

@@ -29,9 +29,15 @@
 	  <DefineConstants>TRACE;R23</DefineConstants>
 	</PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="AutoCAD.NET" Version="25.0.1" />
-		<PackageReference Include="AutoCAD.NET.Core" Version="25.0.0" />
-		<PackageReference Include="AutoCAD.NET.Model" Version="25.0.0" />
+		<PackageReference Include="AutoCAD.NET" Version="25.0.1">
+			<ExcludeAssets>runtime</ExcludeAssets>
+		</PackageReference>
+		<PackageReference Include="AutoCAD.NET.Core" Version="25.0.0">
+			<ExcludeAssets>runtime</ExcludeAssets>
+		</PackageReference>
+		<PackageReference Include="AutoCAD.NET.Model" Version="25.0.0">
+			<ExcludeAssets>runtime</ExcludeAssets>
+		</PackageReference>
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
 		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
 		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />

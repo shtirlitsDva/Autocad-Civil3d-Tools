@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows</TargetFramework>
-		<NsPath>X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\AcadOverrules</NsPath>
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<UseWindowsForms>true</UseWindowsForms>
@@ -12,9 +11,6 @@
 	<PropertyGroup>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
-	</PropertyGroup>
-	<PropertyGroup>
-		<NsPath>X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\AcadOverrules</NsPath>
 	</PropertyGroup>
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
@@ -29,9 +25,6 @@
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
 		<OutputPath>bin\x64\Release\</OutputPath>
 		<DebugType>full</DebugType>
-	</PropertyGroup>
-	<PropertyGroup>
-		<RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
 	</PropertyGroup>
 	<ItemGroup>
 		<Reference Include="accoremgd">

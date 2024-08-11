@@ -26,7 +26,7 @@ using System.Windows.Forms;
 using System.Data;
 using System.Data.SqlClient;
 using System.Reflection;
-using MoreLinq;
+//using MoreLinq;
 using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
 using Microsoft.Office.Interop.Excel;
@@ -2491,7 +2491,7 @@ namespace IntersectUtilities.Dimensionering
                             }
 
                             //Find and add the client blocks to node collection
-                            var nearest = res.MinBy(x => x.Dist).FirstOrDefault();
+                            Stik? nearest = res.MinBy(x => x.Dist);
                             if (nearest == default) continue;
 
                             if (nodes.Any(x => x.Self.Id == nearest.ParentId))
@@ -2760,7 +2760,7 @@ namespace IntersectUtilities.Dimensionering
 
                         foreach (var item in ordered) item.PopulateData();
 
-                        int maxSize = ordered.MaxBy(x => x.Data.Count).FirstOrDefault().Data.Count;
+                        int maxSize = ordered.MaxBy(x => x.Data.Count).Data.Count;
                         prdDbg(maxSize.ToString());
                         foreach (var item in ordered) item.PadLists(maxSize);
 
@@ -3380,7 +3380,7 @@ namespace IntersectUtilities.Dimensionering
                             }
                         }
 
-                        var nearest = res.MinBy(x => x.Dist).FirstOrDefault();
+                        var nearest = res.MinBy(x => x.Dist);
                         if (nearest == default) continue;
 
                         #region Create line
@@ -3649,8 +3649,7 @@ namespace IntersectUtilities.Dimensionering
                             pathId++;
                             var curNode = nodes
                                 .Where(x => x.PathId == 0)
-                                .MaxBy(x => x.NodeLevel)
-                                .FirstOrDefault();
+                                .MaxBy(x => x.NodeLevel);
                             TraversePath(curNode, pathId);
                         }
 
@@ -3883,8 +3882,7 @@ namespace IntersectUtilities.Dimensionering
                             pathId++;
                             var curNode = nodes
                                 .Where(x => x.PathId == 0)
-                                .MaxBy(x => x.NodeLevel)
-                                .FirstOrDefault();
+                                .MaxBy(x => x.NodeLevel);
                             TraversePath(curNode, pathId);
                         }
 
@@ -4245,9 +4243,9 @@ namespace IntersectUtilities.Dimensionering
                             double kod = PipeScheduleV2.PipeScheduleV2.GetPipeKOd(system, dn, type, series);
 
                             //Determine start
-                            if (i != 0) start = dimAr[i - 1].MaxBy(x => x.Station).First().Station;
+                            if (i != 0) start = dimAr[i - 1].MaxBy(x => x.Station).Station;
                             //Determine end
-                            if (i != dimAr.Length - 1) end = dimAr[i].MaxBy(x => x.Station).First().Station;
+                            if (i != dimAr.Length - 1) end = dimAr[i].MaxBy(x => x.Station).Station;
                             else end = originalPipe.Length;
                             sizes.Add(new SizeEntry(dn, start, end, kod, system, type, series));
                         }
