@@ -210,6 +210,7 @@
 		<PackageReference Include="NetTopologySuite.Features" Version="2.1.0" />
 		<PackageReference Include="NetTopologySuite.IO.ShapeFile" Version="2.1.0" />
 		<PackageReference Include="ProjNET4GeoAPI" Version="1.4.1" />
+		<PackageReference Include="Speckle.Civil3D.API" Version="2025.0.0" />
 		<PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
 		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />

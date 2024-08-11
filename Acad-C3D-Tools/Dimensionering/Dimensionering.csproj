@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows</TargetFramework>
-		<NsPath>X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\Dimensionering</NsPath>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<UseWindowsForms>true</UseWindowsForms>
 		<UseWPF>true</UseWPF>
@@ -188,6 +187,7 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
+		<PackageReference Include="Speckle.Civil3D.API" Version="2025.0.0" />
 		<PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
@@ -199,20 +199,4 @@
 		<PackageReference Include="QuikGraph" Version="2.5.0" />
 		<PackageReference Include="QuikGraph.Graphviz" Version="2.5.0" />
 	</ItemGroup>
-	<PropertyGroup>
-		<PostBuildEvent>
-			if "$(ConfigurationName)"=="Release" (
-			for /D %25%25i in ("$(TargetDir)*") do (
-			if /I not "%25%25~nxi"=="NetReload" (
-			xcopy "%25%25i" "$(NsPath)\%25%25~nxi\" /E /Y /D
-			)
-			)
-			for %25%25i in ("$(TargetDir)*.*") do (
-			if /I not "%25%25~dpxi"=="$(TargetDir)NetReload\" (
-			xcopy "%25%25i" "$(NsPath)\" /Y /D
-			)
-			)
-			)
-		</PostBuildEvent>
-	</PropertyGroup>
 </Project>
