@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows</TargetFramework>
-		<NsPath>X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\NSTBL</NsPath>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<UseWindowsForms>true</UseWindowsForms>
 		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
 		<Nullable>enable</Nullable>
-		<Platforms>AnyCPU</Platforms>
+		<Platforms>x64</Platforms>
 	</PropertyGroup>
 	<PropertyGroup>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
@@ -72,27 +72,27 @@
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
 		<PackageReference Include="NetTopologySuite" Version="2.5.0" />
-		<PackageReference Include="Speckle.Civil3D.API" Version="2025.0.0" />
+		<PackageReference Include="Speckle.Civil3D.API" Version="2025.0.0">
+			<ExcludeAssets>runtime</ExcludeAssets>
+		</PackageReference>
 		<PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
 		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
 		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.4" />
 	</ItemGroup>
-	<PropertyGroup>
-		<PostBuildEvent>
-			if "$(ConfigurationName)"=="Release" (
-			for /D %25%25i in ("$(TargetDir)*") do (
-			if /I not "%25%25~nxi"=="NetReload" (
-			xcopy "%25%25i" "$(NsPath)\%25%25~nxi\" /E /Y /D
-			)
-			)
-			for %25%25i in ("$(TargetDir)*.*") do (
-			if /I not "%25%25~dpxi"=="$(TargetDir)NetReload\" (
-			xcopy "%25%25i" "$(NsPath)\" /Y /D
-			)
-			)
-			)
-		</PostBuildEvent>
-	</PropertyGroup>
+	<ItemGroup>
+	  <Compile Update="Forms\OverlayForm.cs">
+	    <SubType>Form</SubType>
+	  </Compile>
+	  <Compile Update="Forms\PipeSettingsForm\PipeSettingsForm.cs">
+	    <SubType>Form</SubType>
+	  </Compile>
+	  <Compile Update="Forms\StringGridForm.cs">
+	    <SubType>Form</SubType>
+	  </Compile>
+	  <Compile Update="Forms\TestSuiteForm.cs">
+	    <SubType>Form</SubType>
+	  </Compile>
+	</ItemGroup>
 </Project>
