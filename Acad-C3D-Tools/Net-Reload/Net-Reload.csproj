@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows</TargetFramework>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 		<ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
 			None
 		</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
@@ -8,7 +9,7 @@
 		<UseWindowsForms>true</UseWindowsForms>
 		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
 		<Nullable>enable</Nullable>
-		<Platforms>AnyCPU</Platforms>
+		<Platforms>x64</Platforms>
 	</PropertyGroup>
 	<PropertyGroup>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
@@ -18,11 +19,16 @@
 		<OutputType>Library</OutputType>
 		<RootNamespace>Net_Reload</RootNamespace>
 	</PropertyGroup>
-	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>
 	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM32'">
-	  <DebugSymbols>true</DebugSymbols>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+		<OutputPath>bin\x64\Debug\</OutputPath>
+		<DebugType>full</DebugType>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+		<OutputPath>bin\x64\Release\</OutputPath>
+		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<ItemGroup>
 		<Reference Include="accoremgd">
@@ -42,8 +48,18 @@
 		<Compile Include="..\IntersectUtilities\Forms\StringGridFormCaller.cs">
 			<Link>Forms\StringGridFormCaller.cs</Link>
 		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.cs">
+			<Link>Forms\StringGridForm.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.Designer.cs">
+			<Link>Forms\StringGridForm.Designer.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\OverlayForm.cs">
+			<Link>Forms\OverlayForm.cs</Link>
+		</Compile>
 	</ItemGroup>
 	<ItemGroup>
+		<PackageReference Include="envdte" Version="17.10.40170" />
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
