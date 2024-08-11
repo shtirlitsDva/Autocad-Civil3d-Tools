@@ -21,7 +21,6 @@ using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using DataTable = System.Data.DataTable;
 using static IntersectUtilities.UtilsCommon.Utils;
 using Autodesk.AutoCAD.Geometry;
-using MoreLinq;
 using System.Runtime.CompilerServices;
 using System.Xml.Linq;
 
