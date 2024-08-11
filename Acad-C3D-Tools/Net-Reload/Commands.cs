@@ -139,11 +139,30 @@ namespace NetReload
                     {
                         ed.WriteMessage(String.Format("\nNo active document found for the '{0}' solution. *Cancel*",
                             solName));
+                        //return;
+                    }
+
+                    Array? projects = dte.ActiveSolutionProjects as Array;
+                    if (projects == null || projects.Length == 0 || projects.Length > 1)
+                    {
+                        ed.WriteMessage(String.Format("\nNo or multiple active project found for the '{0}' solution. *Cancel*",
+                            solName));
+                        return;
+                    }
+                    Project prj = null;
+                    foreach (Project item in projects)
+                    {
+                        ed.WriteMessage(String.Format("\nProject: {0}", item.Name));
+                        prj = item;
+                    }
+                    if (prj == null)
+                    {
+                        ed.WriteMessage("Project is null.");
                         return;
                     }
 
                     // Active Visual Studio Project.
-                    Project prj = vsDoc.ProjectItem.ContainingProject;
+                    //Project prj = vsDoc.ProjectItem.ContainingProject;
 
                     // Check if active configuration is Debug.
                     // If not -- exit
@@ -151,7 +170,7 @@ namespace NetReload
                     {
                         ed.WriteMessage(
                             String.Format(
-                                "\nActive configuration is not 'Debug' for the '{0}' solution. *Cancel*", 
+                                "\nActive configuration is not 'Debug' for the '{0}' solution. *Cancel*",
                                 solName));
                         return;
                     }
