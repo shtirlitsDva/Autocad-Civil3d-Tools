@@ -619,7 +619,7 @@ namespace IntersectUtilities
                                         "Select position along a polyline: ");
                                 //Detect the polyline to attach to
                                 var plines = localDb.HashSetOfType<Polyline>(tx, true);
-                                var query = plines.MinBy(x =>
+                                var query = plines.MinByEnumerable(x =>
                                     attachmentP.DistanceHorizontalTo(
                                         x.GetClosestPointTo(attachmentP, false)));
                                 Polyline candidate = query.FirstOrDefault();

@@ -10,7 +10,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Data;
-using MoreLinq;
 using IntersectUtilities.UtilsCommon;
 using Dreambuild.AutoCAD;
 using static IntersectUtilities.Utils;
@@ -28,6 +27,7 @@ using System.Text.Unicode;
 using IntersectUtilities.LER2;
 using FolderSelect;
 using GroupByCluster;
+using MoreLinq;
 
 namespace IntersectUtilities
 {
@@ -1395,7 +1395,7 @@ namespace IntersectUtilities
                         {
                             var mypl3ds = group.Select(x => new MyPl3d(x.GetPolyline3d(), tolerance)).ToList();
 
-                            var seed = mypl3ds.MaxBy(x => x.Length).First();
+                            var seed = mypl3ds.MaxByEnumerable(x => x.Length).First();
                             var others = mypl3ds.Where(x => x.Handle != seed.Handle);
 
 
@@ -1831,7 +1831,7 @@ namespace IntersectUtilities
                                 "RegistreringFra", "UdvendigDiameter", "UdvendigDiameterUnits" }))) continue;
 
                         processedGroupNumbers.Add(group.First().GroupNumber);
-                        Handle maxDnHandle = group.MaxBy(
+                        Handle maxDnHandle = group.MaxByEnumerable(
                             x => Convert.ToInt32(x.Properties["UdvendigDiameter"]))
                             .First().GetPolyline3d().Handle;
                         foreach (var item in group)

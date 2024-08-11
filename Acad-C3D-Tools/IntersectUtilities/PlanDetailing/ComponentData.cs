@@ -934,7 +934,7 @@ namespace IntersectUtilities
             {
                 var pipes = db.GetFjvPipes(tx);
                 var twoNearest = pipes
-                    .MinBy(x => location.DistanceHorizontalTo(
+                    .MinByEnumerable(x => location.DistanceHorizontalTo(
                         x.GetClosestPointTo(location, false)))
                     .Take(2);
 

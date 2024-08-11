@@ -397,7 +397,7 @@ namespace IntersectUtilities
                                         prdDbg("Error in GetClosestPointTo -> loop incomplete!");
                                     }
 
-                                    alignment = alDistTuples.MinBy(x => x.dist).FirstOrDefault().al;
+                                    alignment = alDistTuples.MinByEnumerable(x => x.dist).FirstOrDefault().al;
                                 }
                                 #endregion
 
@@ -1039,7 +1039,7 @@ namespace IntersectUtilities
 
                         #region Find nearest pline
                         Polyline pl = pls
-                            .MinBy(x => location.DistanceHorizontalTo(
+                            .MinByEnumerable(x => location.DistanceHorizontalTo(
                                 x.GetClosestPointTo(location, false))
                             ).FirstOrDefault();
 
@@ -1717,7 +1717,7 @@ namespace IntersectUtilities
                     using (Transaction tx = localDb.TransactionManager.StartTransaction())
                     {
                         Polyline pl = plOids.Select(x => x.Go<Polyline>(tx))
-                            .MinBy(x => location.DistanceHorizontalTo(
+                            .MinByEnumerable(x => location.DistanceHorizontalTo(
                                 x.GetClosestPointTo(location, false)))
                             .FirstOrDefault();
                         nearestPlId = pl.Id;
@@ -1801,7 +1801,7 @@ namespace IntersectUtilities
                     using (Transaction tx = localDb.TransactionManager.StartTransaction())
                     {
                         Polyline pl = plOids.Select(x => x.Go<Polyline>(tx))
-                            .MinBy(x => location.DistanceHorizontalTo(
+                            .MinByEnumerable(x => location.DistanceHorizontalTo(
                                 x.GetClosestPointTo(location, false)))
                             .FirstOrDefault();
                         nearestPlId = pl.Id;
@@ -1895,7 +1895,7 @@ namespace IntersectUtilities
                     using (Transaction tx = localDb.TransactionManager.StartTransaction())
                     {
                         Polyline pl = plOids.Select(x => x.Go<Polyline>(tx))
-                            .MinBy(x => location.DistanceHorizontalTo(
+                            .MinByEnumerable(x => location.DistanceHorizontalTo(
                                 x.GetClosestPointTo(location, false)))
                             .FirstOrDefault();
                         nearestPlId = pl.Id;
@@ -1979,7 +1979,7 @@ namespace IntersectUtilities
                     using (Transaction tx = localDb.TransactionManager.StartTransaction())
                     {
                         Polyline pl = plOids.Select(x => x.Go<Polyline>(tx))
-                            .MinBy(x => location.DistanceHorizontalTo(
+                            .MinByEnumerable(x => location.DistanceHorizontalTo(
                                 x.GetClosestPointTo(location, false)))
                             .FirstOrDefault();
                         nearestPlId = pl.Id;

@@ -184,10 +184,10 @@ namespace MoreLinq
         /// <exception cref="ArgumentNullException"><paramref name="source"/> or <paramref name="selector"/> is null</exception>
         /// <exception cref="InvalidOperationException"><paramref name="source"/> is empty</exception>
 
-        public static IExtremaEnumerable<TSource> MaxBy<TSource, TKey>(this IEnumerable<TSource> source,
+        public static IExtremaEnumerable<TSource> MaxByEnumerable<TSource, TKey>(this IEnumerable<TSource> source,
             Func<TSource, TKey> selector)
         {
-            return source.MaxBy(selector, null);
+            return source.MaxByEnumerable(selector, null);
         }
 
         /// <summary>
@@ -208,7 +208,7 @@ namespace MoreLinq
         /// or <paramref name="comparer"/> is null</exception>
         /// <exception cref="InvalidOperationException"><paramref name="source"/> is empty</exception>
 
-        public static IExtremaEnumerable<TSource> MaxBy<TSource, TKey>(this IEnumerable<TSource> source,
+        public static IExtremaEnumerable<TSource> MaxByEnumerable<TSource, TKey>(this IEnumerable<TSource> source,
             Func<TSource, TKey> selector, IComparer<TKey> comparer)
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
@@ -235,10 +235,10 @@ namespace MoreLinq
         /// <exception cref="ArgumentNullException"><paramref name="source"/> or <paramref name="selector"/> is null</exception>
         /// <exception cref="InvalidOperationException"><paramref name="source"/> is empty</exception>
 
-        public static IExtremaEnumerable<TSource> MinBy<TSource, TKey>(this IEnumerable<TSource> source,
+        public static IExtremaEnumerable<TSource> MinByEnumerable<TSource, TKey>(this IEnumerable<TSource> source,
             Func<TSource, TKey> selector)
         {
-            return source.MinBy(selector, null);
+            return source.MinByEnumerable(selector, null);
         }
 
         /// <summary>
@@ -259,7 +259,7 @@ namespace MoreLinq
         /// or <paramref name="comparer"/> is null</exception>
         /// <exception cref="InvalidOperationException"><paramref name="source"/> is empty</exception>
 
-        public static IExtremaEnumerable<TSource> MinBy<TSource, TKey>(this IEnumerable<TSource> source,
+        public static IExtremaEnumerable<TSource> MinByEnumerable<TSource, TKey>(this IEnumerable<TSource> source,
             Func<TSource, TKey> selector, IComparer<TKey> comparer)
         {
             if (source == null) throw new ArgumentNullException(nameof(source));

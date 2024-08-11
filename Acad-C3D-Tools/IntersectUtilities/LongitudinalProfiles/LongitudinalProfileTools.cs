@@ -2648,7 +2648,7 @@ namespace IntersectUtilities
                                     Point3d distPt = pline.GetClosestPointTo(wPt, false);
                                     ps.Add((pline, distPt.DistanceHorizontalTo(wPt)));
                                 }
-                                Polyline nearest = ps.MinBy(x => x.dist).FirstOrDefault().pline;
+                                Polyline nearest = ps.MinBy(x => x.dist).pline;
 
                                 Vector3d deriv = nearest.GetFirstDerivative(
                                     nearest.GetClosestPointTo(wPt, false));
@@ -2834,7 +2834,7 @@ namespace IntersectUtilities
                                                 Point3d distPt = pline2.GetClosestPointTo(curvePt, false);
                                                 ps.Add((pline2, distPt.DistanceHorizontalTo(curvePt)));
                                             }
-                                            Polyline nearest = ps.MinBy(x => x.dist).FirstOrDefault().pline;
+                                            Polyline nearest = ps.MinBy(x => x.dist).pline;
 
                                             Vector3d deriv = nearest.GetFirstDerivative(
                                                 nearest.GetClosestPointTo(curvePt, false));

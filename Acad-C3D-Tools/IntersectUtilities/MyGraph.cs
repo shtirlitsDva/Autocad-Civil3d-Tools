@@ -389,7 +389,7 @@ namespace IntersectUtilities
                         (x.Cons.Count(y => y.OwnEndType != EndType.StikAfgrening && y.OwnEndType != EndType.WeldOn) == 1) ||
                         (x.Cons.Count(y => y.OwnEndType != EndType.WeldOn) == 0 && x.Cons.Count(y => y.OwnEndType == EndType.WeldOn) > 0
                             ))
-                    .MaxBy(x => x.LargestDn()).FirstOrDefault();
+                    .MaxBy(x => x.LargestDn());
 
                 if (ge == null)
                 {

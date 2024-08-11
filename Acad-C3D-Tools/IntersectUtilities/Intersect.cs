@@ -25,7 +25,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Data;
-using MoreLinq;
 using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
@@ -8566,8 +8565,7 @@ namespace IntersectUtilities
                         x => startingGraph.OutEdges(x).Where(
                             y => y.EndType != EndType.WeldOn).Count() == 1);
 
-                    var query = leafVerts.MaxBy(x => GetDn(x, dt));
-                    var startVert = query.FirstOrDefault();
+                    var startVert = leafVerts.MaxBy(x => GetDn(x, dt));
 
                     //var vert = startingGraph.Vertices.Where(
                     //    x => x.Handle.ToString() == "11EFA0").FirstOrDefault();

@@ -229,7 +229,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             for (int i = 0; i < groups.Count; i++)
             {
                 var group = groups[i];
-                var maxDNQuery = group.MaxBy(x => x.GetMaxDN());
+                var maxDNQuery = group.MaxByEnumerable(x => x.GetMaxDN());
 
                 IPipelineV2 entryPipeline;
                 if (maxDNQuery.Count() > 1)
