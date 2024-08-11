@@ -6,36 +6,27 @@
 		<UseWindowsForms>true</UseWindowsForms>
 		<UseWPF>true</UseWPF>
 		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
-		<PlatformTarget>AnyCPU</PlatformTarget>
+		<PlatformTarget>x64</PlatformTarget>
 		<Nullable>enable</Nullable>
-		<Platforms>AnyCPU;ARM32</Platforms>
+		<Platforms>AnyCPU;x64</Platforms>
 	</PropertyGroup>
 	<PropertyGroup>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 	</PropertyGroup>
-	<ItemGroup>
-		<FrameworkReference Include="Microsoft.WindowsDesktop.App" />
-	</ItemGroup>
 	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
 		<DocumentationFile>bin\Debug\AutoCADCommands.xml</DocumentationFile>
-		<CodeAnalysisRuleSet>AutoCADCommands.ruleset</CodeAnalysisRuleSet>
-		<RunCodeAnalysis>true</RunCodeAnalysis>
 	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM32'">
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
 	  <DocumentationFile>bin\Debug\AutoCADCommands.xml</DocumentationFile>
-	  <CodeAnalysisRuleSet>AutoCADCommands.ruleset</CodeAnalysisRuleSet>
-	  <RunCodeAnalysis>true</RunCodeAnalysis>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
 		<OutputPath>..\bin\Release\r23\</OutputPath>
 		<DefineConstants>TRACE;R23</DefineConstants>
-		<CodeAnalysisRuleSet>AutoCADCommands.ruleset</CodeAnalysisRuleSet>
 	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM32'">
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
 	  <OutputPath>..\bin\Release\r23\</OutputPath>
 	  <DefineConstants>TRACE;R23</DefineConstants>
-	  <CodeAnalysisRuleSet>AutoCADCommands.ruleset</CodeAnalysisRuleSet>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="AutoCAD.NET" Version="25.0.1" />

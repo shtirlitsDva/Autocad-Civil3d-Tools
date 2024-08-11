@@ -2,30 +2,36 @@
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows</TargetFramework>
 		<NsPath>X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\AcadOverrules</NsPath>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<UseWindowsForms>true</UseWindowsForms>
 		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
 		<Nullable>enable</Nullable>
-		<Platforms>AnyCPU</Platforms>
+		<Platforms>x64</Platforms>
 	</PropertyGroup>
 	<PropertyGroup>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 	</PropertyGroup>
 	<PropertyGroup>
+		<NsPath>X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\AcadOverrules</NsPath>
+	</PropertyGroup>
+	<PropertyGroup>
 		<OutputType>Library</OutputType>
 	</PropertyGroup>
-	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
 		<OutputPath>bin\x64\Debug\</OutputPath>
+		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
 		<OutputPath>bin\x64\Release\</OutputPath>
+		<DebugType>full</DebugType>
 	</PropertyGroup>
 	<PropertyGroup>
-		<RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
+		<RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
 	</PropertyGroup>
 	<ItemGroup>
 		<Reference Include="accoremgd">
@@ -87,20 +93,4 @@
 		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.4" />
 	</ItemGroup>
-	<PropertyGroup>
-		<PostBuildEvent>
-			if "$(ConfigurationName)"=="Release" (
-			for /D %25%25i in ("$(TargetDir)*") do (
-			if /I not "%25%25~nxi"=="NetReload" (
-			xcopy "%25%25i" "$(NsPath)\%25%25~nxi\" /E /Y /D
-			)
-			)
-			for %25%25i in ("$(TargetDir)*.*") do (
-			if /I not "%25%25~dpxi"=="$(TargetDir)NetReload\" (
-			xcopy "%25%25i" "$(NsPath)\" /Y /D
-			)
-			)
-			)
-		</PostBuildEvent>
-	</PropertyGroup>
 </Project>
