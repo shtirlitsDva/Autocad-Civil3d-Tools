@@ -45,6 +45,18 @@
 		<Compile Include="..\IntersectUtilities\CsvReader.cs">
 			<Link>CsvReader.cs</Link>
 		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\StringGridFormCaller.cs">
+			<Link>Forms\StringGridFormCaller.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.cs">
+			<Link>Forms\StringGridForm.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.Designer.cs">
+			<Link>Forms\StringGridForm.Designer.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\OverlayForm.cs">
+			<Link>Forms\OverlayForm.cs</Link>
+		</Compile>
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
@@ -54,13 +66,5 @@
 		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
 		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.4" />
-	</ItemGroup>
-	<ItemGroup>
-	  <Compile Update="Forms\OverlayForm.cs">
-	    <SubType>Form</SubType>
-	  </Compile>
-	  <Compile Update="Forms\StringGridForm.cs">
-	    <SubType>Form</SubType>
-	  </Compile>
 	</ItemGroup>
 </Project>
