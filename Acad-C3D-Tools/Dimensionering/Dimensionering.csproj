@@ -84,6 +84,7 @@
 		</Reference>
 		<Reference Include="AecBaseMgd">
 		  <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecBaseMgd.dll</HintPath>
+		  <Private>False</Private>
 		</Reference>
 		<Reference Include="AeccDbMgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\C3D\AeccDbMgd.dll</HintPath>
