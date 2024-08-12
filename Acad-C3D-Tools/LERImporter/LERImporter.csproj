@@ -4,6 +4,7 @@
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<UseWindowsForms>true</UseWindowsForms>
+		<UseWPF>true</UseWPF>
 		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
 		<Nullable>enable</Nullable>
 		<Platforms>x64</Platforms>
@@ -73,9 +74,6 @@
 		<Compile Include="..\IntersectUtilities\CsvReader.cs">
 			<Link>CsvReader.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\FolderSelectDialog.cs">
-			<Link>FolderSelectDialog.cs</Link>
-		</Compile>
 		<Compile Include="..\IntersectUtilities\MoreLinq\DistinctBy.cs">
 			<Link>DistinctBy.cs</Link>
 		</Compile>
@@ -90,9 +88,6 @@
 		</Compile>
 		<Compile Include="..\IntersectUtilities\PropertySetManager.cs">
 			<Link>PropertySetManager.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\Reflector.cs">
-			<Link>Reflector.cs</Link>
 		</Compile>
 		<Compile Include="..\IntersectUtilities\UtilsCommon.cs">
 			<Link>UtilsCommon.cs</Link>

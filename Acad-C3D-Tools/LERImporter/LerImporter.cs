@@ -20,7 +20,6 @@ using System.Xml.Serialization;
 //using MoreLinq;
 //using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
-using FolderSelect;
 using static IntersectUtilities.UtilsCommon.Utils;
 
 //using static IntersectUtilities.Enums;
@@ -40,9 +39,11 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Log = LERImporter.SimpleLogger;
+using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using System.Xml.Linq;
 using LERImporter.Schema;
 using LERImporter.Enhancer;
+using Microsoft.Win32;
 
 namespace LERImporter
 {
@@ -189,7 +190,7 @@ namespace LERImporter
                     Filter = "gml files (*.gml)|*.gml|All files (*.*)|*.*",
                     FilterIndex = 0
                 };
-                if (dialog.ShowDialog() == DialogResult.OK) pathToGml = dialog.FileName;
+                if (dialog.ShowDialog() == true) pathToGml = dialog.FileName;
                 else return;
 
                 string folderPath = Path.GetDirectoryName(pathToGml) + "\\";
@@ -265,7 +266,7 @@ namespace LERImporter
                     Filter = "gml files (*.gml)|*.gml|All files (*.*)|*.*",
                     FilterIndex = 0
                 };
-                if (dialog.ShowDialog() == DialogResult.OK) pathToGml = dialog.FileName;
+                if (dialog.ShowDialog() == true) pathToGml = dialog.FileName;
                 else return;
                 #endregion
 
@@ -356,14 +357,13 @@ namespace LERImporter
             {
                 #region Get file and folder of gml
                 string pathToTopFolder = string.Empty;
-                FolderSelectDialog fsd = new FolderSelectDialog()
+                var folderDialog = new Microsoft.Win32.OpenFolderDialog()
                 {
                     Title = "Choose folder where gml files are stored: ",
-                    //InitialDirectory = @"C:\"
                 };
-                if (fsd.ShowDialog(IntPtr.Zero))
+                if (folderDialog.ShowDialog() == true)
                 {
-                    pathToTopFolder = fsd.FileName + "\\";
+                    pathToTopFolder = folderDialog.FolderName;
                 }
                 else return;
 
