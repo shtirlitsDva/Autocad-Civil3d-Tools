@@ -12,7 +12,11 @@ using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.GraphicsInterface;
 using Autodesk.AutoCAD.Runtime;
 
+using IntersectUtilities.UtilsCommon;
+using static IntersectUtilities.UtilsCommon.Utils;
+
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+using Polyline = Autodesk.AutoCAD.DatabaseServices.Polyline;
 
 namespace AcadOverrules.ViewFrameGripOverrule
 {
@@ -40,17 +44,25 @@ namespace AcadOverrules.ViewFrameGripOverrule
             int gripSizeInPixels)
         {
             var unit = worldDraw.Viewport.GetNumPixelsInUnitSquare(GripPoint);
-            var gripHeight = 3.0 * gripSizeInPixels / unit.X;
+            var gripHeight = 2.5 * gripSizeInPixels / unit.X;
             var points = new Point3dCollection();
-            var x = GripPoint.X;
-            var y = GripPoint.Y;
-            var offset = gripHeight / 2.0;
-            points.Add(new Point3d(x - offset, y, 0.0));
-            points.Add(new Point3d(x, y - offset, 0.0));
-            points.Add(new Point3d(x + offset, y, 0.0));
-            points.Add(new Point3d(x, y + offset, 0.0));
-            Point3d center = new Point3d(x, y, 0.0);
-            var radius = offset;
+
+            var pl = entityId.Open(OpenMode.ForRead) as Polyline;
+            
+            var verts = 
+
+            //var x = GripPoint.X;
+            //var y = GripPoint.Y;
+            //var offset = gripHeight / 2.0;
+            //points.Add(new Point3d(x - offset, y, 0.0));
+            //points.Add(new Point3d(x, y - offset, 0.0));
+            //points.Add(new Point3d(x + offset, y, 0.0));
+            //points.Add(new Point3d(x, y + offset, 0.0));
+            //Point3d center = new Point3d(x, y, 0.0);
+            //var radius = offset;
+
+
+
             worldDraw.SubEntityTraits.FillType = FillType.FillAlways;
             worldDraw.SubEntityTraits.Color = 30;
             worldDraw.Geometry.Circle(center, radius, Vector3d.ZAxis);

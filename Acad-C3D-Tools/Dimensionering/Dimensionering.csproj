@@ -136,9 +136,6 @@
 		<Compile Include="..\IntersectUtilities\Utils.cs">
 			<Link>Utils.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\UtilsCommon.cs">
-			<Link>UtilsCommon.cs</Link>
-		</Compile>
 	</ItemGroup>
 	<ItemGroup>
 	  <COMReference Include="Microsoft.Office.Interop.Excel">
@@ -171,4 +168,5 @@
 	<ItemGroup>
 	  <ProjectReference Include="..\AutoCADCommands\AutoCADCommands.csproj" />
 	</ItemGroup>
+	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 </Project>

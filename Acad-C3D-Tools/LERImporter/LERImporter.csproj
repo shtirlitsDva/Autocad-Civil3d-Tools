@@ -89,9 +89,6 @@
 		<Compile Include="..\IntersectUtilities\PropertySetManager.cs">
 			<Link>PropertySetManager.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\UtilsCommon.cs">
-			<Link>UtilsCommon.cs</Link>
-		</Compile>
 	</ItemGroup>
 	<ItemGroup>
 		<None Update="Schema\1.0_annotations.xsd">
@@ -118,4 +115,5 @@
 		<PackageReference Include="System.Text.Json" Version="8.0.4" />
 		<PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
 	</ItemGroup>
+	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 </Project>

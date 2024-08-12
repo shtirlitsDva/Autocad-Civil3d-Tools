@@ -15,18 +15,7 @@ namespace AcadOverrules.ViewFrameGripOverrule
         private bool _enabled = false;
         private bool _originalOverruling = false;
         private static ViewFrameCentreGripOverrule _instance = null;
-        private static string _layerName = "";
-        public static ViewFrameCentreGripOverrule Instance
-        {
-            get
-            {
-                if (_instance == null)
-                {
-                    _instance = new ViewFrameCentreGripOverrule();
-                }
-                return _instance;
-            }
-        }
+        private static string _layerName = "zNSViewFrames_DO_NOT_USE";
         public bool HideOriginals { get; set; } = true;
         public void EnableOverrule(bool enable)
         {
@@ -53,9 +42,9 @@ namespace AcadOverrules.ViewFrameGripOverrule
             if (poly != null)
             {
                 bool polyClosed = poly.Closed;
+                bool polyOnLayer = poly.Layer == _layerName;
 
-
-                return poly.Closed;
+                return polyClosed && polyOnLayer;
             }
             return false;
         }
@@ -70,9 +59,25 @@ namespace AcadOverrules.ViewFrameGripOverrule
             var poly = entity as Polyline;
             if (poly != null && poly.Closed)
             {
-                using (var tran = entity.Database.TransactionManager.StartTrans
-                action())
-{
+                using (var tran = entity.Database.TransactionManager.StartTransaction())
+                {
+                    var pt = poly.StartPoint;
+                    var grip = new ViewFrameGrip()
+                    {
+                        GripPoint = pt,
+                        EntityId = entity.ObjectId
+                    };
+                    grips.Add(grip);
+                    tran.Commit();
                 }
-
+                if (!HideOriginals)
+                {
+                    base.GetGripPoints(
+                    entity, grips, curViewUnitSize, gripSize, curViewDir, bitFlags);
+                }
+                return;
             }
+            base.GetGripPoints(entity, grips, curViewUnitSize, gripSize, curViewDir, bitFlags);
+        }
+    }
+}
