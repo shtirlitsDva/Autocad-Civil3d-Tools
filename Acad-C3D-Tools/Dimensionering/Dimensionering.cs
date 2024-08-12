@@ -26,12 +26,10 @@ using System.Windows.Forms;
 using System.Data;
 using System.Data.SqlClient;
 using System.Reflection;
-//using MoreLinq;
 using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
 using Microsoft.Office.Interop.Excel;
 using ChunkedEnumerator;
-using FolderSelect;
 
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
@@ -51,6 +49,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Line = Autodesk.AutoCAD.DatabaseServices.Line;
 using JsonConvert = Newtonsoft.Json.JsonConvert;
+using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using Newtonsoft.Json;
 using Autodesk.Gis.Map;
 using Autodesk.Gis.Map.ObjectData;
@@ -58,6 +57,7 @@ using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.Dimensionering.Forms;
 using Schema.Datafordeler;
 using Dimensionering;
+using Microsoft.Win32;
 
 namespace IntersectUtilities.Dimensionering
 {
@@ -117,7 +117,7 @@ namespace IntersectUtilities.Dimensionering
                 Filter = "Geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
                 FilterIndex = 0
             };
-            if (dialog.ShowDialog() == DialogResult.OK)
+            if (dialog.ShowDialog() == true)
             {
                 fileName = dialog.FileName;
                 bbrString = File.ReadAllText(fileName);
@@ -634,7 +634,7 @@ namespace IntersectUtilities.Dimensionering
                         Filter = "Geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
                         FilterIndex = 0
                     };
-                    if (dialog.ShowDialog() == DialogResult.OK)
+                    if (dialog.ShowDialog() == true)
                     {
                         fileName = dialog.FileName;
                         husnumreStr = File.ReadAllText(fileName);
@@ -904,7 +904,7 @@ namespace IntersectUtilities.Dimensionering
                 Filter = "Excel files (*.xlsm)|*.xlsm|All files (*.*)|*.*",
                 FilterIndex = 0
             };
-            if (dialog.ShowDialog() == DialogResult.OK)
+            if (dialog.ShowDialog() == true)
             {
                 fileName = dialog.FileName;
             }
@@ -1082,7 +1082,7 @@ namespace IntersectUtilities.Dimensionering
                         Filter = "Excel files (*.xlsm)|*.xlsm|All files (*.*)|*.*",
                         FilterIndex = 0
                     };
-                    if (dialog.ShowDialog() == DialogResult.OK)
+                    if (dialog.ShowDialog() == true)
                     {
                         if (dialog.FileName.IsNoE()) return;
                         fileNames.Add(dialog.FileName);
@@ -1090,14 +1090,14 @@ namespace IntersectUtilities.Dimensionering
                     else return;
                     break;
                 case kwd2: //Alle
-                    FolderSelectDialog fsd = new FolderSelectDialog()
+                    var folderDialog = new OpenFolderDialog
                     {
-                        Title = "Choose folder with excel workbooks to import:",
-                        InitialDirectory = @"c:\"
+                        Title = "Choose folder with excel workbooks to import: ",
                     };
-                    if (fsd.ShowDialog(IntPtr.Zero))
+
+                    if (folderDialog.ShowDialog() == true)
                     {
-                        string folder = fsd.FileName;
+                        string folder = folderDialog.FolderName;
                         if (string.IsNullOrEmpty(folder)) return;
                         var files = Directory.EnumerateFiles(folder, "*.xlsm");
                         fileNames.UnionWith(files);
@@ -3031,7 +3031,7 @@ namespace IntersectUtilities.Dimensionering
                             Filter = "Geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
                             FilterIndex = 0
                         };
-                        if (dialog.ShowDialog() == DialogResult.OK)
+                        if (dialog.ShowDialog() == true)
                         {
                             fileName = dialog.FileName;
                             husnumreStr = File.ReadAllText(fileName);
@@ -3567,7 +3567,7 @@ namespace IntersectUtilities.Dimensionering
                         Filter = "Excel files (*.xlsm)|*.xlsm|All files (*.*)|*.*",
                         FilterIndex = 0
                     };
-                    if (dialog.ShowDialog() == DialogResult.OK)
+                    if (dialog.ShowDialog() == true)
                     {
                         fileName = dialog.FileName;
                     }

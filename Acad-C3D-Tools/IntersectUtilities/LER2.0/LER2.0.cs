@@ -25,9 +25,9 @@ using System.Text.Json;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
 using IntersectUtilities.LER2;
-using FolderSelect;
 using GroupByCluster;
 using MoreLinq;
+using Microsoft.Win32;
 
 namespace IntersectUtilities
 {
@@ -1964,15 +1964,15 @@ namespace IntersectUtilities
             Tolerance tolerance = new Tolerance(1e-6, 2.54 * 1e-6);
 
             #region Find folder and files
-            FolderSelectDialog fsd = new FolderSelectDialog()
+            string pathToFolder;
+            var folderDialog = new OpenFolderDialog
             {
                 Title = "Select folder where LER dwg files are stored: ",
             };
 
-            string pathToFolder;
-            if (fsd.ShowDialog(IntPtr.Zero))
+            if (folderDialog.ShowDialog() == true)
             {
-                pathToFolder = fsd.FileName + "\\";
+                pathToFolder = folderDialog.FolderName + "\\";
             }
             else return;
 

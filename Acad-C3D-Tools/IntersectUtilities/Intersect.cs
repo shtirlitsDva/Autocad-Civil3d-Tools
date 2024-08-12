@@ -29,7 +29,6 @@ using GroupByCluster;
 using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
 using Dreambuild.AutoCAD;
-using FolderSelect;
 
 using static IntersectUtilities.Enums;
 using static IntersectUtilities.HelperMethods;
@@ -49,6 +48,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
+using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using IntersectUtilities.DynamicBlocks;
 using System.Diagnostics;
 using System.Text.Json;
@@ -59,6 +59,7 @@ using QuikGraph.Graphviz;
 using QuikGraph.Algorithms.Search;
 using System.Text.Json.Nodes;
 using NetTopologySuite.Features;
+using Microsoft.Win32;
 
 [assembly: CommandClass(typeof(IntersectUtilities.Intersect))]
 
@@ -2215,7 +2216,7 @@ namespace IntersectUtilities
                         Filter = "csv files (*.csv)|*.csv|All files (*.*)|*.*",
                         FilterIndex = 0
                     };
-                    if (dialog.ShowDialog() == DialogResult.OK)
+                    if (dialog.ShowDialog() == true)
                     {
                         path = dialog.FileName;
                     }
@@ -2469,7 +2470,7 @@ namespace IntersectUtilities
                     Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
                     FilterIndex = 0
                 };
-                if (dialog.ShowDialog() == DialogResult.OK)
+                if (dialog.ShowDialog() == true)
                 {
                     path = dialog.FileName;
                 }
@@ -2528,7 +2529,7 @@ namespace IntersectUtilities
                         Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
                         FilterIndex = 0
                     };
-                    if (dialog.ShowDialog() == DialogResult.OK)
+                    if (dialog.ShowDialog() == true)
                     {
                         path = dialog.FileName;
                     }
@@ -2615,7 +2616,7 @@ namespace IntersectUtilities
                         Filter = "dwg files (*.dwg)|*.dwg|All files (*.*)|*.*",
                         FilterIndex = 0
                     };
-                    if (dialog.ShowDialog() == DialogResult.OK)
+                    if (dialog.ShowDialog() == true)
                     {
                         path = dialog.FileName;
                     }
@@ -3728,7 +3729,7 @@ namespace IntersectUtilities
                         Filter = "geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
                         FilterIndex = 0
                     };
-                    if (dialog.ShowDialog() == DialogResult.OK)
+                    if (dialog.ShowDialog() == true)
                     {
                         path = dialog.FileName;
                     }
@@ -7350,15 +7351,14 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
 
             string pathToFolder;
-
-            FolderSelectDialog fsd = new FolderSelectDialog()
+            var folderDialog = new OpenFolderDialog
             {
-                Title = "Choose folder where view frame drawings are stored: ",
-                //InitialDirectory = @"C:\"
+                Title = "Select folder where LER dwg files are stored: ",
             };
-            if (fsd.ShowDialog(IntPtr.Zero))
+
+            if (folderDialog.ShowDialog() == true)
             {
-                pathToFolder = fsd.FileName + "\\";
+                pathToFolder = folderDialog.FolderName + "\\";
             }
             else return;
 
@@ -7415,15 +7415,14 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
 
             string pathToFolder;
-
-            FolderSelectDialog fsd = new FolderSelectDialog()
+            var folderDialog = new OpenFolderDialog
             {
-                Title = "Choose folder where drawings are stored: ",
-                InitialDirectory = @"C:\"
+                Title = "Select folder where LER dwg files are stored: ",
             };
-            if (fsd.ShowDialog(IntPtr.Zero))
+
+            if (folderDialog.ShowDialog() == true)
             {
-                pathToFolder = fsd.FileName + "\\";
+                pathToFolder = folderDialog.FolderName + "\\";
             }
             else return;
 
@@ -7477,15 +7476,14 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
 
             string pathToFolder;
-
-            FolderSelectDialog fsd = new FolderSelectDialog()
+            var folderDialog = new OpenFolderDialog
             {
-                Title = "Choose folder where drawings are stored: ",
-                InitialDirectory = @"C:\"
+                Title = "Select folder where LER dwg files are stored: ",
             };
-            if (fsd.ShowDialog(IntPtr.Zero))
+
+            if (folderDialog.ShowDialog() == true)
             {
-                pathToFolder = fsd.FileName + "\\";
+                pathToFolder = folderDialog.FolderName + "\\";
             }
             else return;
 
@@ -7538,15 +7536,14 @@ namespace IntersectUtilities
             Database localDb = docCol.MdiActiveDocument.Database;
 
             string pathToFolder;
-
-            FolderSelectDialog fsd = new FolderSelectDialog()
+            var folderDialog = new OpenFolderDialog
             {
-                Title = "Choose folder where drawings are stored: "
-                //InitialDirectory = @"C:\"
+                Title = "Select folder where LER dwg files are stored: ",
             };
-            if (fsd.ShowDialog(IntPtr.Zero))
+
+            if (folderDialog.ShowDialog() == true)
             {
-                pathToFolder = fsd.FileName + "\\";
+                pathToFolder = folderDialog.FolderName + "\\";
             }
             else return;
 
@@ -7594,7 +7591,7 @@ namespace IntersectUtilities
                 Filter = "dwg files (*.dwg)|*.dwg|All files (*.*)|*.*",
                 FilterIndex = 0
             };
-            if (dialog.ShowDialog() == DialogResult.OK)
+            if (dialog.ShowDialog() == true)
             {
                 fileName = dialog.FileName;
             }
@@ -7704,7 +7701,7 @@ namespace IntersectUtilities
                 Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
                 FilterIndex = 0
             };
-            if (dialog.ShowDialog() == DialogResult.OK)
+            if (dialog.ShowDialog() == true)
             {
                 path = dialog.FileName;
             }
@@ -8201,15 +8198,15 @@ namespace IntersectUtilities
                     if (lines.Length > 0) prevFolder = lines[0];
                 }
 
-                FolderSelectDialog fsd = new FolderSelectDialog()
+                var folderDialog = new OpenFolderDialog
                 {
-                    Title = "Choose folder where to store view frame GeoJSON: ",
-                    InitialDirectory = prevFolder
+                    Title = "\"Choose folder where to store view frame GeoJSON: ",
+                    InitialDirectory = prevFolder,
                 };
 
-                if (fsd.ShowDialog(IntPtr.Zero))
+                if (folderDialog.ShowDialog() == true)
                 {
-                    pathToFolder = fsd.FileName;
+                    pathToFolder = folderDialog.FolderName;
                     File.WriteAllText(
                         @"X:\AutoCAD DRI - 01 Civil 3D\Netload\Support\CreateManualViewFrameLastDir.txt",
                         pathToFolder, Encoding.UTF8);
@@ -8236,7 +8233,7 @@ namespace IntersectUtilities
                     Filter = "GeoJSON files (*.geojson)|*.geojson|All files (*.*)|*.*"
                 };
 
-                if (ofd.ShowDialog() == DialogResult.OK)
+                if (ofd.ShowDialog() == true)
                 {
                     fileName = ofd.FileName;
                     File.WriteAllText(
