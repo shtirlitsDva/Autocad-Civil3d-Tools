@@ -22,11 +22,11 @@
 	  <DocumentationFile>bin\Debug\AutoCADCommands.xml</DocumentationFile>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-		<OutputPath>..\bin\Release\r23\</OutputPath>
+		<OutputPath>..\bin\Release</OutputPath>
 		<DefineConstants>TRACE;R23</DefineConstants>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-	  <OutputPath>..\bin\Release\r23\</OutputPath>
+	  <OutputPath>..\bin\Release</OutputPath>
 	  <DefineConstants>TRACE;R23</DefineConstants>
 	</PropertyGroup>
 	<ItemGroup>
