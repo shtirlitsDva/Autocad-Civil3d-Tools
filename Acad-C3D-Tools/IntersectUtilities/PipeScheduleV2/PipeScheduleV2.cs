@@ -381,11 +381,6 @@ namespace IntersectUtilities.PipeScheduleV2
         }
         public static double GetBuerorMinRadius(Entity ent)
         {
-            PipeSystemEnum system = GetPipeSystem(ent);
-
-            if (!systemDictReversed.ContainsKey(system)) return 0;
-            IPipeType pipeType = _repository.GetPipeType(systemDictReversed[system]);
-
             int dn = GetPipeDN(ent);
             //int std = (int)GetPipeStdLength(ent);
             int std = 12; //Bruger kun radier for 12m rør bestemt af ledelsen
