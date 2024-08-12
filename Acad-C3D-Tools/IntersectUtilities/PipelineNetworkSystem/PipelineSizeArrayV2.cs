@@ -379,7 +379,13 @@ namespace IntersectUtilities.PipelineNetworkSystem
             {
                 case PipelineElementType.F_Model: //X_Model DN can be read directly
                 case PipelineElementType.Y_Model:
-                    TryGetDN(pipeline, start, end, out dn);
+                    //TryGetDN(pipeline, start, end, out dn); <-- this failed when a materiale skift was placed
+                    //directly on one end of the Y-Model because of change in placement strategy for MSs
+                    //TryGetDN tries to find the DN looking at the sides of the block
+                    //But X-Models have one DN on both sides, so this is not necessary
+                    //Fixed by reading the DN directly, if errors occur again need to look for a better solution
+                    dn = Convert.ToInt32(current.ReadDynamicCsvProperty(
+                        DynamicProperty.DN1, true));
                     break;
                 case PipelineElementType.Reduktion: //Need to look at sides
                 case PipelineElementType.Materialeskift:
