@@ -8,10 +8,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Windows.Forms;
-using Microsoft.WindowsAPICodePack.Dialogs;
 using System.Xml;
 using System.Xml.Serialization;
 using System.Globalization;
+using Microsoft.Win32;
 
 namespace ReverseLayoutProfileLANDXML
 {
@@ -26,11 +26,13 @@ namespace ReverseLayoutProfileLANDXML
 
         private void button1_Click(object sender, EventArgs e)
         {
-            CommonOpenFileDialog dialog = new CommonOpenFileDialog();
-            dialog.InitialDirectory = @"X:\0371-1158 - Gentofte Fase 4 - Dokumenter\01 Intern\02 Tegninger\10 Actionlist";
-            if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
+            OpenFileDialog ofd = new()
             {
-                fileName = dialog.FileName;
+                Filter = "XML files (*.xml)|*.xml|All files (*.*)|*.*"
+            };
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                fileName = ofd.FileName;
             }
         }
 

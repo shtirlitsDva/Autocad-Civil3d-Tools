@@ -33,7 +33,7 @@ using oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
-using FolderSelect;
+using Microsoft.Win32;
 
 namespace SheetCreationAutomation
 {
@@ -154,14 +154,13 @@ namespace SheetCreationAutomation
 
                 string pathToFolderToSave = @"C:\Temp";
 
-                FolderSelectDialog fsd = new FolderSelectDialog()
+                OpenFolderDialog fsd = new OpenFolderDialog()
                 {
                     Title = "Choose folder where to save view frame drawings:",
-                    InitialDirectory = @"x:\"
                 };
-                if (fsd.ShowDialog(IntPtr.Zero))
+                if (fsd.ShowDialog() == true)
                 {
-                    pathToFolderToSave = fsd.FileName + "\\";
+                    pathToFolderToSave = fsd.FolderName;
                 }
                 else return;
 

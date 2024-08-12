@@ -4,6 +4,7 @@
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<UseWindowsForms>true</UseWindowsForms>
+		<UseWPF>true</UseWPF>
 		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
 		<Nullable>enable</Nullable>
 		<Platforms>x64</Platforms>
@@ -67,9 +68,6 @@
 		<Compile Include="..\IntersectUtilities\CsvReader.cs">
 			<Link>CsvReader.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\FolderSelectDialog.cs">
-			<Link>FolderSelectDialog.cs</Link>
-		</Compile>
 		<Compile Include="..\IntersectUtilities\MoreLinq\MoreLinq.cs">
 			<Link>MoreLinq.cs</Link>
 		</Compile>
@@ -78,9 +76,6 @@
 		</Compile>
 		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
 			<Link>PipeScheduleV2\PipeScheduleV2.cs</Link>
-		</Compile>
-		<Compile Include="..\IntersectUtilities\Reflector.cs">
-			<Link>Reflector.cs</Link>
 		</Compile>
 		<Compile Include="..\IntersectUtilities\UtilsCommon.cs">
 			<Link>UtilsCommon.cs</Link>
