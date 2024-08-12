@@ -1,0 +1,63 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>c0aae908-09ec-43ef-a017-f74f4fa93d21</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>AutoCADCommandsSHARED</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Page Include="$(MSBuildThisFileDirectory)GUIs\DictionaryViewer.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="$(MSBuildThisFileDirectory)GUIs\InputBox.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="$(MSBuildThisFileDirectory)GUIs\MultiInputs.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="$(MSBuildThisFileDirectory)GUIs\TaskProgressWindow.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="$(MSBuildThisFileDirectory)GUIs\TextReport.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Algorithms.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)App.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Commands.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DbHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)FlexDataStore.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Gui.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)GUIs\DictionaryViewer.xaml.cs">
+      <DependentUpon>DictionaryViewer.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)GUIs\InputBox.xaml.cs">
+      <DependentUpon>InputBox.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)GUIs\MultiInputs.xaml.cs">
+      <DependentUpon>MultiInputs.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)GUIs\TaskProgressWindow.xaml.cs">
+      <DependentUpon>TaskProgressWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)GUIs\TextReport.xaml.cs">
+      <DependentUpon>TextReport.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="$(MSBuildThisFileDirectory)Interaction.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Internal\CustomDictionary.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Internal\JigDrag.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Layouts.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)QuickSelection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SymbolPack.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Test.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)app.config" />
+    <None Include="$(MSBuildThisFileDirectory)AutoCADCommands.ruleset" />
+    <None Include="$(MSBuildThisFileDirectory)loadNet.scr" />
+  </ItemGroup>
+</Project>

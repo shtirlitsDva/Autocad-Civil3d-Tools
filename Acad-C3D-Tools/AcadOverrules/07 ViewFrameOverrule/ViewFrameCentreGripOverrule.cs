@@ -43,6 +43,7 @@ namespace AcadOverrules.ViewFrameGripOverrule
             {
                 bool polyClosed = poly.Closed;
                 bool polyOnLayer = poly.Layer == _layerName;
+                bool numberOfVertices = poly.NumberOfVertices == 4;
 
                 return polyClosed && polyOnLayer;
             }

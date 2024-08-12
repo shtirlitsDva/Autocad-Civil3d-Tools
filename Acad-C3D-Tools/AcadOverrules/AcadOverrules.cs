@@ -4,11 +4,26 @@ using Autodesk.AutoCAD.Runtime;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
 using AcadOverrules.ViewFrameGripOverrule;
+using System;
 
 namespace AcadOverrules
 {
-    public class Commands
+    public class Commands : IExtensionApplication
     {
+        #region Interface memebers
+        public void Initialize()
+        {
+#if DEBUG
+            AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(EventHandlers.Debug_AssemblyResolve);
+#endif
+        }
+
+        public void Terminate()
+        {
+
+        }
+        #endregion
+
         private static FjvPolylineLabel _fjvPolylineLabelOverrule;
 
         [CommandMethod("TOGGLEFJVLABEL")]
@@ -27,8 +42,8 @@ namespace AcadOverrules
                 _fjvPolylineLabelOverrule = null;
             }
             Application.DocumentManager.MdiActiveDocument.Editor.Regen();
-        }                                                         
-        
+        }
+
         private static GasPolylineLabel _GasPolylineLabelOverrule;
 
         [CommandMethod("TOGGLEGASLABEL")]

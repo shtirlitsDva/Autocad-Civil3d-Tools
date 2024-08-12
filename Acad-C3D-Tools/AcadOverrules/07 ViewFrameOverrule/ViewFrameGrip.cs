@@ -15,6 +15,8 @@ using Autodesk.AutoCAD.Runtime;
 using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
 
+using Dreambuild.AutoCAD;
+
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using Polyline = Autodesk.AutoCAD.DatabaseServices.Polyline;
 
@@ -47,25 +49,29 @@ namespace AcadOverrules.ViewFrameGripOverrule
             var gripHeight = 2.5 * gripSizeInPixels / unit.X;
             var points = new Point3dCollection();
 
-            var pl = entityId.Open(OpenMode.ForRead) as Polyline;
-            
-            var verts = 
+            var verts = entityId.QOpenForRead<Polyline>()?.GetPoints().ToHashSet();
+            Point3d centre = new Point3d(
+                verts.Sum(v => v.X) / verts.Count,
+                verts.Sum(v => v.Y) / verts.Count, 0);
+
+            GripPoint = centre;
+
+            var offset = gripHeight / 2.0;
+            var radius = offset;
+
+
 
             //var x = GripPoint.X;
             //var y = GripPoint.Y;
-            //var offset = gripHeight / 2.0;
             //points.Add(new Point3d(x - offset, y, 0.0));
             //points.Add(new Point3d(x, y - offset, 0.0));
             //points.Add(new Point3d(x + offset, y, 0.0));
             //points.Add(new Point3d(x, y + offset, 0.0));
             //Point3d center = new Point3d(x, y, 0.0);
-            //var radius = offset;
-
-
 
             worldDraw.SubEntityTraits.FillType = FillType.FillAlways;
             worldDraw.SubEntityTraits.Color = 30;
-            worldDraw.Geometry.Circle(center, radius, Vector3d.ZAxis);
+            worldDraw.Geometry.Circle(centre, radius, Vector3d.ZAxis);
             return true;
         }
 
