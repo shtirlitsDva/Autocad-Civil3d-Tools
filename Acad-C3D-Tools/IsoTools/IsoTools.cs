@@ -14,7 +14,6 @@ using Autodesk.AutoCAD.Windows;
 
 using static IsoTools.Utils;
 using System.IO;
-using Ude;
 
 namespace IsoTools
 {
@@ -269,24 +268,6 @@ namespace IsoTools
                         }
 
                         return records;
-                    }
-                    Encoding DetectFileEncoding(string filePath)
-                    {
-                        using (FileStream fs = File.OpenRead(filePath))
-                        {
-                            ICharsetDetector cd = new CharsetDetector();
-                            cd.Feed(fs);
-                            cd.DataEnd();
-
-                            if (cd.Charset != null && cd.Confidence > 0.5) // You can adjust the confidence threshold
-                            {
-                                string file = Path.GetFileName(filePath);
-                                prdDbg($"File {file} detected encoding: {cd.Charset} with confidence {cd.Confidence}");
-                                return Encoding.GetEncoding(cd.Charset);
-                            }
-                            throw new System.Exception($"{Path.GetFileName(filePath)}" +
-                                $" file could not establish an encoding!");
-                        }
                     }
                     #endregion
 
