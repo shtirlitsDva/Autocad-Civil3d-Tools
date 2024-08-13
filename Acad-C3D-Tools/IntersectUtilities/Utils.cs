@@ -1398,6 +1398,36 @@ namespace IntersectUtilities
 
             return points[0].DistanceHorizontalTo(points[1]);
         }
+        public static Vector3d GetDirectionVectorForReducerFromPoint(Transaction tx, BlockReference transition, Point3d basePoint)
+        {
+            if (transition == null) return default;
+            if (transition.GetPipelineType() != PipelineElementType.Reduktion)
+            {
+                throw new System.Exception(
+                    $"GetTransitionLength received non-transition block " +
+                    $"{transition.RealName()}, {transition.Handle}!");
+            }
+
+            BlockTableRecord btr = transition.BlockTableRecord.Go<BlockTableRecord>(tx);
+
+            var points = btr
+                .ToIEnumerable()
+                .Select(id => id.Go<BlockReference>(tx))
+                .Where(br => br != null && br.Name.Contains("MuffeIntern"))
+                .Select(br => br.Position.TransformBy(transition.BlockTransform))
+                .ToArray();
+
+            if (points.Length != 2) throw new System.Exception(
+                $"Transition {transition.Handle} does not have EXACTLY two MuffeIntern blocks!");
+
+            Point3d point1 = points[0];
+            Point3d point2 = points[1];
+
+            Point3d startPoint = point1.IsEqualTo(basePoint, new Tolerance(1e-3, 1e-3)) ? point1 : point2;
+            Point3d endPoint = startPoint == point1 ? point2 : point1;
+
+            return startPoint.GetVectorTo(endPoint);
+        }
     }
 
     public static class UtilsExtensions

@@ -79,6 +79,14 @@ namespace IntersectUtilities.PipelineNetworkSystem
             if (newPolyIdx >= _polyIndici.Length) return null;
             return _ents[newPolyIdx] as Polyline;
         }
+
+        /// <summary>
+        /// Exchange one polyline with another in the segment.
+        /// </summary>
+        internal void ExchangeEntity(Polyline pline2, Polyline newPline2)
+        {
+            _ents[Array.IndexOf(_ents, pline2)] = newPline2;
+        }
     }
     internal static class PipelineSegmentFactory
     {

@@ -29,7 +29,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 againstStationsOrder ? entities.Reverse() : entities);
             _pipeSettings = psc;
         }
-
         internal Result CorrectLengths(Database localDb)
         {
             Database db = localDb;
@@ -57,7 +56,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     //Skip if pipe is missing less than 1 mm
                     if (remainder < 1e-3 || pipeStdLength - remainder < 1e-3)
                     {
-                        prdDbg($"Pipe {pline1.Handle} is OK. {remainder} {pipeStdLength - remainder}");
+                        prdDbg($"Pipe {pline1.Handle} is OK. R:{remainder}  L:{pipeStdLength - remainder}");
                         continue;
                     }
                     prdDbg($"{pline1.Handle} ML:{missingLength} R:{remainder} RI:{pipeStdLength - remainder}");
@@ -102,7 +101,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     //(Old) Case 4: Missing length is relatively small (now 2 meters) -> move transition back
                     if (missingLength >= pipeStdLength - 2 && nrOfSections != 0)
                     {
-
+                        result.Combine(CorrectPlinesReverse(db, pline1, br, pline2, missingLength, ps));
+                        continue;
                     }
 
                     //Test to see if the next polylines' length is less than the missing length
@@ -110,11 +110,13 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     //So we 'push' the missing length down the line until we find space
                     //Or segment terminates
                     //This must be done before all else
+                    //I HAVE A NAGGING SUSPICION THAT THIS IS ALL THAT IS REQUIRED
                     if (missingLength > pline2.Length)
                     {
                         using (Transaction tooShortTx = db.TransactionManager.StartTransaction())
                         {
                             Result pushResult = PushMissingLengthDownTheLine(db, pline2, ps, missingLength);
+                            result.Combine(pushResult);
                             if (pushResult.Status != ResultStatus.OK)
                             {
                                 //If pushing the missing length down the line failed
@@ -142,6 +144,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             $"In that case run CORRECTCUTLENGTHSV2 afterwards again.";
                         continue;
                     }
+
+                    //Now to correcting lengths
+                    var correctResult = CorrectPlines(db, pline1, br, pline2, missingLength, ps);
+                    result.Combine(correctResult);
+                    //Continue by falling through
                 }
             }
 
@@ -271,12 +278,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     $"Length correction stopped.");
             }
             #endregion
-            Result modifyResult = CorrectPlines(db, pline1, br, pline2, missingLength);
+            Result modifyResult = CorrectPlines(db, pline1, br, pline2, missingLength, ps);
             return modifyResult;
         }
-
         private Result CorrectPlines(
-            Database db, Polyline pline1, BlockReference reducer, Polyline pline2, double missingLength)
+            Database db, Polyline pline1, BlockReference reducer, Polyline pline2, double missingLength,
+            PipelineSegment ps)
         {
             using (Transaction tx = db.TransactionManager.StartTransaction())
             {
@@ -291,7 +298,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     {
                         prdDbg(
                         $"***WARNING***\n" +
-                                $"For polyline {pline2.Handle} length correction points ends in an Arc segment.\n" +
+                                $"For polyline {pline2.Handle} length correction by {missingLength}m ends in an Arc segment.\n" +
                                 $"Automatic cut length correction is not possible. If you wish, correct lengths manually.\n" +
                                 $"In that case run CORRECTCUTLENGTHSV2 afterwards again.");
                         Debug.CreateDebugLine(
@@ -300,6 +307,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             ResultStatus.SoftError,
                             "Moved end landed on arc segment. Modify length aborted.");
                     }
+
+                    //TODO: Maybe add a check if polylines really are connected to the reducer
+                    //Pline1 with end point and pline2 with start point
 
                     #region Case 1. Missing length <= transitionLength
                     //Case 1: Missing length is less than or equal to transition length
@@ -310,14 +320,144 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         pline2.UpgradeOpen();
                         reducer.UpgradeOpen();
 
-                        Vector3d v = pline1.GetFirstDerivative(pline1.EndParam).GetNormal();
-                        Point3d newEndPoint = pline1.GetPointAtParameter(pline1.EndParam) + v * missingLength;
+                        //Modify pline1
+                        Vector3d moveVector = pline1.GetFirstDerivative(pline1.EndParam).GetNormal() * missingLength;
+                        Point3d newEndPoint = pline1.GetPointAtParameter(pline1.EndParam) + moveVector;
                         pline1.AddVertexAt(pline1.NumberOfVertices, newEndPoint.To2D(), 0, 0, 0);
 
-                        //Move transition
+                        //Modify pline2
+                        //Use splitting to avoid checking what segments are in the way
+                        //Though the probability of multiple segments on such short distance is low
+                        //But one can never be sure
+                        List<double> splitPars = new() { pline2.GetParameterAtDistance(missingLength) };
+                        try
+                        {
+                            var objs = pline2.GetSplitCurves(splitPars.ToDoubleCollection());
+                            if (objs.Count != 2)
+                            {
+                                prdDbg($"Splitting of polyline {pline2.Handle} at parameter " +
+                                    $"{pline2.GetParameterAtDistance(missingLength)} failed.");
+                                throw new Exception("Splitting failed.");
+                            }
+                            Polyline newPline2 = objs[1] as Polyline;
+                            if (newPline2 == null)
+                            {
+                                prdDbg($"Splitting of polyline {pline2.Handle} at parameter " +
+                                    $"{pline2.GetParameterAtDistance(missingLength)} failed.");
+                                throw new Exception("Splitting failed.");
+                            }
+                            newPline2.AddEntityToDbModelSpace(db);
 
+                            ps.ExchangeEntity(pline2, newPline2);
+                            PropertySetManager.CopyAllProperties(pline2, newPline2);
+                            //Already opened
+                            pline2.Erase(true);
+                            pline2 = newPline2;
+                        }
+                        catch (Exception ex)
+                        {
+                            prdDbg($"Splitting of polyline {pline2.Handle} at parameter " +
+                                $"{pline2.GetParameterAtDistance(missingLength)} failed.");
+                            prdDbg(ex);
+                            throw;
+                        }
+
+                        //Move transition, it is already opened
+                        reducer.TransformBy(Matrix3d.Displacement(moveVector));
+
+                        //Finalize transaction
+                        tx.Commit();
+                        return new Result();
                     }
+                    #endregion
+                    #region Case 2: Missing length > transition length
+                    //It is assumed
+                    else
+                    {
+                        prdDbg($"R: {reducer.Handle}, Case 2: Missing length is greater than transition length");
+                        pline1.UpgradeOpen();
+                        pline2.UpgradeOpen();
+                        reducer.UpgradeOpen();
 
+                        Point3d cachedPline1EndPoint = pline1.EndPoint;
+
+                        //First split the second pline to get the parts that pline1 is going to inherit
+                        try
+                        {
+                            //Splitting in 3 parts
+                            //as we remember the gap for the moved transition
+                            List<double> splitPars = new()
+                            {
+                                pline2.GetParameterAtDistance(missingLength - transitionLength),
+                                pline2.GetParameterAtDistance(missingLength),
+                            };
+                            var objs = pline2.GetSplitCurves(splitPars.ToDoubleCollection());
+                            if (objs.Count != 3)
+                            {
+                                prdDbg($"Splitting of polyline {pline2.Handle} at parameters " +
+                                    $"{pline2.GetParameterAtDistance(missingLength - transitionLength)}, " +
+                                    $"{pline2.GetParameterAtDistance(missingLength)} failed.");
+                                throw new Exception("Splitting failed.");
+                            }
+
+                            //First modify pline1 by adding the part of pline2
+                            //that is going to be inherited
+                            Polyline inheritance = objs[0] as Polyline;
+                            if (inheritance == null)
+                            {
+                                prdDbg($"Splitting of polyline {pline2.Handle} at parameter " +
+                                    $"{pline2.GetParameterAtDistance(missingLength)} failed.");
+                                throw new Exception("Splitting failed.");
+                            }
+                            for (int i = 0; i < inheritance.NumberOfVertices; i++)
+                            {
+                                pline1.AddVertexAt(pline1.NumberOfVertices, inheritance.GetPoint2dAt(i), 0, 0, 0);
+                            }
+
+                            //We ignore second part of the split as it is the part where the transition is placed
+
+                            //Now consider thirt part of the split
+                            //Add it to the db
+                            //Copy ps properties
+                            //Exchange the old pline2 with the new one in the segment
+                            //Erase the old pline2
+                            Polyline newPline2 = objs[2] as Polyline;
+                            if (newPline2 == null)
+                            {
+                                prdDbg($"Splitting of polyline {pline2.Handle} at parameter " +
+                                    $"{pline2.GetParameterAtDistance(missingLength)} failed.");
+                                throw new Exception("Splitting failed.");
+                            }
+                            newPline2.AddEntityToDbModelSpace(db);
+
+                            ps.ExchangeEntity(pline2, newPline2);
+                            PropertySetManager.CopyAllProperties(pline2, newPline2);
+                            //Already opened
+                            pline2.Erase(true);
+                            pline2 = newPline2;
+
+                            //Now move the transition into place
+                            Vector3d moveVector = cachedPline1EndPoint.GetVectorTo(pline1.EndPoint);
+                            reducer.TransformBy(Matrix3d.Displacement(moveVector));
+
+                            //Now rotate the transition to match the new direction
+                            //This is done by rotating the transition around the new endpoint
+                            var v1 = pline1.EndPoint.GetVectorTo(pline1.StartPoint);
+                            var v2 = Utils.GetDirectionVectorForReducerFromPoint(tx, reducer, pline2.EndPoint);
+                            double angle = v2.GetAngleTo(v1);
+                            reducer.TransformBy(Matrix3d.Rotation(angle, Vector3d.ZAxis, pline1.EndPoint));
+                            tx.Commit();
+                            return new Result();
+                        }
+                        catch (Exception ex)
+                        {
+                            prdDbg($"Splitting of polyline {pline2.Handle} at parameters " +
+                                $"{pline2.GetParameterAtDistance(missingLength - transitionLength)}, " +
+                                $"{pline2.GetParameterAtDistance(missingLength)} failed.");
+                            prdDbg(ex);
+                            throw;
+                        }
+                    }
                     #endregion
                 }
                 catch (Exception ex)
@@ -331,15 +471,29 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         "Exception thrown.\n" +
                         ex.ToString());
                 }
-                tx.Commit();
-                return new Result();
             }
         }
-
-        private void Case1(Polyline firstPoly, Polyline secondPoly, BlockReference transition)
+        private Result CorrectPlinesReverse(
+            Database db, Polyline pline1, BlockReference reducer, Polyline pline2, double missingLength,
+            PipelineSegment ps)
         {
-            Vector3d v = firstPoly.GetFirstDerivative(firstPoly.EndParam);
-        }
+            pline1.UpgradeOpen();
+            pline2.UpgradeOpen();
+            pline1.ReverseCurve();
+            pline2.ReverseCurve();
+            pline1.DowngradeOpen();
+            pline2.DowngradeOpen();
 
+            var result = CorrectPlines(db, pline2, reducer, pline1, missingLength, ps);
+
+            pline1.UpgradeOpen();
+            pline2.UpgradeOpen();
+            pline1.ReverseCurve();
+            pline2.ReverseCurve();
+            pline1.DowngradeOpen();
+            pline2.DowngradeOpen();
+
+            return result;
+        }
     }
 }
