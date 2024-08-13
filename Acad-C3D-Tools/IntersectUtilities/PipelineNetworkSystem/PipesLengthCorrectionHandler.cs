@@ -40,7 +40,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 //We don't want to process last polyline
                 //As its end is usually set correctly
                 //To process last polyline set > 0
-                while (ps.UnprocessedPolylines > 1)
+                while (ps.PolylinesLeft > 1)
                 {
                     Polyline pline1 = ps.ProcessNextPolyline();
 
@@ -110,7 +110,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     //So we 'push' the missing length down the line until we find space
                     //Or segment terminates
                     //This must be done before all else
-                    //I HAVE A NAGGING SUSPICION THAT THIS IS ALL THAT IS REQUIRED
                     if (missingLength > pline2.Length)
                     {
                         using (Transaction tooShortTx = db.TransactionManager.StartTransaction())
@@ -181,7 +180,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             //!!!!Remember: ps.UnprocessedPolylines refers to currently processed polyline
             //And we are working here with the NEXT polyline after it ON FIRST ITERATION
 
-            if (ps.UnprocessedPolylines == 1)
+            if (ps.PolylinesLeft == 1)
             {
                 throw new Exception(
                     $"PushMissingLengthDownTheLine encountered ps.UnprocessedPolylines == 1.\n" +
@@ -192,22 +191,20 @@ namespace IntersectUtilities.PipelineNetworkSystem
             //and we do not modify last segment, so the processing aborts.
             //This also means that we failed to push the missing length down the line.
             //And thus return SoftError.
-            if (ps.UnprocessedPolylines == 2)
+            if (ps.PolylinesLeft == 2)
             {
-                result.Combine(new Result(
+                return new Result(
                     ResultStatus.SoftError,
-                    "Pushing MissingLength reached the end of segment without finding space for missing length."));
-                return result;
+                    "Pushing MissingLength reached the end of segment without finding space for missing length.");
             }
 
             //Remember, we are looking for CurrentProccessingPolyline + depth which starts at 2 in the first iteration
             Polyline pline2 = ps.PeekPolylineByRelativeIndex(depth);
             if (pline2 == null)
             {
-                result.Combine(new Result(
+                return new Result(
                     ResultStatus.SoftError,
-                    "Segment does not have further polyline down the line. Pushing aborted."));
-                return result;
+                    "Segment does not have further polyline down the line. Pushing aborted.");
             }
 
             //Test if the moved point lands on arc
@@ -222,12 +219,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                 (int)pline2.GetParameterAtDistance(missingLength));
                     if (landingSegmentType == SegmentType.Arc)
                     {
-                        result.Combine(new Result(
-                            ResultStatus.SoftError,
-                            "Moved end landed on arc segment after modifying later polylines. Pushing aborted."));
                         Debug.CreateDebugLine(
                             pline2.GetPointAtDist(missingLength), ColorByName("red"));
-                        return result;
+                        return new Result(
+                            ResultStatus.SoftError,
+                            "Moved end landed on arc segment after modifying later polylines. Pushing aborted.");
                     }
                     else
                     {
@@ -291,6 +287,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 {
                     //Now to correcting lengths
                     double transitionLength = Utils.GetTransitionLength(tx, reducer);
+                    Point3d cachedTransitionLocation = reducer.Position;
+                    double cachedPline1ConstantWidth = pline1.ConstantWidthSafe();
+                    double cachedPline2ConstantWidth = pline2.ConstantWidthSafe();
 
                     SegmentType landingSegmentType = pline2.GetSegmentType(
                                 (int)pline2.GetParameterAtDistance(missingLength));
@@ -324,6 +323,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         Vector3d moveVector = pline1.GetFirstDerivative(pline1.EndParam).GetNormal() * missingLength;
                         Point3d newEndPoint = pline1.GetPointAtParameter(pline1.EndParam) + moveVector;
                         pline1.AddVertexAt(pline1.NumberOfVertices, newEndPoint.To2D(), 0, 0, 0);
+                        pline1.ConstantWidth = cachedPline1ConstantWidth;
 
                         //Modify pline2
                         //Use splitting to avoid checking what segments are in the way
@@ -350,6 +350,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
                             ps.ExchangeEntity(pline2, newPline2);
                             PropertySetManager.CopyAllProperties(pline2, newPline2);
+                            newPline2.ConstantWidth = pline2.ConstantWidthSafe();
                             //Already opened
                             pline2.Erase(true);
                             pline2 = newPline2;
@@ -364,6 +365,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
                         //Move transition, it is already opened
                         reducer.TransformBy(Matrix3d.Displacement(moveVector));
+
+#if DEBUG
+                        Debug.CreateDebugLine(cachedTransitionLocation, ColorByName("yellow"));
+                        Debug.CreateDebugLine(reducer.Position, ColorByName("green"));
+#endif
 
                         //Finalize transaction
                         tx.Commit();
@@ -413,6 +419,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             {
                                 pline1.AddVertexAt(pline1.NumberOfVertices, inheritance.GetPoint2dAt(i), 0, 0, 0);
                             }
+                            pline1.ConstantWidth = cachedPline1ConstantWidth;
 
                             //We ignore second part of the split as it is the part where the transition is placed
 
@@ -432,6 +439,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
                             ps.ExchangeEntity(pline2, newPline2);
                             PropertySetManager.CopyAllProperties(pline2, newPline2);
+                            newPline2.ConstantWidth = pline2.ConstantWidthSafe();
                             //Already opened
                             pline2.Erase(true);
                             pline2 = newPline2;
@@ -445,8 +453,14 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             var v1 = pline1.EndPoint.GetVectorTo(pline1.StartPoint);
                             var v2 = Utils.GetDirectionVectorForReducerFromPoint(tx, reducer, pline2.EndPoint);
                             double angle = v2.GetAngleTo(v1);
-                            reducer.TransformBy(Matrix3d.Rotation(angle, Vector3d.ZAxis, pline1.EndPoint));
+                            //reducer.TransformBy(Matrix3d.Rotation(angle, Vector3d.ZAxis, pline1.EndPoint));
                             tx.Commit();
+
+#if DEBUG
+                            Debug.CreateDebugLine(cachedTransitionLocation, ColorByName("yellow"));
+                            Debug.CreateDebugLine(reducer.Position, ColorByName("green"));
+#endif
+
                             return new Result();
                         }
                         catch (Exception ex)
@@ -465,6 +479,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     prdDbg($"Pline1: {pline1.Handle}, Pline2: {pline2.Handle}, Br: {reducer.Handle}" +
                         $"ML: {missingLength}");
                     prdDbg(ex);
+#if DEBUG
+                    Debug.CreateDebugLine(reducer.Position, ColorByName("red"));
+#endif
                     tx.Abort();
                     return new Result(
                         ResultStatus.FatalError,
