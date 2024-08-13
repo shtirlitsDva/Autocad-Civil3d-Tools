@@ -3,9 +3,12 @@ using Autodesk.AutoCAD.Geometry;
 
 using Dreambuild.AutoCAD;
 
+using IntersectUtilities.UtilsCommon;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media.TextFormatting;
@@ -299,8 +302,21 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     }
 
                     #region Case 1. Missing length <= transitionLength
+                    //Case 1: Missing length is less than or equal to transition length
+                    if (missingLength <= transitionLength)
+                    {
+                        prdDbg($"R: {reducer.Handle}, Case 1: Missing length is less than or equal to transition length");
+                        pline1.UpgradeOpen();
+                        pline2.UpgradeOpen();
+                        reducer.UpgradeOpen();
 
+                        Vector3d v = pline1.GetFirstDerivative(pline1.EndParam).GetNormal();
+                        Point3d newEndPoint = pline1.GetPointAtParameter(pline1.EndParam) + v * missingLength;
+                        pline1.AddVertexAt(pline1.NumberOfVertices, newEndPoint.To2D(), 0, 0, 0);
 
+                        //Move transition
+
+                    }
 
                     #endregion
                 }
@@ -312,7 +328,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     tx.Abort();
                     return new Result(
                         ResultStatus.FatalError,
-                        "Exception thrown.");
+                        "Exception thrown.\n" +
+                        ex.ToString());
                 }
                 tx.Commit();
                 return new Result();
