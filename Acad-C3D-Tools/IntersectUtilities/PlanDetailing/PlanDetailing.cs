@@ -92,8 +92,8 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("CREATEWELDPOINTS")]
-        [CommandMethod("CWP")]
+        //[CommandMethod("CREATEWELDPOINTS")]
+        //[CommandMethod("CWP")]
         public void createweldpoints()
         {
             DocumentCollection docCol = Application.DocumentManager;

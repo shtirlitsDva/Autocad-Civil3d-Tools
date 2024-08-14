@@ -178,6 +178,50 @@ namespace IntersectUtilities
                 tx.Commit();
             }
         }
+
+        [CommandMethod("CWDV2")]
+        [CommandMethod("CREATEWELDPOINTSV2")]
+        public void createweldpointsv2()
+        {
+            prdDbg("Dette skal køres i FJV Fremtid!");
+
+            graphclear();
+            graphpopulate();
+
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            DataManager.DataManager dm = new DataManager.DataManager(new DataReferencesOptions());
+            Database alDb = dm.GetForRead("Alignments");
+            Transaction alTx = alDb.TransactionManager.StartTransaction();
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var ents = localDb.GetFjvEntities(tx, false, false);
+                    var als = alDb.HashSetOfType<Alignment>(alTx);
+
+                    PipelineNetwork pn = new PipelineNetwork();
+                    pn.CreatePipelineNetwork(ents, als);
+                    pn.CreatePipelineGraph();
+
+                    pn.CreateWeldPoints();
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                finally
+                {
+                    alTx.Abort();
+                    alTx.Dispose();
+                    alDb.Dispose();
+                }
+                tx.Commit();
+            }
+        }
 #if DEBUG
         [CommandMethod("TPSA")]
         public void testpipelinesizearray()

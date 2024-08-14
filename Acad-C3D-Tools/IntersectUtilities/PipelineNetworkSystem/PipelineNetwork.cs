@@ -133,6 +133,11 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 prdDbg(pipeline.Sizes.ToString());
             }
         }
+        internal void CreateWeldPoints()
+        {
+            GraphWorker gw = new GraphWorker();
+            gw.CreateWeldPoints(pipelineGraphs);
+        }
     }
     public interface INode
     {
@@ -412,6 +417,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
 
             prdDbg(result.ToString());
+        }
+        internal void CreateWeldPoints(GraphCollection graphs)
+        {
+            
         }
     }
 }
