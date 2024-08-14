@@ -364,7 +364,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 }
             }
         }
-        public void CorrectPipesToCutLengths(GraphCollection graphs)
+        public Result CorrectPipesToCutLengths(GraphCollection graphs)
         {
             Result result = new Result();
             foreach (var graph in graphs)
@@ -417,6 +417,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
 
             prdDbg(result.ToString());
+            return result;
         }
         internal void CreateWeldPoints(GraphCollection graphs)
         {

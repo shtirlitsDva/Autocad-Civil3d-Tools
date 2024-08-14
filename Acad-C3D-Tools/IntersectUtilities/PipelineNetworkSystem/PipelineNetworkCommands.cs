@@ -177,6 +177,10 @@ namespace IntersectUtilities
                 }
                 tx.Commit();
             }
+
+            cleanplines();
+            cleanplines();
+            cleanplines();
         }
 
         [CommandMethod("CWDV2")]

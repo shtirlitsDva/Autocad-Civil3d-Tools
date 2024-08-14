@@ -27,7 +27,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AcadOverrules", "AcadOverru
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LERImporter", "LERImporter\LERImporter.csproj", "{FBEE18FE-055A-4901-9D67-DC0A18588F7D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NsPalette", "DriPaletteSet\NsPalette.csproj", "{0F92C1BB-FADB-4DF2-8FF8-F28391C1ED3C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NorPalette", "DriPaletteSet\NorPalette.csproj", "{0F92C1BB-FADB-4DF2-8FF8-F28391C1ED3C}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dimensionering", "Dimensionering\Dimensionering.csproj", "{C578718C-90F5-4546-ADAC-6C9D91E02A95}"
 EndProject
@@ -40,6 +40,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ler2PolygonSplitting", "Ler2PolygonSplitting\Ler2PolygonSplitting.csproj", "{322E89DD-D28E-48C9-8807-3C3A593D9892}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IsoTools", "IsoTools\IsoTools.csproj", "{4EEFE674-6288-4036-97C6-E5AE1C61278F}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "UtilitiesCommonSHARED", "UtilitiesCommonSHARED\UtilitiesCommonSHARED.shproj", "{DB2CDE26-A283-45D0-A170-7645CF29C507}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -191,5 +193,15 @@ Global
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {1014A3B2-D86E-49D9-937B-033DF961C446}
+	EndGlobalSection
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{0f92c1bb-fadb-4df2-8ff8-f28391c1ed3c}*SharedItemsImports = 5
+		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
+		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{8e289862-d2b1-46b9-99cf-f13925f2d562}*SharedItemsImports = 5
+		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{96ae4f77-001b-4c48-8ed9-590009510de5}*SharedItemsImports = 5
+		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{bb421b54-812e-4c32-868b-41fa76569772}*SharedItemsImports = 5
+		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{c578718c-90f5-4546-adac-6c9d91e02a95}*SharedItemsImports = 5
+		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{db2cde26-a283-45d0-a170-7645cf29c507}*SharedItemsImports = 13
+		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{fbee18fe-055a-4901-9d67-dc0a18588f7d}*SharedItemsImports = 5
 	EndGlobalSection
 EndGlobal

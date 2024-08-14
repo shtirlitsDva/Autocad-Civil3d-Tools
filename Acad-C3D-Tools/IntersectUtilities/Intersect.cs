@@ -5892,7 +5892,7 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("CLEANPLINES")]
-        public void cleanplins()
+        public void cleanplines()
         {
 
             DocumentCollection docCol = Application.DocumentManager;

@@ -73,9 +73,6 @@
 		<Compile Include="..\IntersectUtilities\PropertySetManager.cs">
 			<Link>PropertySetManager.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\UtilsCommon.cs">
-			<Link>UtilsCommon.cs</Link>
-		</Compile>
 		<Compile Update="PipePalette.cs">
 			<SubType>UserControl</SubType>
 		</Compile>
@@ -89,6 +86,9 @@
 			<SubType>UserControl</SubType>
 		</Compile>
 	</ItemGroup>
+	<PropertyGroup>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
@@ -98,4 +98,5 @@
 		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.4" />
 	</ItemGroup>
+	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 </Project>

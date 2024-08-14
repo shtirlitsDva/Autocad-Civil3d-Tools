@@ -58,9 +58,6 @@
 		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
 			<Link>PipeScheduleV2\PipeScheduleV2.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\UtilsCommon.cs">
-			<Link>UtilsCommon.cs</Link>
-		</Compile>
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="Fizzler" Version="1.2.0" />

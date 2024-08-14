@@ -19,7 +19,7 @@ namespace DriPaletteSet
     {
         private static MyPaletteSet _myPs = null;
 
-        [CommandMethod("DRIPALETTE")]
+        [CommandMethod("NORPALETTE")]
         public static void ShowMyPaletteSet()
         {
             bool firstShow = false;

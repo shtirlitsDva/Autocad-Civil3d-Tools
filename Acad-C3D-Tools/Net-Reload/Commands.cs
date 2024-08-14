@@ -132,37 +132,39 @@ namespace NetReload
                 // Use custom WaitCursor class for long operation.
                 using (WaitCursor wc = new WaitCursor())
                 {
+                    Project prj = null;
 
                     // Active Visual Studio Document.
                     EnvDTE.Document vsDoc = dte.ActiveDocument;
-                    if (vsDoc == null)
+                    if (vsDoc == null || vsDoc.ProjectItem == null || vsDoc.ProjectItem.ContainingProject == null)
                     {
                         ed.WriteMessage(String.Format("\nNo active document found for the '{0}' solution. *Cancel*",
                             solName));
-                        //return;
-                    }
 
-                    Array? projects = dte.ActiveSolutionProjects as Array;
-                    if (projects == null || projects.Length == 0 || projects.Length > 1)
-                    {
-                        ed.WriteMessage(String.Format("\nNo or multiple active project found for the '{0}' solution. *Cancel*",
-                            solName));
-                        return;
-                    }
-                    Project prj = null;
-                    foreach (Project item in projects)
-                    {
-                        ed.WriteMessage(String.Format("\nProject: {0}", item.Name));
-                        prj = item;
-                    }
-                    if (prj == null)
-                    {
-                        ed.WriteMessage("Project is null.");
-                        return;
-                    }
+                        Array? projects = dte.ActiveSolutionProjects as Array;
+                        if (projects == null || projects.Length == 0 || projects.Length > 1)
+                        {
+                            ed.WriteMessage(String.Format("\nNo or multiple active project found for the '{0}' solution. *Cancel*",
+                                solName));
+                            return;
+                        }
 
-                    // Active Visual Studio Project.
-                    //Project prj = vsDoc.ProjectItem.ContainingProject;
+                        foreach (Project item in projects)
+                        {
+                            ed.WriteMessage(String.Format("\nProject: {0}", item.Name));
+                            prj = item;
+                        }
+                        if (prj == null)
+                        {
+                            ed.WriteMessage("Project is null.");
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        //Active Visual Studio Project.
+                        prj = vsDoc.ProjectItem.ContainingProject;
+                    }
 
                     // Check if active configuration is Debug.
                     // If not -- exit
@@ -205,6 +207,7 @@ namespace NetReload
 
                     // Build solution.
                     SolutionBuild solBuild = dte.Solution.SolutionBuild;
+                    ed.WriteMessage($"Building project {prj.Name}...\n");
                     solBuild.Build(true);
 
                     // Re-set project's "AssemblyName" property back to initial value.
@@ -216,7 +219,14 @@ namespace NetReload
                     {
                         ed.WriteMessage(String.Format("\nBuild failed for the '{0}' solution. *Cancel*",
                             solName));
-                        return;
+
+                        //But I've found that it sometimes builds anyway, so let's check if the assembly exists
+                        ed.WriteMessage($"\nLooking for assembly {tempAssemblyName}.dll in {debugDir}\n");
+                        if (!File.Exists(Path.Combine(debugDir, tempAssemblyName + ".dll")))
+                        {
+                            ed.WriteMessage("\nAssembly not found in Debug directory. *Cancel*");
+                            return;
+                        }
                     }
 
                     // Move new assembly (.dll) from Debug directory to NetReload directory.
@@ -230,6 +240,18 @@ namespace NetReload
                         Path.Combine(debugDir, tempAssemblyName + ".pdb"),
                         Path.Combine(netReloadDir, tempAssemblyName + ".pdb")
                         );
+                    File.Move(
+                        Path.Combine(debugDir, tempAssemblyName + ".deps.json"),
+                        Path.Combine(netReloadDir, tempAssemblyName + ".deps.json")
+                        );
+
+                    // Move new .pdb file from Debug directory to NetReload directory.
+                    File.Move(
+                        Path.Combine(debugDir, tempAssemblyName + ".dll.config"),
+                        Path.Combine(netReloadDir, tempAssemblyName + ".dll.config")
+                        );
+
+
 
                     // NETLOAD new assembly file.
                     var assembly = System.Reflection.Assembly.LoadFrom(Path.Combine(netReloadDir, tempAssemblyName + ".dll"));
@@ -244,13 +266,14 @@ namespace NetReload
                 // Catch AutoCAD exception.
                 Application.ShowAlertDialog(String.Format("ERROR" +
                     "\nMessage: {0}\nErrorStatus: {1}", ex.Message, ex.ErrorStatus));
-
+                File.WriteAllText(@"C:\Temp\NRL_ERROR.txt", ex.ToString());
             }
             catch (System.Exception ex)
             {
                 // Catch Windows exception.
                 Application.ShowAlertDialog(String.Format("ERROR" +
                     "\nMessage: {0}", ex.Message));
+                File.WriteAllText(@"C:\Temp\NRL_ERROR.txt", ex.ToString());
             }
             finally
             {

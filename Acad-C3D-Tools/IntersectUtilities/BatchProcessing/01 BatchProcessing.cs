@@ -1914,6 +1914,9 @@ namespace IntersectUtilities
         }
         public override string ToString()
         {
+            this._errorMsg = string.Join(Environment.NewLine, this._errorMsg.Split(
+                    new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries));
+
             switch (this._status)
             {
                 case ResultStatus.OK:
