@@ -1,22 +1,29 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.Civil.DatabaseServices;
-
-using IntersectUtilities.UtilsCommon;
+using Autodesk.AutoCAD.ApplicationServices;
 
 using MoreLinq;
 
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics.Eventing.Reader;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using Dreambuild.AutoCAD;
+
+using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
 
+using DataTable = System.Data.DataTable;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+
+using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -278,9 +285,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         }
 
                         return startConnected && endConnected;
-                    } 
+                    }
                     #endregion
-                } 
+                }
                 else entryPipeline = maxDNQuery.First();
 
                 group.Remove(entryPipeline);
@@ -403,7 +410,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             if (currentNode.Children.Any(
                                 x => currentPipeline.DetermineUnconnectedEndPoint(
                                     ((PipelineNode)x).Value, 0.05, out connectionLocation)))
-                            {}
+                            { }
                             else
                             {
                                 connectionLocation = currentPipeline.GetLocationForMaxDN();
@@ -421,7 +428,143 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         internal void CreateWeldPoints(GraphCollection graphs)
         {
-            
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            //////////////////////////////////////
+            string blockLayerName = "0-SVEJSEPKT";
+            string blockName = "SVEJSEPUNKT-NOTXT";
+            string textLayerName = "0-DEBUG-TXT";
+            double tolerance = 0.003;
+            //////////////////////////////////////
+
+            PropertySetHelper psh = new PropertySetHelper(localDb);
+
+            HashSet<Entity> allEnts = new HashSet<Entity>();
+
+            #region Get all participating entities
+            foreach (Graph graph in graphs)
+            {
+                var root = graph.Root;
+                prdDbg("Root node: " + ((PipelineNode)root).Value.Name);
+                if (!(root is PipelineNode)) throw new Exception("PipelineNodes expected!");
+                var stack = new Stack<PipelineNode>();
+                stack.Push(root as PipelineNode);
+
+                while (stack.Count > 0)
+                {
+                    PipelineNode currentNode = stack.Pop();
+                    foreach (var child in currentNode.Children)
+                    {
+                        if (!(child is PipelineNode)) throw new Exception("PipelineNodes expected!");
+                        stack.Push(child as PipelineNode);
+                    }
+                    IPipelineV2 currentPipeline = currentNode.Value;
+                    allEnts.UnionWith(currentPipeline.Entities);
+                }
+            }
+            #endregion
+
+            prdDbg($"Number of entities participating: {allEnts.Count}");
+
+            PipeSettingsCollection psc = PipeSettingsCollection.Load();
+
+            DataTable dt = CsvData.FK;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                #region Delete previous blocks
+                //Delete previous blocks
+                var existingBlocks = localDb.GetBlockReferenceByName(blockName);
+                foreach (BlockReference br in existingBlocks)
+                {
+                    br.CheckOrOpenForWrite();
+                    br.Erase(true);
+                }
+                #endregion
+
+                #region Create layer for weld blocks and
+                localDb.CheckOrCreateLayer(blockLayerName);
+                localDb.CheckOrCreateLayer(textLayerName);
+                #endregion
+
+                BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+
+                #region Import weld block if missing
+                if (!bt.Has(blockName))
+                {
+                    prdDbg("Block for weld annotation is missing! Importing...");
+                    Database blockDb = new Database(false, true);
+                    blockDb.ReadDwgFile("X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg",
+                        FileOpenMode.OpenForReadAndAllShare, false, null);
+                    Transaction blockTx = blockDb.TransactionManager.StartTransaction();
+
+                    Oid sourceMsId = SymbolUtilityServices.GetBlockModelSpaceId(blockDb);
+                    Oid destDbMsId = SymbolUtilityServices.GetBlockModelSpaceId(localDb);
+
+                    BlockTable sourceBt = blockTx.GetObject(blockDb.BlockTableId, OpenMode.ForRead) as BlockTable;
+                    ObjectIdCollection idsToClone = new ObjectIdCollection();
+                    idsToClone.Add(sourceBt[blockName]);
+
+                    IdMapping mapping = new IdMapping();
+                    blockDb.WblockCloneObjects(idsToClone, destDbMsId, mapping, DuplicateRecordCloning.Replace, false);
+                    blockTx.Commit();
+                    blockTx.Dispose();
+                    blockDb.Dispose();
+                }
+                #endregion
+
+                //List to gather ALL weld points
+                var wps = new List<WeldPointData2>();
+
+                foreach (Entity ent in allEnts)
+                {
+                    switch (ent)
+                    {
+                        case Polyline pline:
+                            {
+                                double pipeStdLength = psc.GetSettingsLength(pline);
+                                double pipeLength = pline.Length;
+                                double division = pipeLength / pipeStdLength;
+                                int nrOfSections = (int)division;
+                                double remainder = division - nrOfSections;
+
+                                //Get start point and intermediate points
+                                for (int j = 0; j < nrOfSections + 1; j++)
+                                {
+                                    Point3d wPt = pline.GetPointAtDist(j * pipeStdLength);
+
+                                    wps.Add(
+                                        new WeldPointData2(
+                                            wPt,
+                                            psh.Pipeline.ReadPropertyString(ent, psh.PipelineDef.BelongsToAlignment),
+                                            ent,
+                                            GetPipeDN(ent), GetPipeType(ent), GetPipeSystem(ent))
+                                        );
+                                }
+                                double modulo = pipeLength % pipeStdLength;
+
+                                if (modulo > tolerance && (pipeStdLength - modulo) > tolerance)
+                                //Add end point
+                                wps.Add(
+                                    new WeldPointData2(
+                                        pline.EndPoint,
+                                        psh.Pipeline.ReadPropertyString(ent, psh.PipelineDef.BelongsToAlignment),
+                                        ent,
+                                        GetPipeDN(ent), GetPipeType(ent), GetPipeSystem(ent))
+                                    );
+                            }
+                            break;
+                        case BlockReference br:
+                            {
+
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
         }
     }
 }

@@ -1891,6 +1891,21 @@ namespace IntersectUtilities
         public string Serie { get; set; }
     }
 
+    public class WeldPointData2
+    {
+        public Point3d WeldPoint { get; set; }
+        public string AlignmentName { get; set; }
+        public Entity SourceEntity { get; set; }
+        public int DN { get; set; }
+        /// <summary>
+        /// Twin, Frem, Enkelt, Retur
+        /// </summary>
+        public PipeTypeEnum PipeType { get; set; }
+        public PipeSystemEnum PipeSystem { get; set; }
+        public WeldPointData2(Point3d wp, string alName, Entity ent, int dn, PipeTypeEnum pt, PipeSystemEnum ps)
+        { WeldPoint = wp; AlignmentName = alName; SourceEntity = ent; DN = dn; PipeType = pt; PipeSystem = ps;  }
+    }
+
     /// <summary>
     /// From here: https://www.theswamp.org/index.php?topic=42503.msg477118#msg477118
     /// </summary>
