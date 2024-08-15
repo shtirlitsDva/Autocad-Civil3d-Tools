@@ -164,38 +164,6 @@
 		</Compile>
 	</ItemGroup>
 	<ItemGroup>
-		<Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\proj.db">
-			<Link>Proj6\proj.db</Link>
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-	</ItemGroup>
-	<ItemGroup>
-		<Content Include="X:\AutoCAD DRI - QGIS\EGIS\geomutil_lib.dll">
-			<Link>geomutil_lib.dll</Link>
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-		<Content Include="X:\AutoCAD DRI - QGIS\EGIS\geomutil_libx64.dll">
-			<Link>geomutil_libx64.dll</Link>
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-		<Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\x64\proj_6_1.dll">
-			<Link>Proj6\x64\proj_6_1.dll</Link>
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-		<Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\x64\sqlite3.dll">
-			<Link>Proj6\x64\sqlite3.dll</Link>
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-		<Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\x86\proj_6_1.dll">
-			<Link>Proj6\x86\proj_6_1.dll</Link>
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-		<Content Include="X:\AutoCAD DRI - QGIS\EGIS\Proj6\x86\sqlite3.dll">
-			<Link>Proj6\x86\sqlite3.dll</Link>
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-	</ItemGroup>
-	<ItemGroup>
 		<PackageReference Include="GeoAPI.CoordinateSystems" Version="1.7.5" />
 		<PackageReference Include="GeoAPI.Core" Version="1.7.5" />
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
@@ -228,4 +196,5 @@
 			)
 		</PostBuildEvent>
 	</PropertyGroup>
+	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 </Project>

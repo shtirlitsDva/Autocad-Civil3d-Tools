@@ -12,7 +12,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReverseLayoutProfileLANDXML
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExportBlocksToSvg", "ExportBlocksToSvg\ExportBlocksToSvg.csproj", "{33DBF6F7-DA92-496E-985F-ED3FA39165AE}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExportShapeFilesEasyGis", "ExportShapeFilesEasyGis\ExportShapeFilesEasyGis.csproj", "{774D8C82-954D-40A1-993A-62C9385FDF12}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExportShapeFiles", "ExportShapeFilesEasyGis\ExportShapeFiles.csproj", "{774D8C82-954D-40A1-993A-62C9385FDF12}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SheetCreationAutomation", "SheetCreationAutomation\SheetCreationAutomation.csproj", "{96AE4F77-001B-4C48-8ED9-590009510DE5}"
 EndProject
@@ -197,6 +197,7 @@ Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{0f92c1bb-fadb-4df2-8ff8-f28391c1ed3c}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
+		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{774d8c82-954d-40a1-993a-62c9385fdf12}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{8e289862-d2b1-46b9-99cf-f13925f2d562}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{96ae4f77-001b-4c48-8ed9-590009510de5}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{bb421b54-812e-4c32-868b-41fa76569772}*SharedItemsImports = 5
