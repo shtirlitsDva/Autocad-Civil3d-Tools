@@ -846,8 +846,6 @@ namespace IntersectUtilities
                 {
                     if (prop.PropertyName == propertyName)
                     {
-                        //prdDbg(prop.Value.ToString());
-                        //prdDbg(prop.UnitsType.ToString());
                         prop.Value = propertyValue;
                         break;
                     }
@@ -1902,8 +1900,9 @@ namespace IntersectUtilities
         /// </summary>
         public PipeTypeEnum PipeType { get; set; }
         public PipeSystemEnum PipeSystem { get; set; }
+        public bool IsPolylineWeld { get; set; } = false;
         public WeldPointData2(Point3d wp, string alName, Entity ent, int dn, PipeTypeEnum pt, PipeSystemEnum ps)
-        { WeldPoint = wp; AlignmentName = alName; SourceEntity = ent; DN = dn; PipeType = pt; PipeSystem = ps;  }
+        { WeldPoint = wp; AlignmentName = alName; SourceEntity = ent; DN = dn; PipeType = pt; PipeSystem = ps; }
     }
 
     /// <summary>

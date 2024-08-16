@@ -3720,29 +3720,44 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Debug component properties
+                    PromptEntityOptions peo = new PromptEntityOptions("\nSelect block to read parameter: ");
+                    peo.SetRejectMessage("\nNot a block!");
+                    peo.AddAllowedClass(typeof(BlockReference), true);
+                    PromptEntityResult per = ed.GetEntity(peo);
+                    BlockReference br = per.ObjectId.Go<BlockReference>(tx);
+
+                    SetDynBlockPropertyObject(br, "PIPESIZE", 80);
+                    SetDynBlockPropertyObject(br, "SYSNAVN", "PRTFLEX");
+                    
+                    br.AttSync();
+
+                    
+                    #endregion
+
                     #region Test geometry of geojson
-                    string path = string.Empty;
-                    OpenFileDialog dialog = new OpenFileDialog()
-                    {
-                        Title = "Choose geojson file: ",
-                        DefaultExt = "geojson",
-                        Filter = "geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
-                        FilterIndex = 0
-                    };
-                    if (dialog.ShowDialog() == true)
-                    {
-                        path = dialog.FileName;
-                    }
-                    else return;
+                    //string path = string.Empty;
+                    //OpenFileDialog dialog = new OpenFileDialog()
+                    //{
+                    //    Title = "Choose geojson file: ",
+                    //    DefaultExt = "geojson",
+                    //    Filter = "geojson files (*.geojson)|*.geojson|All files (*.*)|*.*",
+                    //    FilterIndex = 0
+                    //};
+                    //if (dialog.ShowDialog() == true)
+                    //{
+                    //    path = dialog.FileName;
+                    //}
+                    //else return;
 
-                    string json = File.ReadAllText(path);
-                    var reader = new NetTopologySuite.IO.GeoJsonReader();
+                    //string json = File.ReadAllText(path);
+                    //var reader = new NetTopologySuite.IO.GeoJsonReader();
 
-                    var geos = reader.Read<FeatureCollection>(json);
-                    foreach (IFeature geo in geos)
-                    {
-                        prdDbg($"{geo.Geometry.Centroid}");
-                    }
+                    //var geos = reader.Read<FeatureCollection>(json);
+                    //foreach (IFeature geo in geos)
+                    //{
+                    //    prdDbg($"{geo.Geometry.Centroid}");
+                    //}
 
                     #region Test writing polygon linerings
                     //var geoJsonObj = JsonNode.Parse(json);

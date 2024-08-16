@@ -6,10 +6,6 @@ using Autodesk.AutoCAD.Runtime;
 
 using Dreambuild.AutoCAD;
 
-using EGIS.ShapeFileLib;
-
-using FolderSelect;
-
 using IntersectUtilities;
 using IntersectUtilities.DynamicBlocks;
 using IntersectUtilities.UtilsCommon;

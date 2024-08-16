@@ -7,10 +7,10 @@ using System.Text.RegularExpressions;
 using IntersectUtilities.UtilsCommon;
 using BlockReference = Autodesk.AutoCAD.DatabaseServices.BlockReference;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
+using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
 using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 using static IntersectUtilities.UtilsCommon.Utils;
-using System.Security.Cryptography;
 using System.Data;
 using System.Collections.Generic;
 
@@ -66,6 +66,8 @@ namespace IntersectUtilities
         }
         private static string GetValueByRegex(BlockReference br, string propertyToExtractName, string valueToProcess)
         {
+            if (valueToProcess == "200 Logstor") {; }
+
             //Extract property name
             Regex regex = new Regex(@"(?<Name>^[\w\s]+)");
             string propName = "";
@@ -398,6 +400,87 @@ namespace IntersectUtilities
 
                 throw new Exception($"PipelineType {typeString} not found in dictionary!\n" +
                 $"Add this element to PipelineElementType enum");
+            }
+        }
+        /// <summary>
+        /// For historical reasons, type (Enkelt, Twin) for blocks is stored in the System column
+        /// which causes confusion with pipelineschedule systemenum.
+        /// </summary>
+        public static PipeTypeEnum GetPipeTypeEnum(this BlockReference br, bool parse = true)
+        {
+            string typeString = br.ReadDynamicCsvProperty(DynamicProperty.System, parse);
+            object pipeTypeEnum;
+            if (Enum.TryParse(typeof(PipeTypeEnum), typeString, out pipeTypeEnum)) return (PipeTypeEnum)pipeTypeEnum;
+            else return PipeTypeEnum.Ukendt;
+        }
+        public static PipeSeriesEnum GetPipeSeriesEnum(this BlockReference br, bool parse = true)
+        {
+            string pipeSeriesString = br.ReadDynamicCsvProperty(DynamicProperty.Serie, parse);
+            object pipeSeriesEnum;
+            if (Enum.TryParse(typeof(PipeSeriesEnum), pipeSeriesString, out pipeSeriesEnum)) return (PipeSeriesEnum)pipeSeriesEnum;
+            else return PipeSeriesEnum.Undefined;
+        }
+        public static PipeSystemEnum GetPipeSystemEnum(this BlockReference br, bool parse = true)
+        {
+            string pipeSystemString = br.ReadDynamicCsvProperty(DynamicProperty.SysNavn, parse);
+            object pipeSystemEnum;
+            if (Enum.TryParse(typeof(PipeSystemEnum), pipeSystemString, out pipeSystemEnum)) return (PipeSystemEnum)pipeSystemEnum;
+            else return PipeSystemEnum.Ukendt;
+        }
+        public static void CheckIfBlockIsLatestVersion(this BlockReference br, string blockName)
+        {
+            Database db = br.Database;
+            Transaction tx = db.TransactionManager.StartTransaction();
+            using (tx)
+            {
+                try
+                {
+                    System.Data.DataTable dt = CsvData.FK;
+
+                    var btr = db.GetBlockTableRecordByName(blockName);
+
+                    #region Read present block version
+                    string version = "";
+                    foreach (Oid oid in btr)
+                    {
+                        if (oid.IsDerivedFrom<AttributeDefinition>())
+                        {
+                            var atdef = oid.Go<AttributeDefinition>(tx);
+                            if (atdef.Tag == "VERSION") { version = atdef.TextString; break; }
+                        }
+                    }
+                    if (version.IsNoE()) version = "1";
+                    else if (version.Contains("v")) version = version.Replace("v", "");
+                    int blockVersion = Convert.ToInt32(version);
+                    #endregion
+
+                    #region Determine latest version
+                    var query = dt.AsEnumerable()
+                            .Where(x => x["Navn"].ToString() == blockName)
+                            .Select(x => x["Version"].ToString())
+                            .Select(x => { if (x == "") return "1"; else return x; })
+                            .Select(x => Convert.ToInt32(x.Replace("v", "")))
+                            .OrderBy(x => x);
+
+                    if (query.Count() == 0)
+                        throw new System.Exception($"Block {blockName} is not present in FJV Dynamiske Komponenter.csv!");
+                    int maxVersion = query.Max();
+                    #endregion
+
+                    if (maxVersion != blockVersion)
+                        throw new System.Exception(
+                            $"Block {blockName} v{blockVersion} is not latest version v{maxVersion}! " +
+                            $"Update with latest version from:\n" +
+                            $"X:\\AutoCAD DRI - 01 Civil 3D\\DynBlokke\\Symboler.dwg\n" +
+                            $"WARNING! This can break existing blocks! Caution is advised!");
+                }
+                catch (Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    throw;
+                }
+                tx.Commit();
             }
         }
     }

@@ -40,11 +40,14 @@ namespace IntersectUtilities.PipelineNetworkSystem
         double GetBlockStation(BlockReference br);
         double GetStationAtPoint(Point3d pt);
         Point3d GetClosestPointTo(Point3d pt, bool extend = false);
+        double GetDistanceToPoint(Point3d pt, bool extend = false);
+        Vector3d GetFirstDerivative(Point3d pt);
         bool IsConnectedTo(IPipelineV2 other, double tol);
         Point3d GetConnectionLocationToParent(IPipelineV2 other, double tol);
         bool DetermineUnconnectedEndPoint(IPipelineV2 other, double tol, out Point3d freeEnd);
         void AutoReversePolylines(Point3d connectionLocation);
         IEnumerable<Entity> GetEntitiesWithinStations(double start, double end);
+        IEnumerable<Polyline> GetPolylines();
         Point3d GetLocationForMaxDN();
         Result CorrectPipesToCutLengths(Point3d connectionLocation);
     }
@@ -226,6 +229,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
             return result;
         }
+        public double GetDistanceToPoint(Point3d pt, bool extend = false) =>
+            GetClosestPointTo(pt, extend).DistanceHorizontalTo(pt);
+        public IEnumerable<Polyline> GetPolylines() => ents.GetPolylines();
+        public abstract Vector3d GetFirstDerivative(Point3d pt);
     }
     public class PipelineV2Alignment : PipelineV2Base
     {
@@ -369,6 +376,20 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 }
             }
         }
+        public override Vector3d GetFirstDerivative(Point3d pt)
+        {
+            try
+            {
+                Point3d p = al.GetClosestPointTo(pt, false);
+                return al.GetFirstDerivative(p);
+            }
+            catch (Exception ex)
+            {
+                prdDbg($"GetFirstDerivative(Point3d pt) failed for {al.Name} at point {pt}");
+                prdDbg(ex);
+                throw;
+            }
+        }
     }
     public class PipelineV2Na : PipelineV2Base
     {
@@ -441,6 +462,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
         {
             throw new NotImplementedException($"GetConnectionLocatioToParent not implemented for {this.Name}!");
         }
+        public override Vector3d GetFirstDerivative(Point3d pt) =>
+            topology.GetFirstDerivative(topology.GetClosestPointTo(pt, false));
     }
     public static class PipelineV2Factory
     {

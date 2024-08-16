@@ -82,8 +82,8 @@ namespace IntersectUtilities.UtilsCommon
         public static void prdDbg(string msg = "") => Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\n" + msg);
         public static void prdDbg(object obj)
         {
-            if (obj is SystemException ex1) prdDbg(obj.ToString().Wrap(70));
-            else if (obj is System.Exception ex2) prdDbg(obj.ToString().Wrap(70));
+            if (obj is SystemException ex1) prdDbg(obj.ToString());//.Wrap(70));
+            else if (obj is System.Exception ex2) prdDbg(obj.ToString());//.Wrap(70));
             else prdDbg(obj.ToString());
         }
         public static void PrintTable(string[] headers, IEnumerable<IEnumerable<object>> rows)
@@ -1839,7 +1839,7 @@ namespace IntersectUtilities.UtilsCommon
         {
             Transaction tx = br.Database.TransactionManager.TopTransaction;
             BlockTableRecord btr;
-            if (br.IsDynamicBlock) btr =
+            if (br.IsDynamicBlock && br.AnonymousBlockTableRecord != Oid.Null) btr =
                     br.AnonymousBlockTableRecord.Go<BlockTableRecord>(tx);
             else btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
 
