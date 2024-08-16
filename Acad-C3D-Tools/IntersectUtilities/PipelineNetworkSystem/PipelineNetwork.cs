@@ -434,6 +434,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             msg = " " + msg;
             charCount += msg.Length;
             Application.DocumentManager.CurrentDocument.Editor.WriteMessage(msg);
+            System.Windows.Forms.Application.DoEvents();
             if (charCount > wrapLength)
             {
                 prdDbg();
@@ -744,7 +745,6 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     {
                         idx++;
                         wr(idx.ToString());
-                        System.Windows.Forms.Application.DoEvents();
                         pm.MeterProgress();
 
                         Point3d wpt = cluster.First().WeldPoint;
