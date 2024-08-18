@@ -13,8 +13,8 @@ namespace IntersectUtilities.PlanProduction
         private static Regex regex = new Regex(@"^(?<number>\d{2,3})\s?(?<name>.*)?");
         public int Number { get; }
         public string VejNavn { get; }
-        public string Path { get; }
-        public ViewFrameDrawing(string name, string path)
+        public string FileName { get; }
+        public ViewFrameDrawing(string name, string fileName)
         {
             var match = regex.Match(name);
             if (!match.Success) throw new ArgumentException($"Invalid name format: {name}!");
@@ -23,7 +23,7 @@ namespace IntersectUtilities.PlanProduction
             string rawName = match.Groups["name"].Value;
             VejNavn = rawName.IsNoE() ? name : rawName;
             
-            Path = path;
+            FileName = fileName;
         }
     }
 }
