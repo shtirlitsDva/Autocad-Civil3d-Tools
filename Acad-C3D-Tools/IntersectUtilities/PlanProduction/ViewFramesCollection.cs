@@ -58,6 +58,8 @@ namespace IntersectUtilities.PlanProduction
 
         public bool IsReadOnly => ((ICollection<ViewFrameDrawing>)ViewFrames).IsReadOnly;
 
+        public string Template { get; internal set; }
+
         public ViewFrameDrawing this[int index]
         {
             get => ViewFrames[index];

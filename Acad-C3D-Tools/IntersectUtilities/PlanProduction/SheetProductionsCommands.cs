@@ -58,6 +58,8 @@ using IntersectUtilities.DataManager;
 using Microsoft.Win32;
 using IntersectUtilities.PlanProduction;
 using System.Security.Cryptography;
+using Autodesk.Aec.Geometry;
+using Autodesk.AutoCAD.Ribbon;
 
 namespace IntersectUtilities
 {
@@ -273,6 +275,7 @@ namespace IntersectUtilities
         [CommandMethod("VIEWFRAMESCREATEALLVIEWFRAMES")]
         public void viewframescreateallviewframes()
         {
+            #region Ask for VFC and dwt template
             System.Windows.Forms.OpenFileDialog ofd = new()
             {
                 Title = "Select the ViewFrameCollection.json: ",
@@ -284,6 +287,45 @@ namespace IntersectUtilities
                 pathToCollection = ofd.FileName;
             }
             else return;
+
+            ViewFramesCollection vfc = ViewFramesCollection.Load(pathToCollection);
+
+            ofd = new()
+            {
+                Title = "Select the template for sheets: ",
+            };
+
+            string pathToTemplate;
+            if (ofd.ShowDialog() == DialogResult.OK)
+            {
+                pathToTemplate = ofd.FileName;
+            }
+            else return;
+
+            vfc.Template = pathToTemplate;
+            #endregion
+
+            #region Determine the dimensions of the viewframe
+            using (Database db = new Database(false, true))
+            {
+                using (Transaction tx = db.TransactionManager.StartTransaction())
+                {
+                    try
+                    {
+                        db.ReadDwgFile(pathToTemplate, FileOpenMode.OpenForReadAndWriteNoShare,
+                            false, string.Empty);
+
+
+                    }
+                    catch (System.Exception ex)
+                    {
+                        tx.Abort();
+                        throw new System.Exception(ex.Message);
+                    }
+                    tx.Commit();
+                }
+                #endregion
+            }
         }
     }
 }
