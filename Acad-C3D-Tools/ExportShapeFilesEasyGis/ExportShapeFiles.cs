@@ -494,163 +494,165 @@ namespace ExportShapeFiles
             //Console.ReadKey();
         }
 
-        [CommandMethod("MASSIMPORTSHAPEFILESINZIPS")]
-        public void massimportshapefilesinzips()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
+        #region Old method to import many shape files at once
+        //[CommandMethod("MASSIMPORTSHAPEFILESINZIPS")]
+        //public void massimportshapefilesinzips()
+        //{
+        //    DocumentCollection docCol = Application.DocumentManager;
+        //    Database localDb = docCol.MdiActiveDocument.Database;
 
-            #region Definition of specific "layers"
-            Dictionary<string, string> layers = new Dictionary<string, string>()
-            {
-                { "Drikkevand", "Drikkevand" },
-                { "Spildevand", "Spildevand" },
-                { "AFL_ikke_ibrug", "AFL_ikke_ibrug" },
-                { "AFL_knude", "AFL_knude" },
-                { "AFL_ledning_andet", "AFL_ledning_andet" },
-                { "AFL_ledning_draen", "AFL_ledning_draen" },
-                { "AFL_ledning_faelles", "AFL_ledning_faelles" },
-                { "AFL_ledning_regn", "AFL_ledning_regn" },
-                { "AFL_ledning_spild", "AFL_ledning_spild" },
-                { "VAND_brandhane", "VAND_brandhane" },
-                { "VAND_komponent", "VAND_komponent" },
-                { "VAND_ledning", "VAND_ledning" },
-                { "VAND_ledning_ikke_i_brug", "VAND_ledning_ikke_i_brug" },
-                { "VAND_punkt", "VAND_punkt" },
-            };
-            #endregion
+        //    #region Definition of specific "layers"
+        //    Dictionary<string, string> layers = new Dictionary<string, string>()
+        //    {
+        //        { "Drikkevand", "Drikkevand" },
+        //        { "Spildevand", "Spildevand" },
+        //        { "AFL_ikke_ibrug", "AFL_ikke_ibrug" },
+        //        { "AFL_knude", "AFL_knude" },
+        //        { "AFL_ledning_andet", "AFL_ledning_andet" },
+        //        { "AFL_ledning_draen", "AFL_ledning_draen" },
+        //        { "AFL_ledning_faelles", "AFL_ledning_faelles" },
+        //        { "AFL_ledning_regn", "AFL_ledning_regn" },
+        //        { "AFL_ledning_spild", "AFL_ledning_spild" },
+        //        { "VAND_brandhane", "VAND_brandhane" },
+        //        { "VAND_komponent", "VAND_komponent" },
+        //        { "VAND_ledning", "VAND_ledning" },
+        //        { "VAND_ledning_ikke_i_brug", "VAND_ledning_ikke_i_brug" },
+        //        { "VAND_punkt", "VAND_punkt" },
+        //    };
+        //    #endregion
 
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    #region Get file and folder of gml
-                    string pathToTopFolder = string.Empty;
-                    FolderSelectDialog fsd = new FolderSelectDialog()
-                    {
-                        Title = "Choose folder where shape files are stored: ",
-                        InitialDirectory = @"C:\"
-                    };
-                    if (fsd.ShowDialog(IntPtr.Zero))
-                    {
-                        pathToTopFolder = fsd.FileName + "\\";
-                    }
-                    else return;
+        //    using (Transaction tx = localDb.TransactionManager.StartTransaction())
+        //    {
+        //        try
+        //        {
+        //            #region Get file and folder of gml
+        //            string pathToTopFolder = string.Empty;
+        //            FolderSelectDialog fsd = new FolderSelectDialog()
+        //            {
+        //                Title = "Choose folder where shape files are stored: ",
+        //                InitialDirectory = @"C:\"
+        //            };
+        //            if (fsd.ShowDialog(IntPtr.Zero))
+        //            {
+        //                pathToTopFolder = fsd.FileName + "\\";
+        //            }
+        //            else return;
 
-                    var files = Directory.EnumerateFiles(pathToTopFolder, "*.zip", SearchOption.AllDirectories);
+        //            var files = Directory.EnumerateFiles(pathToTopFolder, "*.zip", SearchOption.AllDirectories);
 
-                    #endregion
+        //            #endregion
 
-                    using (Database xDb = new Database(true, true))
-                    using (Transaction xTx = xDb.TransactionManager.StartTransaction())
-                    {
-                        try
-                        {
-                            int counter = 0;
-                            foreach (var f in files)
-                            {
-                                string dir = Path.GetDirectoryName(f);
-                                string fileName = Path.GetFileNameWithoutExtension(f);
-                                string unzipDir = dir + "\\" + fileName;
+        //            using (Database xDb = new Database(true, true))
+        //            using (Transaction xTx = xDb.TransactionManager.StartTransaction())
+        //            {
+        //                try
+        //                {
+        //                    int counter = 0;
+        //                    foreach (var f in files)
+        //                    {
+        //                        string dir = Path.GetDirectoryName(f);
+        //                        string fileName = Path.GetFileNameWithoutExtension(f);
+        //                        string unzipDir = dir + "\\" + fileName;
 
-                                if (Directory.Exists(unzipDir)) Directory.Delete(unzipDir, true);
+        //                        if (Directory.Exists(unzipDir)) Directory.Delete(unzipDir, true);
 
-                                ZipFile.ExtractToDirectory(f, unzipDir, System.Text.Encoding.UTF8);
+        //                        ZipFile.ExtractToDirectory(f, unzipDir, System.Text.Encoding.UTF8);
 
-                                var shapes = Directory.EnumerateFiles(unzipDir, "*.shp", SearchOption.AllDirectories);
+        //                        var shapes = Directory.EnumerateFiles(unzipDir, "*.shp", SearchOption.AllDirectories);
 
-                                foreach (var sf in shapes)
-                                {
-                                    using (ShapeFile shape = new ShapeFile(sf))
-                                    {
-                                        ShapeType shapeType = shape.ShapeType;
-                                        switch (shapeType)
-                                        {
-                                            case ShapeType.PolyLine:
-                                            case ShapeType.PolyLineZ:
-                                                {
-                                                    prdDbg($"{shapeType} - Name: {shape.Name} - Tag: {shape.Tag}");
-                                                    string sfn = Path.GetFileName(sf);
+        //                        foreach (var sf in shapes)
+        //                        {
+        //                            using (ShapeFile shape = new ShapeFile(sf))
+        //                            {
+        //                                ShapeType shapeType = shape.ShapeType;
+        //                                switch (shapeType)
+        //                                {
+        //                                    case ShapeType.PolyLine:
+        //                                    case ShapeType.PolyLineZ:
+        //                                        {
+        //                                            prdDbg($"{shapeType} - Name: {shape.Name} - Tag: {shape.Tag}");
+        //                                            string sfn = Path.GetFileName(sf);
 
-                                                    #region Ownerspecific layer handling #1
-                                                    if (layers.Any(x => sfn.StartsWith(x.Key)))
-                                                        xDb.CheckOrCreateLayer(
-                                                            layers.Where(x => sfn.StartsWith(x.Key))
-                                                            .FirstOrDefault().Value);
-                                                    #endregion
+        //                                            #region Ownerspecific layer handling #1
+        //                                            if (layers.Any(x => sfn.StartsWith(x.Key)))
+        //                                                xDb.CheckOrCreateLayer(
+        //                                                    layers.Where(x => sfn.StartsWith(x.Key))
+        //                                                    .FirstOrDefault().Value);
+        //                                            #endregion
 
-                                                    ShapeFileEnumerator sfe = shape.GetShapeFileEnumerator();
-                                                    while (sfe.MoveNext())
-                                                    {
-                                                        counter++;
-                                                        Polyline pl = new Polyline();
-                                                        ReadOnlyCollection<PointD[]> current = sfe.Current;
-                                                        foreach (PointD[] parray in current)
-                                                        {
-                                                            foreach (PointD p in parray)
-                                                            {
-                                                                pl.AddVertexAt(
-                                                                    pl.NumberOfVertices,
-                                                                    new Point2d(p.X, p.Y),
-                                                                    0, 0, 0);
-                                                            }
-                                                        }
-                                                        pl.AddEntityToDbModelSpace(xDb);
+        //                                            ShapeFileEnumerator sfe = shape.GetShapeFileEnumerator();
+        //                                            while (sfe.MoveNext())
+        //                                            {
+        //                                                counter++;
+        //                                                Polyline pl = new Polyline();
+        //                                                ReadOnlyCollection<PointD[]> current = sfe.Current;
+        //                                                foreach (PointD[] parray in current)
+        //                                                {
+        //                                                    foreach (PointD p in parray)
+        //                                                    {
+        //                                                        pl.AddVertexAt(
+        //                                                            pl.NumberOfVertices,
+        //                                                            new Point2d(p.X, p.Y),
+        //                                                            0, 0, 0);
+        //                                                    }
+        //                                                }
+        //                                                pl.AddEntityToDbModelSpace(xDb);
 
-                                                        #region Ownerspecific layer handling #2
-                                                        if (layers.Any(x => sfn.StartsWith(x.Key)))
-                                                            pl.Layer = layers
-                                                                .Where(x => sfn.StartsWith(x.Key))
-                                                                .FirstOrDefault().Value;
-                                                        #endregion
-                                                    }
-                                                }
-                                                break;
-                                            case ShapeType.NullShape:
-                                            case ShapeType.Point:
-                                            case ShapeType.Polygon:
-                                            case ShapeType.MultiPoint:
-                                            case ShapeType.PointZ:
-                                            case ShapeType.PolygonZ:
-                                            case ShapeType.MultiPointZ:
-                                            case ShapeType.PointM:
-                                            case ShapeType.PolyLineM:
-                                                prdDbg($"Encountered unhandled ShapeType: {shapeType}");
-                                                break;
-                                            default:
-                                                break;
-                                        }
-                                    }
+        //                                                #region Ownerspecific layer handling #2
+        //                                                if (layers.Any(x => sfn.StartsWith(x.Key)))
+        //                                                    pl.Layer = layers
+        //                                                        .Where(x => sfn.StartsWith(x.Key))
+        //                                                        .FirstOrDefault().Value;
+        //                                                #endregion
+        //                                            }
+        //                                        }
+        //                                        break;
+        //                                    case ShapeType.NullShape:
+        //                                    case ShapeType.Point:
+        //                                    case ShapeType.Polygon:
+        //                                    case ShapeType.MultiPoint:
+        //                                    case ShapeType.PointZ:
+        //                                    case ShapeType.PolygonZ:
+        //                                    case ShapeType.MultiPointZ:
+        //                                    case ShapeType.PointM:
+        //                                    case ShapeType.PolyLineM:
+        //                                        prdDbg($"Encountered unhandled ShapeType: {shapeType}");
+        //                                        break;
+        //                                    default:
+        //                                        break;
+        //                                }
+        //                            }
 
 
-                                }
+        //                        }
 
-                                Directory.Delete(unzipDir, true);
-                            }
-                            prdDbg($"Total shapes imported: {counter}");
-                            System.Windows.Forms.Application.DoEvents();
+        //                        Directory.Delete(unzipDir, true);
+        //                    }
+        //                    prdDbg($"Total shapes imported: {counter}");
+        //                    System.Windows.Forms.Application.DoEvents();
 
-                        }
-                        catch (System.Exception ex)
-                        {
-                            prdDbg(ex);
-                            //xDb.CloseInput(true);
-                            xTx.Abort();
-                            throw;
-                        }
-                        xTx.Commit();
-                        xDb.SaveAs(pathToTopFolder + "SAMLET.dwg", true, DwgVersion.Newest, xDb.SecurityParameters);
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
-            }
-        }
+        //                }
+        //                catch (System.Exception ex)
+        //                {
+        //                    prdDbg(ex);
+        //                    //xDb.CloseInput(true);
+        //                    xTx.Abort();
+        //                    throw;
+        //                }
+        //                xTx.Commit();
+        //                xDb.SaveAs(pathToTopFolder + "SAMLET.dwg", true, DwgVersion.Newest, xDb.SecurityParameters);
+        //            }
+        //        }
+        //        catch (System.Exception ex)
+        //        {
+        //            tx.Abort();
+        //            prdDbg(ex);
+        //            return;
+        //        }
+        //        tx.Commit();
+        //    }
+        //} 
+        #endregion
 
         public static class SimpleLogger
         {

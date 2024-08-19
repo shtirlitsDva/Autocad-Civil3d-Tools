@@ -102,45 +102,6 @@
 		</Reference>
 	</ItemGroup>
 	<ItemGroup>
-		<Compile Include="..\autocadcommands\Algorithms.cs">
-			<Link>ACC\Algorithms.cs</Link>
-		</Compile>
-		<Compile Include="..\autocadcommands\App.cs">
-			<Link>ACC\App.cs</Link>
-		</Compile>
-		<Compile Include="..\autocadcommands\Commands.cs">
-			<Link>ACC\Commands.cs</Link>
-		</Compile>
-		<Compile Include="..\autocadcommands\DbHelper.cs">
-			<Link>ACC\DbHelper.cs</Link>
-		</Compile>
-		<Compile Include="..\autocadcommands\FlexDataStore.cs">
-			<Link>ACC\FlexDataStore.cs</Link>
-		</Compile>
-		<Compile Include="..\autocadcommands\Gui.cs">
-			<Link>ACC\Gui.cs</Link>
-		</Compile>
-		<Compile Include="..\autocadcommands\Interaction.cs">
-			<Link>ACC\Interaction.cs</Link>
-		</Compile>
-		<Compile Include="..\autocadcommands\internal\CustomDictionary.cs">
-			<Link>ACC\Internal\CustomDictionary.cs</Link>
-		</Compile>
-		<Compile Include="..\autocadcommands\internal\JigDrag.cs">
-			<Link>ACC\Internal\JigDrag.cs</Link>
-		</Compile>
-		<Compile Include="..\autocadcommands\Layouts.cs">
-			<Link>ACC\Layouts.cs</Link>
-		</Compile>
-		<Compile Include="..\autocadcommands\QuickSelection.cs">
-			<Link>ACC\QuickSelection.cs</Link>
-		</Compile>
-		<Compile Include="..\autocadcommands\SymbolPack.cs">
-			<Link>ACC\SymbolPack.cs</Link>
-		</Compile>
-		<Compile Include="..\autocadcommands\Test.cs">
-			<Link>ACC\Test.cs</Link>
-		</Compile>
 		<Compile Include="..\IntersectUtilities\ComponentSchedule.cs">
 			<Link>ComponentSchedule.cs</Link>
 		</Compile>
@@ -180,6 +141,9 @@
 		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.4" />
 	</ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="..\AutoCADCommands\AutoCADCommands.csproj" />
+	</ItemGroup>
 	<PropertyGroup>
 		<PostBuildEvent>
 			if "$(ConfigurationName)"=="Release" (
@@ -195,6 +159,7 @@
 			)
 			)
 		</PostBuildEvent>
+		<AssemblyName>ExportShapeFiles</AssemblyName>
 	</PropertyGroup>
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 </Project>
