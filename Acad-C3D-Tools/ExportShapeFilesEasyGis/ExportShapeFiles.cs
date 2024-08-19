@@ -41,7 +41,9 @@ namespace ExportShapeFiles
         public void Initialize()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
-            doc.Editor.WriteMessage("\nExport Fjernvarme to shapefiles: EXPORTFJVTOSHAPE");
+            doc.Editor.WriteMessage("\nExport Fjernvarme to shapefiles (original): EXPORTSHAPEFILES");
+            doc.Editor.WriteMessage("\nExport Fjernvarme to shapefiles for many drawings (original): EXPORTSHAPEFILESBATCH");
+            doc.Editor.WriteMessage("\nExport Fjernvarme to shapefiles (flotte polygoner): EXPORTFJVTOSHAPE");
         }
 
         public void Terminate()
@@ -66,7 +68,7 @@ namespace ExportShapeFiles
             string baseDir = shapeExportPath;
 
             PromptStringOptions options = new PromptStringOptions("\nAngiv navnet på shapefilen: ");
-            options.DefaultValue = $"{Path.GetFileName(dbFilename)}";
+            options.DefaultValue = $"{Path.GetFileNameWithoutExtension(dbFilename)}";
             options.UseDefaultValue = true;
             PromptResult result = doc.Editor.GetString(options);
 
