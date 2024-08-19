@@ -89,6 +89,10 @@
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecPropDataMgd.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
+		<Reference Include="ManagedMapApi">
+		  <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\Map\ManagedMapApi.dll</HintPath>
+		  <Private>False</Private>
+		</Reference>
 	</ItemGroup>
 	<ItemGroup>
 		<Compile Include="..\IntersectUtilities\ComponentSchedule.cs">
