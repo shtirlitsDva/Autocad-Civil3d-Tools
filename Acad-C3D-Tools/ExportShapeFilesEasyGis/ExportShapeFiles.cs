@@ -53,6 +53,9 @@ namespace ExportShapeFiles
 
         public void Terminate()
         {
+#if DEBUG
+            AppDomain.CurrentDomain.AssemblyResolve -= new ResolveEventHandler(EventHandlers.Debug_AssemblyResolve);
+#endif
         }
         #endregion
 
@@ -104,7 +107,7 @@ namespace ExportShapeFiles
                 {
                     Log.log($"Exporting to {exportDir}.");
 
-                    #region Exporting (p)lines
+                    #region Exporting plines
                     HashSet<Polyline> pls = localDb.GetFjvPipes(tx, true);
 
                     Log.log($"{pls.Count} polyline(s) found for export.");
@@ -114,7 +117,7 @@ namespace ExportShapeFiles
 
                     var shapeFileName = shapeBaseName + polylineSuffix;
                     var fileName = Path.Combine(exportDir, shapeFileName);
-                    var projName = Path.Combine(exportDir, $"{shapeBaseName}.prj");
+                    var projName = Path.Combine(exportDir, $"{shapeFileName}.prj");
 
                     var writer = new ShapefileDataWriter(fileName, GeometryFactory.Default);
                     var dbaseHeader = ShapefileDataWriter.GetHeader(features.First(), features.Count());
@@ -141,7 +144,7 @@ namespace ExportShapeFiles
 
                     shapeFileName = shapeBaseName + blockSuffix;
                     fileName = Path.Combine(exportDir, shapeFileName);
-                    projName = Path.Combine(exportDir, $"{shapeBaseName}.prj");
+                    projName = Path.Combine(exportDir, $"{shapeFileName}.prj");
 
                     writer = new ShapefileDataWriter(fileName, GeometryFactory.Default);
                     dbaseHeader = ShapefileDataWriter.GetHeader(features.First(), features.Count());
