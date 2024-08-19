@@ -546,9 +546,9 @@ namespace IntersectUtilities.PipeScheduleV2
                 if (!PipeScheduleV2.columnTypeDict.ContainsKey(col.ColumnName))
                     missingColumns.Add(col.ColumnName);
 
-            if (missingColumns.Count > 0)
-                throw new Exception($"Missing data type definitions for columns: " +
-                    $"{string.Join(", ", missingColumns)}");
+            //if (missingColumns.Count > 0)
+            //    throw new Exception($"Missing data type definitions for columns: " +
+            //        $"{string.Join(", ", missingColumns)}");
             #endregion
 
             // Set data types based on dictionary
