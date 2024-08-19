@@ -114,8 +114,30 @@ namespace LERImporter.Schema
     }
 
     [XmlRootAttribute("LineString", Namespace = "http://www.opengis.net/gml/3.2", IsNullable = false)]
-    public partial class LineStringType : AbstractCurveType, IPointParser
+    public partial class LineStringType : AbstractCurveType, IPointParser, IEntityCreator
     {
+        public Oid CreateEntity(Database database)
+        {
+            //This interface implementation was added because a component failed to be created
+            //and the error was that the component did not implement IEntityCreator
+            //For ledninger the system is different
+            if (this.Items.Length < 1)
+            {
+                Log.log($"ADVARSEL! Element id {this.GMLTypeID} har ikke noget geometri! Springer over!");
+                return Oid.Null;
+            }
+
+            Point3d[] points = Get3DPoints();
+            Polyline polyline = new Polyline(points.Length);
+
+            for (int i = 0; i < points.Length; i++)
+                polyline.AddVertexAt(polyline.NumberOfVertices, points[i].To2D(), 0, 0, 0);
+
+            Oid oid = polyline.AddEntityToDbModelSpace(database);
+
+            return oid;
+        }
+
         public Point3d[] Get3DPoints()
         {
             Point3d[] points = new Point3d[0];
