@@ -3528,6 +3528,9 @@ namespace IntersectUtilities.UtilsCommon
 
         private static void LoadColorData()
         {
+            if (!File.Exists(@"X:\AutoCAD DRI - 01 Civil 3D\AutoCAD Colors\AutoCAD Color Index RGB Equivalents.csv"))
+                throw new System.Exception($"AutoCAD Colors does not exist at:\n" +
+                    $"@X:\\AutoCAD DRI - 01 Civil 3D\\AutoCAD Colors\\AutoCAD Color Index RGB Equivalents.csv");
             var lines = File.ReadAllLines(
                 @"X:\AutoCAD DRI - 01 Civil 3D\AutoCAD Colors\AutoCAD Color Index RGB Equivalents.csv");
             foreach (var line in lines.Skip(1))

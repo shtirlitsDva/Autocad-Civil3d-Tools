@@ -117,7 +117,7 @@ namespace IntersectUtilities.PipeScheduleV2
             { "DN", typeof(PipeTypeDN) },
             { "ALUPEX", typeof(PipeTypeALUPEX) },
             { "CU", typeof(PipeTypeCU) },
-            { "PEXU", typeof(PipeTypePEXU) },
+            //{ "PEXU", typeof(PipeTypePEXU) },
             { "PRTFLEXL", typeof(PipeTypePRTFLEXL) },
         };
         public static Dictionary<string, PipeSystemEnum> systemDict = new Dictionary<string, PipeSystemEnum>()
@@ -125,7 +125,7 @@ namespace IntersectUtilities.PipeScheduleV2
             {"DN", PipeSystemEnum.Stål },
             {"ALUPEX", PipeSystemEnum.AluPex },
             {"CU", PipeSystemEnum.Kobberflex },
-            {"PEXU", PipeSystemEnum.PexU },
+            //{"PEXU", PipeSystemEnum.PexU },
             {"PRTFLEXL", PipeSystemEnum.PertFlextra },
         };
         private static Dictionary<PipeSystemEnum, string> systemDictReversed = new Dictionary<PipeSystemEnum, string>()
@@ -133,7 +133,7 @@ namespace IntersectUtilities.PipeScheduleV2
             {PipeSystemEnum.Stål, "DN" },
             {PipeSystemEnum.AluPex , "ALUPEX" },
             {PipeSystemEnum.Kobberflex , "CU" },
-            {PipeSystemEnum.PexU , "PEXU" },
+            //{PipeSystemEnum.PexU , "PEXU" },
             {PipeSystemEnum.PertFlextra , "PRTFLEXL" },
         };
         private static Dictionary<PipeSystemEnum, int[]> availableStdLengths = new Dictionary<PipeSystemEnum, int[]>()
@@ -141,7 +141,7 @@ namespace IntersectUtilities.PipeScheduleV2
             {PipeSystemEnum.Stål, new[] {12, 16}},
             {PipeSystemEnum.AluPex, new[] {100}},
             {PipeSystemEnum.Kobberflex, new[] {100}},
-            {PipeSystemEnum.PexU, new[] {100}},
+            //{PipeSystemEnum.PexU, new[] {100}},
             {PipeSystemEnum.PertFlextra, new[] {12, 16, 100} },
         };
         public static int[] GetStdLengthsForSystem(PipeSystemEnum pipeSystem) => availableStdLengths[pipeSystem];
@@ -157,6 +157,7 @@ namespace IntersectUtilities.PipeScheduleV2
             {"PipeType", typeof(string)},
             {"PipeSeries" , typeof(string)},
             {"pOd", typeof(double)},
+            {"pThk", typeof(double)},
             {"kOd", typeof(double)},
             {"tWdth", typeof(double)},
             {"minElasticRadii", typeof(double)},
@@ -255,6 +256,14 @@ namespace IntersectUtilities.PipeScheduleV2
             if (!systemDictReversed.ContainsKey(system)) return 0;
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
             return pipeType.GetPipeOd(dn);
+        }
+        public static double GetPipeId(Entity ent)
+        {
+            int dn = GetPipeDN(ent);
+            PipeSystemEnum system = GetPipeSystem(ent);
+            if (!systemDictReversed.ContainsKey(system)) return 0;
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+            return pipeType.GetPipeId(dn);
         }
         public static double GetPipeKOd(Entity ent, PipeSeriesEnum pipeSeries)
         {
@@ -476,6 +485,13 @@ namespace IntersectUtilities.PipeScheduleV2
 
             return pipeType.GetLayerColor(type);
         }
+        public static short GetLayerColor(Entity ent)
+        {
+            PipeSystemEnum system = GetPipeSystem(ent);
+            PipeTypeEnum type = GetPipeType(ent, true);
+
+            return GetLayerColor(system, type);
+        }
         public static double GetTrenchWidth(
             int DN, PipeSystemEnum system, PipeTypeEnum type, PipeSeriesEnum series)
         {
@@ -506,6 +522,7 @@ namespace IntersectUtilities.PipeScheduleV2
         PipeSystemEnum System { get; }
         void Initialize(DataTable table, PipeSystemEnum pipeSystemEnum);
         double GetPipeOd(int dn);
+        double GetPipeId(int dn);
         PipeSeriesEnum GetPipeSeries(
             int dn, PipeTypeEnum type, double realKod);
         double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum pipeSeries);
@@ -533,6 +550,13 @@ namespace IntersectUtilities.PipeScheduleV2
             DataRow[] results = _data.Select($"DN = {dn}");
             if (results != null && results.Length > 0)
                 return (double)results[0]["pOd"];
+            return 0;
+        }
+        public virtual double GetPipeId(int dn)
+        {
+            DataRow[] results = _data.Select($"DN = {dn}");
+            if (results != null && results.Length > 0)
+                return GetPipeOd(dn) - 2 * (double)results[0]["pThk"];
             return 0;
         }
         private void ConvertDataTypes()

@@ -28,12 +28,12 @@ using Polygon = NetTopologySuite.Geometries.Polygon;
 
 namespace ExportShapeFiles
 {
-    public interface IAutoCadFjvToShapeConverter
+    public interface IAutoCadFjvToPolygonShapeConverter
     {
         Feature Convert(Entity entity);
     }
 
-    public class PolylineFjvToShapePolygonConverter : IAutoCadFjvToShapeConverter
+    public class PolylineFjvToShapePolygonConverter : IAutoCadFjvToPolygonShapeConverter
     {
         public Feature Convert(Entity entity)
         {
@@ -119,7 +119,7 @@ namespace ExportShapeFiles
         }
     }
 
-    public class BlockFjvToShapeConverter : IAutoCadFjvToShapeConverter
+    public class BlockFjvToShapeConverter : IAutoCadFjvToPolygonShapeConverter
     {
         public Feature Convert(Entity entity)
         {
@@ -441,7 +441,7 @@ namespace ExportShapeFiles
 
     public static class FjvToShapeConverterFactory
     {
-        public static IAutoCadFjvToShapeConverter CreateConverter(Entity entity)
+        public static IAutoCadFjvToPolygonShapeConverter CreateConverter(Entity entity)
         {
             switch (entity)
             {

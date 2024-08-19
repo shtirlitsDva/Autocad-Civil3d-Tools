@@ -13,6 +13,8 @@ using IntersectUtilities.UtilsCommon;
 using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.IO;
+using ProjNet.CoordinateSystems;
+using GeoAPI.Geometries;
 
 using System;
 using System.Collections.Generic;
@@ -21,6 +23,7 @@ using System.Data;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using Microsoft.Win32;
 
 using static IntersectUtilities.ComponentSchedule;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
@@ -45,7 +48,6 @@ namespace ExportShapeFiles
         {
         }
         #endregion
-
 
         [CommandMethod("EXPORTSHAPEFILES")]
         public void exportshapefiles()
@@ -100,202 +102,50 @@ namespace ExportShapeFiles
 
                     Log.log($"{pls.Count} polyline(s) found for export.");
 
-                    #region Field def
-                    DbfFieldDesc[] dbfFields = new DbfFieldDesc[4];
+                    var features = pls
+                        .Select(PolylineFjvToShapeLineStringConverter.Convert);
 
-                    dbfFields[0].FieldName = "DN";
-                    dbfFields[0].FieldType = DbfFieldType.Character;
-                    dbfFields[0].FieldLength = 10;
+                    var shapeFileName = shapeBaseName + polylineSuffix;
+                    var fileName = Path.Combine(exportDir, shapeFileName);
+                    var projName = Path.Combine(exportDir, $"{shapeBaseName}.prj");
 
-                    dbfFields[1].FieldName = "System";
-                    dbfFields[1].FieldType = DbfFieldType.Character;
-                    dbfFields[1].FieldLength = 100;
+                    var writer = new ShapefileDataWriter(fileName, GeometryFactory.Default);
+                    var dbaseHeader = ShapefileDataWriter.GetHeader(features.First(), features.Count());
+                    writer.Header = dbaseHeader;
+                    writer.Write(features);
 
-                    dbfFields[2].FieldName = "Serie";
-                    dbfFields[2].FieldType = DbfFieldType.Character;
-                    dbfFields[2].FieldLength = 100;
-
-                    dbfFields[3].FieldName = "Type";
-                    dbfFields[3].FieldType = DbfFieldType.Character;
-                    dbfFields[3].FieldLength = 100;
-                    #endregion
-
-                    using (ShapeFileWriter writer = ShapeFileWriter.CreateWriter(
-                        exportDir, shapeBaseName + polylineSuffix,
-                        ShapeType.PolyLine, dbfFields,
-                        EGIS.Projections.CoordinateReferenceSystemFactory.Default.GetCRSById(25832)
-                        .GetWKT(EGIS.Projections.PJ_WKT_TYPE.PJ_WKT1_GDAL, false)))
+                    //Create the projection file
+                    using (var sw = new StreamWriter(projName))
                     {
-                        foreach (Polyline pline in pls)
-                        {
-                            List<Point2d> points = new List<Point2d>();
-                            int numOfVert = pline.NumberOfVertices - 1;
-                            if (pline.Closed) numOfVert++;
-                            for (int i = 0; i < numOfVert; i++)
-                            {
-                                switch (pline.GetSegmentType(i))
-                                {
-                                    case SegmentType.Line:
-                                        LineSegment2d ls = pline.GetLineSegment2dAt(i);
-                                        if (i == 0)
-                                        {//First iteration
-                                            points.Add(ls.StartPoint);
-                                        }
-                                        points.Add(ls.EndPoint);
-                                        break;
-                                    case SegmentType.Arc:
-                                        CircularArc2d arc = pline.GetArcSegment2dAt(i);
-                                        double sPar = arc.GetParameterOf(arc.StartPoint);
-                                        double ePar = arc.GetParameterOf(arc.EndPoint);
-                                        double length = arc.GetLength(sPar, ePar);
-                                        double radians = length / arc.Radius;
-                                        int nrOfSamples = (int)(radians / 0.04);
-                                        if (nrOfSamples < 3)
-                                        {
-                                            if (i == 0) points.Add(arc.StartPoint);
-                                            points.Add(arc.EndPoint);
-                                        }
-                                        else
-                                        {
-                                            Point2d[] samples = arc.GetSamplePoints(nrOfSamples);
-                                            if (i != 0) samples = samples.Skip(1).ToArray();
-                                            foreach (Point2d p2d in samples) points.Add(p2d);
-                                        }
-                                        break;
-                                    case SegmentType.Coincident:
-                                    case SegmentType.Point:
-                                    case SegmentType.Empty:
-                                    default:
-                                        continue;
-                                }
-                            }
-
-                            PointD[] shapePoints = points.Select(p => new PointD(p.X, p.Y)).ToArray();
-
-                            string[] attributes = new string[4];
-                            attributes[0] = GetPipeDN(pline).ToString();
-                            attributes[1] = GetPipeType(pline).ToString();
-                            attributes[2] = GetPipeSeriesV2(pline).ToString();
-                            attributes[3] = GetPipeSystem(pline).ToString();
-
-                            writer.AddRecord(shapePoints, shapePoints.Length, attributes);
-                        }
+                        //sw.Write(ProjNet.CoordinateSystems.ProjectedCoordinateSystem.WGS84_UTM(32, true));
+                        sw.Write(@"PROJCS[""ETRS_1989_UTM_Zone_32N"",GEOGCS[""GCS_ETRS_1989"",DATUM[""D_ETRS_1989"",SPHEROID[""GRS_1980"",6378137.0,298.257222101]],PRIMEM[""Greenwich"",0.0],UNIT[""Degree"",0.0174532925199433]],PROJECTION[""Transverse_Mercator""],PARAMETER[""False_Easting"",500000.0],PARAMETER[""False_Northing"",0.0],PARAMETER[""Central_Meridian"",9.0],PARAMETER[""Scale_Factor"",0.9996],PARAMETER[""Latitude_Of_Origin"",0.0],UNIT[""Meter"",1.0]]");
                     }
                     #endregion
 
                     #region Exporting BRs
-                    System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
-                                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    var dt = CsvData.FK;
 
-                    HashSet<BlockReference> allBrs = localDb.HashSetOfType<BlockReference>(tx);
-
-                    HashSet<BlockReference> brs = allBrs.Where(x => UtilsDataTables.ReadStringParameterFromDataTable(
-                            x.RealName(), komponenter, "Navn", 0) != default).ToHashSet();
+                    HashSet<BlockReference> brs = localDb.GetFjvBlocks(tx, dt);
 
                     Log.log($"{brs.Count} br(s) found for export.");
 
-                    //Handle legacy blocks
-                    System.Data.DataTable stdBlocks = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\FJV Komponenter.csv", "FjvKomponenter");
+                    features = brs
+                        .Select(BlockRefFjvToShapePointConverter.Convert);
 
-                    HashSet<BlockReference> legacyBrs = allBrs.Where(x => UtilsDataTables.ReadStringParameterFromDataTable(
-                            x.Name, stdBlocks, "Navn", 0) != default).ToHashSet();
+                    shapeFileName = shapeBaseName + blockSuffix;
+                    fileName = Path.Combine(exportDir, shapeFileName);
+                    projName = Path.Combine(exportDir, $"{shapeBaseName}.prj");
 
-                    if (brs.Count > 0) Log.log($"Legacy blocks detected: {legacyBrs.Count}.");
+                    writer = new ShapefileDataWriter(fileName, GeometryFactory.Default);
+                    dbaseHeader = ShapefileDataWriter.GetHeader(features.First(), features.Count());
+                    writer.Header = dbaseHeader;
+                    writer.Write(features);
 
-                    #region Field def
-                    dbfFields = new DbfFieldDesc[8];
-
-                    dbfFields[0].FieldName = "BlockName";
-                    dbfFields[0].FieldType = DbfFieldType.Character;
-                    dbfFields[0].FieldLength = 100;
-
-                    dbfFields[1].FieldName = "Type";
-                    dbfFields[1].FieldType = DbfFieldType.Character;
-                    dbfFields[1].FieldLength = 100;
-
-                    dbfFields[2].FieldName = "Rotation";
-                    dbfFields[2].FieldType = DbfFieldType.Character;
-                    dbfFields[2].FieldLength = 100;
-
-                    dbfFields[3].FieldName = "System";
-                    dbfFields[3].FieldType = DbfFieldType.Character;
-                    dbfFields[3].FieldLength = 100;
-
-                    dbfFields[4].FieldName = "DN1";
-                    dbfFields[4].FieldType = DbfFieldType.Character;
-                    dbfFields[4].FieldLength = 100;
-
-                    dbfFields[5].FieldName = "DN2";
-                    dbfFields[5].FieldType = DbfFieldType.Character;
-                    dbfFields[5].FieldLength = 100;
-
-                    dbfFields[6].FieldName = "Serie";
-                    dbfFields[6].FieldType = DbfFieldType.Character;
-                    dbfFields[6].FieldLength = 100;
-
-                    dbfFields[7].FieldName = "Vinkel";
-                    dbfFields[7].FieldType = DbfFieldType.Character;
-                    dbfFields[7].FieldLength = 100;
-                    #endregion
-
-                    using (ShapeFileWriter writer = ShapeFileWriter.CreateWriter(
-                        exportDir, shapeBaseName + blockSuffix,
-                        ShapeType.Point, dbfFields,
-                        EGIS.Projections.CoordinateReferenceSystemFactory.Default.GetCRSById(25832)
-                        .GetWKT(EGIS.Projections.PJ_WKT_TYPE.PJ_WKT1_GDAL, false)))
+                    //Create the projection file
+                    using (var sw = new StreamWriter(projName))
                     {
-                        foreach (BlockReference br in brs)
-                        {
-                            PointD[] shapePoints = new PointD[1];
-                            shapePoints[0] = new PointD(br.Position.X, br.Position.Y);
-
-                            string[] attributes = new string[8];
-                            string cur = string.Empty;
-                            try
-                            {
-                                cur = "\"br.RealName()\"";
-                                attributes[0] = br.RealName();
-                                cur = "\"ReadComponentType(br, komponenter)\"";
-                                attributes[1] = ReadComponentType(br, komponenter);
-                                cur = "\"ReadBlockRotation(br, komponenter)\"";
-                                attributes[2] = ReadBlockRotation(br, komponenter).ToString("0.00");
-                                cur = "\"ReadComponentSystem(br, komponenter)\"";
-                                attributes[3] = ReadComponentSystem(br, komponenter);
-                                cur = "\"ReadComponentDN1(br, komponenter)\"";
-                                attributes[4] = ReadComponentDN1(br, komponenter);
-                                cur = "\"ReadComponentDN2(br, komponenter)\"";
-                                attributes[5] = ReadComponentDN2(br, komponenter);
-                                cur = "\"PropertyReader.ReadComponentSeries(br, komponenter)\"";
-                                attributes[6] = PropertyReader.ReadComponentSeries(br, komponenter);
-                                cur = "\"ReadComponentVinkel(br, komponenter)\"";
-                                attributes[7] = ReadComponentVinkel(br, komponenter);
-                            }
-                            catch (System.Exception)
-                            {
-                                prdDbg($"Failed to read {cur} for block {br.Handle}.");
-                                throw;
-                            }
-
-                            writer.AddRecord(shapePoints, shapePoints.Length, attributes);
-                        }
-
-                        foreach (BlockReference br in legacyBrs)
-                        {
-                            PointD[] shapePoints = new PointD[1];
-                            shapePoints[0] = new PointD(br.Position.X, br.Position.Y);
-
-                            string[] attributes = new string[8];
-                            attributes[0] = br.Name;
-                            attributes[1] = ReadStringParameterFromDataTable(br.Name, stdBlocks, "Type", 0);
-                            attributes[2] = (br.Rotation * (180 / Math.PI)).ToString("0.##");
-                            attributes[3] = ReadStringParameterFromDataTable(br.Name, stdBlocks, "System", 0);
-                            attributes[4] = ReadStringParameterFromDataTable(br.Name, stdBlocks, "DN1", 0); ;
-                            attributes[5] = ReadStringParameterFromDataTable(br.Name, stdBlocks, "DN2", 0); ;
-                            attributes[6] = "S3";
-                            attributes[7] = "0";
-
-                            writer.AddRecord(shapePoints, shapePoints.Length, attributes);
-                        }
+                        //sw.Write(ProjNet.CoordinateSystems.ProjectedCoordinateSystem.WGS84_UTM(32, true));
+                        sw.Write(@"PROJCS[""ETRS_1989_UTM_Zone_32N"",GEOGCS[""GCS_ETRS_1989"",DATUM[""D_ETRS_1989"",SPHEROID[""GRS_1980"",6378137.0,298.257222101]],PRIMEM[""Greenwich"",0.0],UNIT[""Degree"",0.0174532925199433]],PROJECTION[""Transverse_Mercator""],PARAMETER[""False_Easting"",500000.0],PARAMETER[""False_Northing"",0.0],PARAMETER[""Central_Meridian"",9.0],PARAMETER[""Scale_Factor"",0.9996],PARAMETER[""Latitude_Of_Origin"",0.0],UNIT[""Meter"",1.0]]");
                     }
                     #endregion
                 }
@@ -344,50 +194,6 @@ namespace ExportShapeFiles
                 try
                 {
                     Log.log($"Exporting to {exportDir}.");
-
-                    #region Field def
-                    DbfFieldDesc[] dbfFields = new DbfFieldDesc[10];
-
-                    dbfFields[0].FieldName = "BlockName";
-                    dbfFields[0].FieldType = DbfFieldType.Character;
-                    dbfFields[0].FieldLength = 100;
-
-                    dbfFields[1].FieldName = "Type";
-                    dbfFields[1].FieldType = DbfFieldType.Character;
-                    dbfFields[1].FieldLength = 100;
-
-                    dbfFields[2].FieldName = "Rotation";
-                    dbfFields[2].FieldType = DbfFieldType.Character;
-                    dbfFields[2].FieldLength = 100;
-
-                    dbfFields[3].FieldName = "System";
-                    dbfFields[3].FieldType = DbfFieldType.Character;
-                    dbfFields[3].FieldLength = 100;
-
-                    dbfFields[4].FieldName = "DN1";
-                    dbfFields[4].FieldType = DbfFieldType.Character;
-                    dbfFields[4].FieldLength = 100;
-
-                    dbfFields[5].FieldName = "DN2";
-                    dbfFields[5].FieldType = DbfFieldType.Character;
-                    dbfFields[5].FieldLength = 100;
-
-                    dbfFields[6].FieldName = "Serie";
-                    dbfFields[6].FieldType = DbfFieldType.Character;
-                    dbfFields[6].FieldLength = 100;
-
-                    dbfFields[7].FieldName = "Vinkel";
-                    dbfFields[7].FieldType = DbfFieldType.Character;
-                    dbfFields[7].FieldLength = 100;
-
-                    dbfFields[8].FieldName = "øKappe";
-                    dbfFields[8].FieldType = DbfFieldType.Character;
-                    dbfFields[8].FieldLength = 100;
-
-                    dbfFields[9].FieldName = "color";
-                    dbfFields[9].FieldType = DbfFieldType.Character;
-                    dbfFields[9].FieldLength = 100;
-                    #endregion
 
                     #region Exporting
                     var dt = ExportShapeFilesEasyGis.Utils.GetFjvBlocksDt();
@@ -570,14 +376,14 @@ namespace ExportShapeFiles
             System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(@"X:\AutoCAD DRI - 01 Civil 3D\Stier.csv", "Stier");
 
             string exportDir;
-            FolderSelectDialog fsd = new FolderSelectDialog()
+            OpenFolderDialog fsd = new OpenFolderDialog()
             {
                 Title = "Choose folder where to export shapefiles:",
                 InitialDirectory = @"c:\"
             };
-            if (fsd.ShowDialog(IntPtr.Zero))
+            if (fsd.ShowDialog() == true)
             {
-                exportDir = fsd.FileName;
+                exportDir = fsd.FolderName;
                 if (string.IsNullOrEmpty(exportDir)) return;
             }
             else return;
