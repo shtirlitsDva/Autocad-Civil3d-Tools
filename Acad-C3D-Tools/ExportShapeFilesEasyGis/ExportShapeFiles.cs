@@ -235,136 +235,138 @@ namespace ExportShapeFiles
             }
         }
 
-        [CommandMethod("EXPORTAREAS")]
-        public void exportareas()
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Document doc = docCol.MdiActiveDocument;
+        #region Old method to export TBL ares to QGIS for quantity analysis -- not needed any longer
+        //[CommandMethod("EXPORTAREAS")]
+        //public void exportareas()
+        //{
+        //    DocumentCollection docCol = Application.DocumentManager;
+        //    Database localDb = docCol.MdiActiveDocument.Database;
+        //    Document doc = docCol.MdiActiveDocument;
 
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                string logFileName = @"X:\AutoCAD DRI - QGIS\EGIS\Export\export.log";
-                Log.LogFileName = logFileName;
+        //    using (Transaction tx = localDb.TransactionManager.StartTransaction())
+        //    {
+        //        string logFileName = @"X:\AutoCAD DRI - QGIS\EGIS\Export\export.log";
+        //        Log.LogFileName = logFileName;
 
-                PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriOmråder);
-                PSetDefs.DriOmråder driOmråder = new PSetDefs.DriOmråder();
+        //        PropertySetManager psm = new PropertySetManager(localDb, PSetDefs.DefinedSets.DriOmråder);
+        //        PSetDefs.DriOmråder driOmråder = new PSetDefs.DriOmråder();
 
-                try
-                {
-                    string fileName = localDb.OriginalFileName;
+        //        try
+        //        {
+        //            string fileName = localDb.OriginalFileName;
 
-                    string dbFilename = localDb.OriginalFileName;
-                    string path = Path.GetDirectoryName(dbFilename);
-                    string shapeExportPath = path + "\\SHP\\";
-                    if (Directory.Exists(shapeExportPath) == false) Directory.CreateDirectory(shapeExportPath);
+        //            string dbFilename = localDb.OriginalFileName;
+        //            string path = Path.GetDirectoryName(dbFilename);
+        //            string shapeExportPath = path + "\\SHP\\";
+        //            if (Directory.Exists(shapeExportPath) == false) Directory.CreateDirectory(shapeExportPath);
 
-                    string shapeName = "Områder";
+        //            string shapeName = "Områder";
 
-                    Log.log($"Exporting to {shapeExportPath}.");
+        //            Log.log($"Exporting to {shapeExportPath}.");
 
-                    #region Exporting (p)lines
-                    HashSet<Polyline> pls = localDb.HashSetOfType<Polyline>(tx);
+        //            #region Exporting (p)lines
+        //            HashSet<Polyline> pls = localDb.HashSetOfType<Polyline>(tx);
 
-                    pls = pls.Where(pl => pl.Layer == "0-OMRÅDER-OK").ToHashSet();
+        //            pls = pls.Where(pl => pl.Layer == "0-OMRÅDER-OK").ToHashSet();
 
-                    Log.log($"{pls.Count} object(s) found for export.");
+        //            Log.log($"{pls.Count} object(s) found for export.");
 
-                    DbfFieldDesc[] dbfFields = new DbfFieldDesc[4];
+        //            DbfFieldDesc[] dbfFields = new DbfFieldDesc[4];
 
-                    dbfFields[0].FieldName = "Vejnavn";
-                    dbfFields[0].FieldType = DbfFieldType.General;
-                    dbfFields[0].FieldLength = 100;
+        //            dbfFields[0].FieldName = "Vejnavn";
+        //            dbfFields[0].FieldType = DbfFieldType.General;
+        //            dbfFields[0].FieldLength = 100;
 
-                    dbfFields[1].FieldName = "Vejklasse";
-                    dbfFields[1].FieldType = DbfFieldType.Number;
-                    dbfFields[1].FieldLength = 10;
+        //            dbfFields[1].FieldName = "Vejklasse";
+        //            dbfFields[1].FieldType = DbfFieldType.Number;
+        //            dbfFields[1].FieldLength = 10;
 
-                    dbfFields[2].FieldName = "Belaegning";
-                    dbfFields[2].FieldType = DbfFieldType.General;
-                    dbfFields[2].FieldLength = 100;
+        //            dbfFields[2].FieldName = "Belaegning";
+        //            dbfFields[2].FieldType = DbfFieldType.General;
+        //            dbfFields[2].FieldLength = 100;
 
-                    dbfFields[3].FieldName = "Nummer";
-                    dbfFields[3].FieldType = DbfFieldType.General;
-                    dbfFields[3].FieldLength = 100;
+        //            dbfFields[3].FieldName = "Nummer";
+        //            dbfFields[3].FieldType = DbfFieldType.General;
+        //            dbfFields[3].FieldLength = 100;
 
 
 
-                    using (ShapeFileWriter writer = ShapeFileWriter.CreateWriter(
-                        shapeExportPath, shapeName,
-                        ShapeType.PolyLine, dbfFields,
-                        EGIS.Projections.CoordinateReferenceSystemFactory.Default.GetCRSById(25832)
-                        .GetWKT(EGIS.Projections.PJ_WKT_TYPE.PJ_WKT1_GDAL, false)))
-                    {
-                        foreach (Polyline pline in pls)
-                        {
-                            List<Point2d> points = new List<Point2d>();
-                            int numOfVert = pline.NumberOfVertices - 1;
-                            if (pline.Closed) numOfVert++;
-                            for (int i = 0; i < numOfVert; i++)
-                            {
-                                switch (pline.GetSegmentType(i))
-                                {
-                                    case SegmentType.Line:
-                                        LineSegment2d ls = pline.GetLineSegment2dAt(i);
-                                        if (i == 0)
-                                        {//First iteration
-                                            points.Add(ls.StartPoint);
-                                        }
-                                        points.Add(ls.EndPoint);
-                                        break;
-                                    case SegmentType.Arc:
-                                        CircularArc2d arc = pline.GetArcSegment2dAt(i);
-                                        double sPar = arc.GetParameterOf(arc.StartPoint);
-                                        double ePar = arc.GetParameterOf(arc.EndPoint);
-                                        double length = arc.GetLength(sPar, ePar);
-                                        double radians = length / arc.Radius;
-                                        int nrOfSamples = (int)(radians / 0.04);
-                                        if (nrOfSamples < 3)
-                                        {
-                                            if (i == 0) points.Add(arc.StartPoint);
-                                            points.Add(arc.EndPoint);
-                                        }
-                                        else
-                                        {
-                                            Point2d[] samples = arc.GetSamplePoints(nrOfSamples);
-                                            if (i != 0) samples = samples.Skip(1).ToArray();
-                                            foreach (Point2d p2d in samples) points.Add(p2d);
-                                        }
-                                        break;
-                                    case SegmentType.Coincident:
-                                    case SegmentType.Point:
-                                    case SegmentType.Empty:
-                                    default:
-                                        continue;
-                                }
-                            }
+        //            using (ShapeFileWriter writer = ShapeFileWriter.CreateWriter(
+        //                shapeExportPath, shapeName,
+        //                ShapeType.PolyLine, dbfFields,
+        //                EGIS.Projections.CoordinateReferenceSystemFactory.Default.GetCRSById(25832)
+        //                .GetWKT(EGIS.Projections.PJ_WKT_TYPE.PJ_WKT1_GDAL, false)))
+        //            {
+        //                foreach (Polyline pline in pls)
+        //                {
+        //                    List<Point2d> points = new List<Point2d>();
+        //                    int numOfVert = pline.NumberOfVertices - 1;
+        //                    if (pline.Closed) numOfVert++;
+        //                    for (int i = 0; i < numOfVert; i++)
+        //                    {
+        //                        switch (pline.GetSegmentType(i))
+        //                        {
+        //                            case SegmentType.Line:
+        //                                LineSegment2d ls = pline.GetLineSegment2dAt(i);
+        //                                if (i == 0)
+        //                                {//First iteration
+        //                                    points.Add(ls.StartPoint);
+        //                                }
+        //                                points.Add(ls.EndPoint);
+        //                                break;
+        //                            case SegmentType.Arc:
+        //                                CircularArc2d arc = pline.GetArcSegment2dAt(i);
+        //                                double sPar = arc.GetParameterOf(arc.StartPoint);
+        //                                double ePar = arc.GetParameterOf(arc.EndPoint);
+        //                                double length = arc.GetLength(sPar, ePar);
+        //                                double radians = length / arc.Radius;
+        //                                int nrOfSamples = (int)(radians / 0.04);
+        //                                if (nrOfSamples < 3)
+        //                                {
+        //                                    if (i == 0) points.Add(arc.StartPoint);
+        //                                    points.Add(arc.EndPoint);
+        //                                }
+        //                                else
+        //                                {
+        //                                    Point2d[] samples = arc.GetSamplePoints(nrOfSamples);
+        //                                    if (i != 0) samples = samples.Skip(1).ToArray();
+        //                                    foreach (Point2d p2d in samples) points.Add(p2d);
+        //                                }
+        //                                break;
+        //                            case SegmentType.Coincident:
+        //                            case SegmentType.Point:
+        //                            case SegmentType.Empty:
+        //                            default:
+        //                                continue;
+        //                        }
+        //                    }
 
-                            PointD[] shapePoints = points.Select(p => new PointD(p.X, p.Y)).ToArray();
+        //                    PointD[] shapePoints = points.Select(p => new PointD(p.X, p.Y)).ToArray();
 
-                            string[] attributes = new string[4];
+        //                    string[] attributes = new string[4];
 
-                            attributes[0] = psm.ReadPropertyString(pline, driOmråder.Vejnavn);
-                            attributes[1] = psm.ReadPropertyString(pline, driOmråder.Vejklasse);
-                            attributes[2] = psm.ReadPropertyString(pline, driOmråder.Belægning);
-                            attributes[3] = psm.ReadPropertyString(pline, driOmråder.Nummer);
+        //                    attributes[0] = psm.ReadPropertyString(pline, driOmråder.Vejnavn);
+        //                    attributes[1] = psm.ReadPropertyString(pline, driOmråder.Vejklasse);
+        //                    attributes[2] = psm.ReadPropertyString(pline, driOmråder.Belægning);
+        //                    attributes[3] = psm.ReadPropertyString(pline, driOmråder.Nummer);
 
-                            writer.AddRecord(shapePoints, shapePoints.Length, attributes);
-                        }
-                    }
+        //                    writer.AddRecord(shapePoints, shapePoints.Length, attributes);
+        //                }
+        //            }
 
-                    #endregion
-                }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    Log.log($"EXCEPTION!!!: {ex.ToString()}. Aborting export of current file!");
-                    //editor.WriteMessage("\n" + ex.Message);
-                    return;
-                }
-                tx.Abort();
-            }
-        }
+        //            #endregion
+        //        }
+        //        catch (System.Exception ex)
+        //        {
+        //            tx.Abort();
+        //            Log.log($"EXCEPTION!!!: {ex.ToString()}. Aborting export of current file!");
+        //            //editor.WriteMessage("\n" + ex.Message);
+        //            return;
+        //        }
+        //        tx.Abort();
+        //    }
+        //} 
+        #endregion
 
         [CommandMethod("EXPORTSHAPEFILESBATCH")]
         public void exportshapefilesbatch()
