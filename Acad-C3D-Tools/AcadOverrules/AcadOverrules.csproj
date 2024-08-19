@@ -73,6 +73,9 @@
 		<Compile Include="..\IntersectUtilities\PropertySetManager.cs">
 			<Link>PropertySetManager.cs</Link>
 		</Compile>
+		<Compile Include="..\IntersectUtilities\DebugHelpers\AssemblyResolveEvents.cs">
+			<Link>DebugHelpers\AssemblyResolveEvents.cs</Link>
+		</Compile>
 	</ItemGroup>
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>

@@ -3,21 +3,29 @@ using System.Reflection;
 using System.IO;
 using static IntersectUtilities.UtilsCommon.Utils;
 
-namespace IntersectUtilities
+namespace AcadOverrules
 {
-    public partial class Intersect
+    internal static class EventHandlers
     {
 #if DEBUG
-        private static Assembly Debug_AssemblyResolve(object sender, ResolveEventArgs args)
+        internal static Assembly Debug_AssemblyResolve(object sender, ResolveEventArgs args)
         {
-            string assemblyFolder = @"X:\GitHub\shtirlitsDva\Autocad-Civil3d-Tools\Acad-C3D-Tools\IntersectUtilities\bin\Debug";
+            string assemblyFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             prdDbg($"Asked for assembly: {args.Name}!");
 
             var name = args.Name.Split(',')[0];
             name += ".dll";
+
+            prdDbg($"First looking here: {assemblyFolder}!");
             string filePath = Path.Combine(assemblyFolder, name);
             if (File.Exists(filePath)) return Assembly.LoadFrom(filePath);
-            else { prdDbg($"File not found: {filePath}!"); return null; }
+
+            assemblyFolder = Directory.GetParent(assemblyFolder).FullName;
+            prdDbg($"Then looking here: {assemblyFolder}!");
+            filePath = Path.Combine(assemblyFolder, name);
+            if (File.Exists(filePath)) return Assembly.LoadFrom(filePath);
+
+            prdDbg($"File not found: {filePath}!"); return null;
         }
 #endif
     }

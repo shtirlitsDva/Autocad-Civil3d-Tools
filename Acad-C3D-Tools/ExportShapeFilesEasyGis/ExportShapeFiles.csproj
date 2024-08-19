@@ -117,6 +117,9 @@
 		<Compile Include="..\IntersectUtilities\PropertySetManager.cs">
 			<Link>PropertySetManager.cs</Link>
 		</Compile>
+		<Compile Include="..\IntersectUtilities\DebugHelpers\AssemblyResolveEvents.cs">
+			<Link>DebugHelpers\AssemblyResolveEvents.cs</Link>
+		</Compile>
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="GeoAPI.CoordinateSystems" Version="1.7.5" />

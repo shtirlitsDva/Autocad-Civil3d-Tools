@@ -32,6 +32,7 @@ using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Log = ExportShapeFiles.ExportShapeFiles.SimpleLogger;
+using AcadOverrules;
 
 namespace ExportShapeFiles
 {
@@ -44,6 +45,10 @@ namespace ExportShapeFiles
             doc.Editor.WriteMessage("\nExport Fjernvarme to shapefiles (original): EXPORTSHAPEFILES");
             doc.Editor.WriteMessage("\nExport Fjernvarme to shapefiles for many drawings (original): EXPORTSHAPEFILESBATCH");
             doc.Editor.WriteMessage("\nExport Fjernvarme to shapefiles (flotte polygoner): EXPORTFJVTOSHAPE");
+
+#if DEBUG
+            AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(EventHandlers.Debug_AssemblyResolve);
+#endif
         }
 
         public void Terminate()
