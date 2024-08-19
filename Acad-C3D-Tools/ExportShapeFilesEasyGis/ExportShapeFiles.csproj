@@ -78,8 +78,8 @@
 			<Private>False</Private>
 		</Reference>
 		<Reference Include="AecBaseMgd">
-			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\AecBaseMgd.dll</HintPath>
-			<Private>False</Private>
+		  <HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecBaseMgd.dll</HintPath>
+		  <Private>False</Private>
 		</Reference>
 		<Reference Include="AeccDbMgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\C3D\AeccDbMgd.dll</HintPath>
@@ -87,10 +87,6 @@
 		</Reference>
 		<Reference Include="AecPropDataMgd">
 			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\ACA\AecPropDataMgd.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="ManagedMapApi">
-			<HintPath>C:\Program Files\Autodesk\AutoCAD 2025\Map\ManagedMapApi.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
 	</ItemGroup>
@@ -129,7 +125,6 @@
 		<PackageReference Include="NetTopologySuite.Features" Version="2.1.0" />
 		<PackageReference Include="NetTopologySuite.IO.ShapeFile" Version="2.1.0" />
 		<PackageReference Include="ProjNET4GeoAPI" Version="1.4.1" />
-		<PackageReference Include="Speckle.Civil3D.API" Version="2025.0.0" />
 		<PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
 		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
