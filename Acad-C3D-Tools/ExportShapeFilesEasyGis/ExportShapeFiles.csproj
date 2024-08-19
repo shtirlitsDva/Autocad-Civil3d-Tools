@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows</TargetFramework>
-		<NsPath>X:\AutoCAD DRI - 01 Civil 3D\NetloadV2\2025\ExportShapeFilesEasyGis</NsPath>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<UseWindowsForms>true</UseWindowsForms>
 		<UseWPF>true</UseWPF>
@@ -17,7 +16,7 @@
 		<OutputType>Library</OutputType>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-	  <DebugSymbols>true</DebugSymbols>
+		<DebugSymbols>true</DebugSymbols>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
 		<OutputPath>bin\Debug\</OutputPath>
@@ -139,24 +138,7 @@
 		<PackageReference Include="System.Text.Json" Version="8.0.4" />
 	</ItemGroup>
 	<ItemGroup>
-	  <ProjectReference Include="..\AutoCADCommands\AutoCADCommands.csproj" />
+		<ProjectReference Include="..\AutoCADCommands\AutoCADCommands.csproj" />
 	</ItemGroup>
-	<PropertyGroup>
-		<PostBuildEvent>
-			if "$(ConfigurationName)"=="Release" (
-			for /D %25%25i in ("$(TargetDir)*") do (
-			if /I not "%25%25~nxi"=="NetReload" (
-			xcopy "%25%25i" "$(NsPath)\%25%25~nxi\" /E /Y /D
-			)
-			)
-			for %25%25i in ("$(TargetDir)*.*") do (
-			if /I not "%25%25~dpxi"=="$(TargetDir)NetReload\" (
-			xcopy "%25%25i" "$(NsPath)\" /Y /D
-			)
-			)
-			)
-		</PostBuildEvent>
-		<AssemblyName>ExportShapeFiles</AssemblyName>
-	</PropertyGroup>
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 </Project>
