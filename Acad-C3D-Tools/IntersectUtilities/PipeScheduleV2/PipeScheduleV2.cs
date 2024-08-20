@@ -882,8 +882,10 @@ namespace IntersectUtilities.PipeScheduleV2
             if (type == PipeTypeEnum.Retur ||
                 type == PipeTypeEnum.Frem)
                 type = PipeTypeEnum.Enkelt;
-            if (series != PipeSeriesEnum.S3) series = PipeSeriesEnum.S3;
-            var results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
+
+            //We IGNORE the series for this type as it only has ONE series!
+
+            var results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
             if (results != null && results.Length > 0) return (double)results[0]["kOd"];
             return 0;
         }

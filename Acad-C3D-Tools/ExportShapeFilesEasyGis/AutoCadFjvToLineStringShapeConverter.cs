@@ -39,8 +39,8 @@ namespace ExportShapeFiles
 
             if (pline.Closed) throw new System.NotSupportedException(
             $"Polyline {pline.Handle} is closed! Closed polylines are not supported yet!");
-            if (pline.Length < 0.1) throw new System.NotSupportedException(
-                $"Polyline {pline.Handle} is too short! Polylines shorter than 0.1m are not allowed!");
+            if (pline.Length < 0.01) throw new System.NotSupportedException(
+                $"Polyline {pline.Handle} is too short! Polylines shorter than 0.01m are not allowed!");
 
             List<Point2d> points = new List<Point2d>();
             int numOfVert = pline.NumberOfVertices - 1;
