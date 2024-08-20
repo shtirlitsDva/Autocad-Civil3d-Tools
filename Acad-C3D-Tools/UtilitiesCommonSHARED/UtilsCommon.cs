@@ -41,7 +41,7 @@ using ObjectId = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
-using Debug = IntersectUtilities.UtilsCommon.Utils.Debug;
+using DebugHelper = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
 using Dreambuild.AutoCAD;
 
 namespace IntersectUtilities.UtilsCommon
@@ -525,7 +525,7 @@ namespace IntersectUtilities.UtilsCommon
             Materialeskift,
         }
         #endregion
-        public static class Debug
+        public static class DebugHelper
         {
             public static void CreateDebugLine(Point3d end, Color color)
             {

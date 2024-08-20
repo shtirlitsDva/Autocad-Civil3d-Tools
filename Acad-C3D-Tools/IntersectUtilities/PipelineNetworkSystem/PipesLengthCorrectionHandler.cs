@@ -141,6 +141,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             $"For polyline {pline2.Handle} length correction points ends in an Arc segment.\n" +
                             $"Automatic cut length correction is not possible. If you wish, correct lengths manually.\n" +
                             $"In that case run CORRECTCUTLENGTHSV2 afterwards again.";
+                        DebugHelper.CreateDebugLine(
+                            pline2.GetPointAtDist(missingLength), ColorByName("red"));
                         continue;
                     }
 
@@ -219,7 +221,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                 (int)pline2.GetParameterAtDistance(missingLength));
                     if (landingSegmentType == SegmentType.Arc)
                     {
-                        Debug.CreateDebugLine(
+                        DebugHelper.CreateDebugLine(
                             pline2.GetPointAtDist(missingLength), ColorByName("red"));
                         return new Result(
                             ResultStatus.SoftError,
@@ -300,7 +302,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                 $"For polyline {pline2.Handle} length correction by {missingLength}m ends in an Arc segment.\n" +
                                 $"Automatic cut length correction is not possible. If you wish, correct lengths manually.\n" +
                                 $"In that case run CORRECTCUTLENGTHSV2 afterwards again.");
-                        Debug.CreateDebugLine(
+                        DebugHelper.CreateDebugLine(
                             pline2.GetPointAtDist(missingLength), ColorByName("red"));
                         return new Result(
                             ResultStatus.SoftError,
@@ -367,8 +369,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         reducer.TransformBy(Matrix3d.Displacement(moveVector));
 
 #if DEBUG
-                        Debug.CreateDebugLine(cachedTransitionLocation, ColorByName("yellow"));
-                        Debug.CreateDebugLine(reducer.Position, ColorByName("green"));
+                        DebugHelper.CreateDebugLine(cachedTransitionLocation, ColorByName("yellow"));
+                        DebugHelper.CreateDebugLine(reducer.Position, ColorByName("green"));
 #endif
 
                         //Finalize transaction
@@ -457,8 +459,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             tx.Commit();
 
 #if DEBUG
-                            Debug.CreateDebugLine(cachedTransitionLocation, ColorByName("yellow"));
-                            Debug.CreateDebugLine(reducer.Position, ColorByName("green"));
+                            DebugHelper.CreateDebugLine(cachedTransitionLocation, ColorByName("yellow"));
+                            DebugHelper.CreateDebugLine(reducer.Position, ColorByName("green"));
 #endif
 
                             return new Result();
@@ -480,7 +482,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         $"ML: {missingLength}");
                     prdDbg(ex);
 #if DEBUG
-                    Debug.CreateDebugLine(reducer.Position, ColorByName("red"));
+                    DebugHelper.CreateDebugLine(reducer.Position, ColorByName("red"));
 #endif
                     tx.Abort();
                     return new Result(
