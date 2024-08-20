@@ -12,6 +12,7 @@ using static IntersectUtilities.UtilsCommon.Utils;
 using static IntersectUtilities.PipeScheduleV2.PipeScheduleV2;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using Autodesk.AutoCAD.Geometry;
 
 namespace IntersectUtilities.Collections
 {
@@ -52,6 +53,20 @@ namespace IntersectUtilities.Collections
         {
             if (this.Count == 0 || other.Count == 0) return false;
             return this._C.SelectMany(x => x.Value).Any(x => other.Any(y => x == y.Handle));
+        }
+        public Point3d GetConnectionPoint(Entity ent)
+        {
+            var otherHandles = GetOtherHandles(ReadConnection(ent));
+            var entFromThisCollection =
+                this.FirstOrDefault(x => otherHandles.Contains(x.Handle));
+
+            if (entFromThisCollection == null) return Point3d.Origin;
+
+            var psHere = entFromThisCollection.GetAllEndPoints();
+            var psThere = ent.GetAllEndPoints();
+            if (psHere.Any(x => psThere.Any(y => x.HorizontalEqualz(y))))
+                return psHere.First(x => psThere.Any(y => x.HorizontalEqualz(y)));
+            else return Point3d.Origin;
         }
         private string ReadConnection(Entity ent) =>
             psh.Graph.ReadPropertyString(ent, psh.GraphDef.ConnectedEntities);

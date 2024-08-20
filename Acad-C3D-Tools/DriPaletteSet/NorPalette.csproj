@@ -64,9 +64,6 @@
 		<Compile Include="..\IntersectUtilities\MoreLinq\MoreLinq.cs">
 			<Link>MoreLinq.cs</Link>
 		</Compile>
-		<Compile Include="..\IntersectUtilities\PipeSchedule.cs">
-			<Link>PipeSchedule.cs</Link>
-		</Compile>
 		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
 			<Link>PipeScheduleV2\PipeScheduleV2.cs</Link>
 		</Compile>
@@ -74,9 +71,6 @@
 			<Link>PropertySetManager.cs</Link>
 		</Compile>
 		<Compile Update="PipePalette.cs">
-			<SubType>UserControl</SubType>
-		</Compile>
-		<Compile Update="PEXU-Palette.cs">
 			<SubType>UserControl</SubType>
 		</Compile>
 		<Compile Update="TwinPalette.cs">
@@ -97,6 +91,9 @@
 		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
 		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.4" />
+	</ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="..\AutoCADCommands\AutoCADCommands.csproj" />
 	</ItemGroup>
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 </Project>

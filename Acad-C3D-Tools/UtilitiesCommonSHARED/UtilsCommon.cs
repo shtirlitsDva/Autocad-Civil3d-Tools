@@ -440,7 +440,6 @@ namespace IntersectUtilities.UtilsCommon
             Stål,
             Kobberflex,
             AluPex,
-            PexU,
             PertFlextra,
         }
         public enum DynamicProperty
@@ -2456,6 +2455,18 @@ namespace IntersectUtilities.UtilsCommon
             }
 
             return result;
+        }
+        public static HashSet<Point3d> GetAllEndPoints(this Entity ent)
+        {
+            switch (ent)
+            {
+                case Polyline pl:
+                    return new HashSet<Point3d> { pl.StartPoint, pl.EndPoint };
+                case BlockReference br:
+                    return br.GetAllEndPoints();
+                default:
+                    throw new System.Exception($"Entity is not a Polyline or BlockReference! {ent.GetType()}");
+            }
         }
         public static T[] ConcatAr<T>(this T[] x, T[] y)
         {

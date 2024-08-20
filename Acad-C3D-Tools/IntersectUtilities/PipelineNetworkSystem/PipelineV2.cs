@@ -402,32 +402,69 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public PipelineV2Na(IEnumerable<Entity> source) : base(source)
         {
             #region Preparation to have stations for NA pipelines
-            ////Access ALL objects in database because we don't know our parent
-            ////Filter out the objects of the pipeline in question
-            //Database db = ents.FirstOrDefault()?.Database;
-            //Transaction tx = db.TransactionManager.TopTransaction;
-            //var query =
-            //    db.GetFjvEntities(tx, true, false)
-            //    .Where(x => ents.All(y => x.Handle != y.Handle));
-            //EntityCollection allEnts = new EntityCollection(query);
+            //Access ALL objects in database because we don't know our parent
+            //Filter out the objects of the pipeline in question
+            Database db = ents.FirstOrDefault()?.Database;
+            Transaction tx = db.TransactionManager.TopTransaction;
+            var query =
+                db.GetFjvEntities(tx, true, false)
+                .Where(x => ents.All(y => x.Handle != y.Handle));
+            EntityCollection allEnts = new EntityCollection(query);
 
-            //// Now find the other element that is connected to this pipeline
-            //var findConnection = allEnts.ExternalHandles.Where(x => ents.Any(y => y.Handle == x));
+            // Now find the other element that is connected to this pipeline
+            var findConnection =
+                allEnts.ExternalHandles.Where(x => ents.Any(y => y.Handle == x))
+                .ToList();
 
-            //// Handle different cases, most optimal case is that there is only one connection
-            //int conCount = findConnection.Count();
-            //switch (conCount)
-            //{
-            //    case int n when n < 1:
-            //        throw new Exception($"Pipeline {Name} is not connected to all other pipelines!");
-            //    case 1:
-            //        // Get the connected element
-            //        var con = findConnection.First().Go<Entity>(db);
+            // Handle different cases, most optimal case is that there is only one connection
+            int conCount = findConnection.Count();
+            switch (conCount)
+            {
+                case int n when n < 1:
+                    throw new Exception($"Pipeline {Name} is not connected to all other pipelines!");
+                case 1:
+                    {
+                        // Get the connected element
+                        var con = findConnection.First().Go<Entity>(db);
 
-            //        break;
-            //    case int n when n > 1:
-            //        throw new Exception($"Pipeline {Name} is connected to more than one other pipeline!");
-            //} 
+                        // now traverse the elements and build the topology polyline
+                        Stack<Entity> stack = new Stack<Entity>();
+                        stack.Push(con);
+
+                        Polyline polyline = new Polyline();
+
+                        // Add the first point which is the connection point to parent pipeline
+                        Point3d currentEntryPoint = allEnts.GetConnectionPoint(con);
+                        if (currentEntryPoint.Equalz(Point3d.Origin)) throw new Exception(
+                            $"Could not find connection point for {con.Handle}!");
+
+                        while (stack.Count > 0)
+                        {
+                            var current = stack.Pop();
+
+                            switch (current)
+                            {
+                                case Polyline pl:
+                                    if (pl.EndPoint.HorizontalEqualz(currentEntryPoint))
+                                    {
+                                        pl.UpgradeOpen();
+                                        pl.ReverseCurve();
+                                    }
+
+                                    //add the polyline to the topology
+
+                                    break;
+                                case BlockReference br:
+                                    break;
+                                default:
+                                    throw new System.Exception($"Polyline or BlockReference expected!");
+                            }
+                        }
+                    }
+                    break;
+                case int n when n > 1:
+                    throw new Exception($"Pipeline {Name} is connected to more than one other pipeline!");
+            }
             #endregion
         }
         public override string Name =>
