@@ -3,12 +3,12 @@ using System.Reflection;
 using System.IO;
 using static IntersectUtilities.UtilsCommon.Utils;
 
-namespace AcadOverrules
+namespace IntersectUtilities
 {
-    internal static class EventHandlers
+    public static class EventHandlers
     {
 #if DEBUG
-        internal static Assembly Debug_AssemblyResolve(object sender, ResolveEventArgs args)
+        public static Assembly Debug_AssemblyResolve(object sender, ResolveEventArgs args)
         {
             string assemblyFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             prdDbg($"Asked for assembly: {args.Name}!");

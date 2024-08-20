@@ -41,6 +41,8 @@ using ObjectId = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
+using Debug = IntersectUtilities.UtilsCommon.Utils.Debug;
+using Dreambuild.AutoCAD;
 
 namespace IntersectUtilities.UtilsCommon
 {
@@ -2581,6 +2583,9 @@ namespace IntersectUtilities.UtilsCommon
                 pline.UpgradeOpen();
                 pline.Erase(true);
                 //prdDbg($"{offset}, {Math.Abs(offset)} < {tolerance}, {Math.Abs(offset) <= tolerance}, {station}");
+
+                //Debug.CreateDebugLine(p, ColorByName("yellow"));
+                //Debug.CreateDebugLine(point, ColorByName("red"));
 
                 // If the offset is within the tolerance, the point is on the alignment
                 if (Math.Abs(p.DistanceTo(point)) <= tol) return true;

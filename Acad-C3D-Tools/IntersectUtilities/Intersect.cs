@@ -79,7 +79,8 @@ namespace IntersectUtilities
 
             prdDbg("IntersectUtilites loaded!\n");
 #if DEBUG
-            AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(Debug_AssemblyResolve);
+            AppDomain.CurrentDomain.AssemblyResolve += 
+                new ResolveEventHandler(EventHandlers.Debug_AssemblyResolve);
 #endif
         }
 

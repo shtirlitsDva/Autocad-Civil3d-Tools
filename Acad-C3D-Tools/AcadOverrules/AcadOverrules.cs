@@ -14,7 +14,8 @@ namespace AcadOverrules
         public void Initialize()
         {
 #if DEBUG
-            AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(EventHandlers.Debug_AssemblyResolve);
+            AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(
+                IntersectUtilities.EventHandlers.Debug_AssemblyResolve);
 #endif
         }
 

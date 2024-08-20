@@ -32,7 +32,6 @@ using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Log = ExportShapeFiles.ExportShapeFiles.SimpleLogger;
-using AcadOverrules;
 
 namespace ExportShapeFiles
 {

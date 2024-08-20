@@ -90,7 +90,7 @@ namespace IntersectUtilities
                     alTx.Dispose();
                     alDb.Dispose();
                 }
-                tx.Abort();
+                tx.Commit();
             }
         }
 
