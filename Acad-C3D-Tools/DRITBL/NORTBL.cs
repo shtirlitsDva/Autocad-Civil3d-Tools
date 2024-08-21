@@ -208,7 +208,9 @@ namespace IntersectUtilities.DRITBL
                             irp.DN2 = br.ReadDynamicCsvProperty(DynamicProperty.DN2, true);
                             irp.System = br.ReadDynamicCsvProperty(DynamicProperty.System, true);
                             irp.Serie = br.ReadDynamicCsvProperty(DynamicProperty.Serie, true);
-                            irp.SystemType = br.ReadDynamicCsvProperty(DynamicProperty.SysNavn, false);
+                            irp.SystemType = br.ReadDynamicCsvProperty(DynamicProperty.SysNavn, true);
+
+                            if (irp.System == "Frem" || irp.System == "Retur") irp.System = "Enkelt";
 
                             allResults.Add(irp);
                         }
