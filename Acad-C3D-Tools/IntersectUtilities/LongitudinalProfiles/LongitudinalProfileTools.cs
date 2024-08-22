@@ -1281,7 +1281,8 @@ namespace IntersectUtilities
                             nrOfSteps = (int)(segmentLength / stepLength);
                             //Cover depth management
                             int curDn = sizeArray[i].DN;
-                            double cover = curDn <= 65 ? 0.6 : 1.0; //CWO info
+                            //double cover = curDn <= 65 ? 0.6 : 1.0; //CWO info
+                            double cover = 0.6; //EDIT: 2024.08.22 iht. mail fra KEV HELA JJR CWO
                             double halfKappeOd = sizeArray[i].Kod / 2.0 / 1000.0;
                             prdDbg($"S: {startStation.ToString("0000.0")}, " +
                                    $"E: {endStation.ToString("0000.00")}, " +
