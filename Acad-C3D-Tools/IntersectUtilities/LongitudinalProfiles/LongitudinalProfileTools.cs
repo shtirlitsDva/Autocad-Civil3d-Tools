@@ -616,17 +616,19 @@ namespace IntersectUtilities
                         }
                         #endregion
 
-                        #region Assign newly created points to projection on a profile view
                         #region Build query for PointGroup
                         //Build query
                         StandardPointGroupQuery spgq = new StandardPointGroupQuery();
                         List<string> newPointNumbers = allNewlyCreatedPoints.Select(x => x.PointNumber.ToString()).ToList();
-                        string pointNumbersToInclude = string.Join(",", newPointNumbers.ToArray());
+                        string pointNumbersToInclude = string.Join(
+                            CultureInfo.CurrentCulture.TextInfo.ListSeparator,
+                            newPointNumbers.ToArray());
                         spgq.IncludeNumbers = pointNumbersToInclude;
                         currentPointGroup.SetQuery(spgq);
                         currentPointGroup.Update();
                         #endregion
 
+                        #region Assign newly created points to projection on a profile view
                         #region Manage PVs
                         ObjectIdCollection pIds = al.GetProfileIds();
                         Profile pSurface = null;
