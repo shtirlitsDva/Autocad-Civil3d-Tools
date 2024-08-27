@@ -365,7 +365,6 @@
       <DependentUpon>PipeSettingsForm.cs</DependentUpon>
     </Compile>
     <Compile Include="PipelineSizeArray.cs" />
-    <Compile Include="PipeSchedule.cs" />
     <Compile Include="PipeScheduleV2\PipeScheduleV2.cs" />
     <Compile Include="PlanDetailing\ComponentData.cs" />
     <Compile Include="PlanDetailing\PlanDetailing.cs" />
