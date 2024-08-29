@@ -89,6 +89,8 @@ namespace IntersectUtilities
         }
         #endregion
 
+        private static CultureInfo danishCulture = new CultureInfo("da-DK");
+
         [CommandMethod("chel")]
         public void changeelevationofprojectedcogopoint()
         {
@@ -1280,8 +1282,8 @@ namespace IntersectUtilities
                             LabelStyleCollection stc = stylesDoc.Styles.LabelStyles
                                 .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
 
-                            objIds.Add(stc["PROFILE PROJECTION RIGHT"]);
-                            objIds.Add(stc["PROFILE PROJECTION LEFT"]);
+                            objIds.Add(stc["PROFILE PROJECTION RIGHT v2"]);
+                            objIds.Add(stc["PROFILE PROJECTION LEFT v2"]);
 
                             //Profile View Style
                             ProfileViewStyleCollection pvsc = stylesDoc.Styles.ProfileViewStyles;
@@ -1341,11 +1343,12 @@ namespace IntersectUtilities
                             Autodesk.Civil.DatabaseServices.Styles.StyleBase.ExportTo(
                                 objIds, localDb, Autodesk.Civil.StyleConflictResolverType.Override);
                         }
-                        catch (System.Exception)
+                        catch (System.Exception ex)
                         {
                             stylesTx.Abort();
                             stylesDB.Dispose();
                             localTx.Abort();
+                            prdDbg(ex);
                             throw;
                         }
 
@@ -1367,7 +1370,7 @@ namespace IntersectUtilities
                         }
                         catch (System.Exception e)
                         {
-                            prdDbg(e.Message);
+                            prdDbg(e);
                             stylesTx.Abort();
                             localTx.Abort();
                             throw;
@@ -1380,8 +1383,7 @@ namespace IntersectUtilities
             }
             catch (System.Exception ex)
             {
-                Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
-                ed.WriteMessage($"\n{ex.Message}");
+                prdDbg(ex);
                 return;
             }
         }

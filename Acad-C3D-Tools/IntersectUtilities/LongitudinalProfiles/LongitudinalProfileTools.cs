@@ -535,6 +535,8 @@ namespace IntersectUtilities
 
                                     #region Assign elevation based on 3D conditions
                                     double zElevation = 0;
+                                    //Implementing v2 labels with no elevations in point label
+                                    string kote = "";
                                     if (type != "3D")
                                     {
                                         var intPoint = surface.GetIntersectionPoint(
@@ -545,6 +547,8 @@ namespace IntersectUtilities
                                         zElevation -= depth;
 
                                         cogoPoint.Elevation = zElevation;
+
+                                        kote += "Kote Ukendt. ";
                                     }
                                     else if (type == "3D")
                                     {
@@ -560,8 +564,14 @@ namespace IntersectUtilities
                                             editor.WriteMessage($"\nFor type 3D entity {ent.Handle.ToString()}" +
                                                 $" layer {ent.Layer}," +
                                                 $" elevation is 0!");
+                                        } 
+                                        else
+                                        {
+                                            kote = $"K: {p3dInt.Z.ToString("#.00", danishCulture)} ";
                                         }
                                     }
+
+                                    description = kote + description;
                                     #endregion
 
                                     //Set the layer
@@ -3907,27 +3917,40 @@ namespace IntersectUtilities
                     Oid profileProjection_RIGHT_Style = Oid.Null;
                     Oid profileProjection_LEFT_Style = Oid.Null;
 
-                    try
-                    {
-                        profileProjection_RIGHT_Style = stc["PROFILE PROJECTION RIGHT"];
-                    }
-                    catch (System.Exception)
-                    {
-                        editor.WriteMessage($"\nPROFILE PROJECTION RIGHT style missing!");
-                        tx.Abort();
-                        return;
-                    }
+                    HashSet<string> stylesToImport = new HashSet<string>();
 
-                    try
-                    {
-                        profileProjection_LEFT_Style = stc["PROFILE PROJECTION LEFT"];
-                    }
-                    catch (System.Exception)
-                    {
-                        editor.WriteMessage($"\nPROFILE PROJECTION LEFT style missing!");
-                        tx.Abort();
-                        return;
-                    }
+                    if (!stc.Contains("PROFILE PROJECTION RIGHT v2"))
+                        stylesToImport.Add("PROFILE PROJECTION RIGHT v2");
+
+                    if (!stc.Contains("PROFILE PROJECTION LEFT v2"))
+                        stylesToImport.Add("PROFILE PROJECTION LEFT v2");
+
+                    if (stylesToImport.Count > 0) importlabelstyles();
+
+                    profileProjection_RIGHT_Style = stc["PROFILE PROJECTION RIGHT v2"];
+                    profileProjection_LEFT_Style = stc["PROFILE PROJECTION LEFT v2"];
+
+                    //try
+                    //{
+                    //    profileProjection_RIGHT_Style = stc[];
+                    //}
+                    //catch (System.Exception)
+                    //{
+                    //    editor.WriteMessage($"\nPROFILE PROJECTION RIGHT style missing!");
+                    //    tx.Abort();
+                    //    return;
+                    //}
+
+                    //try
+                    //{
+                    //    profileProjection_LEFT_Style = stc["PROFILE PROJECTION LEFT v2"];
+                    //}
+                    //catch (System.Exception)
+                    //{
+                    //    editor.WriteMessage($"\nPROFILE PROJECTION LEFT style missing!");
+                    //    tx.Abort();
+                    //    return;
+                    //}
                     #endregion
 
                     #region Labels
