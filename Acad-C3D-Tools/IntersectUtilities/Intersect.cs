@@ -89,6 +89,8 @@ namespace IntersectUtilities
         }
         #endregion
 
+        private static CultureInfo danishCulture = new CultureInfo("da-DK");
+
         [CommandMethod("chel")]
         public void changeelevationofprojectedcogopoint()
         {
@@ -1250,15 +1252,20 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("IMPORTCIVILSTYLES")]
-        public void importlabelstyles()
+        public void importcivilstyles()
+        {
+            importcivilstylesmethod();
+        }
+        public void importcivilstylesmethod(Database db = null)
         {
             try
             {
                 DocumentCollection docCol = Application.DocumentManager;
-                Database localDb = docCol.MdiActiveDocument.Database;
-                Editor editor = docCol.MdiActiveDocument.Editor;
-                Document doc = docCol.MdiActiveDocument;
-                CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+                Database localDb = db ?? docCol.MdiActiveDocument.Database;
+                CivilDocument civilDoc = CivilDocument.GetCivilDocument(localDb);
+
+
+                prdDbg("Importing Norsyn Civil styles...");
 
                 #region Setup styles and clone blocks
                 string pathToStyles = @"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg";
@@ -1280,8 +1287,8 @@ namespace IntersectUtilities
                             LabelStyleCollection stc = stylesDoc.Styles.LabelStyles
                                 .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
 
-                            objIds.Add(stc["PROFILE PROJECTION RIGHT"]);
-                            objIds.Add(stc["PROFILE PROJECTION LEFT"]);
+                            objIds.Add(stc["PROFILE PROJECTION RIGHT v2"]);
+                            objIds.Add(stc["PROFILE PROJECTION LEFT v2"]);
 
                             //Profile View Style
                             ProfileViewStyleCollection pvsc = stylesDoc.Styles.ProfileViewStyles;
@@ -1341,13 +1348,20 @@ namespace IntersectUtilities
                             Autodesk.Civil.DatabaseServices.Styles.StyleBase.ExportTo(
                                 objIds, localDb, Autodesk.Civil.StyleConflictResolverType.Override);
                         }
-                        catch (System.Exception)
+                        catch (System.Exception ex)
                         {
                             stylesTx.Abort();
-                            stylesDB.Dispose();
                             localTx.Abort();
+                            prdDbg(ex);
                             throw;
                         }
+                        stylesTx.Commit();
+                        localTx.Commit();
+                    }
+
+                    using (Transaction localTx = localDb.TransactionManager.StartTransaction())
+                    using (Transaction stylesTx = stylesDB.TransactionManager.StartTransaction())
+                    {
 
                         try
                         {
@@ -1367,11 +1381,12 @@ namespace IntersectUtilities
                         }
                         catch (System.Exception e)
                         {
-                            prdDbg(e.Message);
                             stylesTx.Abort();
                             localTx.Abort();
+                            prdDbg(e);
                             throw;
                         }
+
                         stylesTx.Commit();
                         localTx.Commit();
                     }
@@ -1380,8 +1395,7 @@ namespace IntersectUtilities
             }
             catch (System.Exception ex)
             {
-                Editor ed = Application.DocumentManager.MdiActiveDocument.Editor;
-                ed.WriteMessage($"\n{ex.Message}");
+                prdDbg(ex);
                 return;
             }
         }

@@ -326,7 +326,7 @@ namespace IntersectUtilities
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             resetprofileviews();
-            importlabelstyles();
+            importcivilstyles();
 
             #region Fix wrong PV style at start
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -628,7 +628,7 @@ namespace IntersectUtilities
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             resetprofileviews();
-            importlabelstyles();
+            importcivilstyles();
 
             var droText = File.ReadAllLines(Environment.ExpandEnvironmentVariables("%temp%") + "\\DRO.txt");
 
