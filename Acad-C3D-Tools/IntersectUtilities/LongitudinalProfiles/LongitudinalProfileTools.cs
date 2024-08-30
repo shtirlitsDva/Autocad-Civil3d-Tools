@@ -548,7 +548,7 @@ namespace IntersectUtilities
 
                                         cogoPoint.Elevation = zElevation;
 
-                                        kote += "Kote Ukendt. ";
+                                        description = AppendKoteUkendt(description);
                                     }
                                     else if (type == "3D")
                                     {
@@ -567,11 +567,29 @@ namespace IntersectUtilities
                                         } 
                                         else
                                         {
-                                            kote = $"K: {p3dInt.Z.ToString("#.00", danishCulture)} ";
+                                            kote = $"K: {p3dInt.Z.ToString("#.00", danishCulture)}, ";
+                                            description = kote + description;
                                         }
                                     }
 
-                                    description = kote + description;
+                                    string AppendKoteUkendt(string originalString)
+                                    {
+                                        if (string.IsNullOrEmpty(originalString))
+                                            return "Kote Ukendt.";
+
+                                        const string appendText = "Kote Ukendt.";
+
+                                        return originalString[^1] switch
+                                        {
+                                            char c when char.IsLetter(c) => $"{originalString}, {appendText}",
+                                            char c when char.IsDigit(c) => $"{originalString} - {appendText}",
+                                            '.' or ',' => $"{originalString} {appendText}",
+                                            '!' or '?' => $"{originalString} {char.ToUpper(appendText[0])}{appendText[1..]}",
+                                            ':' or ';' => $"{originalString} {char.ToLower(appendText[0])}{appendText[1..]}",
+                                            char c when char.IsWhiteSpace(c) => $"{originalString.TrimEnd()} {appendText}",
+                                            _ => $"{originalString} {appendText}"
+                                        };
+                                    }
                                     #endregion
 
                                     //Set the layer
@@ -3906,11 +3924,6 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    if (pvs == null) pvs = localDb.HashSetIdsOfType<ProfileView>();
-                    HashSet<ProfileProjectionLabel> labelsSet =
-                        localDb.HashSetOfType<ProfileProjectionLabel>(tx);
-
-                    #region Setup styles
                     LabelStyleCollection stc = civilDoc.Styles.LabelStyles
                         .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
 
@@ -3925,32 +3938,44 @@ namespace IntersectUtilities
                     if (!stc.Contains("PROFILE PROJECTION LEFT v2"))
                         stylesToImport.Add("PROFILE PROJECTION LEFT v2");
 
-                    if (stylesToImport.Count > 0) importlabelstyles();
+                    if (stylesToImport.Count > 0) importcivilstyles();
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    if (pvs == null) pvs = localDb.HashSetIdsOfType<ProfileView>();
+                    HashSet<ProfileProjectionLabel> labelsSet =
+                        localDb.HashSetOfType<ProfileProjectionLabel>(tx);
+
+                    #region Setup styles
+                    LabelStyleCollection stc = civilDoc.Styles.LabelStyles
+                        .ProjectionLabelStyles.ProfileViewProjectionLabelStyles;
+
+                    Oid profileProjection_RIGHT_Style = Oid.Null;
+                    Oid profileProjection_LEFT_Style = Oid.Null;
+
+                    HashSet<string> stylesToImport = new HashSet<string>();
+
+                    if (!stc.Contains("PROFILE PROJECTION RIGHT v2"))
+                        throw new System.Exception(
+                            "\"PROFILE PROJECTION RIGHT v2\" does not exist in current drawing!");
+
+                    if (!stc.Contains("PROFILE PROJECTION LEFT v2"))
+                        throw new System.Exception(
+                            "\"PROFILE PROJECTION LEFT v2\" does not exist in current drawing!");
 
                     profileProjection_RIGHT_Style = stc["PROFILE PROJECTION RIGHT v2"];
                     profileProjection_LEFT_Style = stc["PROFILE PROJECTION LEFT v2"];
-
-                    //try
-                    //{
-                    //    profileProjection_RIGHT_Style = stc[];
-                    //}
-                    //catch (System.Exception)
-                    //{
-                    //    editor.WriteMessage($"\nPROFILE PROJECTION RIGHT style missing!");
-                    //    tx.Abort();
-                    //    return;
-                    //}
-
-                    //try
-                    //{
-                    //    profileProjection_LEFT_Style = stc["PROFILE PROJECTION LEFT v2"];
-                    //}
-                    //catch (System.Exception)
-                    //{
-                    //    editor.WriteMessage($"\nPROFILE PROJECTION LEFT style missing!");
-                    //    tx.Abort();
-                    //    return;
-                    //}
                     #endregion
 
                     #region Labels

@@ -1252,15 +1252,20 @@ namespace IntersectUtilities
         }
 
         [CommandMethod("IMPORTCIVILSTYLES")]
-        public void importlabelstyles()
+        public void importcivilstyles()
+        {
+            importcivilstylesmethod();
+        }
+        public void importcivilstylesmethod(Database db = null)
         {
             try
             {
                 DocumentCollection docCol = Application.DocumentManager;
-                Database localDb = docCol.MdiActiveDocument.Database;
-                Editor editor = docCol.MdiActiveDocument.Editor;
-                Document doc = docCol.MdiActiveDocument;
-                CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+                Database localDb = db ?? docCol.MdiActiveDocument.Database;
+                CivilDocument civilDoc = CivilDocument.GetCivilDocument(localDb);
+
+
+                prdDbg("Importing Norsyn Civil styles...");
 
                 #region Setup styles and clone blocks
                 string pathToStyles = @"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg";
@@ -1346,11 +1351,17 @@ namespace IntersectUtilities
                         catch (System.Exception ex)
                         {
                             stylesTx.Abort();
-                            stylesDB.Dispose();
                             localTx.Abort();
                             prdDbg(ex);
                             throw;
                         }
+                        stylesTx.Commit();
+                        localTx.Commit();
+                    }
+
+                    using (Transaction localTx = localDb.TransactionManager.StartTransaction())
+                    using (Transaction stylesTx = stylesDB.TransactionManager.StartTransaction())
+                    {
 
                         try
                         {
@@ -1370,11 +1381,12 @@ namespace IntersectUtilities
                         }
                         catch (System.Exception e)
                         {
-                            prdDbg(e);
                             stylesTx.Abort();
                             localTx.Abort();
+                            prdDbg(e);
                             throw;
                         }
+
                         stylesTx.Commit();
                         localTx.Commit();
                     }
