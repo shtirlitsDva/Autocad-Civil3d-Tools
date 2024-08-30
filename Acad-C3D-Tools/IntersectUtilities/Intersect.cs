@@ -8331,7 +8331,8 @@ namespace IntersectUtilities
 
             string url = $"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={latlong[0]},{latlong[1]}";
 
-            System.Diagnostics.Process.Start(url);
+            System.Diagnostics.Process.Start(
+                new ProcessStartInfo(url) { UseShellExecute = true });
         }
 
         [CommandMethod("MODIFYPOINTSELEVATIONFROMSURFACE")]
