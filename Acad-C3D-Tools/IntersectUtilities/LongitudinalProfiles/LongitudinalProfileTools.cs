@@ -582,7 +582,7 @@ namespace IntersectUtilities
                                         return originalString[^1] switch
                                         {
                                             char c when char.IsLetter(c) => $"{originalString}, {appendText}",
-                                            char c when char.IsDigit(c) => $"{originalString} - {appendText}",
+                                            char c when char.IsDigit(c) => $"{originalString}, {appendText}",
                                             '.' or ',' => $"{originalString} {appendText}",
                                             '!' or '?' => $"{originalString} {char.ToUpper(appendText[0])}{appendText[1..]}",
                                             ':' or ';' => $"{originalString} {char.ToLower(appendText[0])}{appendText[1..]}",
