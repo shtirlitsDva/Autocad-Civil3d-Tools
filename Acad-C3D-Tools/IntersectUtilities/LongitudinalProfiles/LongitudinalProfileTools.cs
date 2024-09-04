@@ -574,10 +574,10 @@ namespace IntersectUtilities
 
                                     string AppendKoteUkendt(string originalString)
                                     {
-                                        if (string.IsNullOrEmpty(originalString))
-                                            return "Kote Ukendt.";
-
+                                        if (string.IsNullOrEmpty(originalString)) return originalString;
                                         const string appendText = "Kote Ukendt.";
+
+                                        if (originalString.EndsWith(appendText)) return originalString;
 
                                         return originalString[^1] switch
                                         {

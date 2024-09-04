@@ -60,6 +60,8 @@ using QuikGraph.Algorithms.Search;
 using System.Text.Json.Nodes;
 using NetTopologySuite.Features;
 using Microsoft.Win32;
+using IntersectUtilities.LongitudinalProfiles;
+using Microsoft.AspNetCore.Mvc.TagHelpers;
 
 [assembly: CommandClass(typeof(IntersectUtilities.Intersect))]
 
@@ -8495,6 +8497,83 @@ namespace IntersectUtilities
                         br.CheckOrOpenForWrite();
                         br.AttSync();
                     }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
+        [CommandMethod("GATHERELEMENTSBYPREDICATE")]
+        public void gatherelementsbypredicate()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            Database newDb = new Database(false, true);
+            if (!File.Exists(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt"))
+                throw new System.Exception(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt does not exist!");
+            newDb.ReadDwgFile(@"X:\AutoCAD DRI - SETUP\Templates\acadiso.dwt",
+                FileOpenMode.OpenForReadAndAllShare, false, null);
+
+            var type = typeof(Polyline3d);
+
+            var projects = new ProjectsManager.ProjectsManager();
+            foreach (var project in projects.Projects)
+            {
+                foreach (var phase in project.Phases)
+                {
+                    if (phase.Ler.IsNoE()) continue;
+
+                    var lerman = Ler3dManagerFactory.LoadLer3d(phase.Ler);
+                }
+                
+            }
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    System.Data.DataTable dt = CsvData.FK;
+
+                    PropertySetManager psmPipeLineData = new PropertySetManager(
+                        localDb,
+                        PSetDefs.DefinedSets.DriPipelineData);
+                    PSetDefs.DriPipelineData driPipelineData =
+                        new PSetDefs.DriPipelineData();
+
+                    var ents = localDb.GetFjvEntities(tx, false, false, true);
+
+                    var list = ents.Select(
+                        x => psmPipeLineData.ReadPropertyString(x, driPipelineData.BelongsToAlignment))
+                        .Distinct().OrderBy(x => x);
+
+                    StringGridForm sgf = new StringGridForm(list, "SELECT ALIGNMENT NAME");
+                    sgf.ShowDialog();
+
+                    if (sgf.SelectedValue != null)
+                    {
+                        var result = ents.Where(x => psmPipeLineData
+                        .FilterPropetyString(x, driPipelineData.BelongsToAlignment, sgf.SelectedValue))
+                        .Select(x => x.Id)
+                        .ToArray();
+
+                        if (result.Length == 0)
+                        {
+                            prdDbg("No entities found with this alignment name!");
+                            tx.Abort();
+                            return;
+                        }
+
+                        docCol.MdiActiveDocument.Editor.SetImpliedSelection(
+                            result
+                            );
+                    }
+                    else { prdDbg("Cancelled!"); }
                 }
                 catch (System.Exception ex)
                 {
