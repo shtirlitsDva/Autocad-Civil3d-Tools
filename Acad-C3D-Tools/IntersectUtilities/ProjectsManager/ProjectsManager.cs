@@ -16,14 +16,14 @@ namespace IntersectUtilities.ProjectsManager
     {
         private static readonly string path = "X:\\AutoCAD DRI - 01 Civil 3D\\Stier.csv";
 
-        public HashSet<Project> Projects = new HashSet<Project>();
+        public List<Project> Projects = new List<Project>();
 
         public ProjectsManager() 
         {
             Projects = DeserializeProjects(path);
         }
 
-        private static HashSet<Project> DeserializeProjects(string path)
+        private static List<Project> DeserializeProjects(string path)
         {
             if (!File.Exists(path))
                 throw new System.Exception(
@@ -53,8 +53,8 @@ namespace IntersectUtilities.ProjectsManager
                         Alignments = r.Alignments,
                         Fremtid = r.Fremtid,
                         WorkingFolder = r.WorkingFolder
-                    }).ToHashSet()
-                }).ToHashSet();
+                    }).ToList()
+                }).ToList();
         }
     }
 
@@ -63,7 +63,7 @@ namespace IntersectUtilities.ProjectsManager
     {
         [Name("PrjId")]
         public string Name { get; set; }
-        public HashSet<Phase> Phases { get; set; } = new HashSet<Phase>();
+        public List<Phase> Phases { get; set; } = new ();
     }
 
     public class Phase

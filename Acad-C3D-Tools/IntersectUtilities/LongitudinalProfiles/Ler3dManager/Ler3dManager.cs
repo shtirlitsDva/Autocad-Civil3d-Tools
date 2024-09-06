@@ -26,6 +26,7 @@ namespace IntersectUtilities.LongitudinalProfiles
         string GetHandle(Entity ent);
         bool IsPointWithinPolygon(Entity ent, Point3d p3d);
         Entity GetEntityByHandle(string handle);
+        HashSet<Database> GetDatabases();
     }
     public abstract class Ler3dManagerBase : ILer3dManager, IDisposable
     {
@@ -47,6 +48,7 @@ namespace IntersectUtilities.LongitudinalProfiles
         public abstract string GetHandle(Entity ent);
         public abstract bool IsPointWithinPolygon(Entity ent, Point3d p3d);
         public abstract Entity GetEntityByHandle(string handle);
+        public abstract HashSet<Database> GetDatabases();
     }
     public class Ler3dManagerFile : Ler3dManagerBase
     {
@@ -125,6 +127,7 @@ namespace IntersectUtilities.LongitudinalProfiles
 
             return _db.Go<Entity>(handle);
         }
+        public override HashSet<Database> GetDatabases() => new HashSet<Database> { _db };
     }
     public class Ler3dManagerFolder : Ler3dManagerBase
     {
@@ -276,6 +279,7 @@ namespace IntersectUtilities.LongitudinalProfiles
                 $"ERR::2024:03:05:001\n" +
                 $"Received handle {handle} which does not match the regex!");
         }
+        public override HashSet<Database> GetDatabases() => new HashSet<Database>(storage.Values);
     }
     public static class Ler3dManagerFactory
     {

@@ -81,7 +81,7 @@ namespace IntersectUtilities
 
             prdDbg("IntersectUtilites loaded!\n");
 #if DEBUG
-            AppDomain.CurrentDomain.AssemblyResolve += 
+            AppDomain.CurrentDomain.AssemblyResolve +=
                 new ResolveEventHandler(EventHandlers.Debug_AssemblyResolve);
 #endif
         }
@@ -3746,10 +3746,10 @@ namespace IntersectUtilities
 
                     SetDynBlockPropertyObject(br, "PIPESIZE", 80);
                     SetDynBlockPropertyObject(br, "SYSNAVN", "PRTFLEX");
-                    
+
                     br.AttSync();
 
-                    
+
                     #endregion
 
                     #region Test geometry of geojson
@@ -8523,66 +8523,76 @@ namespace IntersectUtilities
             var type = typeof(Polyline3d);
 
             var projects = new ProjectsManager.ProjectsManager();
-            foreach (var project in projects.Projects)
+            foreach (var project in projects.Projects.AsEnumerable().Reverse().Take(20))
             {
                 foreach (var phase in project.Phases)
                 {
                     if (phase.Ler.IsNoE()) continue;
 
-                    var lerman = Ler3dManagerFactory.LoadLer3d(phase.Ler);
-                }
-                
-            }
-
-            using (Transaction tx = localDb.TransactionManager.StartTransaction())
-            {
-                try
-                {
-                    System.Data.DataTable dt = CsvData.FK;
-
-                    PropertySetManager psmPipeLineData = new PropertySetManager(
-                        localDb,
-                        PSetDefs.DefinedSets.DriPipelineData);
-                    PSetDefs.DriPipelineData driPipelineData =
-                        new PSetDefs.DriPipelineData();
-
-                    var ents = localDb.GetFjvEntities(tx, false, false, true);
-
-                    var list = ents.Select(
-                        x => psmPipeLineData.ReadPropertyString(x, driPipelineData.BelongsToAlignment))
-                        .Distinct().OrderBy(x => x);
-
-                    StringGridForm sgf = new StringGridForm(list, "SELECT ALIGNMENT NAME");
-                    sgf.ShowDialog();
-
-                    if (sgf.SelectedValue != null)
+                    ILer3dManager lerman;
+                    try
                     {
-                        var result = ents.Where(x => psmPipeLineData
-                        .FilterPropetyString(x, driPipelineData.BelongsToAlignment, sgf.SelectedValue))
-                        .Select(x => x.Id)
-                        .ToArray();
-
-                        if (result.Length == 0)
-                        {
-                            prdDbg("No entities found with this alignment name!");
-                            tx.Abort();
-                            return;
-                        }
-
-                        docCol.MdiActiveDocument.Editor.SetImpliedSelection(
-                            result
-                            );
+                        lerman = Ler3dManagerFactory.LoadLer3d(phase.Ler);
                     }
-                    else { prdDbg("Cancelled!"); }
+                    catch (System.Exception)
+                    {
+                        prdDbg($"Failed to load LER: {phase.Ler}");
+                        continue;
+                    }
+
+                    foreach (Database lerdb in lerman.GetDatabases())
+                    {
+                        using (Transaction lertx = lerdb.TransactionManager.StartTransaction())
+                        using (Transaction newTx = newDb.TransactionManager.StartTransaction())
+                        {
+                            try
+                            {
+                                ObjectIdCollection idsToClone = new ObjectIdCollection();
+                                var ents = lerdb.HashSetOfType<Polyline3d>(lertx);
+                                foreach (var ent in ents)
+                                    if (predicate1(ent)) idsToClone.Add(ent.Id);
+
+                                if (idsToClone.Count == 0) { lertx.Abort(); newTx.Abort(); continue; }
+
+                                IdMapping idMap = new IdMapping();
+                                lerdb.WblockCloneObjects(idsToClone,
+                                    SymbolUtilityServices.GetBlockModelSpaceId(newDb),
+                                    idMap, DuplicateRecordCloning.Replace, false);
+                            }
+                            catch (System.Exception ex)
+                            {
+                                lertx.Abort();
+                                newTx.Abort();
+                                lerman.Dispose(true);
+                                newDb.Dispose();
+                                prdDbg(ex);
+                                return;
+                            }
+                            lertx.Commit();
+                            newTx.Commit();
+                        }
+                    }
+
+                    lerman.Dispose(true);
                 }
-                catch (System.Exception ex)
-                {
-                    tx.Abort();
-                    prdDbg(ex);
-                    return;
-                }
-                tx.Commit();
             }
+
+            newDb.SaveAs(@"C:\Temp\Collect.dwg", DwgVersion.Current);
+            newDb.Dispose();
+
+            bool predicate1(Entity ent)
+            {
+                if (ent is Polyline3d)
+                {
+                    if (ent.Layer.Contains("Forsyningskabel-10kV")) return true;
+                    else if (ent.Layer.Contains("Stikkabel-10kV")) return true;
+                    else if (ent.Layer.Contains("30kV")) return true;
+                    else if (ent.Layer.Contains("50kV")) return true;
+                }
+                return false;
+            }
+
+
         }
 
         //[CommandMethod("TESTQUIKGRAPH")]
