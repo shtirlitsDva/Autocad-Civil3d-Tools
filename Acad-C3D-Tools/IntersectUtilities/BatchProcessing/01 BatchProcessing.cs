@@ -51,6 +51,7 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Result = IntersectUtilities.Result;
 using System.Diagnostics;
+using Autodesk.AutoCAD.MacroRecorder;
 
 namespace IntersectUtilities
 {
@@ -139,9 +140,6 @@ namespace IntersectUtilities
                                     //        ltr.LineWeight = LineWeight.LineWeight013;
                                     //    }
                                     //}
-                                    #endregion
-                                    #region Stagger labels
-                                    //staggerlabelsallmethod(xDb);
                                     #endregion
                                     #region Set linetypes of xref
                                     //LayerTable extLt = xDb.LayerTableId.Go<LayerTable>(xTx);
@@ -796,6 +794,25 @@ namespace IntersectUtilities
             return new Result();
         }
         [MethodDescription(
+            "Import new projection label styles and stagger all",
+            "Importerer de new projection label styles\n" +
+            "og kører stagger all for at sortere dem")]
+        public static Result fixnewlabelstyles(Database xDb)
+        {
+            try
+            {
+                var ins = new Intersect();
+                ins.importcivilstylesmethod(xDb);
+                ins.staggerlabelsallmethod(xDb, null);
+            }
+            catch (System.Exception ex)
+            {
+                return new Result(ResultStatus.FatalError, ex.ToString());
+            }
+
+            return new Result();
+        }
+        [MethodDescription(
             "Attach a drawing as xref by filename with optional draw order",
             "Attacher en .dwg tegning ved fuldt filnavn,\n" +
             "samtidig giver mulighed for at angive en anden xref\n" +
@@ -917,7 +934,8 @@ namespace IntersectUtilities
             "Detacher en xref i tegningen og attacher den igen\n" +
             "ved navn (uden .dwg), samtidig giver mulighed for\n" +
             "at angive en anden xref den skal placeres under\n" +
-            "eller over i draw order. Der skal kun angives over eller under!",
+            "eller over i draw order. Der skal kun angives over eller under!\n" +
+            "Dwg'en attaches i samme lag som den sad i før.",
             new string[3] { "Xref Navn (uden .dwg)", "Xref Navn til at placere i draw order", "Draw Order type: Over eller Under" })]
         public static Result detachattachdwg(
             Database xDb, string detachXrefName, string drawOrderXref, string drawOrderType)
@@ -1823,6 +1841,88 @@ namespace IntersectUtilities
             return new Result();
         }
         [MethodDescription(
+            "Unfreeze layer(s)\n",
+            "Unfreeze specifikke lag i tegningen.\n" +
+            "Angiv xref navn hvis laget er i en xref\n" +
+            "ellers lad teksten være tom,\n" +
+            "så unfreezes lag i selve tegningen.\n" +
+            "Ved input af flere lag skal\n" +
+            "de enkelte lagnavne deles op med \";\".\n",
+            new string[2] { "Xref name (optional)", "Layer name(s)" })]
+        public static Result unfreezelayer(Database xDb, string xrefName, string layerNamesToThaw)
+        {
+            Transaction xTx = xDb.TransactionManager.TopTransaction;
+            LayerTable extLt = xDb.LayerTableId.Go<LayerTable>(xTx);
+
+            var presentLayerNames = new HashSet<string>();
+            foreach (Oid id in extLt) presentLayerNames.Add(id.Go<LayerTableRecord>(xTx).Name);
+
+            HashSet<string> localLayerNames = presentLayerNames
+                .Where(x => x.Contains("|") == false).ToHashSet();
+
+            Dictionary<string, HashSet<string>> xrefLayerNames = presentLayerNames
+                .Where(x => x.Contains("|"))
+                .GroupBy(x => x.Split('|')[0])
+                .ToDictionary(x => x.Key, x => x.Select(y => y.Split('|')[1])
+                    .ToHashSet());
+
+            var split = layerNamesToThaw.Split(';');
+            if (xrefName.IsNotNoE())
+            {
+                if (xrefLayerNames.ContainsKey(xrefName))
+                {
+                    foreach (string layName in split)
+                    {
+                        foreach (string xrefLayName in xrefLayerNames[xrefName])
+                        {
+                            if (layName == xrefLayName)
+                            {
+                                LayerTableRecord ltr = extLt[xrefName + "|" + layName].Go<LayerTableRecord>(xTx);
+                                ltr.CheckOrOpenForWrite();
+                                ltr.IsFrozen = false;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    prdDbg($"Xref {xrefName} not found in drawing!");
+                }
+            }
+            else
+            {
+                foreach (string layName in split)
+                {
+                    foreach (string xrefLayName in localLayerNames)
+                    {
+                        if (layName == xrefLayName)
+                        {
+                            LayerTableRecord ltr = extLt[layName].Go<LayerTableRecord>(xTx);
+                            ltr.CheckOrOpenForWrite();
+                            ltr.IsFrozen = false;
+                        }
+                    }
+                }
+            }
+
+            foreach (string layName in split)
+            {
+                foreach (Oid oid in extLt)
+                {
+                    LayerTableRecord ltr = oid.Go<LayerTableRecord>(xTx);
+
+                    if (ltr.Name == layName)
+                    {
+                        ltr.CheckOrOpenForWrite();
+                        ltr.IsFrozen = false;
+                        ltr.IsOff = false;
+                    }
+                }
+            }
+
+            return new Result();
+        }
+        [MethodDescription(
             "Change layer for an xref with partial name match",
             "Skifter laget til det angivne\n" +
             "for en xref, hvor navnet på xref'en\n" +
@@ -1897,13 +1997,15 @@ namespace IntersectUtilities
             if (msg.IsNotNoE()) _errorMsg.Add(msg);
         }
         internal List<string> GetMsg() { return _errorMsg; }
-        internal string ErrorMsg { 
-            get 
+        internal string ErrorMsg
+        {
+            get
             {
 
-                return string.Join("\n", _errorMsg); 
+                return string.Join("\n", _errorMsg);
             }
-            set { if (value.IsNotNoE()) _errorMsg.Add(value); } }
+            set { if (value.IsNotNoE()) _errorMsg.Add(value); }
+        }
         internal Result() { }
         internal Result(ResultStatus status, string errorMsg)
         {

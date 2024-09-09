@@ -9,15 +9,18 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Reflection;
 using Autodesk.AutoCAD.DatabaseServices;
+using DarkUI.Forms;
+using DarkUI.Controls;
+using IntersectUtilities.UtilsCommon;
 
 namespace IntersectUtilities
 {
-    public partial class BatchProccessingForm : Form
+    public partial class BatchProccessingForm : DarkForm
     {
         private Type _classType;
         private List<MethodInfo> _methods;
         private int w1 = 50;
-        private int w2 = 300;
+        private int w2 = 200;
         private int w3 = 70;
         private TableLayoutPanel tblp;
         private Dictionary<string, Dictionary<string, object>> _argsDict =
@@ -29,84 +32,7 @@ namespace IntersectUtilities
         public BatchProccessingForm(Counter counter)
         {
             InitializeComponent();
-
-            //get type information
-            _classType = typeof(BatchProcesses);
-            _methods = _classType.GetMethods(
-                BindingFlags.Public | BindingFlags.Static)
-                .ToList();
-
-            //Populate methods arguments dict
-            //this dict is needed to keep track of MethodInfos and their arguments
-            foreach (var method in _methods)
-            {
-                _argsDict.Add(method.Name, new Dictionary<string, object>());
-
-                foreach (var param in method.GetParameters())
-                {
-                    _argsDict[method.Name].Add(param.Name, new object());
-                }
-            }
-
-            //Measure longest label
-            foreach (var method in _methods)
-            {
-                var attr = method.GetCustomAttribute(typeof(MethodDescription));
-                MethodDescription methodDescription = (MethodDescription)attr;
-                w2 = Math.Max(w2, TextRenderer.MeasureText(
-                    methodDescription.ShortDescription, this.Font).Width) + 50;
-            }
-
-            //Set form size
-            this.Width = w1 + w2 + w3 + 50;
-            this.Height = 100 + _methods.Count * 25;
-
-            #region Create_TLP
-            //create a row in the TableLayoutPanel for each method
-            tblp = new TableLayoutPanel();
-            tblp.ColumnCount = 3;
-            tblp.RowCount = 2;
-            tblp.Dock = DockStyle.Fill;
-            tblp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, w1));
-            tblp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, w2));
-            tblp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, w3));
-            this.Controls.Add(tblp);
-            #endregion
-
-            #region Run button and headings
-            //Add "Run" button
-            Button btn_Run = new Button();
-            btn_Run.Text = "Run!";
-            tblp.Controls.Add(btn_Run, 2, 0);
-            tblp.SetColumnSpan(btn_Run, tblp.ColumnCount);
-            btn_Run.Click += (sender, args) => ExecuteSelectedMethods();
-
-            //Add labels
-            Label lbl0 = new Label();
-            lbl0.Text = "Run";
-            lbl0.Width = w1;
-            lbl0.TextAlign = ContentAlignment.MiddleLeft;
-            tblp.Controls.Add(lbl0, 0, 1);
-
-            Label lbl1 = new Label();
-            lbl1.Text = "Beskrivelse af funktion";
-            lbl1.TextAlign = ContentAlignment.MiddleLeft;
-            lbl1.Width = 300;
-            tblp.Controls.Add(lbl1, 1, 1);
-
-            Label lbl2 = new Label();
-            lbl2.Text = "Indstillinger";
-            lbl2.TextAlign = ContentAlignment.MiddleLeft;
-            tblp.Controls.Add(lbl2, 2, 1);
-            #endregion
-
-            for (int i = 0; i < _methods.Count; i++)
-            {
-                tblp.RowCount++;
-                tblp.RowStyles.Add(
-                    new RowStyle(SizeType.AutoSize));
-                AddControlsForMethod(i, counter);
-            }
+            this.Load += (sender, args) => BatchProccessingForm_Load(counter);
         }
 
         private void AddControlsForMethod(int index, Counter counter)
@@ -114,7 +40,7 @@ namespace IntersectUtilities
             var method = _methods[index];
             int rowIdx = index + 2;
 
-            var checkbox = new CheckBox()
+            var checkbox = new DarkCheckBox()
             {
                 Checked = false
             };
@@ -124,7 +50,7 @@ namespace IntersectUtilities
             var attr = method.GetCustomAttribute(typeof(MethodDescription));
             MethodDescription methodDescription = (MethodDescription)attr;
 
-            var label = new Label()
+            var label = new DarkLabel()
             {
                 Text = methodDescription.ShortDescription,
                 TextAlign = ContentAlignment.MiddleLeft,
@@ -139,7 +65,7 @@ namespace IntersectUtilities
                 toolTip.SetToolTip(label, methodDescription.LongDescription);
             };
 
-            var settingsButton = new Button()
+            var settingsButton = new DarkButton()
             {
                 Text = "Edit",
                 Enabled = false,
@@ -168,7 +94,7 @@ namespace IntersectUtilities
                 if (parameters.Length == 1) return;
 
                 //Create form to input method arguments
-                var form = new Form()
+                var form = new DarkForm()
                 {
                     Text = methodDescription.ShortDescription,
                     Size = new Size(400, 300),
@@ -177,12 +103,19 @@ namespace IntersectUtilities
                     ShowInTaskbar = false,
                 };
 
+                var panel2 = new Panel()
+                {
+                    Dock = DockStyle.Fill,
+                    AutoScroll = true,
+                };
+                form.Controls.Add(panel2);
+
                 TableLayoutPanel tblSet = new TableLayoutPanel();
                 tblSet.ColumnCount = 2;
                 tblSet.Dock = DockStyle.Fill;
                 tblSet.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-                tblSet.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-                form.Controls.Add(tblSet);
+                //form.Controls.Add(tblSet);
+                panel2.Controls.Add(tblSet);
 
                 // create input controls for each method parameter
                 for (int i = 0; i < parameters.Length; i++)
@@ -194,7 +127,7 @@ namespace IntersectUtilities
                     //Add row to tblSet
                     tblSet.RowCount++;
 
-                    tblSet.Controls.Add(new Label()
+                    tblSet.Controls.Add(new DarkLabel()
                     {
                         Text = methodDescription.ArgDescriptions[i - 1] + ":",
                         AutoSize = true,
@@ -205,21 +138,22 @@ namespace IntersectUtilities
                     {
                         case Type t when t == typeof(string):
                             {
-                                var textBox = new TextBox()
+                                var textBox = new DarkTextBox()
                                 {
                                     Name = parameter.Name,
                                     Dock = DockStyle.Fill,
                                 };
                                 textBox.TextChanged += (sender2, args2) =>
                                 {
-                                    _argsDict[method.Name][parameter.Name] = textBox.Text;
+                                    _argsDict[method.Name][parameter.Name] = 
+                                        textBox.Text.IsNoE() ? string.Empty : textBox.Text;
                                 };
                                 tblSet.Controls.Add(textBox, 1, tblSet.RowCount - 1);
                             }
                             break;
                         case Type t when t == typeof(DataReferencesOptions):
                             {
-                                var droBtn = new Button()
+                                var droBtn = new DarkButton()
                                 {
                                     Text = "Click",
                                     AutoSize = true,
@@ -235,7 +169,7 @@ namespace IntersectUtilities
                             break;
                         case Type t when t == typeof(Counter):
                             {
-                                var counterBox = new TextBox()
+                                var counterBox = new DarkTextBox()
                                 {
                                     Dock = DockStyle.Fill,
                                     Text = "Counter",
@@ -249,7 +183,7 @@ namespace IntersectUtilities
                             break;
                         case Type t when t == typeof(int):
                             {
-                                var intBox = new TextBox()
+                                var intBox = new DarkTextBox()
                                 {
                                     Dock = DockStyle.Fill,
                                 };
@@ -306,6 +240,95 @@ namespace IntersectUtilities
             }
 
             this.Close();
+        }
+
+        private void BatchProccessingForm_Load(Counter counter)
+        {
+            //get type information
+            _classType = typeof(BatchProcesses);
+            _methods = _classType.GetMethods(
+                BindingFlags.Public | BindingFlags.Static)
+                .ToList();
+
+            //Populate methods arguments dict
+            //this dict is needed to keep track of MethodInfos and their arguments
+            foreach (var method in _methods)
+            {
+                _argsDict.Add(method.Name, new Dictionary<string, object>());
+
+                foreach (var param in method.GetParameters())
+                {
+                    _argsDict[method.Name].Add(param.Name, new object());
+                }
+            }
+
+            //Measure longest label
+            foreach (var method in _methods)
+            {
+                var attr = method.GetCustomAttribute(typeof(MethodDescription));
+                MethodDescription methodDescription = (MethodDescription)attr;
+                w2 = Math.Max(w2, TextRenderer.MeasureText(
+                    methodDescription.ShortDescription, this.Font).Width) + 50;
+            }
+
+            #region Create_TLP
+            //create a row in the TableLayoutPanel for each method
+            tblp = new TableLayoutPanel();
+            tblp.ColumnCount = 3;
+            tblp.RowCount = 2 + _methods.Count;
+            tblp.Dock = DockStyle.Fill;
+            tblp.AutoScroll = true;
+            tblp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, w1));
+            tblp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, w2));
+            tblp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, w3));
+
+            tblp.GrowStyle = TableLayoutPanelGrowStyle.AddRows;
+            tblp.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            tblp.Padding = 
+                new Padding(0, 0, 
+                SystemInformation.VerticalScrollBarWidth, 
+                SystemInformation.HorizontalScrollBarHeight);
+
+            //this.Controls.Add(tblp);
+            panel1.Controls.Add(tblp);
+            #endregion
+
+            #region Run button and headings
+            //Add "Run" button
+            DarkButton btn_Run = new();
+            btn_Run.Text = "Run!";
+            tblp.Controls.Add(btn_Run, 2, 0);
+            tblp.SetColumnSpan(btn_Run, tblp.ColumnCount);
+            btn_Run.Click += (sender, args) => ExecuteSelectedMethods();
+
+            //Add labels
+            DarkLabel lbl0 = new();
+            lbl0.Text = "Run";
+            lbl0.Width = w1;
+            lbl0.TextAlign = ContentAlignment.MiddleLeft;
+            tblp.Controls.Add(lbl0, 0, 1);
+
+            DarkLabel lbl1 = new();
+            lbl1.Text = "Beskrivelse af funktion";
+            lbl1.TextAlign = ContentAlignment.MiddleLeft;
+            lbl1.Width = 300;
+            tblp.Controls.Add(lbl1, 1, 1);
+
+            DarkLabel lbl2 = new();
+            lbl2.Text = "Indstillinger";
+            lbl2.TextAlign = ContentAlignment.MiddleLeft;
+            tblp.Controls.Add(lbl2, 2, 1);
+            #endregion
+
+            for (int i = 0; i < _methods.Count; i++)
+            {
+                AddControlsForMethod(i, counter);
+            }
+
+            //Set form size
+            this.Width = w1 + w2 + w3 + 50;
+            this.Height = 100 + _methods.Count * 25;
         }
     }
 }

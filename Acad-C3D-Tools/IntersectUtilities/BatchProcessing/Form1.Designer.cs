@@ -28,13 +28,32 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 450);
-            this.Text = "Form1";
+            panel1 = new System.Windows.Forms.Panel();
+            SuspendLayout();
+            // 
+            // panel1
+            // 
+            panel1.AutoScroll = true;
+            panel1.Dock = System.Windows.Forms.DockStyle.Fill;
+            panel1.Location = new System.Drawing.Point(0, 0);
+            panel1.Name = "panel1";
+            panel1.Size = new System.Drawing.Size(800, 450);
+            panel1.TabIndex = 0;
+            // 
+            // BatchProccessingForm
+            // 
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            ClientSize = new System.Drawing.Size(800, 450);
+            Controls.Add(panel1);
+            Name = "BatchProccessingForm";
+            Text = "Form1";
+            ResumeLayout(false);
         }
 
         #endregion
+
+        private System.Windows.Forms.Panel panel1;
     }
 }
 

@@ -61,7 +61,6 @@ using System.Text.Json.Nodes;
 using NetTopologySuite.Features;
 using Microsoft.Win32;
 using IntersectUtilities.LongitudinalProfiles;
-using Microsoft.AspNetCore.Mvc.TagHelpers;
 
 [assembly: CommandClass(typeof(IntersectUtilities.Intersect))]
 
@@ -3737,19 +3736,33 @@ namespace IntersectUtilities
             {
                 try
                 {
+                    #region Test layer names list and xrefs
+                    LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    foreach (var id in lt)
+                    {
+                        LayerTableRecord ltr = id.Go<LayerTableRecord>(tx);
+                        if (ltr.Name.Contains("0-KOMPONENT-HATCH"))
+                        {
+                            prdDbg(ltr.Name);
+                            ltr.UpgradeOpen();
+                            ltr.IsFrozen = !ltr.IsFrozen;
+                        }
+                    }
+
+
+                    #endregion
+
                     #region Debug component properties
-                    PromptEntityOptions peo = new PromptEntityOptions("\nSelect block to read parameter: ");
-                    peo.SetRejectMessage("\nNot a block!");
-                    peo.AddAllowedClass(typeof(BlockReference), true);
-                    PromptEntityResult per = ed.GetEntity(peo);
-                    BlockReference br = per.ObjectId.Go<BlockReference>(tx);
+                    //PromptEntityOptions peo = new PromptEntityOptions("\nSelect block to read parameter: ");
+                    //peo.SetRejectMessage("\nNot a block!");
+                    //peo.AddAllowedClass(typeof(BlockReference), true);
+                    //PromptEntityResult per = ed.GetEntity(peo);
+                    //BlockReference br = per.ObjectId.Go<BlockReference>(tx);
 
-                    SetDynBlockPropertyObject(br, "PIPESIZE", 80);
-                    SetDynBlockPropertyObject(br, "SYSNAVN", "PRTFLEX");
+                    //SetDynBlockPropertyObject(br, "PIPESIZE", 80);
+                    //SetDynBlockPropertyObject(br, "SYSNAVN", "PRTFLEX");
 
-                    br.AttSync();
-
-
+                    //br.AttSync();
                     #endregion
 
                     #region Test geometry of geojson
