@@ -12,7 +12,7 @@ namespace NorsynHydraulicCalc
         private int numberOfUnits; // Number of units
 
         // Shared
-        private int deltaTHotWater; // degree
+        private int hotWaterReturnTemp; // degree
         private double factorTillægForOpvarmningUdenBrugsvandsprioritering;
         private double minDifferentialPressureOverHovedHaner; // bar
 
@@ -59,7 +59,7 @@ namespace NorsynHydraulicCalc
             int numberOfUnits, // Number of units
 
             // Shared
-            int deltaTHotWater, // degree
+            int hotWaterReturnTemp, // degree
             double factorTillægForOpvarmningUdenBrugsvandsprioritering,
             double minDifferentialPressureOverHovedHaner, // bar
 
@@ -96,7 +96,7 @@ namespace NorsynHydraulicCalc
             this.numberOfUnits = numberOfUnits;
 
             // Shared
-            this.deltaTHotWater = deltaTHotWater;
+            this.hotWaterReturnTemp = hotWaterReturnTemp;
             this.factorTillægForOpvarmningUdenBrugsvandsprioritering = factorTillægForOpvarmningUdenBrugsvandsprioritering;
             this.minDifferentialPressureOverHovedHaner = minDifferentialPressureOverHovedHaner;
 
@@ -131,21 +131,40 @@ namespace NorsynHydraulicCalc
         private int N1 =>
             segmentType == SegmentType.Fordelingsledning ? nyttetimerOneUserFL : nyttetimerOneUserSL;
         private int N50 => nyttetimer50PlusUsersFL;
-        private int dT =>
+        /// <summary>
+        /// Heating delta temperature
+        /// </summary>
+        private int dT1 =>
             segmentType == SegmentType.Fordelingsledning ? tempFremFL - tempReturFL : tempFremSL - tempReturSL;
+        /// <summary>
+        /// Hot water delta temperature
+        /// </summary>
+        private int dT2 =>
+            segmentType == SegmentType.Fordelingsledning
+            ? tempFremFL - hotWaterReturnTemp
+            : tempFremSL - hotWaterReturnTemp;
         private int Tmed =>
             segmentType == SegmentType.Fordelingsledning
             ? (tempFremFL + tempReturFL + 1) / 2
             : (tempFremSL + tempReturSL + 1) / 2;
         private double rho(int T) => LookupData.rho[T];
         private double cp(int T) => LookupData.cp[T];
+        private double KX => factorTillægForOpvarmningUdenBrugsvandsprioritering;
+        private double f_b =>
+            segmentType == SegmentType.Fordelingsledning ? factorVarmtVandsTillægFL : factorVarmtVandsTillægSL;
 
         public void Calculate()
         {
             double s_heat = N1 / N50 + (1 - N1 / N50) / numberOfClients;
             double s_hw = (51 - numberOfUnits) / (50 * Math.Sqrt(numberOfUnits));
+            double volume = 3600 / (rho(Tmed) * cp(Tmed) * Tmed);
 
-            double dimFlow1 = (totalHeatingDemand * 1000 / N1) * s_heat * 3600 / (rho(Tmed) * cp(Tmed) * Tmed);
+            double dimFlow1 = (totalHeatingDemand * 1000 / N1) * s_heat * volume;
+            double dimFlow2 = (totalHeatingDemand * 1000 / N1) * s_heat * KX * volume
+                + numberOfUnits * 33 * f_b * s_hw * volume;
+
+            Console.WriteLine($"Frem: {(3600 / (rho(tempFremSL) * cp(tempFremSL) * dT1)).ToString("F8")}");
+            Console.WriteLine($"Retur: {(3600 / (rho(tempReturSL) * cp(tempReturSL) * dT1)).ToString("F8")}");
         }
     }
 
