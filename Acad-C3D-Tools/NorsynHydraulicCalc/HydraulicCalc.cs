@@ -1,11 +1,21 @@
-﻿using System;
+﻿using NorsynHydraulicCalc.Pipes;
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace NorsynHydraulicCalc
 {
     public class HydraulicCalc
     {
+        #region Static properties for max flow pipe table
+        private static HydraulicCalc currentInstance;
+        private static List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> maxFlowTableFL;
+        private static List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> maxFlowTableSL;
+        #endregion
+
         #region Private properties
         // From client blocks
         private SegmentType segmentType; // Type of segment
@@ -36,7 +46,7 @@ namespace NorsynHydraulicCalc
         private int tempReturSL; // degree
         private double factorVarmtVandsTillægSL;
         private int nyttetimerOneUserSL;
-        private string pipeTypeSL;
+        private PipeType pipeTypeSL;
         private double acceptVelocityFlexibleSL; // m/s
         private double acceptVelocity20_150SL; // m/s
         private int acceptPressureGradientFlexibleSL; // Pa/m
@@ -120,15 +130,60 @@ namespace NorsynHydraulicCalc
             this.tempReturSL = tempReturSL;
             this.factorVarmtVandsTillægSL = factorVarmtVandsTillægSL;
             this.nyttetimerOneUserSL = nyttetimerOneUserSL;
-            this.pipeTypeSL = pipeTypeSL;
+            this.pipeTypeSL = (PipeType)Enum.Parse(typeof(PipeType), pipeTypeSL);
             this.acceptVelocityFlexibleSL = acceptVelocityFlexibleSL;
             this.acceptVelocity20_150SL = acceptVelocity20_150SL;
             this.acceptPressureGradientFlexibleSL = acceptPressureGradientFlexibleSL;
             this.acceptPressureGradient20_150SL = acceptPressureGradient20_150SL;
             this.maxPressureLossStikSL = maxPressureLossStikSL;
+
+            Initialize();
         }
         #endregion
 
+        public void Initialize()
+        {
+            if (currentInstance == null || !AreInstancesEqual(this, currentInstance))
+            {
+                currentInstance = this;
+
+                CalculateMaxFlowValues();
+            }
+        }
+
+        private static void CalculateMaxFlowValues()
+        {
+            maxFlowTableFL = new List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)>();
+            maxFlowTableSL = new List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)>();
+
+            #region Populate maxFlowTableFL
+            //Populate maxFlowTableFL
+            {
+                if (currentInstance.usePertFlextraFL)
+                {
+                    foreach (var dim in PipeTypes.PertFlextra.GetDimsRange(32, currentInstance.pertFlextraMaxDnFL))
+                    {
+                        maxFlowTableFL.Add((dim, 
+                            CalculateMaxFlow(dim, TempSetType.Supply),
+                            CalculateMaxFlow(dim, TempSetType.Return));
+                    }
+                }
+                else
+                {
+                    
+                }
+            } 
+            #endregion
+        }
+
+        private static double CalculateMaxFlow(Dim dim, TempSetType tempSetType)
+        {
+            
+
+            return maxFlow;
+        }
+
+        #region Properties aliases to handle different types
         // Properties depenedent on segmentType
         private int N1 =>
             segmentType == SegmentType.Fordelingsledning ? nyttetimerOneUserFL : nyttetimerOneUserSL;
@@ -205,6 +260,7 @@ namespace NorsynHydraulicCalc
         private double f_b =>
             segmentType == SegmentType.Fordelingsledning ? factorVarmtVandsTillægFL : factorVarmtVandsTillægSL;
         private double volume(int temp, int deltaT) => 3600 / (rho(temp) * cp(temp) * deltaT);
+        #endregion
 
         public void Calculate()
         {
@@ -246,6 +302,26 @@ namespace NorsynHydraulicCalc
 
         }
 
+        private bool AreInstancesEqual(HydraulicCalc instance1, HydraulicCalc instance2)
+        {
+            if (instance1 == null || instance2 == null) return false;
+
+            Type type = typeof(HydraulicCalc);
+
+            foreach (PropertyInfo property in type.GetProperties(BindingFlags.Instance | BindingFlags.NonPublic))
+            {
+                object value1 = property.GetValue(instance1);
+                object value2 = property.GetValue(instance2);
+
+                if (value1 == null && value2 == null) continue;
+
+                if (value1 == null || value2 == null) return false;
+
+                if (!value1.Equals(value2)) return false;
+            }
+
+            return true;
+        }
         public static string CreateAsciiTable(List<(string, List<double>)> columns, List<string> rowNames, string format)
         {
             // Ensure that rowNames match the number of rows
@@ -284,5 +360,19 @@ namespace NorsynHydraulicCalc
     {
         Fordelingsledning,
         Stikledning
+    }
+
+    public enum PipeType
+    {
+        Stål,
+        PertFlextra,
+        AluPEX,
+        Kobber
+    }
+
+    public enum TempSetType
+    {
+        Supply,
+        Return
     }
 }

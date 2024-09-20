@@ -6,5 +6,9 @@ namespace NorsynHydraulicCalc.Pipes
 {
     internal class PipeAluPex : PipeBase
     {
+        protected override string Name => "PipeAluPex";
+        protected override PipeType PipeType => PipeType.AluPEX;
+        protected override string DimName => "AluPEX ";
+        protected override double Roughness_m => 0.00001;
     }
 }
