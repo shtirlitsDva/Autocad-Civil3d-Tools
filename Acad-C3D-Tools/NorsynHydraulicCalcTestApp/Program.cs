@@ -2,15 +2,16 @@
 using NorsynHydraulicCalc;
 
 HydraulicCalc hc = new HydraulicCalc(
-    "Stikledning",
-    12, //Total heating demand
+    "Fordelingsledning",
+    50, //Total heating demand
     1, //Number of clients
     1, //Number of units
     50, //Hot water return temp
     0.6, //FactorTillægForOpvarmningUdenBrugsvandsprioritering
     0.5, //MinDifferentialPressureOverHovedHaner
+
     110, //TempFremFL
-    50, //TempReturFL
+    60, //TempReturFL
     1, //FactorVarmtVandsTillægFL
     2000, //NyttetimerOneUserFL
     2800, //Nyttetimer50PlusUsersFL
@@ -18,10 +19,11 @@ HydraulicCalc hc = new HydraulicCalc(
     2.5, //AcceptVelocity200_300FL
     100, //AcceptPressureGradient20_150FL
     100, //AcceptPressureGradient200_300FL
-    "Stål", //PipeTypeFL
+    true, //UsePertFlextraFL
     75, //PertFlextraMaxDnFL
+
     110, //TempFremSL
-    50, //TempReturSL
+    60, //TempReturSL
     1, //FactorVarmtVandsTillægSL
     2000, //NyttetimerOneUserSL
     "AluPex", //PipeTypeSL
