@@ -141,6 +141,9 @@ namespace NorsynHydraulicCalc
         }
         #endregion
 
+        #region Initialize the max flow table
+        
+
         public void Initialize()
         {
             if (currentInstance == null || !AreInstancesEqual(this, currentInstance))
@@ -163,27 +166,69 @@ namespace NorsynHydraulicCalc
                 {
                     foreach (var dim in PipeTypes.PertFlextra.GetDimsRange(32, currentInstance.pertFlextraMaxDnFL))
                     {
-                        maxFlowTableFL.Add((dim, 
-                            CalculateMaxFlow(dim, TempSetType.Supply),
-                            CalculateMaxFlow(dim, TempSetType.Return));
+                        maxFlowTableFL.Add((dim,
+                            CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Fordelingsledning),
+                            CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Fordelingsledning)));
                     }
                 }
                 else
                 {
-                    
+
                 }
-            } 
+            }
             #endregion
         }
 
-        private static double CalculateMaxFlow(Dim dim, TempSetType tempSetType)
+        private static double CalculateMaxFlow(Dim dim, TempSetType tempSetType, SegmentType st)
         {
-            
+            double vmax = currentInstance.Vmax(dim, st);
+            double dPdx_max = currentInstance.dPdx_max(dim, st);
+
+            double D_m = dim.InnerDiameter_mm / 1000;
+            double A = dim.CrossSectionArea;
+
+            //Max flow rate based on velocity limit
+            double Qmax_velocity_m3s = vmax * A;
 
             return maxFlow;
         }
+        #endregion
 
         #region Properties aliases to handle different types
+        #region Properties for general max flow calculation
+        private double Vmax(Dim dim, SegmentType st)
+        {
+            switch (st)
+            {
+                case SegmentType.Fordelingsledning:
+                    if (dim.NominalDiameter <= 150) return acceptVelocity20_150FL;
+                    else return acceptVelocity200_300FL;
+                    //TODO: Find out what pipe types are considered flexible?
+                    //Here it is assumed that all are flexible except steel
+                case SegmentType.Stikledning:
+                    if (dim.PipeType !=  PipeType.Stål) return acceptVelocityFlexibleSL;
+                    else return acceptVelocity20_150SL;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+        private double dPdx_max(Dim dim, SegmentType st)
+        {
+            switch (st)
+            {
+                case SegmentType.Fordelingsledning:
+                    if (dim.NominalDiameter <= 150) return acceptPressureGradient20_150FL;
+                    else return acceptPressureGradient200_300FL;
+                case SegmentType.Stikledning:
+                    if (dim.PipeType != PipeType.Stål) return acceptPressureGradientFlexibleSL;
+                    else return acceptPressureGradient20_150SL;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+        #endregion
+
+        #region Properties for instance segment calculations
         // Properties depenedent on segmentType
         private int N1 =>
             segmentType == SegmentType.Fordelingsledning ? nyttetimerOneUserFL : nyttetimerOneUserSL;
@@ -205,10 +250,12 @@ namespace NorsynHydraulicCalc
         private int Tr =>
             segmentType == SegmentType.Fordelingsledning ? tempReturFL : tempReturSL;
         private int Tr_hw => hotWaterReturnTemp;
-        //private int Tmed =>
-        //    segmentType == SegmentType.Fordelingsledning
-        //    ? (tempFremFL + tempReturFL + 1) / 2
-        //    : (tempFremSL + tempReturSL + 1) / 2;
+        private double f_b =>
+            segmentType == SegmentType.Fordelingsledning ? factorVarmtVandsTillægFL : factorVarmtVandsTillægSL;
+        private double KX => factorTillægForOpvarmningUdenBrugsvandsprioritering; 
+        #endregion
+
+        #region Water properties
         private double rho(int T)
         {
             if (LookupData.rho.TryGetValue(T, out double value))
@@ -256,10 +303,8 @@ namespace NorsynHydraulicCalc
             }
             throw new ArgumentException($"Temperature out of range for \"nu\": {T}, allowed values: 0 - 200.");
         }
-        private double KX => factorTillægForOpvarmningUdenBrugsvandsprioritering;
-        private double f_b =>
-            segmentType == SegmentType.Fordelingsledning ? factorVarmtVandsTillægFL : factorVarmtVandsTillægSL;
-        private double volume(int temp, int deltaT) => 3600 / (rho(temp) * cp(temp) * deltaT);
+        private double volume(int temp, int deltaT) => 3600 / (rho(temp) * cp(temp) * deltaT); 
+        #endregion
         #endregion
 
         public void Calculate()

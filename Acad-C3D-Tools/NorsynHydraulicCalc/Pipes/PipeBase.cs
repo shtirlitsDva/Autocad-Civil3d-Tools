@@ -55,7 +55,8 @@ namespace NorsynHydraulicCalc.Pipes
                         double.Parse(parts[3], CultureInfo.InvariantCulture),
                         double.Parse(parts[4], CultureInfo.InvariantCulture),
                         Roughness_m,
-                        DimName
+                        DimName,
+                        PipeType
                     );
 
                     dict.Add(dim.NominalDiameter, dim);
