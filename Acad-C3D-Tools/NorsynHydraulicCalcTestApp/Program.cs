@@ -26,7 +26,7 @@ HydraulicCalc hc = new HydraulicCalc(
     60, //TempReturSL
     1, //FactorVarmtVandsTillægSL
     2000, //NyttetimerOneUserSL
-    "AluPex", //PipeTypeSL
+    "AluPEX", //PipeTypeSL
     1, //AcceptVelocityFlexibleSL
     1.5, //AcceptVelocity20_150SL
     600, //AcceptPressureGradientFlexibleSL

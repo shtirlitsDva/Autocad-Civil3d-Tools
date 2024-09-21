@@ -12,7 +12,7 @@ namespace NorsynHydraulicCalc.Pipes
         abstract protected PipeType PipeType { get; }
         abstract protected double Roughness_m { get; }
         abstract protected string DimName { get; }
-        private protected Dictionary<int, Dim> Sizes { get; }
+        private protected Dictionary<int, Dim> Sizes { get; private set; }
         public PipeBase()
         {
             LoadDimsFromEmbeddedResource();
@@ -25,9 +25,15 @@ namespace NorsynHydraulicCalc.Pipes
                 .OrderBy(kvp => kvp.Key)
                 .Select(kvp => kvp.Value);
         }
+        internal IEnumerable<Dim> GetAllDimsSorted()
+        {
+            return Sizes
+                .OrderBy(kvp => kvp.Key)
+                .Select(kvp => kvp.Value);
+        }
         private void LoadDimsFromEmbeddedResource()
         {
-            var dict = new Dictionary<int, Dim>();
+            Sizes = new Dictionary<int, Dim>();
 
             // Load the dictionary from an embedded resource
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
@@ -59,7 +65,7 @@ namespace NorsynHydraulicCalc.Pipes
                         PipeType
                     );
 
-                    dict.Add(dim.NominalDiameter, dim);
+                    Sizes.Add(dim.NominalDiameter, dim);
                 }
             }
         }

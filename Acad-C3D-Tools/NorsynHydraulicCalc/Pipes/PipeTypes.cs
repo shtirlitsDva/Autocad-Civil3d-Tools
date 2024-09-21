@@ -6,9 +6,16 @@ namespace NorsynHydraulicCalc.Pipes
 {
     internal static class PipeTypes
     {
-        public static PipeSteel Stål = new PipeSteel();
-        public static PipeAluPex AluPex = new PipeAluPex();
-        public static PipePertFlextra PertFlextra = new PipePertFlextra();
-        public static PipeCu Cu = new PipeCu();
+        private static Lazy<PipeSteel> _stål = new Lazy<PipeSteel>(() => new PipeSteel());
+        public static PipeSteel Stål => _stål.Value;
+
+        private static Lazy<PipeAluPex> _aluPex = new Lazy<PipeAluPex>(() => new PipeAluPex());
+        public static PipeAluPex AluPex => _aluPex.Value;
+
+        private static Lazy<PipePertFlextra> _pertFlextra = new Lazy<PipePertFlextra>(() => new PipePertFlextra());
+        public static PipePertFlextra PertFlextra => _pertFlextra.Value;
+
+        private static Lazy<PipeCu> _cu = new Lazy<PipeCu>(() => new PipeCu());
+        public static PipeCu Cu => _cu.Value;
     }
 }
