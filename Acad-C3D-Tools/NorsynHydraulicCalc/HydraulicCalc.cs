@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -156,7 +157,9 @@ namespace NorsynHydraulicCalc
                 CalculateMaxFlowValues();
             }
         }
-
+        private static double ColebrookTime_ms = 0.0;
+        private static double SwameeJainTime_ms = 0.0;
+        private static double TkachenkoMielkovskyi_ms = 0.0;
         private static void CalculateMaxFlowValues()
         {
             maxFlowTableFL = new List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)>();
@@ -166,17 +169,24 @@ namespace NorsynHydraulicCalc
             //Setup reporting
             reportingColumnNames = new List<string>()
             {
-                "v max", "Di", "Tv.sn.A", "Q max v", "dPdx max", "Rel. ruhed", "Densitet", "Kin. Visc.", "Q max dPdx"
+                "v max", "Di", "Tv.sn.A", "Q max v", "dPdx max", "Rel. ruhed", "Densitet", "Kin. Visc.",
+                "Q max dPdx CW"
 
             };
             reportingUnits = new List<string>()
             {
-                "[m/s]", "[m]", "[m²]", "[m³/hr]", "[Pa/m]", "[]", "[kg/m³]", "[m²/s]", "[m³/hr]"
+                "[m/s]", "[m]", "[m²]", "[m³/hr]", "[Pa/m]", "[]", "[kg/m³]", "[m²/s]",
+                "[m³/hr]"
 
             };
 
             reportingRowsFL = new List<(string, List<double>)>();
             reportingRowsSL = new List<(string, List<double>)>();
+
+            //Reset calculation timers
+            ColebrookTime_ms = 0.0;
+            SwameeJainTime_ms = 0.0;
+            TkachenkoMielkovskyi_ms = 0.0;
             #endregion
 
             var translationBetweenMaxPertAndMinStål = new Dictionary<int, int>()
@@ -251,6 +261,7 @@ namespace NorsynHydraulicCalc
             }
             #endregion
 
+            #region Reporting
             //Print report
             Console.WriteLine(
                 AsciiTableFormatter.CreateAsciiTableRows(
@@ -259,7 +270,15 @@ namespace NorsynHydraulicCalc
             Console.WriteLine(
                 AsciiTableFormatter.CreateAsciiTableRows(
                     "Stikledninger", reportingRowsSL, reportingColumnNames, reportingUnits, "F6"));
+            Console.WriteLine();
+
+            Console.WriteLine($"Calculation timers:\n" +
+                $"Colebrook-White:       {ColebrookTime_ms} ms\n" +
+                $"Swamee-Jain:           {SwameeJainTime_ms} ms\n" +
+                $"Tkachenko-Mielkovskyi: {TkachenkoMielkovskyi_ms} ms");
+            #endregion
         }
+
         private static double CalculateMaxFlow(Dim dim, TempSetType tempSetType, SegmentType st)
         {
             double vmax = currentInstance.Vmax(dim, st);
@@ -270,8 +289,8 @@ namespace NorsynHydraulicCalc
             double Qmax_velocity_m3s = vmax * A;
             double Qmax_velocity_m3hr = Qmax_velocity_m3s * 3600; // m^3/hr
 
-            //Max flow rate based on prssure gradient limit
-            double Qmax_pressure_m3hr = FindQmaxPressure(dim, tempSetType, st);
+            //Max flow rate based on pressure gradient using Colebrook-White
+            double Qmax_pressure_CW_m3hr = FindQmaxPressure(dim, tempSetType, st, Calc.Colebrook);
 
             #region Reporting
             string rowName = $"{dim.DimName} {tempSetType}";
@@ -280,7 +299,7 @@ namespace NorsynHydraulicCalc
                 vmax, dim.InnerDiameter_m, dim.CrossSectionArea, Qmax_velocity_m3hr,
                 currentInstance.dPdx_max(dim, st), dim.Roughness_m / dim.InnerDiameter_m,
                 rho(currentInstance.Temp(tempSetType, st)), nu(currentInstance.Temp(tempSetType, st)),
-                Qmax_pressure_m3hr
+                Qmax_pressure_CW_m3hr
             };
             switch (st)
             {
@@ -295,78 +314,64 @@ namespace NorsynHydraulicCalc
             }
             #endregion
 
-            return Math.Min(Qmax_velocity_m3hr, Qmax_pressure_m3hr);
+            return Math.Min(Qmax_velocity_m3hr, Qmax_pressure_CW_m3hr);
         }
-        private static double FindQmaxPressure(Dim dim, TempSetType tempSetType, SegmentType st)
+        private static double FindQmaxPressure(Dim dim, TempSetType tempSetType, SegmentType st, Calc calc)
         {
-            double Q_lower_m3hr = 0.0;
-            double Q_upper_m3hr = 10000.0;
+            double dp_dx = currentInstance.dPdx_max(dim, st);
+            double D = dim.InnerDiameter_m;
+            double A = dim.CrossSectionArea;
+            double epsilon = dim.Roughness_m;
+            double relRoughness = dim.Roughness_m / D;
+            double density = rho(currentInstance.Temp(tempSetType, st));
+            double kinViscosity = nu(currentInstance.Temp(tempSetType, st));
 
-            double tolerance = 1e-6;
-            int maxIterations = 100;
-            int iteration = 0;
+            double flowRate = 0.01;
+            double velocity = flowRate / A;
+            double Re = density * velocity * D / kinViscosity;
+            double newFlowRate;
+            bool converged = false;
 
-            double f_lower = PressureGradientFunction(dim, tempSetType, st, Q_lower_m3hr);
-            double f_upper = PressureGradientFunction(dim, tempSetType, st, Q_upper_m3hr);
-
-            // Ensure the root is bracketed
-            while (f_lower * f_upper > 0 && iteration < maxIterations)
+            for (int i = 0; i < 100; i++)
             {
-                Q_upper_m3hr *= 2.0;
-                f_upper = PressureGradientFunction(dim, tempSetType, st, Q_upper_m3hr);
-                iteration++;
-            }
+                double f = CalculateFrictionFactorTkachenkoMielkovskyi(Re, relRoughness);
 
-            if (iteration >= maxIterations)
-                throw new Exception("Cannot find suitable upper bound for bisection method.");
+                newFlowRate = Math.Sqrt(2 * dp_dx * Math.Pow(A, 2) / (f * density));
 
-            iteration = 0;
-            double Q_mid_m3hr = 0.0;
-
-            while (iteration < maxIterations)
-            {
-                Q_mid_m3hr = (Q_lower_m3hr + Q_upper_m3hr) / 2.0;
-                double f_mid = PressureGradientFunction(dim, tempSetType, st, Q_mid_m3hr);
-
-                if (Math.Abs(f_mid) < tolerance) break; // Solution found
-
-                if (f_lower * f_mid < 0)
+                if (Math.Abs(newFlowRate - flowRate) < 1e-6) // Convergence tolerance
                 {
-                    Q_upper_m3hr = Q_mid_m3hr;
-                    f_upper = f_mid;
-                }
-                else
-                {
-                    Q_lower_m3hr = Q_mid_m3hr;
-                    f_lower = f_mid;
+                    converged = true;
+                    break;
                 }
 
-                iteration++;
+                flowRate = newFlowRate;
+                velocity = flowRate / A;
+                Re = density * velocity * D / kinViscosity;
             }
 
-            if (iteration >= maxIterations)
-                throw new Exception("Bisection method did not converge.");
+            if (!converged)
+                throw new Exception("Did not converge!");
 
-            return Q_mid_m3hr;
+            return flowRate * 3600;
         }
-        private static double PressureGradientFunction(Dim dim, TempSetType tempSetType, SegmentType st, double Q_m3hr)
+        private static double CalculateFrictionFactorTkachenkoMielkovskyi(double Re, double relativeRoughness)
         {
-            double dPdx_max = currentInstance.dPdx_max(dim, st);
+            double f0inverseHalf = -0.79638 * Math.Log(relativeRoughness / 8.208 + 7.3357 / Re);
+            double f0 = Math.Pow(f0inverseHalf, -2);
 
-            double Q_m3s = Q_m3hr / 3600.0; // Convert flow rate to m³/s
-            if (Q_m3s == 0) return -dPdx_max;
+            double a1 = Re * relativeRoughness + 9.3120665 * f0inverseHalf;
 
-            double V = Q_m3s / dim.CrossSectionArea; // Velocity in m/s
-            double Re = V * dim.InnerDiameter_m / nu(currentInstance.Temp(tempSetType, st)); // Reynolds number
-            if (Re == 0) return -dPdx_max;
+            double term1 = (8.128943 + a1) / (8.128943 * f0inverseHalf - 0.86859209 * a1 * Math.Log(a1 / (3.7099535 * Re)));
+            double f = Math.Pow(term1, 2);
 
-            double relativeRoughness = dim.Roughness_m / dim.InnerDiameter_m;
-            // Swamee-Jain equation for friction factor
-            double f = 0.25 / Math.Pow(Math.Log10((relativeRoughness / 3.7) + (5.74 / Math.Pow(Re, 0.9))), 2);
-
-            double dPdx = (f * rho(currentInstance.Temp(tempSetType, st)) * V * V) / (2 * dim.InnerDiameter_m); // Pressure gradient in Pa/m
-
-            return dPdx - dPdx_max;
+            return f;
+        }
+        private static double CalculateFrictionFactorLaminar(double Re) => 64.0 / Re;
+        private enum Calc
+        {
+            Colebrook,
+            SwameeJain,
+            TkachenkoMielkovskyi
         }
         #endregion
 
@@ -480,7 +485,7 @@ namespace NorsynHydraulicCalc
         }
         private static double nu(int T)
         {
-            if (LookupData.nu.TryGetValue(T, out double value)) return value;
+            if (LookupData.nu.TryGetValue(T, out double value)) return value * 10e-6;
             else if (T > 0 && T < 201)
             {
                 int lowerkey = LookupData.nu.Keys.Where(k => k < T).Max();
@@ -489,7 +494,22 @@ namespace NorsynHydraulicCalc
                 double lowerValue = LookupData.nu[lowerkey];
                 double upperValue = LookupData.nu[upperkey];
                 //Interpolate
-                return lowerValue + (upperValue - lowerValue) * ((T - lowerkey) / (double)(upperkey - lowerkey));
+                return (lowerValue + (upperValue - lowerValue) * ((T - lowerkey) / (double)(upperkey - lowerkey))) * 10e-6;
+            }
+            throw new ArgumentException($"Temperature out of range for \"nu\": {T}, allowed values: 0 - 200.");
+        }
+        private static double mu(int T)
+        {
+            if (LookupData.mu.TryGetValue(T, out double value)) return value;
+            else if (T > 0 && T < 201)
+            {
+                int lowerkey = LookupData.mu.Keys.Where(k => k < T).Max();
+                int upperkey = LookupData.mu.Keys.Where(k => k > T).Min();
+
+                double lowerValue = LookupData.mu[lowerkey];
+                double upperValue = LookupData.mu[upperkey];
+                //Interpolate
+                return (lowerValue + (upperValue - lowerValue) * ((T - lowerkey) / (double)(upperkey - lowerkey)));
             }
             throw new ArgumentException($"Temperature out of range for \"nu\": {T}, allowed values: 0 - 200.");
         }
