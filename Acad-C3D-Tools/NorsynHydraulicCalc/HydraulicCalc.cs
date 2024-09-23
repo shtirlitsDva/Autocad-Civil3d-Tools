@@ -62,10 +62,10 @@ namespace NorsynHydraulicCalc
         #endregion
 
         // Output
-        public string segmentTypeResult { get; private set; }
-        public string pipeTypeResult { get; private set; }
-        public double pressureGradientResult { get; private set; }
-        public double velocityResult { get; private set; }
+        public string SegmentTypeResult { get; private set; }
+        public string PipeTypeResult { get; private set; }
+        public double PressureGradientResult { get; private set; }
+        public double VelocityResult { get; private set; }
 
         #region Constructor
         public HydraulicCalc(
@@ -632,7 +632,63 @@ namespace NorsynHydraulicCalc
             Console.WriteLine(AsciiTableFormatter.CreateAsciiTableColumns(columns, rowNames, "F6"));
             Console.WriteLine();
 
+            double flow = new[] { dimFlow1Frem, dimFlow2Frem, dimFlow1Retur, dimFlow2Retur }.Max();
 
+            var dim = determineDim(flow, TempSetType.Return);
+
+            double velocity = flow / dim.CrossSectionArea;
+            double reynolds = 
+                rho(this.Temp(TempSetType.Return, this.segmentType))
+                * velocity 
+                * dim.InnerDiameter_m
+                / mu(this.Temp(TempSetType.Return, this.segmentType));
+
+
+        }
+
+        private Dim determineDim(double flow, TempSetType tst)
+        {
+            switch (this.segmentType)
+            {
+                case SegmentType.Fordelingsledning:
+                    for (int i = 0; i < maxFlowTableFL.Count; i++)
+                    {
+                        var cur = maxFlowTableFL[i];
+                        switch (tst)
+                        {
+                            case TempSetType.Supply:
+                                if (flow >= cur.MaxFlowFrem) continue;
+                                return cur.Dim;
+                            case TempSetType.Return:
+                                if (flow >= cur.MaxFlowReturn) continue;
+                                return cur.Dim;
+                            default:
+                                throw new NotImplementedException();
+                        }
+                    }
+                    break;
+                case SegmentType.Stikledning:
+                    for (int i = 0; i < maxFlowTableSL.Count; i++)
+                    {
+                        var cur = maxFlowTableSL[i];
+                        switch (tst)
+                        {
+                            case TempSetType.Supply:
+                                if (flow >= cur.MaxFlowFrem) continue;
+                                return cur.Dim;
+                            case TempSetType.Return:
+                                if (flow >= cur.MaxFlowReturn) continue;
+                                return cur.Dim;
+                            default:
+                                throw new NotImplementedException();
+                        }
+                    }
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+
+            throw new Exception("No suitable dimension found!");
         }
 
         private bool AreInstancesEqual(HydraulicCalc instance1, HydraulicCalc instance2)
