@@ -5,10 +5,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Pipes\Sizes\PipeAluPexSizes.csv" />
+    <None Remove="Pipes\Sizes\PipeCuSizes.csv" />
+    <None Remove="Pipes\Sizes\PipePertFlextraSizes.csv" />
     <None Remove="Pipes\Sizes\PipeSteelSizes.csv" />
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Pipes\Sizes\PipeAluPexSizes.csv" />
+    <EmbeddedResource Include="Pipes\Sizes\PipeCuSizes.csv" />
+    <EmbeddedResource Include="Pipes\Sizes\PipePertFlextraSizes.csv" />
     <EmbeddedResource Include="Pipes\Sizes\PipeSteelSizes.csv" />
   </ItemGroup>
 

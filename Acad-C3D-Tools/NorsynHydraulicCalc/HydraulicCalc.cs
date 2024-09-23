@@ -1,11 +1,26 @@
-﻿using System;
+﻿using NorsynHydraulicCalc.Pipes;
+
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace NorsynHydraulicCalc
 {
     public class HydraulicCalc
     {
+        #region Static properties for max flow pipe table
+        private static HydraulicCalc currentInstance;
+        private static List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> maxFlowTableFL;
+        private static List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> maxFlowTableSL;
+        private static List<string> reportingColumnNames;
+        private static List<string> reportingUnits;
+        private static List<(string, List<double>)> reportingRowsFL;
+        private static List<(string, List<double>)> reportingRowsSL;
+        #endregion
+
         #region Private properties
         // From client blocks
         private SegmentType segmentType; // Type of segment
@@ -36,7 +51,7 @@ namespace NorsynHydraulicCalc
         private int tempReturSL; // degree
         private double factorVarmtVandsTillægSL;
         private int nyttetimerOneUserSL;
-        private string pipeTypeSL;
+        private PipeType pipeTypeSL;
         private double acceptVelocityFlexibleSL; // m/s
         private double acceptVelocity20_150SL; // m/s
         private int acceptPressureGradientFlexibleSL; // Pa/m
@@ -120,15 +135,295 @@ namespace NorsynHydraulicCalc
             this.tempReturSL = tempReturSL;
             this.factorVarmtVandsTillægSL = factorVarmtVandsTillægSL;
             this.nyttetimerOneUserSL = nyttetimerOneUserSL;
-            this.pipeTypeSL = pipeTypeSL;
+            this.pipeTypeSL = (PipeType)Enum.Parse(typeof(PipeType), pipeTypeSL);
             this.acceptVelocityFlexibleSL = acceptVelocityFlexibleSL;
             this.acceptVelocity20_150SL = acceptVelocity20_150SL;
             this.acceptPressureGradientFlexibleSL = acceptPressureGradientFlexibleSL;
             this.acceptPressureGradient20_150SL = acceptPressureGradient20_150SL;
             this.maxPressureLossStikSL = maxPressureLossStikSL;
+
+            Initialize();
         }
         #endregion
 
+        #region Initialize the max flow table
+
+        public void Initialize()
+        {
+            if (currentInstance == null || !AreInstancesEqual(this, currentInstance))
+            {
+                currentInstance = this;
+
+                CalculateMaxFlowValues();
+            }
+        }
+        private static double ColebrookTime_ms = 0.0;
+        private static double SwameeJainTime_ms = 0.0;
+        private static double TkachenkoMielkovskyi_ms = 0.0;
+        private static void CalculateMaxFlowValues()
+        {
+            maxFlowTableFL = new List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)>();
+            maxFlowTableSL = new List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)>();
+
+            #region Setup reporting
+            //Setup reporting
+            reportingColumnNames = new List<string>()
+            {
+                "v max", "Di", "Tv.sn.A", "Q max v", "dPdx max", "Rel. ruhed", "Densitet", "Kin. Visc.",
+                "Q max dPdx CW"
+
+            };
+            reportingUnits = new List<string>()
+            {
+                "[m/s]", "[m]", "[m²]", "[m³/hr]", "[Pa/m]", "[]", "[kg/m³]", "[m²/s]",
+                "[m³/hr]"
+
+            };
+
+            reportingRowsFL = new List<(string, List<double>)>();
+            reportingRowsSL = new List<(string, List<double>)>();
+
+            //Reset calculation timers
+            ColebrookTime_ms = 0.0;
+            SwameeJainTime_ms = 0.0;
+            TkachenkoMielkovskyi_ms = 0.0;
+            #endregion
+
+            var translationBetweenMaxPertAndMinStål = new Dictionary<int, int>()
+            {
+                { 75, 65 },
+                { 63, 50 },
+                { 50, 40 },
+                { 40, 32 },
+                { 32, 25 }
+            };
+
+            #region Populate maxFlowTableFL
+            //Populate maxFlowTableFL
+            {
+                int steelMinDn = 20;
+
+                if (currentInstance.usePertFlextraFL)
+                {
+                    foreach (var dim in PipeTypes.PertFlextra.GetDimsRange(32, currentInstance.pertFlextraMaxDnFL))
+                    {
+                        maxFlowTableFL.Add((dim,
+                            CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Fordelingsledning),
+                            CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Fordelingsledning)));
+                    }
+
+                    steelMinDn = translationBetweenMaxPertAndMinStål[currentInstance.pertFlextraMaxDnFL];
+                }
+
+                foreach (var dim in PipeTypes.Stål.GetDimsRange(steelMinDn, 1000))
+                {
+                    maxFlowTableFL.Add((dim,
+                            CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Fordelingsledning),
+                            CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Fordelingsledning)));
+                }
+            }
+            #endregion
+
+            #region Populate maxFlowTableSL
+            //Populate maxFlowTableSL
+            {
+                switch (currentInstance.pipeTypeSL)
+                {
+                    case PipeType.Stål:
+                        throw new Exception("Stål-stikledninger er ikke tilladt!");
+                    case PipeType.PertFlextra:
+                        foreach (var dim in PipeTypes.PertFlextra.GetAllDimsSorted())
+                        {
+                            maxFlowTableSL.Add((dim,
+                                CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
+                                CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Stikledning)));
+                        }
+                        break;
+                    case PipeType.AluPEX:
+                        foreach (var dim in PipeTypes.AluPex.GetAllDimsSorted())
+                        {
+                            maxFlowTableSL.Add((dim,
+                                CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
+                                CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Stikledning)));
+                        }
+                        break;
+                    case PipeType.Kobber:
+                        foreach (var dim in PipeTypes.Cu.GetAllDimsSorted())
+                        {
+                            maxFlowTableSL.Add((dim,
+                                CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
+                                CalculateMaxFlow(dim, TempSetType.Return, SegmentType.Stikledning)));
+                        }
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
+            #endregion
+
+            #region Reporting
+            //Print report
+            Console.WriteLine(
+                AsciiTableFormatter.CreateAsciiTableRows(
+                    "Fordelingsledninger", reportingRowsFL, reportingColumnNames, reportingUnits, "F6"));
+            Console.WriteLine();
+            Console.WriteLine(
+                AsciiTableFormatter.CreateAsciiTableRows(
+                    "Stikledninger", reportingRowsSL, reportingColumnNames, reportingUnits, "F6"));
+            Console.WriteLine();
+
+            Console.WriteLine($"Calculation timers:\n" +
+                $"Colebrook-White:       {ColebrookTime_ms} ms\n" +
+                $"Swamee-Jain:           {SwameeJainTime_ms} ms\n" +
+                $"Tkachenko-Mielkovskyi: {TkachenkoMielkovskyi_ms} ms");
+            #endregion
+        }
+
+        private static double CalculateMaxFlow(Dim dim, TempSetType tempSetType, SegmentType st)
+        {
+            double vmax = currentInstance.Vmax(dim, st);
+
+            double A = dim.CrossSectionArea;
+
+            //Max flow rate based on velocity limit
+            double Qmax_velocity_m3s = vmax * A;
+            double Qmax_velocity_m3hr = Qmax_velocity_m3s * 3600; // m^3/hr
+
+            //Max flow rate based on pressure gradient using Colebrook-White
+            double Qmax_pressure_CW_m3hr = FindQmaxPressure(dim, tempSetType, st, Calc.Colebrook);
+
+            #region Reporting
+            string rowName = $"{dim.DimName} {tempSetType}";
+            List<double> data = new List<double>()
+            {
+                vmax, dim.InnerDiameter_m, dim.CrossSectionArea, Qmax_velocity_m3hr,
+                currentInstance.dPdx_max(dim, st), dim.Roughness_m / dim.InnerDiameter_m,
+                rho(currentInstance.Temp(tempSetType, st)), nu(currentInstance.Temp(tempSetType, st)),
+                Qmax_pressure_CW_m3hr
+            };
+            switch (st)
+            {
+                case SegmentType.Fordelingsledning:
+                    reportingRowsFL.Add((rowName, data));
+                    break;
+                case SegmentType.Stikledning:
+                    reportingRowsSL.Add((rowName, data));
+                    break;
+                default:
+                    break;
+            }
+            #endregion
+
+            return Math.Min(Qmax_velocity_m3hr, Qmax_pressure_CW_m3hr);
+        }
+        private static double FindQmaxPressure(Dim dim, TempSetType tempSetType, SegmentType st, Calc calc)
+        {
+            double dp_dx = currentInstance.dPdx_max(dim, st);
+            double D = dim.InnerDiameter_m;
+            double A = dim.CrossSectionArea;
+            double epsilon = dim.Roughness_m;
+            double relRoughness = dim.Roughness_m / D;
+            double density = rho(currentInstance.Temp(tempSetType, st));
+            double kinViscosity = nu(currentInstance.Temp(tempSetType, st));
+
+            double flowRate = 0.01;
+            double velocity = flowRate / A;
+            double Re = density * velocity * D / kinViscosity;
+            double newFlowRate;
+            bool converged = false;
+
+            for (int i = 0; i < 100; i++)
+            {
+                double f = CalculateFrictionFactorTkachenkoMielkovskyi(Re, relRoughness);
+
+                newFlowRate = Math.Sqrt(2 * dp_dx * Math.Pow(A, 2) / (f * density));
+
+                if (Math.Abs(newFlowRate - flowRate) < 1e-6) // Convergence tolerance
+                {
+                    converged = true;
+                    break;
+                }
+
+                flowRate = newFlowRate;
+                velocity = flowRate / A;
+                Re = density * velocity * D / kinViscosity;
+            }
+
+            if (!converged)
+                throw new Exception("Did not converge!");
+
+            return flowRate * 3600;
+        }
+        private static double CalculateFrictionFactorTkachenkoMielkovskyi(double Re, double relativeRoughness)
+        {
+            double f0inverseHalf = -0.79638 * Math.Log(relativeRoughness / 8.208 + 7.3357 / Re);
+            double f0 = Math.Pow(f0inverseHalf, -2);
+
+            double a1 = Re * relativeRoughness + 9.3120665 * f0inverseHalf;
+
+            double term1 = (8.128943 + a1) / (8.128943 * f0inverseHalf - 0.86859209 * a1 * Math.Log(a1 / (3.7099535 * Re)));
+            double f = Math.Pow(term1, 2);
+
+            return f;
+        }
+        private static double CalculateFrictionFactorLaminar(double Re) => 64.0 / Re;
+        private enum Calc
+        {
+            Colebrook,
+            SwameeJain,
+            TkachenkoMielkovskyi
+        }
+        #endregion
+
+        #region Properties aliases to handle different types
+        #region Properties for general max flow calculation
+        private double Vmax(Dim dim, SegmentType st)
+        {
+            switch (st)
+            {
+                case SegmentType.Fordelingsledning:
+                    if (dim.NominalDiameter <= 150) return acceptVelocity20_150FL;
+                    else return acceptVelocity200_300FL;
+                //TODO: Find out what pipe types are considered flexible?
+                //Here it is assumed that all are flexible except steel
+                case SegmentType.Stikledning:
+                    if (dim.PipeType != PipeType.Stål) return acceptVelocityFlexibleSL;
+                    else return acceptVelocity20_150SL;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+        private double dPdx_max(Dim dim, SegmentType st)
+        {
+            switch (st)
+            {
+                case SegmentType.Fordelingsledning:
+                    if (dim.NominalDiameter <= 150) return acceptPressureGradient20_150FL;
+                    else return acceptPressureGradient200_300FL;
+                case SegmentType.Stikledning:
+                    if (dim.PipeType != PipeType.Stål) return acceptPressureGradientFlexibleSL;
+                    else return acceptPressureGradient20_150SL;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+        private int Temp(TempSetType tst, SegmentType st)
+        {
+            switch (tst)
+            {
+                case TempSetType.Supply:
+                    if (st == SegmentType.Fordelingsledning) return tempFremFL;
+                    else return tempFremSL;
+                case TempSetType.Return:
+                    if (st == SegmentType.Fordelingsledning) return tempReturFL;
+                    else return tempReturSL;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+        #endregion
+
+        #region Properties for instance segment calculations
         // Properties depenedent on segmentType
         private int N1 =>
             segmentType == SegmentType.Fordelingsledning ? nyttetimerOneUserFL : nyttetimerOneUserSL;
@@ -150,11 +445,13 @@ namespace NorsynHydraulicCalc
         private int Tr =>
             segmentType == SegmentType.Fordelingsledning ? tempReturFL : tempReturSL;
         private int Tr_hw => hotWaterReturnTemp;
-        //private int Tmed =>
-        //    segmentType == SegmentType.Fordelingsledning
-        //    ? (tempFremFL + tempReturFL + 1) / 2
-        //    : (tempFremSL + tempReturSL + 1) / 2;
-        private double rho(int T)
+        private double f_b =>
+            segmentType == SegmentType.Fordelingsledning ? factorVarmtVandsTillægFL : factorVarmtVandsTillægSL;
+        private double KX => factorTillægForOpvarmningUdenBrugsvandsprioritering;
+        #endregion
+
+        #region Water properties
+        private static double rho(int T)
         {
             if (LookupData.rho.TryGetValue(T, out double value))
                 return value * 1000;
@@ -171,7 +468,7 @@ namespace NorsynHydraulicCalc
             }
             throw new ArgumentException($"Temperature out of range for \"rho\": {T}, allowed values: 0 - 300.");
         }
-        private double cp(int T)
+        private static double cp(int T)
         {
             if (LookupData.cp.TryGetValue(T, out double value)) return value;
             else if (T > 0 && T < 201)
@@ -186,9 +483,9 @@ namespace NorsynHydraulicCalc
             }
             throw new ArgumentException($"Temperature out of range for \"cp\": {T}, allowed values: 0 - 200.");
         }
-        private double nu(int T)
+        private static double nu(int T)
         {
-            if (LookupData.nu.TryGetValue(T, out double value)) return value;
+            if (LookupData.nu.TryGetValue(T, out double value)) return value * 10e-6;
             else if (T > 0 && T < 201)
             {
                 int lowerkey = LookupData.nu.Keys.Where(k => k < T).Max();
@@ -197,14 +494,28 @@ namespace NorsynHydraulicCalc
                 double lowerValue = LookupData.nu[lowerkey];
                 double upperValue = LookupData.nu[upperkey];
                 //Interpolate
-                return lowerValue + (upperValue - lowerValue) * ((T - lowerkey) / (double)(upperkey - lowerkey));
+                return (lowerValue + (upperValue - lowerValue) * ((T - lowerkey) / (double)(upperkey - lowerkey))) * 10e-6;
             }
             throw new ArgumentException($"Temperature out of range for \"nu\": {T}, allowed values: 0 - 200.");
         }
-        private double KX => factorTillægForOpvarmningUdenBrugsvandsprioritering;
-        private double f_b =>
-            segmentType == SegmentType.Fordelingsledning ? factorVarmtVandsTillægFL : factorVarmtVandsTillægSL;
-        private double volume(int temp, int deltaT) => 3600 / (rho(temp) * cp(temp) * deltaT);
+        private static double mu(int T)
+        {
+            if (LookupData.mu.TryGetValue(T, out double value)) return value;
+            else if (T > 0 && T < 201)
+            {
+                int lowerkey = LookupData.mu.Keys.Where(k => k < T).Max();
+                int upperkey = LookupData.mu.Keys.Where(k => k > T).Min();
+
+                double lowerValue = LookupData.mu[lowerkey];
+                double upperValue = LookupData.mu[upperkey];
+                //Interpolate
+                return (lowerValue + (upperValue - lowerValue) * ((T - lowerkey) / (double)(upperkey - lowerkey)));
+            }
+            throw new ArgumentException($"Temperature out of range for \"nu\": {T}, allowed values: 0 - 200.");
+        }
+        private static double volume(int temp, int deltaT) => 3600 / (rho(temp) * cp(temp) * deltaT);
+        #endregion
+        #endregion
 
         public void Calculate()
         {
@@ -219,7 +530,7 @@ namespace NorsynHydraulicCalc
             double dimFlow2Retur = (totalHeatingDemand * 1000 / N1) * s_heat * KX * volume(Tr, dT1)
                 + numberOfUnits * 33 * f_b * s_hw * volume(Tr_hw, dT2);
 
-            List<(string, List<double>)> r1 = new List<(string, List<double>)> {
+            List<(string, List<double>)> columns = new List<(string, List<double>)> {
                 ("Heating demand", new List<double>()
                 {
                     (totalHeatingDemand * 1000 / N1),
@@ -240,43 +551,31 @@ namespace NorsynHydraulicCalc
 
             List<string> rowNames = new List<string> { "Frem 1", "Frem 2", "Retur 1", "Retur 2" };
 
-            Console.WriteLine(CreateAsciiTable(r1, rowNames, "F6"));
+            Console.WriteLine(AsciiTableFormatter.CreateAsciiTableColumns(columns, rowNames, "F6"));
             Console.WriteLine();
 
 
         }
 
-        public static string CreateAsciiTable(List<(string, List<double>)> columns, List<string> rowNames, string format)
+        private bool AreInstancesEqual(HydraulicCalc instance1, HydraulicCalc instance2)
         {
-            // Ensure that rowNames match the number of rows
-            if (rowNames.Count != columns.First().Item2.Count)
-                throw new ArgumentException("Row names count must match the number of rows in the columns.");
+            if (instance1 == null || instance2 == null) return false;
 
-            // Determine the maximum width for each column and for the row names
-            int rowNameWidth = rowNames.Max(name => name.Length);
-            var columnWidths = columns.Select(col =>
-                Math.Max(col.Item1.Length, col.Item2.Max(val => val.ToString(format).Length))).ToList();
+            Type type = typeof(HydraulicCalc);
 
-            // Generate table header with row name column
-            string header = "| " + "Name".PadLeft(rowNameWidth) + " | " +
-                            string.Join(" | ", columns.Select((col, idx) => col.Item1.PadLeft(columnWidths[idx]))) + " |";
-
-            // Generate separator line
-            string separator = "+-" + new string('-', rowNameWidth) + "-+-" +
-                               string.Join("-+-", columnWidths.Select(width => new string('-', width))) + "-+";
-
-            // Generate table rows
-            int numRows = columns.First().Item2.Count;
-            List<string> rows = new List<string>();
-            for (int i = 0; i < numRows; i++)
+            foreach (PropertyInfo property in type.GetProperties(BindingFlags.Instance | BindingFlags.NonPublic))
             {
-                string row = "| " + rowNames[i].PadLeft(rowNameWidth) + " | " +
-                             string.Join(" | ", columns.Select((col, idx) => col.Item2[i].ToString(format).PadLeft(columnWidths[idx]))) + " |";
-                rows.Add(row);
+                object value1 = property.GetValue(instance1);
+                object value2 = property.GetValue(instance2);
+
+                if (value1 == null && value2 == null) continue;
+
+                if (value1 == null || value2 == null) return false;
+
+                if (!value1.Equals(value2)) return false;
             }
 
-            // Combine all parts into the final table
-            return separator + "\n" + header + "\n" + separator + "\n" + string.Join("\n", rows) + "\n" + separator;
+            return true;
         }
     }
 
@@ -284,5 +583,19 @@ namespace NorsynHydraulicCalc
     {
         Fordelingsledning,
         Stikledning
+    }
+
+    public enum PipeType
+    {
+        Stål,
+        PertFlextra,
+        AluPEX,
+        Kobber
+    }
+
+    public enum TempSetType
+    {
+        Supply,
+        Return
     }
 }

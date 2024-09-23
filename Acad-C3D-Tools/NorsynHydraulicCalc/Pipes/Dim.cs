@@ -8,17 +8,33 @@ namespace NorsynHydraulicCalc.Pipes
     {
         public int NominalDiameter;
         public double OuterDiameter;
-        public double InnerDiameter;
+        public double InnerDiameter_mm;
+        public double InnerDiameter_m;
         public double WallThickness;
         public double CrossSectionArea;
+        public double Roughness_m;
+        public string DimName;
+        public PipeType PipeType;
 
-        public Dim(int nominalDiameter, double outerDiameter, double innerDiameter, double wallThickness, double crossSectionArea)
+        public Dim(
+            int nominalDiameter,
+            double outerDiameter,
+            double innerDiameter,
+            double wallThickness,
+            double crossSectionArea,
+            double roughness_m,
+            string dimName,
+            PipeType pipeType)
         {
             NominalDiameter = nominalDiameter;
             OuterDiameter = outerDiameter;
-            InnerDiameter = innerDiameter;
+            InnerDiameter_mm = innerDiameter;
+            InnerDiameter_m = innerDiameter / 1000;
             WallThickness = wallThickness;
             CrossSectionArea = crossSectionArea;
+            Roughness_m = roughness_m;
+            DimName = dimName + nominalDiameter;
+            PipeType = pipeType;
         }
     }
 }
