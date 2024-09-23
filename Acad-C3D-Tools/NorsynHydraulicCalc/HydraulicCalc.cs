@@ -25,7 +25,7 @@ namespace NorsynHydraulicCalc
         // From client blocks
         private SegmentType segmentType; // Type of segment
         private double totalHeatingDemand; // MWh/year
-        private int numberOfClients; // Number of clients
+        private int numberOfBuildings; // Number of buildings
         private int numberOfUnits; // Number of units
 
         // Shared
@@ -75,7 +75,7 @@ namespace NorsynHydraulicCalc
 
             // From client blocks
             double totalHeatingDemand, // MWh/year
-            int numberOfClients, // Number of clients
+            int numberOfBuildings, // Number of clients
             int numberOfUnits, // Number of units
 
             // Shared
@@ -114,7 +114,7 @@ namespace NorsynHydraulicCalc
 
             // From client blocks
             this.totalHeatingDemand = totalHeatingDemand;
-            this.numberOfClients = numberOfClients;
+            this.numberOfBuildings = numberOfBuildings;
             this.numberOfUnits = numberOfUnits;
 
             // Shared
@@ -598,7 +598,7 @@ namespace NorsynHydraulicCalc
 
         public void Calculate()
         {
-            double s_heat = N1 / N50 + (1 - N1 / N50) / numberOfClients;
+            double s_heat = N1 / N50 + (1 - N1 / N50) / numberOfBuildings;
             double s_hw = (51 - numberOfUnits) / (50 * Math.Sqrt(numberOfUnits));
 
             double dimFlow1Frem = (totalHeatingDemand * 1000 / N1) * s_heat * volume(Tf, dT1);
