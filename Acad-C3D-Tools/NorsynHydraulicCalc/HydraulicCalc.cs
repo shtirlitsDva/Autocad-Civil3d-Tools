@@ -64,6 +64,7 @@ namespace NorsynHydraulicCalc
         // Output
         public string SegmentTypeResult { get; private set; }
         public string PipeTypeResult { get; private set; }
+        public string DimNameResult { get; private set; }
         public double PressureGradientResult { get; private set; }
         public double VelocityResult { get; private set; }
 
@@ -359,7 +360,7 @@ namespace NorsynHydraulicCalc
                 switch (calc)
                 {
                     case Calc.Colebrook:
-                        f = CalculateFrictionFactorColebrookWhite(dim, reynolds, relativeRoughness, tolerance);
+                        f = CalculateFrictionFactorColebrookWhite(reynolds, relativeRoughness, tolerance);
                         break;
                     case Calc.SwameeJain:
                         throw new Exception("Swamee-Jain is not implemented!");
@@ -383,7 +384,7 @@ namespace NorsynHydraulicCalc
                 iteration,
                 reynolds);
         }
-        private static double CalculateFrictionFactorColebrookWhite(Dim dim, double Re, double relativeRoughness, double tolerance)
+        private static double CalculateFrictionFactorColebrookWhite(double Re, double relativeRoughness, double tolerance)
         {
             ////double f = 0.02; // initial guess for friction factor
             //double f = CalculateFrictionFactorTkachenkoMielkovskyi(Re, relativeRoughness);
@@ -636,14 +637,32 @@ namespace NorsynHydraulicCalc
 
             var dim = determineDim(flow, TempSetType.Return);
 
-            double velocity = flow / dim.CrossSectionArea;
+            double velocity = flow / 3600 / dim.CrossSectionArea;
             double reynolds = 
                 rho(this.Temp(TempSetType.Return, this.segmentType))
                 * velocity 
                 * dim.InnerDiameter_m
                 / mu(this.Temp(TempSetType.Return, this.segmentType));
 
+            double f = CalculateFrictionFactorColebrookWhite(reynolds, dim.Roughness_m / dim.InnerDiameter_m, 1e-6);
 
+            double gradient = f * rho(this.Temp(TempSetType.Return, this.segmentType)) *
+                velocity * velocity / (2 * dim.InnerDiameter_m);
+
+            SegmentTypeResult = segmentType.ToString();
+            PipeTypeResult = dim.PipeType.ToString();
+            DimNameResult = dim.DimName;
+            PressureGradientResult = gradient;
+            VelocityResult = velocity;
+
+            //Now report these five values to console
+            Console.WriteLine(
+                $"Segment type: {SegmentTypeResult}\n" +
+                $"Pipe type: {PipeTypeResult}\n" +
+                $"Dim name: {DimNameResult}\n" +
+                $"Pressure gradient: {PressureGradientResult} Pa/m\n" +
+                $"Velocity: {VelocityResult} m/s"
+                );
         }
 
         private Dim determineDim(double flow, TempSetType tst)
