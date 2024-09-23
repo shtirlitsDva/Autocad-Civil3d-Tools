@@ -1,22 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <AssemblyName>NorsynHydraulicCalc</AssemblyName>
   </PropertyGroup>
-
   <ItemGroup>
     <None Remove="Pipes\Sizes\PipeAluPexSizes.csv" />
     <None Remove="Pipes\Sizes\PipeCuSizes.csv" />
     <None Remove="Pipes\Sizes\PipePertFlextraSizes.csv" />
     <None Remove="Pipes\Sizes\PipeSteelSizes.csv" />
   </ItemGroup>
-
   <ItemGroup>
     <EmbeddedResource Include="Pipes\Sizes\PipeAluPexSizes.csv" />
     <EmbeddedResource Include="Pipes\Sizes\PipeCuSizes.csv" />
     <EmbeddedResource Include="Pipes\Sizes\PipePertFlextraSizes.csv" />
     <EmbeddedResource Include="Pipes\Sizes\PipeSteelSizes.csv" />
   </ItemGroup>
-
 </Project>
