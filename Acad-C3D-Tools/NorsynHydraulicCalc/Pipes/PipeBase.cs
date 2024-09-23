@@ -57,8 +57,8 @@ namespace NorsynHydraulicCalc.Pipes
                     var dim = new Dim(
                         int.Parse(parts[0]),
                         double.Parse(parts[1], CultureInfo.InvariantCulture),
-                        double.Parse(parts[2], CultureInfo.InvariantCulture),
                         double.Parse(parts[3], CultureInfo.InvariantCulture),
+                        double.Parse(parts[2], CultureInfo.InvariantCulture),
                         double.Parse(parts[4], CultureInfo.InvariantCulture),
                         Roughness_m,
                         DimName,

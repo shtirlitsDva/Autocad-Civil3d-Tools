@@ -114,7 +114,6 @@ namespace NorsynHydraulicCalc
             { 250, 0.7992 },
             { 300, 0.7124 },
         };
-
         public static Dictionary<int, double> cp = new Dictionary<int, double>()
         {
             { 0, 4.219 },
@@ -145,7 +144,6 @@ namespace NorsynHydraulicCalc
             { 180, 4.405 },
             { 200, 4.4958 },
         };
-
         /// <summary>
         /// Kinematic viscosity
         /// </summary>
