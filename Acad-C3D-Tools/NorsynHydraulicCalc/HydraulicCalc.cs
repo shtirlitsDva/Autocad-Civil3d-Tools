@@ -23,9 +23,13 @@ namespace NorsynHydraulicCalc
 
         #region Private properties
         // From client blocks
+        [ExcludeFromComparison]
         private SegmentType segmentType; // Type of segment
+        [ExcludeFromComparison]
         private double totalHeatingDemand; // MWh/year
+        [ExcludeFromComparison]
         private int numberOfBuildings; // Number of buildings
+        [ExcludeFromComparison]
         private int numberOfUnits; // Number of units
 
         // Shared
@@ -58,15 +62,29 @@ namespace NorsynHydraulicCalc
         private double acceptVelocity20_150SL; // m/s
         private int acceptPressureGradientFlexibleSL; // Pa/m
         private int acceptPressureGradient20_150SL; // Pa/m
-        private double maxPressureLossStikSL; // bar 
+        private double maxPressureLossStikSL; // bar
+
+        //Calculation settings
+        [ExcludeFromComparison]
+        private CalcType calcType;
         #endregion
 
+        #region Public properties
+        public CalcType CalculationType { get => calcType; set => calcType = value; }
+        #endregion
+
+        #region Output
         // Output
         public string SegmentTypeResult { get; private set; }
         public string PipeTypeResult { get; private set; }
         public string DimNameResult { get; private set; }
         public double PressureGradientResult { get; private set; }
         public double VelocityResult { get; private set; }
+        #endregion
+
+        #region Timing
+        private static Stopwatch sw = new Stopwatch();
+        #endregion
 
         #region Constructor
         public HydraulicCalc(
@@ -106,7 +124,8 @@ namespace NorsynHydraulicCalc
             double acceptVelocity20_150SL, // m/s
             int acceptPressureGradientFlexibleSL, // Pa/m
             int acceptPressureGradient20_150SL, // Pa/m
-            double maxPressureLossStikSL // bar
+            double maxPressureLossStikSL, // bar
+            string calcType //CW, TM
         )
         {
             //Convert segmentType to enum
@@ -149,6 +168,9 @@ namespace NorsynHydraulicCalc
             this.acceptPressureGradient20_150SL = acceptPressureGradient20_150SL;
             this.maxPressureLossStikSL = maxPressureLossStikSL;
 
+            //Calculation settings
+            this.calcType = (CalcType)Enum.Parse(typeof(CalcType), calcType);
+
             Initialize();
         }
         #endregion
@@ -157,16 +179,22 @@ namespace NorsynHydraulicCalc
 
         public void Initialize()
         {
-            if (currentInstance == null || !AreInstancesEqual(this, currentInstance))
+            sw.Start();
+
+            bool one = currentInstance == null;
+            bool two = !AreInstancesEqual(this, currentInstance);
+
+            //if (currentInstance == null || !AreInstancesEqual(this, currentInstance))
+            if (one || two)
             {
                 currentInstance = this;
 
                 CalculateMaxFlowValues();
             }
+
+            sw.Stop();
+            Console.WriteLine($"Initialization time {sw.ElapsedMilliseconds} ms.");
         }
-        private static double ColebrookTime_ms = 0.0;
-        private static double SwameeJainTime_ms = 0.0;
-        private static double TkachenkoMielkovskyi_ms = 0.0;
         private static void CalculateMaxFlowValues()
         {
             maxFlowTableFL = new List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)>();
@@ -177,23 +205,18 @@ namespace NorsynHydraulicCalc
             reportingColumnNames = new List<string>()
             {
                 "v max", "Di", "Tv.sn.A", "Q max v", "dPdx max", "Rel. ruhed", "Densitet", "Dyn. Visc.",
-                "CW iters", "CW Re", "CW Q max dPdx", "TM iters", "TM Re", "TM Q max dPdx",
+                "iters", "Re", "Q max dPdx"
 
             };
             reportingUnits = new List<string>()
             {
                 "[m/s]", "[m]", "[m²]", "[m³/hr]", "[Pa/m]", "[]", "[kg/m³]", "[kg/(m * s)]",
-                "[n]", "[]", "[m³/hr]", "[n]", "[]", "[m³/hr]"
+                "[n]", "[]", "[m³/hr]"
 
             };
 
             reportingRowsFL = new List<(string, List<double>)>();
             reportingRowsSL = new List<(string, List<double>)>();
-
-            //Reset calculation timers
-            ColebrookTime_ms = 0.0;
-            SwameeJainTime_ms = 0.0;
-            TkachenkoMielkovskyi_ms = 0.0;
             #endregion
 
             var translationBetweenMaxPertAndMinStål = new Dictionary<int, int>()
@@ -285,11 +308,6 @@ namespace NorsynHydraulicCalc
                 AsciiTableFormatter.CreateAsciiTableRows(
                     "Stikledninger", reportingRowsSL, reportingColumnNames, reportingUnits, "F6"));
             Console.WriteLine();
-
-            Console.WriteLine($"Calculation timers:\n" +
-                $"Colebrook-White:       {ColebrookTime_ms} ms\n" +
-                //$"Swamee-Jain:           {SwameeJainTime_ms} ms\n" +
-                $"Tkachenko-Mielkovskyi: {TkachenkoMielkovskyi_ms} ms");
             #endregion
         }
         private static double CalculateMaxFlow(Dim dim, TempSetType tempSetType, SegmentType st)
@@ -302,17 +320,8 @@ namespace NorsynHydraulicCalc
             double Qmax_velocity_m3s = vmax * A;
             double Qmax_velocity_m3hr = Qmax_velocity_m3s * 3600; // m^3/hr
 
-            //Max flow rate based on pressure gradient
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
-            var resCW = FindQmaxPressure(dim, tempSetType, st, Calc.Colebrook);
-            sw.Stop();
-            ColebrookTime_ms += sw.Elapsed.TotalMilliseconds;
-
-            sw.Restart();
-            var resTM = FindQmaxPressure(dim, tempSetType, st, Calc.TkachenkoMielkovskyi);
-            sw.Stop();
-            TkachenkoMielkovskyi_ms += sw.Elapsed.TotalMilliseconds;
+            //Max flow rate based on pressure gradient limit
+            var res = FindQmaxPressure(dim, tempSetType, st, currentInstance.calcType);
 
             #region Reporting
             string rowName = $"{dim.DimName} {tempSetType}";
@@ -321,7 +330,7 @@ namespace NorsynHydraulicCalc
                 vmax, dim.InnerDiameter_m, dim.CrossSectionArea, Qmax_velocity_m3hr,
                 currentInstance.dPdx_max(dim, st), dim.Roughness_m / dim.InnerDiameter_m,
                 rho(currentInstance.Temp(tempSetType, st)), mu(currentInstance.Temp(tempSetType, st)),
-                resCW.iterations, resCW.Re, resCW.Qmax, resTM.iterations, resTM.Re, resTM.Qmax
+                res.iterations, res.Re, res.Qmax
             };
             switch (st)
             {
@@ -336,13 +345,13 @@ namespace NorsynHydraulicCalc
             }
             #endregion
 
-            return Math.Min(Qmax_velocity_m3hr, Math.Min(resCW.Qmax, resTM.Qmax));
+            return Math.Min(Qmax_velocity_m3hr, res.Qmax);
         }
         private static (double Qmax, int iterations, double Re) FindQmaxPressure(
-            Dim dim, TempSetType tempSetType, SegmentType st, Calc calc)
+            Dim dim, TempSetType tempSetType, SegmentType st, CalcType calc)
         {
             double dp_dx = currentInstance.dPdx_max(dim, st);
-            double reynolds = 0, f, velocity = 1, newVelocity;
+            double reynolds = 0, f, velocity1 = 1, velocity2 = 1.1, newVelocity = 0, error1, error2;
             double density = rho(currentInstance.Temp(tempSetType, st));
             double viscosity = mu(currentInstance.Temp(tempSetType, st));
             double tolerance = 1e-6;
@@ -350,39 +359,61 @@ namespace NorsynHydraulicCalc
             int iteration = 0;
             double relativeRoughness = dim.Roughness_m / dim.InnerDiameter_m;
 
+            // Initialize errors for secant method
+            error1 = CalculateVelocityError(velocity1, dp_dx, dim.InnerDiameter_m, relativeRoughness, density, viscosity, calc);
+            error2 = CalculateVelocityError(velocity2, dp_dx, dim.InnerDiameter_m, relativeRoughness, density, viscosity, calc);
+
             while (iteration < maxIterations)
             {
                 iteration++;
 
-                reynolds =
-                    (density * velocity * dim.InnerDiameter_m) / viscosity;
+                // Secant update for velocity
+                newVelocity = velocity2 - error2 * (velocity2 - velocity1) / (error2 - error1);
 
-                switch (calc)
-                {
-                    case Calc.Colebrook:
-                        f = CalculateFrictionFactorColebrookWhite(reynolds, relativeRoughness, tolerance);
-                        break;
-                    case Calc.SwameeJain:
-                        throw new Exception("Swamee-Jain is not implemented!");
-                    case Calc.TkachenkoMielkovskyi:
-                        f = CalculateFrictionFactorTkachenkoMielkovskyi(reynolds, relativeRoughness);
-                        break;
-                    default:
-                        throw new NotImplementedException($"{calc} is not implemented!");
-                }
+                // Calculate the error for the new velocity
+                double newError = CalculateVelocityError(newVelocity, dp_dx, dim.InnerDiameter_m, relativeRoughness, density, viscosity, calc);
 
-                newVelocity = Math.Sqrt((2 * dp_dx * dim.InnerDiameter_m)
-                    / (f * rho(currentInstance.Temp(tempSetType, st))));
+                // Check for convergence
+                if (Math.Abs(newError) < tolerance)
+                    break;
 
-                if (Math.Abs(newVelocity - velocity) < tolerance) break;
-
-                velocity = newVelocity;
+                // Update previous velocities and errors for the next iteration
+                velocity1 = velocity2;
+                velocity2 = newVelocity;
+                error1 = error2;
+                error2 = newError;
             }
 
-            return
-                (velocity * dim.CrossSectionArea * 3600,
-                iteration,
-                reynolds);
+            // Return the final flow rate (in m^3/h), iteration count, and Reynolds number
+            reynolds = (density * newVelocity * dim.InnerDiameter_m) / viscosity;
+            return (newVelocity * dim.CrossSectionArea * 3600, iteration, reynolds);
+        }
+
+        // Helper method to calculate the velocity error
+        private static double CalculateVelocityError(double velocity, double dp_dx, double diameter, double relativeRoughness, double density, double viscosity, CalcType calc)
+        {
+            // Calculate Reynolds number based on the current velocity
+            double reynolds = (density * velocity * diameter) / viscosity;
+
+            // Calculate the friction factor based on the selected method
+            double f;
+            switch (calc)
+            {
+                case CalcType.CW:
+                    f = CalculateFrictionFactorColebrookWhite(reynolds, relativeRoughness, 1e-6);
+                    break;
+                case CalcType.TM:
+                    f = CalculateFrictionFactorTkachenkoMileikovskyi(reynolds, relativeRoughness);
+                    break;
+                default:
+                    throw new NotImplementedException($"{calc} is not implemented!");
+            }
+
+            // Calculate the new velocity using the Darcy-Weisbach equation
+            double newVelocity = Math.Sqrt((2 * dp_dx * diameter) / (f * density));
+
+            // Return the error as the difference between new and current velocity
+            return newVelocity - velocity;
         }
         private static double CalculateFrictionFactorColebrookWhite(double Re, double relativeRoughness, double tolerance)
         {
@@ -405,7 +436,7 @@ namespace NorsynHydraulicCalc
             //    f = f_new;
             //}
 
-            double f1 = CalculateFrictionFactorTkachenkoMielkovskyi(Re, relativeRoughness);
+            double f1 = CalculateFrictionFactorTkachenkoMileikovskyi(Re, relativeRoughness);
             double f2 = f1 + 0.05;
 
             for (int i = 0; i < 100; i++)
@@ -431,7 +462,7 @@ namespace NorsynHydraulicCalc
 
             //return f; // Return friction factor
         }
-        private static double CalculateFrictionFactorTkachenkoMielkovskyi(double Re, double relativeRoughness)
+        private static double CalculateFrictionFactorTkachenkoMileikovskyi(double Re, double relativeRoughness)
         {
             double f0inverseHalf = -0.79638 * Math.Log(relativeRoughness / 8.208 + 7.3357 / Re);
             double f0 = Math.Pow(f0inverseHalf, -2);
@@ -444,12 +475,6 @@ namespace NorsynHydraulicCalc
             return f;
         }
         private static double CalculateFrictionFactorLaminar(double Re) => 64.0 / Re;
-        private enum Calc
-        {
-            Colebrook,
-            SwameeJain,
-            TkachenkoMielkovskyi
-        }
         #endregion
 
         #region Properties aliases to handle different types
@@ -598,6 +623,8 @@ namespace NorsynHydraulicCalc
 
         public void Calculate()
         {
+            sw.Restart();
+
             double s_heat = N1 / N50 + (1 - N1 / N50) / numberOfBuildings;
             double s_hw = (51 - numberOfUnits) / (50 * Math.Sqrt(numberOfUnits));
 
@@ -638,13 +665,24 @@ namespace NorsynHydraulicCalc
             var dim = determineDim(flow, TempSetType.Return);
 
             double velocity = flow / 3600 / dim.CrossSectionArea;
-            double reynolds = 
+            double reynolds =
                 rho(this.Temp(TempSetType.Return, this.segmentType))
-                * velocity 
+                * velocity
                 * dim.InnerDiameter_m
                 / mu(this.Temp(TempSetType.Return, this.segmentType));
 
-            double f = CalculateFrictionFactorColebrookWhite(reynolds, dim.Roughness_m / dim.InnerDiameter_m, 1e-6);
+            double f;
+            switch (this.calcType)
+            {
+                case CalcType.CW:
+                    f = CalculateFrictionFactorColebrookWhite(reynolds, dim.Roughness_m / dim.InnerDiameter_m, 1e-6);
+                    break;
+                case CalcType.TM:
+                    f = CalculateFrictionFactorTkachenkoMileikovskyi(reynolds, dim.Roughness_m / dim.InnerDiameter_m);
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
 
             double gradient = f * rho(this.Temp(TempSetType.Return, this.segmentType)) *
                 velocity * velocity / (2 * dim.InnerDiameter_m);
@@ -663,6 +701,9 @@ namespace NorsynHydraulicCalc
                 $"Pressure gradient: {PressureGradientResult} Pa/m\n" +
                 $"Velocity: {VelocityResult} m/s"
                 );
+
+            sw.Stop();
+            Console.WriteLine($"Calculation time {sw.ElapsedMilliseconds} ms.");
         }
 
         private Dim determineDim(double flow, TempSetType tst)
@@ -716,10 +757,14 @@ namespace NorsynHydraulicCalc
 
             Type type = typeof(HydraulicCalc);
 
-            foreach (PropertyInfo property in type.GetProperties(BindingFlags.Instance | BindingFlags.NonPublic))
+            foreach (FieldInfo field in type.GetFields(BindingFlags.Instance | BindingFlags.NonPublic))
             {
-                object value1 = property.GetValue(instance1);
-                object value2 = property.GetValue(instance2);
+                if (field.IsDefined(typeof(ExcludeFromComparisonAttribute), false)) continue;
+
+                if (field.Name.Contains("BackingField")) continue;
+
+                object value1 = field.GetValue(instance1);
+                object value2 = field.GetValue(instance2);
 
                 if (value1 == null && value2 == null) continue;
 
@@ -751,4 +796,13 @@ namespace NorsynHydraulicCalc
         Supply,
         Return
     }
+
+    public enum CalcType
+    {
+        CW,
+        TM
+    }
+
+    [AttributeUsage(AttributeTargets.Field)]
+    public class ExcludeFromComparisonAttribute : Attribute { }
 }
