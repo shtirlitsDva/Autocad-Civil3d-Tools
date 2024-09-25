@@ -37,7 +37,7 @@ HydraulicCalc hc = new HydraulicCalc(
     600, //AcceptPressureGradient20_150SL
     0.3, //MaxPressureLossStikSL
     "CW",
-    false
+    true
     );
 
 hc.Calculate();
@@ -76,7 +76,7 @@ HydraulicCalc hc2 = new HydraulicCalc(
     600, //AcceptPressureGradient20_150SL
     0.3, //MaxPressureLossStikSL
     "CW",
-    false
+    true
     );
 
 hc2.Calculate();
