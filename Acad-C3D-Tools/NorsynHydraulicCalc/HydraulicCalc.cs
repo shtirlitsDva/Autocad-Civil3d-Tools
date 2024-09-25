@@ -234,9 +234,9 @@ namespace NorsynHydraulicCalc
                 //{ 40, 32 },
                 //{ 32, 25 }
 
-                { 75, 50 },
-                { 63, 40 },
-                { 50, 32 },
+                { 75, 65 },
+                { 63, 50 },
+                { 50, 40 },
             };
 
             #region Populate maxFlowTableFL

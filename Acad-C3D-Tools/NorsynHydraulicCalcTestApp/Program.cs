@@ -24,7 +24,7 @@ HydraulicCalc hc = new HydraulicCalc(
     100, //AcceptPressureGradient200_300FL
     120, //AcceptPressureGradient300PlusFL
     true, //UsePertFlextraFL
-    75, //PertFlextraMaxDnFL
+    63, //PertFlextraMaxDnFL
 
     110, //TempFremSL
     60, //TempReturSL
