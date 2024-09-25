@@ -67,6 +67,7 @@ namespace NorsynHydraulicCalc
         //Calculation settings
         [ExcludeFromComparison]
         private CalcType calcType;
+        private bool reportToConsole;
         #endregion
 
         #region Public properties
@@ -127,7 +128,8 @@ namespace NorsynHydraulicCalc
             int acceptPressureGradientFlexibleSL, // Pa/m
             int acceptPressureGradient20_150SL, // Pa/m
             double maxPressureLossStikSL, // bar
-            string calcType //CW, TM
+            string calcType, //CW, TM
+            bool reportToConsole
         )
         {
             //Convert segmentType to enum
@@ -172,6 +174,7 @@ namespace NorsynHydraulicCalc
 
             //Calculation settings
             this.calcType = (CalcType)Enum.Parse(typeof(CalcType), calcType);
+            this.reportToConsole = reportToConsole;
 
             Initialize();
         }
@@ -193,7 +196,8 @@ namespace NorsynHydraulicCalc
             }
 
             sw.Stop();
-            Console.WriteLine($"Initialization time {sw.ElapsedMilliseconds} ms.");
+            if (reportToConsole)
+                Console.WriteLine($"Initialization time {sw.ElapsedMilliseconds} ms.");
         }
         private static void CalculateMaxFlowValues()
         {
@@ -202,21 +206,24 @@ namespace NorsynHydraulicCalc
 
             #region Setup reporting
             //Setup reporting
-            reportingColumnNames = new List<string>()
+            if (currentInstance.reportToConsole)
             {
-                "v max", "Di", "Tv.sn.A", "Q max v", "dPdx max", "Rel. ruhed", "Densitet", "Dyn. Visc.",
-                "iters", "Re", "Q max dPdx"
+                reportingColumnNames = new List<string>()
+                {
+                    "v max", "Di", "Tv.sn.A", "Q max v", "dPdx max", "Rel. ruhed", "Densitet", "Dyn. Visc.",
+                    "iters", "Re", "Q max dPdx"
 
-            };
-            reportingUnits = new List<string>()
-            {
-                "[m/s]", "[m]", "[m²]", "[m³/hr]", "[Pa/m]", "[]", "[kg/m³]", "[kg/(m * s)]",
-                "[n]", "[]", "[m³/hr]"
+                };
+                reportingUnits = new List<string>()
+                {
+                    "[m/s]", "[m]", "[m²]", "[m³/hr]", "[Pa/m]", "[]", "[kg/m³]", "[kg/(m * s)]",
+                    "[n]", "[]", "[m³/hr]"
 
-            };
+                };
 
-            reportingRowsFL = new List<(string, List<double>)>();
-            reportingRowsSL = new List<(string, List<double>)>();
+                reportingRowsFL = new List<(string, List<double>)>();
+                reportingRowsSL = new List<(string, List<double>)>();
+            }
             #endregion
 
             var translationBetweenMaxPertAndMinStål = new Dictionary<int, int>()
@@ -231,7 +238,7 @@ namespace NorsynHydraulicCalc
             #region Populate maxFlowTableFL
             //Populate maxFlowTableFL
             {
-                int steelMinDn = 20;
+                int steelMinDn = 32;
 
                 if (currentInstance.usePertFlextraFL)
                 {
@@ -289,7 +296,7 @@ namespace NorsynHydraulicCalc
                         throw new NotImplementedException();
                 }
 
-                foreach (var dim in PipeTypes.Stål.GetDimsRange(25, 1000))
+                foreach (var dim in PipeTypes.Stål.GetDimsRange(32, 1000))
                 {
                     maxFlowTableSL.Add((dim,
                             CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
@@ -299,15 +306,18 @@ namespace NorsynHydraulicCalc
             #endregion
 
             #region Reporting
-            //Print report
-            Console.WriteLine(
-                AsciiTableFormatter.CreateAsciiTableRows(
-                    "Fordelingsledninger", reportingRowsFL, reportingColumnNames, reportingUnits, "F6"));
-            Console.WriteLine();
-            Console.WriteLine(
-                AsciiTableFormatter.CreateAsciiTableRows(
-                    "Stikledninger", reportingRowsSL, reportingColumnNames, reportingUnits, "F6"));
-            Console.WriteLine();
+            if (currentInstance.reportToConsole)
+            {
+                //Print report
+                Console.WriteLine(
+                    AsciiTableFormatter.CreateAsciiTableRows(
+                        "Fordelingsledninger", reportingRowsFL, reportingColumnNames, reportingUnits, "F6"));
+                Console.WriteLine();
+                Console.WriteLine(
+                    AsciiTableFormatter.CreateAsciiTableRows(
+                        "Stikledninger", reportingRowsSL, reportingColumnNames, reportingUnits, "F6"));
+                Console.WriteLine();
+            }
             #endregion
         }
         private static double CalculateMaxFlow(Dim dim, TempSetType tempSetType, SegmentType st)
@@ -324,24 +334,27 @@ namespace NorsynHydraulicCalc
             var res = FindQmaxPressure(dim, tempSetType, st, currentInstance.calcType);
 
             #region Reporting
-            string rowName = $"{dim.DimName} {tempSetType}";
-            List<double> data = new List<double>()
+            if (currentInstance.reportToConsole)
             {
-                vmax, dim.InnerDiameter_m, dim.CrossSectionArea, Qmax_velocity_m3hr,
-                currentInstance.dPdx_max(dim, st), dim.Roughness_m / dim.InnerDiameter_m,
-                rho(currentInstance.Temp(tempSetType, st)), mu(currentInstance.Temp(tempSetType, st)),
-                res.iterations, res.Re, res.Qmax
-            };
-            switch (st)
-            {
-                case SegmentType.Fordelingsledning:
-                    reportingRowsFL.Add((rowName, data));
-                    break;
-                case SegmentType.Stikledning:
-                    reportingRowsSL.Add((rowName, data));
-                    break;
-                default:
-                    break;
+                string rowName = $"{dim.DimName} {tempSetType}";
+                List<double> data = new List<double>()
+                {
+                    vmax, dim.InnerDiameter_m, dim.CrossSectionArea, Qmax_velocity_m3hr,
+                    currentInstance.dPdx_max(dim, st), dim.Roughness_m / dim.InnerDiameter_m,
+                    rho(currentInstance.Temp(tempSetType, st)), mu(currentInstance.Temp(tempSetType, st)),
+                    res.iterations, res.Re, res.Qmax
+                };
+                switch (st)
+                {
+                    case SegmentType.Fordelingsledning:
+                        reportingRowsFL.Add((rowName, data));
+                        break;
+                    case SegmentType.Stikledning:
+                        reportingRowsSL.Add((rowName, data));
+                        break;
+                    default:
+                        break;
+                }
             }
             #endregion
 
@@ -637,29 +650,33 @@ namespace NorsynHydraulicCalc
             double dimFlow2Retur = (totalHeatingDemand * 1000 / N1) * s_heat * KX * volume(Tr, dT1)
                 + numberOfUnits * 33 * f_b * s_hw * volume(Tr_hw, dT2);
 
-            List<(string, List<double>)> columns = new List<(string, List<double>)> {
-                ("Heating demand", new List<double>()
+            if (currentInstance.reportToConsole)
+            {
+                List<(string, List<double>)> columns = new List<(string, List<double>)> 
                 {
-                    (totalHeatingDemand * 1000 / N1),
-                    (totalHeatingDemand * 1000 / N1),
-                    (totalHeatingDemand * 1000 / N1),
-                    (totalHeatingDemand * 1000 / N1),
-                }),
-                ("s_heat", new List<double>() { s_heat, s_heat, s_heat, s_heat }),
-                ("s_hw", new List<double>() { 0, s_hw, 0, s_hw }),
-                ("rho heat", new List<double>() { rho(Tf), rho(Tf), rho(Tr), rho(Tr)}),
-                ("rho hw", new List<double>() { rho(Tf), rho(Tf), rho(Tr_hw), rho(Tr_hw)}),
-                ("Cp heat", new List<double>() { cp(Tf), cp(Tf), cp(Tr), cp(Tr)}),
-                ("Cp hw", new List<double>() { cp(Tf), cp(Tf), cp(Tr_hw), cp(Tr_hw)}),
-                ("m^3/kW heat", new List<double>() { volume(Tf, dT1), volume(Tf, dT1), volume(Tr, dT1), volume(Tr, dT1) }),
-                ("m^3/kW hw", new List<double>() { 0, volume(Tf, dT2), 0, volume(Tr_hw, dT2) }),
-                ("Flow", new List<double>() { dimFlow1Frem, dimFlow2Frem, dimFlow1Retur, dimFlow2Retur }),
-            };
+                    ("Heating demand", new List<double>()
+                    {
+                        (totalHeatingDemand * 1000 / N1),
+                        (totalHeatingDemand * 1000 / N1),
+                        (totalHeatingDemand * 1000 / N1),
+                        (totalHeatingDemand * 1000 / N1),
+                    }),
+                    ("s_heat", new List<double>() { s_heat, s_heat, s_heat, s_heat }),
+                    ("s_hw", new List<double>() { 0, s_hw, 0, s_hw }),
+                    ("rho heat", new List<double>() { rho(Tf), rho(Tf), rho(Tr), rho(Tr)}),
+                    ("rho hw", new List<double>() { rho(Tf), rho(Tf), rho(Tr_hw), rho(Tr_hw)}),
+                    ("Cp heat", new List<double>() { cp(Tf), cp(Tf), cp(Tr), cp(Tr)}),
+                    ("Cp hw", new List<double>() { cp(Tf), cp(Tf), cp(Tr_hw), cp(Tr_hw)}),
+                    ("m^3/kW heat", new List<double>() { volume(Tf, dT1), volume(Tf, dT1), volume(Tr, dT1), volume(Tr, dT1) }),
+                    ("m^3/kW hw", new List<double>() { 0, volume(Tf, dT2), 0, volume(Tr_hw, dT2) }),
+                    ("Flow", new List<double>() { dimFlow1Frem, dimFlow2Frem, dimFlow1Retur, dimFlow2Retur }),
+                };
 
-            List<string> rowNames = new List<string> { "Frem 1", "Frem 2", "Retur 1", "Retur 2" };
+                List<string> rowNames = new List<string> { "Frem 1", "Frem 2", "Retur 1", "Retur 2" };
 
-            Console.WriteLine(AsciiTableFormatter.CreateAsciiTableColumns(columns, rowNames, "F6"));
-            Console.WriteLine();
+                Console.WriteLine(AsciiTableFormatter.CreateAsciiTableColumns(columns, rowNames, "F6"));
+                Console.WriteLine();
+            }
 
             double flowSupply = Math.Max(dimFlow1Frem, dimFlow2Frem);
             double flowReturn = Math.Max(dimFlow1Retur, dimFlow2Retur);
@@ -679,19 +696,25 @@ namespace NorsynHydraulicCalc
             VelocitySupplyResult = resSupply.velocity;
             VelocityReturnResult = resReturn.velocity;
 
-            //Now report these five values to console
-            Console.WriteLine(
-                $"Segment type: {SegmentTypeResult}\n" +
-                $"Pipe type: {PipeTypeResult}\n" +
-                $"Dim name: {DimNameResult}\n" +
-                $"Pressure gradient, supply: {PressureGradientSupplyResult} Pa/m\n" +
-                $"Pressure gradient, return: {PressureGradientReturnResult} Pa/m\n" +
-                $"Velocity, supply: {VelocitySupplyResult} m/s\n" +
-                $"Velocity, return: {VelocityReturnResult} m/s"
-                );
+            if (currentInstance.reportToConsole)
+            {
+                //Now report these five values to console
+                Console.WriteLine(
+                    $"Segment type: {SegmentTypeResult}\n" +
+                    $"Pipe type: {PipeTypeResult}\n" +
+                    $"Dim name: {DimNameResult}\n" +
+                    $"Pressure gradient, supply: {PressureGradientSupplyResult} Pa/m\n" +
+                    $"Pressure gradient, return: {PressureGradientReturnResult} Pa/m\n" +
+                    $"Velocity, supply: {VelocitySupplyResult} m/s\n" +
+                    $"Velocity, return: {VelocityReturnResult} m/s"
+                    ); 
+            }
 
             sw.Stop();
-            Console.WriteLine($"Calculation time {sw.ElapsedMilliseconds} ms.");
+            if (currentInstance.reportToConsole)
+            {
+                Console.WriteLine($"Calculation time {sw.ElapsedMilliseconds} ms."); 
+            }
         }
         private (double gradient, double velocity) CalculateGradientAndVelocity(
             double flow, Dim dim, TempSetType tst)
