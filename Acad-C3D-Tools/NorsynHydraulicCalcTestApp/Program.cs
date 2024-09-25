@@ -8,7 +8,7 @@ HydraulicCalc hc = new HydraulicCalc(
     50, //Total heating demand
     1, //Number of clients
     1, //Number of units
-    50, //Hot water return temp
+    60, //Hot water return temp
     0.6, //FactorTillægForOpvarmningUdenBrugsvandsprioritering
     0.5, //MinDifferentialPressureOverHovedHaner
 
@@ -43,10 +43,10 @@ hc.Calculate();
 
 HydraulicCalc hc2 = new HydraulicCalc(
     "Fordelingsledning",
-    80, //Total heating demand
-    1, //Number of clients
-    1, //Number of units
-    50, //Hot water return temp
+    33181, //Total heating demand
+    1799, //Number of clients
+    2050, //Number of units
+    60, //Hot water return temp
     0.6, //FactorTillægForOpvarmningUdenBrugsvandsprioritering
     0.5, //MinDifferentialPressureOverHovedHaner
 

@@ -176,7 +176,6 @@ namespace NorsynHydraulicCalc
         #endregion
 
         #region Initialize the max flow table
-
         public void Initialize()
         {
             sw.Start();
@@ -184,7 +183,6 @@ namespace NorsynHydraulicCalc
             bool one = currentInstance == null;
             bool two = !AreInstancesEqual(this, currentInstance);
 
-            //if (currentInstance == null || !AreInstancesEqual(this, currentInstance))
             if (one || two)
             {
                 currentInstance = this;
@@ -351,7 +349,7 @@ namespace NorsynHydraulicCalc
             Dim dim, TempSetType tempSetType, SegmentType st, CalcType calc)
         {
             double dp_dx = currentInstance.dPdx_max(dim, st);
-            double reynolds = 0, f, velocity1 = 1, velocity2 = 1.1, newVelocity = 0, error1, error2;
+            double reynolds = 0, velocity1 = 1, velocity2 = 1.1, newVelocity = 0, error1, error2;
             double density = rho(currentInstance.Temp(tempSetType, st));
             double viscosity = mu(currentInstance.Temp(tempSetType, st));
             double tolerance = 1e-6;
@@ -625,8 +623,9 @@ namespace NorsynHydraulicCalc
         {
             sw.Restart();
 
-            double s_heat = N1 / N50 + (1 - N1 / N50) / numberOfBuildings;
-            double s_hw = (51 - numberOfUnits) / (50 * Math.Sqrt(numberOfUnits));
+            double s_heat = (double)N1 / (double)N50 + (1.0 - (double)N1 / (double)N50) / (double)numberOfBuildings;
+            double s_hw = (51.0 - (double)numberOfUnits) / (50.0 * Math.Sqrt((double)numberOfUnits));
+            s_hw = s_hw < 0 ? 0 : s_hw;
 
             double dimFlow1Frem = (totalHeatingDemand * 1000 / N1) * s_heat * volume(Tf, dT1);
             double dimFlow2Frem = (totalHeatingDemand * 1000 / N1) * s_heat * KX * volume(Tf, dT1)

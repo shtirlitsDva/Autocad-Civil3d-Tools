@@ -36,5 +36,9 @@ namespace NorsynHydraulicCalc.Pipes
             DimName = dimName + nominalDiameter;
             PipeType = pipeType;
         }
+        public override string ToString()
+        {
+            return DimName;
+        }
     }
 }
