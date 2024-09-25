@@ -78,8 +78,10 @@ namespace NorsynHydraulicCalc
         public string SegmentTypeResult { get; private set; }
         public string PipeTypeResult { get; private set; }
         public string DimNameResult { get; private set; }
-        public double PressureGradientResult { get; private set; }
-        public double VelocityResult { get; private set; }
+        public double PressureGradientSupplyResult { get; private set; }
+        public double PressureGradientReturnResult { get; private set; }
+        public double VelocitySupplyResult { get; private set; }
+        public double VelocityReturnResult { get; private set; }
         #endregion
 
         #region Timing
@@ -659,16 +661,47 @@ namespace NorsynHydraulicCalc
             Console.WriteLine(AsciiTableFormatter.CreateAsciiTableColumns(columns, rowNames, "F6"));
             Console.WriteLine();
 
-            double flow = new[] { dimFlow1Frem, dimFlow2Frem, dimFlow1Retur, dimFlow2Retur }.Max();
+            double flowSupply = Math.Max(dimFlow1Frem, dimFlow2Frem);
+            double flowReturn = Math.Max(dimFlow1Retur, dimFlow2Retur);
 
-            var dim = determineDim(flow, TempSetType.Return);
+            var dimSupply = determineDim(flowSupply, TempSetType.Supply);
+            var dimReturn = determineDim(flowReturn, TempSetType.Return);
+            var dim = new[] { dimSupply, dimReturn }.MaxBy(x => x.OuterDiameter);
 
+            var resSupply = CalculateGradientAndVelocity(flowSupply, dim, TempSetType.Supply);
+            var resReturn = CalculateGradientAndVelocity(flowReturn, dim, TempSetType.Return);
+
+            SegmentTypeResult = segmentType.ToString();
+            PipeTypeResult = dim.PipeType.ToString();
+            DimNameResult = dim.DimName;
+            PressureGradientSupplyResult = resSupply.gradient;
+            PressureGradientReturnResult = resReturn.gradient;
+            VelocitySupplyResult = resSupply.velocity;
+            VelocityReturnResult = resReturn.velocity;
+
+            //Now report these five values to console
+            Console.WriteLine(
+                $"Segment type: {SegmentTypeResult}\n" +
+                $"Pipe type: {PipeTypeResult}\n" +
+                $"Dim name: {DimNameResult}\n" +
+                $"Pressure gradient, supply: {PressureGradientSupplyResult} Pa/m\n" +
+                $"Pressure gradient, return: {PressureGradientReturnResult} Pa/m\n" +
+                $"Velocity, supply: {VelocitySupplyResult} m/s\n" +
+                $"Velocity, return: {VelocityReturnResult} m/s"
+                );
+
+            sw.Stop();
+            Console.WriteLine($"Calculation time {sw.ElapsedMilliseconds} ms.");
+        }
+        private (double gradient, double velocity) CalculateGradientAndVelocity(
+            double flow, Dim dim, TempSetType tst)
+        {
             double velocity = flow / 3600 / dim.CrossSectionArea;
             double reynolds =
-                rho(this.Temp(TempSetType.Return, this.segmentType))
+                rho(this.Temp(tst, this.segmentType))
                 * velocity
                 * dim.InnerDiameter_m
-                / mu(this.Temp(TempSetType.Return, this.segmentType));
+                / mu(this.Temp(tst, this.segmentType));
 
             double f;
             switch (this.calcType)
@@ -683,28 +716,10 @@ namespace NorsynHydraulicCalc
                     throw new NotImplementedException();
             }
 
-            double gradient = f * rho(this.Temp(TempSetType.Return, this.segmentType)) *
+            double gradient = f * rho(this.Temp(tst, this.segmentType)) *
                 velocity * velocity / (2 * dim.InnerDiameter_m);
-
-            SegmentTypeResult = segmentType.ToString();
-            PipeTypeResult = dim.PipeType.ToString();
-            DimNameResult = dim.DimName;
-            PressureGradientResult = gradient;
-            VelocityResult = velocity;
-
-            //Now report these five values to console
-            Console.WriteLine(
-                $"Segment type: {SegmentTypeResult}\n" +
-                $"Pipe type: {PipeTypeResult}\n" +
-                $"Dim name: {DimNameResult}\n" +
-                $"Pressure gradient: {PressureGradientResult} Pa/m\n" +
-                $"Velocity: {VelocityResult} m/s"
-                );
-
-            sw.Stop();
-            Console.WriteLine($"Calculation time {sw.ElapsedMilliseconds} ms.");
+            return (gradient, velocity);
         }
-
         private Dim determineDim(double flow, TempSetType tst)
         {
             switch (this.segmentType)
@@ -749,7 +764,6 @@ namespace NorsynHydraulicCalc
 
             throw new Exception("No suitable dimension found!");
         }
-
         private bool AreInstancesEqual(HydraulicCalc instance1, HydraulicCalc instance2)
         {
             if (instance1 == null || instance2 == null) return false;

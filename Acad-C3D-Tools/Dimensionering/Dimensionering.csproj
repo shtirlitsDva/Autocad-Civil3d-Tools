@@ -115,6 +115,9 @@
 		<Compile Include="..\IntersectUtilities\Json.cs">
 			<Link>Json.cs</Link>
 		</Compile>
+		<Compile Include="..\IntersectUtilities\PipelineSizeArray.cs">
+			<Link>PipelineSizeArray.cs</Link>
+		</Compile>
 		<Compile Include="..\IntersectUtilities\MoreLinq\DistinctBy.cs">
 			<Link>MoreLinq\DistinctBy.cs</Link>
 		</Compile>
@@ -129,6 +132,18 @@
 		</Compile>
 		<Compile Include="..\IntersectUtilities\Utils.cs">
 			<Link>Utils.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\StringGridFormCaller.cs">
+			<Link>Forms\StringGridFormCaller.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.cs">
+			<Link>Forms\StringGridForm.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.Designer.cs">
+			<Link>Forms\StringGridForm.Designer.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\OverlayForm.cs">
+			<Link>Forms\OverlayForm.cs</Link>
 		</Compile>
 	</ItemGroup>
 	<ItemGroup>
@@ -147,6 +162,7 @@
 	</ItemGroup>
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<AssemblyName>Dimensionering</AssemblyName>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />

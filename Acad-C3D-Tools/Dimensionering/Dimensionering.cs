@@ -2219,7 +2219,7 @@ namespace IntersectUtilities.Dimensionering
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-            string curEtapeName = dimaskforarea();
+            string curEtapeName = dimaskforareaps();
             if (curEtapeName.IsNoE()) return;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
@@ -3201,6 +3201,28 @@ namespace IntersectUtilities.Dimensionering
             curEtapeName = pStrRes.StringResult;
             return curEtapeName;
             #endregion
+        }
+        internal static string dimaskforareaps()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                HashSet<string> names = new();
+                var brs = localDb.HashSetOfType<BlockReference>(tx);
+                foreach (BlockReference br in brs)
+                {
+                    string område = PropertySetManager.ReadNonDefinedPropertySetString(br, "BBR", "Distriktets_navn");
+                    names.Add(område);
+                }
+                var propertyName = StringGridFormCaller.Call(names.OrderBy(x => x), "Select district: ");
+
+                tx.Abort();
+
+                return propertyName;
+            }
         }
         internal static string dimaskforpropertysetname()
         {
