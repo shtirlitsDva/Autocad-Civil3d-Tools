@@ -228,11 +228,15 @@ namespace NorsynHydraulicCalc
 
             var translationBetweenMaxPertAndMinStål = new Dictionary<int, int>()
             {
-                { 75, 65 },
-                { 63, 50 },
-                { 50, 40 },
-                { 40, 32 },
-                { 32, 25 }
+                //{ 75, 65 },
+                //{ 63, 50 },
+                //{ 50, 40 },
+                //{ 40, 32 },
+                //{ 32, 25 }
+
+                { 75, 50 },
+                { 63, 40 },
+                { 50, 32 },
             };
 
             #region Populate maxFlowTableFL
@@ -242,7 +246,7 @@ namespace NorsynHydraulicCalc
 
                 if (currentInstance.usePertFlextraFL)
                 {
-                    foreach (var dim in PipeTypes.PertFlextra.GetDimsRange(32, currentInstance.pertFlextraMaxDnFL))
+                    foreach (var dim in PipeTypes.PertFlextra.GetDimsRange(50, currentInstance.pertFlextraMaxDnFL))
                     {
                         maxFlowTableFL.Add((dim,
                             CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Fordelingsledning),
@@ -269,7 +273,7 @@ namespace NorsynHydraulicCalc
                     case PipeType.Stål:
                         throw new Exception("Stål-stikledninger er ikke tilladt!");
                     case PipeType.PertFlextra:
-                        foreach (var dim in PipeTypes.PertFlextra.GetAllDimsSorted())
+                        foreach (var dim in PipeTypes.PertFlextra.GetDimsRange(32, 75))
                         {
                             maxFlowTableSL.Add((dim,
                                 CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
@@ -277,7 +281,7 @@ namespace NorsynHydraulicCalc
                         }
                         break;
                     case PipeType.AluPEX:
-                        foreach (var dim in PipeTypes.AluPex.GetAllDimsSorted())
+                        foreach (var dim in PipeTypes.AluPex.GetDimsRange(26, 32))
                         {
                             maxFlowTableSL.Add((dim,
                                 CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
@@ -285,7 +289,7 @@ namespace NorsynHydraulicCalc
                         }
                         break;
                     case PipeType.Kobber:
-                        foreach (var dim in PipeTypes.Cu.GetAllDimsSorted())
+                        foreach (var dim in PipeTypes.Cu.GetDimsRange(22, 28))
                         {
                             maxFlowTableSL.Add((dim,
                                 CalculateMaxFlow(dim, TempSetType.Supply, SegmentType.Stikledning),
