@@ -11,6 +11,8 @@ namespace NorsynHydraulicCalc
 {
     public class HydraulicCalc
     {
+        public static Version version = new Version(20240926, 1);
+
         #region Static properties for max flow pipe table
         private static HydraulicCalc currentInstance;
         private static List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> maxFlowTableFL;
@@ -191,7 +193,7 @@ namespace NorsynHydraulicCalc
             if (one || two)
             {
                 currentInstance = this;
-
+                Console.WriteLine($"HydraulicCalc {version}.");
                 CalculateMaxFlowValues();
             }
 
@@ -656,7 +658,7 @@ namespace NorsynHydraulicCalc
 
             if (currentInstance.reportToConsole)
             {
-                List<(string, List<double>)> columns = new List<(string, List<double>)> 
+                List<(string, List<double>)> columns = new List<(string, List<double>)>
                 {
                     ("Heating demand", new List<double>()
                     {
@@ -711,13 +713,13 @@ namespace NorsynHydraulicCalc
                     $"Pressure gradient, return: {PressureGradientReturnResult} Pa/m\n" +
                     $"Velocity, supply: {VelocitySupplyResult} m/s\n" +
                     $"Velocity, return: {VelocityReturnResult} m/s"
-                    ); 
+                    );
             }
 
             sw.Stop();
             if (currentInstance.reportToConsole)
             {
-                Console.WriteLine($"Calculation time {sw.ElapsedMilliseconds} ms."); 
+                Console.WriteLine($"Calculation time {sw.ElapsedMilliseconds} ms.");
             }
         }
         private (double gradient, double velocity) CalculateGradientAndVelocity(
