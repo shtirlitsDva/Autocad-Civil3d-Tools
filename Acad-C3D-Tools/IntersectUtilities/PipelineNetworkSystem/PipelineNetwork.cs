@@ -255,7 +255,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     // This is not the entry pipeline
                     // The other is only connected on one end
 
-                    entryPipeline = maxDNQuery.Where(x => !AreBothEndsConnected(x, group, x.GetMaxDN())).First();
+                    entryPipeline = maxDNQuery.Where(x => !AreBothEndsConnected(x, group, x.GetMaxDN())).FirstOrDefault();
+                    if (entryPipeline == default) entryPipeline = maxDNQuery.First();
 
                     bool AreBothEndsConnected(IPipelineV2 source, IEnumerable<IPipelineV2> other, int endDn)
                     {
