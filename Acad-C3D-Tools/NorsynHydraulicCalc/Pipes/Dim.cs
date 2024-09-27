@@ -4,7 +4,7 @@ using System.Text;
 
 namespace NorsynHydraulicCalc.Pipes
 {
-    internal struct Dim
+    public struct Dim
     {
         public int NominalDiameter;
         public double OuterDiameter;
@@ -15,6 +15,7 @@ namespace NorsynHydraulicCalc.Pipes
         public double Roughness_m;
         public string DimName;
         public PipeType PipeType;
+        public double RelativeRoughness { get => Roughness_m / InnerDiameter_m; }
 
         public Dim(
             int nominalDiameter,

@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="NPOI" Version="2.7.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\NorsynHydraulicCalc\NorsynHydraulicCalc.csproj" />
   </ItemGroup>
 

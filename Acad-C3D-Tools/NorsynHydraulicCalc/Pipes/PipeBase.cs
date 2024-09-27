@@ -6,7 +6,7 @@ using System.Text;
 
 namespace NorsynHydraulicCalc.Pipes
 {
-    internal abstract class PipeBase : IPipe
+    public abstract class PipeBase : IPipe
     {
         abstract protected string Name { get; }
         abstract protected PipeType PipeType { get; }
@@ -31,6 +31,7 @@ namespace NorsynHydraulicCalc.Pipes
                 .OrderBy(kvp => kvp.Key)
                 .Select(kvp => kvp.Value);
         }
+        public Dim GetDim(int dia) => Sizes[dia];
         private void LoadDimsFromEmbeddedResource()
         {
             Sizes = new Dictionary<int, Dim>();

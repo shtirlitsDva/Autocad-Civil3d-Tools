@@ -11,7 +11,7 @@ namespace NorsynHydraulicCalc
 {
     public class HydraulicCalc
     {
-        public static Version version = new Version(20240926, 1);
+        public static Version version = new Version(20240927, 2);
 
         #region Static properties for max flow pipe table
         private static HydraulicCalc currentInstance;
@@ -81,6 +81,10 @@ namespace NorsynHydraulicCalc
         public string SegmentTypeResult { get; private set; }
         public string PipeTypeResult { get; private set; }
         public string DimNameResult { get; private set; }
+        public double ReynoldsSupplyResult { get; private set; }
+        public double ReynoldsReturnResult { get; private set; }
+        public double FlowSupplyResult { get; private set; }
+        public double FlowReturnResult { get; private set; }
         public double PressureGradientSupplyResult { get; private set; }
         public double PressureGradientReturnResult { get; private set; }
         public double VelocitySupplyResult { get; private set; }
@@ -468,7 +472,12 @@ namespace NorsynHydraulicCalc
                 double f_new = f2 - (f2 - f1) * g2 / (g2 - g1);
 
                 // Check for convergence
-                if (Math.Abs(f_new - f2) < tolerance) return f_new;
+                if (Math.Abs(f_new - f2) < tolerance)
+                {
+                    if (currentInstance.reportToConsole)
+                        Console.WriteLine("CW iterations: " + i);
+                    return f_new;
+                }
 
                 // Update guesses
                 f1 = f2;
@@ -483,13 +492,17 @@ namespace NorsynHydraulicCalc
         }
         private static double CalculateFrictionFactorTkachenkoMileikovskyi(double Re, double relativeRoughness)
         {
-            double f0inverseHalf = -0.79638 * Math.Log(relativeRoughness / 8.208 + 7.3357 / Re);
-            double f0 = Math.Pow(f0inverseHalf, -2);
+            //double f0inverseHalf = -0.79638 * Math.Log(relativeRoughness / 8.208 + 7.3357 / Re);
+            //double f0 = Math.Pow(f0inverseHalf, -2);
 
-            double a1 = Re * relativeRoughness + 9.3120665 * f0inverseHalf;
+            //double a1 = Re * relativeRoughness + 9.3120665 * f0inverseHalf;
 
-            double term1 = (8.128943 + a1) / (8.128943 * f0inverseHalf - 0.86859209 * a1 * Math.Log(a1 / (3.7099535 * Re)));
-            double f = Math.Pow(term1, 2);
+            //double term1 = (8.128943 + a1) / (8.128943 * f0inverseHalf - 0.86859209 * a1 * Math.Log(a1 / (3.7099535 * Re)));
+            //double f = Math.Pow(term1, 2);
+
+            double A0 = -0.79638 * Math.Log(relativeRoughness / 8.208 + 7.3357 / Re);
+            double A1 = Re * relativeRoughness + 9.3120665 * A0;
+            double f = Math.Pow((8.128943 + A1) / (8.128943 * A0 - 0.86859209 * A1 * Math.Log(A1 / (3.7099535 * Re))), 2);
 
             return f;
         }
@@ -697,6 +710,10 @@ namespace NorsynHydraulicCalc
             SegmentTypeResult = segmentType.ToString();
             PipeTypeResult = dim.PipeType.ToString();
             DimNameResult = dim.DimName;
+            ReynoldsSupplyResult = resSupply.reynolds;
+            ReynoldsReturnResult = resReturn.reynolds;
+            FlowSupplyResult = flowSupply;
+            FlowReturnResult = flowReturn;
             PressureGradientSupplyResult = resSupply.gradient;
             PressureGradientReturnResult = resReturn.gradient;
             VelocitySupplyResult = resSupply.velocity;
@@ -722,7 +739,7 @@ namespace NorsynHydraulicCalc
                 Console.WriteLine($"Calculation time {sw.ElapsedMilliseconds} ms.");
             }
         }
-        private (double gradient, double velocity) CalculateGradientAndVelocity(
+        private (double reynolds, double gradient, double velocity) CalculateGradientAndVelocity(
             double flow, Dim dim, TempSetType tst)
         {
             double velocity = flow / 3600 / dim.CrossSectionArea;
@@ -747,7 +764,7 @@ namespace NorsynHydraulicCalc
 
             double gradient = f * rho(this.Temp(tst, this.segmentType)) *
                 velocity * velocity / (2 * dim.InnerDiameter_m);
-            return (gradient, velocity);
+            return (reynolds, gradient, velocity);
         }
         private Dim determineDim(double flow, TempSetType tst)
         {
@@ -816,6 +833,21 @@ namespace NorsynHydraulicCalc
             }
 
             return true;
+        }
+
+        //Debug and testing
+        public double f(double reynolds, double relativeRoughness, double tol)
+        {
+            double f = CalculateFrictionFactorColebrookWhite(reynolds, relativeRoughness, tol);
+            Console.WriteLine("f: " + f);
+
+            return f;
+        }
+        public double pdx(double f, double rho, double velocity, double dia)
+        {
+            double dpdx = f * rho * velocity * velocity / (2 * dia);
+            Console.WriteLine("dpdx: " + dpdx);
+            return dpdx;
         }
     }
 

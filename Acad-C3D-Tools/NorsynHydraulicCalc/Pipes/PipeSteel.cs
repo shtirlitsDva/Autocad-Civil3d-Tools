@@ -4,7 +4,7 @@ using System.Text;
 
 namespace NorsynHydraulicCalc.Pipes
 {
-    internal class PipeSteel : PipeBase
+    public class PipeSteel : PipeBase
     {
         protected override string Name => "PipeSteel";
         protected override PipeType PipeType => PipeType.Stål;

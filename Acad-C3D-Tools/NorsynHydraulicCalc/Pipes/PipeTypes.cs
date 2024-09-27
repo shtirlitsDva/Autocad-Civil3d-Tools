@@ -4,7 +4,7 @@ using System.Text;
 
 namespace NorsynHydraulicCalc.Pipes
 {
-    internal static class PipeTypes
+    public static class PipeTypes
     {
         private static Lazy<PipeSteel> _stål = new Lazy<PipeSteel>(() => new PipeSteel());
         public static PipeSteel Stål => _stål.Value;
