@@ -155,5 +155,78 @@ namespace NorsynHydraulicCalcTestApp
                 workbook.Write(fileStream);
             }
         }
+        public static void WriteToExcelFileAuto(string filePath, List<RowData> rowDataList)
+        {
+            // Create a new workbook and a sheet
+            IWorkbook workbook = new XSSFWorkbook();
+            ISheet sheet = workbook.CreateSheet("Sheet1");
+
+            // Use reflection to get all public properties of the RowData class
+            var properties = typeof(RowData).GetProperties();
+
+            // Create the header row
+            IRow headerRow = sheet.CreateRow(0);
+
+            // Write the header row using property names
+            for (int i = 0; i < properties.Length; i++)
+            {
+                headerRow.CreateCell(i).SetCellValue(properties[i].Name);
+            }
+
+            // Write the data rows
+            for (int rowIndex = 0; rowIndex < rowDataList.Count; rowIndex++)
+            {
+                RowData data = rowDataList[rowIndex];
+                IRow row = sheet.CreateRow(rowIndex + 1);
+
+                // Write each property value into its respective column
+                for (int colIndex = 0; colIndex < properties.Length; colIndex++)
+                {
+                    var propertyValue = properties[colIndex].GetValue(data);
+
+                    if (propertyValue != null)
+                    {
+                        if (propertyValue is string stringValue)
+                        {
+                            row.CreateCell(colIndex).SetCellValue(stringValue);
+                        }
+                        else if (propertyValue is int intValue)
+                        {
+                            row.CreateCell(colIndex).SetCellValue(intValue);
+                        }
+                        else if (propertyValue is double doubleValue)
+                        {
+                            row.CreateCell(colIndex).SetCellValue(doubleValue);
+                        }
+                        else if (propertyValue is float floatValue)
+                        {
+                            row.CreateCell(colIndex).SetCellValue((double)floatValue);
+                        }
+                        else if (propertyValue is bool boolValue)
+                        {
+                            row.CreateCell(colIndex).SetCellValue(boolValue ? "True" : "False");
+                        }
+                        else if (propertyValue is Enum enumValue)
+                        {
+                            row.CreateCell(colIndex).SetCellValue(enumValue.ToString());
+                        }
+                        else
+                        {
+                            row.CreateCell(colIndex).SetCellValue(propertyValue.ToString());
+                        }
+                    }
+                    else
+                    {
+                        row.CreateCell(colIndex).SetCellValue(string.Empty);
+                    }
+                }
+            }
+
+            // Save the workbook to the specified file path
+            using (FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+            {
+                workbook.Write(fileStream);
+            }
+        }
     }
 }

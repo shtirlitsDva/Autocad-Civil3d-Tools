@@ -408,15 +408,21 @@ namespace NorsynHydraulicCalc
             }
 
             // Return the final flow rate (in m^3/h), iteration count, and Reynolds number
-            reynolds = (density * newVelocity * dim.InnerDiameter_m) / viscosity;
+            reynolds = Reynolds(density, newVelocity, dim.InnerDiameter_m, viscosity);
             return (newVelocity * dim.CrossSectionArea * 3600, iteration, reynolds);
         }
-
+        private static double Reynolds(double density, double velocity, double diameter, double viscosity)
+        {
+            return density * velocity * diameter / viscosity;
+            //return velocity * diameter / 0.000000365;
+        }
         // Helper method to calculate the velocity error
-        private static double CalculateVelocityError(double velocity, double dp_dx, double diameter, double relativeRoughness, double density, double viscosity, CalcType calc)
+        private static double CalculateVelocityError(
+            double velocity, double dp_dx, double diameter, double relativeRoughness,
+            double density, double viscosity, CalcType calc)
         {
             // Calculate Reynolds number based on the current velocity
-            double reynolds = (density * velocity * diameter) / viscosity;
+            double reynolds = Reynolds(density, velocity, diameter, viscosity);
 
             // Calculate the friction factor based on the selected method
             double f;
@@ -474,8 +480,8 @@ namespace NorsynHydraulicCalc
                 // Check for convergence
                 if (Math.Abs(f_new - f2) < tolerance)
                 {
-                    if (currentInstance.reportToConsole)
-                        Console.WriteLine("CW iterations: " + i);
+                    //if (currentInstance.reportToConsole)
+                    //    Console.WriteLine("CW iterations: " + i);
                     return f_new;
                 }
 
@@ -519,8 +525,6 @@ namespace NorsynHydraulicCalc
                     if (dim.NominalDiameter <= 150) return acceptVelocity20_150FL;
                     else if (dim.NominalDiameter <= 300) return acceptVelocity200_300FL;
                     else return acceptVelocity350PlusFL;
-                //TODO: Find out what pipe types are considered flexible?
-                //Here it is assumed that all are flexible except steel
                 case SegmentType.Stikledning:
                     if (dim.PipeType != PipeType.Stål) return acceptVelocityFlexibleSL;
                     else return acceptVelocity20_150SL;
@@ -649,7 +653,8 @@ namespace NorsynHydraulicCalc
             }
             throw new ArgumentException($"Temperature out of range for \"nu\": {T}, allowed values: 0 - 200.");
         }
-        private static double volume(int temp, int deltaT) => 3600 / (rho(temp) * cp(temp) * deltaT);
+        private static double volume(int temp, int deltaT) => 3600.0 / (rho(temp) * cp(temp) * deltaT);
+        //private static double volume(int temp, int deltaT) => 3600.0 / (951.0 * 4.231 * deltaT);
         #endregion
         #endregion
 
@@ -661,12 +666,12 @@ namespace NorsynHydraulicCalc
             double s_hw = (51.0 - (double)numberOfUnits) / (50.0 * Math.Sqrt((double)numberOfUnits));
             s_hw = s_hw < 0 ? 0 : s_hw;
 
-            double dimFlow1Frem = (totalHeatingDemand * 1000 / N1) * s_heat * volume(Tf, dT1);
-            double dimFlow2Frem = (totalHeatingDemand * 1000 / N1) * s_heat * KX * volume(Tf, dT1)
+            double dimFlow1Frem = (totalHeatingDemand * 1000.0 / N1) * s_heat * volume(Tf, dT1);
+            double dimFlow2Frem = (totalHeatingDemand * 1000.0 / N1) * s_heat * KX * volume(Tf, dT1)
                 + numberOfUnits * 33 * f_b * s_hw * volume(Tf, dT2);
 
-            double dimFlow1Retur = (totalHeatingDemand * 1000 / N1) * s_heat * volume(Tr, dT1);
-            double dimFlow2Retur = (totalHeatingDemand * 1000 / N1) * s_heat * KX * volume(Tr, dT1)
+            double dimFlow1Retur = (totalHeatingDemand * 1000.0 / N1) * s_heat * volume(Tr, dT1);
+            double dimFlow2Retur = (totalHeatingDemand * 1000.0 / N1) * s_heat * KX * volume(Tr, dT1)
                 + numberOfUnits * 33 * f_b * s_hw * volume(Tr_hw, dT2);
 
             if (currentInstance.reportToConsole)
@@ -674,6 +679,20 @@ namespace NorsynHydraulicCalc
                 List<(string, List<double>)> columns = new List<(string, List<double>)>
                 {
                     ("Heating demand", new List<double>()
+                    {
+                        totalHeatingDemand,
+                        totalHeatingDemand,
+                        totalHeatingDemand,
+                        totalHeatingDemand
+                    }),
+                    ("Flow", new List<double>()
+                    {
+                        totalHeatingDemand / N1 * 1000.0/(dT1 * 4.231),
+                        totalHeatingDemand / N1 * 1000.0/(dT1 * 4.231),
+                        totalHeatingDemand / N1 * 1000.0/(dT1 * 4.231),
+                        totalHeatingDemand / N1 * 1000.0/(dT1 * 4.231)
+                    }),
+                    ("Demand ajusted", new List<double>()
                     {
                         (totalHeatingDemand * 1000 / N1),
                         (totalHeatingDemand * 1000 / N1),
@@ -688,7 +707,18 @@ namespace NorsynHydraulicCalc
                     ("Cp hw", new List<double>() { cp(Tf), cp(Tf), cp(Tr_hw), cp(Tr_hw)}),
                     ("m^3/kW heat", new List<double>() { volume(Tf, dT1), volume(Tf, dT1), volume(Tr, dT1), volume(Tr, dT1) }),
                     ("m^3/kW hw", new List<double>() { 0, volume(Tf, dT2), 0, volume(Tr_hw, dT2) }),
-                    ("Flow", new List<double>() { dimFlow1Frem, dimFlow2Frem, dimFlow1Retur, dimFlow2Retur }),
+                    ("Flow m³/hr", new List<double>() { dimFlow1Frem, dimFlow2Frem, dimFlow1Retur, dimFlow2Retur }),
+                    ("Flow kg/s", new List<double>()
+                    {
+                        dimFlow1Frem * rho(Tf) / 3600,
+                        dimFlow2Frem * rho(Tf) / 3600,
+                        dimFlow1Retur * rho(Tr) / 3600,
+                        dimFlow2Retur * rho(Tr) / 3600
+                        //dimFlow1Frem * 951 / 3600,
+                        //dimFlow2Frem * 951 / 3600,
+                        //dimFlow1Retur * 951 / 3600,
+                        //dimFlow2Retur * 951 / 3600
+                    })
                 };
 
                 List<string> rowNames = new List<string> { "Frem 1", "Frem 2", "Retur 1", "Retur 2" };
@@ -743,12 +773,12 @@ namespace NorsynHydraulicCalc
             double flow, Dim dim, TempSetType tst)
         {
             double velocity = flow / 3600 / dim.CrossSectionArea;
-            double reynolds =
-                rho(this.Temp(tst, this.segmentType))
-                * velocity
-                * dim.InnerDiameter_m
-                / mu(this.Temp(tst, this.segmentType));
-
+            double reynolds = Reynolds(
+                rho(this.Temp(tst, this.segmentType)),
+                velocity,
+                dim.InnerDiameter_m,
+                mu(this.Temp(tst, this.segmentType)));
+                
             double f;
             switch (this.calcType)
             {
@@ -762,8 +792,8 @@ namespace NorsynHydraulicCalc
                     throw new NotImplementedException();
             }
 
-            double gradient = f * rho(this.Temp(tst, this.segmentType)) *
-                velocity * velocity / (2 * dim.InnerDiameter_m);
+            double gradient = f * rho(this.Temp(tst, this.segmentType)) * velocity * velocity / (2 * dim.InnerDiameter_m);
+            //double gradient = f * 951 * velocity * velocity / (2 * dim.InnerDiameter_m);
             return (reynolds, gradient, velocity);
         }
         private Dim determineDim(double flow, TempSetType tst)
@@ -846,7 +876,6 @@ namespace NorsynHydraulicCalc
         public double pdx(double f, double rho, double velocity, double dia)
         {
             double dpdx = f * rho * velocity * velocity / (2 * dia);
-            Console.WriteLine("dpdx: " + dpdx);
             return dpdx;
         }
     }

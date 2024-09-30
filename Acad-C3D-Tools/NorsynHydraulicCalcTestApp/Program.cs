@@ -7,116 +7,116 @@ using NorsynHydraulicCalcTestApp;
 using System.Diagnostics;
 
 #region Whole path testing
-//var rows = DataUtils.ReadExcelFile(
-//    @"X:\AutoCAD DRI - 02 Ekstern\01 HD Lab\01 Test data\Part 1\Exported Data HDLAB.xlsx");
+var rows = DataUtils.ReadExcelFile(
+    @"X:\AutoCAD DRI - 02 Ekstern\01 HD Lab\01 Test data\Part 1\Exported Data HDLAB.xlsx");
 
-//Stopwatch sw = new Stopwatch();
-//sw.Start();
+Stopwatch sw = new Stopwatch();
+sw.Start();
 
-//foreach (var row in rows)
-//{
-//    HydraulicCalc hc = new HydraulicCalc(
-//    row.Segment.ToString(), //Segment Type
-//    row.HeatingDemand, //Total heating demand
-//    row.NumberOfBuildings, //Number of buildings 
-//    row.NumberOfUnits, //Number of units
-//    75, //Hot water return temp
-//    0.6, //FactorTillægForOpvarmningUdenBrugsvandsprioritering
-//    0.5, //MinDifferentialPressureOverHovedHaner
+foreach (var row in rows)
+{
+    HydraulicCalc hc = new HydraulicCalc(
+    row.Segment.ToString(), //Segment Type
+    row.HeatingDemand, //Total heating demand
+    row.NumberOfBuildings, //Number of buildings 
+    row.NumberOfUnits, //Number of units
+    75, //Hot water return temp
+    0.6, //FactorTillægForOpvarmningUdenBrugsvandsprioritering
+    0.5, //MinDifferentialPressureOverHovedHaner
 
-//    110, //TempFremFL
-//    60, //TempReturFL
-//    1, //FactorVarmtVandsTillægFL
-//    2000, //NyttetimerOneUserFL
-//    2800, //Nyttetimer50PlusUsersFL
-//    1.5, //AcceptVelocity20_150FL
-//    2.5, //AcceptVelocity200_300FL
-//    3, //AcceptVelocity300PlusFL
-//    100, //AcceptPressureGradient20_150FL
-//    100, //AcceptPressureGradient200_300FL
-//    120, //AcceptPressureGradient300PlusFL
-//    true, //UsePertFlextraFL
-//    75, //PertFlextraMaxDnFL
+    110, //TempFremFL
+    75, //TempReturFL
+    1, //FactorVarmtVandsTillægFL
+    2000, //NyttetimerOneUserFL
+    2800, //Nyttetimer50PlusUsersFL
+    1.5, //AcceptVelocity20_150FL
+    2.5, //AcceptVelocity200_300FL
+    3, //AcceptVelocity300PlusFL
+    100, //AcceptPressureGradient20_150FL
+    100, //AcceptPressureGradient200_300FL
+    120, //AcceptPressureGradient300PlusFL
+    true, //UsePertFlextraFL
+    75, //PertFlextraMaxDnFL
 
-//    110, //TempFremSL
-//    60, //TempReturSL
-//    1, //FactorVarmtVandsTillægSL
-//    2000, //NyttetimerOneUserSL
-//    "AluPEX", //PipeTypeSL
-//    1, //AcceptVelocityFlexibleSL
-//    1.5, //AcceptVelocity20_150SL
-//    600, //AcceptPressureGradientFlexibleSL
-//    600, //AcceptPressureGradient20_150SL
-//    0.3, //MaxPressureLossStikSL
-//    "CW",
-//    false
-//    );
+    110, //TempFremSL
+    75, //TempReturSL
+    1, //FactorVarmtVandsTillægSL
+    2000, //NyttetimerOneUserSL
+    "AluPEX", //PipeTypeSL
+    1, //AcceptVelocityFlexibleSL
+    1.5, //AcceptVelocity20_150SL
+    600, //AcceptPressureGradientFlexibleSL
+    600, //AcceptPressureGradient20_150SL
+    0.3, //MaxPressureLossStikSL
+    "CW",
+    true
+    );
 
-//    hc.Calculate();
+    hc.Calculate();
 
-//    row.ReynoldsFrem = hc.ReynoldsSupplyResult;
-//    row.ReynoldsRetur = hc.ReynoldsReturnResult;
-//    row.FlowFrem = hc.FlowSupplyResult;
-//    row.FlowRetur = hc.FlowReturnResult;
-//    row.GradientFrem = hc.PressureGradientSupplyResult;
-//    row.GradientRetur = hc.PressureGradientReturnResult;
-//    row.Dimension = hc.DimNameResult;
-//}
+    row.ReynoldsFrem = hc.ReynoldsSupplyResult;
+    row.ReynoldsRetur = hc.ReynoldsReturnResult;
+    row.FlowFrem = hc.FlowSupplyResult;
+    row.FlowRetur = hc.FlowReturnResult;
+    row.GradientFrem = hc.PressureGradientSupplyResult;
+    row.GradientRetur = hc.PressureGradientReturnResult;
+    row.Dimension = hc.DimNameResult;
+}
 
-//sw.Stop();
-//Console.WriteLine("Elapsed time: " + sw.Elapsed);
+sw.Stop();
+Console.WriteLine("Elapsed time: " + sw.Elapsed);
 
-//DataUtils.WriteToExcelFile(
-//    @"X:\AutoCAD DRI - 02 Ekstern\01 HD Lab\01 Test data\Part 1\Exported Data Calculated.xlsx",
-//    rows); 
+DataUtils.WriteToExcelFile(
+    @"X:\AutoCAD DRI - 02 Ekstern\01 HD Lab\01 Test data\Part 1\Exported Data Calculated.xlsx",
+    rows);
 #endregion
 
 #region Single Testing
-HydraulicCalc hc = new HydraulicCalc(
-"Fordelingsledning",
-50, //Total heating demand
-1, //Number of clients
-1, //Number of units
-60, //Hot water return temp
-0.6, //FactorTillægForOpvarmningUdenBrugsvandsprioritering
-0.5, //MinDifferentialPressureOverHovedHaner
+//HydraulicCalc hc = new HydraulicCalc(
+//"Fordelingsledning",
+//50, //Total heating demand
+//1, //Number of clients
+//1, //Number of units
+//60, //Hot water return temp
+//0.6, //FactorTillægForOpvarmningUdenBrugsvandsprioritering
+//0.5, //MinDifferentialPressureOverHovedHaner
 
-110, //TempFremFL
-60, //TempReturFL
-1, //FactorVarmtVandsTillægFL
-2000, //NyttetimerOneUserFL
-2800, //Nyttetimer50PlusUsersFL
-1.5, //AcceptVelocity20_150FL
-2.5, //AcceptVelocity200_300FL
-3, //AcceptVelocity300PlusFL
-100, //AcceptPressureGradient20_150FL
-100, //AcceptPressureGradient200_300FL
-120, //AcceptPressureGradient300PlusFL
-true, //UsePertFlextraFL
-75, //PertFlextraMaxDnFL
+//110, //TempFremFL
+//60, //TempReturFL
+//1, //FactorVarmtVandsTillægFL
+//2000, //NyttetimerOneUserFL
+//2800, //Nyttetimer50PlusUsersFL
+//1.5, //AcceptVelocity20_150FL
+//2.5, //AcceptVelocity200_300FL
+//3, //AcceptVelocity300PlusFL
+//100, //AcceptPressureGradient20_150FL
+//100, //AcceptPressureGradient200_300FL
+//120, //AcceptPressureGradient300PlusFL
+//true, //UsePertFlextraFL
+//75, //PertFlextraMaxDnFL
 
-110, //TempFremSL
-60, //TempReturSL
-1, //FactorVarmtVandsTillægSL
-2000, //NyttetimerOneUserSL
-"AluPEX", //PipeTypeSL
-1, //AcceptVelocityFlexibleSL
-1.5, //AcceptVelocity20_150SL
-600, //AcceptPressureGradientFlexibleSL
-600, //AcceptPressureGradient20_150SL
-0.3, //MaxPressureLossStikSL
-"CW",
-true
-);
+//110, //TempFremSL
+//60, //TempReturSL
+//1, //FactorVarmtVandsTillægSL
+//2000, //NyttetimerOneUserSL
+//"AluPEX", //PipeTypeSL
+//1, //AcceptVelocityFlexibleSL
+//1.5, //AcceptVelocity20_150SL
+//600, //AcceptPressureGradientFlexibleSL
+//600, //AcceptPressureGradient20_150SL
+//0.3, //MaxPressureLossStikSL
+//"CW",
+//true
+//);
 
-Dim dim = PipeTypes.Stål.GetDim(65);
+//Dim dim = PipeTypes.Stål.GetDim(65);
 
-hc.pdx(
-    hc.f(246642.76620904, dim.RelativeRoughness, 1e-6),
-    951,
-    1.2805776624,
-    dim.InnerDiameter_m
-    );
+//hc.pdx(
+//    hc.f(246642.76620904, dim.RelativeRoughness, 1e-6),
+//    951,
+//    1.2805776624,
+//    dim.InnerDiameter_m
+//    );
 
 //hc.Calculate();
 
