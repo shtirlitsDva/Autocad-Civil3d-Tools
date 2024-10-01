@@ -217,13 +217,13 @@ namespace NorsynHydraulicCalc
                 reportingColumnNames = new List<string>()
                 {
                     "v max", "Di", "Tv.sn.A", "Q max v", "dPdx max", "Rel. ruhed", "Densitet", "Dyn. Visc.",
-                    "iters", "Re", "Q max dPdx"
+                    "iters", "Re", "Q max dPdx", "Dim flow"
 
                 };
                 reportingUnits = new List<string>()
                 {
                     "[m/s]", "[m]", "[m²]", "[m³/hr]", "[Pa/m]", "[]", "[kg/m³]", "[kg/(m * s)]",
-                    "[n]", "[]", "[m³/hr]"
+                    "[n]", "[]", "[m³/hr]", "[kg/s]"
 
                 };
 
@@ -352,7 +352,8 @@ namespace NorsynHydraulicCalc
                     vmax, dim.InnerDiameter_m, dim.CrossSectionArea, Qmax_velocity_m3hr,
                     currentInstance.dPdx_max(dim, st), dim.Roughness_m / dim.InnerDiameter_m,
                     rho(currentInstance.Temp(tempSetType, st)), mu(currentInstance.Temp(tempSetType, st)),
-                    res.iterations, res.Re, res.Qmax
+                    res.iterations, res.Re, res.Qmax,
+                    Math.Min(Qmax_velocity_m3hr, res.Qmax)/3600*rho(currentInstance.Temp(tempSetType, st))
                 };
                 switch (st)
                 {
