@@ -8521,6 +8521,45 @@ namespace IntersectUtilities
             }
         }
 
+        [CommandMethod("TLEN")]
+        public void totallengthofpipes()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var pipes = localDb.GetFjvPipes(tx);
+                    var gps = pipes.GroupBy(x => x.Layer).OrderBy(x => x.Key);
+
+                    List<(string layer, double length)> list = new List<(string layer, double length)>();
+
+                    gps.ForEach(x =>
+                    {
+                        double length = x.Sum(y => y.Length);
+                        list.Add((x.Key, length));
+                    });
+
+                    var s = list.Select(x => $"{x.layer}: {x.length}").ToArray();
+                    string res = string.Join("\n", s);
+                    prdDbg(res);
+
+                    s = list.Select(x => $"{x.layer};{x.length}").ToArray();
+                    res = string.Join("\n", s);
+                    File.WriteAllLines(@"C:\Temp\Lengths.txt", s);
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         [CommandMethod("GATHERELEMENTSBYPREDICATE")]
         public void gatherelementsbypredicate()
         {
