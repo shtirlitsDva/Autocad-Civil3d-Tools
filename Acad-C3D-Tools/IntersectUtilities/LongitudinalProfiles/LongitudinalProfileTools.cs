@@ -49,6 +49,7 @@ using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Color = Autodesk.AutoCAD.Colors.Color;
 using IntersectUtilities.LongitudinalProfiles;
+using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
 
 namespace IntersectUtilities
 {
@@ -973,9 +974,6 @@ namespace IntersectUtilities
                         BlockTableRecord detailingBlock = new BlockTableRecord();
                         detailingBlock.Name = pv.Name;
                         detailingBlock.Origin = new Point3d(x, y, 0);
-
-                        bt.Add(detailingBlock);
-                        tx.AddNewlyCreatedDBObject(detailingBlock, true);
                         #endregion
 
                         #region Process labels
@@ -1006,7 +1004,7 @@ namespace IntersectUtilities
 
                             if (dia == 0 || diaOriginal == 999) dia = 0.11;
 
-                            //Determine orinial layer
+                            //Determine original layer
                             var originalEnt = lman.GetEntityByHandle(
                                 psm.ReadPropertyString(
                                     fEnt, dcd.SourceEntityHandle));
@@ -1016,6 +1014,12 @@ namespace IntersectUtilities
 
                             if (blockName.IsNotNoE())
                             {
+                                IProfileViewSymbol symbol = ProfileViewSymbolFactory
+                                    .GetProfileViewSymbol(blockName);
+
+                                symbol.CreateSymbol(
+                                    tx, detailingBlock, label.LabelLocation, dia, fEnt.Layer);
+
                                 if (blockName == "Cirkel, Bund" || blockName == "Cirkel, Top")
                                 {
                                     Circle circle = null;
@@ -1064,6 +1068,9 @@ namespace IntersectUtilities
                             label.Layer = fEnt.Layer;
                         }
                         #endregion
+
+                        bt.Add(detailingBlock);
+                        tx.AddNewlyCreatedDBObject(detailingBlock, true);
 
                         Oid brId = default;
                         using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
