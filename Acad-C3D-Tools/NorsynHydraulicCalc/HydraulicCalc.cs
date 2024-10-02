@@ -89,6 +89,8 @@ namespace NorsynHydraulicCalc
         public double PressureGradientReturnResult { get; private set; }
         public double VelocitySupplyResult { get; private set; }
         public double VelocityReturnResult { get; private set; }
+        public double AllowedFlowMinimum { get; private set; }
+        public double AllowedFlowMaximum { get; private set; }
         #endregion
 
         #region Timing
@@ -734,6 +736,7 @@ namespace NorsynHydraulicCalc
             var dimSupply = determineDim(flowSupply, TempSetType.Supply);
             var dimReturn = determineDim(flowReturn, TempSetType.Return);
             var dim = new[] { dimSupply, dimReturn }.MaxBy(x => x.OuterDiameter);
+            var minMaxFlows = determineMinAndMaxFlows(dim);
 
             var resSupply = CalculateGradientAndVelocity(flowSupply, dim, TempSetType.Supply);
             var resReturn = CalculateGradientAndVelocity(flowReturn, dim, TempSetType.Return);
@@ -749,6 +752,8 @@ namespace NorsynHydraulicCalc
             PressureGradientReturnResult = resReturn.gradient;
             VelocitySupplyResult = resSupply.velocity;
             VelocityReturnResult = resReturn.velocity;
+            AllowedFlowMaximum = minMaxFlows.max;
+            AllowedFlowMinimum = minMaxFlows.min;
 
             if (currentInstance.reportToConsole)
             {
@@ -760,7 +765,9 @@ namespace NorsynHydraulicCalc
                     $"Pressure gradient, supply: {PressureGradientSupplyResult} Pa/m\n" +
                     $"Pressure gradient, return: {PressureGradientReturnResult} Pa/m\n" +
                     $"Velocity, supply: {VelocitySupplyResult} m/s\n" +
-                    $"Velocity, return: {VelocityReturnResult} m/s"
+                    $"Velocity, return: {VelocityReturnResult} m/s\n" +
+                    $"Min flow for size: {minMaxFlows.min} m³/hr\n" +
+                    $"Max flow for size: {minMaxFlows.max} m³/hr"
                     );
             }
 
@@ -779,7 +786,7 @@ namespace NorsynHydraulicCalc
                 velocity,
                 dim.InnerDiameter_m,
                 mu(this.Temp(tst, this.segmentType)));
-                
+
             double f;
             switch (this.calcType)
             {
@@ -840,6 +847,33 @@ namespace NorsynHydraulicCalc
             }
 
             throw new Exception("No suitable dimension found!");
+        }
+        private (double min, double max) determineMinAndMaxFlows(Dim dim)
+        {
+            List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> table;
+
+            switch (this.segmentType)
+            {
+                case SegmentType.Fordelingsledning:
+                    table = maxFlowTableFL;
+                    break;
+                case SegmentType.Stikledning:
+                    table = maxFlowTableSL;
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+
+            var entry = table
+                .Where(x => x.Dim.NominalDiameter == dim.NominalDiameter)
+                .FirstOrDefault();
+            int idx = table.IndexOf(entry);
+            if (idx == 0) return (0, Math.Min(entry.MaxFlowReturn, entry.MaxFlowFrem));
+            var prev = table[idx - 1];
+            return (Math.Min(
+                prev.MaxFlowReturn,
+                prev.MaxFlowFrem),
+                    Math.Min(entry.MaxFlowReturn, entry.MaxFlowFrem));
         }
         private bool AreInstancesEqual(HydraulicCalc instance1, HydraulicCalc instance2)
         {
