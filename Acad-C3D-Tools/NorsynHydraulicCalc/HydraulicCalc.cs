@@ -11,7 +11,7 @@ namespace NorsynHydraulicCalc
 {
     public class HydraulicCalc
     {
-        public static Version version = new Version(20240927, 2);
+        public static Version version = new Version(20241002, 1);
 
         #region Static properties for max flow pipe table
         private static HydraulicCalc currentInstance;
