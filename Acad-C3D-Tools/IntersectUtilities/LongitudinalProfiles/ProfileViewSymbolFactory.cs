@@ -20,7 +20,7 @@ namespace IntersectUtilities.LongitudinalProfiles
                     return new CirkelTop();
                 case "EL 0.4kV":
                 case "EL 04kV":
-                    return new El04();
+                    return new El04("EL 0.4kV");
                 case "EL 10kV":
                     return new El10();
                 case "EL 30kV":

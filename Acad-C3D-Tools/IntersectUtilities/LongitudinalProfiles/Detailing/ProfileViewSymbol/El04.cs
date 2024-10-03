@@ -1,4 +1,8 @@
-﻿using System;
+﻿using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,5 +12,26 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
 {
     internal class El04 : ProfileViewSymbol
     {
+        private string _blockName;
+        public El04(string blockName) { _blockName = blockName; }
+        public override void CreateSymbol(Transaction tx, BlockTableRecord detailingBlock, Point3d location, double dia, string layer)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+
+            using (var br = new BlockReference(location, bt[_blockName]))
+            {
+                space.AppendEntity(br);
+                tx.AddNewlyCreatedDBObject(br, false);
+                br.Layer = fEnt.Layer;
+
+                Entity clone = br.Clone() as Entity;
+                detailingBlock.AppendEntity(clone);
+                tx.AddNewlyCreatedDBObject(clone, true);
+
+                br.Erase(true);
+            }
+        }
     }
 }

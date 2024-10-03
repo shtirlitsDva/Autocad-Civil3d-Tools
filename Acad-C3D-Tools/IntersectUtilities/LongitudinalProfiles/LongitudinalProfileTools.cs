@@ -3393,7 +3393,7 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("TESTPROFILEPARABOLA")]
+        //[CommandMethod("TESTPROFILEPARABOLA")]
         public void testprofileparabola()
         {
             DocumentCollection docCol = Application.DocumentManager;

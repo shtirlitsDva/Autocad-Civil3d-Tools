@@ -11,6 +11,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
 {
     internal abstract class ProfileViewSymbol : IProfileViewSymbol
     {
+        protected string BlockName { get; private set; }
         public abstract void CreateSymbol(
             Transaction tx, BlockTableRecord detailingBlock, Point3d location, double dia, string layer);
     }
