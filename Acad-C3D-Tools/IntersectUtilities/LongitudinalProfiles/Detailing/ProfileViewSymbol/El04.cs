@@ -20,17 +20,15 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
             Database localDb = docCol.MdiActiveDocument.Database;
             BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
 
+            if (!bt.Has(_blockName))
+            {
+                new IntersectUtilities.Intersect().importcivilstyles();
+            }
+
             using (var br = new BlockReference(location, bt[_blockName]))
             {
-                space.AppendEntity(br);
-                tx.AddNewlyCreatedDBObject(br, false);
-                br.Layer = fEnt.Layer;
-
-                Entity clone = br.Clone() as Entity;
-                detailingBlock.AppendEntity(clone);
-                tx.AddNewlyCreatedDBObject(clone, true);
-
-                br.Erase(true);
+                br.Layer = layer;
+                detailingBlock.AppendEntity(br);
             }
         }
     }

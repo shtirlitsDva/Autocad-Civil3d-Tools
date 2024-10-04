@@ -11,7 +11,7 @@ namespace NorsynHydraulicCalc
 {
     public class HydraulicCalc
     {
-        public static Version version = new Version(20241002, 1);
+        public static Version version = new Version(20241004, 1);
 
         #region Static properties for max flow pipe table
         private static HydraulicCalc currentInstance;
@@ -89,8 +89,7 @@ namespace NorsynHydraulicCalc
         public double PressureGradientReturnResult { get; private set; }
         public double VelocitySupplyResult { get; private set; }
         public double VelocityReturnResult { get; private set; }
-        public double AllowedFlowMinimum { get; private set; }
-        public double AllowedFlowMaximum { get; private set; }
+        public double UtilizationRateResult { get; private set; }
         #endregion
 
         #region Timing
@@ -736,7 +735,7 @@ namespace NorsynHydraulicCalc
             var dimSupply = determineDim(flowSupply, TempSetType.Supply);
             var dimReturn = determineDim(flowReturn, TempSetType.Return);
             var dim = new[] { dimSupply, dimReturn }.MaxBy(x => x.OuterDiameter);
-            var minMaxFlows = determineMinAndMaxFlows(dim);
+            var utilRate = determineUtilizationRate(dim, flowSupply, flowReturn);
 
             var resSupply = CalculateGradientAndVelocity(flowSupply, dim, TempSetType.Supply);
             var resReturn = CalculateGradientAndVelocity(flowReturn, dim, TempSetType.Return);
@@ -752,8 +751,7 @@ namespace NorsynHydraulicCalc
             PressureGradientReturnResult = resReturn.gradient;
             VelocitySupplyResult = resSupply.velocity;
             VelocityReturnResult = resReturn.velocity;
-            AllowedFlowMaximum = minMaxFlows.max;
-            AllowedFlowMinimum = minMaxFlows.min;
+            UtilizationRateResult = utilRate;
 
             if (currentInstance.reportToConsole)
             {
@@ -766,8 +764,7 @@ namespace NorsynHydraulicCalc
                     $"Pressure gradient, return: {PressureGradientReturnResult} Pa/m\n" +
                     $"Velocity, supply: {VelocitySupplyResult} m/s\n" +
                     $"Velocity, return: {VelocityReturnResult} m/s\n" +
-                    $"Min flow for size: {minMaxFlows.min} m³/hr\n" +
-                    $"Max flow for size: {minMaxFlows.max} m³/hr"
+                    $"Utilization rate: {utilRate}"
                     );
             }
 
@@ -848,7 +845,7 @@ namespace NorsynHydraulicCalc
 
             throw new Exception("No suitable dimension found!");
         }
-        private (double min, double max) determineMinAndMaxFlows(Dim dim)
+        private double determineUtilizationRate(Dim dim, double flowSupply, double flowReturn)
         {
             List<(Dim Dim, double MaxFlowFrem, double MaxFlowReturn)> table;
 
@@ -865,15 +862,13 @@ namespace NorsynHydraulicCalc
             }
 
             var entry = table
-                .Where(x => x.Dim.NominalDiameter == dim.NominalDiameter)
+                .Where(x => x.Dim.DimName == dim.DimName)
                 .FirstOrDefault();
-            int idx = table.IndexOf(entry);
-            if (idx == 0) return (0, Math.Min(entry.MaxFlowReturn, entry.MaxFlowFrem));
-            var prev = table[idx - 1];
-            return (Math.Min(
-                prev.MaxFlowReturn,
-                prev.MaxFlowFrem),
-                    Math.Min(entry.MaxFlowReturn, entry.MaxFlowFrem));
+
+            Console.WriteLine(
+                $"{(flowSupply / entry.MaxFlowFrem * 100).ToString("F2")}, " +
+                $"{(flowReturn / entry.MaxFlowReturn * 100).ToString("F2")}");
+            return Math.Max(flowSupply / entry.MaxFlowFrem, flowReturn / entry.MaxFlowReturn);
         }
         private bool AreInstancesEqual(HydraulicCalc instance1, HydraulicCalc instance2)
         {

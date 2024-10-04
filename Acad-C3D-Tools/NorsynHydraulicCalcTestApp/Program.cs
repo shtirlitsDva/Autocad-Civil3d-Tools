@@ -66,23 +66,24 @@ foreach (var row in rows)
 sw.Stop();
 Console.WriteLine("Elapsed time: " + sw.Elapsed);
 
-DataUtils.WriteToExcelFile(
-    @"X:\AutoCAD DRI - 02 Ekstern\01 HD Lab\01 Test data\Part 1\Exported Data Calculated.xlsx",
-    rows);
+//DataUtils.WriteToExcelFile(
+//    @"X:\AutoCAD DRI - 02 Ekstern\01 HD Lab\01 Test data\Part 1\Exported Data Calculated test.xlsx",
+//    rows);
 #endregion
 
 #region Single Testing
 //HydraulicCalc hc = new HydraulicCalc(
-//"Fordelingsledning",
-//50, //Total heating demand
+////"Fordelingsledning",
+//"Stikledning",
+//300, //Total heating demand
 //1, //Number of clients
 //1, //Number of units
-//60, //Hot water return temp
+//75, //Hot water return temp
 //0.6, //FactorTillægForOpvarmningUdenBrugsvandsprioritering
 //0.5, //MinDifferentialPressureOverHovedHaner
 
 //110, //TempFremFL
-//60, //TempReturFL
+//75, //TempReturFL
 //1, //FactorVarmtVandsTillægFL
 //2000, //NyttetimerOneUserFL
 //2800, //Nyttetimer50PlusUsersFL
@@ -96,7 +97,7 @@ DataUtils.WriteToExcelFile(
 //75, //PertFlextraMaxDnFL
 
 //110, //TempFremSL
-//60, //TempReturSL
+//75, //TempReturSL
 //1, //FactorVarmtVandsTillægSL
 //2000, //NyttetimerOneUserSL
 //"AluPEX", //PipeTypeSL
