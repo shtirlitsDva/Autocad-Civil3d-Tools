@@ -865,9 +865,9 @@ namespace NorsynHydraulicCalc
                 .Where(x => x.Dim.DimName == dim.DimName)
                 .FirstOrDefault();
 
-            Console.WriteLine(
-                $"{(flowSupply / entry.MaxFlowFrem * 100).ToString("F2")}, " +
-                $"{(flowReturn / entry.MaxFlowReturn * 100).ToString("F2")}");
+            //Console.WriteLine(
+            //    $"{(flowSupply / entry.MaxFlowFrem * 100).ToString("F2")}, " +
+            //    $"{(flowReturn / entry.MaxFlowReturn * 100).ToString("F2")}");
             return Math.Max(flowSupply / entry.MaxFlowFrem, flowReturn / entry.MaxFlowReturn);
         }
         private bool AreInstancesEqual(HydraulicCalc instance1, HydraulicCalc instance2)
