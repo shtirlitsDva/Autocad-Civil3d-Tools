@@ -24,6 +24,7 @@ namespace IntersectUtilities.LongitudinalProfiles
                 case "EL 10kV":
                     return new El10();
                 case "EL 30kV":
+                case "EL 50kV":
                     return new El30();
                 default:
                     throw new Exception("Unknown symbol name (Block): " + blockName);

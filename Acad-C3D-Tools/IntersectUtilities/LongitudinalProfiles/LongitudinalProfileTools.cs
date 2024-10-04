@@ -650,7 +650,8 @@ namespace IntersectUtilities
                         StandardPointGroupQuery spgq = new StandardPointGroupQuery();
                         List<string> newPointNumbers = allNewlyCreatedPoints.Select(x => x.PointNumber.ToString()).ToList();
                         string pointNumbersToInclude = string.Join(
-                            CultureInfo.CurrentCulture.TextInfo.ListSeparator,
+                            ",",
+                            //CultureInfo.CurrentCulture.TextInfo.ListSeparator,
                             newPointNumbers.ToArray());
                         spgq.IncludeNumbers = pointNumbersToInclude;
                         currentPointGroup.SetQuery(spgq);
@@ -974,6 +975,7 @@ namespace IntersectUtilities
                         BlockTableRecord detailingBlock = new BlockTableRecord();
                         detailingBlock.Name = pv.Name;
                         detailingBlock.Origin = new Point3d(x, y, 0);
+                        detailingBlock.CheckOrOpenForWrite();
                         #endregion
 
                         #region Process labels
@@ -1020,48 +1022,48 @@ namespace IntersectUtilities
                                 symbol.CreateSymbol(
                                     tx, detailingBlock, label.LabelLocation, dia, fEnt.Layer);
 
-                                if (blockName == "Cirkel, Bund" || blockName == "Cirkel, Top")
-                                {
-                                    Circle circle = null;
-                                    if (blockName.Contains("Bund"))
-                                    {
-                                        circle = new Circle(new Point3d(
-                                        label.LabelLocation.X, label.LabelLocation.Y + (dia / 2), 0),
-                                        Vector3d.ZAxis, dia / 2);
-                                    }
-                                    else if (blockName.Contains("Top"))
-                                    {
-                                        circle = new Circle(new Point3d(
-                                        label.LabelLocation.X, label.LabelLocation.Y - (dia / 2), 0),
-                                        Vector3d.ZAxis, dia / 2);
-                                    }
+                                //if (blockName == "Cirkel, Bund" || blockName == "Cirkel, Top")
+                                //{
+                                //    Circle circle = null;
+                                //    if (blockName.Contains("Bund"))
+                                //    {
+                                //        circle = new Circle(new Point3d(
+                                //        label.LabelLocation.X, label.LabelLocation.Y + (dia / 2), 0),
+                                //        Vector3d.ZAxis, dia / 2);
+                                //    }
+                                //    else if (blockName.Contains("Top"))
+                                //    {
+                                //        circle = new Circle(new Point3d(
+                                //        label.LabelLocation.X, label.LabelLocation.Y - (dia / 2), 0),
+                                //        Vector3d.ZAxis, dia / 2);
+                                //    }
 
-                                    space.AppendEntity(circle);
-                                    tx.AddNewlyCreatedDBObject(circle, false);
-                                    circle.Layer = fEnt.Layer;
+                                //    space.AppendEntity(circle);
+                                //    tx.AddNewlyCreatedDBObject(circle, false);
+                                //    circle.Layer = fEnt.Layer;
 
-                                    Entity clone = circle.Clone() as Entity;
-                                    detailingBlock.AppendEntity(clone);
-                                    tx.AddNewlyCreatedDBObject(clone, true);
+                                //    Entity clone = circle.Clone() as Entity;
+                                //    detailingBlock.AppendEntity(clone);
+                                //    tx.AddNewlyCreatedDBObject(clone, true);
 
-                                    circle.Erase(true);
-                                }
-                                else if (bt.Has(blockName))
-                                {
-                                    using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
-                                        label.LabelLocation, bt[blockName]))
-                                    {
-                                        space.AppendEntity(br);
-                                        tx.AddNewlyCreatedDBObject(br, false);
-                                        br.Layer = fEnt.Layer;
+                                //    circle.Erase(true);
+                                //}
+                                //else if (bt.Has(blockName))
+                                //{
+                                //    using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                                //        label.LabelLocation, bt[blockName]))
+                                //    {
+                                //        space.AppendEntity(br);
+                                //        tx.AddNewlyCreatedDBObject(br, false);
+                                //        br.Layer = fEnt.Layer;
 
-                                        Entity clone = br.Clone() as Entity;
-                                        detailingBlock.AppendEntity(clone);
-                                        tx.AddNewlyCreatedDBObject(clone, true);
+                                //        Entity clone = br.Clone() as Entity;
+                                //        detailingBlock.AppendEntity(clone);
+                                //        tx.AddNewlyCreatedDBObject(clone, true);
 
-                                        br.Erase(true);
-                                    }
-                                }
+                                //        br.Erase(true);
+                                //    }
+                                //}
                             }
 
                             label.CheckOrOpenForWrite();
@@ -1069,6 +1071,8 @@ namespace IntersectUtilities
                         }
                         #endregion
 
+                        bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+                        bt.CheckOrOpenForWrite();
                         bt.Add(detailingBlock);
                         tx.AddNewlyCreatedDBObject(detailingBlock, true);
 

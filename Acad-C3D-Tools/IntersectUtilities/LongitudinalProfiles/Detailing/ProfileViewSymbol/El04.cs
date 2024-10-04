@@ -10,9 +10,8 @@ using System.Threading.Tasks;
 
 namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
 {
-    internal class El04 : ProfileViewSymbol
+    internal class El04 : BlockBase
     {
-        private string _blockName;
         public El04(string blockName) { _blockName = blockName; }
         public override void CreateSymbol(Transaction tx, BlockTableRecord detailingBlock, Point3d location, double dia, string layer)
         {
