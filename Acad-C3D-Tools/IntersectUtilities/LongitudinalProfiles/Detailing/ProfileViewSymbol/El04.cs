@@ -2,6 +2,8 @@
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
+using IntersectUtilities.UtilsCommon;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,8 +14,16 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
 {
     internal class El04 : BlockBase
     {
-        public El04(string blockName) { _blockName = blockName; }
-        public override void CreateSymbol(Transaction tx, BlockTableRecord detailingBlock, Point3d location, double dia, string layer)
+        public El04() : base("EL 0.4kV") { }
+
+        internal override void HandleBlockDefinition(Database localDb)
+        {
+            localDb.CheckOrImportBlockRecord(
+                @"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg", _blockName);
+        }
+
+        public override void CreateSymbol(
+            Transaction tx, BlockTableRecord detailingBlock, Point3d location, double dia, string layer)
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;

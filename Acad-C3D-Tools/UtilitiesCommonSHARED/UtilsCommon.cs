@@ -1377,7 +1377,7 @@ namespace IntersectUtilities.UtilsCommon
             null != a && null != b && a.X.Equalz(b.X, tol) && a.Y.Equalz(b.Y, tol);
         public static bool HorizontalEqualz(this PolylineVertex3d a, PolylineVertex3d b, double tol = 0.01) =>
             null != a && null != b && HorizontalEqualz(a.Position, b.Position, tol);
-        public static void CheckOrOpenForWrite(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject)
+        public static void CheckOrOpenForWrite(this DBObject dbObject)
         {
             if (dbObject.IsWriteEnabled == false)
             {
@@ -1392,7 +1392,7 @@ namespace IntersectUtilities.UtilsCommon
                 }
             }
         }
-        public static void CheckOrOpenForRead(this Autodesk.AutoCAD.DatabaseServices.DBObject dbObject,
+        public static void CheckOrOpenForRead(this DBObject dbObject,
             bool DowngradeIfWriteEnabled = false)
         {
             if (dbObject.IsReadEnabled == false)
@@ -1542,7 +1542,7 @@ namespace IntersectUtilities.UtilsCommon
         {
             return source?.IndexOf(toCheck, comp) >= 0;
         }
-        public static void ExplodeToOwnerSpace2(this Autodesk.AutoCAD.DatabaseServices.BlockReference br)
+        public static void ExplodeToOwnerSpace2(this BlockReference br)
         {
             ExplodeToOwnerSpace3(br);
         }
@@ -1557,7 +1557,7 @@ namespace IntersectUtilities.UtilsCommon
             return idsAdded;
         }
         public static void LoopThroughInsertAndAddEntity2n3(Matrix3d mat,
-            Autodesk.AutoCAD.DatabaseServices.BlockReference br, BlockTableRecord space)
+            BlockReference br, BlockTableRecord space)
         {
             Transaction tr = space.Database.TransactionManager.TopTransaction;
             BlockTableRecord btr = tr.GetObject(br.BlockTableRecord, OpenMode.ForRead) as BlockTableRecord;

@@ -17,6 +17,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
     internal abstract class BlockBase : ProfileViewSymbol
     {
         protected string _blockName { get; set; }
+        protected BlockBase(string blockName) { _blockName = blockName; }
         public override void CreateSymbol(
             Transaction tx, BlockTableRecord detailingBlock, Point3d location, double dia, string layer)
         {
@@ -79,5 +80,6 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
                 }
             }
         }
+        internal abstract void HandleBlockDefinition(Database localDb);
     }
 }

@@ -21,6 +21,7 @@ using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
@@ -50,6 +51,7 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using Color = Autodesk.AutoCAD.Colors.Color;
 using IntersectUtilities.LongitudinalProfiles;
 using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
+using Assembly = System.Reflection.Assembly;
 
 namespace IntersectUtilities
 {
@@ -565,7 +567,7 @@ namespace IntersectUtilities
                                             editor.WriteMessage($"\nFor type 3D entity {ent.Handle.ToString()}" +
                                                 $" layer {ent.Layer}," +
                                                 $" elevation is 0!");
-                                        } 
+                                        }
                                         else
                                         {
                                             kote = $"K: {p3dInt.Z.ToString("#.00", danishCulture)}, ";
@@ -892,6 +894,35 @@ namespace IntersectUtilities
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
+
+            #region Create detailing blocks
+
+            // Get all types that inherit from BlockBase using reflection
+            var blockBaseTypes = Assembly.GetExecutingAssembly().GetTypes()
+                .Where(t => t.IsSubclassOf(typeof(BlockBase)) && !t.IsAbstract)
+                .ToList();
+
+            foreach (var type in blockBaseTypes)
+            {
+                if (Activator.CreateInstance(type) is BlockBase blockBaseInstance)
+                {
+                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                    {
+                        try
+                        {
+                            blockBaseInstance.HandleBlockDefinition(localDb);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            prdDbg(ex);
+                            tx.Abort();
+                            return;
+                        }
+                        tx.Commit();
+                    }
+                }
+            }
+            #endregion
 
             #region Get Ler data
             ILer3dManager lman = Ler3dManagerFactory.LoadLer3d(
