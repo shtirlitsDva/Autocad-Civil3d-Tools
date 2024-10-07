@@ -17,10 +17,12 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
     internal class El10 : BlockBase
     {
         public El10() : base("EL 10kVv2") { }
+        private double dia = 0.070;
 
         internal override void HandleBlockDefinition(Database localDb)
         {
-            CreateBlockTableRecord(localDb, 0.070);
+            CreateBlockTableRecord(localDb, dia);
         }
+        protected override double getDia() => dia;
     }
 }

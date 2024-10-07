@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
 using static IntersectUtilities.UtilsCommon.Utils;
+using IntersectUtilities.UtilsCommon;
 
 namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
 {
@@ -74,5 +75,54 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
                 }
             }
         }
+        public override void CreateDistances(
+            BlockTableRecord btr, Matrix3d transform, Point3d labelLocation,
+            double dia, string layer, string distance, double kappeOd)
+        {
+            Transaction tx = btr.Database.TransactionManager.TopTransaction;
+
+            //this because I haven't completely figured out neat inheritance yet
+            dia = getDia();
+
+            double topDist;
+            double botDist;
+            if (distance.Contains("|"))
+            {
+                var split = distance.Split('|');
+                if (!double.TryParse(split[0], out topDist))
+                    throw new System.Exception($"Could not parse distance: {split[0]} to double!");
+                if (!double.TryParse(split[1], out botDist))
+                    throw new System.Exception($"Could not parse distance: {split[1]} to double!");
+            }
+            else throw new System.Exception($"Distance definition: {distance} does not follow convention!");
+
+            Point3d theoreticalLocation = new Point3d(labelLocation.X, labelLocation.Y - (dia / 2), 0);
+            theoreticalLocation = theoreticalLocation.TransformBy(transform);
+
+            Arc a;
+            Arc createArc(Point3d c, double r, double s, double e)
+            {
+                Arc arc = new Arc();
+                arc.Center = c;
+                arc.Radius = r;
+                arc.StartAngle = s;
+                arc.EndAngle = e;
+                arc.Normal = Vector3d.ZAxis;
+                arc.Layer = layer;
+                a = arc;
+                return arc;
+            }
+            
+            btr.AppendEntity(createArc(theoreticalLocation, dia / 2 + botDist, Math.PI, 2 * Math.PI));
+            tx.AddNewlyCreatedDBObject(a, true);
+            btr.AppendEntity(createArc(theoreticalLocation, dia / 2 + botDist + kappeOd / 2, Math.PI, 2 * Math.PI));
+            tx.AddNewlyCreatedDBObject(a, true);
+            btr.AppendEntity(createArc(theoreticalLocation, dia / 2 + topDist, 0, Math.PI));
+            tx.AddNewlyCreatedDBObject(a, true);
+            btr.AppendEntity(createArc(theoreticalLocation, dia / 2 + topDist + kappeOd / 2, 0, Math.PI));
+            tx.AddNewlyCreatedDBObject(a, true);
+
+        }
+        protected virtual double getDia() => 0;
     }
 }

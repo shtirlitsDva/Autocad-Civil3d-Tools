@@ -4575,13 +4575,10 @@ namespace IntersectUtilities
                             Oid pId = ppl.FeatureId;
                             if (!pId.IsDerivedFrom<CogoPoint>()) continue;
                             CogoPoint cp = pId.Go<CogoPoint>(tx);
-                            //if (ReadStringPropertyValue(tables, pId, "CrossingData", "Alignment")
-                            //!= al.Name) continue;
+                            
                             if (psmDriCrossingData.ReadPropertyString(cp,
                                 driCrossingData.Alignment) != al.Name) continue;
 
-                            //Get original object from LER dwg
-                            //string handle = ReadStringPropertyValue(tables, pId, "IdRecord", "Handle");
                             string handle = psmDriCrossingData.ReadPropertyString(
                                 cp, driCrossingData.SourceEntityHandle);
 
@@ -4596,10 +4593,10 @@ namespace IntersectUtilities
                             //Determine type and distance
                             string distanceType = ReadStringParameterFromDataTable(originalEnt.Layer, dtKrydsninger, "Distance", 0);
                             string blockType = ReadStringParameterFromDataTable(originalEnt.Layer, dtKrydsninger, "Block", 0);
-                            double distance = ReadDoubleParameterFromDataTable(distanceType, dtDistances, "Distance", 0);
+                            string distance = ReadStringParameterFromDataTable(distanceType, dtDistances, "Distance", 0);
                             int originalDia = psmDriCrossingData.ReadPropertyInt(
                                 cp, driCrossingData.Diameter);
-                            //int originalDia = ReadIntPropertyValue(tables, pId, "CrossingData", "Diameter");
+                            
                             double dia = Convert.ToDouble(originalDia) / 1000;
                             if (dia == 0) dia = 0.11;
 
@@ -4618,131 +4615,142 @@ namespace IntersectUtilities
                                 continue;
                             }
 
-                            //Determine dn
                             double kappeOd = 0;
                             for (int i = 0; i < sizeArray.Length; i++)
                             {
                                 if (station <= sizeArray[i].EndStation) { kappeOd = sizeArray[i].Kod / 1000; break; }
                             }
 
+                            if (blockType.IsNotNoE())
+                            {
+                                IProfileViewSymbol symbol = ProfileViewSymbolFactory
+                                    .GetProfileViewSymbol(blockType);
+
+                                Point3d labelLocation = ppl.LabelLocation;
+                                labelLocation = labelLocation.TransformBy(bref.BlockTransform.Inverse());
+                                symbol.CreateDistances(
+                                    btr, bref.BlockTransform.Inverse(), labelLocation,
+                                    dia, afstandsMarkeringLayerName, distance, kappeOd);
+                            }
+
                             Circle circle = null;
                             switch (blockType)
                             {
-                                case "Cirkel, Bund":
-                                    {
-                                        foreach (Oid oid in btr)
-                                        {
-                                            if (!oid.IsDerivedFrom<Circle>()) continue;
-                                            Circle tempC = oid.Go<Circle>(tx);
-                                            //prdDbg("C: " + tempC.Center.ToString());
-                                            Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y + (dia / 2), 0);
-                                            theoreticalLocation = theoreticalLocation.TransformBy(bref.BlockTransform.Inverse());
-                                            //prdDbg("T: " + theoreticalLocation.ToString());
-                                            //prdDbg($"dX: {tempC.Center.X - theoreticalLocation.X}, dY: {tempC.Center.Y - theoreticalLocation.Y}");
-                                            if (tempC.Center.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
-                                            {
-                                                //prdDbg("Found Cirkel, Bund!");
-                                                circle = tempC;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    break;
-                                case "Cirkel, Top":
-                                    {
-                                        foreach (Oid oid in btr)
-                                        {
-                                            if (!oid.IsDerivedFrom<Circle>()) continue;
-                                            Circle tempC = oid.Go<Circle>(tx);
-                                            Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y - (dia / 2), 0);
-                                            theoreticalLocation = theoreticalLocation.TransformBy(bref.BlockTransform.Inverse());
-                                            if (tempC.Center.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
-                                            {
-                                                //prdDbg("Found Cirkel, Top!");
-                                                circle = tempC;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    break;
-                                case "EL 0.4kV":
-                                    foreach (Oid oid in btr)
-                                    {
-                                        if (!oid.IsDerivedFrom<BlockReference>()) continue;
-                                        BlockReference tempBref = oid.Go<BlockReference>(tx);
-                                        //prdDbg("C: " + tempBref.Position.ToString());
-                                        BlockTableRecord tempBtr = tempBref.BlockTableRecord.Go<BlockTableRecord>(tx);
-                                        Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y, 0);
-                                        theoreticalLocation = theoreticalLocation.TransformBy(bref.BlockTransform.Inverse());
-                                        //prdDbg("T: " + theoreticalLocation.ToString());
-                                        //prdDbg($"dX: {tempBref.Position.X - theoreticalLocation.X}, dY: {tempBref.Position.Y - theoreticalLocation.Y}");
-                                        if (tempBref.Position.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
-                                        {
-                                            //prdDbg("Found block!");
-                                            Extents3d ext = tempBref.GeometricExtents;
-                                            //prdDbg(ext.ToString());
-                                            using (Polyline pl = new Polyline(4))
-                                            {
-                                                pl.AddVertexAt(0, new Point2d(ext.MinPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
-                                                pl.AddVertexAt(1, new Point2d(ext.MinPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
-                                                pl.AddVertexAt(2, new Point2d(ext.MaxPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
-                                                pl.AddVertexAt(3, new Point2d(ext.MaxPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
-                                                pl.Closed = true;
-                                                pl.SetDatabaseDefaults();
-                                                pl.ReverseCurve();
+                                //case "Cirkel, Bund":
+                                //    {
+                                //        foreach (Oid oid in btr)
+                                //        {
+                                //            if (!oid.IsDerivedFrom<Circle>()) continue;
+                                //            Circle tempC = oid.Go<Circle>(tx);
+                                //            //prdDbg("C: " + tempC.Center.ToString());
+                                //            Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y + (dia / 2), 0);
+                                //            theoreticalLocation = theoreticalLocation.TransformBy(bref.BlockTransform.Inverse());
+                                //            //prdDbg("T: " + theoreticalLocation.ToString());
+                                //            //prdDbg($"dX: {tempC.Center.X - theoreticalLocation.X}, dY: {tempC.Center.Y - theoreticalLocation.Y}");
+                                //            if (tempC.Center.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
+                                //            {
+                                //                //prdDbg("Found Cirkel, Bund!");
+                                //                circle = tempC;
+                                //                break;
+                                //            }
+                                //        }
+                                //    }
+                                //    break;
+                                //case "Cirkel, Top":
+                                //    {
+                                //        foreach (Oid oid in btr)
+                                //        {
+                                //            if (!oid.IsDerivedFrom<Circle>()) continue;
+                                //            Circle tempC = oid.Go<Circle>(tx);
+                                //            Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y - (dia / 2), 0);
+                                //            theoreticalLocation = theoreticalLocation.TransformBy(bref.BlockTransform.Inverse());
+                                //            if (tempC.Center.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
+                                //            {
+                                //                //prdDbg("Found Cirkel, Top!");
+                                //                circle = tempC;
+                                //                break;
+                                //            }
+                                //        }
+                                //    }
+                                //    break;
+                                //case "EL 0.4kV":
+                                //    foreach (Oid oid in btr)
+                                //    {
+                                //        if (!oid.IsDerivedFrom<BlockReference>()) continue;
+                                //        BlockReference tempBref = oid.Go<BlockReference>(tx);
+                                //        //prdDbg("C: " + tempBref.Position.ToString());
+                                //        BlockTableRecord tempBtr = tempBref.BlockTableRecord.Go<BlockTableRecord>(tx);
+                                //        Point3d theoreticalLocation = new Point3d(ppl.LabelLocation.X, ppl.LabelLocation.Y, 0);
+                                //        theoreticalLocation = theoreticalLocation.TransformBy(bref.BlockTransform.Inverse());
+                                //        //prdDbg("T: " + theoreticalLocation.ToString());
+                                //        //prdDbg($"dX: {tempBref.Position.X - theoreticalLocation.X}, dY: {tempBref.Position.Y - theoreticalLocation.Y}");
+                                //        if (tempBref.Position.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
+                                //        {
+                                //            //prdDbg("Found block!");
+                                //            Extents3d ext = tempBref.GeometricExtents;
+                                //            //prdDbg(ext.ToString());
+                                //            using (Polyline pl = new Polyline(4))
+                                //            {
+                                //                pl.AddVertexAt(0, new Point2d(ext.MinPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
+                                //                pl.AddVertexAt(1, new Point2d(ext.MinPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
+                                //                pl.AddVertexAt(2, new Point2d(ext.MaxPoint.X, ext.MaxPoint.Y), 0.0, 0.0, 0.0);
+                                //                pl.AddVertexAt(3, new Point2d(ext.MaxPoint.X, ext.MinPoint.Y), 0.0, 0.0, 0.0);
+                                //                pl.Closed = true;
+                                //                pl.SetDatabaseDefaults();
+                                //                pl.ReverseCurve();
 
-                                                using (DBObjectCollection col = pl.GetOffsetCurves(distance))
-                                                {
-                                                    foreach (var obj in col)
-                                                    {
-                                                        Entity ent = (Entity)obj;
-                                                        ent.Layer = afstandsMarkeringLayerName;
-                                                        btr.AppendEntity(ent);
-                                                        tx.AddNewlyCreatedDBObject(ent, true);
-                                                    }
-                                                }
-                                                using (DBObjectCollection col = pl.GetOffsetCurves(distance + kappeOd / 2))
-                                                {
-                                                    foreach (var obj in col)
-                                                    {
-                                                        Entity ent = (Entity)obj;
-                                                        ent.Layer = afstandsMarkeringLayerName;
-                                                        btr.AppendEntity(ent);
-                                                        tx.AddNewlyCreatedDBObject(ent, true);
-                                                    }
-                                                }
-                                            }
-                                            break;
-                                        }
-                                    }
-                                    break;
+                                //                using (DBObjectCollection col = pl.GetOffsetCurves(distance))
+                                //                {
+                                //                    foreach (var obj in col)
+                                //                    {
+                                //                        Entity ent = (Entity)obj;
+                                //                        ent.Layer = afstandsMarkeringLayerName;
+                                //                        btr.AppendEntity(ent);
+                                //                        tx.AddNewlyCreatedDBObject(ent, true);
+                                //                    }
+                                //                }
+                                //                using (DBObjectCollection col = pl.GetOffsetCurves(distance + kappeOd / 2))
+                                //                {
+                                //                    foreach (var obj in col)
+                                //                    {
+                                //                        Entity ent = (Entity)obj;
+                                //                        ent.Layer = afstandsMarkeringLayerName;
+                                //                        btr.AppendEntity(ent);
+                                //                        tx.AddNewlyCreatedDBObject(ent, true);
+                                //                    }
+                                //                }
+                                //            }
+                                //            break;
+                                //        }
+                                //    }
+                                //    break;
                                 default:
                                     break;
                             }
 
-                            if (circle != null)
-                            {
-                                using (DBObjectCollection col = circle.GetOffsetCurves(distance))
-                                {
-                                    foreach (var obj in col)
-                                    {
-                                        Entity ent = (Entity)obj;
-                                        ent.Layer = afstandsMarkeringLayerName;
-                                        btr.AppendEntity(ent);
-                                        tx.AddNewlyCreatedDBObject(ent, true);
-                                    }
-                                }
-                                using (DBObjectCollection col = circle.GetOffsetCurves(distance + kappeOd / 2))
-                                {
-                                    foreach (var obj in col)
-                                    {
-                                        Entity ent = (Entity)obj;
-                                        ent.Layer = afstandsMarkeringLayerName;
-                                        btr.AppendEntity(ent);
-                                        tx.AddNewlyCreatedDBObject(ent, true);
-                                    }
-                                }
-                            }
+                            //if (circle != null)
+                            //{
+                            //    using (DBObjectCollection col = circle.GetOffsetCurves(distance))
+                            //    {
+                            //        foreach (var obj in col)
+                            //        {
+                            //            Entity ent = (Entity)obj;
+                            //            ent.Layer = afstandsMarkeringLayerName;
+                            //            btr.AppendEntity(ent);
+                            //            tx.AddNewlyCreatedDBObject(ent, true);
+                            //        }
+                            //    }
+                            //    using (DBObjectCollection col = circle.GetOffsetCurves(distance + kappeOd / 2))
+                            //    {
+                            //        foreach (var obj in col)
+                            //        {
+                            //            Entity ent = (Entity)obj;
+                            //            ent.Layer = afstandsMarkeringLayerName;
+                            //            btr.AppendEntity(ent);
+                            //            tx.AddNewlyCreatedDBObject(ent, true);
+                            //        }
+                            //    }
+                            //}
                         }
 
                         //Update block references
@@ -4777,7 +4785,7 @@ namespace IntersectUtilities
                     lman.Dispose(true);
 
                     tx.Abort();
-                    editor.WriteMessage(ex.ToString());
+                    prdDbg(ex);
                     return;
                 }
                 fremTx.Abort();

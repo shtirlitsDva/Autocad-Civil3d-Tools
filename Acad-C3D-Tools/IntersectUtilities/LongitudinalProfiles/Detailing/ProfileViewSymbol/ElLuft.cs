@@ -2,6 +2,8 @@
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
+using NetTopologySuite.Geometries;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,14 +14,20 @@ using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
 namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
 {
-    internal class El30 : BlockBase
+    internal class ElLuft : BlockBase
     {
-        public El30() : base("EL 30KVv2") { }
+        public ElLuft() : base("EL LUFT") { }
         private double dia = 0.1;
         internal override void HandleBlockDefinition(Database localDb)
         {
             CreateBlockTableRecord(localDb, dia);
         }
         protected override double getDia() => dia;
+        public override void CreateDistances(
+            BlockTableRecord btr, Matrix3d transform, Point3d labelLocation,
+            double dia, string layer, string distance, double kappeOd)
+        {
+            //Nothing to do
+        }
     }
 }
