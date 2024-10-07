@@ -2,6 +2,8 @@
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
+using NetTopologySuite.Geometries;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,11 +16,11 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
 {
     internal class El10 : BlockBase
     {
-        public El10() : base("EL 10kV") { }
+        public El10() : base("EL 10kVv2") { }
 
         internal override void HandleBlockDefinition(Database localDb)
         {
-            throw new NotImplementedException();
+            CreateBlockTableRecord(localDb, 0.070);
         }
     }
 }

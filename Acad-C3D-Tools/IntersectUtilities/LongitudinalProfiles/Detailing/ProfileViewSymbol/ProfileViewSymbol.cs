@@ -13,6 +13,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
     {
         protected string BlockName { get; private set; }
         public abstract void CreateSymbol(
-            Transaction tx, BlockTableRecord detailingBlock, Point3d location, double dia, string layer);
+            BlockTable bt, BlockTableRecord detailingBlock, Point3d location,
+            double dia, string layer);
     }
 }

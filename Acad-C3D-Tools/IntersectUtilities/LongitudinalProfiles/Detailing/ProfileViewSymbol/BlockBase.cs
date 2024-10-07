@@ -19,67 +19,60 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
         protected string _blockName { get; set; }
         protected BlockBase(string blockName) { _blockName = blockName; }
         public override void CreateSymbol(
-            Transaction tx, BlockTableRecord detailingBlock, Point3d location, double dia, string layer)
+            BlockTable bt, BlockTableRecord detailingBlock, Point3d location,
+            double dia, string layer)
         {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-
-            using (Transaction tx2 = localDb.TransactionManager.StartTransaction())
+            var br = new BlockReference(location, bt[_blockName]);
+            br.Layer = layer;
+            detailingBlock.AppendEntity(br);
+        }
+        internal abstract void HandleBlockDefinition(Database localDb);
+        protected void CreateBlockTableRecord(Database localDb, double dia)
+        {
+            Transaction tx = localDb.TransactionManager.TopTransaction;
+            BlockTable bt = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite);
+            if (!bt.Has(_blockName))
             {
-                try
+                BlockTableRecord mspace = (BlockTableRecord)tx
+                    .GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
+
+                if (!bt.Has(_blockName))
                 {
-                    BlockTable bt = tx2.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
-                    BlockTableRecord mspace = tx2.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite) as BlockTableRecord;
-
-                    dia = 0.070;
-
-                    if (!bt.Has(_blockName))
+                    using (BlockTableRecord symbolBtr = new BlockTableRecord())
                     {
-                        //Create a round hatch with a diameter of 70 mm
-                        using (BlockTableRecord symbol = new BlockTableRecord())
+                        symbolBtr.Name = _blockName;
+                        symbolBtr.Origin = new Point3d(0, 0, 0);
+
                         using (Hatch hatch = new Hatch())
                         using (Circle circle = new Circle())
                         {
-                            circle.Center = new Point3d(location.X, location.Y - dia / 2, 0);
+                            circle.Center = new Point3d(0, 0 - dia / 2, 0);
                             circle.Radius = dia / 2;
                             circle.Normal = Vector3d.ZAxis;
-                            circle.Layer = layer;
                             Oid cId = mspace.AppendEntity(circle);
-                            tx2.AddNewlyCreatedDBObject(circle, true);
+                            tx.AddNewlyCreatedDBObject(circle, true);
                             ObjectIdCollection ids = [cId];
 
                             hatch.Normal = Vector3d.ZAxis;
                             hatch.Elevation = 0;
                             hatch.PatternScale = 1;
-                            hatch.Layer = layer;
                             hatch.Color = UtilsCommon.Utils.ColorByName("red");
                             hatch.SetHatchPattern(HatchPatternType.PreDefined, "SOLID");
                             hatch.AppendLoop(HatchLoopTypes.Outermost, ids);
                             hatch.EvaluateHatch(true);
 
-                            symbol.Origin = location;
-                            symbol.Name = _blockName;
-                            symbol.AppendEntity(hatch);
-                            bt.Add(symbol);
+                            symbolBtr.AppendEntity(hatch);
+
+                            tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite);
+                            bt.Add(symbolBtr);
+                            tx.AddNewlyCreatedDBObject(symbolBtr, true);
+
+                            circle.UpgradeOpen();
+                            circle.Erase(true);
                         }
                     }
-
-                    using (var br = new BlockReference(location, bt[_blockName]))
-                    {
-                        br.Layer = layer;
-                        detailingBlock.AppendEntity(br);
-                    }
-
-                    tx2.Commit();
-                }
-                catch (Exception ex)
-                {
-                    prdDbg(ex);
-                    tx2.Abort();
-                    throw;
                 }
             }
         }
-        internal abstract void HandleBlockDefinition(Database localDb);
     }
 }

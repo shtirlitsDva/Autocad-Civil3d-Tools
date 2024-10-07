@@ -14,9 +14,11 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
 {
     internal class El30 : BlockBase
     {
-        public El30()
+        public El30() : base("EL 30KVv2") { }
+
+        internal override void HandleBlockDefinition(Database localDb)
         {
-            _blockName = "El30";
+            CreateBlockTableRecord(localDb, 0.1);
         }
     }
 }

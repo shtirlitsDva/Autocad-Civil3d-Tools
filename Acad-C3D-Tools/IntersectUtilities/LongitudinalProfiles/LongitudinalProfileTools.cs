@@ -896,7 +896,6 @@ namespace IntersectUtilities
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
             #region Create detailing blocks
-
             // Get all types that inherit from BlockBase using reflection
             var blockBaseTypes = Assembly.GetExecutingAssembly().GetTypes()
                 .Where(t => t.IsSubclassOf(typeof(BlockBase)) && !t.IsAbstract)
@@ -1051,50 +1050,7 @@ namespace IntersectUtilities
                                     .GetProfileViewSymbol(blockName);
 
                                 symbol.CreateSymbol(
-                                    tx, detailingBlock, label.LabelLocation, dia, fEnt.Layer);
-
-                                //if (blockName == "Cirkel, Bund" || blockName == "Cirkel, Top")
-                                //{
-                                //    Circle circle = null;
-                                //    if (blockName.Contains("Bund"))
-                                //    {
-                                //        circle = new Circle(new Point3d(
-                                //        label.LabelLocation.X, label.LabelLocation.Y + (dia / 2), 0),
-                                //        Vector3d.ZAxis, dia / 2);
-                                //    }
-                                //    else if (blockName.Contains("Top"))
-                                //    {
-                                //        circle = new Circle(new Point3d(
-                                //        label.LabelLocation.X, label.LabelLocation.Y - (dia / 2), 0),
-                                //        Vector3d.ZAxis, dia / 2);
-                                //    }
-
-                                //    space.AppendEntity(circle);
-                                //    tx.AddNewlyCreatedDBObject(circle, false);
-                                //    circle.Layer = fEnt.Layer;
-
-                                //    Entity clone = circle.Clone() as Entity;
-                                //    detailingBlock.AppendEntity(clone);
-                                //    tx.AddNewlyCreatedDBObject(clone, true);
-
-                                //    circle.Erase(true);
-                                //}
-                                //else if (bt.Has(blockName))
-                                //{
-                                //    using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
-                                //        label.LabelLocation, bt[blockName]))
-                                //    {
-                                //        space.AppendEntity(br);
-                                //        tx.AddNewlyCreatedDBObject(br, false);
-                                //        br.Layer = fEnt.Layer;
-
-                                //        Entity clone = br.Clone() as Entity;
-                                //        detailingBlock.AppendEntity(clone);
-                                //        tx.AddNewlyCreatedDBObject(clone, true);
-
-                                //        br.Erase(true);
-                                //    }
-                                //}
+                                    bt, detailingBlock, label.LabelLocation, dia, fEnt.Layer);
                             }
 
                             label.CheckOrOpenForWrite();
@@ -1102,13 +1058,12 @@ namespace IntersectUtilities
                         }
                         #endregion
 
-                        bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
-                        bt.CheckOrOpenForWrite();
+                        bt.UpgradeOpen();
                         bt.Add(detailingBlock);
                         tx.AddNewlyCreatedDBObject(detailingBlock, true);
 
                         Oid brId = default;
-                        using (var br = new Autodesk.AutoCAD.DatabaseServices.BlockReference(
+                        using (var br = new BlockReference(
                                         new Point3d(x, y, 0), bt[pv.Name]))
                         {
                             brId = space.AppendEntity(br);

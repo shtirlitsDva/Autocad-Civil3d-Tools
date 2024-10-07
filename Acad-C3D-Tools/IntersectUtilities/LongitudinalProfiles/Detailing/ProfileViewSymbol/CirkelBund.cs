@@ -11,7 +11,9 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
 {
     internal class CirkelBund : ProfileViewSymbol
     {
-        public override void CreateSymbol(Transaction tx, BlockTableRecord detailingBlock, Point3d location, double dia, string layer)
+        public override void CreateSymbol(
+            BlockTable bt, BlockTableRecord detailingBlock, Point3d location,
+            double dia, string layer)
         {
             using (Circle circle = new Circle())
             { 

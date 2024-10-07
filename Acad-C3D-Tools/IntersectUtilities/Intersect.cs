@@ -49,6 +49,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
+using Assembly = System.Reflection.Assembly;
 using IntersectUtilities.DynamicBlocks;
 using System.Diagnostics;
 using System.Text.Json;
@@ -61,6 +62,7 @@ using System.Text.Json.Nodes;
 using NetTopologySuite.Features;
 using Microsoft.Win32;
 using IntersectUtilities.LongitudinalProfiles;
+using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
 
 [assembly: CommandClass(typeof(IntersectUtilities.Intersect))]
 
@@ -3736,20 +3738,46 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Test layer names list and xrefs
-                    LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
-                    foreach (var id in lt)
+                    #region Test BTR creation
+                    // Get all types that inherit from BlockBase using reflection
+                    var blockBaseTypes = Assembly.GetExecutingAssembly().GetTypes()
+                        .Where(t => t.IsSubclassOf(typeof(BlockBase)) && !t.IsAbstract)
+                        .ToList();
+
+                    foreach (var type in blockBaseTypes)
                     {
-                        LayerTableRecord ltr = id.Go<LayerTableRecord>(tx);
-                        if (ltr.Name.Contains("0-KOMPONENT-HATCH"))
+                        if (Activator.CreateInstance(type) is BlockBase blockBaseInstance)
                         {
-                            prdDbg(ltr.Name);
-                            ltr.UpgradeOpen();
-                            ltr.IsFrozen = !ltr.IsFrozen;
+                            using (Transaction tx2 = localDb.TransactionManager.StartTransaction())
+                            {
+                                try
+                                {
+                                    blockBaseInstance.HandleBlockDefinition(localDb);
+                                }
+                                catch (System.Exception ex)
+                                {
+                                    prdDbg(ex);
+                                    tx2.Abort();
+                                    return;
+                                }
+                                tx2.Commit();
+                            }
                         }
                     }
+                    #endregion
 
-
+                    #region Test layer names list and xrefs
+                    //LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
+                    //foreach (var id in lt)
+                    //{
+                    //    LayerTableRecord ltr = id.Go<LayerTableRecord>(tx);
+                    //    if (ltr.Name.Contains("0-KOMPONENT-HATCH"))
+                    //    {
+                    //        prdDbg(ltr.Name);
+                    //        ltr.UpgradeOpen();
+                    //        ltr.IsFrozen = !ltr.IsFrozen;
+                    //    }
+                    //}
                     #endregion
 
                     #region Debug component properties

@@ -21,24 +21,5 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
             localDb.CheckOrImportBlockRecord(
                 @"X:\AutoCAD DRI - 01 Civil 3D\Projection_styles.dwg", _blockName);
         }
-
-        public override void CreateSymbol(
-            Transaction tx, BlockTableRecord detailingBlock, Point3d location, double dia, string layer)
-        {
-            DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
-
-            if (!bt.Has(_blockName))
-            {
-                new IntersectUtilities.Intersect().importcivilstyles();
-            }
-
-            using (var br = new BlockReference(location, bt[_blockName]))
-            {
-                br.Layer = layer;
-                detailingBlock.AppendEntity(br);
-            }
-        }
     }
 }
