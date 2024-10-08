@@ -12,6 +12,7 @@ using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 using IntersectUtilities.UtilsCommon;
+using Microsoft.AspNetCore.Rewrite;
 
 namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
 {
@@ -26,6 +27,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
             var br = new BlockReference(location, bt[_blockName]);
             br.Layer = layer;
             detailingBlock.AppendEntity(br);
+            bt.Database.TransactionManager.TopTransaction.AddNewlyCreatedDBObject(br, true);
         }
         internal abstract void HandleBlockDefinition(Database localDb);
         protected void CreateBlockTableRecord(Database localDb, double dia)

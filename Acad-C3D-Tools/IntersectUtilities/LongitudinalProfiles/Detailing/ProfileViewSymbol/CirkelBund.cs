@@ -33,9 +33,6 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
                 theoreticalLocation = theoreticalLocation.TransformBy(transform);
                 if (tempC.Center.DistanceHorizontalTo(theoreticalLocation) < 0.0001)
                 {
-#if DEBUG
-                    prdDbg("Found Cirkel, Bund!");
-#endif
                     circle = tempC;
                     break;
                 }
@@ -78,7 +75,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
                 circle.Layer = layer;
 
                 detailingBlock.AppendEntity(circle);
-                //tx.AddNewlyCreatedDBObject(circle, true); <- block should do it?
+                bt.Database.TransactionManager.TopTransaction.AddNewlyCreatedDBObject(circle, true);
             }
         }
     }

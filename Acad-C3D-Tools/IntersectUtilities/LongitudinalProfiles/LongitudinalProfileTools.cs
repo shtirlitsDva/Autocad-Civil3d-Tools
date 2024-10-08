@@ -937,7 +937,7 @@ namespace IntersectUtilities
                     #endregion
 
                     BlockTableRecord space = (BlockTableRecord)tx.GetObject(localDb.CurrentSpaceId, OpenMode.ForWrite);
-                    BlockTable bt = tx.GetObject(localDb.BlockTableId, OpenMode.ForWrite) as BlockTable;
+                    BlockTable bt = (BlockTable)tx.GetObject(localDb.BlockTableId, OpenMode.ForRead);
 
                     #region Pss manager
                     PropertySetManager psm = new PropertySetManager(localDb,
@@ -1005,7 +1005,11 @@ namespace IntersectUtilities
                         BlockTableRecord detailingBlock = new BlockTableRecord();
                         detailingBlock.Name = pv.Name;
                         detailingBlock.Origin = new Point3d(x, y, 0);
-                        detailingBlock.CheckOrOpenForWrite();
+                        bt.UpgradeOpen();
+                        Oid bid = bt.Add(detailingBlock);
+                        tx.AddNewlyCreatedDBObject(detailingBlock, true);
+
+                        detailingBlock = (BlockTableRecord)tx.GetObject(bid, OpenMode.ForWrite);
                         #endregion
 
                         #region Process labels
@@ -1057,11 +1061,7 @@ namespace IntersectUtilities
                             label.Layer = fEnt.Layer;
                         }
                         #endregion
-
-                        bt.UpgradeOpen();
-                        bt.Add(detailingBlock);
-                        tx.AddNewlyCreatedDBObject(detailingBlock, true);
-
+                        
                         Oid brId = default;
                         using (var br = new BlockReference(
                                         new Point3d(x, y, 0), bt[pv.Name]))
@@ -1079,10 +1079,7 @@ namespace IntersectUtilities
                             br.ScaleFactors = new Scale3d(1, 2.5, 1);
                         }
                     }
-
-                    lman.Dispose(true);
                 }
-
                 catch (System.Exception ex)
                 {
                     lman.Dispose(true);
@@ -1090,6 +1087,7 @@ namespace IntersectUtilities
                     prdDbg(ex);
                     return;
                 }
+                lman.Dispose(true);
                 tx.Commit();
             }
         }
@@ -4575,7 +4573,7 @@ namespace IntersectUtilities
                             Oid pId = ppl.FeatureId;
                             if (!pId.IsDerivedFrom<CogoPoint>()) continue;
                             CogoPoint cp = pId.Go<CogoPoint>(tx);
-                            
+
                             if (psmDriCrossingData.ReadPropertyString(cp,
                                 driCrossingData.Alignment) != al.Name) continue;
 
@@ -4596,7 +4594,7 @@ namespace IntersectUtilities
                             string distance = ReadStringParameterFromDataTable(distanceType, dtDistances, "Distance", 0);
                             int originalDia = psmDriCrossingData.ReadPropertyInt(
                                 cp, driCrossingData.Diameter);
-                            
+
                             double dia = Convert.ToDouble(originalDia) / 1000;
                             if (dia == 0) dia = 0.11;
 
