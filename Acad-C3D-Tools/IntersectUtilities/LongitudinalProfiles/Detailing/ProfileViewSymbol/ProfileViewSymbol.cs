@@ -13,7 +13,9 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
     {
         protected string BlockName { get; private set; }
 
-        public abstract void CreateDistances(BlockTableRecord btr, Matrix3d transform, Point3d labelLocation, double dia, string layer, string distance, double kappeOd);
+        public abstract void CreateDistances(
+            BlockTableRecord btr, Matrix3d transform, Point3d labelLocation, 
+            double dia, string layer, string distance, double kappeOd);
         public abstract void CreateSymbol(
             BlockTable bt, BlockTableRecord detailingBlock, Point3d location,
             double dia, string layer);

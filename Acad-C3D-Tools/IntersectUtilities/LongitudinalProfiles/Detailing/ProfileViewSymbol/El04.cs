@@ -57,7 +57,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
                                 Entity ent = (Entity)obj;
                                 ent.Layer = layer;
                                 btr.AppendEntity(ent);
-                                //tx.AddNewlyCreatedDBObject(ent, true);
+                                tx.AddNewlyCreatedDBObject(ent, true);
                             }
                         }
                         using (DBObjectCollection col = pl.GetOffsetCurves(d + kappeOd / 2))
@@ -67,7 +67,7 @@ namespace IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol
                                 Entity ent = (Entity)obj;
                                 ent.Layer = layer;
                                 btr.AppendEntity(ent);
-                                //tx.AddNewlyCreatedDBObject(ent, true);
+                                tx.AddNewlyCreatedDBObject(ent, true);
                             }
                         }
                     }
