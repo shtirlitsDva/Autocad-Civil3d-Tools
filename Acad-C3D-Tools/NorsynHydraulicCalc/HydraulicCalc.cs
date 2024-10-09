@@ -865,10 +865,17 @@ namespace NorsynHydraulicCalc
                 .Where(x => x.Dim.DimName == dim.DimName)
                 .FirstOrDefault();
 
+            int idx = table.IndexOf(entry);
+
+            double minFlowFrem = idx > 0 ? table[idx - 1].MaxFlowFrem : 0;
+            double minFlowReturn = idx > 0 ? table[idx - 1].MaxFlowReturn : 0;
+
             //Console.WriteLine(
             //    $"{(flowSupply / entry.MaxFlowFrem * 100).ToString("F2")}, " +
             //    $"{(flowReturn / entry.MaxFlowReturn * 100).ToString("F2")}");
-            return Math.Max(flowSupply / entry.MaxFlowFrem, flowReturn / entry.MaxFlowReturn);
+            return Math.Max(
+                (flowSupply - minFlowFrem) / (entry.MaxFlowFrem - minFlowFrem),
+                (flowReturn - minFlowReturn) / (entry.MaxFlowReturn - minFlowReturn));
         }
         private bool AreInstancesEqual(HydraulicCalc instance1, HydraulicCalc instance2)
         {
