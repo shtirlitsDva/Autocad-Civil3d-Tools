@@ -63,6 +63,7 @@ using NetTopologySuite.Features;
 using Microsoft.Win32;
 using IntersectUtilities.LongitudinalProfiles;
 using IntersectUtilities.LongitudinalProfiles.Detailing.ProfileViewSymbol;
+using IntersectUtilities.PipelineNetworkSystem;
 
 [assembly: CommandClass(typeof(IntersectUtilities.Intersect))]
 
@@ -3481,7 +3482,7 @@ namespace IntersectUtilities
                             Point2d sP = pline.GetPoint2dAt(j + 1);
                             double u = fP.GetDistanceTo(sP);
                             double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
-                            double minRadius = GetPipeMinElasticRadius(pline);
+                            double minRadius = GetPipeMinElasticRadiusCharacteristic(pline);
 
                             //If radius is less than minRadius a buerør is detected
                             //Split the pline in segments delimiting buerør and append
@@ -3738,34 +3739,6 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    #region Test BTR creation
-                    // Get all types that inherit from BlockBase using reflection
-                    var blockBaseTypes = Assembly.GetExecutingAssembly().GetTypes()
-                        .Where(t => t.IsSubclassOf(typeof(BlockBase)) && !t.IsAbstract)
-                        .ToList();
-
-                    foreach (var type in blockBaseTypes)
-                    {
-                        if (Activator.CreateInstance(type) is BlockBase blockBaseInstance)
-                        {
-                            using (Transaction tx2 = localDb.TransactionManager.StartTransaction())
-                            {
-                                try
-                                {
-                                    blockBaseInstance.HandleBlockDefinition(localDb);
-                                }
-                                catch (System.Exception ex)
-                                {
-                                    prdDbg(ex);
-                                    tx2.Abort();
-                                    return;
-                                }
-                                tx2.Commit();
-                            }
-                        }
-                    }
-                    #endregion
-
                     #region Test layer names list and xrefs
                     //LayerTable lt = tx.GetObject(localDb.LayerTableId, OpenMode.ForRead) as LayerTable;
                     //foreach (var id in lt)
@@ -4041,8 +4014,8 @@ namespace IntersectUtilities
                     #endregion
 
                     #region Test new PipeSizeArrays
-                    //string projectName = "PVF1";
-                    //string etapeName = "02.26.03";
+                    //string projectName = "PVF2";
+                    //string etapeName = "06.21.04";
 
                     //System.Data.DataTable dt = CsvData.FK;
 
@@ -4051,27 +4024,16 @@ namespace IntersectUtilities
                     //alDb.ReadDwgFile(GetPathToDataFiles(projectName, etapeName, "Alignments"),
                     //    System.IO.FileShare.Read, false, string.Empty);
                     //Transaction alTx = alDb.TransactionManager.StartTransaction();
-                    //var als = alDb.HashSetOfType<Alignment>(alTx);
-                    //var allCurves = localDb.GetFjvPipes(tx, true);
-                    //var allBrs = localDb.GetFjvBlocks(tx, dt, true);
-
-                    //PropertySetManager psmPipeLineData = new PropertySetManager(
-                    //    localDb,
-                    //    PSetDefs.DefinedSets.DriPipelineData);
-                    //PSetDefs.DriPipelineData driPipelineData =
-                    //    new PSetDefs.DriPipelineData();
-
-                    //var curves = allCurves.Where(
-                    //    x => psmPipeLineData.FilterPropetyString(x, driPipelineData.BelongsToAlignment, "03"));
-                    //var brs = allBrs.Where(
-                    //    x => psmPipeLineData.FilterPropetyString(x, driPipelineData.BelongsToAlignment, "03"));
-                    //var al = als.First(x => x.Name == "03");
-
+                    
                     //try
                     //{
-                    //    IPipelineV2 pipeline = PipelineV2Factory.Create(curves.Cast<Entity>().Union(brs), al);
-                    //    IPipelineSizeArrayV2 sizeArray = PipelineSizeArrayFactory.CreateSizeArray(pipeline);
-                    //    prdDbg(sizeArray.ToString());
+                    //    var ents = localDb.GetFjvEntities(tx, false, false);
+                    //    var als = alDb.HashSetOfType<Alignment>(alTx);
+
+                    //    PipelineNetwork pn = new PipelineNetwork();
+                    //    pn.CreatePipelineNetwork(ents, als);
+                    //    pn.CreatePipelineGraph();
+                    //    pn.CreateSizeArraysAndPrint();
                     //}
                     //catch (System.Exception ex)
                     //{

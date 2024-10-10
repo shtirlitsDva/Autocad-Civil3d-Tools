@@ -125,7 +125,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         private void PrintNode(INode node, int depth)
         {
-            prdDbg(new String(' ', depth * 2) + node.Name); // Indent based on depth
+            prdDbg(new string(' ', depth * 2) + node.Name); // Indent based on depth
 
             foreach (var child in node.Children)
             {

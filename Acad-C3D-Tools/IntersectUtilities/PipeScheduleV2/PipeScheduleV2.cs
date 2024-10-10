@@ -161,6 +161,7 @@ namespace IntersectUtilities.PipeScheduleV2
             {"kOd", typeof(double)},
             {"tWdth", typeof(double)},
             {"minElasticRadii", typeof(double)},
+            {"VertFactor", typeof(double)},
             {"color", typeof(short)},
             {"DefaultL", typeof(int)}
         };
@@ -371,7 +372,7 @@ namespace IntersectUtilities.PipeScheduleV2
             }
             return false;
         }
-        public static double GetPipeMinElasticRadius(Entity ent, bool considerInSituBending = true)
+        public static double GetPipeMinElasticRadiusCharacteristic(Entity ent, bool considerInSituBending = true)
         {
             if (considerInSituBending && IsInSituBent(ent)) return 0;
 
@@ -387,6 +388,10 @@ namespace IntersectUtilities.PipeScheduleV2
             var rad = pipeType.GetMinElasticRadius(dn, type, series);
 
             return rad;
+        }
+        public static double GetPipeMinElasticRadiusDesign(Entity ent, bool considerInSituBending = true)
+        {
+            return GetPipeMinElasticRadiusCharacteristic(ent, considerInSituBending) * 1.2;
         }
         public static double GetBuerorMinRadius(Entity ent)
         {
@@ -1054,7 +1059,7 @@ namespace IntersectUtilities.PipeScheduleV2
                 string company = System.IO.Path.GetFileNameWithoutExtension(path);
                 DataTable dataTable = CsvReader.ReadCsvToDataTable(path, company);
                 if (!PipeScheduleV2.companyDict.ContainsKey(company))
-                    throw new Exception($"PipeType {company} is not defined in PipeScheduleV2!");
+                    throw new Exception($"PipeRadii {company} is not defined in PipeScheduleV2!");
                 IPipeRadiusData pipeRadiusData = Activator.CreateInstance(
                     PipeScheduleV2.companyDict[company]) as IPipeRadiusData;
                 pipeRadiusData.Initialize(dataTable, PipeScheduleV2.companyEnumDict[company]);

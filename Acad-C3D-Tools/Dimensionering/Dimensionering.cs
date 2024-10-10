@@ -1757,6 +1757,10 @@ namespace IntersectUtilities.Dimensionering
                             groupByCount.Select(g => new object[] {g.Antal, g.Forekomst} as IEnumerable<object>)
                             );
 
+                        docCol.MdiActiveDocument.Editor.SetImpliedSelection(
+                            test.SelectMany(x => x.Select(y => y.Id)).ToArray()
+                            );
+
                         throw new System.Exception(
                             $"Buildings with non-unique id_lokalId present!" +
                             $"Analysis cannot continue!");
