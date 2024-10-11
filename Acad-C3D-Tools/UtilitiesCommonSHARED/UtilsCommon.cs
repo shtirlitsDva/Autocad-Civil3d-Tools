@@ -1761,6 +1761,7 @@ namespace IntersectUtilities.UtilsCommon
         /// </summary>
         public static void CheckOrImportBlockRecord(this Database db, string pathToLibrary, string blockName)
         {
+            bool localTransaction = false;
             Transaction tx = db.TransactionManager.TopTransaction;
             if (tx == null) throw new System.Exception("CheckOrImportBlockRecord requires active Transaction!");
             BlockTable bt = tx.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;

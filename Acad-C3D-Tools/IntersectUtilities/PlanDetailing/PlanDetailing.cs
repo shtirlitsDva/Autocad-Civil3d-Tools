@@ -50,6 +50,7 @@ using OpenMode = Autodesk.AutoCAD.DatabaseServices.OpenMode;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
+using static IntersectUtilities.Transition;
 
 namespace IntersectUtilities
 {
@@ -2065,6 +2066,90 @@ namespace IntersectUtilities
                         continue;
                     }
                     result = branch.Place();
+                    if (result.Status != ResultStatus.OK)
+                    {
+                        prdDbg(result.ErrorMsg);
+                        continue;
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    AbortGracefully(localDb);
+                    return;
+                }
+            }
+        }
+        [CommandMethod("PLACEPERTTEE")]
+        [CommandMethod("PPT")]
+        public void placeperttee()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+
+            while (true)
+            {
+                try
+                {
+                    #region Get pipes
+                    HashSet<Oid> plOids = localDb.HashSetOfFjvPipeIds(true);
+                    if (plOids.Count == 0)
+                    {
+                        prdDbg("No DH pipes in drawing!");
+                        return;
+                    }
+                    #endregion
+
+                    #region Ask for point
+                    //message for the ask for point prompt
+                    string message = "Select location to place pipe fitting: ";
+                    var opt = new PromptPointOptions(message);
+
+                    Point3d location = Algorithms.NullPoint3d;
+                    do
+                    {
+                        var res = ed.GetPoint(opt);
+                        if (res.Status == PromptStatus.Cancel)
+                        {
+                            bringallblockstofront();
+                            return;
+                        }
+                        if (res.Status == PromptStatus.OK) location = res.Value;
+                    }
+                    while (location == Algorithms.NullPoint3d);
+                    #endregion
+
+                    #region Find nearest pline
+                    Oid nearestPlId;
+                    using (Transaction tx = localDb.TransactionManager.StartTransaction())
+                    {
+                        Polyline pl = plOids.Select(x => x.Go<Polyline>(tx))
+                            .MinByEnumerable(x => location.DistanceHorizontalTo(
+                                x.GetClosestPointTo(location, false)))
+                            .FirstOrDefault();
+                        nearestPlId = pl.Id;
+                        tx.Commit();
+                    }
+
+                    if (nearestPlId == default)
+                    {
+                        prdDbg("Nearest pipe cannot be found!");
+                        return;
+                    }
+                    #endregion
+
+                    #region Place perttee
+                    PertTee pertTee = new PertTee(
+                        localDb, nearestPlId, location);
+                    Result result = pertTee.Validate();
+                    if (result.Status != ResultStatus.OK)
+                    {
+                        prdDbg(result.ErrorMsg);
+                        continue;
+                    }
+                    result = pertTee.Place();
                     if (result.Status != ResultStatus.OK)
                     {
                         prdDbg(result.ErrorMsg);

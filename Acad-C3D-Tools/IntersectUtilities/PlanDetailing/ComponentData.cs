@@ -47,6 +47,8 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using DataTable = System.Data.DataTable;
+using IntersectUtilities;
+using static IntersectUtilities.Transition;
 
 namespace IntersectUtilities
 {
@@ -59,6 +61,8 @@ namespace IntersectUtilities
         internal readonly string BlockLayerName = "0-KOMPONENT";
         internal readonly int Dn;
         internal readonly PipeSystemEnum PipeSystem; //Stål, Cu, Alu osv.
+        protected string cutBlockName = "MuffeIntern";
+        protected string blockName;
         private PipeTypeEnum _pipeType; //Twin, Frem, Retur
         internal PipeTypeEnum PipeType
         {
@@ -91,10 +95,7 @@ namespace IntersectUtilities
             }
 
         }
-        //internal void ReadData(string pathToData)
-        //{
-        //    Data = CsvReader.ReadCsvToDataTable(pathToData, "Data");
-        //}
+        
         internal virtual Result Validate()
         {
             Result result = new Result();
@@ -137,9 +138,22 @@ namespace IntersectUtilities
                     result.Status = ResultStatus.SoftError;
                     result.ErrorMsg = $"Pipe {run.Handle} fails to report correct PipeSerie!";
                 }
+                #endregion
+
+                #region Test to see if block is present in DB or import
+                Db.CheckOrImportBlockRecord(BlockDb, blockName);
+                #endregion
+
+                #region Check to see if present block is latest version
+                CheckIfBlockPresentInDrawingIsLatestVersion(tx, blockName);
+                #endregion
+
+                #region Check number of cutblocks in BTR
+                CheckNumberOfNestedBlocks(tx, blockName, cutBlockName, 2);
+                #endregion
+
                 tx.Commit();
             }
-            #endregion
 
             return result;
         }
@@ -300,9 +314,11 @@ namespace IntersectUtilities
     {
         private readonly string blockNameTwin = "PRÆBØJN-90GR-TWIN-GLD";
         private readonly string blockNameEnkelt = "PRÆBØJN 90GR ENKELT";
-        private readonly string cutBlockName = "MuffeIntern";
-        private string blockName { get => PipeType == PipeTypeEnum.Twin ? blockNameTwin : blockNameEnkelt; }
-        public ElbowPreinsulated(Database db, Oid runId, Point3d location) : base(db, runId, location) { }
+
+        public ElbowPreinsulated(Database db, Oid runId, Point3d location) : base(db, runId, location) 
+        {
+            blockName = PipeType == PipeTypeEnum.Twin ? blockNameTwin : blockNameEnkelt;
+        }
         internal override Result Validate()
         {
             Result result = base.Validate();
@@ -310,17 +326,6 @@ namespace IntersectUtilities
             using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
                 Polyline run = RunId.Go<Polyline>(tx);
-                #region Test to see if block is present in DB or import
-                Db.CheckOrImportBlockRecord(BlockDb, blockName);
-                #endregion
-
-                #region Check to see if present block is latest version
-                CheckIfBlockPresentInDrawingIsLatestVersion(tx, blockName);
-                #endregion
-
-                #region Check number of cutblocks in BTR
-                CheckNumberOfNestedBlocks(tx, blockName, cutBlockName, 2);
-                #endregion
 
                 #region Test to see if point coincides with a vertice or at ends
                 int idx = run.GetCoincidentIndexAtPoint(Location);
@@ -424,8 +429,6 @@ namespace IntersectUtilities
     }
     internal class ElbowWeldFitting : ComponentData
     {
-        private readonly string blockName = "BØJN KDLR v2";
-        private readonly string cutBlockName = "MuffeIntern";
         private readonly Dictionary<int, double> radiusDict = new Dictionary<int, double>()
         {
             { 20, 0.037 },
@@ -447,25 +450,16 @@ namespace IntersectUtilities
             { 500, 0.762 },
             { 600, 0.914 },
         };
-        public ElbowWeldFitting(Database db, Oid runId, Point3d location) : base(db, runId, location) { }
+        public ElbowWeldFitting(Database db, Oid runId, Point3d location) : base(db, runId, location) 
+        {
+            blockName = "BØJN KDLR v2";
+        }
         internal override Result Validate()
         {
             Result result = base.Validate();
             using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
                 Polyline run = RunId.Go<Polyline>(tx);
-
-                #region Test to see if block is present in DB or import
-                Db.CheckOrImportBlockRecord(BlockDb, blockName);
-                #endregion
-
-                #region Check to see if present block is latest version
-                CheckIfBlockPresentInDrawingIsLatestVersion(tx, blockName);
-                #endregion
-
-                #region Check number of cutblocks in BTR
-                CheckNumberOfNestedBlocks(tx, blockName, cutBlockName, 2);
-                #endregion
 
                 #region Test to see if point coincides with a vertice or at ends
                 int idx = run.GetCoincidentIndexAtPoint(Location);
@@ -595,8 +589,6 @@ namespace IntersectUtilities
     }
     internal class Transition : ComponentData
     {
-        private readonly string blockName;
-        private readonly string cutBlockName = "MuffeIntern";
         private readonly TransitionType transitionType;
         public Transition(Database db, Oid runId, Point3d location, TransitionType type)
             : base(db, runId, location)
@@ -610,18 +602,6 @@ namespace IntersectUtilities
 
             using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
-                #region Test to see if block is present in DB or import
-                Db.CheckOrImportBlockRecord(BlockDb, blockName);
-                #endregion
-
-                #region Check to see if present block is latest version
-                CheckIfBlockPresentInDrawingIsLatestVersion(tx, blockName);
-                #endregion
-
-                #region Check number of cutblocks in BTR
-                CheckNumberOfNestedBlocks(tx, blockName, cutBlockName, 2);
-                #endregion
-
                 Polyline run = RunId.Go<Polyline>(tx);
 
                 #region Test pipesystem, must be Steel
@@ -741,7 +721,6 @@ namespace IntersectUtilities
 
             return result;
         }
-
         public enum TransitionType
         {
             X1,
@@ -750,28 +729,16 @@ namespace IntersectUtilities
     }
     internal class Bueror : ComponentData
     {
-        private readonly string blockName = "BUEROR2";
-        private readonly string cutBlockName = "MuffeIntern";
-
-        public Bueror(Database db, Oid runId, Point3d location) : base(db, runId, location) { }
+        public Bueror(Database db, Oid runId, Point3d location) : base(db, runId, location) 
+        {
+            blockName = "BUEROR2";
+        }
         internal override Result Validate()
         {
             Result result = base.Validate();
             using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
                 Polyline run = RunId.Go<Polyline>(tx);
-
-                #region Test to see if block is present in DB or import
-                Db.CheckOrImportBlockRecord(BlockDb, blockName);
-                #endregion
-
-                #region Check to see if present block is latest version
-                CheckIfBlockPresentInDrawingIsLatestVersion(tx, blockName);
-                #endregion
-
-                #region Check number of cutblocks in BTR
-                CheckNumberOfNestedBlocks(tx, blockName, cutBlockName, 2);
-                #endregion
 
                 #region Test if location is on polyline
                 if (run.GetDistToPoint(Location) > 0.000001)
@@ -922,14 +889,13 @@ namespace IntersectUtilities
     }
     internal class Branch : ComponentData
     {
-        private readonly string blockName = "BUEROR2";
-        private readonly string cutBlockName = "MuffeIntern";
-
         private readonly Oid main;
         private readonly Oid branch;
 
         public Branch(Database db, Oid runId, Point3d location) : base(db, runId, location)
         {
+            blockName = "BUEROR2";
+
             using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
                 var pipes = db.GetFjvPipes(tx);
@@ -958,18 +924,6 @@ namespace IntersectUtilities
             using (Transaction tx = Db.TransactionManager.StartTransaction())
             {
                 Polyline run = RunId.Go<Polyline>(tx);
-
-                #region Test to see if block is present in DB or import
-                Db.CheckOrImportBlockRecord(BlockDb, blockName);
-                #endregion
-
-                #region Check to see if present block is latest version
-                CheckIfBlockPresentInDrawingIsLatestVersion(tx, blockName);
-                #endregion
-
-                #region Check number of cutblocks in BTR
-                CheckNumberOfNestedBlocks(tx, blockName, cutBlockName, 2);
-                #endregion
 
                 #region Test if location is on polyline
                 if (run.GetDistToPoint(Location) > 0.000001)
@@ -1111,6 +1065,120 @@ namespace IntersectUtilities
 
                 CutPolylineWithDoublesToAccommodateBlock(run, new List<double> { p1, p2 });
 
+                tx.Commit();
+            }
+
+            return result;
+        }
+    }
+    internal class PertTee : ComponentData
+    {
+        public PertTee(Database db, Oid runId, Point3d location)
+            : base(db, runId, location)
+        {
+            blockName = "PRESKOBLING-TEE-PRT";
+            cutBlockName = "MuffeIntern-MAIN";
+        }
+        internal override Result Validate()
+        {
+            Result result = base.Validate();
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
+            {
+                Polyline run = RunId.Go<Polyline>(tx);
+
+                #region Test if location is on polyline
+                if (run.GetDistToPoint(Location) > 0.000001)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = "Location is not on a pipe. Select location on pipe.";
+                    tx.Commit();
+                    return result;
+                }
+                #endregion
+
+                #region Test pipesystem, must be PertFlextra
+                if (PipeSystem != PipeSystemEnum.PertFlextra)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = "Skal bruges på PertFlextra ledninger!";
+                    tx.Commit();
+                    return result;
+                }
+                #endregion
+
+                #region Test to see if segment is a line
+                double realIdx = run.GetParameterAtPoint(Location);
+                var segType = run.GetSegmentType((int)realIdx);
+
+                if (segType != SegmentType.Line)
+                {
+                    result.Status = ResultStatus.SoftError;
+                    result.ErrorMsg = 
+                        "PertTee can only be placed automatically on line segments!\n" +
+                        "On arc segments do it manually.";
+                    tx.Commit();
+                    return result;
+                }
+                #endregion
+
+                tx.Commit();
+            }
+
+            if (result.Status == ResultStatus.OK) { Valid = true; }
+            return result;
+        }
+        internal override Result Place()
+        {
+            Result result = base.Place();
+            if (result.Status != ResultStatus.OK) { return result; }
+
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
+            {
+                Polyline run = RunId.Go<Polyline>(tx);
+
+                int idxReal = (int)run.GetParameterAtPoint(Location);
+
+                LineSegment3d seg1 = run.GetLineSegmentAt(idxReal);
+                double rotation = Math.Atan2(
+                    seg1.Direction.Y, seg1.Direction.X);// + Math.PI / 2;
+
+                BlockReference br = Db.CreateBlockWithAttributes(
+                    blockName, Location, rotation);
+                br.Layer = BlockLayerName;
+                BrId = br.Id;
+
+                int runDn = GetPipeDN(run);
+
+                string type =
+                    $"{runDn}" +
+                    $"x" +
+                    $"25";
+
+                SetDynBlockPropertyObject(br, "Type", type);
+                SetDynBlockPropertyObject(br, "System", PipeType.ToString());
+                //SetDynBlockPropertyObject(br, "Serie", PipeSerie.ToString());
+                br.AttSync();
+                if (br.IsDynamicBlock)
+                {
+                    BlockTableRecord abtr = br.AnonymousBlockTableRecord.Go<BlockTableRecord>(tx);
+                    abtr.UpdateAnonymousBlocks();
+                }
+
+                PropertySetManager.CopyAllProperties(run, br);
+
+                tx.Commit();
+            }
+            if (result.Status == ResultStatus.OK) result = Cut(result);
+
+            return result;
+        }
+        internal override Result Cut(Result result)
+        {
+            using (Transaction tx = Db.TransactionManager.StartTransaction())
+            {
+                Polyline run = RunId.Go<Polyline>(tx);
+                BlockReference br = BrId.Go<BlockReference>(tx);
+                CutPolylineWithBlocksToAccommodateBlock(tx, run, br, cutBlockName);
                 tx.Commit();
             }
 
