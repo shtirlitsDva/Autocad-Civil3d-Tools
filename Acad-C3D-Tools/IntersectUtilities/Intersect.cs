@@ -3482,7 +3482,7 @@ namespace IntersectUtilities
                             Point2d sP = pline.GetPoint2dAt(j + 1);
                             double u = fP.GetDistanceTo(sP);
                             double radius = u * ((1 + b.Pow(2)) / (4 * Math.Abs(b)));
-                            double minRadius = GetPipeMinElasticRadiusCharacteristic(pline);
+                            double minRadius = GetPipeMinElasticRadiusHorizontalCharacteristic(pline);
 
                             //If radius is less than minRadius a buerør is detected
                             //Split the pline in segments delimiting buerør and append

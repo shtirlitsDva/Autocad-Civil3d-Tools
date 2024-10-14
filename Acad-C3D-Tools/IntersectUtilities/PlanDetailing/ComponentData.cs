@@ -775,7 +775,7 @@ namespace IntersectUtilities
                 var seg = run.GetArcSegmentAt((int)realIdx);
 
                 double actualRadius = seg.Radius;
-                double minElasticRadius = GetPipeMinElasticRadiusCharacteristic(run);
+                double minElasticRadius = GetPipeMinElasticRadiusHorizontalCharacteristic(run);
                 double minBuerorRadius = AskForBuerorMinRadius(run);
 
                 //Check arc segment radius to be whithin bueror range
@@ -960,7 +960,7 @@ namespace IntersectUtilities
                 var seg = run.GetArcSegmentAt((int)realIdx);
 
                 double actualRadius = seg.Radius;
-                double minElasticRadius = GetPipeMinElasticRadiusCharacteristic(run);
+                double minElasticRadius = GetPipeMinElasticRadiusHorizontalCharacteristic(run);
                 double minBuerorRadius = GetBuerorMinRadius(run);
 
                 //Check arc segment radius to be whithin bueror range

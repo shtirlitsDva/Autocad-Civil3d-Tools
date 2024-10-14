@@ -372,7 +372,7 @@ namespace IntersectUtilities.PipeScheduleV2
             }
             return false;
         }
-        public static double GetPipeMinElasticRadiusCharacteristic(Entity ent, bool considerInSituBending = true)
+        public static double GetPipeMinElasticRadiusHorizontalCharacteristic(Entity ent, bool considerInSituBending = true)
         {
             if (considerInSituBending && IsInSituBent(ent)) return 0;
 
@@ -389,9 +389,26 @@ namespace IntersectUtilities.PipeScheduleV2
 
             return rad;
         }
-        public static double GetPipeMinElasticRadiusDesign(Entity ent, bool considerInSituBending = true)
+        public static double GetPipeMinElasticRadiusHorizontalDesign(Entity ent, bool considerInSituBending = true)
         {
-            return GetPipeMinElasticRadiusCharacteristic(ent, considerInSituBending) * 1.2;
+            return GetPipeMinElasticRadiusHorizontalCharacteristic(ent, considerInSituBending) * 1.2;
+        }
+        public static double GetPipeMinElasticRadiusVerticalCharacteristic(Entity ent)
+        {
+            PipeSystemEnum system = GetPipeSystem(ent);
+            int dn = GetPipeDN(ent);
+            PipeTypeEnum type = GetPipeType(ent, true);
+            
+            if (!systemDictReversed.ContainsKey(system)) return 0;
+            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
+
+            var vertFactor = pipeType.GetFactorForVerticalElasticBending(dn, type);
+
+            return vertFactor * GetPipeMinElasticRadiusHorizontalCharacteristic(ent);
+        }
+        public static double GetPipeMinElasticRadiusVerticalDesign(Entity ent)
+        {
+            return GetPipeMinElasticRadiusVerticalCharacteristic(ent) * 1.2;
         }
         public static double GetBuerorMinRadius(Entity ent)
         {
@@ -532,6 +549,7 @@ namespace IntersectUtilities.PipeScheduleV2
             int dn, PipeTypeEnum type, double realKod);
         double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum pipeSeries);
         double GetMinElasticRadius(int dn, PipeTypeEnum type, PipeSeriesEnum series);
+        double GetFactorForVerticalElasticBending(int dn, PipeTypeEnum type);
         double GetBuerorMinRadius(int dn, int std);
         int GetPipeStdLength(int dn, PipeTypeEnum type);
         IEnumerable<int> ListAllDnsForPipeTypeSerie(PipeTypeEnum type, PipeSeriesEnum serie);
@@ -628,6 +646,15 @@ namespace IntersectUtilities.PipeScheduleV2
                 type = PipeTypeEnum.Enkelt;
             DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
             if (results != null && results.Length > 0) return (double)results[0]["minElasticRadii"];
+            return 0;
+        }
+        public double GetFactorForVerticalElasticBending(int dn, PipeTypeEnum type)
+        {
+            if (type == PipeTypeEnum.Retur ||
+                type == PipeTypeEnum.Frem)
+                type = PipeTypeEnum.Enkelt;
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'");
+            if (results != null && results.Length > 0) return (double)results[0]["VertFactor"];
             return 0;
         }
         public abstract double GetBuerorMinRadius(int dn, int std);
@@ -969,7 +996,7 @@ namespace IntersectUtilities.PipeScheduleV2
         double GetBuerorMinRadius(int dn, int pipeLength);
         CompanyEnum Company { get; }
     }
-    public class PipeRadiusData : IPipeRadiusData
+    public abstract class PipeRadiusData : IPipeRadiusData
     {
         protected DataTable _data;
         protected CompanyEnum _company;
