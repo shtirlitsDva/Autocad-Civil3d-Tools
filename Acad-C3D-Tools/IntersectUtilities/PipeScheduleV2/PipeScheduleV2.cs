@@ -347,6 +347,7 @@ namespace IntersectUtilities.PipeScheduleV2
         {
             PipeTypeEnum type = GetPipeType(ent);
             PipeSystemEnum system = GetPipeSystem(ent);
+            int dn = GetPipeDN(ent);
 
             //Flexrør er altid insitu bukkede
             if (
@@ -372,22 +373,51 @@ namespace IntersectUtilities.PipeScheduleV2
             }
             return false;
         }
+        public static bool IsInSituBent(PipeSystemEnum ps, int dn, PipeTypeEnum pt)
+        {
+            //Flexrør er altid insitu bukkede
+            if (
+                ps == PipeSystemEnum.Kobberflex ||
+                ps == PipeSystemEnum.AluPex
+                ) return true;
+
+            switch (pt)
+            {
+                case PipeTypeEnum.Ukendt:
+                    throw new Exception(
+                        $"IsInSituBent -> {ps} {dn} {pt} Ukendt PipeTypeEnum (system)!");
+                case PipeTypeEnum.Twin:
+                    if (dn < 65) return true;
+                    break;
+                case PipeTypeEnum.Frem:
+                case PipeTypeEnum.Retur:
+                    if (dn < 100) return true;
+                    break;
+                default:
+                    throw new Exception(
+                        $"IsInSituBent -> {ps} {dn} {pt} Undefined PipeTypeEnum (system)!");
+            }
+            return false;
+        }
         public static double GetPipeMinElasticRadiusHorizontalCharacteristic(Entity ent, bool considerInSituBending = true)
         {
             if (considerInSituBending && IsInSituBent(ent)) return 0;
 
             PipeTypeEnum type = GetPipeType(ent, true);
-            PipeSeriesEnum series = GetPipeSeriesV2(ent);
             PipeSystemEnum system = GetPipeSystem(ent);
-
-            if (!systemDictReversed.ContainsKey(system)) return 0;
-            var pipeType = _repository.GetPipeType(systemDictReversed[system]);
-
             int dn = GetPipeDN(ent);
 
-            var rad = pipeType.GetMinElasticRadius(dn, type, series);
+            return GetPipeMinElasticRadiusHorizontalCharacteristic(system, dn, type);
+        }
+        public static double GetPipeMinElasticRadiusHorizontalCharacteristic(PipeSystemEnum ps, int dn, PipeTypeEnum type,
+            bool considerInSituBending = true)
+        {
+            if (considerInSituBending && IsInSituBent(ps, dn, type)) return 0;
 
-            return rad;
+            if (!systemDictReversed.ContainsKey(ps)) return 0;
+            var pipeType = _repository.GetPipeType(systemDictReversed[ps]);
+
+            return pipeType.GetMinElasticRadius(dn, type);
         }
         public static double GetPipeMinElasticRadiusHorizontalDesign(Entity ent, bool considerInSituBending = true)
         {
@@ -398,17 +428,25 @@ namespace IntersectUtilities.PipeScheduleV2
             PipeSystemEnum system = GetPipeSystem(ent);
             int dn = GetPipeDN(ent);
             PipeTypeEnum type = GetPipeType(ent, true);
-            
+
+            return GetPipeMinElasticRadiusVerticalCharacteristic(system, dn, type);
+        }
+        public static double GetPipeMinElasticRadiusVerticalCharacteristic(PipeSystemEnum system, int dn, PipeTypeEnum type)
+        {
             if (!systemDictReversed.ContainsKey(system)) return 0;
             var pipeType = _repository.GetPipeType(systemDictReversed[system]);
 
             var vertFactor = pipeType.GetFactorForVerticalElasticBending(dn, type);
 
-            return vertFactor * GetPipeMinElasticRadiusHorizontalCharacteristic(ent);
+            return vertFactor * GetPipeMinElasticRadiusHorizontalCharacteristic(system, dn, type, false);
         }
         public static double GetPipeMinElasticRadiusVerticalDesign(Entity ent)
         {
             return GetPipeMinElasticRadiusVerticalCharacteristic(ent) * 1.2;
+        }
+        public static double GetPipeMinElasticRadiusVerticalDesign(PipeSystemEnum system, int dn, PipeTypeEnum type)
+        {
+            return GetPipeMinElasticRadiusVerticalCharacteristic(system, dn, type) * 1.2;
         }
         public static double GetBuerorMinRadius(Entity ent)
         {
@@ -548,7 +586,7 @@ namespace IntersectUtilities.PipeScheduleV2
         PipeSeriesEnum GetPipeSeries(
             int dn, PipeTypeEnum type, double realKod);
         double GetPipeKOd(int dn, PipeTypeEnum type, PipeSeriesEnum pipeSeries);
-        double GetMinElasticRadius(int dn, PipeTypeEnum type, PipeSeriesEnum series);
+        double GetMinElasticRadius(int dn, PipeTypeEnum type);
         double GetFactorForVerticalElasticBending(int dn, PipeTypeEnum type);
         double GetBuerorMinRadius(int dn, int std);
         int GetPipeStdLength(int dn, PipeTypeEnum type);
@@ -639,12 +677,12 @@ namespace IntersectUtilities.PipeScheduleV2
             if (results != null && results.Length > 0) return (double)results[0]["kOd"];
             return 0;
         }
-        public virtual double GetMinElasticRadius(int dn, PipeTypeEnum type, PipeSeriesEnum series)
+        public virtual double GetMinElasticRadius(int dn, PipeTypeEnum type)
         {
             if (type == PipeTypeEnum.Retur ||
                 type == PipeTypeEnum.Frem)
                 type = PipeTypeEnum.Enkelt;
-            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}' AND PipeSeries = '{series}'");
+            DataRow[] results = _data.Select($"DN = {dn} AND PipeType = '{type}'"); // AND PipeSeries = '{series}'"); doesn't use SERIES???
             if (results != null && results.Length > 0) return (double)results[0]["minElasticRadii"];
             return 0;
         }

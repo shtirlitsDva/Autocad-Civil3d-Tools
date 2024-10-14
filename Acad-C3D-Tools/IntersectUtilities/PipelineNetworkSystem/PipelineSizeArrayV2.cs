@@ -14,6 +14,7 @@ using IntersectUtilities.UtilsCommon;
 using Autodesk.Civil.DatabaseServices;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using IntersectUtilities.PipeScheduleV2;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -693,6 +694,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public readonly double StartStation;
         public readonly double EndStation;
         public readonly double Kod;
+        public readonly double VerticalMinRadius => GetPipeMinElasticRadiusVerticalDesign(System, DN, Type);
         public readonly PipeSystemEnum System;
         public readonly PipeTypeEnum Type;
         public readonly PipeSeriesEnum Series;
@@ -714,7 +716,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 Kod.ToString("F0"),
                 System.ToString(),
                 Type.ToString(),
-                Series.ToString()
+                Series.ToString(),
+                VerticalMinRadius.ToString("F2")
             };
         }
     }
