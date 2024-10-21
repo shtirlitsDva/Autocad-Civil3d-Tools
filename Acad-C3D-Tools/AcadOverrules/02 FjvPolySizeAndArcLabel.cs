@@ -482,7 +482,7 @@ namespace AcadOverrules
                 #region Buerør label
                 int nrOfVertices = pline.NumberOfVertices;
 
-                double minElasticRadius = GetPipeMinElasticRadius(pline, false);
+                double minElasticRadius = GetPipeMinElasticRadiusHorizontalDesign(pline, false);
                 bool isInSituBuk = IsInSituBent(pline);
                 double minBuerorRadius = GetBuerorMinRadius(pline);
                 for (int j = 0; j < pline.NumberOfVertices - 1; j++)

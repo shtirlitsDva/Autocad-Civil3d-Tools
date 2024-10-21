@@ -51,6 +51,7 @@ using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Label = Autodesk.Civil.DatabaseServices.Label;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using static IntersectUtilities.Transition;
+using System.Windows.Documents;
 
 namespace IntersectUtilities
 {
@@ -137,7 +138,7 @@ namespace IntersectUtilities
                     string blockName = noNumbers ? "SVEJSEPUNKT-NOTXT" : "SVEJSEPUNKT";
                     string textLayerName = "0-DEBUG-TXT";
                     //////////////////////////////////////
-                    
+
                     #region Delete previous blocks
                     //Delete previous blocks
                     var existingBlocks = localDb.GetBlockReferenceByName(blockName);
@@ -2237,7 +2238,7 @@ namespace IntersectUtilities
                         prdDbg($"Failed: {failed}; {r.Handle} -> {type}");
 
                         if (!failed)
-                        { 
+                        {
                             SetDynBlockProperty(r, "Type", type);
                             r.AttSync();
                         }
@@ -2250,6 +2251,116 @@ namespace IntersectUtilities
                     return;
                 }
                 tx.Commit();
+            }
+        }
+
+        [CommandMethod("SPLITPL2P")]
+        public void splitpl2p()
+        {
+            // Get the current document and database
+            Document doc = Application.DocumentManager.MdiActiveDocument;
+            Database db = doc.Database;
+            Editor ed = doc.Editor;
+
+            // Prompt for the polyline selection
+            PromptEntityOptions peo = new PromptEntityOptions("\nSelect a polyline to split: ");
+            peo.SetRejectMessage("\nSelected entity is not a polyline.");
+            peo.AddAllowedClass(typeof(Polyline), true);
+            PromptEntityResult per = ed.GetEntity(peo);
+
+            // If the polyline is selected, continue
+            if (per.Status != PromptStatus.OK)
+            {
+                prdDbg("No polyline selected!");
+                return;
+            }
+
+            Oid polylineId = per.ObjectId;
+
+            // Prompt for the first point to split
+            PromptPointResult ppr1 = ed.GetPoint("\nSelect first point on polyline to split: ");
+            if (ppr1.Status != PromptStatus.OK)
+            {
+                ed.WriteMessage("\nFirst point selection cancelled.");
+                return;
+            }
+
+            // Prompt for the second point to split
+            PromptPointResult ppr2 = ed.GetPoint("\nSelect second point on polyline to split: ");
+            if (ppr2.Status != PromptStatus.OK)
+            {
+                ed.WriteMessage("\nSecond point selection cancelled.");
+                return;
+            }
+
+            // Open the transaction
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    // Open the polyline for write
+                    Polyline pline = tr.GetObject(polylineId, OpenMode.ForRead) as Polyline;
+                    if (pline == null)
+                    {
+                        ed.WriteMessage("\nSelected object is not a polyline.");
+                        tr.Abort();
+                        return;
+                    }
+
+                    // Find the closest points on the polyline to the selected points
+                    Point3d nearestPt1 = pline.GetClosestPointTo(ppr1.Value, false);
+                    Point3d nearestPt2 = pline.GetClosestPointTo(ppr2.Value, false);
+
+                    // Get the parameters of the closest points
+                    double param1 = pline.GetParameterAtPoint(nearestPt1);
+                    double param2 = pline.GetParameterAtPoint(nearestPt2);
+
+                    // Ensure param1 is less than param2 (swap if necessary)
+                    if (param1 > param2)
+                    {
+                        double temp = param1;
+                        param1 = param2;
+                        param2 = temp;
+                    }
+
+                    DoubleCollection dc = new DoubleCollection([param1, param2]);
+                    DBObjectCollection split = pline.GetSplitCurves(dc);
+
+                    List<Polyline> result = new List<Polyline>();
+
+                    bool success = false;
+                    if (split.Count == 3)
+                    {
+                        success = true;
+                        result.Add((Polyline)split[0]);
+                        result.Add((Polyline)split[2]);
+                    }
+                    if (split.Count == 2)
+                    {
+                        success = true;
+                        if (param1 == 0) result.Add((Polyline)split[1]);
+                        else result.Add((Polyline)split[0]);
+                    }
+
+                    if (success)
+                    {
+                        foreach (Polyline poly in result)
+                        {
+                            poly.AddEntityToDbModelSpace(db);
+                            PropertySetManager.CopyAllProperties(pline, poly);
+                        }
+
+                        pline.CheckOrOpenForWrite();
+                        pline.Erase(true);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tr.Abort();
+                    return;
+                }
+                tr.Commit();
             }
         }
     }
