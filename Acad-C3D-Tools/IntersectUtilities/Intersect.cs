@@ -7243,6 +7243,8 @@ namespace IntersectUtilities
                     string dbFilename = localDb.OriginalFileName;
                     string path = Path.GetDirectoryName(dbFilename);
 
+                    prdDbg(path + "\\BBR.csv");
+
                     Utils.OutputWriter(
                         path + "\\BBR.csv", sb.ToString(), true);
                 }
