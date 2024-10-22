@@ -132,14 +132,19 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 PrintNode(child, depth + 1);
             }
         }
-        public void CreateSizeArraysAndPrint()
+        public StringBuilder CreateSizeArraysAndPrint()
         {
+            StringBuilder sb = new StringBuilder();
             foreach (var pipeline in pipelines.OrderBy(x => x.Name))
             {
                 prdDbg("Pipeline: " + pipeline.Name);
+                sb.AppendLine("Alignment: " + pipeline.Name);
                 pipeline.CreateSizeArray();
                 prdDbg(pipeline.Sizes.ToString());
+                sb.AppendLine(pipeline.Sizes.ToString());
+                sb.AppendLine();
             }
+            return sb;
         }
         internal void CreateWeldPoints()
         {

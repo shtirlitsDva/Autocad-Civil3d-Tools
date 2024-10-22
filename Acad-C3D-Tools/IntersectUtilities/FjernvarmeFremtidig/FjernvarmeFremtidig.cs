@@ -52,6 +52,7 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using System.Windows.Documents;
 using static IntersectUtilities.Graph;
 using IntersectUtilities.PipeScheduleV2;
+using Autodesk.AutoCAD.Internal;
 
 namespace IntersectUtilities
 {
@@ -60,7 +61,6 @@ namespace IntersectUtilities
         [CommandMethod("ASSIGNBLOCKSANDPLINESTOALIGNMENTS")]
         public void assignblocksandplinestoalignments()
         {
-
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
@@ -93,11 +93,11 @@ namespace IntersectUtilities
             {
                 try
                 {
-                    System.Data.DataTable fjvKomponenter = CsvData.FK;
+                    System.Data.DataTable fk = CsvData.FK;
 
                     HashSet<Alignment> als = alDb.HashSetOfType<Alignment>(alTx);
                     HashSet<Polyline> allPipes = localDb.GetFjvPipes(tx);
-                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx);
+                    HashSet<BlockReference> brs = localDb.GetFjvBlocks(tx, fk, true, false);
 
                     #region Initialize property set
                     PropertySetManager psm = new PropertySetManager(
@@ -112,7 +112,7 @@ namespace IntersectUtilities
                     {
                         //Guard against unknown blocks
                         if (ReadStringParameterFromDataTable(
-                            br.RealName(), fjvKomponenter, "Navn", 0) == null)
+                            br.RealName(), fk, "Navn", 0) == null)
                         {
                             BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
                             if (btr.IsFromExternalReference) continue;
@@ -277,23 +277,8 @@ namespace IntersectUtilities
                     }
                     #endregion
 
-                    #region Connection pipes
-                    //Modifications to make work with new pipeline types
-                    HashSet<Polyline> mainPipes = allPipes
-                        //.Where(x => GetPipeSystem(x) == PipeSystemEnum.Stål)
-                        .ToHashSet();
-                    //HashSet<Polyline> conPipes = new HashSet<Polyline>();
-                    //allPipes
-                    //.Where(x =>
-                    //    GetPipeSystem(x) == PipeSystemEnum.AluPex ||
-                    //    GetPipeSystem(x) == PipeSystemEnum.Kobberflex
-                    //    )
-                    //.ToHashSet();
-                    //prdDbg($"Conpipes: {conPipes.Count}");
-                    #endregion
-
                     #region Curves
-                    foreach (Curve curve in mainPipes)
+                    foreach (Curve curve in allPipes)
                     {
                         //Detect zero length curves
                         if (curve is Polyline pline)
@@ -440,173 +425,275 @@ namespace IntersectUtilities
                     int stikIdx = 0;
                     foreach (IGrouping<Entity, Entity> group in naGroups)
                     {
-                        //sample the pipesystem type
-                        PipeSystemEnum ps = group.Where(x => x is Polyline)
-                            .Select(x => GetPipeSystem(x)).FirstOrDefault();
+                        Dictionary<Handle, Entity> entities = group
+                            .ToDictionary(x => x.Handle, x => x);
 
-                        if (group.Any(x => 
-                        ps == PipeSystemEnum.Kobberflex ||
-                        ps == PipeSystemEnum.AluPex))
+                        if (entities.Keys.Contains(new Handle(Convert.ToInt64("f610e", 16))))
+                            prdDbg("FOUND!!!!");
+
+                        HashSet<Handle> visitedEntities = new();
+                        List<List<Handle>> allRoutes = new();
+
+                        Handle rootHandle = entities.Values
+                            .Select(entity => new { Entity = entity, Neighbours = GetAllNeighbours(entity) })
+                            .Where(x => x.Neighbours.Any(n => !entities.ContainsKey(n)))
+                            .Select(x => x.Entity.Handle)
+                            .FirstOrDefault();
+
+                        if (rootHandle == default)
+                            throw new System.Exception($"No root found for " +
+                                $"{entities.First().Value.Handle}!");
+
+                        List<Handle> GetValidNeighbours(Entity entity)
                         {
-                            stikIdx++;
-                            foreach (Entity item in group)
-                                psm.WritePropertyString(
-                                    item, driPipelineData.BelongsToAlignment,
-                                    $"Stik {stikIdx.ToString("00")}");
+                            string conString = psmGraph.ReadPropertyString(entity, defGraph.ConnectedEntities);
+                            if (conString.IsNoE())
+                                throw new System.Exception(
+                                    $"Malformend constring: {conString}, entity: {entity.Handle}.");
+
+                            Con[] cons = GraphEntity.parseConString(conString);
+                            return cons.Select(con => con.ConHandle).Where(entities.ContainsKey).ToList();
                         }
-                        else
+                        List<Handle> GetAllNeighbours(Entity entity)
+                        {
+                            string conString = psmGraph.ReadPropertyString(entity, defGraph.ConnectedEntities);
+                            if (conString.IsNoE())
+                                throw new System.Exception(
+                                    $"Malformend constring: {conString}, entity: {entity.Handle}.");
+
+                            Con[] cons = GraphEntity.parseConString(conString);
+                            return cons.Select(con => con.ConHandle).ToList();
+                        }
+
+                        List<Handle> path = new();
+                        DFS(rootHandle, visitedEntities, path, allRoutes);
+                        void DFS(Handle currentHandle, HashSet<Handle> visited, List<Handle> path, List<List<Handle>> allRoutes)
+                        {
+                            // Add the current node to the path and mark it as visited
+                            visited.Add(currentHandle);
+                            path.Add(currentHandle);
+
+                            // Get the neighbours of the current entity
+                            Entity currentEntity = entities[currentHandle];
+                            List<Handle> neighbours = GetValidNeighbours(currentEntity);
+
+                            // Determine if this is a leaf, member, or branch node
+                            if (neighbours.Count == 1 && path.Count > 1)
+                            {
+                                // Leaf node (but not the starting node), store the route
+                                allRoutes.Add(new List<Handle>(path));
+                            }
+                            else if (neighbours.Count > 2)
+                            {
+                                // Branch node, store the route up to this point
+                                allRoutes.Add(new List<Handle>(path));
+
+                                // Continue traversing each branch
+                                foreach (var neighbourHandle in neighbours)
+                                {
+                                    if (!visited.Contains(neighbourHandle))
+                                    {
+                                        DFS(neighbourHandle, new HashSet<Handle>(visited), new List<Handle>(path), allRoutes);
+                                    }
+                                }
+
+                                // Stop further traversal after storing branch routes
+                                return;
+                            }
+                            else
+                            {
+                                // Member node, continue traversal
+                                foreach (var neighbourHandle in neighbours)
+                                {
+                                    if (!visited.Contains(neighbourHandle))
+                                    {
+                                        DFS(neighbourHandle, visited, path, allRoutes);
+                                    }
+                                }
+                            }
+
+                            // Backtrack by removing the current node from the path
+                            path.RemoveAt(path.Count - 1);
+                        }
+
+                        foreach (var route in allRoutes)
                         {
                             naIdx++;
-                            foreach (Entity item in group)
+                            foreach (Handle item in route)
+                            {
                                 psm.WritePropertyString(
-                                    item, driPipelineData.BelongsToAlignment,
+                                    entities[item], driPipelineData.BelongsToAlignment,
                                     $"NA {naIdx.ToString("00")}");
+                            }
                         }
+
+                        ////sample the pipesystem type
+                        //PipeSystemEnum ps = group.Where(x => x is Polyline)
+                        //    .Select(GetPipeSystem).FirstOrDefault();
+
+                        //if (group.Any(x =>
+                        //ps == PipeSystemEnum.Kobberflex ||
+                        //ps == PipeSystemEnum.AluPex))
+                        //{
+                        //    stikIdx++;
+                        //    foreach (Entity item in group)
+                        //        psm.WritePropertyString(
+                        //            item, driPipelineData.BelongsToAlignment,
+                        //            $"Stik {stikIdx.ToString("00")}");
+                        //}
+                        //else
+                        //{
+                        //    naIdx++;
+                        //    foreach (Entity item in group)
+                        //        psm.WritePropertyString(
+                        //            item, driPipelineData.BelongsToAlignment,
+                        //            $"NA {naIdx.ToString("00")}");
+                        //}
                     }
                     #endregion
 
                     #region Take care of stik
-                    //Exit gracefully if no stiks
-                    if (stikIdx == 0)
-                    {
-                        alTx.Abort();
-                        alTx.Dispose();
-                        alDb.Dispose();
-                        tx.Commit();
-                        return;
-                    }
+                    ////Exit gracefully if no stiks
+                    //if (stikIdx == 0)
+                    //{
+                    //    alTx.Abort();
+                    //    alTx.Dispose();
+                    //    alDb.Dispose();
+                    //    tx.Commit();
+                    //    return;
+                    //}
 
-                    prdDbg(
-                        "**************************************************************\n" +
-                        "Projektet indeholder stikledninger!\n" +
-                        "ADVARSEL: Stikledninger SKAL være forbundet i et TRÆ-struktur!\n" +
-                        "Dvs. der må ikke være gennemgående polylinjer ved afgreninger.\n" +
-                        "Stikledninger forbundet til komponenter skal afklares manuelt.\n" +
-                        "**************************************************************");
+                    //prdDbg(
+                    //    "**************************************************************\n" +
+                    //    "Projektet indeholder stikledninger!\n" +
+                    //    "ADVARSEL: Stikledninger SKAL være forbundet i et TRÆ-struktur!\n" +
+                    //    "Dvs. der må ikke være gennemgående polylinjer ved afgreninger.\n" +
+                    //    "Stikledninger forbundet til komponenter skal afklares manuelt.\n" +
+                    //    "**************************************************************");
 
-                    var grouping = naGroups.Where(x => psm.ReadPropertyString(
-                            x.FirstOrDefault(), driPipelineData.BelongsToAlignment).StartsWith("Stik"));
+                    //var grouping = naGroups.Where(x => psm.ReadPropertyString(
+                    //        x.FirstOrDefault(), driPipelineData.BelongsToAlignment).StartsWith("Stik"));
 
-                    //int stikGruppeCount = 0;
-                    foreach (var group in grouping)
-                    {
-                        #region Debug connection of polylines
-                        ////Determine maximum and minimum points
-                        //HashSet<double> Xs = new HashSet<double>();
-                        //HashSet<double> Ys = new HashSet<double>();
+                    ////int stikGruppeCount = 0;
+                    //foreach (var group in grouping)
+                    //{
+                    //    #region Debug connection of polylines
+                    //    ////Determine maximum and minimum points
+                    //    //HashSet<double> Xs = new HashSet<double>();
+                    //    //HashSet<double> Ys = new HashSet<double>();
 
-                        //foreach (var pl in group)
-                        //{
-                        //    Extents3d bbox = pl.GeometricExtents;
-                        //    Xs.Add(bbox.MaxPoint.X);
-                        //    Xs.Add(bbox.MinPoint.X);
-                        //    Ys.Add(bbox.MaxPoint.Y);
-                        //    Ys.Add(bbox.MinPoint.Y);
-                        //}
+                    //    //foreach (var pl in group)
+                    //    //{
+                    //    //    Extents3d bbox = pl.GeometricExtents;
+                    //    //    Xs.Add(bbox.MaxPoint.X);
+                    //    //    Xs.Add(bbox.MinPoint.X);
+                    //    //    Ys.Add(bbox.MaxPoint.Y);
+                    //    //    Ys.Add(bbox.MinPoint.Y);
+                    //    //}
 
-                        //double maxX = Xs.Max();
-                        //double maxY = Ys.Max();
-                        //double minX = Xs.Min();
-                        //double minY = Ys.Min();
+                    //    //double maxX = Xs.Max();
+                    //    //double maxY = Ys.Max();
+                    //    //double minX = Xs.Min();
+                    //    //double minY = Ys.Min();
 
-                        //List<Point2d> pts = new List<Point2d>();
-                        //pts.Add(new Point2d(minX, minY));
-                        //pts.Add(new Point2d(minX, maxY));
-                        //pts.Add(new Point2d(maxX, maxY));
-                        //pts.Add(new Point2d(maxX, minY));
+                    //    //List<Point2d> pts = new List<Point2d>();
+                    //    //pts.Add(new Point2d(minX, minY));
+                    //    //pts.Add(new Point2d(minX, maxY));
+                    //    //pts.Add(new Point2d(maxX, maxY));
+                    //    //pts.Add(new Point2d(maxX, minY));
 
-                        //Polyline bboxPl = new Polyline();
-                        //foreach (Point2d p2d in pts)
-                        //    bboxPl.AddVertexAt(bboxPl.NumberOfVertices, p2d, 0.0, 0.0, 0.0);
-                        //bboxPl.Closed = true;
-                        //bboxPl.AddEntityToDbModelSpace(localDb);
-                        #endregion
+                    //    //Polyline bboxPl = new Polyline();
+                    //    //foreach (Point2d p2d in pts)
+                    //    //    bboxPl.AddVertexAt(bboxPl.NumberOfVertices, p2d, 0.0, 0.0, 0.0);
+                    //    //bboxPl.Closed = true;
+                    //    //bboxPl.AddEntityToDbModelSpace(localDb);
+                    //    #endregion
 
-                        string stikGruppe = psm.ReadPropertyString(group.First(), driPipelineData.BelongsToAlignment);
-                        int number = int.Parse(stikGruppe.Substring(5));
+                    //    string stikGruppe = psm.ReadPropertyString(group.First(), driPipelineData.BelongsToAlignment);
+                    //    int number = int.Parse(stikGruppe.Substring(5));
 
-                        #region Rearrange stik so that polylines always start at source
-                        #region Find the one (root) connected to supply line
-                        Polyline root = default;
-                        Polyline supply = default;
-                        foreach (Polyline pline in group.Where(x => x is Polyline))
-                        {
-                            supply = mainPipes.Where(x => pline.IsConnectedTo(x)).FirstOrDefault();
-                            if (supply != default)
-                            {
-                                root = pline;
-                                break;
-                            }
-                        }
-                        #endregion
-                        #region Recursive run through all connected pipes
-                        //Catch case where no connection exists between stik and supply pipe
-                        //Warn user about this to fix it and skip iteration
-                        if (root == default)
-                        {
-                            prdDbg($"Stikgruppe {number} is not connected to a supply pipe!\nFix this before continuing!");
-                            continue;
-                        }
-                        //Case: supply pipe is found
-                        //Go through the polylines reversing those that are against the "flow"
-                        //The flow is from the supply line to end connections (clients)
-                        else
-                        {
-                            //Give root preferential treatment because it is the first one
-                            if (root.EndPoint.IsOnCurve(supply, 0.022))
-                            {
-                                root.CheckOrOpenForWrite();
-                                root.ReverseCurve();
-                            }
+                    //    #region Rearrange stik so that polylines always start at source
+                    //    #region Find the one (root) connected to supply line
+                    //    Polyline root = default;
+                    //    Polyline supply = default;
+                    //    foreach (Polyline pline in group.Where(x => x is Polyline))
+                    //    {
+                    //        supply = mainPipes.Where(x => pline.IsConnectedTo(x)).FirstOrDefault();
+                    //        if (supply != default)
+                    //        {
+                    //            root = pline;
+                    //            break;
+                    //        }
+                    //    }
+                    //    #endregion
+                    //    #region Recursive run through all connected pipes
+                    //    //Catch case where no connection exists between stik and supply pipe
+                    //    //Warn user about this to fix it and skip iteration
+                    //    if (root == default)
+                    //    {
+                    //        prdDbg($"Stikgruppe {number} is not connected to a supply pipe!\nFix this before continuing!");
+                    //        continue;
+                    //    }
+                    //    //Case: supply pipe is found
+                    //    //Go through the polylines reversing those that are against the "flow"
+                    //    //The flow is from the supply line to end connections (clients)
+                    //    else
+                    //    {
+                    //        //Give root preferential treatment because it is the first one
+                    //        if (root.EndPoint.IsOnCurve(supply, 0.022))
+                    //        {
+                    //            root.CheckOrOpenForWrite();
+                    //            root.ReverseCurve();
+                    //        }
 
-                            HashSet<Oid> seen = new HashSet<Oid>();
-                            Stack<Polyline> stack = new Stack<Polyline>();
-                            //Seed the stack with first element
-                            stack.Push(root);
-                            int loopGuard = 0;
-                            while (stack.Count > 0)
-                            {
-                                loopGuard++;
-                                Polyline parent = stack.Pop();
-                                //Add parent to seen collection to avoid double processing
-                                //AND to be able to check connectivity afterwards
-                                seen.Add(parent.Id);
-                                //Find connected lines
-                                var query = group.Where(x => x is Polyline)
-                                    .Where(x => parent.EndIsConnectedTo((Polyline)x) && !seen.Contains(x.Id));
+                    //        HashSet<Oid> seen = new HashSet<Oid>();
+                    //        Stack<Polyline> stack = new Stack<Polyline>();
+                    //        //Seed the stack with first element
+                    //        stack.Push(root);
+                    //        int loopGuard = 0;
+                    //        while (stack.Count > 0)
+                    //        {
+                    //            loopGuard++;
+                    //            Polyline parent = stack.Pop();
+                    //            //Add parent to seen collection to avoid double processing
+                    //            //AND to be able to check connectivity afterwards
+                    //            seen.Add(parent.Id);
+                    //            //Find connected lines
+                    //            var query = group.Where(x => x is Polyline)
+                    //                .Where(x => parent.EndIsConnectedTo((Polyline)x) && !seen.Contains(x.Id));
 
-                                //Check the direction and reverse if needed
-                                foreach (Polyline child in query)
-                                {
-                                    //Reverse polyline if it is reversed
-                                    if (child.EndPoint.IsOnCurve(parent, 0.025))
-                                    {
-                                        child.CheckOrOpenForWrite();
-                                        child.ReverseCurve();
-                                    }
+                    //            //Check the direction and reverse if needed
+                    //            foreach (Polyline child in query)
+                    //            {
+                    //                //Reverse polyline if it is reversed
+                    //                if (child.EndPoint.IsOnCurve(parent, 0.025))
+                    //                {
+                    //                    child.CheckOrOpenForWrite();
+                    //                    child.ReverseCurve();
+                    //                }
 
-                                    stack.Push(child);
-                                }
+                    //                stack.Push(child);
+                    //            }
 
-                                if (loopGuard > 500)
-                                {
-                                    prdDbg("Possibly infinite loop detected!");
-                                    prdDbg($"Check entity {parent.Handle}!");
-                                    break;
-                                }
-                            }
+                    //            if (loopGuard > 500)
+                    //            {
+                    //                prdDbg("Possibly infinite loop detected!");
+                    //                prdDbg($"Check entity {parent.Handle}!");
+                    //                break;
+                    //            }
+                    //        }
 
-                            //Check connectivity inside a stik group
-                            if (group.Where(x => x is Polyline).Any(x => !seen.Contains(x.Id)))
-                            {
-                                prdDbg($"Stikgruppe {number} er ikke forbundet komplet!\nKontroller følgende handles:");
-                                foreach (var item in group.Where(x => !seen.Contains(x.Id))) prdDbg(item.Handle.ToString());
-                            }
-                        }
+                    //        //Check connectivity inside a stik group
+                    //        if (group.Where(x => x is Polyline).Any(x => !seen.Contains(x.Id)))
+                    //        {
+                    //            prdDbg($"Stikgruppe {number} er ikke forbundet komplet!\nKontroller følgende handles:");
+                    //            foreach (var item in group.Where(x => !seen.Contains(x.Id))) prdDbg(item.Handle.ToString());
+                    //        }
+                    //    }
 
-                        #endregion
-                        #endregion
-                    }
+                        //#endregion
+                    //    #endregion
+                    //}
                     #endregion
                 }
                 catch (System.Exception ex)

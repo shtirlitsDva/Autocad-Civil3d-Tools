@@ -652,7 +652,8 @@ namespace IntersectUtilities
                         StandardPointGroupQuery spgq = new StandardPointGroupQuery();
                         List<string> newPointNumbers = allNewlyCreatedPoints.Select(x => x.PointNumber.ToString()).ToList();
                         string pointNumbersToInclude = string.Join(
-                            ",",
+                            //",",
+                            danishCulture.TextInfo.ListSeparator,
                             //CultureInfo.CurrentCulture.TextInfo.ListSeparator,
                             newPointNumbers.ToArray());
                         spgq.IncludeNumbers = pointNumbersToInclude;

@@ -6026,12 +6026,10 @@ namespace IntersectUtilities
         }
 
         //[CommandMethod("GRAPHPOPULATE")]
-        public void graphpopulate()
+        public void graphpopulate(Database db = null)
         {
             DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
+            Database localDb = db ?? docCol.MdiActiveDocument.Database;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -6181,19 +6179,16 @@ namespace IntersectUtilities
         }
 
         //[CommandMethod("GRAPHCLEAR")]
-        public void graphclear()
+        public void graphclear(Database db = null)
         {
             DocumentCollection docCol = Application.DocumentManager;
-            Database localDb = docCol.MdiActiveDocument.Database;
-            Editor editor = docCol.MdiActiveDocument.Editor;
-            Document doc = docCol.MdiActiveDocument;
+            Database localDb = db ?? docCol.MdiActiveDocument.Database;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
                 try
                 {
-                    System.Data.DataTable komponenter = CsvReader.ReadCsvToDataTable(
-                                        @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+                    System.Data.DataTable komponenter = CsvData.FK;
 
                     HashSet<Entity> allEnts = localDb.GetFjvEntities(tx, true, false);
 
@@ -8541,6 +8536,9 @@ namespace IntersectUtilities
                     s = list.Select(x => $"{x.layer};{x.length}").ToArray();
                     res = string.Join("\n", s);
                     File.WriteAllLines(@"C:\Temp\Lengths.txt", s);
+                    //string path =
+                    //        Environment.ExpandEnvironmentVariables("%temp%") + "\\" + "errorElId.txt";
+                    Process.Start("notepad.exe", @"C:\Temp\Lengths.txt");
                 }
                 catch (System.Exception ex)
                 {
