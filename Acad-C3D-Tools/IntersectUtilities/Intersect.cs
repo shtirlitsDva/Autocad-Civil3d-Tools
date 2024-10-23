@@ -8637,6 +8637,13 @@ namespace IntersectUtilities
 
         }
 
+        [CommandMethod("DELETEALLPROPERTYSETS")]
+        public void deleteallpropertysets()
+        {
+            PropertySetManager.DeleteAllPropertySets(
+                Application.DocumentManager.MdiActiveDocument.Database);
+        }
+
         //[CommandMethod("TESTQUIKGRAPH")]
         public void testquikgraph()
         {

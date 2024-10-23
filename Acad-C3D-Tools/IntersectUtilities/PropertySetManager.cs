@@ -870,6 +870,39 @@ namespace IntersectUtilities
 
             return values;
         }
+        public static void DeleteAllPropertySets(Database db)
+        {
+            using (OpenCloseTransaction tx = db.TransactionManager.StartOpenCloseTransaction())
+            {
+                try
+                {
+                    var dpsd = new DictionaryPropertySetDefinitions(db);
+                    foreach (var name in dpsd.NamesInUse)
+                    {
+                        var psDefId = dpsd.GetAt(name);
+                        var setIdsCol = PropertyDataServices.GetAllPropertySetsUsingDefinition(psDefId, false);
+
+                        foreach (Oid oid in setIdsCol)
+                        {
+                            PropertySet ps = oid.Go<PropertySet>(tx);
+                            ps.CheckOrOpenForWrite();
+                            ps.Erase(true);
+                        }
+
+                        PropertySetDefinition psd = psDefId.Go<PropertySetDefinition>(tx);
+                        psd.CheckOrOpenForWrite();
+                        psd.Erase(true);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+        }
         public enum MatchTypeEnum
         {
             Equals,

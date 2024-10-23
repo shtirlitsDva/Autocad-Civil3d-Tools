@@ -3334,7 +3334,7 @@ namespace IntersectUtilities.UtilsCommon
                 new Extents3d(db.Extmin, db.Extmax);
             ed.Zoom(ext);
         }
-        public static DoubleCollection ToDoubleCollection(this List<double> list) => new DoubleCollection(list.ToArray());
+        public static DoubleCollection ToDoubleCollection(this IEnumerable<double> list) => new DoubleCollection(list.ToArray());
     }
     public class PointDBHorizontalComparer : IEqualityComparer<DBPoint>
     {
