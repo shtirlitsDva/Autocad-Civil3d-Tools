@@ -123,9 +123,9 @@ namespace IntersectUtilities.Collections
             List<HashSet<Entity>> res = new List<HashSet<Entity>>();
 
             if (this.Count == 0)
-            { 
+            {
                 prdDbg($"EntityCollection for Entity {ent.Handle} is empty!");
-                return res; 
+                return res;
             }
 
             Database db = ent.Database;
@@ -142,7 +142,7 @@ namespace IntersectUtilities.Collections
             {
                 prdDbg($"Entity {ent.Handle} has more than 3 entities connected!");
                 return res;
-            } 
+            }
             #endregion
 
             for (int i = 0; i < otherHandles.Length; i++)
@@ -154,7 +154,7 @@ namespace IntersectUtilities.Collections
                 while (stack.Count > 0)
                 {
                     var item = stack.Pop();
-                    
+
                     if (item is BlockReference br)
                         if (br.ReadDynamicCsvProperty(
                             DynamicProperty.Function) == "SizeArray")
@@ -178,7 +178,7 @@ namespace IntersectUtilities.Collections
         }
         #endregion
         // Implement other members of ICollection<T>
-        public void Clear() => _L.Clear();
+        public void Clear() { _L.Clear(); _C.Clear(); }
         public bool Contains(Entity item) => _L.Contains(item);
         public void CopyTo(Entity[] array, int arrayIndex) => throw new NotImplementedException();
         public bool Remove(Entity item) => _L.Remove(item) && _C.Remove(item.Handle);

@@ -19,6 +19,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
+using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
+using static IntersectUtilities.Graph;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -395,76 +397,131 @@ namespace IntersectUtilities.PipelineNetworkSystem
     {
         // This is a pipeline that does not belong to any alignment
         // All connected elements are grouped into this pipeline
-        // !!!! it is assumed that this pipeline only connects to other pipelines at the start
-        // !!!! that is it does not connect to other pipelines (which then must be an alignment pipeline) at the end
-        // !!!! because if it wasn't an alignment pipeline, it would be grouped into this pipeline
         private Polyline topology;
         public PipelineV2Na(IEnumerable<Entity> source) : base(source)
         {
             #region Preparation to have stations for NA pipelines
             //Access ALL objects in database because we don't know our parent
             //Filter out the objects of the pipeline in question
+
+            if (ents == null || ents.Count == 0)
+                throw new Exception("PipelineV2Na cannot be created without entities!");
+
             Database db = ents.FirstOrDefault()?.Database;
             Transaction tx = db.TransactionManager.TopTransaction;
             var query =
                 db.GetFjvEntities(tx, true, false)
                 .Where(x => ents.All(y => x.Handle != y.Handle));
-            EntityCollection allEnts = new EntityCollection(query);
 
-            // Now find the other element that is connected to this pipeline
-            var findConnection =
-                allEnts.ExternalHandles.Where(x => ents.Any(y => y.Handle == x))
-                .ToList();
+            Dictionary<Handle, Ent> allOtherEnts =
+                query.ToDictionary(x => x.Handle, x => new Ent(x, psh));
+            Dictionary<Handle, Ent> entites =
+                ents.ToDictionary(x => x.Handle, x => new Ent(x, psh));
 
-            // Handle different cases, most optimal case is that there is only one connection
-            int conCount = findConnection.Count();
-            switch (conCount)
+            var startingNodes = entites
+                .SelectMany(ent => ent.Value.Cons
+                .Where(con => allOtherEnts.ContainsKey(con.ConHandle))
+                .Select(con => allOtherEnts[con.ConHandle]))
+                .ToHashSet();
+
+            Ent? foreignNode = null;
+
+            foreach (var startingNode in startingNodes)
             {
-                case int n when n < 1:
-                    throw new Exception($"Pipeline {Name} is not connected to all other pipelines!");
-                case 1:
-                    {
-                        // Get the connected element
-                        var con = findConnection.First().Go<Entity>(db);
-
-                        // now traverse the elements and build the topology polyline
-                        Stack<Entity> stack = new Stack<Entity>();
-                        stack.Push(con);
-
-                        Polyline polyline = new Polyline();
-
-                        // Add the first point which is the connection point to parent pipeline
-                        Point3d currentEntryPoint = allEnts.GetConnectionPoint(con);
-                        if (currentEntryPoint.Equalz(Point3d.Origin)) throw new Exception(
-                            $"Could not find connection point for {con.Handle}!");
-
-                        while (stack.Count > 0)
-                        {
-                            var current = stack.Pop();
-
-                            switch (current)
-                            {
-                                case Polyline pl:
-                                    if (pl.EndPoint.HorizontalEqualz(currentEntryPoint))
-                                    {
-                                        pl.UpgradeOpen();
-                                        pl.ReverseCurve();
-                                    }
-
-                                    //add the polyline to the topology
-
-                                    break;
-                                case BlockReference br:
-                                    break;
-                                default:
-                                    throw new System.Exception($"Polyline or BlockReference expected!");
-                            }
-                        }
-                    }
+                var resultNode = TraverseForValidNode(startingNode);
+                if (resultNode != default)
+                {
+                    foreignNode = resultNode;
                     break;
-                case int n when n > 1:
-                    throw new Exception($"Pipeline {Name} is connected to more than one other pipeline!");
+                }
             }
+            if (foreignNode == null)
+                throw new Exception($"Could not find connecting node for pipeline {Name}!");
+
+            Ent TraverseForValidNode(Ent startNode)
+            {
+                var stack = new Stack<Ent>();
+                var visited = new HashSet<Ent>();
+                stack.Push(startNode);
+
+                Ent firstNode = startNode;
+
+                while (stack.Count > 0)
+                {
+                    var currentNode = stack.Pop();
+
+                    if (visited.Contains(currentNode))
+                    {
+                        continue;
+                    }
+
+                    visited.Add(currentNode);
+
+                    // Read assigned alignment
+                    string alignment = psh.Pipeline.ReadPropertyString(
+                        currentNode.Entity, psh.PipelineDef.BelongsToAlignment);
+
+                    // Check if the alignment is not "NA"
+                    if (!alignment.StartsWith("NA", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return currentNode; // Found a valid alignment, return the node
+                    }
+
+                    // Traverse through neighbors
+                    foreach (var con in currentNode.Cons)
+                    {
+                        if (allOtherEnts.TryGetValue(con.ConHandle, out var neighbor) &&
+                            !visited.Contains(neighbor)) { stack.Push(neighbor); }
+                    }
+                }
+
+                //If the get here, no valid node was found
+                return null;
+            }
+
+            //Determine entry point
+            var temp = foreignNode.Cons.Where(x => entites.ContainsKey(x.ConHandle)).FirstOrDefault();
+            if (temp == null)
+                throw new Exception($"Could not find connecting node for pipeline {Name}!\n" +
+                    $"Check connectivity with GRAPHWRITE.");
+
+            Ent rootNode = entites[temp.ConHandle];
+
+            Point3d startingPoint = rootNode.DetermineConnectionPoint(foreignNode);
+
+
+            // now traverse the elements and build the topology polyline
+            Stack<Entity> stack = new Stack<Entity>();
+            stack.Push(con);
+
+            Polyline polyline = new Polyline();
+
+
+
+            while (stack.Count > 0)
+            {
+                var current = stack.Pop();
+
+                switch (current)
+                {
+                    case Polyline pl:
+                        if (pl.EndPoint.HorizontalEqualz(currentEntryPoint))
+                        {
+                            pl.UpgradeOpen();
+                            pl.ReverseCurve();
+                        }
+
+                        //add the polyline to the topology
+
+                        break;
+                    case BlockReference br:
+                        break;
+                    default:
+                        throw new System.Exception($"Polyline or BlockReference expected!");
+                }
+            }
+
+
             #endregion
         }
         public override string Name =>
@@ -501,6 +558,79 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         public override Vector3d GetFirstDerivative(Point3d pt) =>
             topology.GetFirstDerivative(topology.GetClosestPointTo(pt, false));
+        private class Ent
+        {
+            public Entity Entity;
+            public Handle Handle;
+            public Con[] Cons;
+            private Point3d[] EndPoints;
+            public Ent(Entity entity, PropertySetHelper psh)
+            {
+                Entity = entity;
+                Handle = entity.Handle;
+
+                string conString = psh.Pipeline.ReadPropertyString(entity, psh.GraphDef.ConnectedEntities);
+                if (conString.IsNoE())
+                    throw new System.Exception(
+                        $"Malformend constring: {conString}, entity: {entity.Handle}.");
+                Cons = GraphEntity.parseConString(conString);
+
+                switch (entity)
+                {
+                    case Polyline pl:
+                        EndPoints = [pl.StartPoint, pl.EndPoint];
+                        break;
+                    case BlockReference br:
+                        BlockTableRecord btr =
+                            br.BlockTableRecord.Go<BlockTableRecord>(
+                                br.Database.TransactionManager.TopTransaction);
+                        HashSet<Point3d> collect = new();
+                        foreach (Oid oid in btr)
+                        {
+                            if (!oid.IsDerivedFrom<BlockReference>()) continue;
+                            BlockReference nestedBr = oid.Go<BlockReference>(
+                                br.Database.TransactionManager.TopTransaction);
+                            if (!nestedBr.Name.Contains("MuffeIntern")) continue;
+                            Point3d wPt = nestedBr.Position;
+                            wPt = wPt.TransformBy(br.BlockTransform);
+                            collect.Add(wPt);
+                        }
+                        EndPoints = collect.ToArray();
+                        break;
+                    default:
+                        throw new System.Exception($"Unknown entity type {entity.GetType()}!");
+                }
+            }
+            /// <summary>
+            /// Determines the connection point between this entity and another entity.
+            /// Can only be used if the entites are proven connected by Cons.
+            /// </summary>
+            public Point3d DetermineConnectionPoint(Ent other)
+            {
+                Point3d result = Point3d.Origin;
+                foreach (var pt in EndPoints)
+                {
+                    foreach (var otherPt in other.EndPoints)
+                        if (pt.DistanceHorizontalTo(otherPt) < 0.001) return pt;
+                }
+                //If we get here, need to check connection to polyline
+                //else there's a problem
+                if (Entity is Polyline pl1 && other.Entity is Polyline pl2) return Point3d.Origin;
+                else if (Entity is Polyline pl)
+                {
+                    var query = other.EndPoints
+                        .Where(x => pl.GetClosestPointTo(x, false).DistanceHorizontalTo(x) < 0.001);
+                    if (query.Any()) return query.First();
+                }
+                else if (other.Entity is Polyline pl3)
+                {
+                    var query = EndPoints
+                        .Where(x => pl3.GetClosestPointTo(x, false).DistanceHorizontalTo(x) < 0.001);
+                    if (query.Any()) return query.First();
+                }
+                return result;
+            }
+        }
     }
     public static class PipelineV2Factory
     {
@@ -518,3 +648,4 @@ namespace IntersectUtilities.PipelineNetworkSystem
         Middle,
     }
 }
+
