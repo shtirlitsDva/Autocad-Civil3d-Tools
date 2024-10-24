@@ -391,6 +391,7 @@ namespace IntersectUtilities.PipeScheduleV2
                     break;
                 case PipeTypeEnum.Frem:
                 case PipeTypeEnum.Retur:
+                case PipeTypeEnum.Enkelt:
                     if (dn < 100) return true;
                     break;
                 default:

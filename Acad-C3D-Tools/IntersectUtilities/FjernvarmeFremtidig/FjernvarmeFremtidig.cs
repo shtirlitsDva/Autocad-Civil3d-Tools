@@ -231,20 +231,8 @@ namespace IntersectUtilities
                                 line.AddEntityToDbModelSpace(localDb);
                                 continue;
                             }
-
-                            if (
-                                //br.RealName() == "AFGRSTUDS" ||
-                                br.RealName() == "SH LIGE" ||
-                                br.RealName() == "SH VINKLET")
-                            {
-                                psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, branchAl.Name);
-                                psm.WritePropertyString(br, driPipelineData.BranchesOffToAlignment, mainAl.Name);
-                            }
-                            else
-                            {
-                                psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, mainAl.Name);
-                                psm.WritePropertyString(br, driPipelineData.BranchesOffToAlignment, branchAl.Name);
-                            }
+                            psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, mainAl.Name);
+                            psm.WritePropertyString(br, driPipelineData.BranchesOffToAlignment, branchAl.Name);
                         }
                         else if (result.Count() > 2)
                         {//More alignments meeting in one place?
@@ -437,160 +425,160 @@ namespace IntersectUtilities
                             x, driPipelineData.BelongsToAlignment).StartsWith("NA"))
                         .Cast<Entity>().ToHashSet());
 
-                    editor.SetImpliedSelection(allNas.Select(x => x.Id).ToArray());
-
                     PropertySetManager psmGraph = new PropertySetManager(
                         localDb, PSetDefs.DefinedSets.DriGraph);
                     PSetDefs.DriGraph defGraph = new PSetDefs.DriGraph();
 
-                    ////Group NAs by spatial relation
-                    //if (allNas.Any(x => x.Handle == new Handle(Convert.ToInt64("f61a1", 16))))
-                    //    prdDbg("FOUND!!!!");
-                    //if (allNas.Any(x => x.Handle == new Handle(Convert.ToInt64("f61a1", 16))))
-                    //    prdDbg("FOUND!!!!");
+                    #region Group NAs into spatial groups
+                    Dictionary<Handle, Entity> entities = allNas
+                            .ToDictionary(x => x.Handle, x => x);
+                    var visited = new HashSet<Handle>();
+                    var naGroups = new HashSet<HashSet<Entity>>();
 
-                    //var naGroups = allNas
-                    //    .GroupByCluster((x, y) => isASpatialGroup(x, y), 0.5)
-                    //    .Select(g => new HashSet<Entity>(g))
-                    //    .ToHashSet();
+                    void DFS1(Entity entity, HashSet<Entity> group)
+                    {
+                        var stack = new Stack<Entity>();
+                        stack.Push(entity);
 
-                    //double isASpatialGroup(Entity x, Entity y)
-                    //{
-                    //    string conString1 = psmGraph.ReadPropertyString(
-                    //                x, defGraph.ConnectedEntities);
-                    //    string conString2 = psmGraph.ReadPropertyString(
-                    //                y, defGraph.ConnectedEntities);
+                        while (stack.Count > 0)
+                        {
+                            var current = stack.Pop();
+                            if (visited.Contains(current.Handle)) continue;
 
-                    //    if (conString1.IsNoE())
-                    //        throw new System.Exception(
-                    //            $"Malformend constring: {conString1}, entity: {x.Handle}.");
-                    //    if (conString2.IsNoE())
-                    //        throw new System.Exception(
-                    //            $"Malformend constring: {conString2}, entity: {y.Handle}.");
+                            visited.Add(current.Handle);
+                            group.Add(current);
 
-                    //    Con[] cons1 = GraphEntity.parseConString(conString1);
-                    //    Con[] cons2 = GraphEntity.parseConString(conString2);
+                            string conString = psmGraph.ReadPropertyString(current, defGraph.ConnectedEntities);
+                            if (conString.IsNoE())
+                                throw new System.Exception(
+                                    $"Malformend constring: {conString}, entity: {entity.Handle}.");
+                            Con[] cons = GraphEntity.parseConString(conString);
 
-                    //    if (cons1.Any(l => l.ConHandle == y.Handle) ||
-                    //        cons2.Any(m => m.ConHandle == x.Handle)) return 0.0;
-                    //    else return 1.0;
-                    //}
+                            foreach (var con in cons)
+                                if (entities.ContainsKey(con.ConHandle))
+                                    stack.Push(entities[con.ConHandle]);
+                        }
+                    }
 
-                    ////GroupByCluster does not consider single elements
-                    ////So we have to add them manually
-                    //foreach (var item in allNas.Except(naGroups.SelectMany(x => x)))
-                    //{
-                    //    naGroups.Add(new HashSet<Entity> { item });
-                    //}
+                    foreach (var entity in allNas)
+                    {
+                        if (visited.Contains(entity.Handle)) continue;
 
-                    //int naIdx = 0;
-                    //int stikIdx = 0;
-                    //foreach (var group in naGroups)
-                    //{
-                    //    Dictionary<Handle, Entity> entities = group
-                    //        .ToDictionary(x => x.Handle, x => x);
+                        HashSet<Entity> group = new();
+                        DFS1(entity, group);
+                        naGroups.Add(group);
+                    }
+                    #endregion
 
-                    //    HashSet<Handle> visitedEntities = new();
-                    //    List<List<Handle>> allRoutes = new();
+                    #region For each spatial group find branches and assign number
+                    int naIdx = 0;
+                    foreach (var group in naGroups)
+                    {
+                        entities = group
+                            .ToDictionary(x => x.Handle, x => x);
 
-                    //    Handle rootHandle = entities.Values
-                    //        .Select(entity => new { Entity = entity, Neighbours = GetAllNeighbours(entity) })
-                    //        .Where(x => x.Neighbours.Any(n => !entities.ContainsKey(n)))
-                    //        .Select(x => x.Entity.Handle)
-                    //        .FirstOrDefault();
+                        HashSet<Handle> visitedEntities = new();
+                        List<List<Handle>> allRoutes = new();
 
-                    //    if (rootHandle == default)
-                    //        throw new System.Exception($"No root found for " +
-                    //            $"{entities.First().Value.Handle}!");
+                        Handle rootHandle = entities.Values
+                            .Select(entity => new { Entity = entity, Neighbours = GetAllNeighbours(entity) })
+                            .Where(x => x.Neighbours.Any(n => !entities.ContainsKey(n)))
+                            .Select(x => x.Entity.Handle)
+                            .FirstOrDefault();
 
-                    //    List<Handle> GetValidNeighbours(Entity entity)
-                    //    {
-                    //        string conString = psmGraph.ReadPropertyString(entity, defGraph.ConnectedEntities);
-                    //        if (conString.IsNoE())
-                    //            throw new System.Exception(
-                    //                $"Malformend constring: {conString}, entity: {entity.Handle}.");
+                        if (rootHandle == default)
+                            throw new System.Exception($"No root found for " +
+                                $"{entities.First().Value.Handle}!");
 
-                    //        Con[] cons = GraphEntity.parseConString(conString);
-                    //        return cons.Select(con => con.ConHandle).Where(entities.ContainsKey).ToList();
-                    //    }
-                    //    List<Handle> GetAllNeighbours(Entity entity)
-                    //    {
-                    //        string conString = psmGraph.ReadPropertyString(entity, defGraph.ConnectedEntities);
-                    //        if (conString.IsNoE())
-                    //            throw new System.Exception(
-                    //                $"Malformend constring: {conString}, entity: {entity.Handle}.");
+                        List<Handle> GetValidNeighbours(Entity entity)
+                        {
+                            string conString = psmGraph.ReadPropertyString(entity, defGraph.ConnectedEntities);
+                            if (conString.IsNoE())
+                                throw new System.Exception(
+                                    $"Malformend constring: {conString}, entity: {entity.Handle}.");
 
-                    //        Con[] cons = GraphEntity.parseConString(conString);
-                    //        return cons.Select(con => con.ConHandle).ToList();
-                    //    }
+                            Con[] cons = GraphEntity.parseConString(conString);
+                            return cons.Select(con => con.ConHandle).Where(entities.ContainsKey).ToList();
+                        }
+                        List<Handle> GetAllNeighbours(Entity entity)
+                        {
+                            string conString = psmGraph.ReadPropertyString(entity, defGraph.ConnectedEntities);
+                            if (conString.IsNoE())
+                                throw new System.Exception(
+                                    $"Malformend constring: {conString}, entity: {entity.Handle}.");
 
-                    //    List<Handle> path = new();
-                    //    DFS(rootHandle, visitedEntities, path, allRoutes);
-                    //    void DFS(Handle currentHandle, HashSet<Handle> visited, List<Handle> path, List<List<Handle>> allRoutes)
-                    //    {
-                    //        // Add the current node to the path and mark it as visited
-                    //        visited.Add(currentHandle);
-                    //        path.Add(currentHandle);
+                            Con[] cons = GraphEntity.parseConString(conString);
+                            return cons.Select(con => con.ConHandle).ToList();
+                        }
 
-                    //        // Get the neighbours of the current entity
-                    //        Entity currentEntity = entities[currentHandle];
-                    //        List<Handle> neighbours = GetValidNeighbours(currentEntity);
+                        List<Handle> path = new();
+                        DFS2(rootHandle, visitedEntities, path, allRoutes);
+                        void DFS2(Handle currentHandle, HashSet<Handle> visited, List<Handle> path, List<List<Handle>> allRoutes)
+                        {
+                            // Add the current node to the path and mark it as visited
+                            visited.Add(currentHandle);
+                            path.Add(currentHandle);
 
-                    //        // Determine if this is a leaf, member, or branch node
-                    //        if (neighbours.Count == 0)
-                    //        {
-                    //            // if no neighbours, it's a standalone node
-                    //            allRoutes.Add(new List<Handle>(path));
-                    //        }
-                    //        if (neighbours.Count == 1 && path.Count > 1)
-                    //        {
-                    //            // Leaf node (but not the starting node), store the route
-                    //            allRoutes.Add(new List<Handle>(path));
-                    //        }
-                    //        else if (neighbours.Count > 2)
-                    //        {
-                    //            // Branch node, store the route up to this point
-                    //            allRoutes.Add(new List<Handle>(path));
+                            // Get the neighbours of the current entity
+                            Entity currentEntity = entities[currentHandle];
+                            List<Handle> neighbours = GetValidNeighbours(currentEntity);
 
-                    //            // Continue traversing each branch
-                    //            foreach (var neighbourHandle in neighbours)
-                    //            {
-                    //                if (!visited.Contains(neighbourHandle))
-                    //                {
-                    //                    DFS(neighbourHandle, new HashSet<Handle>(visited), new List<Handle>(path), allRoutes);
-                    //                }
-                    //            }
+                            // Determine if this is a leaf, member, or branch node
+                            if (neighbours.Count == 0)
+                            {
+                                // if no neighbours, it's a standalone node
+                                allRoutes.Add(new List<Handle>(path));
+                            }
+                            if (neighbours.Count == 1 && path.Count > 1)
+                            {
+                                // Leaf node (but not the starting node), store the route
+                                allRoutes.Add(new List<Handle>(path));
+                            }
+                            else if (neighbours.Count > 2)
+                            {
+                                // Branch node, store the route up to this point
+                                allRoutes.Add(new List<Handle>(path));
 
-                    //            // Stop further traversal after storing branch routes
-                    //            return;
-                    //        }
-                    //        else
-                    //        {
-                    //            // Member node, continue traversal
-                    //            foreach (var neighbourHandle in neighbours)
-                    //            {
-                    //                if (!visited.Contains(neighbourHandle))
-                    //                {
-                    //                    DFS(neighbourHandle, visited, path, allRoutes);
-                    //                }
-                    //            }
-                    //        }
+                                // Continue traversing each branch
+                                foreach (var neighbourHandle in neighbours)
+                                {
+                                    if (!visited.Contains(neighbourHandle))
+                                    {
+                                        DFS2(neighbourHandle, new HashSet<Handle>(visited), new List<Handle>(path), allRoutes);
+                                    }
+                                }
 
-                    //        // Backtrack by removing the current node from the path
-                    //        path.RemoveAt(path.Count - 1);
-                    //    }
+                                // Stop further traversal after storing branch routes
+                                return;
+                            }
+                            else
+                            {
+                                // Member node, continue traversal
+                                foreach (var neighbourHandle in neighbours)
+                                {
+                                    if (!visited.Contains(neighbourHandle))
+                                    {
+                                        DFS2(neighbourHandle, visited, path, allRoutes);
+                                    }
+                                }
+                            }
 
-                    //    foreach (var route in allRoutes)
-                    //    {
-                    //        naIdx++;
-                    //        foreach (Handle item in route)
-                    //        {
-                    //            psm.WritePropertyString(
-                    //                entities[item], driPipelineData.BelongsToAlignment,
-                    //                $"NA {naIdx.ToString("00")}");
-                    //        }
-                    //    }
-                    //}
+                            // Backtrack by removing the current node from the path
+                            path.RemoveAt(path.Count - 1);
+                        }
+
+                        foreach (var route in allRoutes)
+                        {
+                            naIdx++;
+                            foreach (Handle item in route)
+                            {
+                                psm.WritePropertyString(
+                                    entities[item], driPipelineData.BelongsToAlignment,
+                                    $"NA {naIdx.ToString("00")}");
+                            }
+                        }
+                    }
+                    #endregion
                     #endregion
                 }
                 catch (System.Exception ex)

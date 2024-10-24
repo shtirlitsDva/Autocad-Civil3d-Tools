@@ -52,6 +52,7 @@ using ObjectIdCollection = Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection;
 using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using ErrorStatus = Autodesk.AutoCAD.Runtime.ErrorStatus;
 using PsDataType = Autodesk.Aec.PropertyData.DataType;
+using Autodesk.Aec.Modeler;
 
 namespace IntersectUtilities
 {

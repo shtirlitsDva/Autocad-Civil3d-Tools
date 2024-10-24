@@ -1062,7 +1062,7 @@ namespace IntersectUtilities
                             label.Layer = fEnt.Layer;
                         }
                         #endregion
-                        
+
                         Oid brId = default;
                         using (var br = new BlockReference(
                                         new Point3d(x, y, 0), bt[pv.Name]))
@@ -1922,107 +1922,109 @@ namespace IntersectUtilities
                                     //Detect arcs and determine if it is a buerør or not
                                     for (int i = 0; i < pline.NumberOfVertices; i++)
                                     {
-                                        TypeOfSegment tos;
+                                        var segment = pline.GetSegmentType(i);
+
+                                        if (segment != SegmentType.Arc) continue;
+
                                         double bulge = pline.GetBulgeAt(i);
-                                        if (bulge == 0) tos = TypeOfSegment.Straight;
-                                        else
+
+                                        //Determine if centre of arc is within view
+                                        CircularArc2d arcSegment2dAt;
+                                        try
                                         {
-                                            //Determine if centre of arc is within view
-                                            CircularArc2d arcSegment2dAt;
-                                            try
+                                            arcSegment2dAt = pline.GetArcSegment2dAt(i);
+                                        }
+                                        catch (System.Exception)
+                                        {
+                                            prdDbg($"Pline {pline.Handle} threw when accessing arc segment at {i}!");
+                                            prdDbg("Én af grundene kunne være, at ikke er alle plinjer blevet vendt om med strømmen.");
+                                            throw;
+                                        }
+
+                                        Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
+                                        Point3d location = al.GetClosestPointTo(
+                                                    new Point3d(samplePoint.X, samplePoint.Y, 0), false);
+                                        double centreStation = 0;
+                                        double centreOffset = 0;
+                                        al.StationOffset(location.X, location.Y, ref centreStation, ref centreOffset);
+
+                                        //If centre of arc is not within PV -> continue
+                                        if (!(centreStation > pvStStart && centreStation < pvStEnd)) continue;
+
+                                        //Calculate radius
+                                        double u = pline.GetPoint2dAt(i).GetDistanceTo(pline.GetPoint2dAt(i + 1));
+                                        double radius = u * ((1 + bulge.Pow(2)) / (4 * Math.Abs(bulge)));
+                                        double minRadius = GetPipeMinElasticRadiusHorizontalDesign(pline);
+
+                                        TypeOfSegment tos;
+                                        if (radius < minRadius) tos = TypeOfSegment.CurvedPipe;
+                                        else tos = TypeOfSegment.ElasticArc;
+
+                                        //Acquire start and end stations
+                                        location = al.GetClosestPointTo(pline.GetPoint3dAt(i), false);
+                                        double curveStartStation = 0;
+                                        double offset = 0;
+                                        try
+                                        {
+                                            al.StationOffset(location.X, location.Y, ref curveStartStation, ref offset);
+                                        }
+                                        catch (System.Exception)
+                                        {
+                                            prdDbg("Alignment: " + al.Name);
+                                            prdDbg($"Pline {pline.Handle} threw when finding START point station!");
+                                            prdDbg($"Point: {location}");
+                                            throw;
+                                        }
+
+                                        location = al.GetClosestPointTo(pline.GetPoint3dAt(i + 1), false);
+                                        double curveEndStation = 0;
+                                        try
+                                        {
+                                            al.StationOffset(location.X, location.Y, ref curveEndStation, ref offset);
+                                        }
+                                        catch (System.Exception)
+                                        {
+                                            prdDbg("Alignment: " + al.Name);
+                                            prdDbg($"Pline {pline.Handle} threw when finding END point station!");
+                                            prdDbg($"Point: {location}");
+                                            throw;
+                                        }
+                                        double length = curveEndStation - curveStartStation;
+                                        //double midStation = curveStartStation + length / 2;
+
+                                        sampledMidtElevation = SampleProfile(surfaceProfile, centreStation);
+                                        curX = originX + centreStation - pvStStart;
+                                        curY = originY + (sampledMidtElevation - pvElBottom) *
+                                                profileViewStyle.GraphStyle.VerticalExaggeration;
+                                        Point3d curvePt = new Point3d(curX, curY, 0);
+                                        BlockReference brCurve =
+                                            dB.CreateBlockWithAttributes(bueBlockName, curvePt);
+
+                                        DynamicBlockReferencePropertyCollection dbrpc = brCurve.DynamicBlockReferencePropertyCollection;
+                                        foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
+                                        {
+                                            if (dbrp.PropertyName == "Length")
                                             {
-                                                arcSegment2dAt = pline.GetArcSegment2dAt(i);
-                                            }
-                                            catch (System.Exception)
-                                            {
-                                                prdDbg($"Pline {pline.Handle} threw when accessing arc segment at {i}!");
-                                                prdDbg("Én af grundene kunne være, at ikke er alle plinjer blevet vendt om med strømmen.");
-                                                throw;
-                                            }
-
-                                            Point2d samplePoint = ((Curve2d)arcSegment2dAt).GetSamplePoints(11)[5];
-                                            Point3d location = al.GetClosestPointTo(
-                                                        new Point3d(samplePoint.X, samplePoint.Y, 0), false);
-                                            double centreStation = 0;
-                                            double centreOffset = 0;
-                                            al.StationOffset(location.X, location.Y, ref centreStation, ref centreOffset);
-
-                                            //If centre of arc is not within PV -> continue
-                                            if (!(centreStation > pvStStart && centreStation < pvStEnd)) continue;
-
-                                            //Calculate radius
-                                            double u = pline.GetPoint2dAt(i).GetDistanceTo(pline.GetPoint2dAt(i + 1));
-                                            double radius = u * ((1 + bulge.Pow(2)) / (4 * Math.Abs(bulge)));
-                                            double minRadius = GetPipeMinElasticRadiusHorizontalDesign(pline);
-
-                                            if (radius < minRadius) tos = TypeOfSegment.CurvedPipe;
-                                            else tos = TypeOfSegment.ElasticArc;
-
-                                            //Acquire start and end stations
-                                            location = al.GetClosestPointTo(pline.GetPoint3dAt(i), false);
-                                            double curveStartStation = 0;
-                                            double offset = 0;
-                                            try
-                                            {
-                                                al.StationOffset(location.X, location.Y, ref curveStartStation, ref offset);
-                                            }
-                                            catch (System.Exception)
-                                            {
-                                                prdDbg("Alignment: " + al.Name);
-                                                prdDbg($"Pline {pline.Handle} threw when finding START point station!");
-                                                prdDbg($"Point: {location}");
-                                                throw;
-                                            }
-
-                                            location = al.GetClosestPointTo(pline.GetPoint3dAt(i + 1), false);
-                                            double curveEndStation = 0;
-                                            try
-                                            {
-                                                al.StationOffset(location.X, location.Y, ref curveEndStation, ref offset);
-                                            }
-                                            catch (System.Exception)
-                                            {
-                                                prdDbg("Alignment: " + al.Name);
-                                                prdDbg($"Pline {pline.Handle} threw when finding END point station!");
-                                                prdDbg($"Point: {location}");
-                                                throw;
-                                            }
-                                            double length = curveEndStation - curveStartStation;
-                                            //double midStation = curveStartStation + length / 2;
-
-                                            sampledMidtElevation = SampleProfile(surfaceProfile, centreStation);
-                                            curX = originX + centreStation - pvStStart;
-                                            curY = originY + (sampledMidtElevation - pvElBottom) *
-                                                    profileViewStyle.GraphStyle.VerticalExaggeration;
-                                            Point3d curvePt = new Point3d(curX, curY, 0);
-                                            BlockReference brCurve =
-                                                dB.CreateBlockWithAttributes(bueBlockName, curvePt);
-
-                                            DynamicBlockReferencePropertyCollection dbrpc = brCurve.DynamicBlockReferencePropertyCollection;
-                                            foreach (DynamicBlockReferenceProperty dbrp in dbrpc)
-                                            {
-                                                if (dbrp.PropertyName == "Length")
-                                                {
-                                                    //prdDbg(length.ToString());
-                                                    dbrp.Value = Math.Abs(length);
-                                                }
-                                            }
-
-                                            //Set length text
-                                            brCurve.SetAttributeStringValue("LGD", Math.Abs(length).ToString("0.0") + " m");
-
-                                            switch (tos)
-                                            {
-                                                case TypeOfSegment.ElasticArc:
-                                                    brCurve.SetAttributeStringValue("TEXT", $"Elastisk bue {radius.ToString("0.0")} m");
-                                                    break;
-                                                case TypeOfSegment.CurvedPipe:
-                                                    brCurve.SetAttributeStringValue("TEXT", $"Buerør {radius.ToString("0.0")} m");
-                                                    break;
-                                                default:
-                                                    break;
+                                                //prdDbg(length.ToString());
+                                                dbrp.Value = Math.Abs(length);
                                             }
                                         }
+
+                                        //Set length text
+                                        brCurve.SetAttributeStringValue("LGD", Math.Abs(length).ToString("0.0") + " m");
+
+                                        switch (tos)
+                                        {
+                                            case TypeOfSegment.ElasticArc:
+                                                brCurve.SetAttributeStringValue("TEXT", $"Elastisk bue {radius.ToString("0.0")} m");
+                                                break;
+                                            case TypeOfSegment.CurvedPipe:
+                                                brCurve.SetAttributeStringValue("TEXT", $"Buerør {radius.ToString("0.0")} m");
+                                                break;
+                                            default:
+                                                break;
+                                        }
+
                                     }
                                 }
                             }
