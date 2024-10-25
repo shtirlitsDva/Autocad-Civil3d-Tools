@@ -492,34 +492,34 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
             // now traverse the elements and build the topology polyline
             Stack<Entity> stack = new Stack<Entity>();
-            stack.Push(con);
+            
 
             Polyline polyline = new Polyline();
 
 
 
-            while (stack.Count > 0)
-            {
-                var current = stack.Pop();
+            //while (stack.Count > 0)
+            //{
+            //    var current = stack.Pop();
 
-                switch (current)
-                {
-                    case Polyline pl:
-                        if (pl.EndPoint.HorizontalEqualz(currentEntryPoint))
-                        {
-                            pl.UpgradeOpen();
-                            pl.ReverseCurve();
-                        }
+            //    switch (current)
+            //    {
+            //        case Polyline pl:
+            //            if (pl.EndPoint.HorizontalEqualz(currentEntryPoint))
+            //            {
+            //                pl.UpgradeOpen();
+            //                pl.ReverseCurve();
+            //            }
 
-                        //add the polyline to the topology
+            //            //add the polyline to the topology
 
-                        break;
-                    case BlockReference br:
-                        break;
-                    default:
-                        throw new System.Exception($"Polyline or BlockReference expected!");
-                }
-            }
+            //            break;
+            //        case BlockReference br:
+            //            break;
+            //        default:
+            //            throw new System.Exception($"Polyline or BlockReference expected!");
+            //    }
+            //}
 
 
             #endregion

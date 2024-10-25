@@ -4595,6 +4595,8 @@ namespace IntersectUtilities
                             string distanceType = ReadStringParameterFromDataTable(originalEnt.Layer, dtKrydsninger, "Distance", 0);
                             string blockType = ReadStringParameterFromDataTable(originalEnt.Layer, dtKrydsninger, "Block", 0);
                             string distance = ReadStringParameterFromDataTable(distanceType, dtDistances, "Distance", 0);
+                            if (distance == null) throw new System.Exception(
+                                $"Distance not found for {distanceType}! Layer: {originalEnt.Layer}");
                             int originalDia = psmDriCrossingData.ReadPropertyInt(
                                 cp, driCrossingData.Diameter);
 
