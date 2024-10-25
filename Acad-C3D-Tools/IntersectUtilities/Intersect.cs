@@ -8644,6 +8644,35 @@ namespace IntersectUtilities
                 Application.DocumentManager.MdiActiveDocument.Database);
         }
 
+        [CommandMethod("SETALIGNMENTDESCRIPTIONS")]
+        public void setalignmentdescriptions()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var als = localDb.HashSetOfType<Alignment>(tx);
+                    foreach (Alignment a in als)
+                    {
+                        string name = a.Name;
+                        
+                        a.CheckOrOpenForWrite();
+                        a.Description = name;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    prdDbg(ex);
+                    return;
+                }
+                tx.Commit();
+            }
+        }
+
         //[CommandMethod("TESTQUIKGRAPH")]
         public void testquikgraph()
         {
