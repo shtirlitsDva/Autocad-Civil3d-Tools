@@ -420,10 +420,10 @@ namespace IntersectUtilities.PipeScheduleV2
 
             return pipeType.GetMinElasticRadius(dn, type);
         }
-        public static double GetPipeMinElasticRadiusHorizontalDesign(Entity ent, bool considerInSituBending = true)
-        {
-            return GetPipeMinElasticRadiusHorizontalCharacteristic(ent, considerInSituBending) * 1.2;
-        }
+        //public static double GetPipeMinElasticRadiusHorizontalDesign(Entity ent, bool considerInSituBending = true)
+        //{
+        //    return GetPipeMinElasticRadiusHorizontalCharacteristic(ent, considerInSituBending) * 1.2;
+        //}
         public static double GetPipeMinElasticRadiusVerticalCharacteristic(Entity ent)
         {
             PipeSystemEnum system = GetPipeSystem(ent);
@@ -441,14 +441,14 @@ namespace IntersectUtilities.PipeScheduleV2
 
             return vertFactor * GetPipeMinElasticRadiusHorizontalCharacteristic(system, dn, type, false);
         }
-        public static double GetPipeMinElasticRadiusVerticalDesign(Entity ent)
-        {
-            return GetPipeMinElasticRadiusVerticalCharacteristic(ent) * 1.2;
-        }
-        public static double GetPipeMinElasticRadiusVerticalDesign(PipeSystemEnum system, int dn, PipeTypeEnum type)
-        {
-            return GetPipeMinElasticRadiusVerticalCharacteristic(system, dn, type) * 1.2;
-        }
+        //public static double GetPipeMinElasticRadiusVerticalDesign(Entity ent)
+        //{
+        //    return GetPipeMinElasticRadiusVerticalCharacteristic(ent) * 1.2;
+        //}
+        //public static double GetPipeMinElasticRadiusVerticalDesign(PipeSystemEnum system, int dn, PipeTypeEnum type)
+        //{
+        //    return GetPipeMinElasticRadiusVerticalCharacteristic(system, dn, type) * 1.2;
+        //}
         public static double GetBuerorMinRadius(Entity ent)
         {
             int dn = GetPipeDN(ent);

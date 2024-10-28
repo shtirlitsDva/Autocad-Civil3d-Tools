@@ -694,7 +694,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public readonly double StartStation;
         public readonly double EndStation;
         public readonly double Kod;
-        public readonly double VerticalMinRadius => GetPipeMinElasticRadiusVerticalDesign(System, DN, Type);
+        public readonly double VerticalMinRadius => GetPipeMinElasticRadiusVerticalCharacteristic(System, DN, Type);
         public readonly PipeSystemEnum System;
         public readonly PipeTypeEnum Type;
         public readonly PipeSeriesEnum Series;
