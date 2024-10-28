@@ -489,10 +489,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
 
             Point3d startingPoint = rootNode.DetermineConnectionPoint(foreignNode);
 
-
             // now traverse the elements and build the topology polyline
-            Stack<Entity> stack = new Stack<Entity>();
-            
+            Stack<Ent> stack = new Stack<Ent>();
+            stack.Push(rootNode);
+
+
+
 
             Polyline polyline = new Polyline();
 

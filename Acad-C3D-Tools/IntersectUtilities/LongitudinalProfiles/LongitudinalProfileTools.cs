@@ -2804,7 +2804,7 @@ namespace IntersectUtilities
                                             double bulge = pline.GetBulgeAt(i);
                                             double u = pline.GetPoint2dAt(i).GetDistanceTo(pline.GetPoint2dAt(i + 1));
                                             double radius = u * ((1 + bulge.Pow(2)) / (4 * Math.Abs(bulge)));
-                                            double minRadius = GetPipeMinElasticRadiusHorizontalCharacteristic(pline);
+                                            double minRadius = GetPipeMinElasticRadiusHorizontalCharacteristic(pline);9
 
                                             if (radius < minRadius) tos = TypeOfSegment.CurvedPipe;
                                             else tos = TypeOfSegment.ElasticArc;
