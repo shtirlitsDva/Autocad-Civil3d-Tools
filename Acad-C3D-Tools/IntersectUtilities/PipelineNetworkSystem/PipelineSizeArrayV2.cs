@@ -179,40 +179,51 @@ namespace IntersectUtilities.PipelineNetworkSystem
             return false;
         }
         #endregion
+        private string[] headers = ["DN", "SS", "ES", "JOD", "System", "Type", "Series", "Min. Vert R"];
+        private string[] units = ["[mm]", "[m]", "[m]", "[mm]", "", "", "", "[m]"];
         public override string ToString()
         {
-            // Convert the struct data to string[][] for easier processing
-            string[][] stringData = new string[sizes.Count][];
+            // Combine headers, units, and data into one list
+            List<string[]> tableData = new List<string[]>();
+
+            // Add headers and units to the table data
+            tableData.Add(headers);
+            tableData.Add(units);
+
+            // Add the data from sizes
             for (int i = 0; i < sizes.Count; i++)
             {
-                stringData[i] = sizes[i].ToArray();
+                tableData.Add(sizes[i].ToArray());
             }
 
             // Find the maximum width for each column
-            int[] maxColumnWidths = new int[stringData[0].Length];
-            for (int col = 0; col < stringData[0].Length; col++)
+            int columnCount = tableData[0].Length;
+            int[] maxColumnWidths = new int[columnCount];
+
+            for (int col = 0; col < columnCount; col++)
             {
-                maxColumnWidths[col] = stringData.Max(row => row[col].Length);
+                maxColumnWidths[col] = tableData.Max(row => row[col].Length);
             }
 
-            // Convert the array to a table string
-            string table = "";
-            for (int row = 0; row < stringData.Length; row++)
+            // Build the table string
+            StringBuilder table = new StringBuilder();
+
+            for (int row = 0; row < tableData.Count; row++)
             {
                 string line = "";
-                for (int col = 0; col < stringData[0].Length; col++)
+                for (int col = 0; col < columnCount; col++)
                 {
                     // Right-align each value and add || separator
-                    line += stringData[row][col].PadLeft(maxColumnWidths[col]);
-                    if (col < stringData[0].Length - 1)
+                    line += tableData[row][col].PadLeft(maxColumnWidths[col]);
+                    if (col < columnCount - 1)
                     {
                         line += " || ";
                     }
                 }
-                table += line + Environment.NewLine;
+                table.AppendLine(line);
             }
 
-            return table;
+            return table.ToString();
         }
     }
     public class PipelineSizeArrayV2Partial : PipelineSizeArrayV2Base
@@ -367,6 +378,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
         private SizeEntryV2 GetSizeData(IPipelineV2 pipeline,
             (double fsS, double fsE, double ssS, double ssE, BlockReference br) range)
         {
+            //string handle = range.br.Handle.ToString();
+
+            //;
+
             var current = range.br;
             PipelineElementType type = current.GetPipelineType();
             double start;

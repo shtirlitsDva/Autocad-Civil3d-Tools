@@ -71,6 +71,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
             var builder = new GraphBuilder();
             pipelineGraphs = builder.BuildPipelineGraphs(pipelines);
         }
+        public IPipelineV2 GetPipeline(string name)
+        {
+            return pipelines.FirstOrDefault(x => x.Name == name);
+        }
         public void PrintPipelineGraphs()
         {
             foreach (var graph in pipelineGraphs)
@@ -132,14 +136,20 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 PrintNode(child, depth + 1);
             }
         }
-        public StringBuilder CreateSizeArraysAndPrint()
+        public void CreateSizeArrays()
+        {
+            foreach (var pipeline in pipelines)
+            {
+                pipeline.CreateSizeArray();
+            }
+        }
+        public StringBuilder PrintSizeArrays()
         {
             StringBuilder sb = new StringBuilder();
             foreach (var pipeline in pipelines.OrderBy(x => x.Name))
             {
                 prdDbg("Pipeline: " + pipeline.Name);
                 sb.AppendLine("Alignment: " + pipeline.Name);
-                pipeline.CreateSizeArray();
                 prdDbg(pipeline.Sizes.ToString());
                 sb.AppendLine(pipeline.Sizes.ToString());
                 sb.AppendLine();

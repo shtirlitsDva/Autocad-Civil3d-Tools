@@ -251,7 +251,7 @@ namespace IntersectUtilities
                     PipelineNetwork pn = new PipelineNetwork();
                     pn.CreatePipelineNetwork(ents, als);
                     pn.CreatePipelineGraph();
-                    pn.CreateSizeArraysAndPrint();
+                    pn.PrintSizeArrays();
                 }
                 catch (System.Exception ex)
                 {
