@@ -143,6 +143,15 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 pipeline.CreateSizeArray();
             }
         }
+        public List<(string, IPipelineSizeArrayV2)> GetAllSizeArrays() 
+        {
+            List<(string, IPipelineSizeArrayV2)> data = new();
+            foreach (var pipeline in pipelines)
+            {
+                data.Add((pipeline.Name, pipeline.Sizes));
+            }
+            return data;
+        }
         public StringBuilder PrintSizeArrays()
         {
             StringBuilder sb = new StringBuilder();

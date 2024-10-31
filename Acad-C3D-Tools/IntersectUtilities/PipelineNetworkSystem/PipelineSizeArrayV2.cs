@@ -15,6 +15,7 @@ using Autodesk.Civil.DatabaseServices;
 
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using IntersectUtilities.PipeScheduleV2;
+using System.Text.Json.Serialization;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -705,13 +706,21 @@ namespace IntersectUtilities.PipelineNetworkSystem
     }
     public struct SizeEntryV2
     {
+        [JsonInclude]
         public readonly int DN;
+        [JsonInclude]
         public readonly double StartStation;
+        [JsonInclude]
         public readonly double EndStation;
+        [JsonInclude]
         public readonly double Kod;
+        [JsonInclude]
         public readonly double VerticalMinRadius => GetPipeMinElasticRadiusVerticalCharacteristic(System, DN, Type);
+        [JsonInclude]
         public readonly PipeSystemEnum System;
+        [JsonInclude]
         public readonly PipeTypeEnum Type;
+        [JsonInclude]
         public readonly PipeSeriesEnum Series;
 
         public SizeEntryV2(

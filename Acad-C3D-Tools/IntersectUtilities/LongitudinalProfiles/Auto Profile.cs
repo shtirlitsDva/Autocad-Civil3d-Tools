@@ -22,6 +22,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Data;
@@ -52,11 +53,19 @@ using DBObject = Autodesk.AutoCAD.DatabaseServices.DBObject;
 using IntersectUtilities.PipelineNetworkSystem;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Operation.Union;
+using IntersectUtilities.LongitudinalProfiles;
 
 namespace IntersectUtilities
 {
     public partial class Intersect
     {
+        private static JsonSerializerOptions apJsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
+
         [CommandMethod("APGSPD")]
         [CommandMethod("APGATHERSURFACEPROFILEDATA")]
         public void gathersurfaceprofiledata()
@@ -77,12 +86,14 @@ namespace IntersectUtilities
                         return;
                     }
 
-                    string filePath = @"c:\Temp\SurfaceProfileData.txt";
-                    using var w = new StreamWriter(filePath, false);
+                    string filePath = @"c:\Temp\SurfaceProfileData.json";
+
+                    HashSet<AP_PipelineData> ppls = new HashSet<AP_PipelineData>();
 
                     foreach (Alignment al in als.OrderBy(x => x.Name))
                     {
-                        w.WriteLine($"Alignment: {al.Name}");
+                        prdDbg($"Processing {al.Name}");
+                        System.Windows.Forms.Application.DoEvents();
 
                         var pids = al.GetProfileIds();
                         Profile p = null;
@@ -108,10 +119,20 @@ namespace IntersectUtilities
                         var query = pvis.Select(
                             pvis => new { pvis.RawStation, pvis.Elevation }).OrderBy(x => x.RawStation);
 
-                        w.WriteLine(string.Join(";", query.Select(x => x.RawStation)));
-                        w.WriteLine(string.Join(";", query.Select(x => x.Elevation)));
-                        w.WriteLine();
+                        var ppl = new AP_PipelineData(al.Name);
+                        ppl.SurfaceProfile = new AP_SurfaceProfileData(p.Name);
+                        ppl.SurfaceProfile.SurfaceProfile =
+                            query.Select(x => new double[] { x.RawStation, x.Elevation })
+                            .ToArray();
+                        ppls.Add(ppl);
                     }
+
+                    //Write the collection to json
+                    var json = JsonSerializer.Serialize(ppls, apJsonOptions);
+                    using var writer = new StreamWriter(filePath, false);
+                    writer.WriteLine(json);
+
+                    prdDbg("Done!");
                 }
                 catch (System.Exception ex)
                 {
@@ -147,12 +168,21 @@ namespace IntersectUtilities
                 pn.CreatePipelineNetwork(ents, als);
                 pn.CreateSizeArrays();
 
-                var sb = pn.PrintSizeArrays();
-
-                string filePath = @"c:\Temp\PipelineSizeData.txt";
+                string filePath = @"c:\Temp\PipelineSizeData.json";
                 using var w = new StreamWriter(filePath, false);
 
-                w.WriteLine(sb.ToString());
+                var sizes = pn.GetAllSizeArrays();
+
+                var ppls = new HashSet<AP_PipelineData>();
+                foreach (var size in sizes)
+                {
+                    var ppl = new AP_PipelineData(size.Item1);
+                    ppl.PipelineSizes = size.Item2;
+                    ppls.Add(ppl);
+                }
+
+                var json = JsonSerializer.Serialize(ppls, apJsonOptions);
+                w.WriteLine(json);
             }
             catch (System.Exception ex)
             {
@@ -200,15 +230,15 @@ namespace IntersectUtilities
                     .GroupBy(x => psh.Pipeline.ReadPropertyString(
                         x, psh.PipelineDef.BelongsToAlignment));
 
-                var sb = new StringBuilder();
+                HashSet<AP_PipelineData> ppls = new HashSet<AP_PipelineData>();
                 foreach (var gp in gps.OrderBy(x => x.Key))
                 {
-                    sb.AppendLine($"Pipeline: {gp.Key}");
+                    prdDbg($"Pipeline: {gp.Key}");
 
                     var ppl = pn.GetPipeline(gp.Key);
                     if (ppl == null) continue;
 
-                    int idx = 0;
+                    List<double[]> tuples = new();
                     foreach (Polyline pl in gp.OrderBy(ppl.GetPolylineMiddleStation))
                     {
                         for (int i = 0; i < pl.NumberOfVertices; i++)
@@ -216,22 +246,22 @@ namespace IntersectUtilities
                             var st = pl.GetSegmentType(i);
                             if (st == SegmentType.Arc)
                             {
-                                idx++;
                                 var arc = pl.GetArcSegmentAt(i);
-                                sb.AppendLine($"{idx} " +
-                                    $"S:{ppl.GetStationAtPoint(arc.StartPoint).ToString("F4")} " +
-                                    $"E:{ppl.GetStationAtPoint(arc.EndPoint).ToString("F4")}");
+                                tuples.Add(
+                                    [ppl.GetStationAtPoint(arc.StartPoint), ppl.GetStationAtPoint(arc.EndPoint)]);
                             }
                         }
                     }
-
-                    sb.AppendLine();
+                    var ap = new AP_PipelineData(gp.Key);
+                    ap.HorizontalArcs = tuples.OrderBy(x => x[0]).ToArray();
+                    ppls.Add(ap);
                 }
 
-                string filePath = @"c:\Temp\HorizontalArcData.txt";
-                using var w = new StreamWriter(filePath, false);
+                string filePath = @"c:\Temp\HorizontalArcData.json";
 
-                w.WriteLine(sb.ToString());
+                var json = JsonSerializer.Serialize(ppls, apJsonOptions);
+                using var w = new StreamWriter(filePath, false);
+                w.WriteLine(json);
             }
             catch (System.Exception ex)
             {
@@ -278,15 +308,16 @@ namespace IntersectUtilities
 
                 var pvs = localDb.ListOfType<ProfileView>(tx).ToDictionary(x => x.Name);
 
-                var sb = new StringBuilder();
+                HashSet<AP_PipelineData> ppls = new HashSet<AP_PipelineData>();
                 foreach (var br in query)
                 {
-                    int idx = 0;
                     string name = br.RealName().Replace("_PV", "");
                     pvs.TryGetValue(br.RealName(), out ProfileView pv);
                     if (pv == null) continue;
 
-                    sb.AppendLine($"Pipeline: {name}");
+                    var ppl = new AP_PipelineData(name);
+                    prdDbg($"Pipeline: {name}");
+
                     BlockTableRecord btr = br.BlockTableRecord.Go<BlockTableRecord>(tx);
                     Matrix3d trf = br.BlockTransform;
 
@@ -336,6 +367,7 @@ namespace IntersectUtilities
                         }
                     }
 
+                    List <double[]> doubles = new();
                     double station = 0.0;
                     double elevation = 0.0;
                     foreach (var env in envelopes
@@ -348,20 +380,20 @@ namespace IntersectUtilities
                         }))
                     {
                         var cs = env.Coordinates;
-                        sb.AppendLine();
-                        sb.Append(++idx + ": ");
+                        
+                        var d = new double[4];
 
                         pv.FindStationAndElevationAtXY(cs[0].X, cs[0].Y, ref station, ref elevation);
-                        sb.Append(
-                            $"S1: {station.ToString("F4")} " +
-                            $"E1: {elevation.ToString("F4")} ");
+                        
+                        d[0] = station;
+                        d[1] = elevation;
 
                         pv.FindStationAndElevationAtXY(cs[2].X, cs[2].Y, ref station, ref elevation);
-                        sb.Append(
-                            $"S2: {station.ToString("F4")} " +
-                            $"E2: {elevation.ToString("F4")}");
+                        
+                        d[2] = station;
+                        d[3] = elevation;
 
-
+                        doubles.Add(d);
                         #region Debug
                         //Hatch hatch = new Hatch();
                         //hatch.Normal = new Vector3d(0.0, 0.0, 1.0);
@@ -381,14 +413,15 @@ namespace IntersectUtilities
                         #endregion
                     }
 
-                    sb.AppendLine();
-                    sb.AppendLine();
+                    ppl.Utility = doubles.ToArray();
+                    ppls.Add(ppl);
                 }
+                var json = JsonSerializer.Serialize(ppls, apJsonOptions);
 
-                string filePath = @"c:\Temp\UtilityData.txt";
+                string filePath = @"c:\Temp\UtilityData.json";
                 using var w = new StreamWriter(filePath, false);
-
-                w.WriteLine(sb.ToString());
+                
+                w.WriteLine(json);
             }
             catch (System.Exception ex)
             {
