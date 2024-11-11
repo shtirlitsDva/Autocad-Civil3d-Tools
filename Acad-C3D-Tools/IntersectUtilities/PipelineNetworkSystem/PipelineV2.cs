@@ -21,6 +21,8 @@ using System.Threading.Tasks;
 using Entity = Autodesk.AutoCAD.DatabaseServices.Entity;
 using Oid = Autodesk.AutoCAD.DatabaseServices.ObjectId;
 using static IntersectUtilities.Graph;
+using System.DirectoryServices.ActiveDirectory;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.TextBox;
 
 namespace IntersectUtilities.PipelineNetworkSystem
 {
@@ -31,9 +33,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
         double EndStation { get; }
         Point3d StartPoint { get; }
         Point3d EndPoint { get; }
-        EntityCollection Entities { get; }
-        EntityCollection Welds { get; }
-        IPipelineSizeArrayV2 Sizes { get; }
+        EntityCollection PipelineEntities { get; }
+        EntityCollection PipelineWelds { get; }
+        IPipelineSizeArrayV2 PipelineSizes { get; }
         void CreateSizeArray();
         int GetMaxDN();
         double GetPolylineStartStation(Polyline pl);
@@ -55,24 +57,24 @@ namespace IntersectUtilities.PipelineNetworkSystem
     }
     public abstract class PipelineV2Base : IPipelineV2
     {
-        protected EntityCollection ents;
-        protected EntityCollection welds;
-        protected IPipelineSizeArrayV2 sizes;
+        protected EntityCollection pipelineEntities;
+        protected EntityCollection pipelineWelds;
+        protected IPipelineSizeArrayV2 pipelineSizes;
         protected PropertySetHelper psh;
-        public EntityCollection Entities { get => ents; }
-        public EntityCollection Welds { get => welds; }
+        public EntityCollection PipelineEntities { get => pipelineEntities; }
+        public EntityCollection PipelineWelds { get => pipelineWelds; }
         public abstract string Name { get; }
         public virtual string Label { get => $"\"{Name}\""; }
         public abstract double EndStation { get; }
-        public IPipelineSizeArrayV2 Sizes => sizes;
+        public IPipelineSizeArrayV2 PipelineSizes => pipelineSizes;
         public abstract Point3d StartPoint { get; }
         public abstract Point3d EndPoint { get; }
         public PipelineV2Base(IEnumerable<Entity> source)
         {
-            source.Partition(IsNotWeld, out this.ents, out this.welds);
+            source.Partition(IsNotWeld, out this.pipelineEntities, out this.pipelineWelds);
 
             if (psh == null)
-                psh = new PropertySetHelper(ents?.FirstOrDefault()?.Database);
+                psh = new PropertySetHelper(pipelineEntities?.FirstOrDefault()?.Database);
 
             bool IsNotWeld(Entity e) =>
                 (e is BlockReference br &&
@@ -80,7 +82,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     DynamicProperty.Type, false) != "Svejsning") ||
                     e is Polyline; //<-- this is the culprit!!!!!!!!!!!!!!!!!!!!
         }
-        public int GetMaxDN() => ents.GetMaxDN();
+        public int GetMaxDN() => pipelineEntities.GetMaxDN();
         public abstract bool IsConnectedTo(IPipelineV2 other, double tol);
         public abstract double GetPolylineStartStation(Polyline pl);
         public abstract double GetPolylineMiddleStation(Polyline pl);
@@ -91,7 +93,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public abstract IEnumerable<Entity> GetEntitiesWithinStations(double start, double end);
         public void CreateSizeArray()
         {
-            sizes = PipelineSizeArrayFactory.CreateSizeArray(this);
+            pipelineSizes = PipelineSizeArrayFactory.CreateSizeArray(this);
         }
         public void AutoReversePolylines(Point3d connectionLocation)
         {
@@ -152,22 +154,22 @@ namespace IntersectUtilities.PipelineNetworkSystem
         /// </summary>
         public Point3d GetLocationForMaxDN()
         {
-            if (sizes == null) CreateSizeArray();
+            if (pipelineSizes == null) CreateSizeArray();
 
             //Case one size -> return start point
-            if (sizes.Length == 1) return this.StartPoint;
+            if (pipelineSizes.Length == 1) return this.StartPoint;
 
-            if (sizes.Sizes.First().System == PipeSystemEnum.Stål &&
-                sizes.Sizes.Last().System == PipeSystemEnum.Stål)
+            if (pipelineSizes.Sizes.First().System == PipeSystemEnum.Stål &&
+                pipelineSizes.Sizes.Last().System == PipeSystemEnum.Stål)
             {
-                if (sizes.Sizes.First().DN > sizes.Sizes.Last().DN) return this.StartPoint;
+                if (pipelineSizes.Sizes.First().DN > pipelineSizes.Sizes.Last().DN) return this.StartPoint;
                 else return this.EndPoint;
             }
-            else if (sizes.Sizes.First().System == PipeSystemEnum.Stål) return this.StartPoint;
-            else if (sizes.Sizes.Last().System == PipeSystemEnum.Stål) return this.EndPoint;
+            else if (pipelineSizes.Sizes.First().System == PipeSystemEnum.Stål) return this.StartPoint;
+            else if (pipelineSizes.Sizes.Last().System == PipeSystemEnum.Stål) return this.EndPoint;
             else
             {
-                if (sizes.Sizes.First().DN > sizes.Sizes.Last().DN) return this.StartPoint;
+                if (pipelineSizes.Sizes.First().DN > pipelineSizes.Sizes.Last().DN) return this.StartPoint;
                 else return this.EndPoint;
             }
 
@@ -202,9 +204,9 @@ namespace IntersectUtilities.PipelineNetworkSystem
         /// </summary>
         public Result CorrectPipesToCutLengths(Point3d connectionLocation)
         {
-            if (psh == null) psh = new PropertySetHelper(ents?.FirstOrDefault()?.Database);
+            if (psh == null) psh = new PropertySetHelper(pipelineEntities?.FirstOrDefault()?.Database);
 
-            Database localDb = ents.FirstOrDefault()?.Database;
+            Database localDb = pipelineEntities.FirstOrDefault()?.Database;
 
             PipeSettingsCollection psc = PipeSettingsCollection.Load();
 
@@ -233,12 +235,12 @@ namespace IntersectUtilities.PipelineNetworkSystem
         }
         public double GetDistanceToPoint(Point3d pt, bool extend = false) =>
             GetClosestPointTo(pt, extend).DistanceHorizontalTo(pt);
-        public IEnumerable<Polyline> GetPolylines() => ents.GetPolylines();
+        public IEnumerable<Polyline> GetPolylines() => pipelineEntities.GetPolylines();
         public abstract Vector3d GetFirstDerivative(Point3d pt);
     }
     public class PipelineV2Alignment : PipelineV2Base
     {
-        private Alignment al;
+        internal Alignment al;
         public PipelineV2Alignment(IEnumerable<Entity> ents, Alignment al) : base(ents)
         {
             this.al = al;
@@ -254,7 +256,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 case PipelineV2Alignment pal:
                     return this.al.IsConnectedTo(pal.al, tol);
                 case PipelineV2Na pna:
-                    return this.Entities.IsConnectedTo(pna.Entities);
+                    return this.PipelineEntities.IsConnectedTo(pna.PipelineEntities);
                 default:
                     throw new Exception($"Unknown pipeline type {other.GetType()}!");
             }
@@ -289,7 +291,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         /// </summary>
         public override IEnumerable<Entity> GetEntitiesWithinStations(double start, double end)
         {
-            return this.ents
+            return this.pipelineEntities
                 .Select(ent =>
                 {
                     double station = double.NaN;
@@ -404,47 +406,55 @@ namespace IntersectUtilities.PipelineNetworkSystem
             //Access ALL objects in database because we don't know our parent
             //Filter out the objects of the pipeline in question
 
-            if (ents == null || ents.Count == 0)
+            if (pipelineEntities == null || pipelineEntities.Count == 0)
                 throw new Exception("PipelineV2Na cannot be created without entities!");
 
-            Database db = ents.FirstOrDefault()?.Database;
+            Database db = pipelineEntities.FirstOrDefault()?.Database;
             Transaction tx = db.TransactionManager.TopTransaction;
             var query =
                 db.GetFjvEntities(tx, true, false)
-                .Where(x => ents.All(y => x.Handle != y.Handle));
+                .Where(x => pipelineEntities.All(y => x.Handle != y.Handle));
 
-            Dictionary<Handle, Ent> allOtherEnts =
+            Dictionary<Handle, Ent> externalEntities =
                 query.ToDictionary(x => x.Handle, x => new Ent(x, psh));
-            Dictionary<Handle, Ent> entites =
-                ents.ToDictionary(x => x.Handle, x => new Ent(x, psh));
+            Dictionary<Handle, Ent> localEntities =
+                pipelineEntities.ToDictionary(x => x.Handle, x => new Ent(x, psh));
 
-            var startingNodes = entites
+            var connectedExternalEntities = localEntities
                 .SelectMany(ent => ent.Value.Cons
-                .Where(con => allOtherEnts.ContainsKey(con.ConHandle))
-                .Select(con => allOtherEnts[con.ConHandle]))
+                .Where(con => externalEntities.ContainsKey(con.ConHandle))
+                .Select(con => externalEntities[con.ConHandle]))
                 .ToHashSet();
 
-            Ent? foreignNode = null;
-
-            foreach (var startingNode in startingNodes)
+            //Here we find the first non-NA node that connects to the pipeline.
+            //It can be nested in a higher level NA pipeline as we can
+            //have multiple levels of NA pipelines.
+            //This is to find the correct entry point for the pipeline
+            //and thus determine direction of the pipeline.
+            //Also assuming that there's only one non-NA node that connects the sub-tree
+            //to the main network.
+            Ent? nonNaNode = null;
+            Ent? externalRootNode = null;
+            foreach (var connectedExternalEntity in connectedExternalEntities)
             {
-                var resultNode = TraverseForValidNode(startingNode);
+                var resultNode = TraverseForValidNode(connectedExternalEntity);
                 if (resultNode != default)
                 {
-                    foreignNode = resultNode;
+                    nonNaNode = resultNode;
+                    externalRootNode = connectedExternalEntity;
                     break;
                 }
             }
-            if (foreignNode == null)
+            if (nonNaNode == null || externalRootNode == null)
                 throw new Exception($"Could not find connecting node for pipeline {Name}!");
 
-            Ent TraverseForValidNode(Ent startNode)
+            Ent TraverseForValidNode(Ent connectedExternalEntity)
             {
                 var stack = new Stack<Ent>();
                 var visited = new HashSet<Ent>();
-                stack.Push(startNode);
+                stack.Push(connectedExternalEntity);
 
-                Ent firstNode = startNode;
+                Ent firstNode = connectedExternalEntity;
 
                 while (stack.Count > 0)
                 {
@@ -470,7 +480,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     // Traverse through neighbors
                     foreach (var con in currentNode.Cons)
                     {
-                        if (allOtherEnts.TryGetValue(con.ConHandle, out var neighbor) &&
+                        if (externalEntities.TryGetValue(con.ConHandle, out var neighbor) &&
                             !visited.Contains(neighbor)) { stack.Push(neighbor); }
                     }
                 }
@@ -479,87 +489,236 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 return null;
             }
 
-            //Determine entry point
-            var temp = foreignNode.Cons.Where(x => entites.ContainsKey(x.ConHandle)).FirstOrDefault();
+            //Determine the local entry node
+            var temp = externalRootNode.Cons.Where(x => localEntities.ContainsKey(x.ConHandle)).FirstOrDefault();
             if (temp == null)
                 throw new Exception($"Could not find connecting node for pipeline {Name}!\n" +
                     $"Check connectivity with GRAPHWRITE.");
 
-            Ent rootNode = entites[temp.ConHandle];
+            Ent localRootNode = localEntities[temp.ConHandle];
 
-            Point3d startingPoint = rootNode.DetermineConnectionPoint(foreignNode);
+            Point3d startingPoint = localRootNode.DetermineConnectionPoint(externalRootNode);
 
             // now traverse the elements and build the topology polyline
             Stack<Ent> stack = new Stack<Ent>();
-            stack.Push(rootNode);
+            stack.Push(localRootNode);
 
+            Polyline topology = new Polyline();
 
+            HashSet<Ent> visited = new HashSet<Ent>();
+            while (stack.Count > 0)
+            {
+                Ent current = stack.Pop();
+                visited.Add(current);
 
+                switch (current.Entity)
+                {
+                    case BlockReference br:
+                        topology.AddVertexAt(topology.NumberOfVertices, startingPoint.To2D(), 0, 0, 0);
+                        topology.AddVertexAt(topology.NumberOfVertices, br.Position.To2D(), 0, 0, 0);
+                        //Determine the next connection point
+                        //Case 1: all ents are visited
+                        //And so we cannot decisively determine the next connection point
+                        //So we take the first not current end point
+                        if (visited.Count == localEntities.Count)
+                        {
+                            var endPoints = br.GetAllEndPoints();
+                            //For example an endbund.
+                            if (endPoints.Count == 1)
+                                throw new NotImplementedException(
+                                    $"Entity {br.Handle} has only one endpoint!\n" +
+                                    $"And is located in a NA pipeline!\n" +
+                                    $"This is not supported yet!");
+                            else
+                            {
+                                var pquery = endPoints.Where(x => x.DistanceHorizontalTo(startingPoint) > 0.001);
+                                if (pquery.Any())
+                                    topology.AddVertexAt(
+                                        topology.NumberOfVertices, pquery.First().To2D(), 0, 0, 0);
+                                else throw new Exception(
+                                    $"Could not determine next connection point for {br.Handle}!");
+                            }
+                        }
+                        //Case 2: there are still unvisited entities
+                        //And so we determine the next connection point by the next entity
+                        else
+                        {
+                            var nquery = localEntities
+                                .Where(x => !visited.Contains(x.Value))
+                                .Select(x => x.Value)
+                                .Where(x => x.Cons.Any(y => y.ConHandle == br.Handle))
+                                .FirstOrDefault();
 
-            Polyline polyline = new Polyline();
+                            if (nquery == null)
+                                throw new Exception(
+                                    $"Could not determine next connection point for {br.Handle}!");
 
+                            //Feed the starting point for the next entity to the next loop
+                            startingPoint = nquery.DetermineConnectionPoint(current);
+                            //Assure continuation of traversal by pushing the next entity to the stack
+                            stack.Push(nquery);
+                        }
+                        break;
+                    case Polyline pl:
+                        {//Test to see if the polyline is oriented correctly
+                            bool reversed = false;
+                            if (pl.StartPoint.DistanceHorizontalTo(startingPoint) > 0.001)
+                            {
+                                pl.CheckOrOpenForWrite();
+                                pl.ReverseCurve();
+                                reversed = true;
+                            }
+                            //Add the polyline to the topology
+                            //But skip the last point as it will be added by the next entity
+                            for (int i = 0; i < pl.NumberOfVertices - 1; i++)
+                            {
+                                Point2d pt = pl.GetPoint2dAt(i);
+                                topology.AddVertexAt(topology.NumberOfVertices, pt,
+                                    pl.GetBulgeAt(i), 0, 0);
+                            }
+                            //Feed the starting point for the next entity to the next loop
+                            startingPoint = pl.EndPoint;
 
+                            //Determine the next node
+                            var nquery = localEntities
+                                    .Where(x => !visited.Contains(x.Value))
+                                    .Select(x => x.Value)
+                                    .Where(x => x.Cons.Any(y => y.ConHandle == pl.Handle))
+                                    .FirstOrDefault();
 
-            //while (stack.Count > 0)
-            //{
-            //    var current = stack.Pop();
+                            if (nquery == null)
+                            {
+                                //In this case we are looking at last element
+                                //And so we need to add the last point
+                                topology.AddVertexAt(topology.NumberOfVertices, startingPoint.To2D(), 0, 0, 0);
+                                //the loop will exit now because we don't push next entity to the stack
+                            }
+                            else
+                            {
+                                //Assure continuation of traversal by pushing the next entity to the stack
+                                stack.Push(nquery);
+                            }
+                            if (reversed) pl.ReverseCurve();
+                        }
+                        break;
+                    default:
+                        throw new Exception(
+                            $"Unknown entity type in NA pipeline " +
+                            $"topology building {current.Entity.GetType()}!");
+                }
+            }
 
-            //    switch (current)
-            //    {
-            //        case Polyline pl:
-            //            if (pl.EndPoint.HorizontalEqualz(currentEntryPoint))
-            //            {
-            //                pl.UpgradeOpen();
-            //                pl.ReverseCurve();
-            //            }
-
-            //            //add the polyline to the topology
-
-            //            break;
-            //        case BlockReference br:
-            //            break;
-            //        default:
-            //            throw new System.Exception($"Polyline or BlockReference expected!");
-            //    }
-            //}
-
-
+            //Cache the topology
+            this.topology = topology;
             #endregion
         }
         public override string Name =>
             psh.Pipeline.ReadPropertyString(
-                this.Entities.First(), psh.PipelineDef.BelongsToAlignment);
+                this.PipelineEntities.First(), psh.PipelineDef.BelongsToAlignment);
         public override double EndStation => topology.Length;
         public override Point3d StartPoint => topology.StartPoint;
         public override Point3d EndPoint => topology.EndPoint;
-        public override double GetBlockStation(BlockReference br)
-        {
-            return 0;
-        }
-        public override double GetPolylineStartStation(Polyline pl)
-        {
-            return 0;
-        }
+        public override double GetBlockStation(BlockReference br) =>
+            GetStationAtPoint(GetClosestPointTo(br.Position, false));
+        public override double GetPolylineStartStation(Polyline pl) =>
+            GetStationAtPoint(GetClosestPointTo(pl.StartPoint, false));
         public override double GetPolylineMiddleStation(Polyline pl) =>
             GetStationAtPoint(pl.GetPointAtDist(pl.Length / 2));
-        public override double GetPolylineEndStation(Polyline pl)
-        {
-            return 0;
-        }
+        public override double GetPolylineEndStation(Polyline pl) =>
+            GetStationAtPoint(GetClosestPointTo(pl.EndPoint, false));
         public override double GetStationAtPoint(Point3d pt) => topology.GetDistAtPoint(pt);
         public override Point3d GetClosestPointTo(Point3d pt, bool extend = false) => topology.GetClosestPointTo(pt, extend);
         public override bool IsConnectedTo(IPipelineV2 other, double tol) =>
-            this.Entities.IsConnectedTo(other.Entities);
+            this.PipelineEntities.IsConnectedTo(other.PipelineEntities);
         public override IEnumerable<Entity> GetEntitiesWithinStations(double start, double end)
         {
-            throw new NotImplementedException("GetEntitiesWithinStations is not implemented for PipelineV2Na YET!!!");
+            return this.pipelineEntities
+                .Select(ent =>
+                {
+                    double station = double.NaN;
+                    if (ent is Polyline pl)
+                        station = GetStationAtPoint(pl.GetPointAtDist(pl.Length / 2));
+                    else if (ent is BlockReference br)
+                        station = GetStationAtPoint(br.Position);
+                    return new { Entity = ent, Station = station };
+                })
+                .Where(x => x.Station >= start && x.Station <= end)
+                .OrderBy(x => x.Station)
+                .Select(x => x.Entity);
         }
-        public override Point3d GetConnectionLocationToParent(IPipelineV2 other, double tol)
+        public override Point3d GetConnectionLocationToParent(IPipelineV2 parent, double tol)
         {
-            throw new NotImplementedException($"GetConnectionLocatioToParent not implemented for {this.Name}!");
+            //Assumptions:
+            //This is connected to parent by endpoints -> ConnectionType: start or end
+            //Parent is connected to this by start or end -> ConnectionType: middle
+            //Cases:
+            //1. Parent is connected S/E to this && this S/E is coincident with parent S/E -> end to end, start or end
+            //2. Parent is not connected S/E to this && this S/E is connected to P -> afgrening
+            //3. Parent is connected S/E to this && this S/E is not coincident with parent S/E -> middle
+
+            //use a variable to cache the polyline reference
+            //remember to erase it at the end
+            Polyline parentPlRef = null;
+            Polyline thisPlRef = this.topology;
+            try
+            {
+                switch (parent)
+                {
+                    case PipelineV2Alignment pal:
+                        parentPlRef = pal.al.GetPolyline().Go<Polyline>(pal.al.Database.TransactionManager.TopTransaction);
+                        break;
+                    case PipelineV2Na pna:
+                        parentPlRef = pna.topology;
+                        break;
+                    default:
+                        throw new Exception($"Unknown pipeline type {parent.GetType()}!");
+                }
+
+                Point3d parentStart = parentPlRef.StartPoint;
+                Point3d parentEnd = parentPlRef.EndPoint;
+                Point3d thisStart = thisPlRef.StartPoint;
+                Point3d thisEnd = thisPlRef.EndPoint;
+
+                Point3d testPS;
+                Point3d testPE;
+
+                //Test for Case 1.
+                if (parentStart.DistanceHorizontalTo(thisStart) < tol ||
+                    parentEnd.DistanceHorizontalTo(thisStart) < tol) return thisStart;
+                if (parentStart.DistanceHorizontalTo(thisEnd) < tol ||
+                    parentEnd.DistanceHorizontalTo(thisEnd) < tol) return thisEnd;
+
+                //Test for Case 2.
+                testPS = parentPlRef.GetClosestPointTo(thisStart, false);
+                if (testPS.DistanceHorizontalTo(thisStart) < tol) return thisStart;
+                testPE = parentPlRef.GetClosestPointTo(thisEnd, false);
+                if (testPE.DistanceHorizontalTo(thisEnd) < tol) return thisEnd;
+
+                //Test for Case 3.
+                testPS = thisPlRef.GetClosestPointTo(parentStart, false);
+                if (testPS.DistanceHorizontalTo(parentStart) < tol) return testPS;
+                testPE = thisPlRef.GetClosestPointTo(parentEnd, false);
+                if (testPE.DistanceHorizontalTo(parentEnd) < tol) return testPE;
+
+                //If we get here, we have failed to find a connection location
+                throw new Exception($"Could not find connection location between {this.Name} and {parent.Name}!");
+            }
+            catch (Exception ex)
+            {
+                prdDbg(ex);
+                throw;
+            }
+            finally
+            {
+                if (parentPlRef != null && parent is PipelineV2Alignment)
+                {
+                    parentPlRef.UpgradeOpen();
+                    parentPlRef.Erase(true);
+                }
+            }
         }
         public override Vector3d GetFirstDerivative(Point3d pt) =>
-            topology.GetFirstDerivative(topology.GetClosestPointTo(pt, false));
+            topology.GetFirstDerivative(GetClosestPointTo(pt, false));
         private class Ent
         {
             public Entity Entity;

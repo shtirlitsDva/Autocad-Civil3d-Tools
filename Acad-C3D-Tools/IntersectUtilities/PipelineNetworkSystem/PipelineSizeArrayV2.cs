@@ -237,7 +237,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         {
             Arrangement = PipelineSizesArrangement.OneSize;
 
-            Polyline pline = pipeline.Entities.GetPolylines().First();
+            Polyline pline = pipeline.PipelineEntities.GetPolylines().First();
 
             sizes.Add(new SizeEntryV2(
                 GetPipeDN(pline),
@@ -255,7 +255,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public PipelineSizeArrayV2Blocks(IPipelineV2 pipeline)
         {
             // Get all the blocks that define the sizes
-            IEnumerable<BlockReference> sizeBrs = pipeline.Entities.GetBlockReferences()
+            IEnumerable<BlockReference> sizeBrs = pipeline.PipelineEntities.GetBlockReferences()
                 .Where(x => x.ReadDynamicCsvProperty(
                     DynamicProperty.Function, false) == "SizeArray");
 
@@ -576,7 +576,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             HashSet<Entity> two = new HashSet<Entity>();
             var res = (one, two);
 
-            var ce = pipeline.Entities.GetConnectedEntitiesDelimited(br);
+            var ce = pipeline.PipelineEntities.GetConnectedEntitiesDelimited(br);
 
             if (ce.Count > 3) { prdDbg($"Block {br.Handle} has more than 3 entities connected!"); return res; }
             if (ce.Count < 1) { prdDbg($"Block {br.Handle} does not have any entities connected!"); return res; }
@@ -662,17 +662,17 @@ namespace IntersectUtilities.PipelineNetworkSystem
             }
 
             PipeSeriesEnum series = PipeSeriesEnum.Undefined;
-            var pline = pipeline.Entities.GetPolylines().FirstOrDefault();
+            var pline = pipeline.PipelineEntities.GetPolylines().FirstOrDefault();
             if (pline != null) series = GetPipeSeriesV2(pline, true);
 
             //Fall back on blocks
             if (series == PipeSeriesEnum.Undefined)
             {
-                if (pipeline.Entities.GetBlockReferences().Count() == 0)
+                if (pipeline.PipelineEntities.GetBlockReferences().Count() == 0)
                     throw new Exception($"Could not find PipeSeriesEnum for pipeline {pipeline.Name}!\n" +
                         $"Polylines failed to provide Series and there's no blocks present!");
 
-                foreach (var br in pipeline.Entities.GetBlockReferences())
+                foreach (var br in pipeline.PipelineEntities.GetBlockReferences())
                 {
                     string seriesStr = br.ReadDynamicCsvProperty(DynamicProperty.Serie);
                     Enum.TryParse(seriesStr, out series);
@@ -695,10 +695,10 @@ namespace IntersectUtilities.PipelineNetworkSystem
         public static IPipelineSizeArrayV2 CreateSizeArray(IPipelineV2 pipeline)
         {
             //Case only one polyline in the pipeline
-            if (pipeline.Entities.GetPolylines().Count() == 1 &&
-                !pipeline.Entities.HasSizeArrayBrs()) return new PipelineSizeArrayV2OnePolyline(pipeline);
+            if (pipeline.PipelineEntities.GetPolylines().Count() == 1 &&
+                !pipeline.PipelineEntities.HasSizeArrayBrs()) return new PipelineSizeArrayV2OnePolyline(pipeline);
             //Case array defining blocks exist
-            else if (pipeline.Entities.HasSizeArrayBrs()) return new PipelineSizeArrayV2Blocks(pipeline);
+            else if (pipeline.PipelineEntities.HasSizeArrayBrs()) return new PipelineSizeArrayV2Blocks(pipeline);
             else return new PipelineSizeArrayV2NoBlocks(pipeline);
 
             throw new NotImplementedException();

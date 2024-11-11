@@ -148,7 +148,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
             List<(string, IPipelineSizeArrayV2)> data = new();
             foreach (var pipeline in pipelines)
             {
-                data.Add((pipeline.Name, pipeline.Sizes));
+                data.Add((pipeline.Name, pipeline.PipelineSizes));
             }
             return data;
         }
@@ -159,8 +159,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
             {
                 prdDbg("Pipeline: " + pipeline.Name);
                 sb.AppendLine("Alignment: " + pipeline.Name);
-                prdDbg(pipeline.Sizes.ToString());
-                sb.AppendLine(pipeline.Sizes.ToString());
+                prdDbg(pipeline.PipelineSizes.ToString());
+                sb.AppendLine(pipeline.PipelineSizes.ToString());
                 sb.AppendLine();
             }
             return sb;
@@ -286,7 +286,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     {
                         source.CreateSizeArray();
 
-                        var startSize = source.Sizes.Sizes.First();
+                        var startSize = source.PipelineSizes.Sizes.First();
                         bool startConnected = true;
                         if (startSize.DN == endDn)
                         {
@@ -298,7 +298,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             });
                         }
 
-                        var endSize = source.Sizes.Sizes.Last();
+                        var endSize = source.PipelineSizes.Sizes.Last();
                         bool endConnected = true;
                         if (endSize.DN == endDn)
                         {
@@ -502,7 +502,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                     }
                     IPipelineV2 currentPipeline = currentNode.Value;
                     allPipelines.Add(currentPipeline);
-                    allEnts.UnionWith(currentPipeline.Entities);
+                    allEnts.UnionWith(currentPipeline.PipelineEntities);
                 }
             }
             #endregion
