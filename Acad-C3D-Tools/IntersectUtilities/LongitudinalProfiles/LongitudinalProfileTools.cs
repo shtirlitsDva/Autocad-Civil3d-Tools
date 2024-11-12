@@ -650,15 +650,33 @@ namespace IntersectUtilities
                         #region Build query for PointGroup
                         //Build query
                         StandardPointGroupQuery spgq = new StandardPointGroupQuery();
-                        List<string> newPointNumbers = allNewlyCreatedPoints.Select(x => x.PointNumber.ToString()).ToList();
-                        string pointNumbersToInclude = string.Join(
-                            //",",
-                            danishCulture.TextInfo.ListSeparator,
-                            //CultureInfo.CurrentCulture.TextInfo.ListSeparator,
-                            newPointNumbers.ToArray());
-                        spgq.IncludeNumbers = pointNumbersToInclude;
-                        currentPointGroup.SetQuery(spgq);
-                        currentPointGroup.Update();
+                        var newPointNumbers = allNewlyCreatedPoints.Select(x => x.PointNumber.ToString());
+
+                        bool success = false;
+                        string[] separators = [";", ","];
+                        for (int i = 0; i < separators.Length; i++)
+                        {
+                            if (success) break;
+                            string cur = separators[i];
+                            string pointNumbersToInclude = string.Join(cur, newPointNumbers);
+
+                            try
+                            {
+                                spgq.IncludeNumbers = pointNumbersToInclude;
+                                currentPointGroup.SetQuery(spgq);
+                                currentPointGroup.Update();
+                                success = true;
+                            }
+                            catch (System.Exception)
+                            {
+                                prdDbg($"Failed to set query with separator \"{cur}\"!");
+                                //Ignore exception
+                                //Try again with another separator
+                            }
+                        }
+
+                        if (!success)
+                            throw new System.Exception("Could not set query for PointGroup!");
                         #endregion
 
                         #region Assign newly created points to projection on a profile view

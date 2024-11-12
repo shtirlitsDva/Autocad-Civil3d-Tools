@@ -22,7 +22,7 @@
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
 		<Deterministic>false</Deterministic>
-		<AssemblyName>IntersectUtilities</AssemblyName>
+		<AssemblyName>g5slleox.k5k</AssemblyName>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>

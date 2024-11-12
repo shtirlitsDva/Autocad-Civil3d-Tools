@@ -96,16 +96,48 @@ namespace NetReload
                 }
 
                 // Create list of solution names.
-                List<string> solNames = new List<string>();
+
+                List<(string, _DTE)> tuples = new();
                 foreach (KeyValuePair<string, _DTE> item in vsInstances)
                 {
-                    solNames.Add(Path.GetFileNameWithoutExtension(item.Value.Solution.FullName));
+                    tuples.Add((Path.GetFileNameWithoutExtension(item.Value.Solution.FullName), item.Value));
+                }
+
+                // Check if all names are unique.
+                // if not, increment the names.
+
+                var duplicates = tuples.GroupBy(x => x.Item1)
+                    .Where(g => g.Count() > 1)
+                    .Select(y => y)
+                    .ToList();
+
+                foreach (var dupes in duplicates)
+                {
+                    int i = 1;
+                    for (int j = 0; j < dupes.Count(); j++)
+                    {
+                        var dupeIndex = tuples.FindIndex(
+                            t => t.Item1 == dupes.Key && t.Item2 == dupes.ElementAt(j).Item2);
+                        if (dupeIndex >= 0)
+                        {
+                            tuples[dupeIndex] = ($"{tuples[dupeIndex].Item1}_{i}", tuples[dupeIndex].Item2);
+                            i++;
+                        }
+                    }
+                }
+
+                Dictionary<string, _DTE> solNames = new();
+                foreach (var item in tuples)
+                {
+                    solNames.Add(
+                        item.Item1,
+                        item.Item2);
                 }
 
                 // Check if all solution names equal "".
                 // i.e. no solutions loaded in any of the Visual Studio instances.
                 bool allSolNamesEmpty = true;
-                foreach (string name in solNames)
+                foreach (string name in solNames.Keys)
                 {
                     if (name != "")
                     {
@@ -119,7 +151,8 @@ namespace NetReload
                     return;
                 }
 
-                var solName = IntersectUtilities.StringGridFormCaller.Call(solNames, "Select Visual Studio instance to increment:");
+                var solName = IntersectUtilities.StringGridFormCaller.Call(
+                    solNames.Keys, "Select Visual Studio instance to increment:");
                 if (string.IsNullOrEmpty(solName))
                 {
                     ed.WriteMessage("\nNo Visual Studio instance selected. *Cancel*");
@@ -127,7 +160,8 @@ namespace NetReload
                 }
 
                 // Use prompt result to set Visual Studio instance variable.
-                _DTE dte = vsInstances.ElementAt(solNames.IndexOf(solName)).Value;
+                //_DTE dte = vsInstances.ElementAt(solNames.IndexOf(solName)).Value;
+                _DTE dte = solNames[solName];
 
                 // Use custom WaitCursor class for long operation.
                 using (WaitCursor wc = new WaitCursor())
