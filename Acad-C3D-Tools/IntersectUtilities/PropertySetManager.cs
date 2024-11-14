@@ -179,11 +179,20 @@ namespace IntersectUtilities
         }
         public string ReadPropertyString(Entity ent, PSetDefs.Property property)
         {
-            GetOrAttachPropertySet(ent);
-            int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
-            object value = this.CurrentPropertySet.GetAt(propertyId);
-            if (value == null) return "";
-            else return value.ToString();
+            try
+            {
+                GetOrAttachPropertySet(ent);
+                int propertyId = this.CurrentPropertySet.PropertyNameToId(property.Name);
+                object value = this.CurrentPropertySet.GetAt(propertyId);
+                if (value == null) return "";
+                else return value.ToString();
+            }
+            catch (System.Exception ex)
+            {
+                prdDbg($"Unable to read property {property.Name} " +
+                    $"from set {this.CurrentPropertySet.Name} for entity {ent.Handle}.");
+                throw;
+            }
         }
         public double ReadPropertyDouble(Entity ent, PSetDefs.Property property)
         {

@@ -730,7 +730,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 Entity = entity;
                 Handle = entity.Handle;
 
-                string conString = psh.Pipeline.ReadPropertyString(entity, psh.GraphDef.ConnectedEntities);
+                string conString = psh.Graph.ReadPropertyString(entity, psh.GraphDef.ConnectedEntities);
                 if (conString.IsNoE())
                     throw new System.Exception(
                         $"Malformend constring: {conString}, entity: {entity.Handle}.");
