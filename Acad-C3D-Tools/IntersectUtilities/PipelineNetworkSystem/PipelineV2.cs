@@ -695,7 +695,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 if (testPE.DistanceHorizontalTo(thisEnd) < tol) return thisEnd;
 
                 //Test for Case 3.
-                testPS = thisPlRef.GetClosestPointTo(parentStart, false);
+                testPS = thisPlRef.GetClosestPointTo(parentStart, false);                 
                 if (testPS.DistanceHorizontalTo(parentStart) < tol) return testPS;
                 testPE = thisPlRef.GetClosestPointTo(parentEnd, false);
                 if (testPE.DistanceHorizontalTo(parentEnd) < tol) return testPE;
