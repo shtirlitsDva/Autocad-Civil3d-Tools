@@ -605,7 +605,7 @@ namespace IntersectUtilities
                             string system = GetPipeType(pline).ToString();
                             var psys = GetPipeSystem(pline).ToString();
                             sb.AppendLine($"[label=\"{{{handle}|Rør L{pline.Length.ToString("0.##")}}}|{psys} {system}\\n{dn}\"" +
-                                $" URL=\"ahk://test\"];");
+                                $" URL=\"ahk://{handle}\"];");
                             break;
                         case BlockReference br:
                             string dn1 = ReadComponentDN1Str(br, Table);
@@ -614,9 +614,9 @@ namespace IntersectUtilities
                             system = ComponentSchedule.ReadComponentSystem(br, Table);
                             string type = ComponentSchedule.ReadDynamicCsvProperty(br, DynamicProperty.Type);
                             string color = "";
-                            if (type == "Reduktion") color = "color=\"red\"";
-                            sb.AppendLine($"[label=\"{{{handle}|{type}}}|{system}\\n{dnStr}\"{color}];" +
-                                $" URL=\"ahk://test\"");
+                            if (type == "Reduktion") color = " color=\"red\"";
+                            sb.AppendLine($"[label=\"{{{handle}|{type}}}|{system}\\n{dnStr}\"{color}" +
+                                $" URL=\"ahk://{handle}\"];");
                             break;
                         default:
                             continue;

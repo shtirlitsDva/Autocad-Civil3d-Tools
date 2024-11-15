@@ -6161,12 +6161,81 @@ namespace IntersectUtilities
 
                     graph.CreateAndWriteGraph();
 
-                    //Start the dot engine to create the graph
+                    //Start the dot engine to create the graph and convert to pdf
                     System.Diagnostics.Process cmd = new System.Diagnostics.Process();
                     cmd.StartInfo.FileName = "cmd.exe";
                     cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
                     cmd.StartInfo.Arguments = @"/c ""dot -Tpdf MyGraph.dot > MyGraph.pdf""";
                     cmd.Start();
+                    cmd.WaitForExit();
+
+                    //Start the dot engine to create the graph and convert to pdf with links
+                    cmd = new System.Diagnostics.Process();
+                    cmd.StartInfo.FileName = "cmd.exe";
+                    cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
+                    cmd.StartInfo.Arguments = @"/c ""dot -Tps2 MyGraph.dot > MyGraph.ps2""";
+                    cmd.Start();
+                    cmd.WaitForExit();
+
+                    Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+                    var encoding = Encoding.GetEncoding("windows-1252");
+
+                    //Read the ps2 file and create actions instead of urls
+                    using (StreamReader reader = new StreamReader(@"C:\Temp\MyGraph.ps2", encoding))
+                    using (StreamWriter writer = new StreamWriter(@"C:\Temp\MyGraphLinks.ps2", false, encoding))
+                    {
+                        string line;
+                        bool insideAnnotation = false;
+
+                        while ((line = reader.ReadLine()) != null)
+                        {
+                            // Detect the start of an /ANN block
+                            if (line.Contains("/ANN pdfmark"))
+                            {
+                                insideAnnotation = false; // End the block
+                            }
+
+                            // Detect the /Action << block
+                            if (line.Contains("/Action <<"))
+                            {
+                                insideAnnotation = true;
+
+                                // Extract handle from the /URI line
+                                if (line.Contains("/URI (ahk://"))
+                                {
+                                    int startIndex = line.IndexOf("/URI (ahk://") + 12;
+                                    int endIndex = line.IndexOf(")", startIndex);
+                                    string handle = line.Substring(startIndex, endIndex - startIndex);
+
+                                    // Replace the block with the /Launch action
+                                    writer.WriteLine("  /Action <<");
+                                    writer.WriteLine($"    /S /Launch");
+                                    //writer.WriteLine($"    /F (C:/Program Files/AutoHotkey/v2/AutoHotkey64.exe)");
+                                    //writer.WriteLine($"    /Win << /P (X:/AutoCAD DRI - 01 Civil 3D/AHK/AutoCadCOMScripts/ACCOMSelectByHandle.ahk {handle}) >>");
+                                    writer.WriteLine($"    /F (X:/AutoCAD DRI - 01 Civil 3D/AHK/AutoCadCOMScripts/ACCOMSelectByHandle.ahk)");
+                                    writer.WriteLine($"    /Win << /P ({handle}) >>");
+                                    writer.WriteLine("  >>");
+
+                                    // Skip to the next line (skip modifying /Subtype /URI if present)
+                                    continue;
+                                }
+                            }
+
+                            // Write the original line unless inside an annotation block
+                            if (!insideAnnotation || !line.Contains("/URI"))
+                            {
+                                writer.WriteLine(line);
+                            }
+                        }
+                    }
+
+                    //Convert the ps2 file to pdf
+                    cmd = new System.Diagnostics.Process();
+                    cmd.StartInfo.FileName = "cmd.exe";
+                    cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
+                    cmd.StartInfo.Arguments = @"/c ""gswin64.exe -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile=MyGraphLinks.pdf MyGraphLinks.ps2""";
+                    cmd.Start();
+                    cmd.WaitForExit();
                 }
                 catch (System.Exception ex)
                 {
