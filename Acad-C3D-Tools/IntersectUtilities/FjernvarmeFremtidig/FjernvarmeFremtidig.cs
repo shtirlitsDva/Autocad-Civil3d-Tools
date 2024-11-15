@@ -60,6 +60,7 @@ namespace IntersectUtilities
     public partial class Intersect
     {
         [CommandMethod("ASSIGNBLOCKSANDPLINESTOALIGNMENTS")]
+        ///REWRITE IN OOP, DAMMIT!!!
         public void assignblocksandplinestoalignments()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -182,57 +183,87 @@ namespace IntersectUtilities
                             psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, "NA");
                         }
                         else if (result.Count() == 2)
-                        {//Should be ordinary branch
-                            var first = result.First();
-                            var second = result.Skip(1).First();
+                        {
+                            //Could be a branch
+                            //Or with the new small components both alignments at intersions
+                            //get detected
 
-                            double rotation = br.Rotation;
-                            Vector3d brDir = new Vector3d(Math.Cos(rotation), Math.Sin(rotation), 0);
-
-                            //First
-                            //prdDbg(first.al.Name);
-                            Point3d firstClosestPoint = first.al.GetClosestPointTo(br.Position, false);
-                            Vector3d firstDeriv = first.al.GetFirstDerivative(firstClosestPoint);
-                            double firstDotProduct = Math.Abs(brDir.DotProduct(firstDeriv));
-                            //prdDbg($"Rotation: {rotation} - First: {first.al.Name}: {Math.Atan2(firstDeriv.Y, firstDeriv.X)}");
-                            //prdDbg($"Dot product: {brDir.DotProduct(firstDeriv)}");
-
-                            //Second
-                            //prdDbg(second.al.Name);
-                            Point3d secondClosestPoint = second.al.GetClosestPointTo(br.Position, false);
-                            Vector3d secondDeriv = second.al.GetFirstDerivative(secondClosestPoint);
-                            double secondDotProduct = Math.Abs(brDir.DotProduct(secondDeriv));
-                            //prdDbg($"Rotation: {rotation} - Second: {second.al.Name}: {Math.Atan2(secondDeriv.Y, secondDeriv.X)}");
-                            //prdDbg($"Dot product: {brDir.DotProduct(secondDeriv)}");
-
-                            Alignment mainAl = null;
-                            Alignment branchAl = null;
-
-                            if (firstDotProduct > 0.75)
+                            //I really should make a OOP model for BRs
+                            PipelineElementType brType = br.GetPipelineType();
+                            //Dang! I really should oop this
+                            var teeTypes = new HashSet<PipelineElementType>
                             {
-                                mainAl = first.al;
-                                branchAl = second.al;
-                            }
-                            else if (secondDotProduct > 0.75)
+                                PipelineElementType.AfgreningMedSpring,
+                                PipelineElementType.AfgreningParallel,
+                                PipelineElementType.Afgreningsstuds,
+                                PipelineElementType.LigeAfgrening,
+                                PipelineElementType.AfgreningParallel,
+                                PipelineElementType.Svanehals,
+                                PipelineElementType.Svejsetee,
+                                PipelineElementType.Stikafgrening,
+                                PipelineElementType.Muffetee,
+                            };
+
+                            if (teeTypes.Contains(brType))
                             {
-                                mainAl = second.al;
-                                branchAl = first.al;
+                                var first = result.First();
+                                var second = result.Skip(1).First();
+
+                                double rotation = br.Rotation;
+                                Vector3d brDir = new Vector3d(Math.Cos(rotation), Math.Sin(rotation), 0);
+
+                                //First
+                                //prdDbg(first.al.Name);
+                                Point3d firstClosestPoint = first.al.GetClosestPointTo(br.Position, false);
+                                Vector3d firstDeriv = first.al.GetFirstDerivative(firstClosestPoint);
+                                double firstDotProduct = Math.Abs(brDir.DotProduct(firstDeriv));
+                                //prdDbg($"Rotation: {rotation} - First: {first.al.Name}: {Math.Atan2(firstDeriv.Y, firstDeriv.X)}");
+                                //prdDbg($"Dot product: {brDir.DotProduct(firstDeriv)}");
+
+                                //Second
+                                //prdDbg(second.al.Name);
+                                Point3d secondClosestPoint = second.al.GetClosestPointTo(br.Position, false);
+                                Vector3d secondDeriv = second.al.GetFirstDerivative(secondClosestPoint);
+                                double secondDotProduct = Math.Abs(brDir.DotProduct(secondDeriv));
+                                //prdDbg($"Rotation: {rotation} - Second: {second.al.Name}: {Math.Atan2(secondDeriv.Y, secondDeriv.X)}");
+                                //prdDbg($"Dot product: {brDir.DotProduct(secondDeriv)}");
+
+                                Alignment mainAl = null;
+                                Alignment branchAl = null;
+
+                                if (firstDotProduct > 0.75)
+                                {
+                                    mainAl = first.al;
+                                    branchAl = second.al;
+                                }
+                                else if (secondDotProduct > 0.75)
+                                {
+                                    mainAl = second.al;
+                                    branchAl = first.al;
+                                }
+                                else
+                                {
+                                    //Case: Inconclusive
+                                    //When the main axis of the block
+                                    //Is not aligned with one of the runs
+                                    //Annotate with a line for checking
+                                    //And must be manually annotated
+                                    //Magenta
+                                    Line line = new Line(new Point3d(), first.block.Position);
+                                    line.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
+                                    line.AddEntityToDbModelSpace(localDb);
+                                    continue;
+                                }
+                                psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, mainAl.Name);
+                                psm.WritePropertyString(br, driPipelineData.BranchesOffToAlignment, branchAl.Name);
                             }
                             else
                             {
-                                //Case: Inconclusive
-                                //When the main axis of the block
-                                //Is not aligned with one of the runs
-                                //Annotate with a line for checking
-                                //And must be manually annotated
-                                //Magenta
-                                Line line = new Line(new Point3d(), first.block.Position);
-                                line.Color = Color.FromColorIndex(ColorMethod.ByAci, 6);
-                                line.AddEntityToDbModelSpace(localDb);
-                                continue;
+                                //Ordinary block which caught two alignments because
+                                //the geometry of the blocks is very small
+                                psm.WritePropertyString(br, driPipelineData.BelongsToAlignment,
+                                    result.MinBy(x => x.dist).al.Name);
                             }
-                            psm.WritePropertyString(br, driPipelineData.BelongsToAlignment, mainAl.Name);
-                            psm.WritePropertyString(br, driPipelineData.BranchesOffToAlignment, branchAl.Name);
                         }
                         else if (result.Count() > 2)
                         {//More alignments meeting in one place?
@@ -243,6 +274,7 @@ namespace IntersectUtilities
                             line.Color = Color.FromColorIndex(ColorMethod.ByAci, 4);
                             line.AddEntityToDbModelSpace(localDb);
                         }
+                        //Add handling of more elements in NAs here!!!
                         else if (result.Count() == 1)
                         {
                             if (br.RealName() == "AFGRSTUDS" ||
