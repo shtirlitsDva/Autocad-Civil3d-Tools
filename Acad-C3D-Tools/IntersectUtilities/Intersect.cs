@@ -6169,73 +6169,117 @@ namespace IntersectUtilities
                     cmd.Start();
                     cmd.WaitForExit();
 
-                    //Start the dot engine to create the graph and convert to pdf with links
+                    //Start the dot engine to create the graph and convert to pdf
                     cmd = new System.Diagnostics.Process();
                     cmd.StartInfo.FileName = "cmd.exe";
                     cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
-                    cmd.StartInfo.Arguments = @"/c ""dot -Tps2 MyGraph.dot > MyGraph.ps2""";
+                    cmd.StartInfo.Arguments = @"/c ""dot -Tsvg MyGraph.dot > MyGraph.svg""";
                     cmd.Start();
                     cmd.WaitForExit();
 
-                    Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-                    var encoding = Encoding.GetEncoding("windows-1252");
+                    string svgContent = File.ReadAllText(@"C:\Temp\MyGraph.svg");
 
-                    //Read the ps2 file and create actions instead of urls
-                    using (StreamReader reader = new StreamReader(@"C:\Temp\MyGraph.ps2", encoding))
-                    using (StreamWriter writer = new StreamWriter(@"C:\Temp\MyGraphLinks.ps2", false, encoding))
+                    string htmlContent = $@"
+<!DOCTYPE html>
+<html lang=""da"">
+<head>
+    <meta charset=""UTF-8"">
+    <title>Rørsystem</title>
+    <style>
+        body {{
+            background-color: #121212;  /* Dark background color */
+            color: #ffffff;  /* White text color */
+        }}
+        svg {{
+            filter: invert(1) hue-rotate(180deg);  /* Invert colors and adjust hue */
+        }}
+    </style>
+</head>
+<body>
+    {svgContent}
+</body>
+</html>
+";
+                    File.WriteAllText(@"C:\Temp\MyGraph.html", htmlContent);
+
+                    var psi = new ProcessStartInfo
                     {
-                        string line;
-                        bool insideAnnotation = false;
+                        FileName = @"C:\Temp\MyGraph.html",
+                        UseShellExecute = true
+                    };
+                    Process.Start(psi);
 
-                        while ((line = reader.ReadLine()) != null)
-                        {
-                            // Detect the start of an /ANN block
-                            if (line.Contains("/ANN pdfmark"))
-                            {
-                                insideAnnotation = false; // End the block
-                            }
+                    #region Attempt at using /Launch action in pdf
+                    ////Start the dot engine to create the graph and convert to pdf with links
+                    //cmd = new System.Diagnostics.Process();
+                    //cmd.StartInfo.FileName = "cmd.exe";
+                    //cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
+                    //cmd.StartInfo.Arguments = @"/c ""dot -Tps2 MyGraph.dot > MyGraph.ps2""";
+                    //cmd.Start();
+                    //cmd.WaitForExit();
 
-                            // Detect the /Action << block
-                            if (line.Contains("/Action <<"))
-                            {
-                                insideAnnotation = true;
+                    //Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+                    //var encoding = Encoding.GetEncoding("windows-1252");
 
-                                // Extract handle from the /URI line
-                                if (line.Contains("/URI (ahk://"))
-                                {
-                                    int startIndex = line.IndexOf("/URI (ahk://") + 12;
-                                    int endIndex = line.IndexOf(")", startIndex);
-                                    string handle = line.Substring(startIndex, endIndex - startIndex);
+                    ////Read the ps2 file and create actions instead of urls
+                    //using (StreamReader reader = new StreamReader(@"C:\Temp\MyGraph.ps2", encoding))
+                    //using (StreamWriter writer = new StreamWriter(@"C:\Temp\MyGraphLinks.ps2", false, encoding))
+                    //{
+                    //    string line;
+                    //    bool insideAnnotation = false;
 
-                                    // Replace the block with the /Launch action
-                                    writer.WriteLine("  /Action <<");
-                                    writer.WriteLine($"    /S /Launch");
-                                    //writer.WriteLine($"    /F (C:/Program Files/AutoHotkey/v2/AutoHotkey64.exe)");
-                                    //writer.WriteLine($"    /Win << /P (X:/AutoCAD DRI - 01 Civil 3D/AHK/AutoCadCOMScripts/ACCOMSelectByHandle.ahk {handle}) >>");
-                                    writer.WriteLine($"    /F (X:/AutoCAD DRI - 01 Civil 3D/AHK/AutoCadCOMScripts/ACCOMSelectByHandle.ahk)");
-                                    writer.WriteLine($"    /Win << /P ({handle}) >>");
-                                    writer.WriteLine("  >>");
+                    //    while ((line = reader.ReadLine()) != null)
+                    //    {
+                    //        // Detect the start of an /ANN block
+                    //        if (line.Contains("/ANN pdfmark"))
+                    //        {
+                    //            insideAnnotation = false; // End the block
+                    //        }
 
-                                    // Skip to the next line (skip modifying /Subtype /URI if present)
-                                    continue;
-                                }
-                            }
+                    //        // Detect the /Action << block
+                    //        if (line.Contains("/Action <<"))
+                    //        {
+                    //            insideAnnotation = true;
 
-                            // Write the original line unless inside an annotation block
-                            if (!insideAnnotation || !line.Contains("/URI"))
-                            {
-                                writer.WriteLine(line);
-                            }
-                        }
-                    }
+                    //            // Extract handle from the /URI line
+                    //            if (line.Contains("/URI (ahk://"))
+                    //            {
+                    //                int startIndex = line.IndexOf("/URI (ahk://") + 12;
+                    //                int endIndex = line.IndexOf(")", startIndex);
+                    //                string handle = line.Substring(startIndex, endIndex - startIndex);
 
-                    //Convert the ps2 file to pdf
-                    cmd = new System.Diagnostics.Process();
-                    cmd.StartInfo.FileName = "cmd.exe";
-                    cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
-                    cmd.StartInfo.Arguments = @"/c ""gswin64.exe -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile=MyGraphLinks.pdf MyGraphLinks.ps2""";
-                    cmd.Start();
-                    cmd.WaitForExit();
+                    //                // Replace the block with the /Launch action
+                    //                writer.WriteLine("  /Action <<");
+                    //                writer.WriteLine($"    /S /Launch");
+                    //                //writer.WriteLine($"    /F (C:/Program Files/AutoHotkey/v2/AutoHotkey64.exe)");
+                    //                //writer.WriteLine($"    /Win << /P (X:/AutoCAD DRI - 01 Civil 3D/AHK/AutoCadCOMScripts/ACCOMSelectByHandle.ahk {handle}) >>");
+                    //                writer.WriteLine($"    /Win <<");
+                    //                writer.WriteLine($"      /F (Test2.ahk)");
+                    //                writer.WriteLine($"      /O (open)");
+                    //                writer.WriteLine($"    >>");
+                    //                writer.WriteLine("  >>");
+
+                    //                // Skip to the next line (skip modifying /Subtype /URI if present)
+                    //                continue;
+                    //            }
+                    //        }
+
+                    //        // Write the original line unless inside an annotation block
+                    //        if (!insideAnnotation || !line.Contains("/URI"))
+                    //        {
+                    //            writer.WriteLine(line);
+                    //        }
+                    //    }
+                    //}
+
+                    ////Convert the ps2 file to pdf
+                    //cmd = new System.Diagnostics.Process();
+                    //cmd.StartInfo.FileName = "cmd.exe";
+                    //cmd.StartInfo.WorkingDirectory = @"C:\Temp\";
+                    //cmd.StartInfo.Arguments = @"/c ""gswin64.exe -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile=MyGraphLinks.pdf MyGraphLinks.ps2""";
+                    //cmd.Start();
+                    //cmd.WaitForExit(); 
+                    #endregion
                 }
                 catch (System.Exception ex)
                 {
