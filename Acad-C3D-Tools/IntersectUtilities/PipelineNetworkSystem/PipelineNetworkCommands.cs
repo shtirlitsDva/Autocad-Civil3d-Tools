@@ -75,10 +75,13 @@ namespace IntersectUtilities
 
                     PipelineNetwork pn = new PipelineNetwork();
                     prdDbg("Creating pipeline network...");
+                    System.Windows.Forms.Application.DoEvents();
                     pn.CreatePipelineNetwork(ents, als);
                     prdDbg("Creating pipeline graph...");
+                    System.Windows.Forms.Application.DoEvents();
                     pn.CreatePipelineGraph();
                     prdDbg("Writing pipeline graph to dot...");
+                    System.Windows.Forms.Application.DoEvents();
                     pn.PipelineGraphsToDot();
                     prdDbg("Finshed!");
                 }

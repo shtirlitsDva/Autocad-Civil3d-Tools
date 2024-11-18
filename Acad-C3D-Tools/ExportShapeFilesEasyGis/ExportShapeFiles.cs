@@ -12,7 +12,7 @@ using IntersectUtilities.UtilsCommon;
 
 using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
-using NetTopologySuite.IO;
+using NetTopologySuite.IO.Esri;
 using ProjNet.CoordinateSystems;
 using GeoAPI.Geometries;
 
@@ -32,6 +32,7 @@ using static IntersectUtilities.UtilsCommon.UtilsDataTables;
 
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 using Log = ExportShapeFiles.ExportShapeFiles.SimpleLogger;
+using NetTopologySuite.IO.Esri.Shapefiles.Writers;
 
 namespace ExportShapeFiles
 {
@@ -57,6 +58,117 @@ namespace ExportShapeFiles
 #endif
         }
         #endregion
+
+        [CommandMethod("EXPORTSHAPEFILESOLD")]
+        public void exportshapefilesOLD()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+
+            string dbFilename = localDb.OriginalFileName;
+            string path = Path.GetDirectoryName(dbFilename);
+            string shapeExportPath = path + "\\SHP\\";
+            if (Directory.Exists(shapeExportPath) == false) Directory.CreateDirectory(shapeExportPath);
+
+            Log.LogFileName = shapeExportPath + "export.log";
+
+            string baseDir = shapeExportPath;
+
+            PromptStringOptions options = new PromptStringOptions("\nAngiv navnet på shapefilen: ");
+            options.DefaultValue = $"{Path.GetFileName(dbFilename)}";
+            options.UseDefaultValue = true;
+            PromptResult result = doc.Editor.GetString(options);
+
+            if (result.Status != PromptStatus.OK) return;
+
+            string input = result.StringResult;
+
+            if (input.IsNotNoE())
+            {
+                string shapeName = input;
+                exportshapefilesmethodOLD(baseDir, shapeName, "_pipes", "_comps");
+            }
+        }
+        public void exportshapefilesmethodOLD(
+            string exportDir,
+            string shapeBaseName,
+            string polylineSuffix,
+            string blockSuffix,
+            Database database = null)
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = database ?? docCol.MdiActiveDocument.Database;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    Log.log($"Exporting to {exportDir}.");
+
+                    #region Exporting plines
+                    HashSet<Polyline> pls = localDb.GetFjvPipes(tx, true);
+
+                    Log.log($"{pls.Count} polyline(s) found for export.");
+
+                    if (pls.Count > 0)
+                    {
+                        var features = pls.Select(
+                            PolylineFjvToShapeLineStringConverterOLD.Convert);
+
+                        var shapeFileName = shapeBaseName + polylineSuffix;
+                        var fileName = Path.Combine(exportDir, shapeFileName);
+                        var projName = Path.Combine(exportDir, $"{shapeFileName}.prj");
+
+                        Shapefile.WriteAllFeatures(features, fileName);
+
+                        //Create the projection file
+                        using (var sw = new StreamWriter(projName))
+                        {
+                            //sw.Write(ProjNet.CoordinateSystems.ProjectedCoordinateSystem.WGS84_UTM(32, true));
+                            sw.Write(@"PROJCS[""ETRS_1989_UTM_Zone_32N"",GEOGCS[""GCS_ETRS_1989"",DATUM[""D_ETRS_1989"",SPHEROID[""GRS_1980"",6378137.0,298.257222101]],PRIMEM[""Greenwich"",0.0],UNIT[""Degree"",0.0174532925199433]],PROJECTION[""Transverse_Mercator""],PARAMETER[""False_Easting"",500000.0],PARAMETER[""False_Northing"",0.0],PARAMETER[""Central_Meridian"",9.0],PARAMETER[""Scale_Factor"",0.9996],PARAMETER[""Latitude_Of_Origin"",0.0],UNIT[""Meter"",1.0]]");
+                        }
+                    }
+                    #endregion
+
+                    #region Exporting BRs
+                    var dt = CsvData.FK;
+
+                    HashSet<BlockReference> brs = localDb.GetFjvBlocks(tx, dt);
+
+                    Log.log($"{brs.Count} br(s) found for export.");
+
+                    if (brs.Count > 0)
+                    {
+                        var features = brs.Select(
+                            BlockRefFjvToShapePointConverterOLD.Convert);
+
+                        var shapeFileName = shapeBaseName + blockSuffix;
+                        var fileName = Path.Combine(exportDir, shapeFileName);
+                        var projName = Path.Combine(exportDir, $"{shapeFileName}.prj");
+
+                        Shapefile.WriteAllFeatures(features, fileName);
+
+                        //Create the projection file
+                        using (var sw = new StreamWriter(projName))
+                        {
+                            //sw.Write(ProjNet.CoordinateSystems.ProjectedCoordinateSystem.WGS84_UTM(32, true));
+                            sw.Write(@"PROJCS[""ETRS_1989_UTM_Zone_32N"",GEOGCS[""GCS_ETRS_1989"",DATUM[""D_ETRS_1989"",SPHEROID[""GRS_1980"",6378137.0,298.257222101]],PRIMEM[""Greenwich"",0.0],UNIT[""Degree"",0.0174532925199433]],PROJECTION[""Transverse_Mercator""],PARAMETER[""False_Easting"",500000.0],PARAMETER[""False_Northing"",0.0],PARAMETER[""Central_Meridian"",9.0],PARAMETER[""Scale_Factor"",0.9996],PARAMETER[""Latitude_Of_Origin"",0.0],UNIT[""Meter"",1.0]]");
+                        }
+                    }
+                    #endregion
+                }
+                catch (System.Exception ex)
+                {
+                    tx.Abort();
+                    Log.log($"EXCEPTION!!!: {ex.ToString()}. Aborting export of current file!");
+                    throw new System.Exception(ex.ToString());
+                    //return;
+                }
+                tx.Abort();
+            }
+        }
 
         [CommandMethod("EXPORTSHAPEFILES")]
         public void exportshapefiles()
@@ -120,10 +232,7 @@ namespace ExportShapeFiles
                         var fileName = Path.Combine(exportDir, shapeFileName);
                         var projName = Path.Combine(exportDir, $"{shapeFileName}.prj");
 
-                        var writer = new ShapefileDataWriter(fileName, GeometryFactory.Default);
-                        var dbaseHeader = ShapefileDataWriter.GetHeader(features.First(), features.Count());
-                        writer.Header = dbaseHeader;
-                        writer.Write(features);
+                        Shapefile.WriteAllFeatures(features, fileName);
 
                         //Create the projection file
                         using (var sw = new StreamWriter(projName))
@@ -149,10 +258,7 @@ namespace ExportShapeFiles
                         var fileName = Path.Combine(exportDir, shapeFileName);
                         var projName = Path.Combine(exportDir, $"{shapeFileName}.prj");
 
-                        var writer = new ShapefileDataWriter(fileName, GeometryFactory.Default);
-                        var dbaseHeader = ShapefileDataWriter.GetHeader(features.First(), features.Count());
-                        writer.Header = dbaseHeader;
-                        writer.Write(features);
+                        Shapefile.WriteAllFeatures(features, fileName);
 
                         //Create the projection file
                         using (var sw = new StreamWriter(projName))
@@ -226,10 +332,7 @@ namespace ExportShapeFiles
                     string fileName = Path.Combine(exportDir, shapeBaseName);
                     string projName = Path.Combine(exportDir, $"{shapeBaseName}.prj");
 
-                    var writer = new ShapefileDataWriter(fileName, GeometryFactory.Default);
-                    var dbaseHeader = ShapefileDataWriter.GetHeader(features[0], features.Count);
-                    writer.Header = dbaseHeader;
-                    writer.Write(features);
+                    Shapefile.WriteAllFeatures(features, fileName);
 
                     using (var sw = new StreamWriter(projName))
                     {
