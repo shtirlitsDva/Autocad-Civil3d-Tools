@@ -3216,7 +3216,7 @@ namespace IntersectUtilities.UtilsCommon
             if (discardWelds) brQuery = brQuery.Where(x => !weldingBlocks.Contains(x.RealName()));
             if (discardStikBlocks) brQuery = brQuery.Where(x => !stikBlocks.Contains(x.RealName()));
 
-            prdDbg($"FJV Entities > Polyline(s): {plineQuery.Count()}, BlockReference(s): {brQuery.Count()}");
+            //prdDbg($"FJV Entities > Polyline(s): {plineQuery.Count()}, BlockReference(s): {brQuery.Count()}");
 
             entities.UnionWith(brQuery);
             entities.UnionWith(plineQuery);
