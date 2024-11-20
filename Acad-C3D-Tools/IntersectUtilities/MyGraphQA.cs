@@ -167,9 +167,9 @@ namespace IntersectUtilities
                 if (dnList1.Count == 0 || dnList2.Count == 0)
                 {
                     if (dnList1.Count == 0)
-                        throw new System.Exception($"Entity {ent1} has wrong DN(s)!");
+                        throw new System.Exception($"Entity {ent1.Handle} has wrong DN(s)!");
                     else if (dnList2.Count == 0)
-                        throw new System.Exception($"Entity {ent2} has wrong DN(s)!");
+                        throw new System.Exception($"Entity {ent2.Handle} has wrong DN(s)!");
                 }
 
                 //Take special care of Reducers
