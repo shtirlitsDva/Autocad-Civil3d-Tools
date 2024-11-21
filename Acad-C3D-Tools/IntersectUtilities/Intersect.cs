@@ -8070,8 +8070,8 @@ namespace IntersectUtilities
             }
         }
 
-        [CommandMethod("SELECTCUSTOMREDUCERS")]
-        [CommandMethod("SCR")]
+        [CommandMethod("SELECTCUSTOMBRS")]
+        [CommandMethod("SCB")]
         public void selectcustomreducers()
         {
             DocumentCollection docCol = Application.DocumentManager;
@@ -8080,8 +8080,7 @@ namespace IntersectUtilities
             Document doc = docCol.MdiActiveDocument;
             CivilDocument civilDoc = Autodesk.Civil.ApplicationServices.CivilApplication.ActiveDocument;
 
-            System.Data.DataTable dt = CsvReader.ReadCsvToDataTable(
-                @"X:\AutoCAD DRI - 01 Civil 3D\FJV Dynamiske Komponenter.csv", "FjvKomponenter");
+            var dt = CsvData.FK;
 
             using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
@@ -8092,9 +8091,6 @@ namespace IntersectUtilities
 
                     var query = brs.Where(x =>
                     {
-                        if (x.RealName() != "RED KDLR" &&
-                            x.RealName() != "RED KDLR x2") return false;
-
                         string type = x.ReadDynamicPropertyValue("Type");
 
                         if (type == "Custom") return true;
