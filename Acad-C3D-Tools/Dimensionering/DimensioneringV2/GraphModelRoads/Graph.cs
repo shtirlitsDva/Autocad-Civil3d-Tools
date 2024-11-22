@@ -1,4 +1,7 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
+using Dimensionering.DimensioneringV2.Geometry;
+using IntersectUtilities;
 
 using System;
 using System.Collections.Generic;
@@ -6,21 +9,21 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Dimensionering.DimensioneringV2.GraphModel
+namespace Dimensionering.DimensioneringV2.GraphModelRoads
 {
     internal class Graph
     {
         public List<SegmentNode> Segments { get; }
-        public KdTree SpatialIndex { get; private set; }
+        public SpatialIndex SpatialIndex { get; private set; }
         public List<SegmentNode> RootNodes { get; private set; }
-        public List<List<SegmentNode>> ConnectedComponents { get; private set; }
+        public List<ConnectedComponent> ConnectedComponents { get; private set; }
 
         public Graph()
         {
             Segments = new List<SegmentNode>();
-            SpatialIndex = new KdTree();
+            SpatialIndex = new SpatialIndex();
             RootNodes = new List<SegmentNode>();
-            ConnectedComponents = new List<List<SegmentNode>>();
+            ConnectedComponents = new List<ConnectedComponent>();
         }
 
         // Method to build the graph from polylines
@@ -35,7 +38,7 @@ namespace Dimensionering.DimensioneringV2.GraphModel
 
             BuildNeighbors();
 
-            SpatialIndex.BuildTree(Segments);
+            SpatialIndex.BuildIndex(Segments);
 
             // Identify connected components in the graph
             IdentifyConnectedComponents();
@@ -106,13 +109,13 @@ namespace Dimensionering.DimensioneringV2.GraphModel
             {
                 if (!visited.Contains(segment))
                 {
-                    var component = new List<SegmentNode>();
+                    var component = new ConnectedComponent();
                     TraverseComponent(segment, visited, component);
                     ConnectedComponents.Add(component);
                 }
             }
         }
-        private void TraverseComponent(SegmentNode segment, HashSet<SegmentNode> visited, List<SegmentNode> component)
+        private void TraverseComponent(SegmentNode segment, HashSet<SegmentNode> visited, ConnectedComponent component)
         {
             var stack = new Stack<SegmentNode>();
             stack.Push(segment);
@@ -123,7 +126,7 @@ namespace Dimensionering.DimensioneringV2.GraphModel
                 if (visited.Contains(node)) continue;
 
                 visited.Add(node);
-                component.Add(node);
+                component.Segments.Add(node);
 
                 foreach (var neighbor in node.Neighbors)
                     if (!visited.Contains(neighbor)) stack.Push(neighbor);
@@ -131,18 +134,20 @@ namespace Dimensionering.DimensioneringV2.GraphModel
         }
         private void MapRootPointsToComponents(List<Point2D> rootPoints)
         {
-            var componentRootMap = new Dictionary<List<SegmentNode>, Point2D>();
-            var assignedComponents = new HashSet<List<SegmentNode>>();
+            var assignedComponents = new HashSet<ConnectedComponent>();
 
             foreach (var rootPoint in rootPoints)
             {
                 var nearestSegment = FindNearestSegment(rootPoint);
+                IntersectUtilities.UtilsCommon.Utils.DebugHelper.CreateDebugLine(
+                    nearestSegment.GetMidpoint().To3d(), 
+                    IntersectUtilities.UtilsCommon.Utils.ColorByName("red"));
 
                 // Find the connected component containing the nearest segment
-                List<SegmentNode> component = null;
+                ConnectedComponent component = null;
                 foreach (var comp in ConnectedComponents)
                 {
-                    if (comp.Contains(nearestSegment))
+                    if (comp.Segments.Contains(nearestSegment))
                     {
                         component = comp;
                         break;
@@ -154,7 +159,7 @@ namespace Dimensionering.DimensioneringV2.GraphModel
                     if (!assignedComponents.Contains(component))
                     {
                         assignedComponents.Add(component);
-                        componentRootMap[component] = rootPoint;
+                        component.RootNode = nearestSegment;
                         RootNodes.Add(nearestSegment);
                     }
                     else
@@ -181,7 +186,10 @@ namespace Dimensionering.DimensioneringV2.GraphModel
             var assignedSegments = new HashSet<SegmentNode>();
             foreach (var component in ConnectedComponents)
             {
-                assignedSegments.UnionWith(component);
+                if (component.RootNode != null)
+                {
+                    assignedSegments.UnionWith(component.Segments);
+                }
             }
 
             if (assignedSegments.Count != Segments.Count)
@@ -214,6 +222,49 @@ namespace Dimensionering.DimensioneringV2.GraphModel
                 {
                     yield return kvp.Key;
                 }
+            }
+        }
+        public IEnumerable<(Point3d Point, string Text)> GetSegmentsNumbering()
+        {
+            int groupNumber = 1;
+            foreach (var component in ConnectedComponents)
+            {
+                int segmentCounter = 1;
+                var visited = new HashSet<SegmentNode>();
+                var stack = new Stack<SegmentNode>();
+
+                // Get the root node for this component
+                var rootNode = component.RootNode;
+                if (rootNode == null)
+                {
+                    throw new Exception($"No root node assigned to connected component {groupNumber}");
+                }
+
+                stack.Push(rootNode);
+
+                while (stack.Count > 0)
+                {
+                    var node = stack.Pop();
+                    if (visited.Contains(node))
+                        continue;
+
+                    visited.Add(node);
+
+                    string text = $"{groupNumber}.{segmentCounter:000}";
+                    Point2D midpoint = node.GetMidpoint();
+                    yield return (midpoint.To3d(), text);
+                    segmentCounter++;
+
+                    foreach (var neighbor in node.Neighbors)
+                    {
+                        if (!visited.Contains(neighbor))
+                        {
+                            stack.Push(neighbor);
+                        }
+                    }
+                }
+
+                groupNumber++;
             }
         }
     }

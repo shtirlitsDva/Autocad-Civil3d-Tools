@@ -4,11 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Dimensionering.DimensioneringV2.GraphModel
+namespace Dimensionering.DimensioneringV2.Geometry
 {
     internal class Point2DEqualityComparer : IEqualityComparer<Point2D>
     {
-        private readonly double Tolerance = GraphModel.Tolerance.Default;
+        private readonly double Tolerance = DimensioneringV2.Tolerance.Default;
 
         public bool Equals(Point2D p1, Point2D p2)
         {

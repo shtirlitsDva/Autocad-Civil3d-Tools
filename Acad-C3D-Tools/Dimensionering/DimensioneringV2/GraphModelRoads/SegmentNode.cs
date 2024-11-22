@@ -1,4 +1,6 @@
 ﻿using Autodesk.AutoCAD.Geometry;
+using Dimensionering.DimensioneringV2.Geometry;
+using NetTopologySuite.Geometries;
 
 using System;
 using System.Collections.Generic;
@@ -7,7 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media.Media3D;
 
-namespace Dimensionering.DimensioneringV2.GraphModel
+namespace Dimensionering.DimensioneringV2.GraphModelRoads
 {
     internal class SegmentNode
     {
@@ -34,6 +36,14 @@ namespace Dimensionering.DimensioneringV2.GraphModel
                 (StartPoint.Y + EndPoint.Y) / 2
             );
         }
+        public LineString ToLineString()
+        {
+            return new LineString(
+            [
+                new Coordinate(StartPoint.X, StartPoint.Y),
+                new Coordinate(EndPoint.X, EndPoint.Y)
+            ]);
+        }
         // Calculate distance squared from a point to the segment
         public double DistanceSquaredToPoint(Point2D point)
         {
@@ -59,6 +69,12 @@ namespace Dimensionering.DimensioneringV2.GraphModel
             double distSq = (point.X - closestX) * (point.X - closestX) + (point.Y - closestY) * (point.Y - closestY);
 
             return distSq;
+        }
+        public double DistanceToPoint(Point2D point)
+        {
+            var pointGeometry = new Point(point.X, point.Y);
+            var line = ToLineString();
+            return line.Distance(pointGeometry);
         }
     }
 }

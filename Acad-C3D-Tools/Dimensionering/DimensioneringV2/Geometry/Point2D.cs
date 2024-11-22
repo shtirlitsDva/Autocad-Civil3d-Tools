@@ -7,11 +7,11 @@ using System.Windows.Media.Media3D;
 
 using Autodesk.AutoCAD.Geometry;
 
-namespace Dimensionering.DimensioneringV2.GraphModel
+namespace Dimensionering.DimensioneringV2.Geometry
 {
     internal readonly struct Point2D
     {
-        private static double Tolerance = GraphModel.Tolerance.Default;
+        private static double Tolerance = DimensioneringV2.Tolerance.Default;
         private static double ScaleFactor = 1e6;
         public double X { get; }
         public double Y { get; }

@@ -16,34 +16,15 @@ using static IntersectUtilities.UtilsCommon.Utils;
 using System.Windows.Forms;
 
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+using cv = Dimensionering.DimensioneringV2.CommonVariables;
 using Autodesk.AutoCAD.Geometry;
-using Dimensionering.DimensioneringV2.GraphModel;
+using Dimensionering.DimensioneringV2.GraphModelRoads;
 
 namespace Dimensionering
 {
     public partial class DimensioneringExtension
     {
-        #region IExtensionApplication members
-        public void Initialize()
-        {
-            Document doc = Application.DocumentManager.MdiActiveDocument;
-            if (doc != null)
-            {
-                SystemObjects.DynamicLinker.LoadModule(
-                    "AcMPolygonObj" + Application.Version.Major + ".dbx", false, false);
-            }
-#if DEBUG
-            AppDomain.CurrentDomain.AssemblyResolve +=
-                new ResolveEventHandler(MissingAssemblyLoader.Debug_AssemblyResolve);
-#endif
-        }
-
-        public void Terminate()
-        {
-        }
-        #endregion
-
-        private static double tol = DimensioneringV2.GraphModel.Tolerance.Default;
+        private static double tol = DimensioneringV2.Tolerance.Default;
 
         [CommandMethod("DIM2INTERSECTVEJMIDTE")]
         public void dim2intersectvejmidte()
@@ -58,7 +39,7 @@ namespace Dimensionering
                 try
                 {
                     var pls = localDb.HashSetOfType<Polyline>(tx)
-                        .Where(x => x.Layer == "Vejmidte-tændt")
+                        .Where(x => x.Layer == cv.LayerVejmidteTændt)
                         .ToArray();
 
                     for (int i = 0; i < pls.Length; i++)
@@ -75,11 +56,12 @@ namespace Dimensionering
                             foreach (Point3d pt in pts)
                             {
                                 //Workaround for AutoCAD bug?
+                                //I was getting more points than I should have
                                 //Test to see if the point lies on BOTH polylines
-                                IntersectUtilities.UtilsCommon.Utils.DebugHelper.CreateDebugLine(
-                                    pt, ColorByName("red"));
-                                //AddVertexIfMissing(pl1, pt);
-                                //AddVertexIfMissing(pl2, pt);
+                                //IntersectUtilities.UtilsCommon.Utils.DebugHelper.CreateDebugLine(pt, ColorByName("red"));
+                                if (!pt.IsOnCurve(pl1, tol) || !pt.IsOnCurve(pl2, tol)) continue;
+                                AddVertexIfMissing(pl1, pt);
+                                AddVertexIfMissing(pl2, pt);
                             }
                         }
                     }
@@ -120,25 +102,122 @@ namespace Dimensionering
             {
                 try
                 {
+                    foreach (var br in localDb.GetBlockReferenceByName(cv.BlockEndPointName))
+                    {
+                        br.CheckOrOpenForWrite();
+                        br.Erase(true);
+                    }
+
                     var pls = localDb.HashSetOfType<Polyline>(tx)
-                        .Where(x => x.Layer == "Vejmidte-tændt")
+                        .Where(x => x.Layer == cv.LayerVejmidteTændt)
                         .ToList();
 
                     var basePoints = localDb.HashSetOfType<BlockReference>(tx)
-                        .Where(x => x.RealName() == "NS_Supply_Point")
+                        .Where(x => x.RealName() == cv.BlockSupplyPointName)
                         .Select(x => new Point2D(x.Position.X, x.Position.Y))
                         .ToList();
 
-                    var graph = new DimensioneringV2.GraphModel.Graph();
+                    var graph = new DimensioneringV2.GraphModelRoads.Graph();
                     graph.BuildGraph(pls, basePoints);
 
-                    localDb.CheckOrCreateLayer("NS_End_Point");
+                    localDb.CheckOrCreateLayer(cv.LayerEndPoint);
 
                     foreach (var pt in graph.GetLeafNodePoints())
                     {
-                        var br = localDb.CreateBlockWithAttributes("NS_End_Point", pt.To3d());
+                        var br = localDb.CreateBlockWithAttributes(cv.BlockEndPointName, pt.To3d());
                         br.CheckOrOpenForWrite();
-                        br.Layer = "NS_End_Point";
+                        br.Layer = cv.LayerEndPoint;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+
+            prdDbg("Finished!");
+        }
+
+        [CommandMethod("DIM2TESTNAMING")]
+        public void dim2testnaming()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var pls = localDb.HashSetOfType<Polyline>(tx)
+                        .Where(x => x.Layer == cv.LayerVejmidteTændt)
+                        .ToList();
+
+                    var basePoints = localDb.HashSetOfType<BlockReference>(tx)
+                        .Where(x => x.RealName() == cv.BlockSupplyPointName)
+                        .Select(x => new Point2D(x.Position.X, x.Position.Y))
+                        .ToList();
+
+                    var graph = new DimensioneringV2.GraphModelRoads.Graph();
+                    graph.BuildGraph(pls, basePoints);
+
+                    localDb.CheckOrCreateLayer(cv.LayerNumbering);
+
+                    foreach (var data in graph.GetSegmentsNumbering())
+                    {
+                        DBText dBText = new DBText();
+                        //dBText.Justify = AttachmentPoint.MiddleCenter;
+                        //dBText.VerticalMode = TextVerticalMode.TextVerticalMid;
+                        //dBText.HorizontalMode = TextHorizontalMode.TextCenter;
+                        dBText.TextString = data.Text;
+                        dBText.Position = data.Point;
+                        dBText.Layer = cv.LayerNumbering;
+                        dBText.AddEntityToDbModelSpace(localDb);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+
+            prdDbg("Finished!");
+        }
+
+        [CommandMethod("DIM2TESTROOTNODE")]
+        public void dim2testrootnode()
+        {
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var pls = localDb.HashSetOfType<Polyline>(tx)
+                        .Where(x => x.Layer == cv.LayerVejmidteTændt)
+                        .ToList();
+
+                    var basePoints = localDb.HashSetOfType<BlockReference>(tx)
+                        .Where(x => x.RealName() == cv.BlockSupplyPointName)
+                        .Select(x => new Point2D(x.Position.X, x.Position.Y))
+                        .ToList();
+
+                    var graph = new DimensioneringV2.GraphModelRoads.Graph();
+                    graph.BuildGraph(pls, basePoints);
+
+                    foreach (var component in graph.ConnectedComponents)
+                    {
+                        //Utils.DebugHelper.CreateDebugLine(component.RootNode.GetMidpoint().To3d(), ColorByName("red"));
                     }
                 }
                 catch (System.Exception ex)
