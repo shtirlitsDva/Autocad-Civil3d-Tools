@@ -64,7 +64,7 @@ namespace IntersectUtilities.Dimensionering
     /// <summary>
     /// Class for intersection tools.
     /// </summary>
-    public class DimensioneringExtension : IExtensionApplication
+    public partial class DimensioneringExtension : IExtensionApplication
     {
         #region IExtensionApplication members
         public void Initialize()
