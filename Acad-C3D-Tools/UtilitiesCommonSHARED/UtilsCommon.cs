@@ -563,11 +563,21 @@ namespace IntersectUtilities.UtilsCommon
         {
             public static void CreateDebugLine(Point3d end, Color color)
             {
+                CreateDebugLine(Point3d.Origin, end, color);
+            }
+            public static void CreateDebugLine(Point3d start, Point3d end, Color color)
+            {
+                CreateDebugLine(start, end, color, "");
+            }
+            public static void CreateDebugLine(Point3d start, Point3d end, Color color, string layer)
+            {
                 Database db = Application.DocumentManager.MdiActiveDocument.Database;
-                Line line = new Line(Point3d.Origin, end);
+                Line line = new Line(start, end);
                 line.Color = color;
+                if (layer.IsNotNoE()) line.Layer = layer;
                 line.AddEntityToDbModelSpace(db);
             }
+
         }
     }
     public static class UtilsDataTables
@@ -3001,6 +3011,10 @@ namespace IntersectUtilities.UtilsCommon
                 tx.AddNewlyCreatedDBObject(entity, true);
                 return id;
             }
+        }
+        public static bool CheckOrCreateLayer(this Database db, string layerName, Color color, bool isPlottable = true)
+        {
+            return CheckOrCreateLayer(db, layerName, color.ColorIndex, isPlottable);
         }
         public static bool CheckOrCreateLayer(this Database db, string layerName, short colorIdx = -1, bool isPlottable = true)
         {

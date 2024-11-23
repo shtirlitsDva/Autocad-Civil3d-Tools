@@ -20,6 +20,7 @@ using cv = Dimensionering.DimensioneringV2.CommonVariables;
 using Autodesk.AutoCAD.Geometry;
 using Dimensionering.DimensioneringV2.GraphModelRoads;
 using Dimensionering.DimensioneringV2.Geometry;
+using IntersectUtilities;
 
 namespace Dimensionering
 {
@@ -172,7 +173,9 @@ namespace Dimensionering
                         .ToList();
 
                     var graph = new DimensioneringV2.GraphModelRoads.Graph();
-                    graph.BuildGraph(pls, basePoints);
+                    bool isOk = graph.BuildGraph(pls, basePoints);
+
+                    if (!isOk) { tx.Commit(); return; }
 
                     localDb.CheckOrCreateLayer(cv.LayerEndPoint);
 
@@ -287,7 +290,7 @@ namespace Dimensionering
         }
 
         [CommandMethod("DIM2DRAWBUILDINGSEGMENTS")]
-        public void dim2testnaming()
+        public void dim2drawbuildingsegments()
         {
             DocumentCollection docCol = Application.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
@@ -298,6 +301,16 @@ namespace Dimensionering
             {
                 try
                 {
+                    #region Delete previous connection lines
+                    var lines = localDb.HashSetOfType<Line>(tx)
+                        .Where(x => x.Layer == cv.LayerConnectionLine);
+                    foreach (var line in lines)
+                    {
+                        line.CheckOrOpenForWrite();
+                        line.Erase(true);
+                    }
+                    #endregion
+
                     var pls = localDb.HashSetOfType<Polyline>(tx)
                         .Where(x => x.Layer == cv.LayerVejmidteTændt)
                         .ToList();
@@ -307,21 +320,22 @@ namespace Dimensionering
                         .Select(x => new Point2D(x.Position.X, x.Position.Y))
                         .ToList();
 
+                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
+                    brs = brs
+                        .Where(x => cv.AcceptedBlockTypes.Contains(
+                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
+                        .ToHashSet();
+
                     var graph = new DimensioneringV2.GraphModelRoads.Graph();
-                    graph.BuildGraph(pls, basePoints);
+                    graph.BuildGraph(pls, basePoints, brs);
 
-                    localDb.CheckOrCreateLayer(cv.LayerNumbering);
+                    localDb.CheckOrCreateLayer(cv.LayerConnectionLine, cv.ConnectionLineColor);
 
-                    foreach (var data in graph.GetSegmentsNumbering())
+                    foreach (var segment in graph.GetBuildingConnectionSegments())
                     {
-                        DBText dBText = new DBText();
-                        //dBText.Justify = AttachmentPoint.MiddleCenter;
-                        //dBText.VerticalMode = TextVerticalMode.TextVerticalMid;
-                        //dBText.HorizontalMode = TextHorizontalMode.TextCenter;
-                        dBText.TextString = data.Text;
-                        dBText.Position = data.Point;
-                        dBText.Layer = cv.LayerNumbering;
-                        dBText.AddEntityToDbModelSpace(localDb);
+                        Line line = new Line(segment.StartPoint.To3d(), segment.EndPoint.To3d());
+                        line.Layer = cv.LayerConnectionLine;
+                        line.AddEntityToDbModelSpace(localDb);
                     }
                 }
                 catch (System.Exception ex)

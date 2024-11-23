@@ -8,18 +8,25 @@ namespace Dimensionering.DimensioneringV2
 {
     internal static class CommonVariables
     {
-        public static readonly string LayerEndPoint = "0-End_Point";
-        public static readonly string BlockEndPointName = "NS_End_Point";
-        public static readonly string LayerSupplyPoint = "0-Supply_Point";
-        public static readonly string BlockSupplyPointName = "NS_Supply_Point";
+        internal static readonly string LayerEndPoint = "0-End_Point";
+        internal static readonly string BlockEndPointName = "NS_End_Point";
+        internal static readonly string LayerSupplyPoint = "0-Supply_Point";
+        internal static readonly string BlockSupplyPointName = "NS_Supply_Point";
 
-        public static readonly string LayerVejmidteTændt = "Vejmidte-tændt";
-        public static readonly string LayerVejmidteSlukket = "Vejmidte-slukket";
+        internal static readonly string LayerVejmidteTændt = "Vejmidte-tændt";
+        internal static readonly string LayerVejmidteSlukket = "Vejmidte-slukket";
 
-        public static readonly string LayerNumbering = "0-Segments_Numbering";
+        internal static readonly string LayerNumbering = "0-Segments_Numbering";
 
-        public static readonly string LayerConnectionLine = "0-CONNECTION_LINE";
-        public static readonly Autodesk.AutoCAD.Colors.Color ConnectionLineColor = 
+        internal static readonly string LayerConnectionLine = "0-CONNECTION_LINE";
+        internal static readonly Autodesk.AutoCAD.Colors.Color ConnectionLineColor = 
             IntersectUtilities.UtilsCommon.Utils.ColorByName("yellow");
+
+        internal static readonly string LayerDebugLines = "0-FJV_Debug";
+
+        internal static HashSet<string> AcceptedBlockTypes =
+            new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet" };
+        internal static HashSet<string> AllBlockTypes =
+            new HashSet<string>() { "El", "Naturgas", "Varmepumpe", "Fast brændsel", "Olie", "Andet", "Fjernvarme", "Ingen", "UDGÅR" };
     }
 }

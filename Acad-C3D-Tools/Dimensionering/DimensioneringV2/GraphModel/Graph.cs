@@ -3,15 +3,17 @@ using Autodesk.AutoCAD.DatabaseServices.Filters;
 using Autodesk.AutoCAD.Geometry;
 
 using Dimensionering.DimensioneringV2.Geometry;
-using Dimensionering.DimensioneringV2.GraphModelPipeNetwork;
 
 using IntersectUtilities;
+using IntersectUtilities.UtilsCommon;
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
+using  cv = Dimensionering.DimensioneringV2.CommonVariables;
 
 namespace Dimensionering.DimensioneringV2.GraphModelRoads
 {
@@ -31,7 +33,7 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
         }
 
         // Method to build the graph from polylines
-        public void BuildGraph(
+        public bool BuildGraph(
             IEnumerable<Polyline> polylines,
             IEnumerable<Point2D> rootPoints,
             IEnumerable<BlockReference> buildings = null
@@ -59,8 +61,33 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
             // Map root points to connected components
             MapRootPointsToComponents(rootPoints);
 
+            //Check if all root points where found
+            if (ConnectedComponents.Any(c => c.RootNode == null))
+            {
+                Database localDb = HostApplicationServices.WorkingDatabase;
+                localDb.CheckOrCreateLayer(cv.LayerDebugLines);
+
+                foreach (var component in ConnectedComponents)
+                {
+                    if (component.RootNode == null)
+                    {
+                        foreach (var segment in component.Segments)
+                        {
+                            IntersectUtilities.UtilsCommon.Utils.DebugHelper.CreateDebugLine(
+                                segment.StartPoint.To3d(),
+                                segment.EndPoint.To3d(),
+                                IntersectUtilities.UtilsCommon.Utils.ColorByName("cyan"),
+                                cv.LayerDebugLines);
+                        }
+                    }
+                }
+                return false;
+            }
+
             // Check for leftover segments
             CheckForLeftoverSegments();
+
+            return true;
         }
 
         // Convert a polyline to a list of segments
@@ -152,9 +179,6 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
             foreach (var rootPoint in rootPoints)
             {
                 var nearestSegment = FindNearestSegment(rootPoint);
-                IntersectUtilities.UtilsCommon.Utils.DebugHelper.CreateDebugLine(
-                    nearestSegment.GetMidpoint().To3d(),
-                    IntersectUtilities.UtilsCommon.Utils.ColorByName("red"));
 
                 // Find the connected component containing the nearest segment
                 ConnectedComponent component = null;
@@ -186,11 +210,11 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
                 }
             }
 
-            // Check if all components have been assigned a root point
-            if (assignedComponents.Count != ConnectedComponents.Count)
-            {
-                throw new Exception("Number of root points does not correspond to the number of identified networks.");
-            }
+            //// Check if all components have been assigned a root point
+            //if (assignedComponents.Count != ConnectedComponents.Count)
+            //{
+            //    throw new Exception("Number of root points does not correspond to the number of identified networks.");
+            //}
         }
         private void CheckForLeftoverSegments()
         {
