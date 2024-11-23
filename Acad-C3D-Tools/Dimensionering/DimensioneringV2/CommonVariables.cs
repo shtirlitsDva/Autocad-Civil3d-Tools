@@ -17,5 +17,9 @@ namespace Dimensionering.DimensioneringV2
         public static readonly string LayerVejmidteSlukket = "Vejmidte-slukket";
 
         public static readonly string LayerNumbering = "0-Segments_Numbering";
+
+        public static readonly string LayerConnectionLine = "0-CONNECTION_LINE";
+        public static readonly Autodesk.AutoCAD.Colors.Color ConnectionLineColor = 
+            IntersectUtilities.UtilsCommon.Utils.ColorByName("yellow");
     }
 }

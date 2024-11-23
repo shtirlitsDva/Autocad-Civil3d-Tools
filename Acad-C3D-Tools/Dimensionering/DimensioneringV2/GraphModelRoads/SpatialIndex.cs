@@ -14,17 +14,14 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
     {
         private STRtree<SegmentNode> rtree;
 
-        public void BuildIndex(List<SegmentNode> segments)
+        public void Insert(List<SegmentNode> segments)
         {
             rtree = new STRtree<SegmentNode>();
 
             foreach (var segment in segments)
             {
-                var line = segment.ToLineString();
-                rtree.Insert(line.EnvelopeInternal, segment);
+                Insert(segment);
             }
-
-            rtree.Build();
         }
 
         public SegmentNode FindNearest(Point2D point)
@@ -70,6 +67,12 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
                     throw new Exception("No segment found within the maximum search distance.");
                 }
             }
+        }
+
+        private void Insert(SegmentNode segment)
+        {
+            var line = segment.ToLineString();
+            rtree.Insert(line.EnvelopeInternal, segment);
         }
     }
 }

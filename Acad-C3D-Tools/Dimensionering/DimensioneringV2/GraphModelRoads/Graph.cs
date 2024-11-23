@@ -1,6 +1,10 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.DatabaseServices.Filters;
 using Autodesk.AutoCAD.Geometry;
+
 using Dimensionering.DimensioneringV2.Geometry;
+using Dimensionering.DimensioneringV2.GraphModelPipeNetwork;
+
 using IntersectUtilities;
 
 using System;
@@ -27,7 +31,11 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
         }
 
         // Method to build the graph from polylines
-        public void BuildGraph(List<Polyline> polylines, List<Point2D> rootPoints)
+        public void BuildGraph(
+            IEnumerable<Polyline> polylines,
+            IEnumerable<Point2D> rootPoints,
+            IEnumerable<BlockReference> buildings = null
+            )
         {
             // Step 1: Convert polylines to segments
             foreach (var polyline in polylines)
@@ -36,11 +44,16 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
                 Segments.AddRange(segments);
             }
 
+            SpatialIndex.Insert(Segments);
+
+            if (buildings != null)
+                ProjectBuildingsOntoGraph(buildings);
+
             BuildNeighbors();
 
-            SpatialIndex.BuildIndex(Segments);
-
             // Identify connected components in the graph
+            // Each connected component will be a separate network
+            // It's just the name that CGPT gave to the separate networks
             IdentifyConnectedComponents();
 
             // Map root points to connected components
@@ -132,7 +145,7 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
                     if (!visited.Contains(neighbor)) stack.Push(neighbor);
             }
         }
-        private void MapRootPointsToComponents(List<Point2D> rootPoints)
+        private void MapRootPointsToComponents(IEnumerable<Point2D> rootPoints)
         {
             var assignedComponents = new HashSet<ConnectedComponent>();
 
@@ -140,7 +153,7 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
             {
                 var nearestSegment = FindNearestSegment(rootPoint);
                 IntersectUtilities.UtilsCommon.Utils.DebugHelper.CreateDebugLine(
-                    nearestSegment.GetMidpoint().To3d(), 
+                    nearestSegment.GetMidpoint().To3d(),
                     IntersectUtilities.UtilsCommon.Utils.ColorByName("red"));
 
                 // Find the connected component containing the nearest segment
@@ -197,7 +210,76 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
                 throw new Exception("There are leftover segments not connected to any root point.");
             }
         }
-        // Find the nearest segment to a given point
+        public void ProjectBuildingsOntoGraph(IEnumerable<BlockReference> buildings)
+        {
+            List<(BlockReference Building,
+                SegmentNode nearestSegment,
+                Point2D projectionPoint)> projections = new();
+
+            foreach (var building in buildings)
+            {
+                // Find the nearest segment in the entire graph
+                var nearestSegment = FindNearestSegment(building.Position.To2D());
+                if (nearestSegment == null)
+                {
+                    throw new Exception($"No segment found near the building {building.Handle}.");
+                }
+                var projectedPoint = nearestSegment.GetNearestPoint(building.Position.To2D());
+
+                projections.Add((building, nearestSegment, projectedPoint));
+            }
+
+            var gps = projections.GroupBy(p => p.nearestSegment);
+
+            foreach (var gp in gps)
+            {
+                var segment = gp.Key;
+
+                // Collect all projected points on this segment
+                var projectedPoints = gp.Select(p => p.projectionPoint).Distinct().ToList();
+
+                // Include start and end points of the segment
+                projectedPoints.Add(segment.StartPoint);
+                projectedPoints.Add(segment.EndPoint);
+
+                // Remove duplicates and sort points along the segment
+                projectedPoints = projectedPoints.Distinct().ToList();
+                if (projectedPoints.Count == 2) continue; //This indicates that only start and end points are left.
+                projectedPoints.Sort((a, b) => segment.GetParameterAtPoint(a).CompareTo(segment.GetParameterAtPoint(b)));
+
+                // Remove the original segment
+                Segments.Remove(segment);
+
+                // Create new segments between consecutive points
+                for (int i = 0; i < projectedPoints.Count - 1; i++)
+                {
+                    var startPt = projectedPoints[i];
+                    var endPt = projectedPoints[i + 1];
+                    var newSegment = new SegmentNode(startPt, endPt);
+
+                    Segments.Add(newSegment);
+                }
+            }
+
+            //Now add the new Building segments to the graph
+            foreach (var (building, nearestSegment, projectedPoint) in projections)
+            {
+                var buildingSegment = new SegmentNode(
+                    building.Position.To2D(), projectedPoint);
+                buildingSegment.IsBuildingConnection = true;
+                buildingSegment.BuildingId = building.Id;
+                Segments.Add(buildingSegment);
+            }
+        }
+        private ConnectedComponent FindComponentContainingSegment(SegmentNode segment)
+        {
+            foreach (var component in ConnectedComponents)
+            {
+                if (component.Segments.Contains(segment))
+                    return component;
+            }
+            return null;
+        }
         public SegmentNode FindNearestSegment(Point2D point)
         {
             return SpatialIndex.FindNearest(point);
@@ -265,6 +347,16 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
                 }
 
                 groupNumber++;
+            }
+        }
+        public IEnumerable<SegmentNode> GetBuildingConnectionSegments()
+        {
+            foreach (var segment in Segments)
+            {
+                if (segment.IsBuildingConnection)
+                {
+                    yield return segment;
+                }
             }
         }
     }
