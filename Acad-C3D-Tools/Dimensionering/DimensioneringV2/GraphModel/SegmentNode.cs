@@ -2,6 +2,7 @@
 using Autodesk.AutoCAD.Geometry;
 using Dimensionering.DimensioneringV2.Geometry;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.Operation.Distance;
 
 using System;
 using System.Collections.Generic;
@@ -12,13 +13,25 @@ using System.Windows.Media.Media3D;
 
 namespace Dimensionering.DimensioneringV2.GraphModelRoads
 {
-    internal class SegmentNode
+    internal class SegmentNode : IBoundable<Envelope, SegmentNode>
     {
         public Point2D StartPoint { get; set; }
         public Point2D EndPoint { get; set; }
         public List<SegmentNode> Neighbors { get; set; }
         public bool IsBuildingConnection { get; internal set; }
         public ObjectId BuildingId { get; internal set; }
+
+        public Envelope Bounds {
+            get
+            {
+                var envelope = new Envelope(StartPoint.X, EndPoint.X, StartPoint.Y, EndPoint.Y);
+                envelope.ExpandToInclude(EndPoint.X, EndPoint.Y);
+                return envelope;
+            }
+        }
+
+        public SegmentNode Item => this;
+
         public SegmentNode(Point2d startPoint, Point2d endPoint)
         {
             StartPoint = new Point2D(startPoint.X, startPoint.Y);
@@ -86,6 +99,31 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
             var pointGeometry = new Point(point.X, point.Y);
             var line = ToLineString();
             return line.Distance(pointGeometry);
+        }
+        public double DistanceToSegment(SegmentNode other, SpatialIndex noCrossIndex)
+        {
+            var line1 = ToLineString();
+            var line2 = other.ToLineString();
+
+            if (noCrossIndex != null)
+            {
+                DistanceOp dOp = new DistanceOp(line1, line2);
+                Coordinate[] closestPt = dOp.NearestPoints();
+                //var nLine = new LineString([closestPt[0], closestPt[1]]);
+                var seg = new SegmentNode(
+                    new Point2D(closestPt[0].X, closestPt[0].Y),
+                    new Point2D(closestPt[1].X, closestPt[1].Y));
+                var nearestNoCross = noCrossIndex.FindNearest(seg.StartPoint);
+                if (nearestNoCross != null)
+                {
+                    if (nearestNoCross.DistanceToSegment(seg, null) == 0)
+                    {
+                        return double.MaxValue;
+                    }
+                }
+            }
+            
+            return line1.Distance(line2);
         }
         public double GetParameterAtPoint(Point2D point)
         {

@@ -1,4 +1,6 @@
 ﻿using Dimensionering.DimensioneringV2.Geometry;
+using Dimensionering.DimensioneringV2.GraphModel;
+
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Index.Strtree;
 
@@ -14,10 +16,13 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
     {
         private STRtree<SegmentNode> rtree;
 
-        public void Insert(List<SegmentNode> segments)
+        public SpatialIndex()
         {
             rtree = new STRtree<SegmentNode>();
+        }
 
+        public void Insert(List<SegmentNode> segments)
+        {
             foreach (var segment in segments)
             {
                 Insert(segment);
@@ -26,50 +31,29 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
 
         public SegmentNode FindNearest(Point2D point)
         {
-            var queryPoint = new Point(point.X, point.Y);
+            // Create a zero-length SegmentNode at the query point
+            var querySegment = new SegmentNode(point, point);
 
-            // Define a small initial search envelope
-            double searchRadius = 1.0; // Adjust as needed based on your coordinate system
+            var itemDistance = new SegmentNodeDistance();
 
-            while (true)
-            {
-                var envelope = new Envelope(
-                    point.X - searchRadius, point.X + searchRadius,
-                    point.Y - searchRadius, point.Y + searchRadius);
+            var nearestSegment = rtree.NearestNeighbour(querySegment.Bounds, querySegment, itemDistance);
 
-                var candidates = rtree.Query(envelope);
-
-                if (candidates.Count > 0)
-                {
-                    // Find the nearest segment among the candidates
-                    SegmentNode nearestSegment = null;
-                    double minDistance = double.MaxValue;
-
-                    foreach (var segment in candidates)
-                    {
-                        double dist = segment.DistanceToPoint(point);
-                        if (dist < minDistance)
-                        {
-                            minDistance = dist;
-                            nearestSegment = segment;
-                        }
-                    }
-
-                    return nearestSegment;
-                }
-
-                // Increase the search radius
-                searchRadius *= 2;
-
-                // Optional: Set a maximum search radius to prevent infinite loops
-                if (searchRadius > 10000) // Adjust based on your data extent
-                {
-                    throw new Exception("No segment found within the maximum search distance.");
-                }
-            }
+            return nearestSegment;
         }
 
-        private void Insert(SegmentNode segment)
+        public SegmentNode FindNearest(Point2D point, SpatialIndex noCrossIndex)
+        {
+            // Create a zero-length SegmentNode at the query point
+            var querySegment = new SegmentNode(point, point);
+
+            var itemDistance = new SegmentNodeDistance(noCrossIndex);
+
+            var nearestSegment = rtree.NearestNeighbour(querySegment.Bounds, querySegment, itemDistance);
+
+            return nearestSegment;
+        }
+
+        public void Insert(SegmentNode segment)
         {
             var line = segment.ToLineString();
             rtree.Insert(line.EnvelopeInternal, segment);

@@ -319,15 +319,16 @@ namespace Dimensionering
                         .Where(x => x.RealName() == cv.BlockSupplyPointName)
                         .Select(x => new Point2D(x.Position.X, x.Position.Y))
                         .ToList();
-
-                    HashSet<BlockReference> brs = localDb.HashSetOfType<BlockReference>(tx, true);
-                    brs = brs
+                    
+                    var brs = localDb.HashSetOfType<BlockReference>(tx, true)
                         .Where(x => cv.AcceptedBlockTypes.Contains(
-                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")))
-                        .ToHashSet();
+                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")));
+
+                    var noCrossLines = localDb.HashSetOfType<Line>(tx)
+                        .Where(x => x.Layer == cv.LayerNoCross);
 
                     var graph = new DimensioneringV2.GraphModelRoads.Graph();
-                    graph.BuildGraph(pls, basePoints, brs);
+                    graph.BuildGraph(pls, basePoints, brs, noCrossLines);
 
                     localDb.CheckOrCreateLayer(cv.LayerConnectionLine, cv.ConnectionLineColor);
 

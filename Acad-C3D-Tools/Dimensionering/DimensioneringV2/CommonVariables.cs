@@ -22,6 +22,8 @@ namespace Dimensionering.DimensioneringV2
         internal static readonly Autodesk.AutoCAD.Colors.Color ConnectionLineColor = 
             IntersectUtilities.UtilsCommon.Utils.ColorByName("yellow");
 
+        internal static readonly string LayerNoCross = "0-NOCROSS_LINE";
+
         internal static readonly string LayerDebugLines = "0-FJV_Debug";
 
         internal static HashSet<string> AcceptedBlockTypes =

@@ -21,6 +21,7 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
     {
         public List<SegmentNode> Segments { get; }
         public SpatialIndex SpatialIndex { get; private set; }
+        public SpatialIndex NoCrossIndex { get; private set; }
         public List<SegmentNode> RootNodes { get; private set; }
         public List<ConnectedComponent> ConnectedComponents { get; private set; }
 
@@ -28,6 +29,7 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
         {
             Segments = new List<SegmentNode>();
             SpatialIndex = new SpatialIndex();
+            NoCrossIndex = new SpatialIndex();
             RootNodes = new List<SegmentNode>();
             ConnectedComponents = new List<ConnectedComponent>();
         }
@@ -36,7 +38,8 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
         public bool BuildGraph(
             IEnumerable<Polyline> polylines,
             IEnumerable<Point2D> rootPoints,
-            IEnumerable<BlockReference> buildings = null
+            IEnumerable<BlockReference> buildings = null,
+            IEnumerable<Line> noCrossLines = null
             )
         {
             // Step 1: Convert polylines to segments
@@ -48,8 +51,13 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
 
             SpatialIndex.Insert(Segments);
 
+            foreach (var line in noCrossLines)
+            {
+                NoCrossIndex.Insert(new SegmentNode(line.StartPoint.To2D(), line.EndPoint.To2D()));
+            }
+
             if (buildings != null)
-                ProjectBuildingsOntoGraph(buildings);
+                ProjectBuildingsOntoGraph(buildings, NoCrossIndex);
 
             BuildNeighbors();
 
@@ -178,7 +186,7 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
 
             foreach (var rootPoint in rootPoints)
             {
-                var nearestSegment = FindNearestSegment(rootPoint);
+                var nearestSegment = FindNearestSegment(rootPoint, null);
 
                 // Find the connected component containing the nearest segment
                 ConnectedComponent component = null;
@@ -234,7 +242,7 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
                 throw new Exception("There are leftover segments not connected to any root point.");
             }
         }
-        public void ProjectBuildingsOntoGraph(IEnumerable<BlockReference> buildings)
+        public void ProjectBuildingsOntoGraph(IEnumerable<BlockReference> buildings, SpatialIndex noCrossIndex)
         {
             List<(BlockReference Building,
                 SegmentNode nearestSegment,
@@ -243,7 +251,7 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
             foreach (var building in buildings)
             {
                 // Find the nearest segment in the entire graph
-                var nearestSegment = FindNearestSegment(building.Position.To2D());
+                var nearestSegment = FindNearestSegment(building.Position.To2D(), noCrossIndex);
                 if (nearestSegment == null)
                 {
                     throw new Exception($"No segment found near the building {building.Handle}.");
@@ -304,9 +312,9 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
             }
             return null;
         }
-        public SegmentNode FindNearestSegment(Point2D point)
+        public SegmentNode FindNearestSegment(Point2D point, SpatialIndex noCrossIndex)
         {
-            return SpatialIndex.FindNearest(point);
+            return SpatialIndex.FindNearest(point, noCrossIndex);
         }
         public IEnumerable<Point2D> GetLeafNodePoints()
         {
