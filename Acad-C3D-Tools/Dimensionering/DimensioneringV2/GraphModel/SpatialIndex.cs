@@ -41,6 +41,15 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
             return nearestSegment;
         }
 
+        public SegmentNode FindNearest(SegmentNode segment)
+        {
+            var itemDistance = new SegmentNodeDistance();
+
+            var nearestSegment = rtree.NearestNeighbour(segment.Bounds, segment, itemDistance);
+
+            return nearestSegment;
+        }
+
         public SegmentNode FindNearest(Point2D point, SpatialIndex noCrossIndex)
         {
             // Create a zero-length SegmentNode at the query point

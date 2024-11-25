@@ -1,6 +1,9 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using Dimensionering.DimensioneringV2.Geometry;
+
+using IntersectUtilities.UtilsCommon;
+
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Operation.Distance;
 
@@ -113,7 +116,13 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
                 var seg = new SegmentNode(
                     new Point2D(closestPt[0].X, closestPt[0].Y),
                     new Point2D(closestPt[1].X, closestPt[1].Y));
-                var nearestNoCross = noCrossIndex.FindNearest(seg.StartPoint);
+
+                //Line line = new Line(
+                //    new Point3d(closestPt[0].X, closestPt[0].Y, 0),
+                //    new Point3d(closestPt[1].X, closestPt[1].Y, 0));
+                //line.AddEntityToDbModelSpace(HostApplicationServices.WorkingDatabase);
+
+                var nearestNoCross = noCrossIndex.FindNearest(seg);
                 if (nearestNoCross != null)
                 {
                     if (nearestNoCross.DistanceToSegment(seg, null) == 0)
