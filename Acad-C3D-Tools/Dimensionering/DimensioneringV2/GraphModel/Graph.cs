@@ -24,6 +24,7 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
         public SpatialIndex NoCrossIndex { get; private set; }
         public List<SegmentNode> RootNodes { get; private set; }
         public List<ConnectedComponent> ConnectedComponents { get; private set; }
+        public Dictionary<Point2D, List<SegmentNode>> PointToSegments { get; private set; }
 
         public Graph()
         {
@@ -118,24 +119,24 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
         private void BuildNeighbors()
         {
             // Create a dictionary to map points to segments for quick lookup
-            var pointToSegments = new Dictionary<Point2D, List<SegmentNode>>(new Point2DEqualityComparer());
+            PointToSegments = new Dictionary<Point2D, List<SegmentNode>>(new Point2DEqualityComparer());
 
             foreach (var segment in Segments)
             {
-                if (!pointToSegments.ContainsKey(segment.StartPoint))
-                    pointToSegments[segment.StartPoint] = new List<SegmentNode>();
-                pointToSegments[segment.StartPoint].Add(segment);
+                if (!PointToSegments.ContainsKey(segment.StartPoint))
+                    PointToSegments[segment.StartPoint] = new List<SegmentNode>();
+                PointToSegments[segment.StartPoint].Add(segment);
 
-                if (!pointToSegments.ContainsKey(segment.EndPoint))
-                    pointToSegments[segment.EndPoint] = new List<SegmentNode>();
-                pointToSegments[segment.EndPoint].Add(segment);
+                if (!PointToSegments.ContainsKey(segment.EndPoint))
+                    PointToSegments[segment.EndPoint] = new List<SegmentNode>();
+                PointToSegments[segment.EndPoint].Add(segment);
             }
 
             // Establish neighbors based on shared points
             foreach (var segment in Segments)
             {
-                var startNeighbors = pointToSegments[segment.StartPoint];
-                var endNeighbors = pointToSegments[segment.EndPoint];
+                var startNeighbors = PointToSegments[segment.StartPoint];
+                var endNeighbors = PointToSegments[segment.EndPoint];
 
                 foreach (var neighbor in startNeighbors)
                 {
