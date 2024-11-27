@@ -11,6 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NetTopologySuite.Features;
+using NetTopologySuite.Geometries;
 
 namespace Dimensionering.DimensioneringV2.GraphFeatures
 {
@@ -19,15 +20,12 @@ namespace Dimensionering.DimensioneringV2.GraphFeatures
         //public static List<UndirectedGraph<FeatureNode, Edge<FeatureNode>>> TranslateGraph(Graph originalGraph)        
         public static List<List<FeatureNode>> TranslateGraph(Graph originalGraph)
         {
-            List<UndirectedGraph<FeatureNode, Edge<FeatureNode>>> translatedGraphs = new();
             List<List<FeatureNode>> allFeatures = new();
 
             HashSet<SegmentNode> visited = new();
 
             foreach (var subgraph in originalGraph.ConnectedComponents)
             {
-                UndirectedGraph<FeatureNode, Edge<FeatureNode>> translatedGraph = new();
-                translatedGraphs.Add(translatedGraph);
                 List<FeatureNode> nodes = new List<FeatureNode>();
 
                 SegmentNode root = subgraph.RootNode;
@@ -143,6 +141,104 @@ namespace Dimensionering.DimensioneringV2.GraphFeatures
             }
 
             return allFeatures;
+        }
+
+        public static List<UndirectedGraph<FeatureNode, Edge<FeatureNode>>> CreateGraphsFromFeatures(
+            List<List<FeatureNode>> allFeatures)
+        {
+
+            #region Mark the root node before making graphs
+            foreach (var list in allFeatures)
+            {
+                foreach (var fn in list)
+                    fn.Attributes.Add("RootNode", false);
+                if (list.Count > 0)
+                    list[0].Attributes["RootNode"] = true;
+            }
+            #endregion
+
+            List<UndirectedGraph<FeatureNode, Edge<FeatureNode>>> graphs = new();
+            Dictionary<Point2D, List<FeatureNode>> pointToFeatureNodes = new(new Point2DEqualityComparer());
+
+            // Initialize feature nodes dictionary for easy lookup
+            foreach (var featureList in allFeatures)
+            {
+                foreach (var featureNode in featureList)
+                {
+                    // Find the start and end points of each linestring in the feature geometry
+                    LineString lineString = (LineString)featureNode.Geometry;
+                    Point2D startPoint = new Point2D(lineString.StartPoint.X, lineString.StartPoint.Y);
+                    Point2D endPoint = new Point2D(lineString.EndPoint.X, lineString.EndPoint.Y);
+
+                    // Add the feature node to the dictionary for both start and end points
+                    if (!pointToFeatureNodes.ContainsKey(startPoint))
+                    {
+                        pointToFeatureNodes[startPoint] = new List<FeatureNode>();
+                    }
+                    pointToFeatureNodes[startPoint].Add(featureNode);
+
+                    if (!pointToFeatureNodes.ContainsKey(endPoint))
+                    {
+                        pointToFeatureNodes[endPoint] = new List<FeatureNode>();
+                    }
+                    pointToFeatureNodes[endPoint].Add(featureNode);
+                }
+            }
+
+            // Create edges and build graphs for each disjoint network
+            foreach (var featureList in allFeatures)
+            {
+                var graph = new UndirectedGraph<FeatureNode, Edge<FeatureNode>>(false);
+                HashSet<FeatureNode> visited = new();
+
+                foreach (var featureNode in featureList)
+                {
+                    if (visited.Contains(featureNode))
+                        continue;
+
+                    Stack<FeatureNode> stack = new();
+                    stack.Push(featureNode);
+
+                    while (stack.Count > 0)
+                    {
+                        var currentNode = stack.Pop();
+                        if (visited.Contains(currentNode))
+                            continue;
+
+                        visited.Add(currentNode);
+                        graph.AddVertex(currentNode);
+
+                        // Find connected nodes and add edges
+                        LineString lineString = (LineString)currentNode.Geometry;
+                        Point2D startPoint = new Point2D(lineString.StartPoint.X, lineString.StartPoint.Y);
+                        Point2D endPoint = new Point2D(lineString.EndPoint.X, lineString.EndPoint.Y);
+
+                        foreach (var point in new[] { startPoint, endPoint })
+                        {
+                            if (pointToFeatureNodes.TryGetValue(point, out var neighborNodes))
+                            {
+                                foreach (var neighborNode in neighborNodes)
+                                {
+                                    if (neighborNode != currentNode && !graph.ContainsEdge(new Edge<FeatureNode>(currentNode, neighborNode)))
+                                    {
+                                        graph.AddVertex(neighborNode);
+                                        graph.AddEdge(new Edge<FeatureNode>(currentNode, neighborNode));
+
+                                        if (!visited.Contains(neighborNode))
+                                        {
+                                            stack.Push(neighborNode);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                graphs.Add(graph);
+            }
+
+            return graphs;
         }
     }
 }
