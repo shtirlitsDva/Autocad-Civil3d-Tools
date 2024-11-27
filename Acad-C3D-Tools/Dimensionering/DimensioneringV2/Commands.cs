@@ -22,6 +22,10 @@ using Dimensionering.DimensioneringV2.GraphModelRoads;
 using Dimensionering.DimensioneringV2.Geometry;
 using IntersectUtilities;
 using Autodesk.AutoCAD.Colors;
+using Dimensionering.DimensioneringV2.GraphFeatures;
+using NetTopologySuite.Features;
+using NetTopologySuite.IO.Esri;
+using System.IO;
 
 namespace Dimensionering
 {
@@ -352,127 +356,65 @@ namespace Dimensionering
             prdDbg("Finished!");
         }
 
-        DBObjectCollection _markers = null;
-
-
-
-        [CommandMethod("Test")]
-        public void TestMethod()
+        [CommandMethod("DIM2TESTFEATURECREATION")]
+        public void dim2testfeaturecreation()
         {
-            Document activeDoc
-                = Application.DocumentManager.MdiActiveDocument;
-            Database db = activeDoc.Database;
-            Editor ed = activeDoc.Editor;
+            DocumentCollection docCol = Application.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
 
-            PromptEntityOptions peo
-                = new PromptEntityOptions("Select a polyline : ");
-
-            peo.SetRejectMessage("Not a polyline");
-            peo.AddAllowedClass
-                (
-                    typeof(Autodesk.AutoCAD.DatabaseServices.Polyline),
-                    true
-                );
-            PromptEntityResult per = ed.GetEntity(peo);
-            if (per.Status != PromptStatus.OK) return;
-
-            ObjectId plOid = per.ObjectId;
-            PromptPointResult ppr =
-                ed.GetPoint
-                (
-                    new PromptPointOptions("Select an internal point : ")
-                );
-
-            if (ppr.Status != PromptStatus.OK) return;
-
-            Point3d testPoint = ppr.Value;
-            PromptAngleOptions pao
-                = new PromptAngleOptions("Specify ray direction");
-
-            pao.BasePoint = testPoint;
-            pao.UseBasePoint = true;
-
-            PromptDoubleResult rayAngle = ed.GetAngle(pao);
-
-            if (rayAngle.Status != PromptStatus.OK) return;
-
-            Point3d tempPoint = testPoint.Add(Vector3d.XAxis);
-            tempPoint
-                = tempPoint.RotateBy(
-                                        rayAngle.Value,
-                                        Vector3d.ZAxis,
-                                        testPoint
-                                    );
-
-            Vector3d rayDir = tempPoint - testPoint;
-            ClearTransientGraphics();
-            _markers = new DBObjectCollection();
-            using (Transaction tr
-                        = db.TransactionManager.StartTransaction())
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
             {
-                Curve plcurve = tr.GetObject(plOid, OpenMode.ForRead) as Curve;
-
-                for (int cnt = 0; cnt < 2; cnt++)
+                try
                 {
-                    if (cnt == 1) rayDir = rayDir.Negate();
-                    using (Ray ray = new Ray())
+                    var pls = localDb.HashSetOfType<Polyline>(tx)
+                        .Where(x => x.Layer == cv.LayerVejmidteTændt)
+                        .ToList();
+
+                    var basePoints = localDb.HashSetOfType<BlockReference>(tx)
+                        .Where(x => x.RealName() == cv.BlockSupplyPointName)
+                        .Select(x => new Point2D(x.Position.X, x.Position.Y))
+                        .ToList();
+
+                    var brs = localDb.HashSetOfType<BlockReference>(tx, true)
+                        .Where(x => cv.AcceptedBlockTypes.Contains(
+                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")));
+
+                    var noCrossLines = localDb.HashSetOfType<Line>(tx)
+                        .Where(x => x.Layer == cv.LayerNoCross);
+
+                    var graph = new DimensioneringV2.GraphModelRoads.Graph();
+                    graph.BuildGraph(pls, basePoints, brs, noCrossLines);
+
+                    var features = GraphTranslator.TranslateGraph(graph);
+
+                    if (features != null)
                     {
-                        ray.BasePoint = testPoint;
-                        ray.UnitDir = rayDir;
+                        FeatureCollection fc = new FeatureCollection(features.SelectMany(x => x));
 
-                        Point3dCollection intersectionPts
-                                            = new Point3dCollection();
+                        Shapefile.WriteAllFeatures(fc, "C:\\Temp\\testfc");
 
-                        plcurve.IntersectWith(
-                                                ray,
-                                                Intersect.OnBothOperands,
-                                                intersectionPts,
-                                                IntPtr.Zero,
-                                                IntPtr.Zero
-                                             );
-
-                        foreach (Point3d pt in intersectionPts)
+                        //Create the projection file
+                        using (var sw = new StreamWriter("C:\\Temp\\testfc.prj"))
                         {
-                            Circle marker
-                                = new Circle(pt, Vector3d.ZAxis, 0.2);
-                            marker.Color = Color.FromRgb(0, 255, 0);
-
-                            _markers.Add(marker);
-                            IntegerCollection intCol
-                                            = new IntegerCollection();
-
-                            Autodesk.AutoCAD.GraphicsInterface.TransientManager tm
-                                = Autodesk.AutoCAD.GraphicsInterface.TransientManager.CurrentTransientManager;
-
-                            tm.AddTransient
-                                (
-                                    marker,
-                                    Autodesk.AutoCAD.GraphicsInterface.TransientDrawingMode.Highlight,
-                                    128,
-                                    intCol
-                                );
-
-                            ed.WriteMessage("\n" + pt.ToString());
-                        }
+                            //sw.Write(ProjNet.CoordinateSystems.ProjectedCoordinateSystem.WGS84_UTM(32, true));
+                            sw.Write(@"PROJCS[""ETRS_1989_UTM_Zone_32N"",GEOGCS[""GCS_ETRS_1989"",DATUM[""D_ETRS_1989"",SPHEROID[""GRS_1980"",6378137.0,298.257222101]],PRIMEM[""Greenwich"",0.0],UNIT[""Degree"",0.0174532925199433]],PROJECTION[""Transverse_Mercator""],PARAMETER[""False_Easting"",500000.0],PARAMETER[""False_Northing"",0.0],PARAMETER[""Central_Meridian"",9.0],PARAMETER[""Scale_Factor"",0.9996],PARAMETER[""Latitude_Of_Origin"",0.0],UNIT[""Meter"",1.0]]");
+                        } 
                     }
-                }
-                tr.Commit();
-            }
-        }
-        void ClearTransientGraphics()
-        {
-            Autodesk.AutoCAD.GraphicsInterface.TransientManager tm
-                    = Autodesk.AutoCAD.GraphicsInterface.TransientManager.CurrentTransientManager;
 
-            IntegerCollection intCol = new IntegerCollection();
-            if (_markers != null)
-            {
-                foreach (DBObject marker in _markers)
-                {
-                    tm.EraseTransient(marker, intCol);
-                    marker.Dispose();
                 }
+                catch (System.Exception ex)
+                {
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
             }
+
+            prdDbg("Finished!");
         }
+
     }
 }

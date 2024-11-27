@@ -33,6 +33,7 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
             NoCrossIndex = new SpatialIndex();
             RootNodes = new List<SegmentNode>();
             ConnectedComponents = new List<ConnectedComponent>();
+            PointToSegments = new Dictionary<Point2D, List<SegmentNode>>(new Point2DEqualityComparer());
         }
 
         // Method to build the graph from polylines
@@ -61,6 +62,8 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
                 ProjectBuildingsOntoGraph(buildings, NoCrossIndex);
 
             BuildNeighbors();
+
+            if (buildings != null) PruneNonBuildingLeafNodes();
 
             // Identify connected components in the graph
             // Each connected component will be a separate network
@@ -99,6 +102,47 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
             return true;
         }
 
+        private void PruneNonBuildingLeafNodes()
+        {
+            // Initialize a stack for nodes that need to be processed.
+            var nodesToProcess = new Stack<KeyValuePair<Point2D, List<SegmentNode>>>();
+
+            // Find all initial non-building leaf nodes and add them to the stack.
+            foreach (KeyValuePair<Point2D, List<SegmentNode>> kvp in PointToSegments.Where(kvp => kvp.Value.Count == 1 && !kvp.Value[0].IsBuildingConnection))
+            {
+                nodesToProcess.Push(kvp);
+            }
+
+            // Process the stack until no more nodes are left to prune.
+            while (nodesToProcess.Count > 0)
+            {
+                var kvp = nodesToProcess.Pop();
+                var nodeToRemove = kvp.Value[0];
+
+                // Remove the leaf node from the dictionary.
+                Segments.Remove(nodeToRemove);
+                PointToSegments.Remove(kvp.Key);
+
+                foreach (var n in nodeToRemove.Neighbors)
+                {
+                    n.Neighbors.Remove(nodeToRemove);
+                }
+
+                if (nodeToRemove.Neighbors.Count > 1) //Junction reached
+                {
+                    foreach (var list in PointToSegments.Values)
+                    {
+                        if (list.Contains(nodeToRemove))
+                        {
+                            list.Remove(nodeToRemove);
+                        }
+                    }
+                }
+
+                
+            }
+        }
+
         // Convert a polyline to a list of segments
         private List<SegmentNode> ConvertPolylineToSegments(Polyline polyline)
         {
@@ -118,9 +162,6 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
         // Build neighbor relationships between segments
         private void BuildNeighbors()
         {
-            // Create a dictionary to map points to segments for quick lookup
-            PointToSegments = new Dictionary<Point2D, List<SegmentNode>>(new Point2DEqualityComparer());
-
             foreach (var segment in Segments)
             {
                 if (!PointToSegments.ContainsKey(segment.StartPoint))
@@ -303,15 +344,6 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
                 buildingSegment.BuildingId = building.Id;
                 Segments.Add(buildingSegment);
             }
-        }
-        private ConnectedComponent FindComponentContainingSegment(SegmentNode segment)
-        {
-            foreach (var component in ConnectedComponents)
-            {
-                if (component.Segments.Contains(segment))
-                    return component;
-            }
-            return null;
         }
         public SegmentNode FindNearestSegment(Point2D point, SpatialIndex noCrossIndex)
         {

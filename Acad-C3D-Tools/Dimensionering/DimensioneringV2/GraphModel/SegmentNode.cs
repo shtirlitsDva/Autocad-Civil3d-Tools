@@ -23,7 +23,6 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
         public List<SegmentNode> Neighbors { get; set; }
         public bool IsBuildingConnection { get; internal set; }
         public ObjectId BuildingId { get; internal set; }
-
         public Envelope Bounds {
             get
             {
@@ -32,9 +31,7 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
                 return envelope;
             }
         }
-
         public SegmentNode Item => this;
-
         public SegmentNode(Point2d startPoint, Point2d endPoint)
         {
             StartPoint = new Point2D(startPoint.X, startPoint.Y);
@@ -163,6 +160,10 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
             double closestY = StartPoint.Y + t * dy;
 
             return new Point2D(closestX, closestY);
+        }
+        public override string ToString()
+        {
+            return $"Start:\n{StartPoint}\nEnd:\n{EndPoint}";
         }
     }
 }

@@ -20,14 +20,12 @@ namespace Dimensionering.DimensioneringV2.Geometry
             X = x;
             Y = y;
         }
-
         public double DistanceSquaredTo(Point2D other)
         {
             double dx = X - other.X;
             double dy = Y - other.Y;
             return dx * dx + dy * dy;
         }
-
         public override bool Equals(object obj)
         {
             if (obj is Point2D other)
@@ -36,7 +34,6 @@ namespace Dimensionering.DimensioneringV2.Geometry
             }
             return false;
         }
-
         public override int GetHashCode()
         {
             unchecked
@@ -52,12 +49,14 @@ namespace Dimensionering.DimensioneringV2.Geometry
                 return hash;
             }
         }
-
         public Point2d To2d() => new Point2d(X, Y);
         public Point3d To3d() => new Point3d(X, Y, 0);
-
         // Implement == and != operators
         public static bool operator ==(Point2D p1, Point2D p2) => p1.Equals(p2);
         public static bool operator !=(Point2D p1, Point2D p2) => !p1.Equals(p2);
+        public override string ToString()
+        {
+            return $"X: {X}\nY: {Y}";
+        }
     }
 }
