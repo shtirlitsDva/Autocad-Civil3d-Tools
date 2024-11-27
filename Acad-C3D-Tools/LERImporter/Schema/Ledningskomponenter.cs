@@ -127,7 +127,16 @@ namespace LERImporter.Schema
             return creator.CreateEntity(database);
         }
     }
-    public partial class OliekomponentType : LedningskomponentType { }
+    public partial class OliekomponentType : LedningskomponentType, ILerKomponent
+    {
+        [PsInclude]
+        public string Type { get => this?.type ?? "Ukendt"; }
+        public Oid DrawComponent(Database database)
+        {
+            IEntityCreator creator = this.geometri.Item as IEntityCreator;
+            return creator.CreateEntity(database);
+        }
+    }
     public partial class GaskomponentType : LedningskomponentType, ILerKomponent
     {
         [PsInclude]

@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 
 using IntersectUtilities.UtilsCommon;
 using static IntersectUtilities.UtilsCommon.Utils;
+using dbg = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
 using System.Windows.Forms;
 
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
@@ -406,6 +407,16 @@ namespace Dimensionering
                 }
                 catch (System.Exception ex)
                 {
+                    if (ex is ArgumentException argex)
+                    {
+                        if (argex.Message.Contains("DBG"))
+                        {
+                            prdDbg(argex.Message);
+                            tx.Commit();
+                            return;
+                        }
+                    }
+
                     prdDbg(ex);
                     tx.Abort();
                     return;

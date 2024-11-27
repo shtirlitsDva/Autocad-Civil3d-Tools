@@ -63,6 +63,8 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
 
             BuildNeighbors();
 
+            MarkRootSegmentsAsSuch(rootPoints);
+
             if (buildings != null) PruneNonBuildingLeafNodes();
 
             // Identify connected components in the graph
@@ -104,32 +106,32 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
 
         private void PruneNonBuildingLeafNodes()
         {
-            // Initialize a stack for nodes that need to be processed.
-            var nodesToProcess = new Stack<KeyValuePair<Point2D, List<SegmentNode>>>();
-
-            // Find all initial non-building leaf nodes and add them to the stack.
-            foreach (KeyValuePair<Point2D, List<SegmentNode>> kvp in PointToSegments.Where(kvp => kvp.Value.Count == 1 && !kvp.Value[0].IsBuildingConnection))
-            {
-                nodesToProcess.Push(kvp);
-            }
-
             // Process the stack until no more nodes are left to prune.
-            while (nodesToProcess.Count > 0)
+            while (PointToSegments.Where(
+                kvp => kvp.Value.Count == 1 && 
+                !kvp.Value[0].IsBuildingConnection &&
+                !kvp.Value[0].IsRoot)
+                .Count() > 0)
             {
-                var kvp = nodesToProcess.Pop();
-                var nodeToRemove = kvp.Value[0];
+                var query = PointToSegments.Where(
+                    kvp => kvp.Value.Count == 1 &&
+                    !kvp.Value[0].IsBuildingConnection &&
+                    !kvp.Value[0].IsRoot
+                    ).ToList();
 
-                // Remove the leaf node from the dictionary.
-                Segments.Remove(nodeToRemove);
-                PointToSegments.Remove(kvp.Key);
-
-                foreach (var n in nodeToRemove.Neighbors)
+                foreach (var kvp in query)
                 {
-                    n.Neighbors.Remove(nodeToRemove);
-                }
+                    var nodeToRemove = kvp.Value[0];
 
-                if (nodeToRemove.Neighbors.Count > 1) //Junction reached
-                {
+                    // Remove the leaf node from the dictionary.
+                    Segments.Remove(nodeToRemove);
+                    PointToSegments.Remove(kvp.Key);
+
+                    foreach (var n in nodeToRemove.Neighbors)
+                    {
+                        n.Neighbors.Remove(nodeToRemove);
+                    }
+
                     foreach (var list in PointToSegments.Values)
                     {
                         if (list.Contains(nodeToRemove))
@@ -138,8 +140,6 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
                         }
                     }
                 }
-
-                
             }
         }
 
@@ -220,6 +220,14 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
 
                 foreach (var neighbor in node.Neighbors)
                     if (!visited.Contains(neighbor)) stack.Push(neighbor);
+            }
+        }
+        private void MarkRootSegmentsAsSuch(IEnumerable<Point2D> rootPoints)
+        {
+            foreach (var rootPoint in rootPoints)
+            {
+                var nearestSegment = FindNearestSegment(rootPoint, null);
+                nearestSegment.IsRoot = true;
             }
         }
         private void MapRootPointsToComponents(IEnumerable<Point2D> rootPoints)
@@ -423,6 +431,10 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
                     yield return segment;
                 }
             }
+        }
+        public int GetPointDegree(Point2D point)
+        {
+            return PointToSegments[point].Count;
         }
     }
 }

@@ -3,6 +3,8 @@ using Autodesk.AutoCAD.Geometry;
 using Dimensionering.DimensioneringV2.Geometry;
 
 using IntersectUtilities.UtilsCommon;
+using dbg = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
+using utils = IntersectUtilities.UtilsCommon.Utils;
 
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Operation.Distance;
@@ -32,6 +34,9 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
             }
         }
         public SegmentNode Item => this;
+
+        public bool IsRoot { get; internal set; }
+
         public SegmentNode(Point2d startPoint, Point2d endPoint)
         {
             StartPoint = new Point2D(startPoint.X, startPoint.Y);
@@ -164,6 +169,44 @@ namespace Dimensionering.DimensioneringV2.GraphModelRoads
         public override string ToString()
         {
             return $"Start:\n{StartPoint}\nEnd:\n{EndPoint}";
+        }
+        public string Print()
+        {
+            return $"n: {Neighbors.Count}";
+        }
+        public Point2D GetOtherEnd(Point2D point)
+        {
+            if (point.Equals(StartPoint))
+            {
+                return EndPoint;
+            }
+            else if (point.Equals(EndPoint))
+            {
+                return StartPoint;
+            }
+            else
+            {
+                dbg.CreateDebugLine(
+                    StartPoint.To3d(), utils.ColorByName("red"));
+                dbg.CreateDebugLine(
+                    EndPoint.To3d(), utils.ColorByName("red"));
+                dbg.CreateDebugLine(
+                    point.To3d(), utils.ColorByName("blue"));
+                throw new ArgumentException("DBG: Point is not an end of the segment");
+            }
+        }
+        public bool HasPoint(Point2D point)
+        {
+            return StartPoint.Equals(point) || EndPoint.Equals(point);
+        }
+        public void MakePointStart(Point2D point)
+        {
+            if (EndPoint.Equals(point))
+            {
+                var temp = StartPoint;
+                StartPoint = EndPoint;
+                EndPoint = temp;
+            }
         }
     }
 }

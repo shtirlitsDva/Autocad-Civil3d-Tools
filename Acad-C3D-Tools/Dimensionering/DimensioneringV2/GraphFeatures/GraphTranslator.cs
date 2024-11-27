@@ -31,90 +31,111 @@ namespace Dimensionering.DimensioneringV2.GraphFeatures
                 List<FeatureNode> nodes = new List<FeatureNode>();
 
                 SegmentNode root = subgraph.RootNode;
+                Point2D ep;
+                var degree = originalGraph.GetPointDegree(root.StartPoint);
+                if (degree == 1) ep = root.StartPoint;
+                else ep = root.EndPoint;
 
-                Stack<SegmentNode> stack = new();
-                stack.Push(root); // seed the stack with the root node
+                //dbg.CreateDebugLine(ep.To3d(), utils.ColorByName("green"));
+
+                Stack <(SegmentNode seg, Point2D entry)> stack = new();
+                stack.Push((root, ep)); // seed the stack with the root node
 
                 List<SegmentNode> originalNodes = new();
                 bool startNew = false;
 
                 while (stack.Count > 0)
                 {
-                    SegmentNode node = stack.Pop();
+                    var node = stack.Pop();
 
-                    if (visited.Contains(node)) continue;
-                    visited.Add(node);
+                    if (visited.Contains(node.seg)) continue;
+                    visited.Add(node.seg);
 
                     if (startNew)
                     {
                         originalNodes = new();
                         startNew = false;
                     }
+                    originalNodes.Add(node.seg);
 
-                    int degree = node.Neighbors.Count;
+                    node.seg.MakePointStart(node.entry);
+                    Point2D exitPt = node.seg.GetOtherEnd(node.entry);
+                    degree = originalGraph.GetPointDegree(exitPt);
 
                     switch (degree)
                     {
-                        case 1:
+                        case 1: //Reached a leafnode
                             {
-                                originalNodes.Add(node);
-                                stack.Push(node.Neighbors[0]);
-                                continue;
-                            }
-                        case 2:
-                            {
-                                originalNodes.Add(node);
-                                SegmentNode neighbor1 = node.Neighbors[0];
-                                SegmentNode neighbor2 = node.Neighbors[1];
-                                if (!visited.Contains(neighbor1)) stack.Push(neighbor1);
-                                if (!visited.Contains(neighbor2)) stack.Push(neighbor2);
-                                continue;
-                            }
-                        case >= 3:
-                            {
-                                originalNodes.Add(node);
-                                foreach (SegmentNode neighbor in node.Neighbors)
-                                {
-                                    if (!visited.Contains(neighbor))
-                                    {
-                                        stack.Push(neighbor);
-                                    }
-                                }
-
-                                var lines = originalNodes.Select(n => n.ToLineString());
-                                var merger = new NetTopologySuite.Operation.Linemerge.LineMerger();
-                                merger.Add(lines);
-                                var merged = merger.GetMergedLineStrings();
-                                if (merged.Count > 1)
-                                {
-                                    dbg.CreateDebugLine(
-                                        originalNodes[0].StartPoint.To3d(), utils.ColorByName("red"));
-                                    foreach (var item in originalNodes)
-                                    {
-                                        dbg.CreateDebugLine(
-                                            item.EndPoint.To3d(), utils.ColorByName("red"));
-                                    }
-                                    utils.prdDbg("Merging returned multiple linestrings!");
-                                    return null;
-                                }
-
-                                FeatureNode fn = new FeatureNode(
-                                    merged.First(), new AttributesTable());
-                                nodes.Add(fn);
-
                                 startNew = true;
-                                continue;
+                                break;
+                            }
+                        case 2: //Intermediate node
+                            {
+                                foreach (SegmentNode neighbor in node.seg.Neighbors)
+                                {
+                                    if (!visited.Contains(neighbor) && neighbor.HasPoint(exitPt))
+                                    {
+                                        stack.Push((neighbor, exitPt));
+                                    }
+                                }
+                                break;
+                            }
+                        case > 2:
+                            {
+                                foreach (SegmentNode neighbor in node.seg.Neighbors)
+                                {
+                                    if (!visited.Contains(neighbor) && neighbor.HasPoint(exitPt))
+                                    {
+                                        stack.Push((neighbor, exitPt));
+                                    }
+                                }
+                                startNew = true;
+                                break;
                             }
                         case 0:
                             {
                                 dbg.CreateDebugLine(
-                                    node.StartPoint.To3d(), utils.ColorByName("red"));
+                                    node.seg.StartPoint.To3d(), utils.ColorByName("red"));
                                 dbg.CreateDebugLine(
-                                    node.EndPoint.To3d(), utils.ColorByName("red"));
-                                utils.prdDbg("Node has no neighbours!\n" +
+                                    node.seg.EndPoint.To3d(), utils.ColorByName("red"));
+                                utils.prdDbg("Point has degree 0!\n" +
                                     $"{node.ToString()}");
                                 return null;
                             }
+                    }
+
+                    if (startNew)
+                    {
+                        var lines = originalNodes.Select(n => n.ToLineString()).ToList();
+                        NetTopologySuite.Geometries.Geometry geometry;
+                        if (lines.Count > 1)
+                        {
+                            var merger = new NetTopologySuite.Operation.Linemerge.LineMerger();
+                            merger.Add(lines);
+                            var merged = merger.GetMergedLineStrings();
+
+                            if (merged.Count > 1)
+                            {
+
+                                foreach (var item in originalNodes)
+                                {
+                                    dbg.CreateDebugLine(
+                                        item.StartPoint.To3d(), utils.ColorByName("red"));
+                                    dbg.CreateDebugLine(
+                                        item.EndPoint.To3d(), utils.ColorByName("cyan"));
+                                }
+                                utils.prdDbg("Merging returned multiple linestrings!");
+                                return new List<List<FeatureNode>>() { nodes };
+                            }
+                            geometry = merged[0];
+                            //geometry = sequenced;
+                        }
+                        else geometry = lines[0];
+
+
+                        FeatureNode fn = new FeatureNode(
+                                geometry, new AttributesTable());
+                        nodes.Add(fn);
                     }
                 }
 
