@@ -20,7 +20,7 @@
 	</PropertyGroup>
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-		<AssemblyName>DimensioneringV2</AssemblyName>
+		<AssemblyName>wafopogo.pes</AssemblyName>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>
