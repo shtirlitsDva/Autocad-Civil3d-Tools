@@ -30,10 +30,13 @@ using System.IO;
 using DimensioneringV2.UI;
 using Dreambuild.AutoCAD;
 
+[assembly: CommandClass(typeof(DimensioneringV2.Commands))]
+
 namespace DimensioneringV2
 {
-    public partial class Commands : IExtensionApplication
+    public class Commands : IExtensionApplication
     {
+        #region IExtensionApplication members
         public void Initialize()
         {
             Document doc = AcApp.DocumentManager.MdiActiveDocument;
@@ -47,8 +50,8 @@ namespace DimensioneringV2
         public void Terminate()
         {
             //Add your termination code here
-        }
-
+        } 
+        #endregion
 
         private static double tol = DimensioneringV2.Tolerance.Default;
 
@@ -445,11 +448,13 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
-        [CommandMethod("DIM2SHOWMAPWINDOW")]
-        public static void dim2showmapwindow()
+        static CustomPaletteSet paletteSet;
+
+        [CommandMethod("DIM2MAP")]
+        public static void dim2map()
         {
-            var window = new MainWindow();
-            AcApp.ShowModelessWindow(window);
+            if (paletteSet == null) paletteSet = new CustomPaletteSet();
+            paletteSet.Visible = true;
         }
     }
 }

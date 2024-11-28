@@ -10,20 +10,17 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
 using System.Windows.Shapes;
-
-using Mapsui.UI.Wpf;
-using Autodesk.AutoCAD.Runtime;
-using Autodesk.AutoCAD.ApplicationServices;
 
 namespace DimensioneringV2.UI
 {
     /// <summary>
-    /// Interaction logic for MainWindow.xaml
+    /// Interaction logic for SettingsTab.xaml
     /// </summary>
-    public partial class MainWindow : UserControl
+    public partial class SettingsTab : UserControl
     {
-        public MainWindow()
+        public SettingsTab()
         {
             InitializeComponent();
         }
