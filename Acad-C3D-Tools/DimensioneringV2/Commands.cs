@@ -16,7 +16,7 @@ using static IntersectUtilities.UtilsCommon.Utils;
 using dbg = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
 using System.Windows.Forms;
 
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
 using cv = DimensioneringV2.CommonVariables;
 using Autodesk.AutoCAD.Geometry;
 using DimensioneringV2.GraphModelRoads;
@@ -27,6 +27,8 @@ using DimensioneringV2.GraphFeatures;
 using NetTopologySuite.Features;
 using NetTopologySuite.IO.Esri;
 using System.IO;
+using DimensioneringV2.UI;
+using Dreambuild.AutoCAD;
 
 namespace DimensioneringV2
 {
@@ -51,7 +53,7 @@ namespace DimensioneringV2
         [CommandMethod("DIM2INTERSECTVEJMIDTE")]
         public void dim2intersectvejmidte()
         {
-            DocumentCollection docCol = Application.DocumentManager;
+            DocumentCollection docCol = AcApp.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
@@ -115,7 +117,7 @@ namespace DimensioneringV2
         [CommandMethod("DIM2MARKENDPOINTS")]
         public void dim2markendpoints()
         {
-            DocumentCollection docCol = Application.DocumentManager;
+            DocumentCollection docCol = AcApp.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
@@ -221,7 +223,7 @@ namespace DimensioneringV2
         [CommandMethod("DIM2TESTNAMING")]
         public void dim2testnaming()
         {
-            DocumentCollection docCol = Application.DocumentManager;
+            DocumentCollection docCol = AcApp.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
@@ -271,7 +273,7 @@ namespace DimensioneringV2
         [CommandMethod("DIM2TESTROOTNODE")]
         public void dim2testrootnode()
         {
-            DocumentCollection docCol = Application.DocumentManager;
+            DocumentCollection docCol = AcApp.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
@@ -312,7 +314,7 @@ namespace DimensioneringV2
         [CommandMethod("DIM2DRAWBUILDINGSEGMENTS")]
         public void dim2drawbuildingsegments()
         {
-            DocumentCollection docCol = Application.DocumentManager;
+            DocumentCollection docCol = AcApp.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
@@ -374,7 +376,7 @@ namespace DimensioneringV2
         [CommandMethod("DIM2TESTFEATURECREATION")]
         public void dim2testfeaturecreation()
         {
-            DocumentCollection docCol = Application.DocumentManager;
+            DocumentCollection docCol = AcApp.DocumentManager;
             Database localDb = docCol.MdiActiveDocument.Database;
             Editor editor = docCol.MdiActiveDocument.Editor;
             Document doc = docCol.MdiActiveDocument;
@@ -439,6 +441,13 @@ namespace DimensioneringV2
             }
 
             prdDbg("Finished!");
+        }
+
+        [CommandMethod("SHOWMAPWINDOW")]
+        public static void ShowMapWindow()
+        {
+            var window = new MainWindow();
+            AcApp.ShowModelessWindow(window);
         }
     }
 }

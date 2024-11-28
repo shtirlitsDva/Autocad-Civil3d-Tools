@@ -17,6 +17,7 @@
 	</PropertyGroup>
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
+		<AssemblyName>DimensioneringV2</AssemblyName>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>
@@ -138,15 +139,16 @@
 		</Compile>
 	</ItemGroup>
 	<ItemGroup>
+		<PackageReference Include="Mapsui.Wpf" Version="4.1.8" />
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="NetTopologySuite" Version="2.5.0" />
 		<PackageReference Include="NetTopologySuite.Features" Version="2.2.0" />
 		<PackageReference Include="NetTopologySuite.IO.Esri.Shapefile" Version="1.2.0" />
 		<PackageReference Include="NetTopologySuite.IO.GeoJSON" Version="4.0.0" />
 		<PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
-		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
-		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
-		<PackageReference Include="System.Text.Json" Version="8.0.5" />
+		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.0" />
+		<PackageReference Include="System.Text.Encodings.Web" Version="9.0.0" />
+		<PackageReference Include="System.Text.Json" Version="9.0.0" />
 		<PackageReference Include="QuikGraph" Version="2.5.0" />
 		<PackageReference Include="QuikGraph.Graphviz" Version="2.5.0" />
 	</ItemGroup>
