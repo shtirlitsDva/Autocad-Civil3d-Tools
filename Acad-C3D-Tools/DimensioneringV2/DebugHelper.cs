@@ -10,7 +10,7 @@ namespace DimensioneringV2
 #if DEBUG
         public static Assembly Debug_AssemblyResolve(object sender, ResolveEventArgs args)
         {
-            string assemblyFolder = @"X:\GitHub\shtirlitsDva\Autocad-Civil3d-Tools\Acad-C3D-Tools\Dimensionering\bin\Debug";
+            string assemblyFolder = @"X:\GitHub\shtirlitsDva\Autocad-Civil3d-Tools\Acad-C3D-Tools\DimensioneringV2\bin\Debug";
             prdDbg($"Asked for assembly: {args.Name}!");
 
             var name = args.Name.Split(',')[0];
