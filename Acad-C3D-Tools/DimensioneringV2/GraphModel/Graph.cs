@@ -13,7 +13,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using  cv = DimensioneringV2.DimensioneringV2.CommonVariables;
+using  cv = DimensioneringV2.CommonVariables;
 
 namespace DimensioneringV2.GraphModelRoads
 {
