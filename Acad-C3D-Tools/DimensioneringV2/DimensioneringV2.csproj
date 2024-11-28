@@ -17,6 +17,9 @@
 	</PropertyGroup>
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
+	</PropertyGroup>
+	<PropertyGroup>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<AssemblyName>DimensioneringV2</AssemblyName>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
@@ -145,6 +148,7 @@
 		<PackageReference Include="NetTopologySuite.Features" Version="2.2.0" />
 		<PackageReference Include="NetTopologySuite.IO.Esri.Shapefile" Version="1.2.0" />
 		<PackageReference Include="NetTopologySuite.IO.GeoJSON" Version="4.0.0" />
+		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
 		<PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.0" />
 		<PackageReference Include="System.Text.Encodings.Web" Version="9.0.0" />
@@ -157,6 +161,19 @@
 	</ItemGroup>
 	<ItemGroup>
 		<Folder Include="Links\" />
+	</ItemGroup>
+	<ItemGroup>
+		<Compile Update="Properties\Settings.Designer.cs">
+			<DesignTimeSharedInput>True</DesignTimeSharedInput>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Settings.settings</DependentUpon>
+		</Compile>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="Properties\Settings.settings">
+			<Generator>SettingsSingleFileGenerator</Generator>
+			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
+		</None>
 	</ItemGroup>
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 </Project>
