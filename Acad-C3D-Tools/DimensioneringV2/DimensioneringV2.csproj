@@ -101,6 +101,44 @@
 		</Reference>
 	</ItemGroup>
 	<ItemGroup>
+		<Compile Include="..\IntersectUtilities\PropertySetManager.cs">
+			<Link>Links\PropertySetManager.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\ComponentSchedule.cs">
+			<Link>Links\ComponentSchedule.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\CsvReader.cs">
+			<Link>Links\CsvReader.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\GroupByCluster.cs">
+			<Link>Links\GroupByCluster.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Json.cs">
+			<Link>Links\Json.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\MoreLinq\DistinctBy.cs">
+			<Link>Links\MoreLinq\DistinctBy.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\MoreLinq\MoreLinq.cs">
+			<Link>Links\MoreLinq.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\PipeScheduleV2\PipeScheduleV2.cs">
+			<Link>Links\PipeScheduleV2\PipeScheduleV2.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\StringGridFormCaller.cs">
+			<Link>Links\Forms\StringGridFormCaller.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.cs">
+			<Link>Links\Forms\StringGridForm.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\StringGridForm.Designer.cs">
+			<Link>Links\Forms\StringGridForm.Designer.cs</Link>
+		</Compile>
+		<Compile Include="..\IntersectUtilities\Forms\OverlayForm.cs">
+			<Link>Links\Forms\OverlayForm.cs</Link>
+		</Compile>
+	</ItemGroup>
+	<ItemGroup>
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="NetTopologySuite" Version="2.5.0" />
 		<PackageReference Include="NetTopologySuite.Features" Version="2.2.0" />
@@ -115,6 +153,9 @@
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\AutoCADCommands\AutoCADCommands.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<Folder Include="Links\" />
 	</ItemGroup>
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
 

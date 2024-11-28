@@ -440,6 +440,5 @@ namespace DimensioneringV2
 
             prdDbg("Finished!");
         }
-
     }
 }
