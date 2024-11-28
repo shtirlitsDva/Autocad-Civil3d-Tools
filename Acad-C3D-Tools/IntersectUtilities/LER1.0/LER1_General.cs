@@ -188,8 +188,8 @@ namespace IntersectUtilities
 
                         Polyline pline = new Polyline(2);
 
-                        pline.AddVertexAt(pline.NumberOfVertices, line.StartPoint.To2D(), 0, 0, 0);
-                        pline.AddVertexAt(pline.NumberOfVertices, line.EndPoint.To2D(), 0, 0, 0);
+                        pline.AddVertexAt(pline.NumberOfVertices, line.StartPoint.To2d(), 0, 0, 0);
+                        pline.AddVertexAt(pline.NumberOfVertices, line.EndPoint.To2d(), 0, 0, 0);
                         pline.AddEntityToDbModelSpace(localDb);
 
                         pline.Layer = line.Layer;
@@ -240,7 +240,7 @@ namespace IntersectUtilities
 
                         foreach (var vert in verts)
                         {
-                            pline.AddVertexAt(pline.NumberOfVertices, vert.Position.To2D(), 0, 0, 0);
+                            pline.AddVertexAt(pline.NumberOfVertices, vert.Position.To2d(), 0, 0, 0);
                         }
 
                         pline.AddEntityToDbModelSpace(localDb);

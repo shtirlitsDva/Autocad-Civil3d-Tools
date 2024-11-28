@@ -114,7 +114,7 @@ namespace IntersectUtilities
                                 for (int i = 0; i < vertici.Length; i++)
                                 {
                                     newPline.AddVertexAt(
-                                        newPline.NumberOfVertices, vertici[i].Position.To2D(), 0, 0, 0);
+                                        newPline.NumberOfVertices, vertici[i].Position.To2d(), 0, 0, 0);
                                 }
 
                                 newPline.AddEntityToDbModelSpace(ler2dDb);

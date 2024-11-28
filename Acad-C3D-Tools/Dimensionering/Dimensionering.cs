@@ -2590,7 +2590,7 @@ namespace IntersectUtilities.Dimensionering
                         {
                             for (int i = 0; i < nd.Self.NumberOfVertices; i++)
                             {
-                                pts.Add(nd.Self.GetPoint3dAt(i).To2D());
+                                pts.Add(nd.Self.GetPoint3dAt(i).To2d());
                             }
                         }
 

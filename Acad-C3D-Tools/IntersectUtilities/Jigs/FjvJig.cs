@@ -336,7 +336,7 @@ namespace IntersectUtilities
                                                 pl.NumberOfVertices - 3);
 
                                             double angle = JigUtils.ComputeAngle(
-                                                lastVertex, intP.To3D(),
+                                                lastVertex, intP.To3d(),
                                                 JigUtils.GetRefDir(pl, lastVertex, 4), _ucs);
 
                                             // Bulge is defined as tan of one fourth of included angle

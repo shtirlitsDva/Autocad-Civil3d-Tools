@@ -2352,7 +2352,7 @@ namespace IntersectUtilities.UtilsCommon
 
             return vertices.ToArray();
         }
-        public static Point3d To3D(this Point2d p2d, double Z = 0.0) => new Point3d(p2d.X, p2d.Y, Z);
+        public static Point3d To3d(this Point2d p2d, double Z = 0.0) => new Point3d(p2d.X, p2d.Y, Z);
         /// <summary>
         /// 2D key for use in dictionaries for faster points lookup.
         /// </summary>
@@ -2360,7 +2360,7 @@ namespace IntersectUtilities.UtilsCommon
         /// <param name="precision">Precision to which truncate the double. Default 1000.0 gives millimeter precision.</param>
         public static (long, long) Get2DKey(this Point3d p3d, double precision = 1000.0) =>
             ((long)(p3d.X * precision), (long)(p3d.Y * precision));
-        public static Point2d To2D(this Point3d p3d) => new Point2d(p3d.X, p3d.Y);
+        public static Point2d To2d(this Point3d p3d) => new Point2d(p3d.X, p3d.Y);
         /// <summary>
         /// Order of returned coordinates explained here:
         /// https://macwright.com/lonlat/
@@ -2420,7 +2420,7 @@ namespace IntersectUtilities.UtilsCommon
         /// </summary>
         /// <param name="latlon">If false, reverses the returned array to lon, lat.</param
         public static double[] ToWGS84FromUtm32N(this Point2d p, bool latlon = true) =>
-            ToWGS84FromUtm32N(p.To3D(), latlon);
+            ToWGS84FromUtm32N(p.To3d(), latlon);
         public static bool IsOnCurve(this Point3d pt, Curve cv, double tol)
         {
             try

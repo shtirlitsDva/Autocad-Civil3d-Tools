@@ -17,13 +17,13 @@ using dbg = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
 using System.Windows.Forms;
 
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using cv = DimensioneringV2.DimensioneringV2.CommonVariables;
+using cv = DimensioneringV2.CommonVariables;
 using Autodesk.AutoCAD.Geometry;
-using DimensioneringV2.DimensioneringV2.GraphModelRoads;
-using DimensioneringV2.DimensioneringV2.Geometry;
+using DimensioneringV2.GraphModelRoads;
+using DimensioneringV2.Geometry;
 using IntersectUtilities;
 using Autodesk.AutoCAD.Colors;
-using DimensioneringV2.DimensioneringV2.GraphFeatures;
+using DimensioneringV2.GraphFeatures;
 using NetTopologySuite.Features;
 using NetTopologySuite.IO.Esri;
 using System.IO;
@@ -96,7 +96,7 @@ namespace DimensioneringV2
                         if ((param - index) > tol)
                         {
                             pl.CheckOrOpenForWrite();
-                            pl.AddVertexAt(index + 1, pt.To2D(), 0, 0, 0);
+                            pl.AddVertexAt(index + 1, pt.To2d(), 0, 0, 0);
                         }
                     }
                 }

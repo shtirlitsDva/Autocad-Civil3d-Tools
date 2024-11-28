@@ -125,7 +125,7 @@ namespace LERImporter.Schema
             Polyline polyline = new Polyline(points.Length);
 
             for (int i = 0; i < points.Length; i++)
-                polyline.AddVertexAt(polyline.NumberOfVertices, points[i].To2D(), 0, 0, 0);
+                polyline.AddVertexAt(polyline.NumberOfVertices, points[i].To2d(), 0, 0, 0);
 
             Oid oid = polyline.AddEntityToDbModelSpace(database);
 
@@ -1295,7 +1295,7 @@ namespace LERImporter.Schema
             Polyline polyline = new Polyline(points.Length);
 
             for (int i = 0; i < points.Length; i++)
-                polyline.AddVertexAt(polyline.NumberOfVertices, points[i].To2D(), 0, 0, 0);
+                polyline.AddVertexAt(polyline.NumberOfVertices, points[i].To2d(), 0, 0, 0);
 
             Oid oid = polyline.AddEntityToDbModelSpace(database);
 

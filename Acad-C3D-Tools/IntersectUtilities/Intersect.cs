@@ -6533,9 +6533,9 @@ namespace IntersectUtilities
                         double endLength = (i + 1) * segmentLength;
                         Polyline newPline = new Polyline(2);
                         newPline.AddVertexAt(0,
-                            originalPline.GetPointAtDist(startLength).To2D(), 0, 0, 0);
+                            originalPline.GetPointAtDist(startLength).To2d(), 0, 0, 0);
                         newPline.AddVertexAt(1,
-                            originalPline.GetPointAtDist(endLength).To2D(), 0, 0, 0);
+                            originalPline.GetPointAtDist(endLength).To2d(), 0, 0, 0);
                         newPline.AddEntityToDbModelSpace(localDb);
                         newPline.Layer = originalPline.Layer;
                         //PropertySetManager.CopyAllProperties(originalPline, newPline);
@@ -8152,8 +8152,8 @@ namespace IntersectUtilities
                             dist = clipPolyline.Length;
                         }
 
-                        Point2d p1 = clipPolyline.GetPointAtDist(previousDist).To2D();
-                        Point2d p2 = clipPolyline.GetPointAtDist(dist).To2D();
+                        Point2d p1 = clipPolyline.GetPointAtDist(previousDist).To2d();
+                        Point2d p2 = clipPolyline.GetPointAtDist(dist).To2d();
                         double minX = p1.X < p2.X ? p1.X : p2.X;
                         double minY = p1.Y < p2.Y ? p1.Y : p2.Y;
                         double maxX = p1.X > p2.X ? p1.X : p2.X;
@@ -9035,7 +9035,7 @@ namespace IntersectUtilities
                             if (query.FirstOrDefault() != default)
                             {
                                 Polyline parent = query.FirstOrDefault();
-                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2D(), EndType.StikAfgrening));
+                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2d(), EndType.StikAfgrening));
                             }
 
                             pt = pline.EndPoint;
@@ -9044,17 +9044,17 @@ namespace IntersectUtilities
                                 //This shouldn't happen now, because AssignPlinesAndBlocksToAlignments
                                 //guarantees that the end point is never on a supply pipe
                                 Polyline parent = query.FirstOrDefault();
-                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2D(), EndType.StikAfgrening));
+                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2d(), EndType.StikAfgrening));
                             }
                             #endregion
 
                             //Tilføj almindelige ender til POIs
-                            POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.StikStart));
-                            POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.StikEnd));
+                            POIs.Add(new POI(pline, pline.StartPoint.To2d(), EndType.StikStart));
+                            POIs.Add(new POI(pline, pline.EndPoint.To2d(), EndType.StikEnd));
                             break;
                         default:
-                            POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.Start));
-                            POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.End));
+                            POIs.Add(new POI(pline, pline.StartPoint.To2d(), EndType.Start));
+                            POIs.Add(new POI(pline, pline.EndPoint.To2d(), EndType.End));
                             break;
 
                     }
@@ -9119,13 +9119,13 @@ namespace IntersectUtilities
                                     Point3d nearest = polyline.GetClosestPointTo(wPt, false);
                                     if (nearest.DistanceHorizontalTo(wPt) < 0.01)
                                     {
-                                        POIs.Add(new POI(polyline, nearest.To2D(), EndType.WeldOn));
+                                        POIs.Add(new POI(polyline, nearest.To2d(), EndType.WeldOn));
                                         break;
                                     }
                                 }
                             }
                         }
-                        POIs.Add(new POI(br, wPt.To2D(), endType));
+                        POIs.Add(new POI(br, wPt.To2d(), endType));
                     }
                     break;
                 default:

@@ -131,7 +131,7 @@ namespace LERImporter.Schema
             Polyline polyline = new Polyline(points.Length);
 
             for (int i = 0; i < points.Length; i++)
-                polyline.AddVertexAt(polyline.NumberOfVertices, points[i].To2D(), 0, 0, 0);
+                polyline.AddVertexAt(polyline.NumberOfVertices, points[i].To2d(), 0, 0, 0);
 
             Oid oid = polyline.AddEntityToDbModelSpace(database);
 
@@ -299,7 +299,7 @@ namespace LERImporter.Schema
                                     //-1 beacuse the last point is a repetition of first
                                     for (int i = 0; i < points.Length; i++)
                                     {
-                                        points2d.Add(points[i].To2D());
+                                        points2d.Add(points[i].To2d());
                                         dc.Add(0.0);
                                     }
 
@@ -359,7 +359,7 @@ namespace LERImporter.Schema
                                 //-1 beacuse the last point is a repetition of first
                                 for (int i = 0; i < points.Length; i++)
                                 {
-                                    points2d.Add(points[i].To2D());
+                                    points2d.Add(points[i].To2d());
                                     dc.Add(0.0);
                                 }
 
@@ -431,7 +431,7 @@ namespace LERImporter.Schema
                                             //-1 beacuse the last point is a repetition of first
                                             for (int i = 0; i < points.Length; i++)
                                             {
-                                                points2d.Add(points[i].To2D());
+                                                points2d.Add(points[i].To2d());
                                                 dc.Add(0.0);
                                             }
 
@@ -510,7 +510,7 @@ namespace LERImporter.Schema
                         //-1 beacuse the last point is a repetition of first
                         for (int i = 0; i < points.Length; i++)
                         {
-                            points2d.Add(points[i].To2D());
+                            points2d.Add(points[i].To2d());
                             dc.Add(0.0);
                         }
 

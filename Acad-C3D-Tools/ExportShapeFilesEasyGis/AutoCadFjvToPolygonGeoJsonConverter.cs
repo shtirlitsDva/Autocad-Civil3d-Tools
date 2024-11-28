@@ -88,13 +88,13 @@ namespace ExportShapeFiles
             {
                 try
                 {
-                    Point3d samplePoint = samplePoints[i].To3D();
+                    Point3d samplePoint = samplePoints[i].To3d();
                     var v = pl.GetFirstDerivative(
                         pl.GetClosestPointTo(samplePoint, false))
                         .GetPerpendicularVector().GetNormal();
 
-                    fsPoints.Add((samplePoint + v * halfKOd).To2D());
-                    ssPoints.Add((samplePoint + v * -halfKOd).To2D());
+                    fsPoints.Add((samplePoint + v * halfKOd).To2d());
+                    ssPoints.Add((samplePoint + v * -halfKOd).To2d());
                 }
                 catch (System.Exception)
                 {

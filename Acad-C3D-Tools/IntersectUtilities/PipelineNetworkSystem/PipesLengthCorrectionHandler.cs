@@ -324,7 +324,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                         //Modify pline1
                         Vector3d moveVector = pline1.GetFirstDerivative(pline1.EndParam).GetNormal() * missingLength;
                         Point3d newEndPoint = pline1.GetPointAtParameter(pline1.EndParam) + moveVector;
-                        pline1.AddVertexAt(pline1.NumberOfVertices, newEndPoint.To2D(), 0, 0, 0);
+                        pline1.AddVertexAt(pline1.NumberOfVertices, newEndPoint.To2d(), 0, 0, 0);
                         pline1.ConstantWidth = cachedPline1ConstantWidth;
 
                         //Modify pline2

@@ -733,9 +733,9 @@ namespace IntersectUtilities
                     HashSet<Graph.POI> pois = new HashSet<Graph.POI>();
                     foreach (var stik in stikPipes)
                     {
-                        pois.Add(new Graph.POI(stik, stik.StartPoint.To2D(), EndType.Start,
+                        pois.Add(new Graph.POI(stik, stik.StartPoint.To2d(), EndType.Start,
                             null, null));
-                        pois.Add(new Graph.POI(stik, stik.EndPoint.To2D(), EndType.End,
+                        pois.Add(new Graph.POI(stik, stik.EndPoint.To2d(), EndType.End,
                             null, null));
                     }
 

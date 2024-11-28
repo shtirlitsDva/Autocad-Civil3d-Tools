@@ -1,5 +1,5 @@
-﻿using DimensioneringV2.DimensioneringV2.Geometry;
-using DimensioneringV2.DimensioneringV2.GraphModelRoads;
+﻿using DimensioneringV2.Geometry;
+using DimensioneringV2.GraphModelRoads;
 
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Index.Strtree;
@@ -10,7 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DimensioneringV2.DimensioneringV2.GraphModel
+namespace DimensioneringV2.GraphModel
 {
     internal class SegmentNodeDistance : IItemDistance<Envelope, SegmentNode>
     {

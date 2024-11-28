@@ -123,7 +123,7 @@ namespace IntersectUtilities
                             if (query.FirstOrDefault() != default)
                             {
                                 Polyline parent = query.FirstOrDefault();
-                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2D(), EndType.StikAfgrening, PSM, DriGraph));
+                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2d(), EndType.StikAfgrening, PSM, DriGraph));
                             }
 
                             pt = pline.EndPoint;
@@ -132,17 +132,17 @@ namespace IntersectUtilities
                                 //This shouldn't happen now, because AssignPlinesAndBlocksToAlignments
                                 //guarantees that the end point is never on a supply pipe
                                 Polyline parent = query.FirstOrDefault();
-                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2D(), EndType.StikAfgrening, PSM, DriGraph));
+                                POIs.Add(new POI(parent, parent.GetClosestPointTo(pt, false).To2d(), EndType.StikAfgrening, PSM, DriGraph));
                             }
                             #endregion
 
                             //Tilføj almindelige ender til POIs
-                            POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.StikStart, PSM, DriGraph));
-                            POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.StikEnd, PSM, DriGraph));
+                            POIs.Add(new POI(pline, pline.StartPoint.To2d(), EndType.StikStart, PSM, DriGraph));
+                            POIs.Add(new POI(pline, pline.EndPoint.To2d(), EndType.StikEnd, PSM, DriGraph));
                             break;
                         default:
-                            POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.Start, PSM, DriGraph));
-                            POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.End, PSM, DriGraph));
+                            POIs.Add(new POI(pline, pline.StartPoint.To2d(), EndType.Start, PSM, DriGraph));
+                            POIs.Add(new POI(pline, pline.EndPoint.To2d(), EndType.End, PSM, DriGraph));
                             break;
 
                     }
@@ -207,13 +207,13 @@ namespace IntersectUtilities
                                     Point3d nearest = polyline.GetClosestPointTo(wPt, false);
                                     if (nearest.DistanceHorizontalTo(wPt) < 0.01)
                                     {
-                                        POIs.Add(new POI(polyline, nearest.To2D(), EndType.WeldOn, PSM, DriGraph));
+                                        POIs.Add(new POI(polyline, nearest.To2d(), EndType.WeldOn, PSM, DriGraph));
                                         break;
                                     }
                                 }
                             }
                         }
-                        POIs.Add(new POI(br, wPt.To2D(), endType, PSM, DriGraph));
+                        POIs.Add(new POI(br, wPt.To2d(), endType, PSM, DriGraph));
                     }
                     break;
                 default:

@@ -502,8 +502,8 @@ namespace AcadOverrules
 
                     //Split the pline in segments delimiting buerør and append
 
-                    Point3d fP3d = fP.To3D();
-                    Point3d sP3d = sP.To3D();
+                    Point3d fP3d = fP.To3d();
+                    Point3d sP3d = sP.To3d();
 
                     #region Arc delimiter lines
                     Vector3d vec = pline.GetFirstDerivative(fP3d);

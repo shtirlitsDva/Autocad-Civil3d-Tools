@@ -514,8 +514,8 @@ namespace IntersectUtilities.PipelineNetworkSystem
                 switch (current.Entity)
                 {
                     case BlockReference br:
-                        topology.AddVertexAt(topology.NumberOfVertices, startingPoint.To2D(), 0, 0, 0);
-                        topology.AddVertexAt(topology.NumberOfVertices, br.Position.To2D(), 0, 0, 0);
+                        topology.AddVertexAt(topology.NumberOfVertices, startingPoint.To2d(), 0, 0, 0);
+                        topology.AddVertexAt(topology.NumberOfVertices, br.Position.To2d(), 0, 0, 0);
                         //Determine the next connection point
                         //Case 1: all ents are visited
                         //And so we cannot decisively determine the next connection point
@@ -534,7 +534,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                                 var pquery = endPoints.Where(x => x.DistanceHorizontalTo(startingPoint) > 0.001);
                                 if (pquery.Any())
                                     topology.AddVertexAt(
-                                        topology.NumberOfVertices, pquery.First().To2D(), 0, 0, 0);
+                                        topology.NumberOfVertices, pquery.First().To2d(), 0, 0, 0);
                                 else throw new Exception(
                                     $"Could not determine next connection point for {br.Handle}!");
                             }
@@ -590,7 +590,7 @@ namespace IntersectUtilities.PipelineNetworkSystem
                             {
                                 //In this case we are looking at last element
                                 //And so we need to add the last point
-                                topology.AddVertexAt(topology.NumberOfVertices, startingPoint.To2D(), 0, 0, 0);
+                                topology.AddVertexAt(topology.NumberOfVertices, startingPoint.To2d(), 0, 0, 0);
                                 //the loop will exit now because we don't push next entity to the stack
                             }
                             else

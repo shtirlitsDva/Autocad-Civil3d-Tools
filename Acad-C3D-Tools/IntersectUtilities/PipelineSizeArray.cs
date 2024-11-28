@@ -492,8 +492,8 @@ namespace IntersectUtilities
                             prdDbg($"Wrong type of pline supplied: {pline.Handle}");
                             throw new System.Exception("Supplied a new PipeSystemEnum! Add to code kthxbai.");
                         default:
-                            POIs.Add(new POI(pline, pline.StartPoint.To2D(), EndType.Start));
-                            POIs.Add(new POI(pline, pline.EndPoint.To2D(), EndType.End));
+                            POIs.Add(new POI(pline, pline.StartPoint.To2d(), EndType.Start));
+                            POIs.Add(new POI(pline, pline.EndPoint.To2d(), EndType.End));
                             break;
                     }
                     break;
@@ -514,7 +514,7 @@ namespace IntersectUtilities
                         {
                             endType = EndType.Main;
                         }
-                        POIs.Add(new POI(br, wPt.To2D(), endType));
+                        POIs.Add(new POI(br, wPt.To2d(), endType));
                     }
                     break;
                 default:
