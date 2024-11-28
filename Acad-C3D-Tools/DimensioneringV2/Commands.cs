@@ -445,8 +445,8 @@ namespace DimensioneringV2
             prdDbg("Finished!");
         }
 
-        [CommandMethod("SHOWMAPWINDOW")]
-        public static void ShowMapWindow()
+        [CommandMethod("DIM2SHOWMAPWINDOW")]
+        public static void dim2showmapwindow()
         {
             var window = new MainWindow();
             AcApp.ShowModelessWindow(window);
