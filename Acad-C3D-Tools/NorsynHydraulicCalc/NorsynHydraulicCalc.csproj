@@ -2,6 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <AssemblyName>NorsynHydraulicCalc</AssemblyName>
+    <Platforms>x64</Platforms>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Pipes\Sizes\PipeAluPexSizes.csv" />
