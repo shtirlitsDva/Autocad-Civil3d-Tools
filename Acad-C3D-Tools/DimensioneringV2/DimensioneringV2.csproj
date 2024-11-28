@@ -20,7 +20,7 @@
 	</PropertyGroup>
 	<PropertyGroup>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-		<AssemblyName>tkwj0d5z.zpm</AssemblyName>
+		<AssemblyName>DimensioneringV2</AssemblyName>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>
