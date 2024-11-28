@@ -56,7 +56,7 @@ using Autodesk.Gis.Map.ObjectData;
 using IntersectUtilities.PipeScheduleV2;
 using IntersectUtilities.Dimensionering.Forms;
 using Schema.Datafordeler;
-using Dimensionering;
+using DimensioneringV2;
 using Microsoft.Win32;
 
 namespace IntersectUtilities.Dimensionering

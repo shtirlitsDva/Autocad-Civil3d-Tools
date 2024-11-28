@@ -47,6 +47,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NorsynHydraulicCalc", "Nors
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NorsynHydraulicCalcTestApp", "NorsynHydraulicCalcTestApp\NorsynHydraulicCalcTestApp.csproj", "{FCB8A5CC-3880-4EBE-9EC3-BB6C88A5C9BF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DimensioneringV2", "DimensioneringV2\DimensioneringV2.csproj", "{E5FA3287-B46F-41BB-A860-79F03B57B411}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -197,6 +199,14 @@ Global
 		{FCB8A5CC-3880-4EBE-9EC3-BB6C88A5C9BF}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FCB8A5CC-3880-4EBE-9EC3-BB6C88A5C9BF}.Release|x64.ActiveCfg = Release|Any CPU
 		{FCB8A5CC-3880-4EBE-9EC3-BB6C88A5C9BF}.Release|x64.Build.0 = Release|Any CPU
+		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Debug|x64.Build.0 = Debug|Any CPU
+		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Release|x64.ActiveCfg = Release|Any CPU
+		{E5FA3287-B46F-41BB-A860-79F03B57B411}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -213,6 +223,7 @@ Global
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{bb421b54-812e-4c32-868b-41fa76569772}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{c578718c-90f5-4546-adac-6c9d91e02a95}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{db2cde26-a283-45d0-a170-7645cf29c507}*SharedItemsImports = 13
+		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{e5fa3287-b46f-41bb-a860-79f03b57b411}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{fbee18fe-055a-4901-9d67-dc0a18588f7d}*SharedItemsImports = 5
 	EndGlobalSection
 EndGlobal

@@ -1,5 +1,5 @@
-﻿using Dimensionering.DimensioneringV2.Geometry;
-using Dimensionering.DimensioneringV2.GraphModelRoads;
+﻿using DimensioneringV2.DimensioneringV2.Geometry;
+using DimensioneringV2.DimensioneringV2.GraphModelRoads;
 using dbg = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
 using utils = IntersectUtilities.UtilsCommon.Utils;
 
@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
 
-namespace Dimensionering.DimensioneringV2.GraphFeatures
+namespace DimensioneringV2.DimensioneringV2.GraphFeatures
 {
     internal class GraphTranslator
     {

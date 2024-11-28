@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Windows.Forms;
-using Dimensionering.Properties;
+using DimensioneringV2.Properties;
 
 namespace IntersectUtilities.Dimensionering.Forms
 {

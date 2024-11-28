@@ -1,6 +1,6 @@
 ﻿using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
-using Dimensionering.DimensioneringV2.Geometry;
+using DimensioneringV2.DimensioneringV2.Geometry;
 
 using IntersectUtilities.UtilsCommon;
 using dbg = IntersectUtilities.UtilsCommon.Utils.DebugHelper;
@@ -16,7 +16,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media.Media3D;
 
-namespace Dimensionering.DimensioneringV2.GraphModelRoads
+namespace DimensioneringV2.DimensioneringV2.GraphModelRoads
 {
     internal class SegmentNode : IBoundable<Envelope, SegmentNode>
     {

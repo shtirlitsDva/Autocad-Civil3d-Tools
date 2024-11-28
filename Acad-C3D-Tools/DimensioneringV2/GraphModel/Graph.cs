@@ -2,7 +2,7 @@
 using Autodesk.AutoCAD.DatabaseServices.Filters;
 using Autodesk.AutoCAD.Geometry;
 
-using Dimensionering.DimensioneringV2.Geometry;
+using DimensioneringV2.DimensioneringV2.Geometry;
 
 using IntersectUtilities;
 using IntersectUtilities.UtilsCommon;
@@ -13,9 +13,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using  cv = Dimensionering.DimensioneringV2.CommonVariables;
+using  cv = DimensioneringV2.DimensioneringV2.CommonVariables;
 
-namespace Dimensionering.DimensioneringV2.GraphModelRoads
+namespace DimensioneringV2.DimensioneringV2.GraphModelRoads
 {
     internal class Graph
     {

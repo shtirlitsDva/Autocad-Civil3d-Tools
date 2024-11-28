@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Dimensionering.DimensioneringV2
+namespace DimensioneringV2.DimensioneringV2
 {
     internal static class Tolerance
     {

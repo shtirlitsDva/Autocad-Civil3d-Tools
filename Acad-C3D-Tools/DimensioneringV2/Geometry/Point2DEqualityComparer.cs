@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Dimensionering.DimensioneringV2.Geometry
+namespace DimensioneringV2.DimensioneringV2.Geometry
 {
     internal class Point2DEqualityComparer : IEqualityComparer<Point2D>
     {

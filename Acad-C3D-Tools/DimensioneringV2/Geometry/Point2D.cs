@@ -7,7 +7,7 @@ using System.Windows.Media.Media3D;
 
 using Autodesk.AutoCAD.Geometry;
 
-namespace Dimensionering.DimensioneringV2.Geometry
+namespace DimensioneringV2.DimensioneringV2.Geometry
 {
     internal readonly struct Point2D
     {

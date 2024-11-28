@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 using Geometry =  NetTopologySuite.Geometries.Geometry;
 
-namespace Dimensionering.DimensioneringV2.GraphFeatures
+namespace DimensioneringV2.DimensioneringV2.GraphFeatures
 {
     internal class FeatureNode : IFeature
     {
