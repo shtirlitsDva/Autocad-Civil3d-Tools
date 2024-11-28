@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFramework>net8.0-windows</TargetFramework>
+		<TargetFramework>net8.0-windows8.0</TargetFramework>
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 		<ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
 			None
@@ -19,6 +19,7 @@
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
 		<RootNamespace>Net_Reload</RootNamespace>
+		<AssemblyName>Net-Reload</AssemblyName>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>
