@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows</TargetFramework>
 		<TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
@@ -158,5 +157,4 @@
 		<Folder Include="Links\" />
 	</ItemGroup>
 	<Import Project="..\UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems" Label="Shared" />
-
 </Project>
