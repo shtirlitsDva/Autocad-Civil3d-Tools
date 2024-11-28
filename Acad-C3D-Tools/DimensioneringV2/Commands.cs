@@ -160,7 +160,7 @@ namespace DimensioneringV2
                         if ((param - index) > tol)
                         {
                             pl.CheckOrOpenForWrite();
-                            pl.AddVertexAt(index + 1, pt.To2D(), 0, 0, 0);
+                            pl.AddVertexAt(index + 1, pt.To2d(), 0, 0, 0);
                         }
                     }
                 }
