@@ -142,6 +142,7 @@
 		</Compile>
 	</ItemGroup>
 	<ItemGroup>
+		<PackageReference Include="Mapsui.Nts" Version="4.1.8" />
 		<PackageReference Include="Mapsui.Wpf" Version="4.1.8" />
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="NetTopologySuite" Version="2.5.0" />

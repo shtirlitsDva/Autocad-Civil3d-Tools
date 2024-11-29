@@ -1,6 +1,10 @@
 ﻿using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Windows;
 
+using DimensioneringV2.GraphFeatures;
+
+using QuikGraph;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +16,7 @@ namespace DimensioneringV2.UI
     internal class CustomPaletteSet : PaletteSet
     {
         static bool wasVisible;
-
+        
         public CustomPaletteSet() : base("DimV2", "DIM2MAP", new Guid("75B45F74-C728-432B-AC50-9A5F345A3877"))
         {
             Style =
