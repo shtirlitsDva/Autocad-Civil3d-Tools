@@ -142,6 +142,7 @@
 		</Compile>
 	</ItemGroup>
 	<ItemGroup>
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
 		<PackageReference Include="Mapsui.Nts" Version="4.1.8" />
 		<PackageReference Include="Mapsui.Wpf" Version="4.1.8" />
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />

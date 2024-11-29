@@ -10,7 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using Geometry =  NetTopologySuite.Geometries.Geometry;
+using Geometry = NetTopologySuite.Geometries.Geometry;
 
 namespace DimensioneringV2.GraphFeatures
 {
@@ -20,15 +20,27 @@ namespace DimensioneringV2.GraphFeatures
         public Envelope BoundingBox { get => this.Geometry.EnvelopeInternal; set => throw new NotImplementedException(); }
         public IAttributesTable Attributes { get; set; }
 
-        public ICollection<IStyle> Styles => throw new NotImplementedException();
+        public ICollection<IStyle> Styles => new List<IStyle>();
 
-        public IEnumerable<string> Fields => throw new NotImplementedException();
+        public IEnumerable<string> Fields => Attributes.GetNames();
 
-        public Mapsui.MRect? Extent => throw new NotImplementedException();
+        public Mapsui.MRect? Extent
+        {
+            get
+            {
+                if (Geometry == null) return null;
+                var envelope = Geometry.EnvelopeInternal;
+                return new Mapsui.MRect(envelope.MinX, envelope.MinY, envelope.MaxX, envelope.MaxY);
+            }
+        }
 
-        public IDictionary<IStyle, object> RenderedGeometry => throw new NotImplementedException();
+        public IDictionary<IStyle, object> RenderedGeometry => new Dictionary<IStyle, object>();
 
-        public object? this[string key] { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public object? this[string key] 
+        { 
+            get => Attributes[key];
+            set => Attributes[key] = value;
+        }
 
         public FeatureNode(NetTopologySuite.Geometries.Geometry geometry, IAttributesTable attributes)
         {
@@ -38,12 +50,40 @@ namespace DimensioneringV2.GraphFeatures
 
         public void CoordinateVisitor(Action<double, double, Mapsui.CoordinateSetter> visit)
         {
-            throw new NotImplementedException();
+            if (Geometry == null)
+                return;
+
+            var filter = new CoordinateVisitorFilter(visit);
+            Geometry.Apply(filter);
         }
 
         public void Dispose()
         {
-            throw new NotImplementedException();
+            
+        }
+
+        private class CoordinateVisitorFilter : NetTopologySuite.Geometries.ICoordinateFilter
+        {
+            private readonly Action<double, double, Mapsui.CoordinateSetter> _visit;
+
+            public CoordinateVisitorFilter(Action<double, double, Mapsui.CoordinateSetter> visit)
+            {
+                _visit = visit;
+            }
+
+            public void Filter(NetTopologySuite.Geometries.Coordinate coord)
+            {
+                double x = coord.X;
+                double y = coord.Y;
+
+                void setter(double newX, double newY)
+                {
+                    coord.X = newX;
+                    coord.Y = newY;
+                }
+
+                _visit(x, y, setter);
+            }
         }
     }
 }

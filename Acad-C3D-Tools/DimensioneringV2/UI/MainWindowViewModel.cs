@@ -15,11 +15,17 @@ using QuikGraph;
 using DimensioneringV2.DataService;
 using Mapsui.Layers;
 using Mapsui;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace DimensioneringV2.UI
 {
-    internal class MainWindowViewModel : ObservableObject
+    internal partial class MainWindowViewModel : ObservableObject
     {
+        public MainWindowViewModel()
+        {
+
+        }
+
         public RelayCommand CollectFeaturesCommand =>
             new RelayCommand((_) => CollectFeaturesExecute(), (_) => true);
 
@@ -36,29 +42,16 @@ namespace DimensioneringV2.UI
                 );
         }
 
-        // Mapsui MapControl property (binding in XAML)
-        private Map _map;
-        public Map Map
-        {
-            get => _map;
-            set
-            {
-                _map = value;
-                OnPropertyChanged(nameof(Map));
-            }
-        }
+        [ObservableProperty]
+        private Map _map = new();
 
         public ObservableCollection<FeatureNode> Features { get; private set; } = new();
-        
-        private readonly IDataService _dataService;
 
-        public MainWindowViewModel(IDataService dataService)
+        private IDataService? _dataService;
+
+        public void SetDataService(IDataService dataService)
         {
-            Map = new Map();
-
             _dataService = dataService;
-
-            // Subscribe to DataService updates
             _dataService.DataUpdated += OnDataUpdated;
         }
         private void OnDataUpdated(object sender, EventArgs e)
@@ -68,14 +61,13 @@ namespace DimensioneringV2.UI
             foreach (var feature in _dataService.Features)
                 Features.Add(feature);
 
-            // Refresh the map
+            //Refresh the map
             UpdateMap();
         }
 
         private void UpdateMap()
         {
-            if (Map == null)
-                return;
+            if (Map == null) return;
 
             var mapLayer1 = new MemoryLayer
             {
@@ -83,6 +75,7 @@ namespace DimensioneringV2.UI
             };
 
             Map.Layers.Clear();
+            Map.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
             Map.Layers.Add(mapLayer1);
         }
     }

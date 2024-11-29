@@ -23,14 +23,13 @@ namespace DimensioneringV2.UI
     /// </summary>
     public partial class MainWindow : UserControl
     {
+        MainWindowViewModel vm = new();
         public MainWindow()
         {
             InitializeComponent();
-
-            var viewModel = new MainWindowViewModel(DataService.DataService.Instance);
-            DataContext = viewModel;
-
-            MapView.Map = viewModel.Map;
+            vm.SetDataService(DataService.DataService.Instance);
+            DataContext = vm;
+            mapControl.Map = ((MainWindowViewModel)DataContext).Map;
         }
     }
 }
