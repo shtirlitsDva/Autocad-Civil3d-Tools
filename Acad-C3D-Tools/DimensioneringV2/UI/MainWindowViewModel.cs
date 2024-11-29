@@ -36,24 +36,25 @@ namespace DimensioneringV2.UI
         }
 
         // Mapsui MapControl property (binding in XAML)
-        private MapControl _mapControl;
-        public MapControl MapControl
+        private MapControl _map;
+        public MapControl Map
         {
-            get => _mapControl;
+            get => _map;
             set
             {
-                _mapControl = value;
-                OnPropertyChanged(nameof(MapControl));
+                _map = value;
+                OnPropertyChanged(nameof(Map));
             }
         }
 
         public ObservableCollection<FeatureNode> Features { get; private set; } = new();
-        public ObservableCollection<UndirectedGraph<FeatureNode, Edge<FeatureNode>>> Graphs { get; private set; } = new();
-
+        
         private readonly IDataService _dataService;
 
         public MainWindowViewModel(IDataService dataService)
         {
+            Map = new MapControl();
+
             _dataService = dataService;
 
             // Subscribe to DataService updates
@@ -66,17 +67,13 @@ namespace DimensioneringV2.UI
             foreach (var feature in _dataService.Features)
                 Features.Add(feature);
 
-            Graphs.Clear();
-            foreach (var graph in _dataService.Graphs)
-                Graphs.Add(graph);
-
             // Refresh the map
             UpdateMap();
         }
 
         private void UpdateMap()
         {
-            if (MapControl == null)
+            if (Map == null)
                 return;
 
             var mapLayer1 = new MemoryLayer
@@ -84,8 +81,8 @@ namespace DimensioneringV2.UI
                 Features = Features
             };
 
-            MapControl.Map.Layers.Clear();
-            MapControl.Map.Layers.Add(mapLayer1);
+            Map.Map.Layers.Clear();
+            Map.Map.Layers.Add(mapLayer1);
         }
     }
 }
