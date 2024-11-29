@@ -26,7 +26,11 @@ namespace DimensioneringV2.UI
         public MainWindow()
         {
             InitializeComponent();
-            DataContext = new MainWindowViewModel(DataService.DataService.Instance);
+
+            var viewModel = new MainWindowViewModel(DataService.DataService.Instance);
+            DataContext = viewModel;
+
+            MapView.Map = viewModel.Map;
         }
     }
 }

@@ -14,6 +14,7 @@ using DimensioneringV2.GraphFeatures;
 using QuikGraph;
 using DimensioneringV2.DataService;
 using Mapsui.Layers;
+using Mapsui;
 
 namespace DimensioneringV2.UI
 {
@@ -36,8 +37,8 @@ namespace DimensioneringV2.UI
         }
 
         // Mapsui MapControl property (binding in XAML)
-        private MapControl _map;
-        public MapControl Map
+        private Map _map;
+        public Map Map
         {
             get => _map;
             set
@@ -53,7 +54,7 @@ namespace DimensioneringV2.UI
 
         public MainWindowViewModel(IDataService dataService)
         {
-            Map = new MapControl();
+            Map = new Map();
 
             _dataService = dataService;
 
@@ -81,8 +82,8 @@ namespace DimensioneringV2.UI
                 Features = Features
             };
 
-            Map.Map.Layers.Clear();
-            Map.Map.Layers.Add(mapLayer1);
+            Map.Layers.Clear();
+            Map.Layers.Add(mapLayer1);
         }
     }
 }

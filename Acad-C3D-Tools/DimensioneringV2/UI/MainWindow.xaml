@@ -10,14 +10,17 @@
     <UserControl.Resources>
         <ResourceDictionary Source="Theme.xaml"></ResourceDictionary>
     </UserControl.Resources>
-    <DockPanel Background="{DynamicResource Background}">
-        <!-- Load Data Button -->
-        <Button 
-            x:Name="LoadButton" Content="Load Data" Width="100" Height="30" 
-            DockPanel.Dock="Top" Margin="10" Command="{Binding CollectFeaturesCommand}"/>
+    <Grid>
+        <DockPanel Background="{DynamicResource Background}">
+            <!-- Load Data Button -->
+            <Button 
+        x:Name="LoadButton" Content="Load Data" Width="100" Height="30" 
+        DockPanel.Dock="Top" Margin="10" Command="{Binding CollectFeaturesCommand}"/>
 
-        <!-- Map Control -->
-        <mapsui:MapControl x:Name="MapView" Map="{Binding }" Margin="10" DockPanel.Dock="Top"/>
+            <!-- Map Control -->
+            <mapsui:MapControl x:Name="MapView" Margin="10" DockPanel.Dock="Top"/>
 
-    </DockPanel>
+        </DockPanel>
+    </Grid>
+    
 </UserControl>
