@@ -414,15 +414,22 @@ namespace DimensioneringV2
                     if (features != null)
                     {
                         FeatureCollection fc = new FeatureCollection(features.SelectMany(x => x));
-
-                        Shapefile.WriteAllFeatures(fc, "C:\\Temp\\testfc");
-
-                        //Create the projection file
-                        using (var sw = new StreamWriter("C:\\Temp\\testfc.prj"))
+                        NetTopologySuite.IO.GeoJsonWriter writer = new NetTopologySuite.IO.GeoJsonWriter();
+                        string json = writer.Write(fc);
+                        using (var sw = new StreamWriter("C:\\Temp\\testfc.geojson"))
                         {
-                            //sw.Write(ProjNet.CoordinateSystems.ProjectedCoordinateSystem.WGS84_UTM(32, true));
-                            sw.Write(@"PROJCS[""ETRS_1989_UTM_Zone_32N"",GEOGCS[""GCS_ETRS_1989"",DATUM[""D_ETRS_1989"",SPHEROID[""GRS_1980"",6378137.0,298.257222101]],PRIMEM[""Greenwich"",0.0],UNIT[""Degree"",0.0174532925199433]],PROJECTION[""Transverse_Mercator""],PARAMETER[""False_Easting"",500000.0],PARAMETER[""False_Northing"",0.0],PARAMETER[""Central_Meridian"",9.0],PARAMETER[""Scale_Factor"",0.9996],PARAMETER[""Latitude_Of_Origin"",0.0],UNIT[""Meter"",1.0]]");
+                            sw.Write(json);
                         }
+
+
+                        //Shapefile.WriteAllFeatures(fc, "C:\\Temp\\testfc");
+
+                        ////Create the projection file
+                        //using (var sw = new StreamWriter("C:\\Temp\\testfc.prj"))
+                        //{
+                        //    //sw.Write(ProjNet.CoordinateSystems.ProjectedCoordinateSystem.WGS84_UTM(32, true));
+                        //    sw.Write(@"PROJCS[""ETRS_1989_UTM_Zone_32N"",GEOGCS[""GCS_ETRS_1989"",DATUM[""D_ETRS_1989"",SPHEROID[""GRS_1980"",6378137.0,298.257222101]],PRIMEM[""Greenwich"",0.0],UNIT[""Degree"",0.0174532925199433]],PROJECTION[""Transverse_Mercator""],PARAMETER[""False_Easting"",500000.0],PARAMETER[""False_Northing"",0.0],PARAMETER[""Central_Meridian"",9.0],PARAMETER[""Scale_Factor"",0.9996],PARAMETER[""Latitude_Of_Origin"",0.0],UNIT[""Meter"",1.0]]");
+                        //}
                     }
 
                 }
@@ -455,6 +462,83 @@ namespace DimensioneringV2
         {
             if (paletteSet == null) paletteSet = new CustomPaletteSet();
             paletteSet.Visible = true;
+        }
+
+        [CommandMethod("DIM2MAPCOLLECTFEATURES")]
+        public void dim2mapcollectfeatures()
+        {
+            DocumentCollection docCol = AcApp.DocumentManager;
+            Database localDb = docCol.MdiActiveDocument.Database;
+            Editor editor = docCol.MdiActiveDocument.Editor;
+            Document doc = docCol.MdiActiveDocument;
+
+            if (paletteSet == null) { prdDbg("This command is run from DIM2MAP"); return; }
+
+            using (Transaction tx = localDb.TransactionManager.StartTransaction())
+            {
+                try
+                {
+                    var pls = localDb.HashSetOfType<Polyline>(tx)
+                        .Where(x => x.Layer == cv.LayerVejmidteTændt)
+                        .ToList();
+
+                    var basePoints = localDb.HashSetOfType<BlockReference>(tx)
+                        .Where(x => x.RealName() == cv.BlockSupplyPointName)
+                        .Select(x => new Point2D(x.Position.X, x.Position.Y))
+                        .ToList();
+
+                    var brs = localDb.HashSetOfType<BlockReference>(tx, true)
+                        .Where(x => cv.AcceptedBlockTypes.Contains(
+                            PropertySetManager.ReadNonDefinedPropertySetString(x, "BBR", "Type")));
+
+                    var noCrossLines = localDb.HashSetOfType<Line>(tx)
+                        .Where(x => x.Layer == cv.LayerNoCross);
+
+                    var graph = new DimensioneringV2.GraphModelRoads.Graph();
+                    graph.BuildGraph(pls, basePoints, brs, noCrossLines);
+
+                    var features = GraphTranslator.TranslateGraph(graph);
+
+                    foreach (var feature in features.SelectMany(x => x))
+                    {
+                        
+                    }
+
+                    if (features != null)
+                    {
+                        FeatureCollection fc = new FeatureCollection(features.SelectMany(x => x));
+
+                        Shapefile.WriteAllFeatures(fc, "C:\\Temp\\testfc");
+
+                        //Create the projection file
+                        using (var sw = new StreamWriter("C:\\Temp\\testfc.prj"))
+                        {
+                            //sw.Write(ProjNet.CoordinateSystems.ProjectedCoordinateSystem.WGS84_UTM(32, true));
+                            sw.Write(@"PROJCS[""ETRS_1989_UTM_Zone_32N"",GEOGCS[""GCS_ETRS_1989"",DATUM[""D_ETRS_1989"",SPHEROID[""GRS_1980"",6378137.0,298.257222101]],PRIMEM[""Greenwich"",0.0],UNIT[""Degree"",0.0174532925199433]],PROJECTION[""Transverse_Mercator""],PARAMETER[""False_Easting"",500000.0],PARAMETER[""False_Northing"",0.0],PARAMETER[""Central_Meridian"",9.0],PARAMETER[""Scale_Factor"",0.9996],PARAMETER[""Latitude_Of_Origin"",0.0],UNIT[""Meter"",1.0]]");
+                        }
+                    }
+
+                }
+                catch (System.Exception ex)
+                {
+                    if (ex is ArgumentException argex)
+                    {
+                        if (argex.Message.Contains("DBG"))
+                        {
+                            prdDbg(argex.Message);
+                            tx.Commit();
+                            return;
+                        }
+                    }
+
+                    prdDbg(ex);
+                    tx.Abort();
+                    return;
+                }
+                tx.Commit();
+            }
+
+            prdDbg("Finished!");
         }
     }
 }

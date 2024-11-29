@@ -628,15 +628,15 @@ namespace IntersectUtilities
                 return default;
             }
             DictionaryPropertySetDefinitions dpsdict = new DictionaryPropertySetDefinitions(db);
-            
+
             string psName = GetKeywords("Select property set: ", dpsdict.NamesInUse.ToList());
             if (psName == null) return default;
-            
+
             PropertySetDefinition psDef = dpsdict.GetAt(psName).Go<PropertySetDefinition>(db.TransactionManager.TopTransaction);
             PropertyDefinitionCollection propDefs = psDef.Definitions;
             List<string> propDefNames = new List<string>();
             foreach (PropertyDefinition propDef in propDefs) propDefNames.Add(propDef.Name);
-            
+
             string propName = GetKeywords("Select property name: ", propDefNames);
             if (propName == null) return default;
 
@@ -830,7 +830,7 @@ namespace IntersectUtilities
             foreach (Oid oid in propertySetIds)
             {
                 Dictionary<string, object> data = new Dictionary<string, object>();
-                
+
                 PropertySet ps = oid.Go<PropertySet>(tx);
                 //completeData.Add(ps.PropertySetDefinitionName, data);
 
@@ -1394,6 +1394,163 @@ namespace IntersectUtilities
             GraphDef = new PSetDefs.DriGraph();
             Pipeline = new PropertySetManager(db, PSetDefs.DefinedSets.DriPipelineData);
             PipelineDef = new PSetDefs.DriPipelineData();
+        }
+    }
+
+    public class BBR : PropertySetManager
+    {
+        private Entity _ent;
+        private PSetDefs.BBR _def = new PSetDefs.BBR();
+        public BBR(Entity ent) : base(ent.Database, PSetDefs.DefinedSets.BBR) { _ent = ent; }
+        public string id_lokalId
+        {
+            get => ReadPropertyString(_ent, _def.id_lokalId);
+            set => WritePropertyObject(_ent, _def.id_lokalId, value);
+        }
+        public string id_husnummerid
+        {
+            get => ReadPropertyString(_ent, _def.id_husnummerid);
+            set => WritePropertyObject(_ent, _def.id_husnummerid, value);
+        }
+        public string Name
+        {
+            get => ReadPropertyString(_ent, _def.Name);
+            set => WritePropertyObject(_ent, _def.Name, value);
+        }
+        public int Bygningsnummer
+        {
+            get => ReadPropertyInt(_ent, _def.Bygningsnummer);
+            set => WritePropertyObject(_ent, _def.Bygningsnummer, value);
+        }
+        public string BygningsAnvendelseNyTekst
+        {
+            get => ReadPropertyString(_ent, _def.BygningsAnvendelseNyTekst);
+            set => WritePropertyObject(_ent, _def.BygningsAnvendelseNyTekst, value);
+        }
+        public string BygningsAnvendelseNyKode
+        {
+            get => ReadPropertyString(_ent, _def.BygningsAnvendelseNyKode);
+            set => WritePropertyObject(_ent, _def.BygningsAnvendelseNyKode, value);
+        }
+        public string BygningsAnvendelseGlTekst
+        {
+            get => ReadPropertyString(_ent, _def.BygningsAnvendelseGlTekst);
+            set => WritePropertyObject(_ent, _def.BygningsAnvendelseGlTekst, value);
+        }
+        public string BygningsAnvendelseGlKode
+        {
+            get => ReadPropertyString(_ent, _def.BygningsAnvendelseGlKode);
+            set => WritePropertyObject(_ent, _def.BygningsAnvendelseGlKode, value);
+        }
+        public int Opførelsesår
+        {
+            get => ReadPropertyInt(_ent, _def.Opførelsesår);
+            set => WritePropertyObject(_ent, _def.Opførelsesår, value);
+        }
+        public int SamletBygningsareal
+        {
+            get => ReadPropertyInt(_ent, _def.SamletBygningsareal);
+            set => WritePropertyObject(_ent, _def.SamletBygningsareal, value);
+        }
+        public int SamletBoligareal
+        {
+            get => ReadPropertyInt(_ent, _def.SamletBoligareal);
+            set => WritePropertyObject(_ent, _def.SamletBoligareal, value);
+        }
+        public int SamletErhvervsareal
+        {
+            get => ReadPropertyInt(_ent, _def.SamletErhvervsareal);
+            set => WritePropertyObject(_ent, _def.SamletErhvervsareal, value);
+        }
+        public int BebyggetAreal
+        {
+            get => ReadPropertyInt(_ent, _def.BebyggetAreal);
+            set => WritePropertyObject(_ent, _def.BebyggetAreal, value);
+        }
+        public int KælderAreal
+        {
+            get => ReadPropertyInt(_ent, _def.KælderAreal);
+            set => WritePropertyObject(_ent, _def.KælderAreal, value);
+        }
+        public string VarmeInstallation
+        {
+            get => ReadPropertyString(_ent, _def.VarmeInstallation);
+            set => WritePropertyObject(_ent, _def.VarmeInstallation, value);
+        }
+        public string OpvarmningsMiddel
+        {
+            get => ReadPropertyString(_ent, _def.OpvarmningsMiddel);
+            set => WritePropertyObject(_ent, _def.OpvarmningsMiddel, value);
+        }
+        public string Status
+        {
+            get => ReadPropertyString(_ent, _def.Status);
+            set => WritePropertyObject(_ent, _def.Status, value);
+        }
+        public string Vejnavn
+        {
+            get => ReadPropertyString(_ent, _def.Vejnavn);
+            set => WritePropertyObject(_ent, _def.Vejnavn, value);
+        }
+        public string Husnummer
+        {
+            get => ReadPropertyString(_ent, _def.Husnummer);
+            set => WritePropertyObject(_ent, _def.Husnummer, value);
+        }
+        public string Postnr
+        {
+            get => ReadPropertyString(_ent, _def.Postnr);
+            set => WritePropertyObject(_ent, _def.Postnr, value);
+        }
+        public string By
+        {
+            get => ReadPropertyString(_ent, _def.By);
+            set => WritePropertyObject(_ent, _def.By, value);
+        }
+        //public bool Beholdes
+        //{
+        //    get => ReadPropertyBool(_ent, _def.Beholdes);
+        //    set => WritePropertyObject(_ent, _def.Beholdes, value);
+        //}
+        public double SpecifikVarmeForbrug
+        {
+            get => ReadPropertyDouble(_ent, _def.SpecifikVarmeForbrug);
+            set => WritePropertyObject(_ent, _def.SpecifikVarmeForbrug, value);
+        }
+        public double EstimeretVarmeForbrug
+        {
+            get => ReadPropertyDouble(_ent, _def.EstimeretVarmeForbrug);
+            set => WritePropertyObject(_ent, _def.EstimeretVarmeForbrug, value);
+        }
+        public string Adresse
+        {
+            get => ReadPropertyString(_ent, _def.Adresse);
+            set => WritePropertyObject(_ent, _def.Adresse, value);
+        }
+        public int AdresseDuplikatNr
+        {
+            get => ReadPropertyInt(_ent, _def.AdresseDuplikatNr);
+            set => WritePropertyObject(_ent, _def.AdresseDuplikatNr, value);
+        }
+        public string InstallationOgBrændsel
+        {
+            get => ReadPropertyString(_ent, _def.InstallationOgBrændsel);
+            set => WritePropertyObject(_ent, _def.InstallationOgBrændsel, value);
+        }
+        public string Type
+        {
+            get => ReadPropertyString(_ent, _def.Type);
+            set => WritePropertyObject(_ent, _def.Type, value);
+        }
+        public string DistriktetsNavn
+        {
+            get => ReadPropertyString(_ent, _def.DistriktetsNavn);
+            set => WritePropertyObject(_ent, _def.DistriktetsNavn, value);
+        }
+        public int AntalEnheder
+        {
+            get => ReadPropertyInt(_ent, _def.AntalEnheder);
+            set => WritePropertyObject(_ent, _def.AntalEnheder, value);
         }
     }
 }

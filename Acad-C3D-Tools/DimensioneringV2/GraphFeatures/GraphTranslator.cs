@@ -12,6 +12,10 @@ using System.Text;
 using System.Threading.Tasks;
 using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
+using Autodesk.AutoCAD.ApplicationServices;
+using Autodesk.AutoCAD.DatabaseServices;
+using IntersectUtilities.UtilsCommon;
+using Graph = DimensioneringV2.GraphModelRoads.Graph;
 
 namespace DimensioneringV2.GraphFeatures
 {
@@ -104,6 +108,7 @@ namespace DimensioneringV2.GraphFeatures
 
                     if (startNew)
                     {
+                        //Translate geometry
                         var lines = originalNodes.Select(n => n.ToLineString()).ToList();
                         NetTopologySuite.Geometries.Geometry geometry;
                         if (lines.Count > 1)
@@ -130,9 +135,69 @@ namespace DimensioneringV2.GraphFeatures
                         }
                         else geometry = lines[0];
 
+                        //Translate building data if any
+                        var attributes = new AttributesTable
+                        {
+                            { "id_lokalId", "" },
+                            { "Name", "" },
+                            { "Adresse", "" },
+                            { "BygningsAnvendelseNyTekst", "" },
+                            { "Opførelsesår", 0 },
+                            { "BeregningsAreal", 0.0 },
+                            { "KælderAreal", 0.0 },
+                            { "VarmeType", "" },
+                            { "VarmeInstallation", "" },
+                            { "OpvarmningsMiddel", "" },
+                            { "InstallationOgBrændsel", "" },
+                            { "Vejnavn", "" },
+                            { "Husnummer", "" },
+                            { "Postnr", "" },
+                            { "By", "" },
+                            { "SpecifikVarmeForbrug", 0.0 },
+                            { "EstimeretVarmeForbrug", 0.0 },
+                            { "AntalEnheder", 0 },
+                            { "VarmeDistrikt", "" }
+                        };
+
+                        if (originalNodes.Any(x => x.IsBuildingConnection))
+                        {
+                            var buildingConnection = originalNodes.First(x => x.IsBuildingConnection);
+                            var building = buildingConnection.BuildingId.Go<BlockReference>(
+                                Application.DocumentManager.MdiActiveDocument.Database.TransactionManager.TopTransaction);
+                            if (building == null)
+                            {
+                                Application.DocumentManager.MdiActiveDocument.Editor.SetImpliedSelection(
+                                    [buildingConnection.BuildingId]);
+                                throw new Exception(
+                                    "Building connection node does not have a block reference!" +
+                                    "\n" +
+                                    $"{buildingConnection.BuildingId}");
+                            }
+                            IntersectUtilities.BBR bbr = new IntersectUtilities.BBR(building);
+                            
+                            attributes["id_lokalId"] = bbr.id_lokalId;
+                            attributes["Name"] = bbr.Name;
+                            attributes["Adresse"] = bbr.Adresse;
+                            attributes["BygningsAnvendelseNyTekst"] = bbr.BygningsAnvendelseNyTekst;
+                            attributes["Opførelsesår"] = bbr.Opførelsesår;
+                            attributes["BeregningsAreal"] = bbr.SamletBoligareal + bbr.SamletErhvervsareal;
+                            attributes["KælderAreal"] = bbr.KælderAreal;
+                            attributes["VarmeType"] = bbr.Type;
+                            attributes["VarmeInstallation"] = bbr.VarmeInstallation;
+                            attributes["OpvarmningsMiddel"] = bbr.OpvarmningsMiddel;
+                            attributes["InstallationOgBrændsel"] = bbr.InstallationOgBrændsel;
+                            attributes["Vejnavn"] = bbr.Vejnavn;
+                            attributes["Husnummer"] = bbr.Husnummer;
+                            attributes["Postnr"] = bbr.Postnr;
+                            attributes["By"] = bbr.By;
+                            attributes["SpecifikVarmeForbrug"] = bbr.SpecifikVarmeForbrug;
+                            attributes["EstimeretVarmeForbrug"] = bbr.EstimeretVarmeForbrug;
+                            attributes["AntalEnheder"] = bbr.AntalEnheder;
+                            attributes["VarmeDistrikt"] = bbr.DistriktetsNavn;
+                        }
 
                         FeatureNode fn = new FeatureNode(
-                                geometry, new AttributesTable());
+                                geometry, attributes);
                         nodes.Add(fn);
                     }
                 }

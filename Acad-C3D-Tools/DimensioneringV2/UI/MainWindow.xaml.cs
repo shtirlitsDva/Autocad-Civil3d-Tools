@@ -26,6 +26,7 @@ namespace DimensioneringV2.UI
         public MainWindow()
         {
             InitializeComponent();
+            DataContext = new MainWindowViewModel();
         }
     }
 }
