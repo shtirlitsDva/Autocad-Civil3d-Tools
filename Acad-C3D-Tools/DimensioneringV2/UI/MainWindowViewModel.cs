@@ -12,7 +12,7 @@ using Mapsui.UI.Wpf;
 using System.Collections.ObjectModel;
 using DimensioneringV2.GraphFeatures;
 using QuikGraph;
-using DimensioneringV2.DataService;
+using DimensioneringV2.Services;
 using Mapsui.Layers;
 using Mapsui;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -43,7 +43,9 @@ namespace DimensioneringV2.UI
         }
 
         [ObservableProperty]
-        private Map _map = new();
+        private Map _map = new() { CRS = "EPSG:3857" };
+
+        private readonly ProjectionService _projectionService
 
         public ObservableCollection<FeatureNode> Features { get; private set; } = new();
 

@@ -500,7 +500,7 @@ namespace DimensioneringV2
                     var features = GraphTranslator.TranslateGraph(graph);
                     var graphs = GraphTranslator.CreateGraphsFromFeatures(features);
 
-                    DataService.DataService.Instance.UpdateData(features.SelectMany(x => x), graphs);
+                    Services.DataService.Instance.UpdateData(features.SelectMany(x => x), graphs);
                 }
                 catch (System.Exception ex)
                 {

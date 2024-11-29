@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DimensioneringV2.DataService
+namespace DimensioneringV2.Services
 {
     internal class DataService : IDataService
     {

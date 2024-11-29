@@ -27,7 +27,7 @@ namespace DimensioneringV2.UI
         public MainWindow()
         {
             InitializeComponent();
-            vm.SetDataService(DataService.DataService.Instance);
+            vm.SetDataService(Services.DataService.Instance);
             DataContext = vm;
             mapControl.Map = ((MainWindowViewModel)DataContext).Map;
         }

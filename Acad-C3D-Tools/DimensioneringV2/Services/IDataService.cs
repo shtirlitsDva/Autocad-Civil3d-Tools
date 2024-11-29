@@ -8,7 +8,7 @@ using DimensioneringV2.GraphFeatures;
 
 using QuikGraph;
 
-namespace DimensioneringV2.DataService
+namespace DimensioneringV2.Services
 {
     internal interface IDataService
     {
