@@ -156,7 +156,8 @@ namespace DimensioneringV2.GraphFeatures
                             { "SpecifikVarmeForbrug", 0.0 },
                             { "EstimeretVarmeForbrug", 0.0 },
                             { "AntalEnheder", 0 },
-                            { "VarmeDistrikt", "" }
+                            { "VarmeDistrikt", "" },
+                            { "IsBuildingConnection", false }
                         };
 
                         if (originalNodes.Any(x => x.IsBuildingConnection))
@@ -194,6 +195,7 @@ namespace DimensioneringV2.GraphFeatures
                             attributes["EstimeretVarmeForbrug"] = bbr.EstimeretVarmeForbrug;
                             attributes["AntalEnheder"] = bbr.AntalEnheder;
                             attributes["VarmeDistrikt"] = bbr.DistriktetsNavn;
+                            attributes["IsBuildingConnection"] = true;
                         }
 
                         FeatureNode fn = new FeatureNode(

@@ -16,6 +16,11 @@ using DimensioneringV2.Services;
 using Mapsui.Layers;
 using Mapsui;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Mapsui.Nts;
+using System.Diagnostics.CodeAnalysis;
+using Mapsui.Extensions;
+using Mapsui.Providers;
+using Mapsui.Widgets;
 
 namespace DimensioneringV2.UI
 {
@@ -45,7 +50,7 @@ namespace DimensioneringV2.UI
         [ObservableProperty]
         private Map _map = new() { CRS = "EPSG:3857" };
 
-        private readonly ProjectionService _projectionService
+        private readonly ProjectionService _projectionService;
 
         public ObservableCollection<FeatureNode> Features { get; private set; } = new();
 
@@ -59,9 +64,7 @@ namespace DimensioneringV2.UI
         private void OnDataUpdated(object sender, EventArgs e)
         {
             // Update observable collections
-            Features.Clear();
-            foreach (var feature in _dataService.Features)
-                Features.Add(feature);
+            Features = new(_dataService!.Features);
 
             //Refresh the map
             UpdateMap();
@@ -71,14 +74,25 @@ namespace DimensioneringV2.UI
         {
             if (Map == null) return;
 
-            var mapLayer1 = new MemoryLayer
+            var provider = new MemoryProvider(
+                FeatureStyleService.ApplyStyle(
+                    ProjectionService.ReProjectFeatures(
+                        FeatureTranslatorService.TranslateNtsFeatures(Features), "EPSG:25832", "EPSG:3857")))
             {
-                Features = Features
+                CRS  = "EPSG:3857"
             };
+
+            Layer layer = new Layer
+            {
+                DataSource = provider,
+                Name = "Features",
+            };
+
+            var extent = layer.Extent!.Grow(10000);
 
             Map.Layers.Clear();
             Map.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
-            Map.Layers.Add(mapLayer1);
+            Map.Layers.Add(layer);
         }
     }
 }
