@@ -52,7 +52,7 @@ namespace DimensioneringV2.UI
 
         private readonly ProjectionService _projectionService;
 
-        public ObservableCollection<FeatureNode> Features { get; private set; } = new();
+        public ObservableCollection<IFeature> Features { get; private set; } = new();
 
         private IDataService? _dataService;
 
@@ -64,7 +64,7 @@ namespace DimensioneringV2.UI
         private void OnDataUpdated(object sender, EventArgs e)
         {
             // Update observable collections
-            Features = new(_dataService!.Features);
+            Features = new(_dataService!.Features.SelectMany(x => x));
 
             //Refresh the map
             UpdateMap();
@@ -77,7 +77,7 @@ namespace DimensioneringV2.UI
             var provider = new MemoryProvider(
                 FeatureStyleService.ApplyStyle(
                     ProjectionService.ReProjectFeatures(
-                        FeatureTranslatorService.TranslateNtsFeatures(Features), "EPSG:25832", "EPSG:3857")))
+                        Features, "EPSG:25832", "EPSG:3857")))
             {
                 CRS  = "EPSG:3857"
             };

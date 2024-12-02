@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 
 public class HydraulicSettings : INotifyPropertyChanged
 {
@@ -49,7 +50,11 @@ public class HydraulicSettings : INotifyPropertyChanged
     // Serialization Methods
     public void Save(string path)
     {
-        var json = JsonConvert.SerializeObject(this, Formatting.Indented);
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true
+        };
+        var json = JsonSerializer.Serialize(this, options);
         System.IO.File.WriteAllText(path, json);
     }
 
@@ -59,6 +64,6 @@ public class HydraulicSettings : INotifyPropertyChanged
             return new HydraulicSettings(); // Return default settings
 
         var json = System.IO.File.ReadAllText(path);
-        return JsonConvert.DeserializeObject<HydraulicSettings>(json);
+        return JsonSerializer.Deserialize<HydraulicSettings>(json);
     }
 }

@@ -498,9 +498,13 @@ namespace DimensioneringV2
                     graph.BuildGraph(pls, basePoints, brs, noCrossLines);
 
                     var features = GraphTranslator.TranslateGraph(graph);
-                    var graphs = GraphTranslator.CreateGraphsFromFeatures(features);
-
-                    Services.DataService.Instance.UpdateData(features.SelectMany(x => x), graphs);
+                    
+                    if (features != null)
+                    {
+                        Services.DataService.Instance.UpdateFeatures(features);
+                    }
+                    //else fall through and if any errors where marked with debug lines
+                    //they will be shown in the drawing
                 }
                 catch (System.Exception ex)
                 {

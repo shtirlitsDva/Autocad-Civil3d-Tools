@@ -21,16 +21,19 @@ namespace DimensioneringV2.GraphFeatures
 {
     internal class GraphTranslator
     {
-        //public static List<UndirectedGraph<FeatureNode, Edge<FeatureNode>>> TranslateGraph(Graph originalGraph)        
-        public static List<List<FeatureNode>> TranslateGraph(Graph originalGraph)
+        /// <summary>
+        /// Compresses the graph and translates it
+        /// Maybe this should be split up into two methods
+        /// </summary>
+        public static List<List<AnalysisFeature>> TranslateGraph(Graph originalGraph)
         {
-            List<List<FeatureNode>> allFeatures = new();
+            List<List<AnalysisFeature>> allFeatures = new();
 
             HashSet<SegmentNode> visited = new();
 
             foreach (var subgraph in originalGraph.ConnectedComponents)
             {
-                List<FeatureNode> nodes = new List<FeatureNode>();
+                List<AnalysisFeature> nodes = new List<AnalysisFeature>();
 
                 SegmentNode root = subgraph.RootNode;
                 Point2D ep;
@@ -102,7 +105,7 @@ namespace DimensioneringV2.GraphFeatures
                                     node.seg.EndPoint.To3d(), utils.ColorByName("red"));
                                 utils.prdDbg("Point has degree 0!\n" +
                                     $"{node.ToString()}");
-                                return null;
+                                throw new Exception("DBG: Point has degree 0!");
                             }
                     }
 
@@ -128,7 +131,7 @@ namespace DimensioneringV2.GraphFeatures
                                         item.EndPoint.To3d(), utils.ColorByName("cyan"));
                                 }
                                 utils.prdDbg("Merging returned multiple linestrings!");
-                                return new List<List<FeatureNode>>() { nodes };
+                                throw new Exception("DBG: Merging returned multiple linestrings!");
                             }
                             geometry = merged[0];
                             //geometry = sequenced;
@@ -136,7 +139,7 @@ namespace DimensioneringV2.GraphFeatures
                         else geometry = lines[0];
 
                         //Translate building data if any
-                        var attributes = new AttributesTable
+                        Dictionary<string, object> attributes = new()
                         {
                             { "id_lokalId", "" },
                             { "Name", "" },
@@ -157,7 +160,8 @@ namespace DimensioneringV2.GraphFeatures
                             { "EstimeretVarmeForbrug", 0.0 },
                             { "AntalEnheder", 0 },
                             { "VarmeDistrikt", "" },
-                            { "IsBuildingConnection", false }
+                            { "IsBuildingConnection", false },
+                            { "IsRootNode", false },
                         };
 
                         if (originalNodes.Any(x => x.IsBuildingConnection))
@@ -198,8 +202,12 @@ namespace DimensioneringV2.GraphFeatures
                             attributes["IsBuildingConnection"] = true;
                         }
 
-                        FeatureNode fn = new FeatureNode(
-                                geometry, attributes);
+                        if (originalNodes.Any(x => x.IsRoot))
+                        {
+                            attributes["IsRootNode"] = true;
+                        }
+
+                        AnalysisFeature fn = new AnalysisFeature(geometry, attributes);
                         nodes.Add(fn);
                     }
                 }
@@ -208,104 +216,6 @@ namespace DimensioneringV2.GraphFeatures
             }
 
             return allFeatures;
-        }
-
-        public static List<UndirectedGraph<FeatureNode, Edge<FeatureNode>>> CreateGraphsFromFeatures(
-            List<List<FeatureNode>> allFeatures)
-        {
-
-            #region Mark the root node before making graphs
-            foreach (var list in allFeatures)
-            {
-                foreach (var fn in list)
-                    fn.Attributes.Add("RootNode", false);
-                if (list.Count > 0)
-                    list[0].Attributes["RootNode"] = true;
-            }
-            #endregion
-
-            List<UndirectedGraph<FeatureNode, Edge<FeatureNode>>> graphs = new();
-            Dictionary<Point2D, List<FeatureNode>> pointToFeatureNodes = new(new Point2DEqualityComparer());
-
-            // Initialize feature nodes dictionary for easy lookup
-            foreach (var featureList in allFeatures)
-            {
-                foreach (var featureNode in featureList)
-                {
-                    // Find the start and end points of each linestring in the feature geometry
-                    LineString lineString = (LineString)featureNode.Geometry;
-                    Point2D startPoint = new Point2D(lineString.StartPoint.X, lineString.StartPoint.Y);
-                    Point2D endPoint = new Point2D(lineString.EndPoint.X, lineString.EndPoint.Y);
-
-                    // Add the feature node to the dictionary for both start and end points
-                    if (!pointToFeatureNodes.ContainsKey(startPoint))
-                    {
-                        pointToFeatureNodes[startPoint] = new List<FeatureNode>();
-                    }
-                    pointToFeatureNodes[startPoint].Add(featureNode);
-
-                    if (!pointToFeatureNodes.ContainsKey(endPoint))
-                    {
-                        pointToFeatureNodes[endPoint] = new List<FeatureNode>();
-                    }
-                    pointToFeatureNodes[endPoint].Add(featureNode);
-                }
-            }
-
-            // Create edges and build graphs for each disjoint network
-            foreach (var featureList in allFeatures)
-            {
-                var graph = new UndirectedGraph<FeatureNode, Edge<FeatureNode>>(false);
-                HashSet<FeatureNode> visited = new();
-
-                foreach (var featureNode in featureList)
-                {
-                    if (visited.Contains(featureNode))
-                        continue;
-
-                    Stack<FeatureNode> stack = new();
-                    stack.Push(featureNode);
-
-                    while (stack.Count > 0)
-                    {
-                        var currentNode = stack.Pop();
-                        if (visited.Contains(currentNode))
-                            continue;
-
-                        visited.Add(currentNode);
-                        graph.AddVertex(currentNode);
-
-                        // Find connected nodes and add edges
-                        LineString lineString = (LineString)currentNode.Geometry;
-                        Point2D startPoint = new Point2D(lineString.StartPoint.X, lineString.StartPoint.Y);
-                        Point2D endPoint = new Point2D(lineString.EndPoint.X, lineString.EndPoint.Y);
-
-                        foreach (var point in new[] { startPoint, endPoint })
-                        {
-                            if (pointToFeatureNodes.TryGetValue(point, out var neighborNodes))
-                            {
-                                foreach (var neighborNode in neighborNodes)
-                                {
-                                    if (neighborNode != currentNode && !graph.ContainsEdge(new Edge<FeatureNode>(currentNode, neighborNode)))
-                                    {
-                                        graph.AddVertex(neighborNode);
-                                        graph.AddEdge(new Edge<FeatureNode>(currentNode, neighborNode));
-
-                                        if (!visited.Contains(neighborNode))
-                                        {
-                                            stack.Push(neighborNode);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                graphs.Add(graph);
-            }
-
-            return graphs;
         }
     }
 }

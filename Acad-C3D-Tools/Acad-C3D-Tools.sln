@@ -49,6 +49,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NorsynHydraulicCalcTestApp"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DimensioneringV2", "DimensioneringV2\DimensioneringV2.csproj", "{E5FA3287-B46F-41BB-A860-79F03B57B411}"
 EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "NorsynHydraulicShared", "NorsynHydraulicShared\NorsynHydraulicShared.shproj", "{1356CF62-02FE-40E8-A35C-976077F7F8D7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -144,6 +146,7 @@ Global
 	EndGlobalSection
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{0f92c1bb-fadb-4df2-8ff8-f28391c1ed3c}*SharedItemsImports = 5
+		NorsynHydraulicShared\NorsynHydraulicShared.projitems*{1356cf62-02fe-40e8-a35c-976077f7f8d7}*SharedItemsImports = 13
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{3dbcde07-d2c7-45a3-9bd6-5b7873a85166}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{774d8c82-954d-40a1-993a-62c9385fdf12}*SharedItemsImports = 5
 		UtilitiesCommonSHARED\UtilitiesCommonSHARED.projitems*{8e289862-d2b1-46b9-99cf-f13925f2d562}*SharedItemsImports = 5
