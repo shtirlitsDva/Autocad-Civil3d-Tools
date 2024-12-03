@@ -22,15 +22,22 @@ using Mapsui.Extensions;
 using Mapsui.Providers;
 using Mapsui.Widgets;
 
+using utils = IntersectUtilities.UtilsCommon.Utils;
+using DimensioneringV2.MapStyles;
+
 namespace DimensioneringV2.UI
 {
     internal partial class MainWindowViewModel : ObservableObject
     {
         public MainWindowViewModel()
         {
+            _dataService = DataService.Instance;
+            _dataService.DataLoaded += OnDataLoadedFirstTime;
 
+            HydraulicCalculationsService.CalculationsCompleted += OnCalculationsCompleted;
         }
 
+        #region CollectFeaturesFromACCommand
         public RelayCommand CollectFeaturesCommand =>
             new RelayCommand((_) => CollectFeaturesExecute(), (_) => true);
 
@@ -46,27 +53,53 @@ namespace DimensioneringV2.UI
                 }, null
                 );
         }
+        #endregion
+
+        #region PerformCalculationsCommand
+        public RelayCommand PerformCalculationsCommand =>
+            new(async (_) => await PerformCalculationsExecuteAsync(), (_) => true);
+
+        private async Task PerformCalculationsExecuteAsync()
+        {
+            try
+            {
+                await Task.Run(HydraulicCalculationsService.PerformCalculations);
+
+
+
+                // Update UI elements after calculations are complete
+                // No need to use Dispatcher.Invoke here since we're back on the UI thread
+                // OnPropertyChanged(nameof(UpdatedProperty));
+            }
+            catch (Exception ex)
+            {
+                utils.prdDbg($"An error occurred during calculations: {ex.Message}");
+            }
+        } 
+        #endregion
 
         [ObservableProperty]
         private Map _map = new() { CRS = "EPSG:3857" };
 
-        private readonly ProjectionService _projectionService;
+        [ObservableProperty]
+        private IStyleManager currentStyle;
 
-        public ObservableCollection<IFeature> Features { get; private set; } = new();
+        public ObservableCollection<IFeature> Features { get; private set; }
 
-        private IDataService? _dataService;
-
-        public void SetDataService(IDataService dataService)
-        {
-            _dataService = dataService;
-            _dataService.DataUpdated += OnDataUpdated;
-        }
-        private void OnDataUpdated(object sender, EventArgs e)
+        private readonly DataService _dataService;
+        
+        private void OnDataLoadedFirstTime(object sender, EventArgs e)
         {
             // Update observable collections
             Features = new(_dataService!.Features.SelectMany(x => x));
 
-            //Refresh the map
+            CurrentStyle = new StyleBasic();
+            UpdateMap();
+        }
+
+        private void OnCalculationsCompleted(object sender, EventArgs e)
+        {
+            CurrentStyle = new StyleCalculatedNumberOfBuildingsSupplied();
             UpdateMap();
         }
 

@@ -1,4 +1,6 @@
-﻿using Mapsui;
+﻿using DimensioneringV2.MapStyles;
+
+using Mapsui;
 using Mapsui.Styles;
 
 using System;
@@ -11,25 +13,11 @@ namespace DimensioneringV2.Services
 {
     internal class FeatureStyleService
     {
-        internal static IEnumerable<IFeature> ApplyStyle(IEnumerable<IFeature> features)
+        internal static IEnumerable<IFeature> ApplyStyle(IEnumerable<IFeature> features, IStyleManager styleManager)
         {
-            Style red = new VectorStyle
-            {
-                Line = new Pen(Color.Red) { Width = 3 }
-            };
-            Style yellow = new VectorStyle
-            {
-                Line = new Pen(Color.Yellow) { Width = 3 }
-            };
-
-
             foreach (IFeature feature in features)
             {
-                bool isBuilding = (bool)feature["IsBuildingConnection"];
-
-                Style style = isBuilding ? yellow : red;
-
-                feature.Styles.Add(style);
+                feature.Styles.Add(styleManager.GetStyle(feature));
 
                 yield return feature;
             }

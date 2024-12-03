@@ -32,7 +32,8 @@ namespace DimensioneringV2.GraphFeatures
             {
                 this[attribute.Key] = attribute.Value;
             }
-            
+
+            IsRootNode = this["IsRootNode"] as bool? ?? false;
             Length = geometry.Length;
             NumberOfBuildingsConnected = 
                 (this["IsBuildingConnection"] as bool? ?? false) == true ? 1 : 0;
@@ -43,6 +44,10 @@ namespace DimensioneringV2.GraphFeatures
 
         #region Calculation properties
         //Cached from attributes
+        /// <summary>
+        /// Is the segment a root node, then returns true, else false
+        /// </summary>
+        public bool IsRootNode { get; private set; }
         /// <summary>
         /// Length of the segment
         /// </summary>

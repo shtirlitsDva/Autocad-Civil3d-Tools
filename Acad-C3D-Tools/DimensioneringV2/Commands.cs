@@ -501,7 +501,7 @@ namespace DimensioneringV2
                     
                     if (features != null)
                     {
-                        Services.DataService.Instance.UpdateFeatures(features);
+                        Services.DataService.Instance.LoadData(features);
                     }
                     //else fall through and if any errors where marked with debug lines
                     //they will be shown in the drawing
