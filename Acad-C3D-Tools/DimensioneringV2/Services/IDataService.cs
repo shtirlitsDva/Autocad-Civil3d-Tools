@@ -12,9 +12,8 @@ namespace DimensioneringV2.Services
 {
     internal interface IDataService
     {
-        event EventHandler DataUpdated;
-        IEnumerable<FeatureNode> Features { get; set; }
-        IEnumerable<UndirectedGraph<FeatureNode, Edge<FeatureNode>>> Graphs { get; set; }
-        void UpdateData(IEnumerable<FeatureNode> features, IEnumerable<UndirectedGraph<FeatureNode, Edge<FeatureNode>>> graphs);
+        event EventHandler DataLoaded;
+        IEnumerable<IEnumerable<AnalysisFeature>> Features { get; set; }
+        void LoadData(IEnumerable<IEnumerable<AnalysisFeature>> features);
     }
 }

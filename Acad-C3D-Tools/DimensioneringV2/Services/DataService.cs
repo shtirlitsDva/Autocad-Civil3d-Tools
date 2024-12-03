@@ -10,46 +10,26 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.Services
 {
-    internal class DataService : IDataService
+    internal class DataService
     {
         private static DataService _instance;
         public static DataService Instance => _instance ??= new DataService();
         private DataService() { }
 
-        public event EventHandler DataUpdated;
-
-        private IEnumerable<FeatureNode> _features;
-        private IEnumerable<UndirectedGraph<FeatureNode, Edge<FeatureNode>>> _graphs;
-
-        public IEnumerable<FeatureNode> Features
-        {
-            get => _features;
-            set
-            {
-                _features = value;
-                OnDataUpdated();
-            }
-        }
-
-        public IEnumerable<UndirectedGraph<FeatureNode, Edge<FeatureNode>>> Graphs
-        {
-            get => _graphs;
-            set
-            {
-                _graphs = value;
-                OnDataUpdated();
-            }
-        }
-
-        public void UpdateData(IEnumerable<FeatureNode> features, IEnumerable<UndirectedGraph<FeatureNode, Edge<FeatureNode>>> graphs)
+        #region Data Loaded event
+        /// <summary>
+        /// Used when the data is loaded first time.
+        /// Should only be triggered once -- when getting data from AC.
+        /// </summary>
+        public event EventHandler DataLoaded;
+        public IEnumerable<IEnumerable<AnalysisFeature>> Features { get; private set; }
+        public IEnumerable<UndirectedGraph<AnalysisFeature, Edge<AnalysisFeature>>> Graphs { get; private set; }
+        public void LoadData(IEnumerable<IEnumerable<AnalysisFeature>> features)
         {
             Features = features;
-            Graphs = graphs;
+            Graphs = GraphCreationService.CreateGraphsFromFeatures(Features);
+            DataLoaded?.Invoke(this, EventArgs.Empty);
         }
-
-        private void OnDataUpdated()
-        {
-            DataUpdated?.Invoke(this, EventArgs.Empty);
-        }
+        #endregion
     }
 }
