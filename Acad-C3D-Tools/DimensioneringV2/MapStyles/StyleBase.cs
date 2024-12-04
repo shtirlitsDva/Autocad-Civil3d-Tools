@@ -16,11 +16,12 @@ namespace DimensioneringV2.MapStyles
     {
         private IStyle _style = new VectorStyle();
         protected IEnumerable<IFeature> _features;
-        protected StyleBase(IEnumerable<IFeature> features) { _features = features.Copy(); }
+        protected StyleBase(IEnumerable<IFeature> features) { _features = features; }
         public IEnumerable<IFeature> ApplyStyle()
         {
             foreach (var feature in _features)
             {
+                feature.Styles.Clear();
                 var ss = GetStyles(feature);
                 for (var i = 0; i < ss.Length; i++)
                 {

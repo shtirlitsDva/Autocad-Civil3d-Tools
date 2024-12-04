@@ -28,7 +28,7 @@ namespace DimensioneringV2.UI
         {
             InitializeComponent();
             DataContext = vm;
-            mapControl.Map = ((MainWindowViewModel)DataContext).Map;
+            mapControl.Map = ((MainWindowViewModel)DataContext).Mymap;
         }
     }
 }
