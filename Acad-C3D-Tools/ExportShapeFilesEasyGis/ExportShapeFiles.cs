@@ -76,7 +76,7 @@ namespace ExportShapeFiles
             string baseDir = shapeExportPath;
 
             PromptStringOptions options = new PromptStringOptions("\nAngiv navnet på shapefilen: ");
-            options.DefaultValue = $"{Path.GetFileName(dbFilename)}";
+            options.DefaultValue = $"{Path.GetFileNameWithoutExtension(dbFilename)}";
             options.UseDefaultValue = true;
             PromptResult result = doc.Editor.GetString(options);
 
