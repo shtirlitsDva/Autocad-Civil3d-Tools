@@ -5,24 +5,25 @@ using NetTopologySuite.Geometries;
 
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 
 using static IntersectUtilities.UtilsCommon.Utils;
 
 namespace DimensioneringV2.GraphFeatures
 {
-    internal class AnalysisFeature : GeometryFeature, IFeature
+    internal class AnalysisFeature : GeometryFeature, IFeature, ICloneable
     {
         #region Constructors
         public AnalysisFeature() : base() { }
 
         public AnalysisFeature(AnalysisFeature analysisFeature) : base(analysisFeature)
         {
-            Geometry = analysisFeature.Geometry?.Copy();
+            //Geometry = analysisFeature.Geometry?.Copy();
+            InitCachedProperties();
         }
-        public AnalysisFeature(NetTopologySuite.Geometries.Geometry? geometry)
+        public AnalysisFeature(NetTopologySuite.Geometries.Geometry? geometry) : base(geometry)
         {
-            Geometry = geometry;
-            
+            //Geometry = geometry;
         }
         public AnalysisFeature(
             NetTopologySuite.Geometries.Geometry geometry,
@@ -33,9 +34,14 @@ namespace DimensioneringV2.GraphFeatures
                 this[attribute.Key] = attribute.Value;
             }
 
+            InitCachedProperties();
+        }
+
+        private void InitCachedProperties()
+        {
             IsRootNode = this["IsRootNode"] as bool? ?? false;
-            Length = geometry.Length;
-            NumberOfBuildingsConnected = 
+            Length = Geometry!.Length;
+            NumberOfBuildingsConnected =
                 (this["IsBuildingConnection"] as bool? ?? false) == true ? 1 : 0;
             NumberOfUnitsConnected = this["AntalEnheder"] as int? ?? 0;
             BuildingHeatingDemand = this["EstimeretVarmeForbrug"] as double? ?? 0;
@@ -79,6 +85,20 @@ namespace DimensioneringV2.GraphFeatures
         /// </summary>
         public double HeatingDemandSummarized { get; set; }
 
+        #region ICloneable Implementation
+        public object Clone()
+        {
+            AnalysisFeature clonedObject = (AnalysisFeature)this.MemberwiseClone();
+            foreach (PropertyInfo property in this.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (property.CanWrite && property.GetSetMethod() != null)
+                {
+                    property.SetValue(clonedObject, property.GetValue(this));
+                }
+            }
+            return clonedObject;
+        }
+        #endregion
 
         #endregion
 

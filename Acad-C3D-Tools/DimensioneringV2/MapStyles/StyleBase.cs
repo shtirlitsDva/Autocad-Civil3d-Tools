@@ -1,6 +1,7 @@
 ﻿using DimensioneringV2.GraphFeatures;
 
 using Mapsui;
+using Mapsui.Extensions;
 using Mapsui.Styles;
 
 using System;
@@ -13,9 +14,26 @@ namespace DimensioneringV2.MapStyles
 {
     internal abstract class StyleBase : IStyleManager
     {
-        public virtual IStyle GetStyle(IFeature feature)
+        private IStyle _style = new VectorStyle();
+        protected IEnumerable<IFeature> _features;
+        protected StyleBase(IEnumerable<IFeature> features) { _features = features.Copy(); }
+        public IEnumerable<IFeature> ApplyStyle()
         {
-            return new VectorStyle();
+            foreach (var feature in _features)
+            {
+                var ss = GetStyles(feature);
+                for (var i = 0; i < ss.Length; i++)
+                {
+                    feature.Styles.Add(ss[i]);
+                }
+            }
+
+            return _features;
         }
+        public virtual IStyle[] GetStyles(IFeature feature)
+        {
+            return [_style];
+        }
+
     }
 }

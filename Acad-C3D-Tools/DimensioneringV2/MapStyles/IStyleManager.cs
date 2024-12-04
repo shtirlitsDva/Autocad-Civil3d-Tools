@@ -13,6 +13,7 @@ namespace DimensioneringV2.MapStyles
 {
     internal interface IStyleManager
     {
-        IStyle GetStyle(IFeature feature);
+        IStyle[] GetStyles(IFeature feature);
+        IEnumerable<IFeature> ApplyStyle();
     }
 }

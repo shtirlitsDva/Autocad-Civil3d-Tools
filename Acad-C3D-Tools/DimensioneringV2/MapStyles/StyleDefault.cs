@@ -13,6 +13,8 @@ namespace DimensioneringV2.MapStyles
 {
     class StyleDefault : StyleBase
     {
-        
+        public StyleDefault(IEnumerable<IFeature> features) : base(features)
+        {
+        }
     }
 }

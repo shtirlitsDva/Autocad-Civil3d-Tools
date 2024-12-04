@@ -17,7 +17,9 @@
                 <Button 
                     x:Name="LoadButton" Content="Load Data" Width="100" Height="30" 
                     DockPanel.Dock="Top" Margin="10" Command="{Binding CollectFeaturesCommand}"/>
-                <Button x:Name="btnOpen" Content="Open" Width="100" Height="30" Margin="10"/>
+                <Button 
+                    x:Name="CalcButton" Content="Calculate" Width="100" Height="30" 
+                    Margin="10" Command="{Binding PerformCalculationsCommand}"/>
                 <Button x:Name="btnSave" Content="Save" Width="100" Height="30" Margin="10"/>
                 <Button x:Name="btnSaveAs" Content="Save As" Width="100" Height="30" Margin="10"/>
                 <Button x:Name="btnClose" Content="Close" Width="100" Height="30" Margin="10"/>

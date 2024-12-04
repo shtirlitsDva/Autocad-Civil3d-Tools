@@ -17,8 +17,7 @@ namespace DimensioneringV2.Services
         private static DataService _dataService = DataService.Instance;
         internal static void PerformCalculations()
         {
-            List<UndirectedGraph<AnalysisFeature, Edge<AnalysisFeature>>> graphs = 
-                GraphCreationService.CreateGraphsFromFeatures(_dataService.Features);
+            var graphs = _dataService.Graphs;
 
             foreach (var graph in graphs)
             {
@@ -50,7 +49,7 @@ namespace DimensioneringV2.Services
                 CalculateBuildingsSupplied(shortestPathTree, rootNode, visited);
             }
 
-            //_dataService.LoadData(graphs.Select(g => g.Vertices));
+            _dataService.StoreCalculatedData(graphs.Select(g => g.Vertices));
         }
 
         private static int CalculateBuildingsSupplied(

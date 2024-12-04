@@ -33,8 +33,7 @@ namespace DimensioneringV2.UI
         {
             _dataService = DataService.Instance;
             _dataService.DataLoaded += OnDataLoadedFirstTime;
-
-            HydraulicCalculationsService.CalculationsCompleted += OnCalculationsCompleted;
+            _dataService.CalculationDataReturned += OnCalculationsCompleted;
         }
 
         #region CollectFeaturesFromACCommand
@@ -64,12 +63,6 @@ namespace DimensioneringV2.UI
             try
             {
                 await Task.Run(HydraulicCalculationsService.PerformCalculations);
-
-
-
-                // Update UI elements after calculations are complete
-                // No need to use Dispatcher.Invoke here since we're back on the UI thread
-                // OnPropertyChanged(nameof(UpdatedProperty));
             }
             catch (Exception ex)
             {
@@ -93,13 +86,14 @@ namespace DimensioneringV2.UI
             // Update observable collections
             Features = new(_dataService!.Features.SelectMany(x => x));
 
-            CurrentStyle = new StyleBasic();
+            CurrentStyle = new StyleBasic(Features);
             UpdateMap();
         }
 
         private void OnCalculationsCompleted(object sender, EventArgs e)
         {
-            CurrentStyle = new StyleCalculatedNumberOfBuildingsSupplied();
+            Features = new(_dataService!.CalculatedFeatures.SelectMany(x => x));
+            CurrentStyle = new StyleCalculatedNumberOfBuildingsSupplied(Features);
             UpdateMap();
         }
 
@@ -107,10 +101,7 @@ namespace DimensioneringV2.UI
         {
             if (Map == null) return;
 
-            var provider = new MemoryProvider(
-                FeatureStyleService.ApplyStyle(
-                    ProjectionService.ReProjectFeatures(
-                        Features, "EPSG:25832", "EPSG:3857")))
+            var provider = new MemoryProvider(CurrentStyle.ApplyStyle())
             {
                 CRS  = "EPSG:3857"
             };
@@ -121,11 +112,13 @@ namespace DimensioneringV2.UI
                 Name = "Features",
             };
 
-            var extent = layer.Extent!.Grow(10000);
+            var extent = layer.Extent!.Grow(100);
 
             Map.Layers.Clear();
             Map.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
             Map.Layers.Add(layer);
+
+            Map.Navigator.ZoomToBox(extent);
         }
     }
 }

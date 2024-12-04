@@ -16,20 +16,24 @@ namespace DimensioneringV2.MapStyles
     /// </summary>
     class StyleBasic : StyleBase
     {
-        public override IStyle GetStyle(IFeature feature)
+        private IStyle _red;
+        private IStyle _yellow;
+        public StyleBasic(IEnumerable<IFeature> features) : base(features)
         {
-            var f = feature as AnalysisFeature;
-
-            Style red = new VectorStyle
+            _red = new VectorStyle
             {
                 Line = new Pen(Color.Red) { Width = 3 }
             };
-            Style yellow = new VectorStyle
+            _yellow = new VectorStyle
             {
                 Line = new Pen(Color.Yellow) { Width = 3 }
             };
+        }
+        public override IStyle[] GetStyles(IFeature feature)
+        {
+            var f = feature as AnalysisFeature;
 
-            return f?.NumberOfBuildingsConnected == 1 ? yellow : red;
+            return f?.NumberOfBuildingsConnected == 1 ? [_yellow] : [_red];
         }
     }
 }

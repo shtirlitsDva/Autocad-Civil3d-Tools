@@ -1,5 +1,7 @@
 ﻿using DimensioneringV2.GraphFeatures;
 
+using DotSpatial.Projections;
+
 using Mapsui;
 using Mapsui.Extensions;
 using Mapsui.Extensions.Projections;
@@ -20,8 +22,11 @@ namespace DimensioneringV2.Services
 {
     internal class ProjectionService
     {
-        internal static IEnumerable<IFeature> ReProjectFeatures(
-            IEnumerable<IFeature> features, string sourceCrs, string targetCrs) =>
-                features.Project(sourceCrs, targetCrs, new DotSpatialProjection());
+        internal static IEnumerable<AnalysisFeature> ReProjectFeatures(
+            IEnumerable<AnalysisFeature> features, string sourceCrs, string targetCrs) =>
+                features
+            .Cast<IFeature>()
+            .Project(sourceCrs, targetCrs, new DotSpatialProjection())
+            .Cast<AnalysisFeature>();
     }
 }

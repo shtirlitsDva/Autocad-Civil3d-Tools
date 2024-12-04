@@ -1,5 +1,7 @@
 ﻿using DimensioneringV2.GraphFeatures;
 
+using Mapsui.Extensions;
+
 using QuikGraph;
 
 using System;
@@ -26,7 +28,11 @@ namespace DimensioneringV2.Services
         public IEnumerable<UndirectedGraph<AnalysisFeature, Edge<AnalysisFeature>>> Graphs { get; private set; }
         public void LoadData(IEnumerable<IEnumerable<AnalysisFeature>> features)
         {
-            Features = features;
+            List<HashSet<AnalysisFeature>> samlet = new();
+            foreach (var col in features)
+                samlet.Add(ProjectionService.ReProjectFeatures(
+                    col, "EPSG:25832", "EPSG:3857").ToHashSet());
+            Features = samlet;
             Graphs = GraphCreationService.CreateGraphsFromFeatures(Features);
             DataLoaded?.Invoke(this, EventArgs.Empty);
         }
@@ -38,6 +44,11 @@ namespace DimensioneringV2.Services
         /// </summary>
         public event EventHandler CalculationDataReturned;
         public IEnumerable<IEnumerable<AnalysisFeature>> CalculatedFeatures { get; private set; }
+        public void StoreCalculatedData(IEnumerable<IEnumerable<AnalysisFeature>> calculatedFeatures)
+        {
+            CalculatedFeatures = calculatedFeatures;
+            CalculationDataReturned?.Invoke(this, EventArgs.Empty);
+        }
         #endregion
     }
 }
