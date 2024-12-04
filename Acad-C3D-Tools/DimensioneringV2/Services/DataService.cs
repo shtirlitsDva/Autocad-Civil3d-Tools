@@ -31,5 +31,13 @@ namespace DimensioneringV2.Services
             DataLoaded?.Invoke(this, EventArgs.Empty);
         }
         #endregion
+
+        #region Calculation data returned event
+        /// <summary>
+        /// Used when calculation service has returned data.
+        /// </summary>
+        public event EventHandler CalculationDataReturned;
+        public IEnumerable<IEnumerable<AnalysisFeature>> CalculatedFeatures { get; private set; }
+        #endregion
     }
 }

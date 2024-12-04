@@ -6202,12 +6202,22 @@ namespace IntersectUtilities
 ";
                     File.WriteAllText(@"C:\Temp\MyGraph.html", htmlContent);
 
-                    var psi = new ProcessStartInfo
+                    string mSedgePath = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
+
+                    if (File.Exists(mSedgePath))
                     {
-                        FileName = @"C:\Temp\MyGraph.html",
-                        UseShellExecute = true
-                    };
-                    Process.Start(psi);
+                        Process.Start(mSedgePath, @"C:\Temp\MyGraph.html");
+                    }
+                    else
+                    {
+                        var psi = new ProcessStartInfo
+                        {
+                            FileName = @"C:\Temp\MyGraph.html",
+                            UseShellExecute = true
+                        };
+
+                        Process.Start(psi);
+                    }
 
                     #region Attempt at using /Launch action in pdf
                     ////Start the dot engine to create the graph and convert to pdf with links

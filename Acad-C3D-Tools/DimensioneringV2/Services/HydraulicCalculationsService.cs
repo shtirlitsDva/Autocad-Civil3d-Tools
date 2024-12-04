@@ -27,30 +27,30 @@ namespace DimensioneringV2.Services
                 if (rootNode == null)
                     throw new System.Exception("Root node not found.");
 
-                // Initialize dictionary to store shortest distances from root
-                var shortestPaths = new Dictionary<AnalysisFeature, double>();
-
+                var shortestPathTree = new UndirectedGraph<AnalysisFeature, Edge<AnalysisFeature>>();
+                shortestPathTree.AddVertexRange(graph.Vertices);
+                
                 // Dijkstra's algorithm for shortest paths from the root node
                 var tryGetPaths = graph.ShortestPathsDijkstra(edge => edge.Source.Length, rootNode);
 
                 foreach (var vertex in graph.Vertices)
                 {
-                    if (tryGetPaths(vertex, out var path))
+                    if (vertex != rootNode && tryGetPaths(vertex, out var path))
                     {
-                        shortestPaths[vertex] = path.Sum(edge => edge.Source.Length);
-                    }
-                    else
-                    {
-                        shortestPaths[vertex] = double.PositiveInfinity;
+                        foreach (var edge in path)
+                        {
+                            if (!shortestPathTree.ContainsEdge(edge)) 
+                                shortestPathTree.AddVerticesAndEdge(edge);
+                        }
                     }
                 }
 
                 // Traverse from downstream nodes and calculate NumberOfBuildingsSupplied
                 var visited = new HashSet<AnalysisFeature>();
-                CalculateBuildingsSupplied(graph, rootNode, visited);
+                CalculateBuildingsSupplied(shortestPathTree, rootNode, visited);
             }
 
-            _dataService.LoadData(graphs.Select(g => g.Vertices));
+            //_dataService.LoadData(graphs.Select(g => g.Vertices));
         }
 
         private static int CalculateBuildingsSupplied(
