@@ -22,7 +22,7 @@
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
 		<Deterministic>false</Deterministic>
-		<AssemblyName>IntersectUtilities</AssemblyName>
+		<AssemblyName>o1wvxttp.nqz</AssemblyName>
 	</PropertyGroup>
 	<PropertyGroup Condition=" '$(Platform)' == 'x64' ">
 		<DebugSymbols>true</DebugSymbols>
@@ -150,7 +150,7 @@
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.0" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
-		<PackageReference Include="System.Text.Encodings.Web" Version="9.0.0" />
+		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.5" />
 	</ItemGroup>
 	<ItemGroup>

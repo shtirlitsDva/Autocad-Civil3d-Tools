@@ -155,7 +155,7 @@
 		<PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
 		<PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.0" />
-		<PackageReference Include="System.Text.Encodings.Web" Version="9.0.0" />
+		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
 		<PackageReference Include="System.Text.Json" Version="8.0.5" />
 		<PackageReference Include="QuikGraph" Version="2.5.0" />
 		<PackageReference Include="QuikGraph.Graphviz" Version="2.5.0" />
