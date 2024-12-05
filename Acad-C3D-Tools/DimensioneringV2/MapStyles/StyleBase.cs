@@ -12,14 +12,13 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.MapStyles
 {
-    internal abstract class StyleBase : IStyleManager
+    internal abstract class StyleBase : IMapStyle
     {
-        private IStyle _style = new VectorStyle();
-        protected IEnumerable<IFeature> _features;
-        protected StyleBase(IEnumerable<IFeature> features) { _features = features; }
-        public IEnumerable<IFeature> ApplyStyle()
+        private IStyle _style = new VectorStyle() { Line = new Pen(Color.Black, 0.5), Opacity = 50f  };
+        protected StyleBase() { }
+        public virtual void ApplyStyle(IEnumerable<IFeature> features)
         {
-            foreach (var feature in _features)
+            foreach (var feature in features)
             {
                 feature.Styles.Clear();
                 var ss = GetStyles(feature);
@@ -28,8 +27,6 @@ namespace DimensioneringV2.MapStyles
                     feature.Styles.Add(ss[i]);
                 }
             }
-
-            return _features;
         }
         public virtual IStyle[] GetStyles(IFeature feature)
         {

@@ -24,7 +24,8 @@
                         Margin="2" Command="{Binding PerformZoomToExtents}"/>
                 <Button x:Name="btnSyncAC" Content="Sync AC" FontSize="10" Width="70" Height="20"
                         Margin="2" Command="{Binding SyncACWindowCommand}"/>
-                <Button x:Name="btnClose" Content="Temp" FontSize="10" Width="70" Height="20" Margin="2"/>
+                <Button x:Name="btnClose" Content="Toggle Labels" FontSize="10" Width="70" Height="20"
+                        Margin="2" Command="{Binding PerformLabelToggle}"/>
             </StackPanel>
             <!-- Map Control -->
             <mapsui:MapControl x:Name="mapControl" Margin="2"/>

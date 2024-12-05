@@ -11,9 +11,9 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.MapStyles
 {
-    internal interface IStyleManager
+    internal interface IMapStyle
     {
         IStyle[] GetStyles(IFeature feature);
-        IEnumerable<IFeature> ApplyStyle();
+        void ApplyStyle(IEnumerable<IFeature> features);
     }
 }

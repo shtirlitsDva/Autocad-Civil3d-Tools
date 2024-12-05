@@ -13,13 +13,13 @@ namespace DimensioneringV2.Services
 {
     internal class GraphCreationService
     {
-        public static List<UndirectedGraph<AnalysisFeature, Edge<AnalysisFeature>>> CreateGraphsFromFeatures(
-            IEnumerable<IEnumerable<AnalysisFeature>> allFeatures)
+        public static List<UndirectedGraph<JunctionNode, PipeSegmentEdge>> CreateGraphsFromFeatures(
+        IEnumerable<IEnumerable<AnalysisFeature>> allFeatures)
         {
-            List<UndirectedGraph<AnalysisFeature, Edge<AnalysisFeature>>> graphs = new();
-            Dictionary<Point2D, List<AnalysisFeature>> pointToFeatureNodes = new(new Point2DEqualityComparer());
+            List<UndirectedGraph<JunctionNode, PipeSegmentEdge>> graphs = new();
+            Dictionary<Point2D, JunctionNode> pointToJunctionNodes = new(new Point2DEqualityComparer());
 
-            // Initialize feature nodes dictionary for easy lookup
+            // Step 1: Identify all junction points and create junction nodes
             foreach (var featureList in allFeatures)
             {
                 foreach (var featureNode in featureList)
@@ -29,25 +29,44 @@ namespace DimensioneringV2.Services
                     Point2D startPoint = new Point2D(lineString.StartPoint.X, lineString.StartPoint.Y);
                     Point2D endPoint = new Point2D(lineString.EndPoint.X, lineString.EndPoint.Y);
 
-                    // Add the feature node to the dictionary for both start and end points
-                    if (!pointToFeatureNodes.ContainsKey(startPoint))
+                    // Create or retrieve the junction nodes for both start and end points
+                    if (!pointToJunctionNodes.ContainsKey(startPoint))
                     {
-                        pointToFeatureNodes[startPoint] = new List<AnalysisFeature>();
+                        pointToJunctionNodes[startPoint] = new JunctionNode(startPoint);
                     }
-                    pointToFeatureNodes[startPoint].Add(featureNode);
+                    pointToJunctionNodes[startPoint].Degree++;
 
-                    if (!pointToFeatureNodes.ContainsKey(endPoint))
+                    if (!pointToJunctionNodes.ContainsKey(endPoint))
                     {
-                        pointToFeatureNodes[endPoint] = new List<AnalysisFeature>();
+                        pointToJunctionNodes[endPoint] = new JunctionNode(endPoint);
                     }
-                    pointToFeatureNodes[endPoint].Add(featureNode);
+                    pointToJunctionNodes[endPoint].Degree++;
                 }
             }
 
-            // Create edges and build graphs for each disjoint network
+            var rootNodes = allFeatures.SelectMany(x => x).Where(x => x.IsRootNode);
+            foreach (var node in rootNodes)
+            {
+                // Find the start and end points of each linestring in the feature geometry
+                LineString lineString = (LineString)node.Geometry!;
+                Point2D startPoint = new Point2D(lineString.StartPoint.X, lineString.StartPoint.Y);
+                Point2D endPoint = new Point2D(lineString.EndPoint.X, lineString.EndPoint.Y);
+
+                // Assign root node property to the corresponding junction node if it has a degree of 1
+                if (pointToJunctionNodes[startPoint].Degree == 1)
+                {
+                    pointToJunctionNodes[startPoint].IsRootNode = true;
+                }
+                else if (pointToJunctionNodes[endPoint].Degree == 1)
+                {
+                    pointToJunctionNodes[endPoint].IsRootNode = true;
+                }
+            }
+
+            // Step 2: Create edges (pipe segments) and build graphs for each disjoint network
             foreach (var featureList in allFeatures)
             {
-                var graph = new UndirectedGraph<AnalysisFeature, Edge<AnalysisFeature>>(false);
+                var graph = new UndirectedGraph<JunctionNode, PipeSegmentEdge>(false);
                 HashSet<AnalysisFeature> visited = new();
 
                 foreach (var featureNode in featureList)
@@ -65,32 +84,31 @@ namespace DimensioneringV2.Services
                             continue;
 
                         visited.Add(currentNode);
-                        graph.AddVertex(currentNode);
 
-                        // Find connected nodes and add edges
+                        // Find the start and end points of the current segment
                         LineString lineString = (LineString)currentNode.Geometry!;
                         Point2D startPoint = new Point2D(lineString.StartPoint.X, lineString.StartPoint.Y);
                         Point2D endPoint = new Point2D(lineString.EndPoint.X, lineString.EndPoint.Y);
 
-                        foreach (var point in new[] { startPoint, endPoint })
-                        {
-                            if (pointToFeatureNodes.TryGetValue(point, out var neighborNodes))
-                            {
-                                foreach (var neighborNode in neighborNodes)
-                                {
-                                    if (neighborNode != currentNode && !graph.ContainsEdge(
-                                        new Edge<AnalysisFeature>(currentNode, neighborNode)))
-                                    {
-                                        graph.AddVertex(neighborNode);
-                                        graph.AddEdge(new Edge<AnalysisFeature>(currentNode, neighborNode));
+                        // Retrieve the junction nodes for both start and end points
+                        var startJunction = pointToJunctionNodes[startPoint];
+                        var endJunction = pointToJunctionNodes[endPoint];
 
-                                        if (!visited.Contains(neighborNode))
-                                        {
-                                            stack.Push(neighborNode);
-                                        }
-                                    }
-                                }
-                            }
+                        // Add junction nodes to the graph
+                        graph.AddVertex(startJunction);
+                        graph.AddVertex(endJunction);
+
+                        // Create and add the edge representing the pipe segment
+                        var pipeSegmentEdge = new PipeSegmentEdge(startJunction, endJunction, currentNode);
+                        if (!graph.ContainsEdge(pipeSegmentEdge))
+                        {
+                            graph.AddEdge(pipeSegmentEdge);
+                        }
+
+                        // Add the connected segment to the stack if it has not been visited
+                        if (!visited.Contains(currentNode))
+                        {
+                            stack.Push(currentNode);
                         }
                     }
                 }

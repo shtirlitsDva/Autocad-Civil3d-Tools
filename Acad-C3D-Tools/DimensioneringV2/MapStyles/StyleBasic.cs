@@ -18,7 +18,7 @@ namespace DimensioneringV2.MapStyles
     {
         private IStyle _red;
         private IStyle _yellow;
-        public StyleBasic(IEnumerable<IFeature> features) : base(features)
+        public StyleBasic()
         {
             _red = new VectorStyle
             {

@@ -11,19 +11,11 @@ using System.Threading.Tasks;
 
 namespace DimensioneringV2.MapStyles
 {
-    class StyleCalculatedNumberOfBuildingsSupplied : StyleBase
+    class StyleNumberOfBuildingsSupplied_WithLabels : StyleNumberOfBuildingsSupplied_NoLabels
     {
-        private GradientHelper _gradientHelper;
-        /// <summary>
-        /// Remember: Do not use the supplied collection, use inherited private collection instead.
-        /// </summary>
-        public StyleCalculatedNumberOfBuildingsSupplied(IEnumerable<IFeature> features) : base(features)
+        public StyleNumberOfBuildingsSupplied_WithLabels()
         {
-            var af = _features.Cast<AnalysisFeature>();
-            var min = af.Min(f => f.NumberOfBuildingsSupplied);
-            var max = af.Max(f => f.NumberOfBuildingsSupplied);
-
-            _gradientHelper = new GradientHelper(min, max);
+            
         }
 
         public override IStyle[] GetStyles(IFeature feature)
@@ -34,15 +26,11 @@ namespace DimensioneringV2.MapStyles
 
             if (nr == 0)
             {
-                return new StyleDefault(_features).GetStyles(f);
+                return new StyleDefault().GetStyles(f);
             }
-            var s1 = new VectorStyle
-            {
-                Line = new Pen(_gradientHelper.LookupColor(nr))
-                {
-                    Width = 3
-                }
-            };
+
+            var s1 = base.GetStyles(feature).First();
+
             var s2 = new LabelStyle
             {
                 Text = f.NumberOfBuildingsSupplied.ToString(),

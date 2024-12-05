@@ -10,80 +10,66 @@ namespace DimensioneringV2.MapStyles
 {
     internal class GradientHelper
     {
-        private Dictionary<int, Color> _gradientLookup;
-        private int[] _boundaries;
+        private int _minValue;
+        private int _maxValue;
 
         public GradientHelper(int minValue, int maxValue)
         {
-            _boundaries = PrecalculateBoundaries(minValue, maxValue, 10);
-            _gradientLookup = CreateGradientLookup(_boundaries);
+            _minValue = minValue;
+            _maxValue = maxValue;
+        }
+        public Color GetGradientColor(int value)
+        {
+            // Ensure value is within bounds
+            value = Math.Max(_minValue, Math.Min(value, _maxValue));
+
+            // Calculate the ratio between min and max values
+            double ratio = (double)(value - _minValue) / (_maxValue - _minValue);
+
+            // Use HSL to RGB conversion to generate a brighter gradient color
+            // Hue ranges from 240 (blue) to 0 (red), keeping saturation and lightness high for bright colors
+            double hue = 240 - (240 * ratio);
+            double saturation = 0.9; // High saturation for vivid colors
+            double lightness = 0.6; // Higher lightness for brighter colors
+
+            return HslToRgb(hue, saturation, lightness);
         }
 
-        private int[] PrecalculateBoundaries(int minValue, int maxValue, int binCount)
+        private Color HslToRgb(double hue, double saturation, double lightness)
         {
-            int[] boundaries = new int[binCount + 1];
-            double range = maxValue - minValue;
-            double binSize = range / binCount;
+            double c = (1 - Math.Abs(2 * lightness - 1)) * saturation;
+            double x = c * (1 - Math.Abs((hue / 60) % 2 - 1));
+            double m = lightness - c / 2;
 
-            for (int i = 0; i <= binCount; i++)
+            double r = 0, g = 0, b = 0;
+
+            switch ((int)(hue / 60))
             {
-                boundaries[i] = (int)(minValue + i * binSize);
+                case 0:
+                    r = c; g = x; b = 0;
+                    break;
+                case 1:
+                    r = x; g = c; b = 0;
+                    break;
+                case 2:
+                    r = 0; g = c; b = x;
+                    break;
+                case 3:
+                    r = 0; g = x; b = c;
+                    break;
+                case 4:
+                    r = x; g = 0; b = c;
+                    break;
+                case 5:
+                    r = c; g = 0; b = x;
+                    break;
             }
 
-            return boundaries;
-        }
-
-        private Dictionary<int, Color> CreateGradientLookup(int[] boundaries)
-        {
-            var lookupTable = new Dictionary<int, Color>();
-            int binCount = boundaries.Length - 1;
-
-            for (int i = 0; i < binCount; i++)
-            {
-                Color color = GetGradientColor((double)i / (binCount - 1));
-                lookupTable[i] = color;
-            }
-
-            return lookupTable;
-        }
-
-        private Color GetGradientColor(double ratio)
-        {
-            // Ensure ratio is in the range [0, 1]
-            ratio = Math.Max(0, Math.Min(1, ratio));
-
-            byte red = (byte)(ratio * 255);
-            byte green = 0;
-            byte blue = (byte)((1 - ratio) * 255);
+            byte red = (byte)((r + m) * 255);
+            byte green = (byte)((g + m) * 255);
+            byte blue = (byte)((b + m) * 255);
 
             return new Color(red, green, blue, 255); // RGBA format with full opacity
-        }
-
-        public Color LookupColor(int value)
-        {
-            switch (value)
-            {
-                case int v when v >= _boundaries[0] && v < _boundaries[1]:
-                    return _gradientLookup[0];
-                case int v when v >= _boundaries[1] && v < _boundaries[2]:
-                    return _gradientLookup[1];
-                case int v when v >= _boundaries[2] && v < _boundaries[3]:
-                    return _gradientLookup[2];
-                case int v when v >= _boundaries[3] && v < _boundaries[4]:
-                    return _gradientLookup[3];
-                case int v when v >= _boundaries[4] && v < _boundaries[5]:
-                    return _gradientLookup[4];
-                case int v when v >= _boundaries[5] && v < _boundaries[6]:
-                    return _gradientLookup[5];
-                case int v when v >= _boundaries[6] && v < _boundaries[7]:
-                    return _gradientLookup[6];
-                case int v when v >= _boundaries[7] && v < _boundaries[8]:
-                    return _gradientLookup[7];
-                case int v when v >= _boundaries[8] && v < _boundaries[9]:
-                    return _gradientLookup[8];
-                default:
-                    return _gradientLookup[9];
-            }
         }
     }
 }

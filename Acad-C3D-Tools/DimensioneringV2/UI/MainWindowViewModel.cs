@@ -31,6 +31,7 @@ using IntersectUtilities.UtilsCommon;
 using Mapsui.Nts.Extensions;
 using Mapsui.Extensions.Projections;
 using NetTopologySuite.Geometries;
+using Mapsui.Styles;
 
 namespace DimensioneringV2.UI
 {
@@ -110,8 +111,8 @@ namespace DimensioneringV2.UI
 
             var trans = new CoordinateTransformationFactory().CreateFromCoordinateSystems(
                 ProjectedCoordinateSystem.WebMercator,
-                ProjectedCoordinateSystem.WGS84_UTM(32, true)); 
-            
+                ProjectedCoordinateSystem.WGS84_UTM(32, true));
+
             var minPT = trans.MathTransform.Transform(new double[] { minX, minY });
             var maxPT = trans.MathTransform.Transform(new double[] { maxX, maxY });
 
@@ -125,11 +126,20 @@ namespace DimensioneringV2.UI
         }
         #endregion
 
+        #region Toggle Labels
+        public RelayCommand PerformLabelToggle =>
+            new RelayCommand((_) => ToggleLabelStyles(), (_) => true);
+        private void ToggleLabelStyles()
+        {
+            _styleManager.Switch();
+            UpdateMap();
+        }
+        #endregion
+
         [ObservableProperty]
         private Map _mymap = new() { CRS = "EPSG:3857" };
 
-        [ObservableProperty]
-        private IStyleManager currentStyle;
+        private StyleManager _styleManager;
 
         public ObservableCollection<IFeature> Features { get; private set; }
 
@@ -140,14 +150,16 @@ namespace DimensioneringV2.UI
             // Update observable collections
             Features = new(_dataService!.Features.SelectMany(x => x));
 
-            CurrentStyle = new StyleBasic(Features);
+            _styleManager = new StyleManager(new StyleBasic(), new StyleBasic());
             CreateMapFirstTime();
         }
 
         private void OnCalculationsCompleted(object sender, EventArgs e)
         {
             Features = new(_dataService!.CalculatedFeatures.SelectMany(x => x));
-            CurrentStyle = new StyleCalculatedNumberOfBuildingsSupplied(Features);
+            _styleManager = new StyleManager(
+                new StyleNumberOfBuildingsSupplied_WithLabels(),
+                new StyleNumberOfBuildingsSupplied_NoLabels());
             UpdateMap();
         }
 
@@ -155,7 +167,9 @@ namespace DimensioneringV2.UI
         {
             if (Mymap == null) return;
 
-            var provider = new MemoryProvider(CurrentStyle.ApplyStyle())
+            _styleManager.CurrentStyle.ApplyStyle(Features);
+
+            var provider = new MemoryProvider(Features)
             {
                 CRS = "EPSG:3857"
             };
@@ -179,7 +193,9 @@ namespace DimensioneringV2.UI
         {
             if (Mymap == null) return;
 
-            var provider = new MemoryProvider(CurrentStyle.ApplyStyle())
+            _styleManager.CurrentStyle.ApplyStyle(Features);
+
+            var provider = new MemoryProvider(Features)
             {
                 CRS = "EPSG:3857"
             };
