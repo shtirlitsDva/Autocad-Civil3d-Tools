@@ -73,6 +73,10 @@ namespace DimensioneringV2.GraphFeatures
 
         //Summation from analyses
         /// <summary>
+        /// Helping flag for graph traversal.
+        /// </summary>
+        public bool Visited { get; set; } = false;
+        /// <summary>
         /// Is used to sum all the buildins supplied by the segment
         /// </summary>
         public int NumberOfBuildingsSupplied { get; set; }

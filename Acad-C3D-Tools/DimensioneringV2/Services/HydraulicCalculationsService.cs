@@ -9,6 +9,10 @@ using QuikGraph.Algorithms;
 using QuikGraph.Algorithms.ShortestPath;
 
 using DimensioneringV2.GraphFeatures;
+using System.Diagnostics;
+
+using utils = IntersectUtilities.UtilsCommon.Utils;
+using System.IO;
 
 namespace DimensioneringV2.Services
 {
@@ -33,9 +37,13 @@ namespace DimensioneringV2.Services
                 var tryGetPaths = graph.ShortestPathsDijkstra(edge => edge.PipeSegment.Length, rootNode);
 
                 // Add edges to the shortest path tree based on the shortest paths from the root node
-                foreach (var vertex in graph.Vertices)
+                var query = graph.Vertices.Where(
+                    x => graph.AdjacentEdges(x).Count() == 1 &&
+                        graph.AdjacentEdges(x).First().PipeSegment.NumberOfBuildingsConnected == 1);
+
+                foreach (var vertex in query)
                 {
-                    if (vertex != rootNode && tryGetPaths(vertex, out var path))
+                    if (tryGetPaths(vertex, out var path))
                     {
                         foreach (var edge in path)
                         {
@@ -49,11 +57,16 @@ namespace DimensioneringV2.Services
 
                 // Traverse from the root node to set levels for each edge
                 var visited = new HashSet<JunctionNode>();
-                SetEdgeLevels(shortestPathTree, rootNode, visited, 0);
+                //SetEdgeLevels(shortestPathTree, rootNode, visited, 0);
 
                 // Traverse from downstream nodes and calculate NumberOfBuildingsSupplied
-                visited.Clear();
+                // visited.Clear();
+                Stopwatch sw = new Stopwatch();
+                sw.Start();
                 CalculateBuildingsSupplied(shortestPathTree, rootNode, visited);
+                sw.Stop();
+                File.AppendAllLines(@"C:\Temp\mapLog.txt", [$"Elapsed: {sw.ElapsedMilliseconds} ms."]);
+                utils.prdDbg($"Elapsed: {sw.ElapsedMilliseconds} ms.");
             }
 
             _dataService.StoreCalculatedData(graphs.Select(g => g.Edges.Select(y => y.PipeSegment)));
@@ -94,22 +107,21 @@ namespace DimensioneringV2.Services
             foreach (var edge in graph.AdjacentEdges(node))
             {
                 var neighbor = edge.GetOtherVertex(node);
-                if (!visited.Contains(neighbor))
+                //if (!visited.Contains(neighbor))
                 {
                     // Recursively calculate buildings supplied for downstream nodes
                     int buildingsFromNeighbor = CalculateBuildingsSupplied(graph, neighbor, visited);
                     totalBuildings += buildingsFromNeighbor;
-                    edge.PipeSegment.NumberOfBuildingsSupplied = buildingsFromNeighbor + edge.PipeSegment.NumberOfBuildingsConnected;
+                    edge.PipeSegment.NumberOfBuildingsSupplied = buildingsFromNeighbor;
                 }
             }
 
-            // If this is a leaf node, set the number of buildings supplied to the connected value
+            //If this is a leaf node, set the number of buildings supplied to the connected value
             if (totalBuildings == 0)
             {
-                totalBuildings = graph.AdjacentEdges(node).Sum(edge => edge.PipeSegment.NumberOfBuildingsConnected);
-                foreach (var edge in graph.AdjacentEdges(node))
+                if (graph.AdjacentEdges(node).Count() == 1)
                 {
-                    edge.PipeSegment.NumberOfBuildingsSupplied = edge.PipeSegment.NumberOfBuildingsConnected;
+                    totalBuildings = graph.AdjacentEdges(node).First().PipeSegment.NumberOfBuildingsConnected;
                 }
             }
 
